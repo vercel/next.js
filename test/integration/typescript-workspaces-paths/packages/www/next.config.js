@@ -1,7 +1,7 @@
-const path = require('path')
+const path = require("path");
 module.exports = {
   webpack: function (config, { defaultLoaders }) {
-    const resolvedBaseUrl = path.resolve(config.context, '../../')
+    const resolvedBaseUrl = path.resolve(config.context, "../../");
     config.module.rules = [
       ...config.module.rules,
       {
@@ -9,15 +9,15 @@ module.exports = {
         include: [resolvedBaseUrl],
         use: defaultLoaders.babel,
         exclude: (excludePath) => {
-          return /node_modules/.test(excludePath)
+          return /node_modules/.test(excludePath);
         },
       },
-    ]
-    return config
+    ];
+    return config;
   },
 
   onDemandEntries: {
     // Make sure entries are not getting disposed.
     maxInactiveAge: 1000 * 60 * 60,
   },
-}
+};

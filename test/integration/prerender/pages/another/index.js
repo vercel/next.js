@@ -1,18 +1,18 @@
-import Link from 'next/link'
-import fs from 'fs'
-import path from 'path'
+import Link from "next/link";
+import fs from "fs";
+import path from "path";
 
 export async function getStaticProps() {
   const text = fs
-    .readFileSync(path.join(process.cwd(), 'world.txt'), 'utf8')
-    .trim()
+    .readFileSync(path.join(process.cwd(), "world.txt"), "utf8")
+    .trim();
   return {
     props: {
       world: text,
       time: new Date().getTime(),
     },
     revalidate: true,
-  }
+  };
 }
 
 export default ({ world, time }) => (
@@ -27,4 +27,4 @@ export default ({ world, time }) => (
       to something
     </Link>
   </>
-)
+);

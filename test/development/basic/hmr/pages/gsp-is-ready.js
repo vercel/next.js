@@ -1,14 +1,14 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <p>getStaticProps router.isReady</p>
       <p id="query">{JSON.stringify(router.query)}</p>
-      <p id="ready">{router.isReady ? 'yes' : 'no'}</p>
+      <p id="ready">{router.isReady ? "yes" : "no"}</p>
     </>
-  )
+  );
 }
 
 export function getStaticProps() {
@@ -16,5 +16,5 @@ export function getStaticProps() {
     props: {
       now: Date.now(),
     },
-  }
+  };
 }

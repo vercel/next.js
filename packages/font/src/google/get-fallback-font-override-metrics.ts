@@ -1,7 +1,7 @@
 // @ts-ignore
-import { calculateSizeAdjustValues } from 'next/dist/server/font-utils'
+import { calculateSizeAdjustValues } from "next/dist/server/font-utils";
 // @ts-ignore
-import * as Log from 'next/dist/build/output/log'
+import * as Log from "next/dist/build/output/log";
 
 /**
  * Get precalculated fallback font metrics for the Google Fonts family.
@@ -13,15 +13,15 @@ import * as Log from 'next/dist/build/output/log'
 export function getFallbackFontOverrideMetrics(fontFamily: string) {
   try {
     const { ascent, descent, lineGap, fallbackFont, sizeAdjust } =
-      calculateSizeAdjustValues(fontFamily)
+      calculateSizeAdjustValues(fontFamily);
     return {
       fallbackFont,
       ascentOverride: `${ascent}%`,
       descentOverride: `${descent}%`,
       lineGapOverride: `${lineGap}%`,
       sizeAdjust: `${sizeAdjust}%`,
-    }
+    };
   } catch {
-    Log.error(`Failed to find font override values for font \`${fontFamily}\``)
+    Log.error(`Failed to find font override values for font \`${fontFamily}\``);
   }
 }

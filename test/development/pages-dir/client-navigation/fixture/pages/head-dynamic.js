@@ -1,8 +1,8 @@
-import Head from 'next/head'
-import React from 'react'
+import Head from "next/head";
+import React from "react";
 
 function Foo() {
-  const [displayed, toggle] = React.useState(true)
+  const [displayed, toggle] = React.useState(true);
 
   return (
     <>
@@ -13,7 +13,7 @@ function Foo() {
       ) : null}
       <button onClick={() => toggle(!displayed)}>toggle</button>
     </>
-  )
+  );
 }
 
 export default () => {
@@ -24,5 +24,5 @@ export default () => {
       </Head>
       <Foo />
     </>
-  )
-}
+  );
+};

@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import { name } from 'pure-esm-module'
+import { name } from "pure-esm-module";
 
 export default function () {
-  return `node_modules instance from client module ${name}`
+  return `node_modules instance from client module ${name}`;
 }

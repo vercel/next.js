@@ -1,115 +1,118 @@
-import React from 'react'
-import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
+import React from "react";
+import type { fetchServerResponse as fetchServerResponseType } from "../fetch-server-response";
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../../server/app-render/types'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_SERVER_PATCH, ACTION_NAVIGATE } from '../router-reducer-types'
-import type { ServerPatchAction, NavigateAction } from '../router-reducer-types'
-import { navigateReducer } from './navigate-reducer'
-import { serverPatchReducer } from './server-patch-reducer'
-const buildId = 'development'
+} from "../../../../server/app-render/types";
+import type { CacheNode } from "../../../../shared/lib/app-router-context.shared-runtime";
+import { createInitialRouterState } from "../create-initial-router-state";
+import { ACTION_SERVER_PATCH, ACTION_NAVIGATE } from "../router-reducer-types";
+import type {
+  ServerPatchAction,
+  NavigateAction,
+} from "../router-reducer-types";
+import { navigateReducer } from "./navigate-reducer";
+import { serverPatchReducer } from "./server-patch-reducer";
+const buildId = "development";
 
-jest.mock('../fetch-server-response', () => {
+jest.mock("../fetch-server-response", () => {
   const flightData: FlightData = [
     [
-      'children',
-      'linking',
-      'children',
-      'about',
+      "children",
+      "linking",
+      "children",
+      "about",
       [
-        'about',
+        "about",
         {
-          children: ['', {}],
+          children: ["", {}],
         },
       ],
-      ['about', {}, <h1>About Page!</h1>],
+      ["about", {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
     ],
-  ]
+  ];
   return {
     fetchServerResponse: (
       url: URL
     ): ReturnType<typeof fetchServerResponseType> => {
-      if (url.pathname === '/linking/about') {
-        return Promise.resolve([flightData, undefined])
+      if (url.pathname === "/linking/about") {
+        return Promise.resolve([flightData, undefined]);
       }
 
-      throw new Error('unknown url in mock')
+      throw new Error("unknown url in mock");
     },
-  }
-})
+  };
+});
 
 const flightDataForPatch: FlightData = [
   [
-    'children',
-    'linking',
-    'children',
-    'somewhere-else',
+    "children",
+    "linking",
+    "children",
+    "somewhere-else",
     [
-      'somewhere-else',
+      "somewhere-else",
       {
-        children: ['', {}],
+        children: ["", {}],
       },
     ],
-    ['somewhere-else', {}, <h1>Somewhere Page!</h1>],
+    ["somewhere-else", {}, <h1>Somewhere Page!</h1>],
     <>
       <title>Somewhere page!</title>
     </>,
   ],
-]
+];
 
 const getInitialRouterStateTree = (): FlightRouterState => [
-  '',
+  "",
   {
     children: [
-      'linking',
+      "linking",
       {
-        children: ['about', { children: ['', {}] }],
+        children: ["about", { children: ["", {}] }],
       },
     ],
   },
   undefined,
   undefined,
   true,
-]
+];
 
-describe('serverPatchReducer', () => {
+describe("serverPatchReducer", () => {
   beforeAll(() => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2023-07-26'))
-  })
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2023-07-26"));
+  });
 
   afterAll(() => {
-    jest.useRealTimers()
-  })
+    jest.useRealTimers();
+  });
 
-  it('should apply server patch', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply server patch", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '',
+                      "",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -127,28 +130,28 @@ describe('serverPatchReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking/about', 'https://localhost') as any,
-    })
+      location: new URL("/linking/about", "https://localhost") as any,
+    });
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       flightData: flightDataForPatch,
       previousTree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
-              children: ['about', { children: ['', {}] }],
+              children: ["about", { children: ["", {}] }],
             },
           ],
         },
@@ -157,9 +160,9 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-    }
+    };
 
-    const newState = await serverPatchReducer(state, action)
+    const newState = await serverPatchReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -256,31 +259,31 @@ describe('serverPatchReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply server patch without affecting focusAndScrollRef', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply server patch without affecting focusAndScrollRef", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '',
+                      "",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -298,40 +301,40 @@ describe('serverPatchReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const navigateAction: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL(initialCanonicalUrl, 'https://localhost') as any,
-    })
+      location: new URL(initialCanonicalUrl, "https://localhost") as any,
+    });
 
-    const stateAfterNavigate = await navigateReducer(state, navigateAction)
+    const stateAfterNavigate = await navigateReducer(state, navigateAction);
 
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       flightData: flightDataForPatch,
       previousTree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
-              children: ['about', { children: ['', {}] }],
+              children: ["about", { children: ["", {}] }],
             },
           ],
         },
@@ -340,9 +343,9 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-    }
+    };
 
-    const newState = await serverPatchReducer(stateAfterNavigate, action)
+    const newState = await serverPatchReducer(stateAfterNavigate, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -499,51 +502,51 @@ describe('serverPatchReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
   it("should gracefully recover if the server patch doesn't match the current tree", async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
+    );
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes: new Map(),
       isServer: false,
-      location: new URL('/linking/about', 'https://localhost') as any,
-    })
+      location: new URL("/linking/about", "https://localhost") as any,
+    });
 
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       // this flight data is intentionally completely unrelated to the existing tree
       flightData: [
         [
-          'children',
-          'tree-patch-failure',
-          'children',
-          'new-page',
-          ['new-page', { children: ['__PAGE__', {}] }],
+          "children",
+          "tree-patch-failure",
+          "children",
+          "new-page",
+          ["new-page", { children: ["__PAGE__", {}] }],
           null,
           null,
         ],
       ],
       previousTree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
-              children: ['about', { children: ['', {}] }],
+              children: ["about", { children: ["", {}] }],
             },
           ],
         },
@@ -552,11 +555,11 @@ describe('serverPatchReducer', () => {
         true,
       ],
       overrideCanonicalUrl: undefined,
-    }
+    };
 
-    const newState = await serverPatchReducer(state, action)
-    expect(newState.pushRef.pendingPush).toBe(true)
-    expect(newState.pushRef.mpaNavigation).toBe(true)
-    expect(newState.canonicalUrl).toBe('/linking/about')
-  })
-})
+    const newState = await serverPatchReducer(state, action);
+    expect(newState.pushRef.pendingPush).toBe(true);
+    expect(newState.pushRef.mpaNavigation).toBe(true);
+    expect(newState.canonicalUrl).toBe("/linking/about");
+  });
+});

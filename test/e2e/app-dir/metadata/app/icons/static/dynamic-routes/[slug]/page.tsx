@@ -1,3 +1,3 @@
 export default function page() {
-  return 'icon in dynamic routes'
+  return "icon in dynamic routes";
 }

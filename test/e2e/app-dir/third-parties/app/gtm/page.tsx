@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { GoogleTagManager, sendGTMEvent } from '@next/third-parties/google'
+import React from "react";
+import { GoogleTagManager, sendGTMEvent } from "@next/third-parties/google";
 
 const Page = () => {
   const onClick = () => {
-    sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })
-  }
+    sendGTMEvent({ event: "buttonClicked", value: "xyz" });
+  };
 
   return (
     <div className="container">
@@ -17,7 +17,7 @@ const Page = () => {
       </button>
       <GoogleTagManager gtmId="GTM-XYZ" />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

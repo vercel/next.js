@@ -1,6 +1,6 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
-  return <p id="current-locale">{router.locale}</p>
+  const router = useRouter();
+  return <p id="current-locale">{router.locale}</p>;
 }

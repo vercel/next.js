@@ -14,19 +14,19 @@ export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
   // `force-cache` is the default and can be omitted.
-  const staticData = await fetch(`https://...`, { cache: 'force-cache' })
+  const staticData = await fetch(`https://...`, { cache: "force-cache" });
 
   // This request should be refetched on every request.
   // Similar to `getServerSideProps`.
-  const dynamicData = await fetch(`https://...`, { cache: 'no-store' })
+  const dynamicData = await fetch(`https://...`, { cache: "no-store" });
 
   // This request should be cached with a lifetime of 10 seconds.
   // Similar to `getStaticProps` with the `revalidate` option.
   const revalidatedData = await fetch(`https://...`, {
     next: { revalidate: 10 },
-  })
+  });
 
-  return <div>...</div>
+  return <div>...</div>;
 }
 ```
 
@@ -35,19 +35,19 @@ export default async function Page() {
   // This request should be cached until manually invalidated.
   // Similar to `getStaticProps`.
   // `force-cache` is the default and can be omitted.
-  const staticData = await fetch(`https://...`, { cache: 'force-cache' })
+  const staticData = await fetch(`https://...`, { cache: "force-cache" });
 
   // This request should be refetched on every request.
   // Similar to `getServerSideProps`.
-  const dynamicData = await fetch(`https://...`, { cache: 'no-store' })
+  const dynamicData = await fetch(`https://...`, { cache: "no-store" });
 
   // This request should be cached with a lifetime of 10 seconds.
   // Similar to `getStaticProps` with the `revalidate` option.
   const revalidatedData = await fetch(`https://...`, {
     next: { revalidate: 10 },
-  })
+  });
 
-  return <div>...</div>
+  return <div>...</div>;
 }
 ```
 
@@ -60,7 +60,7 @@ Since Next.js extends the [Web `fetch()` API](https://developer.mozilla.org/docs
 Configure how the request should interact with Next.js [Data Cache](/docs/app/building-your-application/caching#data-cache).
 
 ```ts
-fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
+fetch(`https://...`, { cache: "force-cache" | "no-store" });
 ```
 
 - **`force-cache`** (default) - Next.js looks for a matching request in its Data Cache.
@@ -76,7 +76,7 @@ fetch(`https://...`, { cache: 'force-cache' | 'no-store' })
 ### `options.next.revalidate`
 
 ```ts
-fetch(`https://...`, { next: { revalidate: false | 0 | number } })
+fetch(`https://...`, { next: { revalidate: false | 0 | number } });
 ```
 
 Set the cache lifetime of a resource (in seconds).
@@ -95,7 +95,7 @@ Set the cache lifetime of a resource (in seconds).
 ### `options.next.tags`
 
 ```ts
-fetch(`https://...`, { next: { tags: ['collection'] } })
+fetch(`https://...`, { next: { tags: ["collection"] } });
 ```
 
 Set the cache tags of a resource. Data can then be revalidated on-demand using [`revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag). The max length for a custom tag is 256 characters.

@@ -16,7 +16,7 @@ export const config = {
   api: {
     responseLimit: false,
   },
-}
+};
 ```
 
 Alternatively, `responseLimit` can also accept a numeric value (in bytes) or any string format supported by the `bytes` module. This can be a value like `1000`, `'500kb'`, or `'3mb'`. This value will set the maximum response size before a warning is displayed. For example, to set the limit to 8MB:
@@ -24,9 +24,9 @@ Alternatively, `responseLimit` can also accept a numeric value (in bytes) or any
 ```js filename="pages/api/example.js"
 export const config = {
   api: {
-    responseLimit: '8mb',
+    responseLimit: "8mb",
   },
-}
+};
 ```
 
 **Note:** Increasing the response limit can have significant impacts on performance and should only be done after careful consideration.

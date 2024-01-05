@@ -1,6 +1,6 @@
-import '../styles/global.css'
+import "../styles/global.css";
 
 const App = ({ Component, pageProps }) => {
-  return <Component {...pageProps} />
-}
-export default App
+  return <Component {...pageProps} />;
+};
+export default App;

@@ -1,6 +1,6 @@
 module.exports = {
-  output: 'export',
+  output: "export",
   exportPathMap() {
-    return { '/': { page: '/' } }
+    return { "/": { page: "/" } };
   },
-}
+};

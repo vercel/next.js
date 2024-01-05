@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -9,5 +9,5 @@ export default function Page() {
       <p id="pathname">{router.pathname}</p>
       <p id="query">{JSON.stringify(router.query)}</p>
     </>
-  )
+  );
 }

@@ -1,3 +1,3 @@
 export default function inc(x: number) {
-  return x + 1
+  return x + 1;
 }

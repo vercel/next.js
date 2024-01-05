@@ -18,24 +18,24 @@ related:
 To load a third-party script for multiple routes, import `next/script` and include the script directly in your layout component:
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <>
       <section>{children}</section>
       <Script src="https://example.com/script.js" />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/dashboard/layout.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function DashboardLayout({ children }) {
   return (
@@ -43,7 +43,7 @@ export default function DashboardLayout({ children }) {
       <section>{children}</section>
       <Script src="https://example.com/script.js" />
     </>
-  )
+  );
 }
 ```
 
@@ -58,24 +58,24 @@ The third-party script is fetched when the folder route (e.g. `dashboard/page.js
 To load a third-party script for all routes, import `next/script` and include the script directly in your root layout:
 
 ```tsx filename="app/layout.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
       <Script src="https://example.com/script.js" />
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function RootLayout({ children }) {
   return (
@@ -83,7 +83,7 @@ export default function RootLayout({ children }) {
       <body>{children}</body>
       <Script src="https://example.com/script.js" />
     </html>
-  )
+  );
 }
 ```
 
@@ -94,7 +94,7 @@ export default function RootLayout({ children }) {
 To load a third-party script for all routes, import `next/script` and include the script directly in your custom `_app`:
 
 ```jsx filename="pages/_app.js"
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -102,7 +102,7 @@ export default function MyApp({ Component, pageProps }) {
       <Component {...pageProps} />
       <Script src="https://example.com/script.js" />
     </>
-  )
+  );
 }
 ```
 
@@ -136,7 +136,7 @@ module.exports = {
   experimental: {
     nextScriptWorkers: true,
   },
-}
+};
 ```
 
 Then, run `next` (normally `npm run dev` or `yarn dev`) and Next.js will guide you through the installation of the required packages to finish the setup:
@@ -150,26 +150,26 @@ You'll see instructions like these: Please install Partytown by running `npm ins
 Once setup is complete, defining `strategy="worker"` will automatically instantiate Partytown in your application and offload the script to a web worker.
 
 ```tsx filename="pages/home.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Home() {
   return (
     <>
       <Script src="https://example.com/script.js" strategy="worker" />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="pages/home.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Home() {
   return (
     <>
       <Script src="https://example.com/script.js" strategy="worker" />
     </>
-  )
+  );
 }
 ```
 
@@ -211,9 +211,9 @@ Event handlers can be used with the Script component to execute additional code 
 These handlers will only work when `next/script` is imported and used inside of a [Client Component](/docs/app/building-your-application/rendering/client-components) where `"use client"` is defined as the first line of code:
 
 ```tsx filename="app/page.tsx" switcher
-'use client'
+"use client";
 
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -221,18 +221,18 @@ export default function Page() {
       <Script
         src="https://example.com/script.js"
         onLoad={() => {
-          console.log('Script has loaded')
+          console.log("Script has loaded");
         }}
       />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-'use client'
+"use client";
 
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -240,11 +240,11 @@ export default function Page() {
       <Script
         src="https://example.com/script.js"
         onLoad={() => {
-          console.log('Script has loaded')
+          console.log("Script has loaded");
         }}
       />
     </>
-  )
+  );
 }
 ```
 
@@ -257,7 +257,7 @@ Refer to the [`next/script`](/docs/app/api-reference/components/script#onload) A
 These handlers will only work when `next/script` is imported and used inside of a [Client Component](/docs/app/building-your-application/rendering/client-components) where `"use client"` is defined as the first line of code:
 
 ```tsx filename="pages/index.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -265,16 +265,16 @@ export default function Page() {
       <Script
         src="https://example.com/script.js"
         onLoad={() => {
-          console.log('Script has loaded')
+          console.log("Script has loaded");
         }}
       />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="pages/index.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -282,11 +282,11 @@ export default function Page() {
       <Script
         src="https://example.com/script.js"
         onLoad={() => {
-          console.log('Script has loaded')
+          console.log("Script has loaded");
         }}
       />
     </>
-  )
+  );
 }
 ```
 
@@ -301,7 +301,7 @@ There are many DOM attributes that can be assigned to a `<script>` element that 
 <AppOnly>
 
 ```tsx filename="app/page.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -313,12 +313,12 @@ export default function Page() {
         data-test="script"
       />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -330,7 +330,7 @@ export default function Page() {
         data-test="script"
       />
     </>
-  )
+  );
 }
 ```
 
@@ -339,7 +339,7 @@ export default function Page() {
 <PagesOnly>
 
 ```tsx filename="pages/index.tsx" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -351,12 +351,12 @@ export default function Page() {
         data-test="script"
       />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="pages/index.js" switcher
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Page() {
   return (
@@ -368,7 +368,7 @@ export default function Page() {
         data-test="script"
       />
     </>
-  )
+  );
 }
 ```
 

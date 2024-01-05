@@ -1,27 +1,27 @@
-if (typeof navigator !== 'undefined') {
-  window.__BEACONS = window.__BEACONS || []
-  window.__BEACONS_COUNT = new Map()
+if (typeof navigator !== "undefined") {
+  window.__BEACONS = window.__BEACONS || [];
+  window.__BEACONS_COUNT = new Map();
 
   navigator.sendBeacon = async function () {
     const args = await Promise.all(
       [...arguments].map((v) => {
         if (v instanceof Blob) {
-          return v.text()
+          return v.text();
         }
-        return v
+        return v;
       })
-    )
+    );
 
-    window.__BEACONS.push(args)
-  }
+    window.__BEACONS.push(args);
+  };
 }
 
 function toggleText(e) {
-  const startTime = performance.now()
+  const startTime = performance.now();
   while (performance.now() < startTime + 100) {
     // busy waiting
   }
-  e.target.textContent = e.target.textContent === 'Click' ? 'Press' : 'Click'
+  e.target.textContent = e.target.textContent === "Click" ? "Press" : "Click";
 }
 
 export default () => {
@@ -32,5 +32,5 @@ export default () => {
       <h2>bar!</h2>
       <button onClick={toggleText}>Click</button>
     </div>
-  )
-}
+  );
+};

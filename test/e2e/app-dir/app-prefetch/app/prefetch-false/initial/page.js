@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -11,5 +11,5 @@ export default function Page() {
         To prefetch false
       </Link>
     </>
-  )
+  );
 }

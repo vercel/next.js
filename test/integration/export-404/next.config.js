@@ -1,6 +1,6 @@
 module.exports = (phase) => {
   return {
-    output: 'export',
+    output: "export",
     trailingSlash: false,
-  }
-}
+  };
+};

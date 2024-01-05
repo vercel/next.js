@@ -1,7 +1,7 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-if (typeof window !== 'undefined') {
-  window.NAV_PAGE_LOADED = true
+if (typeof window !== "undefined") {
+  window.NAV_PAGE_LOADED = true;
 }
 
 export default function Nav() {
@@ -18,5 +18,5 @@ export default function Nav() {
         </Link>
       </li>
     </ul>
-  )
+  );
 }

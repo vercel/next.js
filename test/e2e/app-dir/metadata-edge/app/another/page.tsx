@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default function Page() {
-  return <>hello another</>
+  return <>hello another</>;
 }
 
 export const metadata = {
-  title: 'another page',
-}
+  title: "another page",
+};
 
-export const runtime = 'edge'
+export const runtime = "edge";

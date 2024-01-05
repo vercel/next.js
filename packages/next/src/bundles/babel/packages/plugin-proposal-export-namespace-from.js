@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginProposalExportNamespaceFrom()
+module.exports = require("./bundle").pluginProposalExportNamespaceFrom();

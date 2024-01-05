@@ -1,15 +1,15 @@
-import Counter from './counter'
-import Form from './form'
-import ClientForm from './client-form'
+import Counter from "./counter";
+import Form from "./form";
+import ClientForm from "./client-form";
 
-import dec, { inc, slowInc } from './actions'
-import { log } from './actions-2'
+import dec, { inc, slowInc } from "./actions";
+import { log } from "./actions-2";
 
 export default function Page() {
-  const two = { value: 2 }
+  const two = { value: 2 };
 
   // https://github.com/vercel/next.js/issues/58463
-  const data = '你好'
+  const data = "你好";
 
   return (
     <>
@@ -18,12 +18,12 @@ export default function Page() {
         dec={dec}
         slowInc={slowInc}
         double={async (x) => {
-          'use server'
-          if (data === '你好') {
-            return x * two.value
+          "use server";
+          if (data === "你好") {
+            return x * two.value;
           }
           // Wrong answer
-          return 42
+          return 42;
         }}
       />
       <Form />
@@ -34,5 +34,5 @@ export default function Page() {
         </button>
       </form>
     </>
-  )
+  );
 }

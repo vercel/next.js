@@ -1,24 +1,24 @@
-import Link from 'next/link'
-import type { GetServerSideProps } from 'next'
+import Link from "next/link";
+import type { GetServerSideProps } from "next";
 
 type Props = {
-  random: number
-  draftMode: string
-}
+  random: number;
+  draftMode: string;
+};
 
 export const getServerSideProps: GetServerSideProps<Props> = async ({
   res,
   draftMode,
 }) => {
   // test override header
-  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.setHeader("Cache-Control", "public, max-age=3600");
   return {
     props: {
       random: Math.random(),
       draftMode: Boolean(draftMode).toString(),
     },
-  }
-}
+  };
+};
 
 export default function SSP(props: Props) {
   return (
@@ -32,5 +32,5 @@ export default function SSP(props: Props) {
       </p>
       <Link href="/">Go home</Link>
     </>
-  )
+  );
 }

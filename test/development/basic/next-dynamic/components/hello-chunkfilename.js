@@ -1,1 +1,1 @@
-export default () => <div>test chunkfilename</div>
+export default () => <div>test chunkfilename</div>;

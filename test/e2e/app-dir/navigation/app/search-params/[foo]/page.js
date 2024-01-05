@@ -1,15 +1,15 @@
-'use client'
-import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useEffect } from 'react'
+"use client";
+import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
+import { useEffect } from "react";
 
 export default function Page() {
-  const params = useParams()
-  const router = useRouter()
-  const [count, setCount] = useState(0)
+  const params = useParams();
+  const router = useRouter();
+  const [count, setCount] = useState(0);
   useEffect(() => {
-    console.log('params changed')
-  }, [params])
+    console.log("params changed");
+  }, [params]);
   return (
     <div>
       <button
@@ -21,10 +21,10 @@ export default function Page() {
 
       <button
         id="change-params-button"
-        onClick={() => router.push('/search-params/bar')}
+        onClick={() => router.push("/search-params/bar")}
       >
         Change Params
       </button>
     </div>
-  )
+  );
 }

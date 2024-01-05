@@ -1,15 +1,15 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document'
-import sideEffect from '../sideEffectModule'
+import Document, { Html, Head, Main, NextScript } from "next/document";
+import sideEffect from "../sideEffectModule";
 
-sideEffect('_document')
+sideEffect("_document");
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
+    const initialProps = await Document.getInitialProps(ctx);
 
     return {
       ...initialProps,
-    }
+    };
   }
 
   render() {
@@ -21,8 +21,8 @@ class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }
 
-export default MyDocument
+export default MyDocument;

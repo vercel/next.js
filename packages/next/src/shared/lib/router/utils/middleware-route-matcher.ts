@@ -1,14 +1,14 @@
-import type { BaseNextRequest } from '../../../../server/base-http'
-import type { MiddlewareMatcher } from '../../../../build/analysis/get-page-static-info'
-import type { Params } from './route-matcher'
-import { matchHas } from './prepare-destination'
+import type { BaseNextRequest } from "../../../../server/base-http";
+import type { MiddlewareMatcher } from "../../../../build/analysis/get-page-static-info";
+import type { Params } from "./route-matcher";
+import { matchHas } from "./prepare-destination";
 
 export interface MiddlewareRouteMatch {
   (
     pathname: string | null | undefined,
     request: BaseNextRequest,
     query: Params
-  ): boolean
+  ): boolean;
 }
 
 export function getMiddlewareRouteMatcher(
@@ -20,21 +20,21 @@ export function getMiddlewareRouteMatcher(
     query: Params
   ) => {
     for (const matcher of matchers) {
-      const routeMatch = new RegExp(matcher.regexp).exec(pathname!)
+      const routeMatch = new RegExp(matcher.regexp).exec(pathname!);
       if (!routeMatch) {
-        continue
+        continue;
       }
 
       if (matcher.has || matcher.missing) {
-        const hasParams = matchHas(req, query, matcher.has, matcher.missing)
+        const hasParams = matchHas(req, query, matcher.has, matcher.missing);
         if (!hasParams) {
-          continue
+          continue;
         }
       }
 
-      return true
+      return true;
     }
 
-    return false
-  }
+    return false;
+  };
 }

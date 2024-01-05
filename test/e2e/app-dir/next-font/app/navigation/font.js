@@ -1,3 +1,3 @@
-import localFont from 'next/font/local'
+import localFont from "next/font/local";
 
-export const font = localFont({ src: './font.woff2' })
+export const font = localFont({ src: "./font.woff2" });

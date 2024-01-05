@@ -4,5 +4,5 @@ export default function Home() {
       <div className="test1">Hello</div>
       <div className="test2">Hello</div>
     </main>
-  )
+  );
 }

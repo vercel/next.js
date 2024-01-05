@@ -16,32 +16,32 @@ Use the file `middleware.ts` (or `.js`) in the root of your project to define Mi
 ## Example
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request: NextRequest) {
-  return NextResponse.redirect(new URL('/home', request.url))
+  return NextResponse.redirect(new URL("/home", request.url));
 }
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: '/about/:path*',
-}
+  matcher: "/about/:path*",
+};
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 // This function can be marked `async` if using `await` inside
 export function middleware(request) {
-  return NextResponse.redirect(new URL('/home', request.url))
+  return NextResponse.redirect(new URL("/home", request.url));
 }
 
 // See "Matching Paths" below to learn more
 export const config = {
-  matcher: '/about/:path*',
-}
+  matcher: "/about/:path*",
+};
 ```
 
 ## Matching Paths
@@ -68,16 +68,16 @@ There are two ways to define which paths Middleware will run on:
 
 ```js filename="middleware.js"
 export const config = {
-  matcher: '/about/:path*',
-}
+  matcher: "/about/:path*",
+};
 ```
 
 You can match a single path or multiple paths with an array syntax:
 
 ```js filename="middleware.js"
 export const config = {
-  matcher: ['/about/:path*', '/dashboard/:path*'],
-}
+  matcher: ["/about/:path*", "/dashboard/:path*"],
+};
 ```
 
 The `matcher` config allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
@@ -92,9 +92,9 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
-}
+};
 ```
 
 You can also ignore prefetches (from `next/link`) that don't need to go through the Middleware using the `missing` array:
@@ -110,14 +110,14 @@ export const config = {
      * - favicon.ico (favicon file)
      */
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
   ],
-}
+};
 ```
 
 > **Good to know**: The `matcher` values need to be constants so they can be statically analyzed at build-time. Dynamic values such as variables will be ignored.
@@ -136,30 +136,30 @@ Read more details on [path-to-regexp](https://github.com/pillarjs/path-to-regexp
 ### Conditional Statements
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/about')) {
-    return NextResponse.rewrite(new URL('/about-2', request.url))
+  if (request.nextUrl.pathname.startsWith("/about")) {
+    return NextResponse.rewrite(new URL("/about-2", request.url));
   }
 
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.rewrite(new URL('/dashboard/user', request.url))
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    return NextResponse.rewrite(new URL("/dashboard/user", request.url));
   }
 }
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  if (request.nextUrl.pathname.startsWith('/about')) {
-    return NextResponse.rewrite(new URL('/about-2', request.url))
+  if (request.nextUrl.pathname.startsWith("/about")) {
+    return NextResponse.rewrite(new URL("/about-2", request.url));
   }
 
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.rewrite(new URL('/dashboard/user', request.url))
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
+    return NextResponse.rewrite(new URL("/dashboard/user", request.url));
   }
 }
 ```
@@ -200,65 +200,65 @@ Cookies are regular headers. On a `Request`, they are stored in the `Cookie` hea
 2. For outgoing responses, `cookies` have the following methods `get`, `getAll`, `set`, and `delete`.
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  let cookie = request.cookies.get('nextjs')
-  console.log(cookie) // => { name: 'nextjs', value: 'fast', Path: '/' }
-  const allCookies = request.cookies.getAll()
-  console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
+  let cookie = request.cookies.get("nextjs");
+  console.log(cookie); // => { name: 'nextjs', value: 'fast', Path: '/' }
+  const allCookies = request.cookies.getAll();
+  console.log(allCookies); // => [{ name: 'nextjs', value: 'fast' }]
 
-  request.cookies.has('nextjs') // => true
-  request.cookies.delete('nextjs')
-  request.cookies.has('nextjs') // => false
+  request.cookies.has("nextjs"); // => true
+  request.cookies.delete("nextjs");
+  request.cookies.has("nextjs"); // => false
 
   // Setting cookies on the response using the `ResponseCookies` API
-  const response = NextResponse.next()
-  response.cookies.set('vercel', 'fast')
+  const response = NextResponse.next();
+  response.cookies.set("vercel", "fast");
   response.cookies.set({
-    name: 'vercel',
-    value: 'fast',
-    path: '/',
-  })
-  cookie = response.cookies.get('vercel')
-  console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/' }
+    name: "vercel",
+    value: "fast",
+    path: "/",
+  });
+  cookie = response.cookies.get("vercel");
+  console.log(cookie); // => { name: 'vercel', value: 'fast', Path: '/' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/` header.
 
-  return response
+  return response;
 }
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(request) {
   // Assume a "Cookie:nextjs=fast" header to be present on the incoming request
   // Getting cookies from the request using the `RequestCookies` API
-  let cookie = request.cookies.get('nextjs')
-  console.log(cookie) // => { name: 'nextjs', value: 'fast', Path: '/' }
-  const allCookies = request.cookies.getAll()
-  console.log(allCookies) // => [{ name: 'nextjs', value: 'fast' }]
+  let cookie = request.cookies.get("nextjs");
+  console.log(cookie); // => { name: 'nextjs', value: 'fast', Path: '/' }
+  const allCookies = request.cookies.getAll();
+  console.log(allCookies); // => [{ name: 'nextjs', value: 'fast' }]
 
-  request.cookies.has('nextjs') // => true
-  request.cookies.delete('nextjs')
-  request.cookies.has('nextjs') // => false
+  request.cookies.has("nextjs"); // => true
+  request.cookies.delete("nextjs");
+  request.cookies.has("nextjs"); // => false
 
   // Setting cookies on the response using the `ResponseCookies` API
-  const response = NextResponse.next()
-  response.cookies.set('vercel', 'fast')
+  const response = NextResponse.next();
+  response.cookies.set("vercel", "fast");
   response.cookies.set({
-    name: 'vercel',
-    value: 'fast',
-    path: '/',
-  })
-  cookie = response.cookies.get('vercel')
-  console.log(cookie) // => { name: 'vercel', value: 'fast', Path: '/' }
+    name: "vercel",
+    value: "fast",
+    path: "/",
+  });
+  cookie = response.cookies.get("vercel");
+  console.log(cookie); // => { name: 'vercel', value: 'fast', Path: '/' }
   // The outgoing response will have a `Set-Cookie:vercel=fast;path=/test` header.
 
-  return response
+  return response;
 }
 ```
 
@@ -267,13 +267,13 @@ export function middleware(request) {
 You can set request and response headers using the `NextResponse` API (setting _request_ headers is available since Next.js v13.0.0).
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // Clone the request headers and set a new header `x-hello-from-middleware1`
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-hello-from-middleware1', 'hello')
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-hello-from-middleware1", "hello");
 
   // You can also set request headers in NextResponse.rewrite
   const response = NextResponse.next({
@@ -281,21 +281,21 @@ export function middleware(request: NextRequest) {
       // New request headers
       headers: requestHeaders,
     },
-  })
+  });
 
   // Set a new response header `x-hello-from-middleware2`
-  response.headers.set('x-hello-from-middleware2', 'hello')
-  return response
+  response.headers.set("x-hello-from-middleware2", "hello");
+  return response;
 }
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(request) {
   // Clone the request headers and set a new header `x-hello-from-middleware1`
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-hello-from-middleware1', 'hello')
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-hello-from-middleware1", "hello");
 
   // You can also set request headers in NextResponse.rewrite
   const response = NextResponse.next({
@@ -303,11 +303,11 @@ export function middleware(request) {
       // New request headers
       headers: requestHeaders,
     },
-  })
+  });
 
   // Set a new response header `x-hello-from-middleware2`
-  response.headers.set('x-hello-from-middleware2', 'hello')
-  return response
+  response.headers.set("x-hello-from-middleware2", "hello");
+  return response;
 }
 ```
 
@@ -318,42 +318,42 @@ export function middleware(request) {
 You can respond from Middleware directly by returning a `Response` or `NextResponse` instance. (This is available since [Next.js v13.1.0](https://nextjs.org/blog/next-13-1#nextjs-advanced-middleware))
 
 ```ts filename="middleware.ts" switcher
-import { NextRequest } from 'next/server'
-import { isAuthenticated } from '@lib/auth'
+import { NextRequest } from "next/server";
+import { isAuthenticated } from "@lib/auth";
 
 // Limit the middleware to paths starting with `/api/`
 export const config = {
-  matcher: '/api/:function*',
-}
+  matcher: "/api/:function*",
+};
 
 export function middleware(request: NextRequest) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
     return Response.json(
-      { success: false, message: 'authentication failed' },
+      { success: false, message: "authentication failed" },
       { status: 401 }
-    )
+    );
   }
 }
 ```
 
 ```js filename="middleware.js" switcher
-import { isAuthenticated } from '@lib/auth'
+import { isAuthenticated } from "@lib/auth";
 
 // Limit the middleware to paths starting with `/api/`
 export const config = {
-  matcher: '/api/:function*',
-}
+  matcher: "/api/:function*",
+};
 
 export function middleware(request) {
   // Call our authentication function to check the request
   if (!isAuthenticated(request)) {
     // Respond with JSON indicating an error message
     return Response.json(
-      { success: false, message: 'authentication failed' },
+      { success: false, message: "authentication failed" },
       { status: 401 }
-    )
+    );
   }
 }
 ```
@@ -365,18 +365,18 @@ The `NextFetchEvent` object extends the native [`FetchEvent`](https://developer.
 The `waitUntil()` method takes a promise as an argument, and extends the lifetime of the Middleware until the promise settles. This is useful for performing work in the background.
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextFetchEvent, NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextFetchEvent, NextRequest } from "next/server";
 
 export function middleware(req: NextRequest, event: NextFetchEvent) {
   event.waitUntil(
-    fetch('https://my-analytics-platform.com', {
-      method: 'POST',
+    fetch("https://my-analytics-platform.com", {
+      method: "POST",
       body: JSON.stringify({ pathname: req.nextUrl.pathname }),
     })
-  )
+  );
 
-  return NextResponse.next()
+  return NextResponse.next();
 }
 ```
 
@@ -389,26 +389,26 @@ In `v13.1` of Next.js two additional flags were introduced for middleware, `skip
 ```js filename="next.config.js"
 module.exports = {
   skipTrailingSlashRedirect: true,
-}
+};
 ```
 
 ```js filename="middleware.js"
-const legacyPrefixes = ['/docs', '/blog']
+const legacyPrefixes = ["/docs", "/blog"];
 
 export default async function middleware(req) {
-  const { pathname } = req.nextUrl
+  const { pathname } = req.nextUrl;
 
   if (legacyPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
   // apply trailing slash handling
   if (
-    !pathname.endsWith('/') &&
+    !pathname.endsWith("/") &&
     !pathname.match(/((?!\.well-known(?:\/.*)?)(?:[^/]+\/)*[^/]+\.\w+)/)
   ) {
-    req.nextUrl.pathname += '/'
-    return NextResponse.redirect(req.nextUrl)
+    req.nextUrl.pathname += "/";
+    return NextResponse.redirect(req.nextUrl);
   }
 }
 ```
@@ -418,16 +418,16 @@ export default async function middleware(req) {
 ```js filename="next.config.js"
 module.exports = {
   skipMiddlewareUrlNormalize: true,
-}
+};
 ```
 
 ```js filename="middleware.js"
 export default async function middleware(req) {
-  const { pathname } = req.nextUrl
+  const { pathname } = req.nextUrl;
 
   // GET /_next/data/build-id/hello.json
 
-  console.log(pathname)
+  console.log(pathname);
   // with the flag this now /_next/data/build-id/hello.json
   // without the flag this would be normalized to /hello
 }

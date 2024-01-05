@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -7,7 +7,7 @@ const Page = () => {
       <p>Invalid Source</p>
       <Image src="https://google.com/test.png" width="10" height="10" />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

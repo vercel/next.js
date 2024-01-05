@@ -1,3 +1,3 @@
-const Utils = () => <div>/* Badly formatted comment */</div>
+const Utils = () => <div>/* Badly formatted comment */</div>;
 
-export default Utils
+export default Utils;

@@ -4,5 +4,5 @@ export default function Debug({ name, value }) {
       <dt>{name}</dt>
       <dd id={name}>{value}</dd>
     </>
-  )
+  );
 }

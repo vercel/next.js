@@ -4,9 +4,9 @@
 export function getServerSideProps() {
   return {
     notFound: true,
-  }
+  };
 }
 
 export default function Page() {
-  return <p>nested catch-all</p>
+  return <p>nested catch-all</p>;
 }

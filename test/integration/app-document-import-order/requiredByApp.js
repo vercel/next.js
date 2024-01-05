@@ -3,7 +3,7 @@ function RequiredByApp() {
     <div>
       <p>RequiredByApp!</p>
     </div>
-  )
+  );
 }
 
-export default RequiredByApp
+export default RequiredByApp;

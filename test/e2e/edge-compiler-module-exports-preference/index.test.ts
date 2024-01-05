@@ -1,19 +1,19 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { fetchViaHTTP, shouldRunTurboDevTest } from "next-test-utils";
 
-describe('Edge compiler module exports preference', () => {
-  let next: NextInstance
+describe("Edge compiler module exports preference", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.js': `
+        "pages/index.js": `
           export default function Page() {
             return <p>hello world</p>
           }
         `,
-        'middleware.js': `
+        "middleware.js": `
           import { NextResponse } from 'next/server';
           import lib from 'my-lib';
 
@@ -25,36 +25,36 @@ describe('Edge compiler module exports preference', () => {
             })
           }
         `,
-        'my-lib/package.json': JSON.stringify({
-          name: 'my-lib',
-          version: '1.0.0',
-          main: 'index.js',
-          browser: 'browser.js',
+        "my-lib/package.json": JSON.stringify({
+          name: "my-lib",
+          version: "1.0.0",
+          main: "index.js",
+          browser: "browser.js",
         }),
-        'my-lib/index.js': `module.exports = "Node.js"`,
-        'my-lib/browser.js': `module.exports = "Browser"`,
+        "my-lib/index.js": `module.exports = "Node.js"`,
+        "my-lib/browser.js": `module.exports = "Browser"`,
       },
       packageJson: {
         scripts: {
           setup: `cp -r ./my-lib ./node_modules`,
-          build: 'yarn setup && next build',
+          build: "yarn setup && next build",
           dev: `yarn setup && next ${
-            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+            shouldRunTurboDevTest() ? "dev --turbo" : "dev"
           }`,
-          start: 'next start',
+          start: "next start",
         },
       },
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      startCommand: (global as any).isNextDev ? "yarn dev" : "yarn start",
+      buildCommand: "yarn build",
       dependencies: {},
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('favors the browser export', async () => {
-    const response = await fetchViaHTTP(next.url, '/')
+  it("favors the browser export", async () => {
+    const response = await fetchViaHTTP(next.url, "/");
     expect(Object.fromEntries(response.headers)).toMatchObject({
-      'x-imported': 'Browser',
-    })
-  })
-})
+      "x-imported": "Browser",
+    });
+  });
+});

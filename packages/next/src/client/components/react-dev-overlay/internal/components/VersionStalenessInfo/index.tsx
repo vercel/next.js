@@ -1,2 +1,2 @@
-export { styles } from './styles'
-export { VersionStalenessInfo } from './VersionStalenessInfo'
+export { styles } from "./styles";
+export { VersionStalenessInfo } from "./VersionStalenessInfo";

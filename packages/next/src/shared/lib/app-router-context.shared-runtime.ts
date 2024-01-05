@@ -1,22 +1,22 @@
-'use client'
+"use client";
 
 import type {
   FocusAndScrollRef,
   PrefetchKind,
-} from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
+} from "../../client/components/router-reducer/router-reducer-types";
+import type { FetchServerResponseResult } from "../../client/components/router-reducer/fetch-server-response";
 import type {
   FlightRouterState,
   FlightData,
-} from '../../server/app-render/types'
-import React from 'react'
+} from "../../server/app-render/types";
+import React from "react";
 
-export type ChildSegmentMap = Map<string, CacheNode>
+export type ChildSegmentMap = Map<string, CacheNode>;
 
 /**
  * Cache node used in app-router / layout-router.
  */
-export type CacheNode = ReadyCacheNode | LazyCacheNode
+export type CacheNode = ReadyCacheNode | LazyCacheNode;
 
 export type LazyCacheNode = {
   /**
@@ -29,7 +29,7 @@ export type LazyCacheNode = {
    * currently is in some cases until we've implemented partial
    * segment fetching.
    */
-  rsc: null
+  rsc: null;
 
   /**
    * A prefetched version of the segment data. See explanation in corresponding
@@ -40,25 +40,25 @@ export type LazyCacheNode = {
    * CacheNode that was created by the PPR implementation. Eventually we want
    * to migrate everything away from LazyCacheNode entirely.
    */
-  prefetchRsc: React.ReactNode
+  prefetchRsc: React.ReactNode;
 
   /**
    * A pending response for the lazy data fetch. If this is not present
    * during render, it is lazily created.
    */
-  lazyData: Promise<FetchServerResponseResult> | null
+  lazyData: Promise<FetchServerResponseResult> | null;
 
   // TODO: We should make both of these non-optional. Most of the places that
   // clone the Cache Nodes do not preserve this field. In practice this ends up
   // working out because we only clone nodes when we're receiving a new head,
   // anyway. But it's fragile. It also breaks monomorphization.
-  prefetchHead?: React.ReactNode
-  head?: React.ReactNode
+  prefetchHead?: React.ReactNode;
+  head?: React.ReactNode;
   /**
    * Child parallel routes.
    */
-  parallelRoutes: Map<string, ChildSegmentMap>
-}
+  parallelRoutes: Map<string, ChildSegmentMap>;
+};
 
 export type ReadyCacheNode = {
   /**
@@ -72,7 +72,7 @@ export type ReadyCacheNode = {
    * Exclude<React.ReactNode, null>. Need to update createEmptyCacheNode to
    * accept rsc as an argument, or just inline the callers.
    */
-  rsc: React.ReactNode
+  rsc: React.ReactNode;
 
   /**
    * Represents a static version of the segment that can be shown immediately,
@@ -85,81 +85,83 @@ export type ReadyCacheNode = {
    * rendering the `rsc` value; if that one is also missing, it will suspend and
    * trigger a lazy fetch.
    */
-  prefetchRsc: React.ReactNode
+  prefetchRsc: React.ReactNode;
 
   /**
    * There should never be a lazy data request in this case.
    */
-  lazyData: null
-  prefetchHead?: React.ReactNode
-  head?: React.ReactNode
-  parallelRoutes: Map<string, ChildSegmentMap>
-}
+  lazyData: null;
+  prefetchHead?: React.ReactNode;
+  head?: React.ReactNode;
+  parallelRoutes: Map<string, ChildSegmentMap>;
+};
 
 export interface NavigateOptions {
-  scroll?: boolean
+  scroll?: boolean;
 }
 
 export interface PrefetchOptions {
-  kind: PrefetchKind
+  kind: PrefetchKind;
 }
 
 export interface AppRouterInstance {
   /**
    * Navigate to the previous history entry.
    */
-  back(): void
+  back(): void;
   /**
    * Navigate to the next history entry.
    */
-  forward(): void
+  forward(): void;
   /**
    * Refresh the current page.
    */
-  refresh(): void
+  refresh(): void;
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.
    */
-  push(href: string, options?: NavigateOptions): void
+  push(href: string, options?: NavigateOptions): void;
   /**
    * Navigate to the provided href.
    * Replaces the current history entry.
    */
-  replace(href: string, options?: NavigateOptions): void
+  replace(href: string, options?: NavigateOptions): void;
   /**
    * Prefetch the provided href.
    */
-  prefetch(href: string, options?: PrefetchOptions): void
+  prefetch(href: string, options?: PrefetchOptions): void;
 }
 
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
-)
+);
 export const LayoutRouterContext = React.createContext<{
-  childNodes: CacheNode['parallelRoutes']
-  tree: FlightRouterState
-  url: string
-}>(null as any)
+  childNodes: CacheNode["parallelRoutes"];
+  tree: FlightRouterState;
+  url: string;
+}>(null as any);
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
-  tree: FlightRouterState
+  buildId: string;
+  tree: FlightRouterState;
   changeByServerResponse: (
     previousTree: FlightRouterState,
     flightData: FlightData,
     overrideCanonicalUrl: URL | undefined
-  ) => void
-  focusAndScrollRef: FocusAndScrollRef
-  nextUrl: string | null
-}>(null as any)
+  ) => void;
+  focusAndScrollRef: FocusAndScrollRef;
+  nextUrl: string | null;
+}>(null as any);
 
-export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+export const TemplateContext = React.createContext<React.ReactNode>(
+  null as any
+);
 
-if (process.env.NODE_ENV !== 'production') {
-  AppRouterContext.displayName = 'AppRouterContext'
-  LayoutRouterContext.displayName = 'LayoutRouterContext'
-  GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
-  TemplateContext.displayName = 'TemplateContext'
+if (process.env.NODE_ENV !== "production") {
+  AppRouterContext.displayName = "AppRouterContext";
+  LayoutRouterContext.displayName = "LayoutRouterContext";
+  GlobalLayoutRouterContext.displayName = "GlobalLayoutRouterContext";
+  TemplateContext.displayName = "TemplateContext";
 }
 
-export const MissingSlotContext = React.createContext<Set<string>>(new Set())
+export const MissingSlotContext = React.createContext<Set<string>>(new Set());

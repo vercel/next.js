@@ -1,5 +1,5 @@
-const API_URL = 'https://graphql.datocms.com'
-const API_TOKEN = process.env.DATOCMS_API_TOKEN
+const API_URL = "https://graphql.datocms.com";
+const API_TOKEN = process.env.DATOCMS_API_TOKEN;
 
 // See: https://www.datocms.com/blog/offer-responsive-progressive-lqip-images-in-2020
 const responsiveImageFragment = `
@@ -16,27 +16,27 @@ const responsiveImageFragment = `
     bgColor
     base64
   }
-`
+`;
 
 async function fetchAPI(query, { variables, preview } = {}) {
-  const res = await fetch(API_URL + (preview ? '/preview' : ''), {
-    method: 'POST',
+  const res = await fetch(API_URL + (preview ? "/preview" : ""), {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${API_TOKEN}`,
     },
     body: JSON.stringify({
       query,
       variables,
     }),
-  })
+  });
 
-  const json = await res.json()
+  const json = await res.json();
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
-  return json.data
+  return json.data;
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -53,8 +53,8 @@ export async function getPreviewPostBySlug(slug) {
         slug,
       },
     }
-  )
-  return data?.post
+  );
+  return data?.post;
 }
 
 export async function getAllPostsWithSlug() {
@@ -64,8 +64,8 @@ export async function getAllPostsWithSlug() {
         slug
       }
     }
-  `)
-  return data?.allPosts
+  `);
+  return data?.allPosts;
 }
 
 export async function getAllPostsForHome(preview) {
@@ -94,8 +94,8 @@ export async function getAllPostsForHome(preview) {
     ${responsiveImageFragment}
   `,
     { preview }
-  )
-  return data?.allPosts
+  );
+  return data?.allPosts;
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -150,6 +150,6 @@ export async function getPostAndMorePosts(slug, preview) {
         slug,
       },
     }
-  )
-  return data
+  );
+  return data;
 }

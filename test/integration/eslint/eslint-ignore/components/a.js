@@ -3,6 +3,6 @@ const A = () => (
     <p>A Component</p>
     /* Test */
   </div>
-)
+);
 
-export default A
+export default A;

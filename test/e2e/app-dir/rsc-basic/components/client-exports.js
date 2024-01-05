@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
 export function Named() {
-  return 'named.client'
+  return "named.client";
 }
 
-export default () => 'default-export-arrow.client'
+export default () => "default-export-arrow.client";

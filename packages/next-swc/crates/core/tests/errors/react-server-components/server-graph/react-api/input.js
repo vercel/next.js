@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState } from "react";
 
-import { createContext } from 'react'
+import { createContext } from "react";
 
-import { useEffect, useImperativeHandle } from 'react'
+import { useEffect, useImperativeHandle } from "react";
 
 import {
   Component,
@@ -14,10 +14,10 @@ import {
   useReducer,
   useRef,
   useSyncExternalStore,
-} from 'react'
+} from "react";
 
-import { experimental_useOptimistic as useOptimistic } from 'react'
+import { experimental_useOptimistic as useOptimistic } from "react";
 
 export default function () {
-  return null
+  return null;
 }

@@ -1,17 +1,17 @@
-import localFont from '@next/font/local'
-import { Open_Sans } from '@next/font/google'
+import localFont from "@next/font/local";
+import { Open_Sans } from "@next/font/google";
 const openSans = Open_Sans({
-  fallback: ['system-ui', 'Arial'],
-  variable: '--open-sans',
+  fallback: ["system-ui", "Arial"],
+  variable: "--open-sans",
   adjustFontFallback: false,
-  subsets: ['latin'],
-})
+  subsets: ["latin"],
+});
 
 const myFont = localFont({
-  fallback: ['system-ui', 'Arial'],
-  src: '../fonts/my-font.woff2',
+  fallback: ["system-ui", "Arial"],
+  src: "../fonts/my-font.woff2",
   adjustFontFallback: false,
-})
+});
 
 export default function WithFonts() {
   return (
@@ -24,7 +24,7 @@ export default function WithFonts() {
       </div>
       <div
         id="with-fallback-fonts-variable"
-        style={{ fontFamily: 'var(--open-sans)' }}
+        style={{ fontFamily: "var(--open-sans)" }}
         className={openSans.variable}
       >
         {JSON.stringify(openSans)}
@@ -33,5 +33,5 @@ export default function WithFonts() {
         {JSON.stringify(myFont)}
       </div>
     </>
-  )
+  );
 }

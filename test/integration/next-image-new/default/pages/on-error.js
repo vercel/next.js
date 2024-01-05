@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import Image from 'next/image'
+import { useState } from "react";
+import Image from "next/image";
 
 const Page = () => {
-  const [clicked, setClicked] = useState(false)
+  const [clicked, setClicked] = useState(false);
 
   return (
     <div>
@@ -17,17 +17,17 @@ const Page = () => {
       <ImageWithMessage id="1" src="/test.png" width={200} height={200} />
       <ImageWithMessage
         id="2"
-        src={clicked ? '/404.jpg' : '/test.jpg'}
+        src={clicked ? "/404.jpg" : "/test.jpg"}
         width="200"
         height="200"
       />
       <div id="footer" />
     </div>
-  )
-}
+  );
+};
 
 function ImageWithMessage({ id, ...props }) {
-  const [msg, setMsg] = useState(`no error occured for img${id}`)
+  const [msg, setMsg] = useState(`no error occured for img${id}`);
 
   return (
     <>
@@ -35,7 +35,7 @@ function ImageWithMessage({ id, ...props }) {
         <Image
           id={`img${id}`}
           onError={(e) => {
-            setMsg(`error occured while loading ${e.target.id}`)
+            setMsg(`error occured while loading ${e.target.id}`);
           }}
           {...props}
         />
@@ -43,7 +43,7 @@ function ImageWithMessage({ id, ...props }) {
       <p id={`msg${id}`}>{msg}</p>
       <hr />
     </>
-  )
+  );
 }
 
-export default Page
+export default Page;

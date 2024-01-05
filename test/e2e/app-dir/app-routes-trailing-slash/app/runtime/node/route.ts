@@ -1,1 +1,1 @@
-export { GET } from '../../../handler'
+export { GET } from "../../../handler";

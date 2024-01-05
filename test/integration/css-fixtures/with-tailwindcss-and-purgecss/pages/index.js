@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const links = [
-  { href: 'https://github.com/vercel/next.js', label: 'GitHub' },
-  { href: 'https://nextjs.org/docs', label: 'Docs' },
-]
+  { href: "https://github.com/vercel/next.js", label: "GitHub" },
+  { href: "https://nextjs.org/docs", label: "Docs" },
+];
 
 function Nav() {
   return (
@@ -25,7 +25,7 @@ function Nav() {
         </ul>
       </ul>
     </nav>
-  )
+  );
 }
 
 export default () => (
@@ -35,4 +35,4 @@ export default () => (
       <h1 className="title">Next.js + Tailwind CSS + PurgeCSS</h1>
     </div>
   </div>
-)
+);

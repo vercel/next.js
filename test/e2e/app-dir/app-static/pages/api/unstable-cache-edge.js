@@ -1,15 +1,15 @@
-import { unstable_cache } from 'next/cache'
+import { unstable_cache } from "next/cache";
 
 export const config = {
-  runtime: 'edge',
-}
+  runtime: "edge",
+};
 
 export default async function handler(req) {
   const data = await unstable_cache(async () => {
     return {
       random: Math.random(),
-    }
-  })()
+    };
+  })();
 
   return new Response(
     JSON.stringify({
@@ -18,8 +18,8 @@ export default async function handler(req) {
     }),
     {
       headers: {
-        'content-type': 'application/json',
+        "content-type": "application/json",
       },
     }
-  )
+  );
 }

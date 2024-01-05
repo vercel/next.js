@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
 export default function App() {
   async function fn() {
-    'use server'
+    "use server";
   }
-  return <div>App</div>
+  return <div>App</div>;
 }

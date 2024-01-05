@@ -1,15 +1,15 @@
-import { Normalizers } from '../../normalizers'
-import type { Normalizer } from '../../normalizer'
-import { PrefixingNormalizer } from '../../prefixing-normalizer'
-import { normalizePagePath } from '../../../../../shared/lib/page-path/normalize-page-path'
+import { Normalizers } from "../../normalizers";
+import type { Normalizer } from "../../normalizer";
+import { PrefixingNormalizer } from "../../prefixing-normalizer";
+import { normalizePagePath } from "../../../../../shared/lib/page-path/normalize-page-path";
 
 export class AppBundlePathNormalizer extends PrefixingNormalizer {
   constructor() {
-    super('app')
+    super("app");
   }
 
   public normalize(page: string): string {
-    return super.normalize(normalizePagePath(page))
+    return super.normalize(normalizePagePath(page));
   }
 }
 
@@ -20,10 +20,10 @@ export class DevAppBundlePathNormalizer extends Normalizers {
       pageNormalizer,
       // Normalize the app page to a pathname.
       new AppBundlePathNormalizer(),
-    ])
+    ]);
   }
 
   public normalize(filename: string): string {
-    return super.normalize(filename)
+    return super.normalize(filename);
   }
 }

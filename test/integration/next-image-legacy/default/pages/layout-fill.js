@@ -1,15 +1,15 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
     <div>
       <p>Layout Fill</p>
-      <div style={{ position: 'relative', width: '600px', height: '350px' }}>
+      <div style={{ position: "relative", width: "600px", height: "350px" }}>
         <Image id="fill1" src="/wide.png" layout="fill" />
       </div>
       <p>Layout Fill</p>
-      <div style={{ position: 'relative', width: '100vw', height: '100vh' }}>
+      <div style={{ position: "relative", width: "100vw", height: "100vh" }}>
         <Image
           id="fill2"
           src="/wide.png"
@@ -19,7 +19,7 @@ const Page = () => {
         />
       </div>
       <p>Layout Fill</p>
-      <div style={{ position: 'relative', width: '50vw', height: '50vh' }}>
+      <div style={{ position: "relative", width: "50vw", height: "50vh" }}>
         <Image
           id="fill3"
           src="/wide.png"
@@ -32,7 +32,7 @@ const Page = () => {
         />
       </div>
       <p>Layout Fill</p>
-      <div style={{ position: 'relative', width: '50vw', height: '50vh' }}>
+      <div style={{ position: "relative", width: "50vw", height: "50vh" }}>
         <Image
           id="fill4"
           src="/wide.png"
@@ -43,7 +43,7 @@ const Page = () => {
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

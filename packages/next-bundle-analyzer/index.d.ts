@@ -1,15 +1,15 @@
-import type { NextConfig } from 'next'
+import type { NextConfig } from "next";
 
 declare function NextBundleAnalyzer(options?: {
-  enabled?: boolean
-  openAnalyzer?: boolean
-  analyzerMode?: 'json' | 'static'
+  enabled?: boolean;
+  openAnalyzer?: boolean;
+  analyzerMode?: "json" | "static";
 
   /**
    * Log level. Can be 'info', 'warn', 'error' or 'silent'.
    * @default 'info'
    */
-  logLevel?: 'info' | 'warn' | 'error' | 'silent' | undefined
-}): (config?: NextConfig) => NextConfig
+  logLevel?: "info" | "warn" | "error" | "silent" | undefined;
+}): (config?: NextConfig) => NextConfig;
 
-export = NextBundleAnalyzer
+export = NextBundleAnalyzer;

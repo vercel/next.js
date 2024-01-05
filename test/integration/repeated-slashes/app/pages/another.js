@@ -1,3 +1,3 @@
 export default function Another() {
-  return <p id="another">another page</p>
+  return <p id="another">another page</p>;
 }

@@ -1,1 +1,1 @@
-module.exports = require('styled-jsx/style')
+module.exports = require("styled-jsx/style");

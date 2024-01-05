@@ -1,10 +1,10 @@
 async function fetchAPI(query, { variables, preview } = {}) {
   const response = await fetch(process.env.PREPRIO_API, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization:
-        'Bearer ' +
+        "Bearer " +
         (preview
           ? process.env.PREPRIO_PREVIEW_TOKEN
           : process.env.PREPRIO_PRODUCTION_TOKEN),
@@ -13,11 +13,11 @@ async function fetchAPI(query, { variables, preview } = {}) {
       query,
       variables,
     }),
-  })
+  });
 
-  const result = await response.json()
+  const result = await response.json();
 
-  return result
+  return result;
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -35,8 +35,8 @@ export async function getPreviewPostBySlug(slug) {
         slug,
       },
     }
-  )
-  return data.Article
+  );
+  return data.Article;
 }
 
 export async function getAllPostsWithSlug() {
@@ -51,8 +51,8 @@ export async function getAllPostsWithSlug() {
     }
   `,
     { preview: true }
-  )
-  return data?.Articles.items
+  );
+  return data?.Articles.items;
 }
 
 export async function getAllPostsForHome(preview) {
@@ -86,9 +86,9 @@ export async function getAllPostsForHome(preview) {
     }
   `,
     { preview }
-  )
+  );
 
-  return data?.Articles.items
+  return data?.Articles.items;
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -155,12 +155,12 @@ export async function getPostAndMorePosts(slug, preview) {
         slug,
       },
     }
-  )
+  );
 
   return {
     post: data?.Article,
     morePosts: (data?.MoreArticles?.items || [])
       .filter((item) => item._slug !== slug)
       .slice(0, 2),
-  }
+  };
 }

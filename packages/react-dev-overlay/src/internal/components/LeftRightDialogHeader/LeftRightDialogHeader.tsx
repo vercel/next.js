@@ -1,13 +1,13 @@
-import * as React from 'react'
-import { CloseIcon } from '../../icons/CloseIcon'
+import * as React from "react";
+import { CloseIcon } from "../../icons/CloseIcon";
 
 export type LeftRightDialogHeaderProps = {
-  children?: React.ReactNode
-  className?: string
-  previous: (() => void) | null
-  next: (() => void) | null
-  close?: () => void
-}
+  children?: React.ReactNode;
+  className?: string;
+  previous: (() => void) | null;
+  next: (() => void) | null;
+  close?: () => void;
+};
 
 const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
   function LeftRightDialogHeader({
@@ -17,87 +17,87 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
     next,
     close,
   }) {
-    const buttonLeft = React.useRef<HTMLButtonElement | null>(null)
-    const buttonRight = React.useRef<HTMLButtonElement | null>(null)
-    const buttonClose = React.useRef<HTMLButtonElement | null>(null)
+    const buttonLeft = React.useRef<HTMLButtonElement | null>(null);
+    const buttonRight = React.useRef<HTMLButtonElement | null>(null);
+    const buttonClose = React.useRef<HTMLButtonElement | null>(null);
 
-    const [nav, setNav] = React.useState<HTMLElement | null>(null)
+    const [nav, setNav] = React.useState<HTMLElement | null>(null);
     const onNav = React.useCallback((el: HTMLElement) => {
-      setNav(el)
-    }, [])
+      setNav(el);
+    }, []);
 
     React.useEffect(() => {
       if (nav == null) {
-        return
+        return;
       }
 
-      const root = nav.getRootNode()
-      const d = self.document
+      const root = nav.getRootNode();
+      const d = self.document;
 
       function handler(e: KeyboardEvent) {
-        if (e.key === 'ArrowLeft') {
-          e.stopPropagation()
+        if (e.key === "ArrowLeft") {
+          e.stopPropagation();
           if (buttonLeft.current) {
-            buttonLeft.current.focus()
+            buttonLeft.current.focus();
           }
-          previous && previous()
-        } else if (e.key === 'ArrowRight') {
-          e.stopPropagation()
+          previous && previous();
+        } else if (e.key === "ArrowRight") {
+          e.stopPropagation();
           if (buttonRight.current) {
-            buttonRight.current.focus()
+            buttonRight.current.focus();
           }
-          next && next()
-        } else if (e.key === 'Escape') {
-          e.stopPropagation()
+          next && next();
+        } else if (e.key === "Escape") {
+          e.stopPropagation();
           if (root instanceof ShadowRoot) {
-            const a = root.activeElement
+            const a = root.activeElement;
             if (a && a !== buttonClose.current && a instanceof HTMLElement) {
-              a.blur()
-              return
+              a.blur();
+              return;
             }
           }
 
           if (close) {
-            close()
+            close();
           }
         }
       }
 
-      root.addEventListener('keydown', handler as EventListener)
+      root.addEventListener("keydown", handler as EventListener);
       if (root !== d) {
-        d.addEventListener('keydown', handler)
+        d.addEventListener("keydown", handler);
       }
       return function () {
-        root.removeEventListener('keydown', handler as EventListener)
+        root.removeEventListener("keydown", handler as EventListener);
         if (root !== d) {
-          d.removeEventListener('keydown', handler)
+          d.removeEventListener("keydown", handler);
         }
-      }
-    }, [close, nav, next, previous])
+      };
+    }, [close, nav, next, previous]);
 
     // Unlock focus for browsers like Firefox, that break all user focus if the
     // currently focused item becomes disabled.
     React.useEffect(() => {
       if (nav == null) {
-        return
+        return;
       }
 
-      const root = nav.getRootNode()
+      const root = nav.getRootNode();
       // Always true, but we do this for TypeScript:
       if (root instanceof ShadowRoot) {
-        const a = root.activeElement
+        const a = root.activeElement;
 
         if (previous == null) {
           if (buttonLeft.current && a === buttonLeft.current) {
-            buttonLeft.current.blur()
+            buttonLeft.current.blur();
           }
         } else if (next == null) {
           if (buttonRight.current && a === buttonRight.current) {
-            buttonRight.current.blur()
+            buttonRight.current.blur();
           }
         }
       }
-    }, [nav, next, previous])
+    }, [nav, next, previous]);
 
     return (
       <div data-nextjs-dialog-left-right className={className}>
@@ -163,7 +163,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
           </button>
         ) : null}
       </div>
-    )
-  }
+    );
+  };
 
-export { LeftRightDialogHeader }
+export { LeftRightDialogHeader };

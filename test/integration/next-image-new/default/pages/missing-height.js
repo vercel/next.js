@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <h1>Missing height</h1>
       <Image src="/test.jpg" width="100" />
     </div>
-  )
+  );
 }

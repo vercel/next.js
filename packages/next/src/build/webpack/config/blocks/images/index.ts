@@ -1,10 +1,10 @@
-import curry from 'next/dist/compiled/lodash.curry'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { nextImageLoaderRegex } from '../../../../webpack-config'
-import { loader } from '../../helpers'
-import { pipe } from '../../utils'
-import type { ConfigurationContext, ConfigurationFn } from '../../utils'
-import { getCustomDocumentImageError } from './messages'
+import curry from "next/dist/compiled/lodash.curry";
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import { nextImageLoaderRegex } from "../../../../webpack-config";
+import { loader } from "../../helpers";
+import { pipe } from "../../utils";
+import type { ConfigurationContext, ConfigurationFn } from "../../utils";
+import { getCustomDocumentImageError } from "./messages";
 
 export const images = curry(async function images(
   _ctx: ConfigurationContext,
@@ -16,7 +16,7 @@ export const images = curry(async function images(
         {
           test: nextImageLoaderRegex,
           use: {
-            loader: 'error-loader',
+            loader: "error-loader",
             options: {
               reason: getCustomDocumentImageError(),
             },
@@ -25,8 +25,8 @@ export const images = curry(async function images(
         },
       ],
     }),
-  ]
+  ];
 
-  const fn = pipe(...fns)
-  return fn(config)
-})
+  const fn = pipe(...fns);
+  return fn(config);
+});

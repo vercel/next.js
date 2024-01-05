@@ -1,6 +1,6 @@
-import Comp from './Comp'
-import Image from 'next/image'
-import testPng from '../images/test.png'
+import Comp from "./Comp";
+import Image from "next/image";
+import testPng from "../images/test.png";
 
 export default function Page() {
   return (
@@ -16,7 +16,7 @@ export default function Page() {
       />
       <Comp />
     </>
-  )
+  );
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";

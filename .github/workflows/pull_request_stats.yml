@@ -10,8 +10,8 @@ env:
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
-  TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_TEAM: "vercel"
+  TURBO_REMOTE_ONLY: "true"
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -25,18 +25,18 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
-      uploadSwcArtifact: 'yes'
-      uploadAnalyzerArtifacts: 'yes'
+      uploadSwcArtifact: "yes"
+      uploadAnalyzerArtifacts: "yes"
 
   stats:
     name: PR Stats
     needs: build
     timeout-minutes: 25
     runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+      - "self-hosted"
+      - "linux"
+      - "x64"
+      - "metal"
     steps:
       - uses: actions/checkout@v3
         with:

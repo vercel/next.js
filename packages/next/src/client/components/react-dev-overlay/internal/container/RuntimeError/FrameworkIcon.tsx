@@ -1,12 +1,12 @@
-import React from 'react'
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+import React from "react";
+import type { StackFramesGroup } from "../../helpers/group-stack-frames-by-framework";
 
 export function FrameworkIcon({
   framework,
 }: {
-  framework: NonNullable<StackFramesGroup['framework']>
+  framework: NonNullable<StackFramesGroup["framework"]>;
 }) {
-  if (framework === 'react') {
+  if (framework === "react") {
     return (
       <svg
         data-nextjs-call-stack-framework-icon="react"
@@ -30,7 +30,7 @@ export function FrameworkIcon({
           fill="currentColor"
         ></path>
       </svg>
-    )
+    );
   }
 
   return (
@@ -98,5 +98,5 @@ export function FrameworkIcon({
         </linearGradient>
       </defs>
     </svg>
-  )
+  );
 }

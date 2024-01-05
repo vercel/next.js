@@ -2,8 +2,8 @@ export default function Step({
   title,
   children,
 }: {
-  title: string
-  children: React.ReactNode
+  title: string;
+  children: React.ReactNode;
 }) {
   return (
     <li className="mx-4">
@@ -20,5 +20,5 @@ export default function Step({
         {children}
       </div>
     </li>
-  )
+  );
 }

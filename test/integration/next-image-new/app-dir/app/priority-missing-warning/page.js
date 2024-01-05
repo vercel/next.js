@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
       <Image id="fixed" src="/test.jpg" width="400" height="400" />
       <footer>Priority Missing Warning Footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

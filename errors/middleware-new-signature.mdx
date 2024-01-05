@@ -7,15 +7,15 @@ title: Deprecated Middleware API Signature
 Your application is using a Middleware function that is using parameters from the deprecated API.
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(event) {
-  if (event.request.nextUrl.pathname === '/blocked') {
+  if (event.request.nextUrl.pathname === "/blocked") {
     event.respondWith(
       new NextResponse(null, {
         status: 403,
       })
-    )
+    );
   }
 }
 ```
@@ -25,13 +25,13 @@ export function middleware(event) {
 Update to use the new API for Middleware:
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  if (request.nextUrl.pathname === '/blocked') {
+  if (request.nextUrl.pathname === "/blocked") {
     return new NextResponse(null, {
       status: 403,
-    })
+    });
   }
 }
 ```

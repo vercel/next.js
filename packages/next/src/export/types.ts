@@ -1,21 +1,24 @@
-import type { WriteFileOptions } from 'fs'
-import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
-import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
-import type { LoadComponentsReturnType } from '../server/load-components'
-import type { OutgoingHttpHeaders } from 'http'
-import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import type { FontConfig } from '../server/font-utils'
-import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
-import type { Revalidate } from '../server/lib/revalidate'
-import type { NextEnabledDirectories } from '../server/base-server'
+import type { WriteFileOptions } from "fs";
+import type { RenderOptsPartial as AppRenderOptsPartial } from "../server/app-render/types";
+import type { RenderOptsPartial as PagesRenderOptsPartial } from "../server/render";
+import type { LoadComponentsReturnType } from "../server/load-components";
+import type { OutgoingHttpHeaders } from "http";
+import type AmpHtmlValidator from "next/dist/compiled/amphtml-validator";
+import type { FontConfig } from "../server/font-utils";
+import type {
+  ExportPathMap,
+  NextConfigComplete,
+} from "../server/config-shared";
+import type { Span } from "../trace";
+import type { Revalidate } from "../server/lib/revalidate";
+import type { NextEnabledDirectories } from "../server/base-server";
 
 export interface AmpValidation {
-  page: string
+  page: string;
   result: {
-    errors: AmpHtmlValidator.ValidationError[]
-    warnings: AmpHtmlValidator.ValidationError[]
-  }
+    errors: AmpHtmlValidator.ValidationError[];
+    warnings: AmpHtmlValidator.ValidationError[];
+  };
 }
 
 /**
@@ -30,100 +33,100 @@ export type FileWriter = (
     | Iterable<string | NodeJS.ArrayBufferView>
     | AsyncIterable<string | NodeJS.ArrayBufferView>,
   encodingOptions?: WriteFileOptions
-) => Promise<void>
+) => Promise<void>;
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
+type PathMap = ExportPathMap[keyof ExportPathMap];
 
 export interface ExportPageInput {
-  path: string
-  dir: string
-  pathMap: PathMap
-  distDir: string
-  outDir: string
-  pagesDataDir: string
-  renderOpts: WorkerRenderOptsPartial
-  ampValidatorPath?: string
-  trailingSlash?: boolean
-  buildExport?: boolean
-  serverRuntimeConfig: { [key: string]: any }
-  subFolders?: boolean
-  optimizeFonts: FontConfig
-  optimizeCss: any
-  disableOptimizedLoading: any
-  parentSpanId: any
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  debugOutput?: boolean
-  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
-  fetchCache?: boolean
-  incrementalCacheHandlerPath?: string
-  fetchCacheKeyPrefix?: string
-  nextConfigOutput?: NextConfigComplete['output']
-  enableExperimentalReact?: boolean
-  enabledDirectories: NextEnabledDirectories
+  path: string;
+  dir: string;
+  pathMap: PathMap;
+  distDir: string;
+  outDir: string;
+  pagesDataDir: string;
+  renderOpts: WorkerRenderOptsPartial;
+  ampValidatorPath?: string;
+  trailingSlash?: boolean;
+  buildExport?: boolean;
+  serverRuntimeConfig: { [key: string]: any };
+  subFolders?: boolean;
+  optimizeFonts: FontConfig;
+  optimizeCss: any;
+  disableOptimizedLoading: any;
+  parentSpanId: any;
+  httpAgentOptions: NextConfigComplete["httpAgentOptions"];
+  debugOutput?: boolean;
+  isrMemoryCacheSize?: NextConfigComplete["experimental"]["isrMemoryCacheSize"];
+  fetchCache?: boolean;
+  incrementalCacheHandlerPath?: string;
+  fetchCacheKeyPrefix?: string;
+  nextConfigOutput?: NextConfigComplete["output"];
+  enableExperimentalReact?: boolean;
+  enabledDirectories: NextEnabledDirectories;
 }
 
 export type ExportedPageFile = {
-  type: string
-  path: string
-}
+  type: string;
+  path: string;
+};
 
 export type ExportRouteResult =
   | {
-      ampValidations?: AmpValidation[]
-      revalidate: Revalidate
+      ampValidations?: AmpValidation[];
+      revalidate: Revalidate;
       metadata?: {
-        status?: number
-        headers?: OutgoingHttpHeaders
-      }
-      ssgNotFound?: boolean
-      hasEmptyPrelude?: boolean
-      hasPostponed?: boolean
+        status?: number;
+        headers?: OutgoingHttpHeaders;
+      };
+      ssgNotFound?: boolean;
+      hasEmptyPrelude?: boolean;
+      hasPostponed?: boolean;
     }
   | {
-      error: boolean
-    }
+      error: boolean;
+    };
 
 export type ExportPageResult = ExportRouteResult & {
-  files: ExportedPageFile[]
-  duration: number
-}
+  files: ExportedPageFile[];
+  duration: number;
+};
 
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
-  AppRenderOptsPartial
+  AppRenderOptsPartial;
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  LoadComponentsReturnType
+  LoadComponentsReturnType;
 
 export type ExportWorker = (
   input: ExportPageInput
-) => Promise<ExportPageResult | undefined>
+) => Promise<ExportPageResult | undefined>;
 
 export interface ExportAppOptions {
-  outdir: string
-  enabledDirectories: NextEnabledDirectories
-  silent?: boolean
-  threads?: number
-  debugOutput?: boolean
-  pages?: string[]
-  buildExport: boolean
-  statusMessage?: string
-  exportPageWorker?: ExportWorker
-  exportAppPageWorker?: ExportWorker
-  endWorker?: () => Promise<void>
-  nextConfig?: NextConfigComplete
-  hasOutdirFromCli?: boolean
+  outdir: string;
+  enabledDirectories: NextEnabledDirectories;
+  silent?: boolean;
+  threads?: number;
+  debugOutput?: boolean;
+  pages?: string[];
+  buildExport: boolean;
+  statusMessage?: string;
+  exportPageWorker?: ExportWorker;
+  exportAppPageWorker?: ExportWorker;
+  endWorker?: () => Promise<void>;
+  nextConfig?: NextConfigComplete;
+  hasOutdirFromCli?: boolean;
 }
 
 export type ExportPageMetadata = {
-  revalidate: number | false
+  revalidate: number | false;
   metadata:
     | {
-        status?: number | undefined
-        headers?: OutgoingHttpHeaders | undefined
+        status?: number | undefined;
+        headers?: OutgoingHttpHeaders | undefined;
       }
-    | undefined
-  duration: number
-}
+    | undefined;
+  duration: number;
+};
 
 export type ExportAppResult = {
   /**
@@ -135,35 +138,35 @@ export type ExportAppResult = {
       /**
        * The revalidation time for the page in seconds.
        */
-      revalidate?: Revalidate
+      revalidate?: Revalidate;
       /**
        * The metadata for the page.
        */
-      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      metadata?: { status?: number; headers?: OutgoingHttpHeaders };
       /**
        * If the page has an empty prelude when using PPR.
        */
-      hasEmptyPrelude?: boolean
+      hasEmptyPrelude?: boolean;
       /**
        * If the page has postponed when using PPR.
        */
-      hasPostponed?: boolean
+      hasPostponed?: boolean;
     }
-  >
+  >;
 
   /**
    * Durations for each page in milliseconds.
    */
-  byPage: Map<string, { durationsByPath: Map<string, number> }>
+  byPage: Map<string, { durationsByPath: Map<string, number> }>;
 
   /**
    * The paths that were not found during SSG.
    */
-  ssgNotFoundPaths: Set<string>
-}
+  ssgNotFoundPaths: Set<string>;
+};
 
 export type ExportAppWorker = (
   dir: string,
   options: ExportAppOptions,
   span: Span
-) => Promise<ExportAppResult | null>
+) => Promise<ExportAppResult | null>;

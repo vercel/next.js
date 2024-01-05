@@ -1,15 +1,17 @@
-import React, { Suspense } from 'react'
-import { getDynamicTestData, getStaticTestData } from '../test-data-service'
-import Link from 'next/link'
+import React, { Suspense } from "react";
+import { getDynamicTestData, getStaticTestData } from "../test-data-service";
+import Link from "next/link";
 
 async function Dynamic({ dataKey }) {
   return (
     <div id="dynamic">{await getDynamicTestData(`${dataKey} [dynamic]`)}</div>
-  )
+  );
 }
 
 async function Static({ dataKey }) {
-  return <div id="static">{await getStaticTestData(`${dataKey} [static]`)}</div>
+  return (
+    <div id="static">{await getStaticTestData(`${dataKey} [static]`)}</div>
+  );
 }
 
 export default async function Page() {
@@ -23,5 +25,5 @@ export default async function Page() {
         <Static dataKey="Some data" />
       </Suspense>
     </>
-  )
+  );
 }

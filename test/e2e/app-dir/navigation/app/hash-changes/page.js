@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const HashChanges = () => {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <div id="hash-changes-page">
@@ -66,10 +66,10 @@ const HashChanges = () => {
           <div key={`item-${i}`} name={`name-item-${i}`}>
             {i}
           </div>
-        )
+        );
       })}
     </div>
-  )
-}
+  );
+};
 
-export default HashChanges
+export default HashChanges;

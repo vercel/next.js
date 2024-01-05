@@ -7,7 +7,7 @@ on:
 
 jobs:
   cancel:
-    name: 'Cancel Previous Runs'
+    name: "Cancel Previous Runs"
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:

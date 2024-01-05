@@ -19,10 +19,10 @@ To respect the differences in client-side and server-side navigation, and to hel
 The following patterns will no longer work:
 
 ```js
-new Response('a text value')
-new Response(streamOrBuffer)
-new Response(JSON.stringify(obj), { headers: 'application/json' })
-NextResponse.json()
+new Response("a text value");
+new Response(streamOrBuffer);
+new Response(JSON.stringify(obj), { headers: "application/json" });
+NextResponse.json();
 ```
 
 ### How to upgrade
@@ -32,36 +32,36 @@ For cases where Middleware is used to respond (such as authorization), you shoul
 #### Before
 
 ```ts filename="pages/_middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { isAuthValid } from './lib/auth'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isAuthValid } from "./lib/auth";
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
   if (isAuthValid(request)) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  return NextResponse.json({ message: 'Auth required' }, { status: 401 })
+  return NextResponse.json({ message: "Auth required" }, { status: 401 });
 }
 ```
 
 #### After
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { isAuthValid } from './lib/auth'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isAuthValid } from "./lib/auth";
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
   if (isAuthValid(request)) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  request.nextUrl.searchParams.set('from', request.nextUrl.pathname)
-  request.nextUrl.pathname = '/login'
+  request.nextUrl.searchParams.set("from", request.nextUrl.pathname);
+  request.nextUrl.pathname = "/login";
 
-  return NextResponse.redirect(request.nextUrl)
+  return NextResponse.redirect(request.nextUrl);
 }
 ```

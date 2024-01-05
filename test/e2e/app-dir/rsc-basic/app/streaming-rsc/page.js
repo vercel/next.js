@@ -1,10 +1,10 @@
-import { Suspense } from 'react'
-import { createDataFetcher } from '../../lib/data'
-import Nav from '../../components/nav'
+import { Suspense } from "react";
+import { createDataFetcher } from "../../lib/data";
+import Nav from "../../components/nav";
 
-const Data = createDataFetcher('next_streaming_data', {
+const Data = createDataFetcher("next_streaming_data", {
   timeout: 500,
-})
+});
 
 export default function Page() {
   return (
@@ -18,5 +18,5 @@ export default function Page() {
         <Nav />
       </div>
     </div>
-  )
+  );
 }

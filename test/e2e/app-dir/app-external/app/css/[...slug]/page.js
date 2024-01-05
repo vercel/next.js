@@ -1,5 +1,5 @@
-import 'css/style.css'
+import "css/style.css";
 
 export default function Page() {
-  return <div>hello</div>
+  return <div>hello</div>;
 }

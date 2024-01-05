@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div id="level1-about-page">
@@ -7,4 +7,4 @@ export default () => (
     </div>
     <p>This is the Level1 about page</p>
   </div>
-)
+);

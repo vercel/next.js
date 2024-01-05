@@ -7,11 +7,11 @@
 // See: https://www.vector-logic.com/blog/posts/on-request-animation-frame-and-embedded-iframes
 const safeCallbackQueue = (callback: () => void) => {
   if (window.requestAnimationFrame && window.self === window.top) {
-    window.requestAnimationFrame(callback)
+    window.requestAnimationFrame(callback);
   } else {
-    window.setTimeout(callback)
+    window.setTimeout(callback);
   }
-}
+};
 
 // This function is used to remove Next.js' no-FOUC styles workaround for using
 // `style-loader` in development. It must be called before hydration, or else
@@ -20,14 +20,14 @@ export function displayContent(): Promise<void> {
   return new Promise((resolve) => {
     safeCallbackQueue(function () {
       for (
-        var x = document.querySelectorAll('[data-next-hide-fouc]'),
+        var x = document.querySelectorAll("[data-next-hide-fouc]"),
           i = x.length;
         i--;
 
       ) {
-        x[i].parentNode!.removeChild(x[i])
+        x[i].parentNode!.removeChild(x[i]);
       }
-      resolve()
-    })
-  })
+      resolve();
+    });
+  });
 }

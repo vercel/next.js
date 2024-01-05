@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const Hello = dynamic(import('../../components/dynamic-css/no-css'))
+const Hello = dynamic(import("../../components/dynamic-css/no-css"));
 
-export default Hello
+export default Hello;

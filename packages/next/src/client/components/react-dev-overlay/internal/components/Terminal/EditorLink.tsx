@@ -1,20 +1,20 @@
-import React from 'react'
-import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import React from "react";
+import { useOpenInEditor } from "../../helpers/use-open-in-editor";
 
 type EditorLinkProps = {
-  file: string
-  isSourceFile: boolean
+  file: string;
+  isSourceFile: boolean;
   location?: {
-    line: number
-    column: number
-  }
-}
+    line: number;
+    column: number;
+  };
+};
 export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
   const open = useOpenInEditor({
     file,
     lineNumber: location?.line ?? 1,
     column: location?.column ?? 0,
-  })
+  });
 
   return (
     <div
@@ -26,9 +26,9 @@ export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
         isSourceFile ? undefined : true
       }
       tabIndex={10}
-      role={'link'}
+      role={"link"}
       onClick={open}
-      title={'Click to open in your editor'}
+      title={"Click to open in your editor"}
     >
       {file}
       {location ? `:${location.line}:${location.column}` : null}
@@ -46,5 +46,5 @@ export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
         <line x1="10" y1="14" x2="21" y2="3"></line>
       </svg>
     </div>
-  )
+  );
 }

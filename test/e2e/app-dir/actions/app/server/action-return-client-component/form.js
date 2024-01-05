@@ -1,8 +1,8 @@
-'use client'
-import { useFormState } from 'react-dom'
+"use client";
+import { useFormState } from "react-dom";
 
 export function Form({ action }) {
-  const [state, formAction] = useFormState(action, null)
+  const [state, formAction] = useFormState(action, null);
   return (
     <>
       <form action={formAction}>
@@ -12,5 +12,5 @@ export function Form({ action }) {
       </form>
       {state?.component}
     </>
-  )
+  );
 }

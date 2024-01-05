@@ -3,7 +3,7 @@ name: update-font-data
 on:
   # Run every every day at midnight https://crontab.guru/#0_0_*_*_*/1
   schedule:
-    - cron: '0 0 * * */1'
+    - cron: "0 0 * * */1"
   # Allow manual runs
   workflow_dispatch:
 

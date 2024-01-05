@@ -1,7 +1,7 @@
-import { draftMode } from 'next/headers'
+import { draftMode } from "next/headers";
 
 export default function Page() {
-  const { isEnabled } = draftMode()
+  const { isEnabled } = draftMode();
 
   return (
     <>
@@ -9,7 +9,7 @@ export default function Page() {
       <p>
         Rand: <em id="rand">{Math.random()}</em>
       </p>
-      <h2 id="draft-mode-val">{isEnabled ? 'ENABLED' : 'DISABLED'}</h2>
+      <h2 id="draft-mode-val">{isEnabled ? "ENABLED" : "DISABLED"}</h2>
     </>
-  )
+  );
 }

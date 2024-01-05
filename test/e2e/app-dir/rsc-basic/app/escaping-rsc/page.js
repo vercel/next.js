@@ -1,19 +1,19 @@
-import { Suspense } from 'react'
-import Nav from '../../components/nav'
+import { Suspense } from "react";
+import Nav from "../../components/nav";
 
-let result
-let promise
+let result;
+let promise;
 function Data() {
-  if (result) return result
+  if (result) return result;
   if (!promise)
     promise = new Promise((res) => {
       setTimeout(() => {
         result =
-          '</script><script>window.__manipulated_by_injection=true</script><script>'
-        res()
-      }, 500)
-    })
-  throw promise
+          "</script><script>window.__manipulated_by_injection=true</script><script>";
+        res();
+      }, 500);
+    });
+  throw promise;
 }
 
 export default function Page() {
@@ -28,5 +28,5 @@ export default function Page() {
         <Nav />
       </div>
     </div>
-  )
+  );
 }

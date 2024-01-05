@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ["canary"]
   pull_request:
     types: [opened, synchronize]
 
@@ -15,15 +15,15 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_TEAM: "vercel"
+  TURBO_REMOTE_ONLY: "true"
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
+  NEXT_JUNIT_TEST_REPORT: "true"
+  DD_ENV: "ci"
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
@@ -63,19 +63,19 @@ jobs:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipInstallBuild: 'yes'
+      skipInstallBuild: "yes"
     secrets: inherit
 
   build-next:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
     with:
-      skipNativeBuild: 'yes'
+      skipNativeBuild: "yes"
     secrets: inherit
 
   lint:
     name: lint
-    needs: ['build-native', 'build-next']
+    needs: ["build-native", "build-next"]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -90,14 +90,14 @@ jobs:
         with:
           node-version: 18
       - run: corepack enable
-      - name: 'Run link checker'
+      - name: "Run link checker"
         run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   check-types-precompiled:
     name: types and precompiled
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -107,57 +107,57 @@ jobs:
 
   test-cargo-unit:
     name: test cargo unit
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      needsRust: 'yes'
-      skipInstallBuild: 'yes'
-      skipNativeBuild: 'yes'
+      needsRust: "yes"
+      skipInstallBuild: "yes"
+      skipNativeBuild: "yes"
       afterBuild: turbo run test-cargo-unit
-      mold: 'yes'
+      mold: "yes"
     secrets: inherit
 
   test-cargo-integration:
     name: test cargo integration
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      needsNextest: 'yes'
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
+      needsNextest: "yes"
+      needsRust: "yes"
+      skipNativeBuild: "yes"
       afterBuild: xvfb-run turbo run test-cargo-integration
 
   test-cargo-bench:
     name: test cargo benchmarks
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' || needs.changes.outputs.is-release == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
+      needsRust: "yes"
+      skipNativeBuild: "yes"
       afterBuild: xvfb-run turbo run test-cargo-bench
 
   rust-check:
     name: rust check
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      needsRust: 'yes'
-      skipInstallBuild: 'yes'
-      skipNativeBuild: 'yes'
+      needsRust: "yes"
+      skipInstallBuild: "yes"
+      skipNativeBuild: "yes"
       afterBuild: turbo run rust-check
     secrets: inherit
 
   test-turbopack-dev:
     name: test turbopack dev
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -171,7 +171,7 @@ jobs:
 
   test-turbopack-integration:
     name: test turbopack integration
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -186,7 +186,7 @@ jobs:
 
   test-next-swc-wasm:
     name: test next-swc wasm
-    needs: ['changes', 'build-next']
+    needs: ["changes", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -196,7 +196,7 @@ jobs:
 
   test-unit:
     name: test unit
-    needs: ['changes']
+    needs: ["changes"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -213,7 +213,7 @@ jobs:
 
   test-dev:
     name: test dev
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -227,7 +227,7 @@ jobs:
 
   test-prod:
     name: test prod
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -241,7 +241,7 @@ jobs:
 
   test-integration:
     name: test integration
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -268,7 +268,7 @@ jobs:
 
   test-firefox-safari:
     name: test firefox and safari
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -280,7 +280,7 @@ jobs:
   # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
   test-ppr-integration:
     name: test ppr integration
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -293,7 +293,7 @@ jobs:
 
   test-ppr-dev:
     name: test ppr dev
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -307,7 +307,7 @@ jobs:
 
   test-ppr-prod:
     name: test ppr prod
-    needs: ['changes', 'build-native', 'build-next']
+    needs: ["changes", "build-native", "build-next"]
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -322,16 +322,16 @@ jobs:
   report-test-results:
     needs:
       [
-        'changes',
-        'test-unit',
-        'test-dev',
-        'test-prod',
-        'test-integration',
-        'test-ppr-dev',
-        'test-ppr-prod',
-        'test-ppr-integration',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
+        "changes",
+        "test-unit",
+        "test-dev",
+        "test-prod",
+        "test-integration",
+        "test-ppr-dev",
+        "test-ppr-prod",
+        "test-ppr-integration",
+        "test-turbopack-dev",
+        "test-turbopack-integration",
       ]
     if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
@@ -360,25 +360,25 @@ jobs:
   tests-pass:
     needs:
       [
-        'build-native',
-        'build-next',
-        'lint',
-        'validate-docs-links',
-        'check-types-precompiled',
-        'test-unit',
-        'test-dev',
-        'test-prod',
-        'test-integration',
-        'test-ppr-dev',
-        'test-ppr-prod',
-        'test-ppr-integration',
-        'test-cargo-unit',
-        'test-cargo-integration',
-        'test-cargo-bench',
-        'rust-check',
-        'test-next-swc-wasm',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
+        "build-native",
+        "build-next",
+        "lint",
+        "validate-docs-links",
+        "check-types-precompiled",
+        "test-unit",
+        "test-dev",
+        "test-prod",
+        "test-integration",
+        "test-ppr-dev",
+        "test-ppr-prod",
+        "test-ppr-integration",
+        "test-cargo-unit",
+        "test-cargo-integration",
+        "test-cargo-bench",
+        "rust-check",
+        "test-next-swc-wasm",
+        "test-turbopack-dev",
+        "test-turbopack-integration",
       ]
 
     if: always()

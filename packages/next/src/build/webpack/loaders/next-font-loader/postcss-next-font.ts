@@ -1,6 +1,6 @@
-import type { AdjustFontFallback } from '../../../../../font'
-import type { Declaration } from 'postcss'
-import postcss from 'postcss'
+import type { AdjustFontFallback } from "../../../../../font";
+import type { Declaration } from "postcss";
+import postcss from "postcss";
 
 /**
  * The next/font postcss plugin recieves the @font-face declarations returned from the next/font loaders.
@@ -27,75 +27,75 @@ const postcssNextFontPlugin = ({
   weight,
   style,
 }: {
-  exports: { name: any; value: any }[]
-  fontFamilyHash: string
-  fallbackFonts?: string[]
-  adjustFontFallback?: AdjustFontFallback
-  variable?: string
-  weight?: string
-  style?: string
+  exports: { name: any; value: any }[];
+  fontFamilyHash: string;
+  fallbackFonts?: string[];
+  adjustFontFallback?: AdjustFontFallback;
+  variable?: string;
+  weight?: string;
+  style?: string;
 }) => {
   return {
-    postcssPlugin: 'postcss-next-font',
+    postcssPlugin: "postcss-next-font",
     Once(root: any) {
-      let fontFamily: string | undefined
+      let fontFamily: string | undefined;
 
       const normalizeFamily = (family: string) => {
-        return family.replace(/['"]/g, '')
-      }
+        return family.replace(/['"]/g, "");
+      };
 
       const formatFamily = (family: string) => {
         // Turn the font family unguessable to make it locally scoped
-        return `'__${family.replace(/ /g, '_')}_${fontFamilyHash}'`
-      }
+        return `'__${family.replace(/ /g, "_")}_${fontFamilyHash}'`;
+      };
 
       // Hash font-family names
       for (const node of root.nodes) {
-        if (node.type === 'atrule' && node.name === 'font-face') {
+        if (node.type === "atrule" && node.name === "font-face") {
           const familyNode = node.nodes.find(
-            (decl: Declaration) => decl.prop === 'font-family'
-          )
+            (decl: Declaration) => decl.prop === "font-family"
+          );
           if (!familyNode) {
-            continue
+            continue;
           }
 
           if (!fontFamily) {
-            fontFamily = normalizeFamily(familyNode.value)
+            fontFamily = normalizeFamily(familyNode.value);
           }
 
-          familyNode.value = formatFamily(fontFamily)
+          familyNode.value = formatFamily(fontFamily);
         }
       }
 
       if (!fontFamily) {
-        throw new Error("Font loaders must return one or more @font-face's")
+        throw new Error("Font loaders must return one or more @font-face's");
       }
 
       // Add fallback @font-face with the provided override values
-      let adjustFontFallbackFamily: string | undefined
+      let adjustFontFallbackFamily: string | undefined;
       if (adjustFontFallback) {
-        adjustFontFallbackFamily = formatFamily(`${fontFamily} Fallback`)
-        const fallbackFontFace = postcss.atRule({ name: 'font-face' })
+        adjustFontFallbackFamily = formatFamily(`${fontFamily} Fallback`);
+        const fallbackFontFace = postcss.atRule({ name: "font-face" });
         const {
           fallbackFont,
           ascentOverride,
           descentOverride,
           lineGapOverride,
           sizeAdjust,
-        } = adjustFontFallback
+        } = adjustFontFallback;
         fallbackFontFace.nodes = [
           new postcss.Declaration({
-            prop: 'font-family',
+            prop: "font-family",
             value: adjustFontFallbackFamily,
           }),
           new postcss.Declaration({
-            prop: 'src',
+            prop: "src",
             value: `local("${fallbackFont}")`,
           }),
           ...(ascentOverride
             ? [
                 new postcss.Declaration({
-                  prop: 'ascent-override',
+                  prop: "ascent-override",
                   value: ascentOverride,
                 }),
               ]
@@ -103,7 +103,7 @@ const postcssNextFontPlugin = ({
           ...(descentOverride
             ? [
                 new postcss.Declaration({
-                  prop: 'descent-override',
+                  prop: "descent-override",
                   value: descentOverride,
                 }),
               ]
@@ -111,7 +111,7 @@ const postcssNextFontPlugin = ({
           ...(lineGapOverride
             ? [
                 new postcss.Declaration({
-                  prop: 'line-gap-override',
+                  prop: "line-gap-override",
                   value: lineGapOverride,
                 }),
               ]
@@ -119,37 +119,37 @@ const postcssNextFontPlugin = ({
           ...(sizeAdjust
             ? [
                 new postcss.Declaration({
-                  prop: 'size-adjust',
+                  prop: "size-adjust",
                   value: sizeAdjust,
                 }),
               ]
             : []),
-        ]
-        root.nodes.push(fallbackFontFace)
+        ];
+        root.nodes.push(fallbackFontFace);
       }
 
       // Variable fonts can define ranges of values
-      const isRange = (value: string) => value.trim().includes(' ')
+      const isRange = (value: string) => value.trim().includes(" ");
 
       // Format the font families to be used in the CSS
       const formattedFontFamilies = [
         formatFamily(fontFamily),
         ...(adjustFontFallbackFamily ? [adjustFontFallbackFamily] : []),
         ...fallbackFonts,
-      ].join(', ')
+      ].join(", ");
 
       // Add class with family, weight and style
-      const classRule = new postcss.Rule({ selector: '.className' })
+      const classRule = new postcss.Rule({ selector: ".className" });
       classRule.nodes = [
         new postcss.Declaration({
-          prop: 'font-family',
+          prop: "font-family",
           value: formattedFontFamilies,
         }),
         // If the font only has one weight or style, we can set it on the class
         ...(weight && !isRange(weight)
           ? [
               new postcss.Declaration({
-                prop: 'font-weight',
+                prop: "font-weight",
                 value: weight,
               }),
             ]
@@ -157,29 +157,29 @@ const postcssNextFontPlugin = ({
         ...(style && !isRange(style)
           ? [
               new postcss.Declaration({
-                prop: 'font-style',
+                prop: "font-style",
                 value: style,
               }),
             ]
           : []),
-      ]
-      root.nodes.push(classRule)
+      ];
+      root.nodes.push(classRule);
 
       // Add CSS class that defines a variable with the font families
       if (variable) {
-        const varialbeRule = new postcss.Rule({ selector: '.variable' })
+        const varialbeRule = new postcss.Rule({ selector: ".variable" });
         varialbeRule.nodes = [
           new postcss.Declaration({
             prop: variable,
             value: formattedFontFamilies,
           }),
-        ]
-        root.nodes.push(varialbeRule)
+        ];
+        root.nodes.push(varialbeRule);
       }
 
       // Export @font-face values as is
       exports.push({
-        name: 'style',
+        name: "style",
         value: {
           fontFamily: formattedFontFamilies,
           fontWeight: !Number.isNaN(Number(weight))
@@ -187,11 +187,11 @@ const postcssNextFontPlugin = ({
             : undefined,
           fontStyle: style && !isRange(style) ? style : undefined,
         },
-      })
+      });
     },
-  }
-}
+  };
+};
 
-postcssNextFontPlugin.postcss = true
+postcssNextFontPlugin.postcss = true;
 
-export default postcssNextFontPlugin
+export default postcssNextFontPlugin;

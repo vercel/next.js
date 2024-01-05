@@ -26,8 +26,8 @@ If you're deploying a custom server with a server file (let's assume it's named 
 Ensure that your custom server starts Next.js in production mode when `NODE_ENV` is set to `production`:
 
 ```js filename="server.js"
-const dev = process.env.NODE_ENV !== 'production'
-const app = next({ dev })
+const dev = process.env.NODE_ENV !== "production";
+const app = next({ dev });
 ```
 
 ## Useful Links

@@ -4,9 +4,9 @@
 const nextConfig = {
   experimental: {
     sri: {
-      algorithm: 'sha256',
+      algorithm: "sha256",
     },
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

@@ -1,17 +1,17 @@
-import { Inter, Roboto } from '@next/font/google'
+import { Inter, Roboto } from "@next/font/google";
 const inter = Inter({
-  weight: '900',
-  display: 'swap',
+  weight: "900",
+  display: "swap",
   preload: false,
-  subsets: ['latin'],
-})
+  subsets: ["latin"],
+});
 const roboto = Roboto({
-  weight: '100',
-  style: 'italic',
-  display: 'swap',
+  weight: "100",
+  style: "italic",
+  display: "swap",
   preload: true,
-  subsets: ['vietnamese'],
-})
+  subsets: ["vietnamese"],
+});
 
 export default function Component() {
   return (
@@ -23,5 +23,5 @@ export default function Component() {
         {JSON.stringify(roboto)}
       </div>
     </>
-  )
+  );
 }

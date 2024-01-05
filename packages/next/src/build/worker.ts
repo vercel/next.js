@@ -1,5 +1,5 @@
-import '../server/require-hook'
+import "../server/require-hook";
 
-export * from './utils'
-import exportPage from '../export/worker'
-export { exportPage }
+export * from "./utils";
+import exportPage from "../export/worker";
+export { exportPage };

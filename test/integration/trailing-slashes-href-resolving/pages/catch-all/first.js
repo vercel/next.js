@@ -3,5 +3,5 @@ export default function Page() {
     <>
       <p id="first">catch-all first</p>
     </>
-  )
+  );
 }

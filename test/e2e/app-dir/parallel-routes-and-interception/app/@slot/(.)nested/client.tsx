@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
 export function Client() {
-  const value = useState('client component')[0]
-  return <p id="interception-slot-client">{value}</p>
+  const value = useState("client component")[0];
+  return <p id="interception-slot-client">{value}</p>;
 }

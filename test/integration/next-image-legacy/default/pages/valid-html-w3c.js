@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import Image from 'next/legacy/image'
+import Head from "next/head";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -14,7 +14,7 @@ const Page = () => {
         <Image src="/test.jpg" width="400" height="400" alt="basic image" />
       </main>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

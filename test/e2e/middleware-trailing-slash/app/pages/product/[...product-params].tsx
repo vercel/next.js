@@ -1,8 +1,8 @@
-import { GetServerSideProps } from 'next'
-import React from 'react'
+import { GetServerSideProps } from "next";
+import React from "react";
 
 export interface ProductPageProps {
-  test: string
+  test: string;
 }
 
 const ProductPage = (params: ProductPageProps) => {
@@ -10,18 +10,18 @@ const ProductPage = (params: ProductPageProps) => {
     <>
       <h1 id="text">Param found: {params.test}</h1>
     </>
-  )
-}
+  );
+};
 
 export const getServerSideProps: GetServerSideProps = async ({ params }) => {
-  const joined = Array.isArray(params['product-params'])
-    ? params['product-params'].join(', ')
-    : params['product-params']
+  const joined = Array.isArray(params["product-params"])
+    ? params["product-params"].join(", ")
+    : params["product-params"];
   return {
     props: {
-      test: joined ? joined : 'Not Found',
+      test: joined ? joined : "Not Found",
     },
-  }
-}
+  };
+};
 
-export default ProductPage
+export default ProductPage;

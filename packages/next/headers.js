@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/components/headers')
+module.exports = require("./dist/client/components/headers");

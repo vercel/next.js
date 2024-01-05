@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import 'client-only'
+import "client-only";
 
 export default function Page() {
-  return 'app/client/page.js'
+  return "app/client/page.js";
 }

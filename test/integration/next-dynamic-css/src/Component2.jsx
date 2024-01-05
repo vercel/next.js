@@ -1,4 +1,4 @@
-import styles from './Component2.module.scss'
+import styles from "./Component2.module.scss";
 
 export default function Content2() {
   return (
@@ -23,5 +23,5 @@ export default function Content2() {
         translation by H. Rackham.
       </div>
     </div>
-  )
+  );
 }

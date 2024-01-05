@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').WebWorkerTemplatePlugin
+module.exports = require("./webpack.js").WebWorkerTemplatePlugin;

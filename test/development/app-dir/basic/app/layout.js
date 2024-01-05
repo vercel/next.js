@@ -3,5 +3,5 @@ export default function Root({ children }) {
     <html>
       <body>{children}</body>
     </html>
-  )
+  );
 }

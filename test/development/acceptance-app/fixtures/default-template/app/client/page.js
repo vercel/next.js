@@ -1,5 +1,5 @@
-'use client'
-import Component from '../../index'
+"use client";
+import Component from "../../index";
 export default function Page() {
-  return <Component />
+  return <Component />;
 }

@@ -1,31 +1,31 @@
-import type { I18NConfig } from '../../config-shared'
-import type { RequestData } from '../types'
-import { NextURL } from '../next-url'
-import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
-import { RemovedUAError, RemovedPageError } from '../error'
-import { RequestCookies } from './cookies'
+import type { I18NConfig } from "../../config-shared";
+import type { RequestData } from "../types";
+import { NextURL } from "../next-url";
+import { toNodeOutgoingHttpHeaders, validateURL } from "../utils";
+import { RemovedUAError, RemovedPageError } from "../error";
+import { RequestCookies } from "./cookies";
 
-export const INTERNALS = Symbol('internal request')
+export const INTERNALS = Symbol("internal request");
 
 export class NextRequest extends Request {
   [INTERNALS]: {
-    cookies: RequestCookies
-    geo: RequestData['geo']
-    ip?: string
-    url: string
-    nextUrl: NextURL
-  }
+    cookies: RequestCookies;
+    geo: RequestData["geo"];
+    ip?: string;
+    url: string;
+    nextUrl: NextURL;
+  };
 
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
     const url =
-      typeof input !== 'string' && 'url' in input ? input.url : String(input)
-    validateURL(url)
-    if (input instanceof Request) super(input, init)
-    else super(url, init)
+      typeof input !== "string" && "url" in input ? input.url : String(input);
+    validateURL(url);
+    if (input instanceof Request) super(input, init);
+    else super(url, init);
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,
-    })
+    });
     this[INTERNALS] = {
       cookies: new RequestCookies(this.headers),
       geo: init.geo || {},
@@ -34,10 +34,10 @@ export class NextRequest extends Request {
       url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
         ? url
         : nextUrl.toString(),
-    }
+    };
   }
 
-  [Symbol.for('edge-runtime.inspect.custom')]() {
+  [Symbol.for("edge-runtime.inspect.custom")]() {
     return {
       cookies: this.cookies,
       geo: this.geo,
@@ -58,23 +58,23 @@ export class NextRequest extends Request {
       referrer: this.referrer,
       referrerPolicy: this.referrerPolicy,
       signal: this.signal,
-    }
+    };
   }
 
   public get cookies() {
-    return this[INTERNALS].cookies
+    return this[INTERNALS].cookies;
   }
 
   public get geo() {
-    return this[INTERNALS].geo
+    return this[INTERNALS].geo;
   }
 
   public get ip() {
-    return this[INTERNALS].ip
+    return this[INTERNALS].ip;
   }
 
   public get nextUrl() {
-    return this[INTERNALS].nextUrl
+    return this[INTERNALS].nextUrl;
   }
 
   /**
@@ -83,7 +83,7 @@ export class NextRequest extends Request {
    * Read more: https://nextjs.org/docs/messages/middleware-request-page
    */
   public get page() {
-    throw new RemovedPageError()
+    throw new RemovedPageError();
   }
 
   /**
@@ -92,25 +92,25 @@ export class NextRequest extends Request {
    * Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent
    */
   public get ua() {
-    throw new RemovedUAError()
+    throw new RemovedUAError();
   }
 
   public get url() {
-    return this[INTERNALS].url
+    return this[INTERNALS].url;
   }
 }
 
 export interface RequestInit extends globalThis.RequestInit {
   geo?: {
-    city?: string
-    country?: string
-    region?: string
-  }
-  ip?: string
+    city?: string;
+    country?: string;
+    region?: string;
+  };
+  ip?: string;
   nextConfig?: {
-    basePath?: string
-    i18n?: I18NConfig | null
-    trailingSlash?: boolean
-  }
-  signal?: AbortSignal
+    basePath?: string;
+    i18n?: I18NConfig | null;
+    trailingSlash?: boolean;
+  };
+  signal?: AbortSignal;
 }

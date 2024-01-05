@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function MainContent({ message }) {
   return (
@@ -32,9 +32,9 @@ export default function MainContent({ message }) {
         </li>
       </ul>
     </main>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => ({
-  props: { message: query.message || 'World ' },
-})
+  props: { message: query.message || "World " },
+});

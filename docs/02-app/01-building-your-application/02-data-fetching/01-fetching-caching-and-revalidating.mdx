@@ -23,43 +23,43 @@ For example:
 
 ```tsx filename="app/page.tsx" switcher
 async function getData() {
-  const res = await fetch('https://api.example.com/...')
+  const res = await fetch("https://api.example.com/...");
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
   if (!res.ok) {
     // This will activate the closest `error.js` Error Boundary
-    throw new Error('Failed to fetch data')
+    throw new Error("Failed to fetch data");
   }
 
-  return res.json()
+  return res.json();
 }
 
 export default async function Page() {
-  const data = await getData()
+  const data = await getData();
 
-  return <main></main>
+  return <main></main>;
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 async function getData() {
-  const res = await fetch('https://api.example.com/...')
+  const res = await fetch("https://api.example.com/...");
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
 
   if (!res.ok) {
     // This will activate the closest `error.js` Error Boundary
-    throw new Error('Failed to fetch data')
+    throw new Error("Failed to fetch data");
   }
 
-  return res.json()
+  return res.json();
 }
 
 export default async function Page() {
-  const data = await getData()
+  const data = await getData();
 
-  return <main></main>
+  return <main></main>;
 }
 ```
 
@@ -77,7 +77,7 @@ By default, Next.js automatically caches the returned values of `fetch` in the [
 
 ```js
 // 'force-cache' is the default, and can be omitted
-fetch('https://...', { cache: 'force-cache' })
+fetch("https://...", { cache: "force-cache" });
 ```
 
 `fetch` requests that use the `POST` method are also automatically cached. Unless it's inside a [Route Handler](/docs/app/building-your-application/routing/route-handlers) that uses the `POST` method, then it will not be cached.
@@ -102,13 +102,13 @@ Cached data can be revalidated in two ways:
 To revalidate data at a timed interval, you can use the `next.revalidate` option of `fetch` to set the cache lifetime of a resource (in seconds).
 
 ```js
-fetch('https://...', { next: { revalidate: 3600 } })
+fetch("https://...", { next: { revalidate: 3600 } });
 ```
 
 Alternatively, to revalidate all `fetch` requests in a route segment, you can use the [Segment Config Options](/docs/app/api-reference/file-conventions/route-segment-config).
 
 ```jsx filename="layout.js | page.js"
-export const revalidate = 3600 // revalidate at most every hour
+export const revalidate = 3600; // revalidate at most every hour
 ```
 
 If you have multiple fetch requests in a statically rendered route, and each has a different revalidation frequency. The lowest time will be used for all requests. For dynamically rendered routes, each `fetch` request will be revalidated independently.
@@ -128,16 +128,16 @@ For example, the following `fetch` request adds the cache tag `collection`:
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
-  const res = await fetch('https://...', { next: { tags: ['collection'] } })
-  const data = await res.json()
+  const res = await fetch("https://...", { next: { tags: ["collection"] } });
+  const data = await res.json();
   // ...
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 export default async function Page() {
-  const res = await fetch('https://...', { next: { tags: ['collection'] } })
-  const data = await res.json()
+  const res = await fetch("https://...", { next: { tags: ["collection"] } });
+  const data = await res.json();
   // ...
 }
 ```
@@ -145,22 +145,22 @@ export default async function Page() {
 You can then revalidate this `fetch` call tagged with `collection` by calling `revalidateTag` in a Server Action:
 
 ```ts filename="app/actions.ts" switcher
-'use server'
+"use server";
 
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from "next/cache";
 
 export default async function action() {
-  revalidateTag('collection')
+  revalidateTag("collection");
 }
 ```
 
 ```js filename="app/actions.js" switcher
-'use server'
+"use server";
 
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from "next/cache";
 
 export default async function action() {
-  revalidateTag('collection')
+  revalidateTag("collection");
 }
 ```
 
@@ -187,7 +187,7 @@ If an error is thrown while attempting to revalidate data, the last successfully
 To opt out of caching for individual `fetch` requests, you can set the `cache` option in `fetch` to `'no-store'`. This will fetch data dynamically, on every request.
 
 ```js filename="layout.js | page.js"
-fetch('https://...', { cache: 'no-store' })
+fetch("https://...", { cache: "no-store" });
 ```
 
 View all the available `cache` options in the [`fetch` API reference](/docs/app/api-reference/functions/fetch).
@@ -214,73 +214,73 @@ In the example below:
 - The `revalidate` option is set to `3600` in the Layout and Page segments, meaning the data will be cached and revalidated at most every hour.
 
 ```ts filename="app/utils.ts" switcher
-import { cache } from 'react'
+import { cache } from "react";
 
 export const getItem = cache(async (id: string) => {
-  const item = await db.item.findUnique({ id })
-  return item
-})
+  const item = await db.item.findUnique({ id });
+  return item;
+});
 ```
 
 ```js filename="app/utils.js" switcher
-import { cache } from 'react'
+import { cache } from "react";
 
 export const getItem = cache(async (id) => {
-  const item = await db.item.findUnique({ id })
-  return item
-})
+  const item = await db.item.findUnique({ id });
+  return item;
+});
 ```
 
 Although the `getItem` function is called twice, only one query will be made to the database.
 
 ```tsx filename="app/item/[id]/layout.tsx" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
-export const revalidate = 3600 // revalidate the data at most every hour
+export const revalidate = 3600; // revalidate the data at most every hour
 
 export default async function Layout({
   params: { id },
 }: {
-  params: { id: string }
+  params: { id: string };
 }) {
-  const item = await getItem(id)
+  const item = await getItem(id);
   // ...
 }
 ```
 
 ```jsx filename="app/item/[id]/layout.js" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
-export const revalidate = 3600 // revalidate the data at most every hour
+export const revalidate = 3600; // revalidate the data at most every hour
 
 export default async function Layout({ params: { id } }) {
-  const item = await getItem(id)
+  const item = await getItem(id);
   // ...
 }
 ```
 
 ```tsx filename="app/item/[id]/page.tsx" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
-export const revalidate = 3600 // revalidate the data at most every hour
+export const revalidate = 3600; // revalidate the data at most every hour
 
 export default async function Page({
   params: { id },
 }: {
-  params: { id: string }
+  params: { id: string };
 }) {
-  const item = await getItem(id)
+  const item = await getItem(id);
   // ...
 }
 ```
 
 ```jsx filename="app/item/[id]/page.js" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
-export const revalidate = 3600 // revalidate the data at most every hour
+export const revalidate = 3600; // revalidate the data at most every hour
 
 export default async function Page({ params: { id } }) {
-  const item = await getItem(id)
+  const item = await getItem(id);
   // ...
 }
 ```

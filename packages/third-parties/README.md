@@ -13,10 +13,10 @@
 The `YouTubeEmbed` component is used to load and display a YouTube embed. This component loads faster by using [lite-youtube-embed](https://github.com/paulirish/lite-youtube-embed) under the hood.
 
 ```js
-import { YouTubeEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from "@next/third-parties/google";
 
 export default function Page() {
-  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
+  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} />;
 }
 ```
 
@@ -25,7 +25,7 @@ export default function Page() {
 The `GoogleMapsEmbed` component can be used to add a [Google Maps Embed](https://developers.google.com/maps/documentation/embed/get-started) to your page. By default, it uses the `loading` attribute to lazy-load below the fold.
 
 ```js
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { GoogleMapsEmbed } from "@next/third-parties/google";
 
 export default function Page() {
   return (
@@ -36,7 +36,7 @@ export default function Page() {
       mode="place"
       q="Brooklyn+Bridge,New+York,NY"
     />
-  )
+  );
 }
 ```
 

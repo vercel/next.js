@@ -1,5 +1,5 @@
-import Foo from 'css/module'
+import Foo from "css/module";
 
 export default function Page() {
-  return <Foo />
+  return <Foo />;
 }

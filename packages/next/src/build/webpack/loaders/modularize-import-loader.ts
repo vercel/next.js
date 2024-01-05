@@ -1,11 +1,11 @@
-import path from 'path'
+import path from "path";
 
 export type ModularizeImportLoaderOptions = {
-  name: string
-  join?: string
-  from: 'default' | 'named'
-  as: 'default' | 'named'
-}
+  name: string;
+  join?: string;
+  from: "default" | "named";
+  as: "default" | "named";
+};
 
 /**
  * This loader is to create special re-exports from a specific file.
@@ -21,17 +21,17 @@ export type ModularizeImportLoaderOptions = {
  */
 export default function transformSource(this: any) {
   const { name, from, as, join }: ModularizeImportLoaderOptions =
-    this.getOptions()
-  const { resourcePath } = this
+    this.getOptions();
+  const { resourcePath } = this;
   const fullPath = join
     ? path.join(path.dirname(resourcePath), join)
-    : resourcePath
+    : resourcePath;
 
   return `
 export {
-  ${from === 'default' ? 'default' : name} as ${
-    as === 'default' ? 'default' : name
+  ${from === "default" ? "default" : name} as ${
+    as === "default" ? "default" : name
   }
 } from ${JSON.stringify(fullPath)}
-`
+`;
 }

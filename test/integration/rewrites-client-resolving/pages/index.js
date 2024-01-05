@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <>
@@ -23,4 +23,4 @@ export default () => (
     </Link>
     <br />
   </>
-)
+);

@@ -1,16 +1,16 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <button
         id="click-me"
         onClick={() =>
           router.push({
-            pathname: '/query',
+            pathname: "/query",
             query: {
-              param1: '',
+              param1: "",
               param2: undefined,
               param3: null,
               param4: 0,
@@ -21,7 +21,7 @@ export default function Page() {
               param9: new Date(1234),
               param10: /hello/,
               param11: [
-                '',
+                "",
                 undefined,
                 null,
                 0,
@@ -39,5 +39,5 @@ export default function Page() {
         Click me
       </button>
     </>
-  )
+  );
 }

@@ -1,15 +1,15 @@
-'use client'
-import { useFormStatus } from 'react-dom'
-import { addToCart } from './actions'
+"use client";
+import { useFormStatus } from "react-dom";
+import { addToCart } from "./actions";
 
 function SubmitButton() {
-  const { pending } = useFormStatus()
+  const { pending } = useFormStatus();
 
   return (
     <button type="submit" aria-disabled={pending}>
       Add to cart
     </button>
-  )
+  );
 }
 
 export default async function Page() {
@@ -20,5 +20,5 @@ export default async function Page() {
         <SubmitButton />
       </form>
     </>
-  )
+  );
 }

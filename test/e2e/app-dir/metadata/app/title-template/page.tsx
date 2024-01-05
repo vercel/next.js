@@ -1,7 +1,7 @@
 export default function Page() {
-  return 'title template'
+  return "title template";
 }
 
 export const metadata = {
-  title: 'Page',
-}
+  title: "Page",
+};

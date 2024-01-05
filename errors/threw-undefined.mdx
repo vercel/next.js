@@ -1,5 +1,5 @@
 ---
-title: 'Threw `undefined` / `null`'
+title: "Threw `undefined` / `null`"
 ---
 
 ## Why This Error Occurred
@@ -8,13 +8,13 @@ Somewhere in your code you `throw` an `undefined` or `null` value. Since this is
 
 ```js filename="pages/index.js"
 function getData() {
-  let error
-  throw error
+  let error;
+  throw error;
 }
 
 function Page() {
-  const error = data?.error || null
-  throw error
+  const error = data?.error || null;
+  throw error;
 }
 ```
 

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 function Index() {
   return (
@@ -6,9 +6,9 @@ function Index() {
       <h3>Hi 👋</h3>
       <Link href="/a-non-existing-page">a link to no-where</Link>
     </>
-  )
+  );
 }
 
-Index.getInitialProps = () => ({})
+Index.getInitialProps = () => ({});
 
-export default Index
+export default Index;

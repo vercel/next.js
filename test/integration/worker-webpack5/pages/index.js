@@ -1,31 +1,31 @@
-import * as React from 'react'
-import { Expensive } from '../lib/sharedCode'
+import * as React from "react";
+import { Expensive } from "../lib/sharedCode";
 
 export default function Home() {
-  const [expensiveWebStatus, setExpensiveWebStatus] = React.useState('WAIT')
+  const [expensiveWebStatus, setExpensiveWebStatus] = React.useState("WAIT");
   const [expensiveWorkerStatus, setExpensiveWorkerComplete] =
-    React.useState('WAIT')
-  const worker = React.useRef()
+    React.useState("WAIT");
+  const worker = React.useRef();
 
   React.useEffect(() => {
-    worker.current = new Worker(new URL('../lib/worker.js', import.meta.url))
-    worker.current.addEventListener('message', ({ data }) => {
+    worker.current = new Worker(new URL("../lib/worker.js", import.meta.url));
+    worker.current.addEventListener("message", ({ data }) => {
       if (data) {
-        setExpensiveWorkerComplete('PASS')
+        setExpensiveWorkerComplete("PASS");
       }
-    })
-    worker.current.addEventListener('error', (data) => {
-      setExpensiveWorkerComplete('FAIL')
-    })
-  }, [worker, setExpensiveWorkerComplete])
+    });
+    worker.current.addEventListener("error", (data) => {
+      setExpensiveWorkerComplete("FAIL");
+    });
+  }, [worker, setExpensiveWorkerComplete]);
   React.useEffect(() => {
     try {
-      Expensive()
-      setExpensiveWebStatus('PASS')
+      Expensive();
+      setExpensiveWebStatus("PASS");
     } catch {
-      setExpensiveWebStatus('FAIL')
+      setExpensiveWebStatus("FAIL");
     }
-  }, [])
+  }, []);
 
   return (
     <main>
@@ -33,5 +33,5 @@ export default function Home() {
       <div id="web-status">Web: {expensiveWebStatus}</div>
       <div id="worker-status">Worker: {expensiveWorkerStatus}</div>
     </main>
-  )
+  );
 }

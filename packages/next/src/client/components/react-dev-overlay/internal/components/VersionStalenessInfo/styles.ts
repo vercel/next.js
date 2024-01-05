@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   .nextjs-container-build-error-version-status {
@@ -28,6 +28,6 @@ const styles = css`
   .nextjs-container-build-error-version-status span.outdated {
     background: var(--color-ansi-red);
   }
-`
+`;
 
-export { styles }
+export { styles };

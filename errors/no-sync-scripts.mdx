@@ -13,7 +13,7 @@ A synchronous script was used which can impact your webpage performance.
 #### Script component (recommended)
 
 ```jsx filename="pages/index.js"
-import Script from 'next/script'
+import Script from "next/script";
 
 function Home() {
   return (
@@ -21,10 +21,10 @@ function Home() {
       <Script src="https://third-party-script.js"></Script>
       <div>Home Page</div>
     </div>
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 #### Use `async` or `defer`

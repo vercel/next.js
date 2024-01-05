@@ -1,4 +1,4 @@
-import { Layout } from '../components/layout'
+import { Layout } from "../components/layout";
 
 export default ({ children }) => {
   return (
@@ -7,5 +7,5 @@ export default ({ children }) => {
         <Layout>{children}</Layout>
       </body>
     </html>
-  )
-}
+  );
+};

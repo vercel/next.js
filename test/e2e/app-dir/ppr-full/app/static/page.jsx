@@ -4,5 +4,5 @@ export default () => {
       <dt>Pathname</dt>
       <dd data-pathname="/static">/static</dd>
     </dl>
-  )
-}
+  );
+};

@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -8,7 +8,7 @@ export default function Page() {
         Even though we don't support "layout" in next/image, we can try to
         correct the style and print a warning.
       </p>
-      <div style={{ position: 'relative', width: '200px', height: '400px' }}>
+      <div style={{ position: "relative", width: "200px", height: "400px" }}>
         <Image
           id="img"
           layout="fill"
@@ -22,5 +22,5 @@ export default function Page() {
         />
       </div>
     </div>
-  )
+  );
 }

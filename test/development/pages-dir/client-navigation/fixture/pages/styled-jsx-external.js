@@ -1,4 +1,4 @@
-import { pBlue } from '../lib/colored-blue'
+import { pBlue } from "../lib/colored-blue";
 export default () => (
   <div>
     <p id="blue-box" className={pBlue.className}>
@@ -6,4 +6,4 @@ export default () => (
     </p>
     {pBlue.styles}
   </div>
-)
+);

@@ -1,5 +1,5 @@
-import { Button } from '../components/button'
-import Link from 'next/link'
+import { Button } from "../components/button";
+import Link from "next/link";
 
 function AnotherPage() {
   return (
@@ -9,7 +9,7 @@ function AnotherPage() {
         <Button id="link-index">Another Button instance</Button>
       </Link>
     </div>
-  )
+  );
 }
 
-export default AnotherPage
+export default AnotherPage;

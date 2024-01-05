@@ -1,9 +1,9 @@
-import { runTests } from './utils'
+import { runTests } from "./utils";
 
-describe('app dir - with output export - dynamic api route prod', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+describe("app dir - with output export - dynamic api route prod", () => {
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
     it.each([
-      { dynamicApiRoute: 'undefined' },
+      { dynamicApiRoute: "undefined" },
       { dynamicApiRoute: "'error'" },
       { dynamicApiRoute: "'force-static'" },
       {
@@ -12,10 +12,10 @@ describe('app dir - with output export - dynamic api route prod', () => {
           'export const dynamic = "force-dynamic" on page "/api/json" cannot be used with "output: export".',
       },
     ])(
-      'should work in prod with dynamicApiRoute $dynamicApiRoute',
+      "should work in prod with dynamicApiRoute $dynamicApiRoute",
       async ({ dynamicApiRoute, expectedErrMsg }) => {
-        await runTests({ isDev: false, dynamicApiRoute, expectedErrMsg })
+        await runTests({ isDev: false, dynamicApiRoute, expectedErrMsg });
       }
-    )
-  })
-})
+    );
+  });
+});

@@ -1,14 +1,14 @@
-import { Component } from 'react'
-import Link from 'next/link'
+import { Component } from "react";
+import Link from "next/link";
 
-let count = 0
+let count = 0;
 
 export default class SelfReload extends Component {
   static getInitialProps({ res }) {
-    if (res) return { count: 0 }
-    count += 1
+    if (res) return { count: 0 };
+    count += 1;
 
-    return { count }
+    return { count };
   }
 
   render() {
@@ -19,6 +19,6 @@ export default class SelfReload extends Component {
         </Link>
         <p>COUNT: {this.props.count}</p>
       </div>
-    )
+    );
   }
 }

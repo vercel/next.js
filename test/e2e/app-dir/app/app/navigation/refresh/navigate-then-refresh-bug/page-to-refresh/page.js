@@ -1,21 +1,21 @@
-'use client'
-import { useRouter } from 'next/navigation'
-import { startTransition } from 'react'
-import { useCallback } from 'react'
-import { useState } from 'react'
+"use client";
+import { useRouter } from "next/navigation";
+import { startTransition } from "react";
+import { useCallback } from "react";
+import { useState } from "react";
 
 export default function Page() {
-  const [success, setSuccess] = useState(false)
-  const [finishedRefresh, setFinishedRefresh] = useState(false)
-  const router = useRouter()
+  const [success, setSuccess] = useState(false);
+  const [finishedRefresh, setFinishedRefresh] = useState(false);
+  const router = useRouter();
 
   const handleClick = useCallback(() => {
-    setSuccess(true)
+    setSuccess(true);
     startTransition(() => {
-      router.refresh()
-      setFinishedRefresh(true)
-    })
-  }, [router])
+      router.refresh();
+      setFinishedRefresh(true);
+    });
+  }, [router]);
 
   return (
     <>
@@ -24,8 +24,8 @@ export default function Page() {
       </button>
       <h1
         style={{
-          backgroundColor: success ? '#228B22' : '#ccc',
-          color: 'white',
+          backgroundColor: success ? "#228B22" : "#ccc",
+          color: "white",
         }}
       >
         The current page
@@ -34,5 +34,5 @@ export default function Page() {
         <div id="refreshed">Refreshed page successfully!</div>
       )}
     </>
-  )
+  );
 }

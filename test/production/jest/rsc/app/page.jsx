@@ -1,4 +1,4 @@
-import { PI } from '../lib/utils'
+import { PI } from "../lib/utils";
 export default function Home() {
-  return <h1>{PI}</h1>
+  return <h1>{PI}</h1>;
 }

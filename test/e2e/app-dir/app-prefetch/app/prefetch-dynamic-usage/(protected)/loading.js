@@ -1,3 +1,3 @@
 export default function ProtectedLoading() {
-  return <p>Protected loading...</p>
+  return <p>Protected loading...</p>;
 }

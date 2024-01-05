@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page(props) {
   return (
@@ -14,14 +14,14 @@ export default function Page(props) {
       </Link>
       <br />
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = ({ params }) => {
   return {
     props: {
       params,
-      message: 'Hello, magnificent world.',
+      message: "Hello, magnificent world.",
     },
-  }
-}
+  };
+};

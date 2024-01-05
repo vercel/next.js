@@ -1,7 +1,7 @@
-import { PureComponent } from 'react'
+import { PureComponent } from "react";
 
-console.log({ PureComponent })
+console.log({ PureComponent });
 
 export default function Page() {
-  return null
+  return null;
 }

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div id="button-link-page">
@@ -9,4 +9,4 @@ export default () => (
     </div>
     <p>This is the About page</p>
   </div>
-)
+);

@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -8,10 +8,10 @@ const Page = () => {
       <div
         id="image-container-1"
         style={{
-          height: '300px',
-          width: '300px',
-          position: 'relative',
-          overflow: 'hidden',
+          height: "300px",
+          width: "300px",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
         <Image id="fill-image-1" src="/wide.png" fill />
@@ -22,14 +22,14 @@ const Page = () => {
       <div
         id="image-container-3"
         style={{
-          position: 'relative',
-          overflow: 'hidden',
+          position: "relative",
+          overflow: "hidden",
         }}
       >
         <Image id="fill-image-3" src="/wide.png" fill />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

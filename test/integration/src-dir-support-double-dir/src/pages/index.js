@@ -1,1 +1,1 @@
-export default () => <h1>SRC</h1>
+export default () => <h1>SRC</h1>;

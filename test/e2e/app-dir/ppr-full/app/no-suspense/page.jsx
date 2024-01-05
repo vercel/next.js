@@ -1,6 +1,6 @@
-import React from 'react'
-import { Dynamic } from '../../components/dynamic'
+import React from "react";
+import { Dynamic } from "../../components/dynamic";
 
 export default () => {
-  return <Dynamic pathname="/no-suspense" />
-}
+  return <Dynamic pathname="/no-suspense" />;
+};

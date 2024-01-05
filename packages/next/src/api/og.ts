@@ -1,1 +1,1 @@
-export * from '../server/og/image-response'
+export * from "../server/og/image-response";

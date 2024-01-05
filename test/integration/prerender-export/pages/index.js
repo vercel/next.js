@@ -1,10 +1,10 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getStaticProps() {
   // throw new Error('oops from getStaticProps')
   return {
-    props: { world: 'world', time: new Date().getTime() },
-  }
+    props: { world: "world", time: new Date().getTime() },
+  };
 }
 
 const Page = ({ world, time }) => {
@@ -100,7 +100,7 @@ const Page = ({ world, time }) => {
         to catchall-explicit [third]/[fourth] page
       </Link>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

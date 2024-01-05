@@ -1,3 +1,3 @@
 export default function IndexPage() {
-  return <p>Hi 👋</p>
+  return <p>Hi 👋</p>;
 }

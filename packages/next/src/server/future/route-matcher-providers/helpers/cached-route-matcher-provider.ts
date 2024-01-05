@@ -1,9 +1,9 @@
-import type { RouteMatcherProvider } from '../route-matcher-provider'
-import type { RouteMatcher } from '../../route-matchers/route-matcher'
+import type { RouteMatcherProvider } from "../route-matcher-provider";
+import type { RouteMatcher } from "../../route-matchers/route-matcher";
 
 interface LoaderComparable<D> {
-  load(): Promise<D>
-  compare(left: D, right: D): boolean
+  load(): Promise<D>;
+  compare(left: D, right: D): boolean;
 }
 
 /**
@@ -14,27 +14,27 @@ export abstract class CachedRouteMatcherProvider<
   D = any
 > implements RouteMatcherProvider<M>
 {
-  private data?: D
-  private cached: ReadonlyArray<M> = []
+  private data?: D;
+  private cached: ReadonlyArray<M> = [];
 
   constructor(private readonly loader: LoaderComparable<D>) {}
 
-  protected abstract transform(data: D): Promise<ReadonlyArray<M>>
+  protected abstract transform(data: D): Promise<ReadonlyArray<M>>;
 
   public async matchers(): Promise<readonly M[]> {
-    const data = await this.loader.load()
-    if (!data) return []
+    const data = await this.loader.load();
+    if (!data) return [];
 
     // Return the cached matchers if the data has not changed.
-    if (this.data && this.loader.compare(this.data, data)) return this.cached
-    this.data = data
+    if (this.data && this.loader.compare(this.data, data)) return this.cached;
+    this.data = data;
 
     // Transform the manifest into matchers.
-    const matchers = await this.transform(data)
+    const matchers = await this.transform(data);
 
     // Cache the matchers.
-    this.cached = matchers
+    this.cached = matchers;
 
-    return matchers
+    return matchers;
   }
 }

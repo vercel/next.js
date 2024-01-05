@@ -1,5 +1,5 @@
-import rd from 'react-dom'
+import rd from "react-dom";
 export default () => {
-  console.log(rd)
-  return <div>Component One</div>
-}
+  console.log(rd);
+  return <div>Component One</div>;
+};

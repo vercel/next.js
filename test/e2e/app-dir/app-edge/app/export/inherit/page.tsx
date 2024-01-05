@@ -1,1 +1,1 @@
-export { default, runtime, preferredRegion } from '../basic/page'
+export { default, runtime, preferredRegion } from "../basic/page";

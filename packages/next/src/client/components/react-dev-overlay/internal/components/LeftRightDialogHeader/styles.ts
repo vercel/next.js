@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   [data-nextjs-dialog-left-right] {
@@ -62,6 +62,6 @@ const styles = css`
   [data-nextjs-dialog-left-right] > button:last-of-type:hover {
     opacity: 0.7;
   }
-`
+`;
 
-export { styles }
+export { styles };

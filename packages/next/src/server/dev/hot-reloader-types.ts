@@ -1,104 +1,104 @@
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlObject } from 'url'
-import type { Duplex } from 'stream'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type getBaseWebpackConfig from '../../build/webpack-config'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { Project, Update as TurbopackUpdate } from '../../build/swc'
-import type { VersionInfo } from './parse-version-info'
+import type { IncomingMessage, ServerResponse } from "http";
+import type { UrlObject } from "url";
+import type { Duplex } from "stream";
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import type getBaseWebpackConfig from "../../build/webpack-config";
+import type { RouteDefinition } from "../future/route-definitions/route-definition";
+import type { Project, Update as TurbopackUpdate } from "../../build/swc";
+import type { VersionInfo } from "./parse-version-info";
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
-  ADDED_PAGE = 'addedPage',
-  REMOVED_PAGE = 'removedPage',
-  RELOAD_PAGE = 'reloadPage',
-  SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
-  MIDDLEWARE_CHANGES = 'middlewareChanges',
-  CLIENT_CHANGES = 'clientChanges',
-  SERVER_ONLY_CHANGES = 'serverOnlyChanges',
-  SYNC = 'sync',
-  BUILT = 'built',
-  BUILDING = 'building',
-  FINISH_BUILDING = 'finishBuilding',
-  DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
-  TURBOPACK_MESSAGE = 'turbopack-message',
-  SERVER_ERROR = 'serverError',
-  TURBOPACK_CONNECTED = 'turbopack-connected',
+  ADDED_PAGE = "addedPage",
+  REMOVED_PAGE = "removedPage",
+  RELOAD_PAGE = "reloadPage",
+  SERVER_COMPONENT_CHANGES = "serverComponentChanges",
+  MIDDLEWARE_CHANGES = "middlewareChanges",
+  CLIENT_CHANGES = "clientChanges",
+  SERVER_ONLY_CHANGES = "serverOnlyChanges",
+  SYNC = "sync",
+  BUILT = "built",
+  BUILDING = "building",
+  FINISH_BUILDING = "finishBuilding",
+  DEV_PAGES_MANIFEST_UPDATE = "devPagesManifestUpdate",
+  TURBOPACK_MESSAGE = "turbopack-message",
+  SERVER_ERROR = "serverError",
+  TURBOPACK_CONNECTED = "turbopack-connected",
 }
 
 interface ServerErrorAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
-  errorJSON: string
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR;
+  errorJSON: string;
 }
 
 export interface TurbopackMessageAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  data: TurbopackUpdate | TurbopackUpdate[]
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE;
+  data: TurbopackUpdate | TurbopackUpdate[];
 }
 
 interface BuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
+  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING;
 }
 
 interface FinishBuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
+  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING;
 }
 
 export interface SyncAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
-  hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
-  versionInfo: VersionInfo
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC;
+  hash: string;
+  errors: ReadonlyArray<unknown>;
+  warnings: ReadonlyArray<unknown>;
+  versionInfo: VersionInfo;
 }
 interface BuiltAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
-  hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT;
+  hash: string;
+  errors: ReadonlyArray<unknown>;
+  warnings: ReadonlyArray<unknown>;
 }
 
 interface AddedPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE
-  data: [page: string | null]
+  action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE;
+  data: [page: string | null];
 }
 
 interface RemovedPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE
-  data: [page: string | null]
+  action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE;
+  data: [page: string | null];
 }
 
 export interface ReloadPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE;
 }
 
 interface ServerComponentChangesAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES;
 }
 
 interface MiddlewareChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
+  event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES;
 }
 
 interface ClientChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES;
 }
 
 interface ServerOnlyChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
-  pages: ReadonlyArray<string>
+  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES;
+  pages: ReadonlyArray<string>;
 }
 
 interface DevPagesManifestUpdateAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE;
   data: [
     {
-      devPagesManifest: true
+      devPagesManifest: true;
     }
-  ]
+  ];
 }
 
 export interface TurbopackConnectedAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED;
 }
 
 export type HMR_ACTION_TYPES =
@@ -116,32 +116,34 @@ export type HMR_ACTION_TYPES =
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
-  | ServerErrorAction
+  | ServerErrorAction;
 
 export interface NextJsHotReloaderInterface {
-  turbopackProject?: Project
-  activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
-  serverStats: webpack.Stats | null
-  edgeServerStats: webpack.Stats | null
+  turbopackProject?: Project;
+  activeWebpackConfigs?: Array<
+    Awaited<ReturnType<typeof getBaseWebpackConfig>>
+  >;
+  serverStats: webpack.Stats | null;
+  edgeServerStats: webpack.Stats | null;
   run(
     req: IncomingMessage,
     res: ServerResponse,
     parsedUrl: UrlObject
-  ): Promise<{ finished?: true }>
+  ): Promise<{ finished?: true }>;
 
-  setHmrServerError(error: Error | null): void
-  clearHmrServerError(): void
-  start(): Promise<void>
-  stop(): Promise<void>
-  send(action: HMR_ACTION_TYPES): void
-  getCompilationErrors(page: string): Promise<any[]>
-  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void
+  setHmrServerError(error: Error | null): void;
+  clearHmrServerError(): void;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+  send(action: HMR_ACTION_TYPES): void;
+  getCompilationErrors(page: string): Promise<any[]>;
+  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void;
   invalidate({
     reloadAfterInvalidation,
   }: {
-    reloadAfterInvalidation: boolean
-  }): void
-  buildFallbackError(): Promise<void>
+    reloadAfterInvalidation: boolean;
+  }): void;
+  buildFallbackError(): Promise<void>;
   ensurePage({
     page,
     clientOnly,
@@ -150,11 +152,11 @@ export interface NextJsHotReloaderInterface {
     isApp,
     url,
   }: {
-    page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    definition: RouteDefinition | undefined
-    url?: string
-  }): Promise<void>
+    page: string;
+    clientOnly: boolean;
+    appPaths?: ReadonlyArray<string> | null;
+    isApp?: boolean;
+    definition: RouteDefinition | undefined;
+    url?: string;
+  }): Promise<void>;
 }

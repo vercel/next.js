@@ -1,4 +1,4 @@
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function NotFound() {
   return (
@@ -7,5 +7,5 @@ export default function NotFound() {
         Not Found!
       </h1>
     </>
-  )
+  );
 }

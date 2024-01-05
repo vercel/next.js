@@ -1,5 +1,5 @@
-import 'server-only'
+import "server-only";
 
 export function GET() {
-  return new Response('app-route/route.js')
+  return new Response("app-route/route.js");
 }

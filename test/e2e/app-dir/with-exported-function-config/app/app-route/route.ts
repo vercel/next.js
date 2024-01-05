@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({ hello: 'app' })
+  return NextResponse.json({ hello: "app" });
 }
 
-export const maxDuration = 1
+export const maxDuration = 1;

@@ -1,6 +1,6 @@
 /* global localStorage */
 /* eslint-disable camelcase */
-import App from 'next/app'
+import App from "next/app";
 
 export default class MyApp extends App {}
 
@@ -11,5 +11,5 @@ export function reportWebVitals(data) {
   localStorage.setItem(
     data.name || data.entryType,
     data.value !== undefined ? data.value : data.startTime
-  )
+  );
 }

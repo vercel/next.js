@@ -4,9 +4,9 @@ export default function AboutBypass({ message }) {
       <h1 className="title">About Bypassed Page</h1>
       <p className={message}>{message}</p>
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => ({
-  props: { message: query.message || '' },
-})
+  props: { message: query.message || "" },
+});

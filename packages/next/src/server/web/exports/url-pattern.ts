@@ -1,5 +1,5 @@
 const GlobalURLPattern =
   // @ts-expect-error: URLPattern is not available in Node.js
-  typeof URLPattern === 'undefined' ? undefined : URLPattern
+  typeof URLPattern === "undefined" ? undefined : URLPattern;
 
-export default GlobalURLPattern
+export default GlobalURLPattern;

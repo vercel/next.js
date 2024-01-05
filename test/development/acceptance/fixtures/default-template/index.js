@@ -1,1 +1,1 @@
-export default () => 'new sandbox'
+export default () => "new sandbox";

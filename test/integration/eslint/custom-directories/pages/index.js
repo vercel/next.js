@@ -3,6 +3,6 @@ const Home = () => (
     <p>Home</p>
     <a href="test">Test link</a>
   </div>
-)
+);
 
-export default Home
+export default Home;

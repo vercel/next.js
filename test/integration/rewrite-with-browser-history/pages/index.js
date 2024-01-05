@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -11,9 +11,9 @@ export default function Page() {
 
       <br />
     </>
-  )
+  );
 }
 
 export const getServerSideProps = () => {
-  return { props: {} }
-}
+  return { props: {} };
+};

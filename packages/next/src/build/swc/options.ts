@@ -1,50 +1,50 @@
-import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
+import { WEBPACK_LAYERS, type WebpackLayerName } from "../../lib/constants";
 import type {
   NextConfig,
   ExperimentalConfig,
   EmotionConfig,
   StyledComponentsConfig,
-} from '../../server/config-shared'
-import type { ResolvedBaseUrl } from '../load-jsconfig'
+} from "../../server/config-shared";
+import type { ResolvedBaseUrl } from "../load-jsconfig";
 
 const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/;
 
-const nodeModulesPath = /[\\/]node_modules[\\/]/
+const nodeModulesPath = /[\\/]node_modules[\\/]/;
 
 const regeneratorRuntimePath = require.resolve(
-  'next/dist/compiled/regenerator-runtime'
-)
+  "next/dist/compiled/regenerator-runtime"
+);
 
 function isTypeScriptFile(filename: string) {
-  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+  return filename.endsWith(".ts") || filename.endsWith(".tsx");
 }
 
 function isCommonJSFile(filename: string) {
-  return filename.endsWith('.cjs')
+  return filename.endsWith(".cjs");
 }
 
 // Ensure Next.js internals and .cjs files are output as CJS modules,
 // By default all modules are output as ESM or will treated as CJS if next-swc/auto-cjs plugin detects file is CJS.
 function shouldOutputCommonJs(filename: string) {
-  return isCommonJSFile(filename) || nextDistPath.test(filename)
+  return isCommonJSFile(filename) || nextDistPath.test(filename);
 }
 
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
-  const isTSFile = filename.endsWith('.ts')
-  const hasTsSyntax = isTypeScriptFile(filename)
+  const isTSFile = filename.endsWith(".ts");
+  const hasTsSyntax = isTypeScriptFile(filename);
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
-  )
+  );
   return {
     ...rest,
-    syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
+    syntax: hasTsSyntax ? "typescript" : "ecmascript",
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [hasTsSyntax ? 'tsx' : 'jsx']: !isTSFile,
+    [hasTsSyntax ? "tsx" : "jsx"]: !isTSFile,
     importAssertions: true,
-  }
+  };
 }
 
 function getBaseSWCOptions({
@@ -63,37 +63,37 @@ function getBaseSWCOptions({
   serverComponents,
   bundleLayer,
 }: {
-  filename: string
-  jest?: boolean
-  development: boolean
-  hasReactRefresh: boolean
-  globalWindow: boolean
-  esm: boolean
-  modularizeImports?: NextConfig['modularizeImports']
-  compilerOptions: NextConfig['compiler']
-  swcPlugins: ExperimentalConfig['swcPlugins']
-  resolvedBaseUrl?: ResolvedBaseUrl
-  jsConfig: any
-  swcCacheDir?: string
-  serverComponents?: boolean
-  bundleLayer?: WebpackLayerName
+  filename: string;
+  jest?: boolean;
+  development: boolean;
+  hasReactRefresh: boolean;
+  globalWindow: boolean;
+  esm: boolean;
+  modularizeImports?: NextConfig["modularizeImports"];
+  compilerOptions: NextConfig["compiler"];
+  swcPlugins: ExperimentalConfig["swcPlugins"];
+  resolvedBaseUrl?: ResolvedBaseUrl;
+  jsConfig: any;
+  swcCacheDir?: string;
+  serverComponents?: boolean;
+  bundleLayer?: WebpackLayerName;
 }) {
   const isReactServerLayer =
-    bundleLayer === WEBPACK_LAYERS.reactServerComponents
-  const parserConfig = getParserOptions({ filename, jsConfig })
-  const paths = jsConfig?.compilerOptions?.paths
+    bundleLayer === WEBPACK_LAYERS.reactServerComponents;
+  const parserConfig = getParserOptions({ filename, jsConfig });
+  const paths = jsConfig?.compilerOptions?.paths;
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
-  )
+  );
   const emitDecoratorMetadata = Boolean(
     jsConfig?.compilerOptions?.emitDecoratorMetadata
-  )
+  );
   const useDefineForClassFields = Boolean(
     jsConfig?.compilerOptions?.useDefineForClassFields
-  )
+  );
   const plugins = (swcPlugins ?? [])
     .filter(Array.isArray)
-    .map(([name, options]: any) => [require.resolve(name), options])
+    .map(([name, options]: any) => [require.resolve(name), options]);
 
   return {
     jsc: {
@@ -127,10 +127,10 @@ function getBaseSWCOptions({
           importSource:
             jsConfig?.compilerOptions?.jsxImportSource ??
             (compilerOptions?.emotion && !isReactServerLayer
-              ? '@emotion/react'
-              : 'react'),
-          runtime: 'automatic',
-          pragmaFrag: 'React.Fragment',
+              ? "@emotion/react"
+              : "react"),
+          runtime: "automatic",
+          pragmaFrag: "React.Fragment",
           throwIfNamespace: true,
           development: !!development,
           useBuiltins: true,
@@ -142,7 +142,7 @@ function getBaseSWCOptions({
             ? null
             : {
                 typeofs: {
-                  window: globalWindow ? 'object' : 'undefined',
+                  window: globalWindow ? "object" : "undefined",
                 },
                 envs: {
                   NODE_ENV: development ? '"development"' : '"production"',
@@ -155,7 +155,7 @@ function getBaseSWCOptions({
         },
       },
     },
-    sourceMaps: jest ? 'inline' : undefined,
+    sourceMaps: jest ? "inline" : undefined,
     removeConsole: compilerOptions?.removeConsole,
     // disable "reactRemoveProperties" when "jest" is true
     // otherwise the setting from next.config.js will be used
@@ -170,7 +170,7 @@ function getBaseSWCOptions({
             {
               ...config,
               transform:
-                typeof config.transform === 'string'
+                typeof config.transform === "string"
                   ? config.transform
                   : Object.entries(config.transform).map(([key, value]) => [
                       key,
@@ -211,7 +211,7 @@ function getBaseSWCOptions({
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
-  }
+  };
 }
 
 function getStyledComponentsOptions(
@@ -219,16 +219,16 @@ function getStyledComponentsOptions(
   development: any
 ) {
   if (!styledComponentsConfig) {
-    return null
-  } else if (typeof styledComponentsConfig === 'object') {
+    return null;
+  } else if (typeof styledComponentsConfig === "object") {
     return {
       ...styledComponentsConfig,
       displayName: styledComponentsConfig.displayName ?? Boolean(development),
-    }
+    };
   } else {
     return {
       displayName: Boolean(development),
-    }
+    };
   }
 }
 
@@ -237,30 +237,30 @@ function getEmotionOptions(
   development: boolean
 ) {
   if (!emotionConfig) {
-    return null
+    return null;
   }
-  let autoLabel = !!development
-  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
-    case 'never':
-      autoLabel = false
-      break
-    case 'always':
-      autoLabel = true
-      break
-    case 'dev-only':
+  let autoLabel = !!development;
+  switch (typeof emotionConfig === "object" && emotionConfig.autoLabel) {
+    case "never":
+      autoLabel = false;
+      break;
+    case "always":
+      autoLabel = true;
+      break;
+    case "dev-only":
     default:
-      break
+      break;
   }
   return {
     enabled: true,
     autoLabel,
     sourcemap: development,
-    ...(typeof emotionConfig === 'object' && {
+    ...(typeof emotionConfig === "object" && {
       importMap: emotionConfig.importMap,
       labelFormat: emotionConfig.labelFormat,
       sourcemap: development && emotionConfig.sourceMap,
     }),
-  }
+  };
 }
 
 export function getJestSWCOptions({
@@ -274,16 +274,16 @@ export function getJestSWCOptions({
   resolvedBaseUrl,
   pagesDir,
 }: {
-  isServer: boolean
-  filename: string
-  esm: boolean
-  modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
-  compilerOptions: NextConfig['compiler']
-  jsConfig: any
-  resolvedBaseUrl?: ResolvedBaseUrl
-  pagesDir?: string
-  serverComponents?: boolean
+  isServer: boolean;
+  filename: string;
+  esm: boolean;
+  modularizeImports?: NextConfig["modularizeImports"];
+  swcPlugins: ExperimentalConfig["swcPlugins"];
+  compilerOptions: NextConfig["compiler"];
+  jsConfig: any;
+  resolvedBaseUrl?: ResolvedBaseUrl;
+  pagesDir?: string;
+  serverComponents?: boolean;
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -301,9 +301,9 @@ export function getJestSWCOptions({
     // Disable server / client graph assertions for Jest
     bundleLayer: undefined,
     serverComponents: false,
-  })
+  });
 
-  const useCjsModules = shouldOutputCommonJs(filename)
+  const useCjsModules = shouldOutputCommonJs(filename);
   return {
     ...baseOptions,
     env: {
@@ -313,12 +313,12 @@ export function getJestSWCOptions({
       },
     },
     module: {
-      type: esm && !useCjsModules ? 'es6' : 'commonjs',
+      type: esm && !useCjsModules ? "es6" : "commonjs",
     },
     disableNextSsg: true,
     disablePageConfig: true,
     pagesDir,
-  }
+  };
 }
 
 export function getLoaderSWCOptions({
@@ -344,27 +344,27 @@ export function getLoaderSWCOptions({
   bundleLayer,
   esm,
 }: {
-  filename: string
-  development: boolean
-  isServer: boolean
-  pagesDir?: string
-  appDir?: string
-  isPageFile: boolean
-  hasReactRefresh: boolean
-  optimizeServerReact?: boolean
-  modularizeImports: NextConfig['modularizeImports']
+  filename: string;
+  development: boolean;
+  isServer: boolean;
+  pagesDir?: string;
+  appDir?: string;
+  isPageFile: boolean;
+  hasReactRefresh: boolean;
+  optimizeServerReact?: boolean;
+  modularizeImports: NextConfig["modularizeImports"];
   optimizePackageImports?: NonNullable<
-    NextConfig['experimental']
-  >['optimizePackageImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
-  compilerOptions: NextConfig['compiler']
-  jsConfig: any
-  supportedBrowsers: string[] | undefined
-  swcCacheDir: string
-  relativeFilePathFromRoot: string
-  esm?: boolean
-  serverComponents?: boolean
-  bundleLayer?: WebpackLayerName
+    NextConfig["experimental"]
+  >["optimizePackageImports"];
+  swcPlugins: ExperimentalConfig["swcPlugins"];
+  compilerOptions: NextConfig["compiler"];
+  jsConfig: any;
+  supportedBrowsers: string[] | undefined;
+  swcCacheDir: string;
+  relativeFilePathFromRoot: string;
+  esm?: boolean;
+  serverComponents?: boolean;
+  bundleLayer?: WebpackLayerName;
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -380,56 +380,56 @@ export function getLoaderSWCOptions({
     bundleLayer,
     serverComponents,
     esm: !!esm,
-  })
+  });
   baseOptions.fontLoaders = {
     fontLoaders: [
-      'next/font/local',
-      'next/font/google',
+      "next/font/local",
+      "next/font/google",
 
       // TODO: remove this in the next major version
-      '@next/font/local',
-      '@next/font/google',
+      "@next/font/local",
+      "@next/font/google",
     ],
     relativeFilePathFromRoot,
-  }
+  };
   baseOptions.cjsRequireOptimizer = {
     packages: {
-      'next/server': {
+      "next/server": {
         transforms: {
-          NextRequest: 'next/dist/server/web/spec-extension/request',
-          NextResponse: 'next/dist/server/web/spec-extension/response',
-          ImageResponse: 'next/dist/server/web/spec-extension/image-response',
-          userAgentFromString: 'next/dist/server/web/spec-extension/user-agent',
-          userAgent: 'next/dist/server/web/spec-extension/user-agent',
+          NextRequest: "next/dist/server/web/spec-extension/request",
+          NextResponse: "next/dist/server/web/spec-extension/response",
+          ImageResponse: "next/dist/server/web/spec-extension/image-response",
+          userAgentFromString: "next/dist/server/web/spec-extension/user-agent",
+          userAgent: "next/dist/server/web/spec-extension/user-agent",
         },
       },
     },
-  }
+  };
 
   if (optimizeServerReact && isServer && !development) {
     baseOptions.optimizeServerReact = {
       optimize_use_state: true,
-    }
+    };
   }
 
   // Modularize import optimization for barrel files
   if (optimizePackageImports) {
     baseOptions.autoModularizeImports = {
       packages: optimizePackageImports,
-    }
+    };
   }
 
-  const isNodeModules = nodeModulesPath.test(filename)
-  const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser
+  const isNodeModules = nodeModulesPath.test(filename);
+  const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser;
   const moduleResolutionConfig = shouldOutputCommonJs(filename)
     ? {
         module: {
-          type: 'commonjs',
+          type: "commonjs",
         },
       }
-    : {}
+    : {};
 
-  let options: any
+  let options: any;
   if (isServer) {
     options = {
       ...baseOptions,
@@ -449,7 +449,7 @@ export function getLoaderSWCOptions({
           node: process.versions.node,
         },
       },
-    }
+    };
   } else {
     options = {
       ...baseOptions,
@@ -467,22 +467,22 @@ export function getLoaderSWCOptions({
             },
           }
         : {}),
-    }
+    };
     if (!options.env) {
       // Matches default @babel/preset-env behavior
-      options.jsc.target = 'es5'
+      options.jsc.target = "es5";
     }
   }
 
   // For node_modules in app browser layer, we don't need to do any server side transformation.
   // Only keep server actions transform to discover server actions from client components.
   if (isAppBrowserLayer && isNodeModules) {
-    options.disableNextSsg = true
-    options.disablePageConfig = true
-    options.isPageFile = false
-    options.optimizeServerReact = undefined
-    options.cjsRequireOptimizer = undefined
+    options.disableNextSsg = true;
+    options.disablePageConfig = true;
+    options.isPageFile = false;
+    options.optimizeServerReact = undefined;
+    options.cjsRequireOptimizer = undefined;
   }
 
-  return options
+  return options;
 }

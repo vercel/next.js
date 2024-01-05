@@ -1,3 +1,3 @@
 export default function Page({ searchParams }) {
-  return searchParams.query ?? null
+  return searchParams.query ?? null;
 }

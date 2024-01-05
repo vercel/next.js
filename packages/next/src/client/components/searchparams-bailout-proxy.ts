@@ -1,4 +1,4 @@
-import { staticGenerationBailout } from './static-generation-bailout'
+import { staticGenerationBailout } from "./static-generation-bailout";
 
 export function createSearchParamsBailoutProxy() {
   return new Proxy(
@@ -6,10 +6,10 @@ export function createSearchParamsBailoutProxy() {
     {
       get(_target, prop) {
         // React adds some properties on the object when serializing for client components
-        if (typeof prop === 'string') {
-          staticGenerationBailout(`searchParams.${prop}`)
+        if (typeof prop === "string") {
+          staticGenerationBailout(`searchParams.${prop}`);
         }
       },
     }
-  )
+  );
 }

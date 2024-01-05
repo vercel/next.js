@@ -1,14 +1,14 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { check, renderViaHTTP } from 'next-test-utils'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { check, renderViaHTTP } from "next-test-utils";
 
-describe('custom-error-500', () => {
-  let next: NextInstance
+describe("custom-error-500", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.js': `
+        "pages/index.js": `
           export function getServerSideProps() {
             throw new Error('custom error')
           }
@@ -17,7 +17,7 @@ describe('custom-error-500', () => {
             return <p>index page</p>
           }
         `,
-        'pages/500.js': `
+        "pages/500.js": `
           export default function Custom500() {
             return (
               <>
@@ -26,7 +26,7 @@ describe('custom-error-500', () => {
             )
           }
         `,
-        'pages/_error.js': `
+        "pages/_error.js": `
           function Error({ hasError }) {
             return (
               <>
@@ -46,32 +46,32 @@ describe('custom-error-500', () => {
         `,
       },
       dependencies: {},
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('should correctly use pages/500 and call Error.getInitialProps', async () => {
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('pages/500')
+  it("should correctly use pages/500 and call Error.getInitialProps", async () => {
+    const html = await renderViaHTTP(next.url, "/");
+    expect(html).toContain("pages/500");
 
-    await check(() => next.cliOutput, /called Error\.getInitialProps true/)
-  })
+    await check(() => next.cliOutput, /called Error\.getInitialProps true/);
+  });
 
-  it('should work correctly with pages/404 present', async () => {
-    await next.stop()
+  it("should work correctly with pages/404 present", async () => {
+    await next.stop();
     await next.patchFile(
-      'pages/404.js',
+      "pages/404.js",
       `
       export default function Page() {
         return <p>custom 404 page</p>
       }
     `
-    )
-    await next.start()
+    );
+    await next.start();
 
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('pages/500')
+    const html = await renderViaHTTP(next.url, "/");
+    expect(html).toContain("pages/500");
 
-    await check(() => next.cliOutput, /called Error\.getInitialProps true/)
-  })
-})
+    await check(() => next.cliOutput, /called Error\.getInitialProps true/);
+  });
+});

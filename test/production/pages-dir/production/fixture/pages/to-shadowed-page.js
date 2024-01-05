@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function ToShadowed() {
   return (
@@ -7,5 +7,5 @@ export default function ToShadowed() {
         Shadowed Page
       </Link>
     </div>
-  )
+  );
 }

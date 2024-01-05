@@ -8,55 +8,55 @@ module.exports = {
     return {
       afterFiles: [
         {
-          source: '/rewritten-to-dashboard',
-          destination: '/dashboard',
+          source: "/rewritten-to-dashboard",
+          destination: "/dashboard",
         },
         {
-          source: '/search-params-prop-rewrite',
+          source: "/search-params-prop-rewrite",
           destination:
-            '/search-params-prop?first=value&second=other%20value&third',
+            "/search-params-prop?first=value&second=other%20value&third",
         },
         {
-          source: '/search-params-prop-server-rewrite',
+          source: "/search-params-prop-server-rewrite",
           destination:
-            '/search-params-prop/server?first=value&second=other%20value&third',
+            "/search-params-prop/server?first=value&second=other%20value&third",
         },
       ],
-    }
+    };
   },
 
   redirects: async () => {
     return [
       {
-        source: '/redirect-1',
-        destination: 'https://example.vercel.sh',
+        source: "/redirect-1",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
       {
-        source: '/redirect-2',
-        destination: 'https://example.vercel.sh',
+        source: "/redirect-2",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
       {
-        source: '/blog/old-post',
-        destination: 'https://example.vercel.sh',
+        source: "/blog/old-post",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
       {
-        source: '/redirect-3/some',
-        destination: 'https://example.vercel.sh',
+        source: "/redirect-3/some",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
       {
-        source: '/redirect-4',
-        destination: 'https://example.vercel.sh',
+        source: "/redirect-4",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
       {
-        source: '/:path/to-redirect',
-        destination: 'https://example.vercel.sh',
+        source: "/:path/to-redirect",
+        destination: "https://example.vercel.sh",
         permanent: false,
       },
-    ]
+    ];
   },
-}
+};

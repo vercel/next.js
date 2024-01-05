@@ -1,5 +1,5 @@
-export type Manifest = Record<string, string>
+export type Manifest = Record<string, string>;
 
 export interface ManifestLoader {
-  load(name: string): Manifest | null
+  load(name: string): Manifest | null;
 }

@@ -1,10 +1,10 @@
 function ThrowUndefined(props) {
-  return <div>throw-undefined</div>
+  return <div>throw-undefined</div>;
 }
 
 ThrowUndefined.getInitialProps = () => {
   // eslint-disable-next-line no-throw-literal
-  throw undefined
-}
+  throw undefined;
+};
 
-export default ThrowUndefined
+export default ThrowUndefined;

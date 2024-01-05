@@ -1,13 +1,13 @@
-import { fetchData } from '../lib/fetch-data'
+import { fetchData } from "../lib/fetch-data";
 
 export default function Page() {
-  return 'index page'
+  return "index page";
 }
 
 export function getStaticProps() {
-  fetchData()
+  fetchData();
 
   return {
     props: {},
-  }
+  };
 }

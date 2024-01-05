@@ -1,1 +1,1 @@
-module.exports = require('../dist/local/loader')
+module.exports = require("../dist/local/loader");

@@ -1,20 +1,20 @@
-import { use } from 'react'
+import { use } from "react";
 
-export const revalidate = 0
+export const revalidate = 0;
 
 async function getData() {
   return {
-    message: 'hello from layout',
-  }
+    message: "hello from layout",
+  };
 }
 
 export default function gsspLayout(props) {
-  const data = use(getData())
+  const data = use(getData());
 
   return (
     <>
       <h1 id="layout-message">{data.message}</h1>
       {props.children}
     </>
-  )
+  );
 }

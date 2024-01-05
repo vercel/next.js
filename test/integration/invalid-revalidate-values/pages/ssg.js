@@ -3,14 +3,14 @@ export default function Page() {
     <>
       <p>a-ok</p>
     </>
-  )
+  );
 }
 
 export const getStaticProps = () => {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
     },
     revalidate: 1,
-  }
-}
+  };
+};

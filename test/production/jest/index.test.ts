@@ -1,22 +1,22 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { renderViaHTTP } from 'next-test-utils'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { renderViaHTTP } from "next-test-utils";
 
-describe('next/jest', () => {
-  let next: NextInstance
+describe("next/jest", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'public/vercel.svg':
+        "public/vercel.svg":
           '<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg"/>',
-        'components/comp.js': `
+        "components/comp.js": `
           export default function Comp() {
             return <h1>Hello Dynamic</h1>;
           }
         `,
-        'styles/index.module.css': '.home { color: orange }',
-        'pages/index.js': `
+        "styles/index.module.css": ".home { color: orange }",
+        "pages/index.js": `
           import dynamic from "next/dynamic";
           import Image from "next/image";
           import img from "../public/vercel.svg";
@@ -41,7 +41,7 @@ describe('next/jest', () => {
             </>
           } 
         `,
-        'jest.config.js': `
+        "jest.config.js": `
           // jest.config.js
           const nextJest = require('next/jest')
           
@@ -66,11 +66,11 @@ describe('next/jest', () => {
           // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
           module.exports = createJestConfig(customJestConfig)
         `,
-        'jest.setup.js': `
+        "jest.setup.js": `
           // Learn more: https://github.com/testing-library/jest-dom
           import '@testing-library/jest-dom/extend-expect'
         `,
-        'test/dynamic.test.js': `
+        "test/dynamic.test.js": `
           import { render, screen, act } from "@testing-library/react";
           import Home from "../pages/index";
           
@@ -88,14 +88,14 @@ describe('next/jest', () => {
             });
           });
         `,
-        'lib/hello.mjs': `
+        "lib/hello.mjs": `
           import path from 'path'
 
           export default function hello() {
             return path.join('hello', 'world')
           }
         `,
-        'test/mjs-support.test.js': `
+        "test/mjs-support.test.js": `
           import path from 'path'
           import hello from '../lib/hello.mjs'
           
@@ -103,7 +103,7 @@ describe('next/jest', () => {
             expect(hello()).toBe(path.join('hello', 'world'))
           })
         `,
-        'test/mock.test.js': `
+        "test/mock.test.js": `
           import router from 'next/router'
 
           jest.mock('next/router', () => ({
@@ -124,29 +124,29 @@ describe('next/jest', () => {
             expect(router.push._isMockFunction).toBeTruthy()
           })
         `,
-        'pages/my-font.woff2': 'fake font',
+        "pages/my-font.woff2": "fake font",
       },
       dependencies: {
-        '@next/font': 'canary',
-        jest: '27.4.7',
-        '@testing-library/jest-dom': '5.16.1',
-        '@testing-library/react': '12.1.2',
-        '@testing-library/user-event': '13.5.0',
+        "@next/font": "canary",
+        jest: "27.4.7",
+        "@testing-library/jest-dom": "5.16.1",
+        "@testing-library/react": "12.1.2",
+        "@testing-library/user-event": "13.5.0",
       },
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
           build:
-            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
+            "next build && yarn jest test/mock.test.js test/dynamic.test.js",
         },
       },
       buildCommand: `yarn build`,
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('should work', async () => {
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('hello world')
-  })
-})
+  it("should work", async () => {
+    const html = await renderViaHTTP(next.url, "/");
+    expect(html).toContain("hello world");
+  });
+});

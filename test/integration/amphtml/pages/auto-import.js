@@ -1,4 +1,4 @@
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default () => (
   <amp-twitter
@@ -7,4 +7,4 @@ export default () => (
     layout="responsive"
     data-momentid="1018806709412876288"
   ></amp-twitter>
-)
+);

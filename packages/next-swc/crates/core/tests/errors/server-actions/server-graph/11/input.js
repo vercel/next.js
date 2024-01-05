@@ -1,4 +1,4 @@
-import 'react'
-;('use sevrer')
+import "react";
+("use sevrer");
 
 // ^Tools like Prettier sometimes do this.

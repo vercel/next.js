@@ -1,1 +1,1 @@
-export { GET as get } from '../../../hello'
+export { GET as get } from "../../../hello";

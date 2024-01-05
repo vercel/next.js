@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
 export default function Page() {
-  cookies()
-  return <h1>Hello!</h1>
+  cookies();
+  return <h1>Hello!</h1>;
 }

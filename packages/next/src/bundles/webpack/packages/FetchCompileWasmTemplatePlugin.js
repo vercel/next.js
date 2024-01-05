@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').FetchCompileWasmTemplatePlugin
+module.exports = require("./webpack.js").FetchCompileWasmTemplatePlugin;

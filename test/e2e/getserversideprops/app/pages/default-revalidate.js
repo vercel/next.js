@@ -1,12 +1,12 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getServerSideProps() {
   return {
     props: {
-      world: 'world',
+      world: "world",
       time: new Date().getTime(),
     },
-  }
+  };
 }
 
 export default ({ world, time }) => (
@@ -21,4 +21,4 @@ export default ({ world, time }) => (
       to something
     </Link>
   </>
-)
+);

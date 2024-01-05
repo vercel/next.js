@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
 export default function Page() {
-  const [clicked, setClicked] = useState(false)
+  const [clicked, setClicked] = useState(false);
   if (clicked) {
-    throw new Error('this is a test')
+    throw new Error("this is a test");
   }
   return (
     <button
       id="error-trigger-button"
       onClick={() => {
-        setClicked(true)
+        setClicked(true);
       }}
     >
       Trigger Error!
     </button>
-  )
+  );
 }

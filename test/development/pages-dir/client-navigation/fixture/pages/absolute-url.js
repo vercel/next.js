@@ -1,17 +1,17 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ query: { port } }) {
   if (!port) {
-    throw new Error('port required')
+    throw new Error("port required");
   }
-  return { props: { port } }
+  return { props: { port } };
 }
 
 export default function Page({ port }) {
-  const router = useRouter()
-  const [hover, setHover] = React.useState(false)
+  const router = useRouter();
+  const [hover, setHover] = React.useState(false);
 
   return (
     <>
@@ -21,14 +21,14 @@ export default function Page({ port }) {
       <br />
       <button
         id="router-push"
-        onClick={() => router.push('https://vercel.com/')}
+        onClick={() => router.push("https://vercel.com/")}
       >
         push https://vercel.com/
       </button>
       <br />
       <button
         id="router-replace"
-        onClick={() => router.replace('https://vercel.com/')}
+        onClick={() => router.replace("https://vercel.com/")}
       >
         replace https://vercel.com/
       </button>
@@ -76,5 +76,5 @@ export default function Page({ port }) {
         https://vercel.com/
       </Link>
     </>
-  )
+  );
 }

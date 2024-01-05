@@ -1,15 +1,15 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ params, query }) {
   return {
-    world: 'world',
+    world: "world",
     query: query || {},
     params: params || {},
     time: new Date().getTime(),
     random: Math.random(),
-  }
+  };
 }
 
 export default ({ world, time, params, random, query }) => {
@@ -29,5 +29,5 @@ export default ({ world, time, params, random, query }) => {
         to another
       </Link>
     </>
-  )
-}
+  );
+};

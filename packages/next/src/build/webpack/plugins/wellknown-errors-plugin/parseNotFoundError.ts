@@ -1,7 +1,7 @@
-import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
-import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { bold, cyan, green, red, yellow } from "../../../../lib/picocolors";
+import { SimpleWebpackError } from "./simpleWebpackError";
+import { createOriginalStackFrame } from "next/dist/compiled/@next/react-dev-overlay/dist/middleware";
+import type { webpack } from "next/dist/compiled/webpack/webpack";
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
 /*
@@ -28,19 +28,19 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 */
 function getModuleTrace(input: any, compilation: any) {
-  const visitedModules = new Set()
-  const moduleTrace = []
-  let current = input.module
+  const visitedModules = new Set();
+  const moduleTrace = [];
+  let current = input.module;
   while (current) {
-    if (visitedModules.has(current)) break // circular (technically impossible, but who knows)
-    visitedModules.add(current)
-    const origin = compilation.moduleGraph.getIssuer(current)
-    if (!origin) break
-    moduleTrace.push({ origin, module: current })
-    current = origin
+    if (visitedModules.has(current)) break; // circular (technically impossible, but who knows)
+    visitedModules.add(current);
+    const origin = compilation.moduleGraph.getIssuer(current);
+    if (!origin) break;
+    moduleTrace.push({ origin, module: current });
+    current = origin;
   }
 
-  return moduleTrace
+  return moduleTrace;
 }
 
 async function getSourceFrame(
@@ -51,8 +51,8 @@ async function getSourceFrame(
   try {
     const loc = input.loc
       ? input.loc
-      : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0]
-    const originalSource = input.module.originalSource()
+      : input.dependencies.map((d: any) => d.loc).filter(Boolean)[0];
+    const originalSource = input.module.originalSource();
 
     const result = await createOriginalStackFrame({
       line: loc.start.line,
@@ -61,15 +61,15 @@ async function getSourceFrame(
       rootDirectory: compilation.options.context!,
       modulePath: fileName,
       frame: {},
-    })
+    });
 
     return {
-      frame: result?.originalCodeFrame ?? '',
-      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? '',
-      column: result?.originalStackFrame?.column?.toString() ?? '',
-    }
+      frame: result?.originalCodeFrame ?? "",
+      lineNumber: result?.originalStackFrame?.lineNumber?.toString() ?? "",
+      column: result?.originalStackFrame?.column?.toString() ?? "",
+    };
   } catch {
-    return { frame: '', lineNumber: '', column: '' }
+    return { frame: "", lineNumber: "", column: "" };
   }
 }
 
@@ -86,14 +86,14 @@ function getFormattedFileName(
   ) {
     // Parse the query and get the path of the file where the font function was called.
     // provided by next-swc next-transform-font
-    return JSON.parse(module.resourceResolveData.query.slice(1)).path
+    return JSON.parse(module.resourceResolveData.query.slice(1)).path;
   } else {
-    let formattedFileName: string = cyan(fileName)
+    let formattedFileName: string = cyan(fileName);
     if (lineNumber && column) {
-      formattedFileName += `:${yellow(lineNumber)}:${yellow(column)}`
+      formattedFileName += `:${yellow(lineNumber)}:${yellow(column)}`;
     }
 
-    return formattedFileName
+    return formattedFileName;
   }
 }
 
@@ -104,13 +104,13 @@ export async function getNotFoundError(
   module: any
 ) {
   if (
-    input.name !== 'ModuleNotFoundError' &&
+    input.name !== "ModuleNotFoundError" &&
     !(
-      input.name === 'ModuleBuildError' &&
+      input.name === "ModuleBuildError" &&
       /Error: Can't resolve '.+' in /.test(input.message)
     )
   ) {
-    return false
+    return false;
   }
 
   try {
@@ -118,11 +118,11 @@ export async function getNotFoundError(
       input,
       fileName,
       compilation
-    )
+    );
 
     const errorMessage = input.error.message
-      .replace(/ in '.*?'/, '')
-      .replace(/Can't resolve '(.*)'/, `Can't resolve '${green('$1')}'`)
+      .replace(/ in '.*?'/, "")
+      .replace(/Can't resolve '(.*)'/, `Can't resolve '${green("$1")}'`);
 
     const importTrace = () => {
       const moduleTrace = getModuleTrace(input, compilation)
@@ -137,32 +137,32 @@ export async function getNotFoundError(
             ) &&
             !/next-route-loader\/index\.js/.test(name) &&
             !/css-loader.+\.js/.test(name)
-        )
-      if (moduleTrace.length === 0) return ''
+        );
+      if (moduleTrace.length === 0) return "";
 
-      return `\nImport trace for requested module:\n${moduleTrace.join('\n')}`
-    }
+      return `\nImport trace for requested module:\n${moduleTrace.join("\n")}`;
+    };
 
     let message =
-      red(bold('Module not found')) +
+      red(bold("Module not found")) +
       `: ${errorMessage}` +
-      '\n' +
+      "\n" +
       frame +
-      (frame !== '' ? '\n' : '') +
-      '\nhttps://nextjs.org/docs/messages/module-not-found\n' +
-      importTrace()
+      (frame !== "" ? "\n" : "") +
+      "\nhttps://nextjs.org/docs/messages/module-not-found\n" +
+      importTrace();
 
     const formattedFileName = getFormattedFileName(
       fileName,
       module,
       lineNumber,
       column
-    )
+    );
 
-    return new SimpleWebpackError(formattedFileName, message)
+    return new SimpleWebpackError(formattedFileName, message);
   } catch (err) {
     // Don't fail on failure to resolve sourcemaps
-    return input
+    return input;
   }
 }
 
@@ -171,27 +171,27 @@ export async function getImageError(
   input: any,
   err: Error
 ): Promise<SimpleWebpackError | false> {
-  if (err.name !== 'InvalidImageFormatError') {
-    return false
+  if (err.name !== "InvalidImageFormatError") {
+    return false;
   }
 
-  const moduleTrace = getModuleTrace(input, compilation)
-  const { origin, module } = moduleTrace[0] || {}
+  const moduleTrace = getModuleTrace(input, compilation);
+  const { origin, module } = moduleTrace[0] || {};
   if (!origin || !module) {
-    return false
+    return false;
   }
-  const page = origin.rawRequest.replace(/^private-next-pages/, './pages')
-  const importedFile = module.rawRequest
-  const source = origin.originalSource().buffer().toString('utf8') as string
-  let lineNumber = -1
-  source.split('\n').some((line) => {
-    lineNumber++
-    return line.includes(importedFile)
-  })
+  const page = origin.rawRequest.replace(/^private-next-pages/, "./pages");
+  const importedFile = module.rawRequest;
+  const source = origin.originalSource().buffer().toString("utf8") as string;
+  let lineNumber = -1;
+  source.split("\n").some((line) => {
+    lineNumber++;
+    return line.includes(importedFile);
+  });
   return new SimpleWebpackError(
     `${cyan(page)}:${yellow(lineNumber.toString())}`,
-    red(bold('Error')).concat(
+    red(bold("Error")).concat(
       `: Image import "${importedFile}" is not a valid image file. The image may be corrupted or an unsupported format.`
     )
-  )
+  );
 }

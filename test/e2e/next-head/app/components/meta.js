@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export function Meta(props) {
   return (
@@ -11,5 +11,5 @@ export function Meta(props) {
         </>
       </Head>
     </>
-  )
+  );
 }

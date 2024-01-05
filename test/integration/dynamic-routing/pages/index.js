@@ -1,13 +1,13 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
-if (typeof window !== 'undefined') {
-  window.caughtWarns = []
-  const origWarn = window.console.warn
+if (typeof window !== "undefined") {
+  window.caughtWarns = [];
+  const origWarn = window.console.warn;
   window.console.warn = function (...args) {
-    window.caughtWarns.push(args)
-    origWarn(...args)
-  }
+    window.caughtWarns.push(args);
+    origWarn(...args);
+  };
 }
 
 const Page = () => {
@@ -36,9 +36,9 @@ const Page = () => {
       <br />
       <Link
         href={{
-          hash: 'my-hash',
-          pathname: '/[name]',
-          query: { name: 'post-1' },
+          hash: "my-hash",
+          pathname: "/[name]",
+          query: { name: "post-1" },
         }}
         id="view-post-1-hash-1-interpolated"
       >
@@ -51,8 +51,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/[name]',
-          query: { name: 'post-1' },
+          pathname: "/[name]",
+          query: { name: "post-1" },
         }}
         id="view-post-1-interpolated"
       >
@@ -61,8 +61,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/[name]',
-          query: { another: 'value' },
+          pathname: "/[name]",
+          query: { another: "value" },
         }}
         id="view-post-1-interpolated-incorrectly"
       >
@@ -71,8 +71,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/[name]',
-          query: { name: 'post-1', another: 'value' },
+          pathname: "/[name]",
+          query: { name: "post-1", another: "value" },
         }}
         id="view-post-1-interpolated-more-query"
       >
@@ -101,8 +101,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/[name]/[comment]',
-          query: { name: 'post-1', comment: 'comment-1' },
+          pathname: "/[name]/[comment]",
+          query: { name: "post-1", comment: "comment-1" },
         }}
         id="view-post-1-comment-1-interpolated"
       >
@@ -179,8 +179,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/p1/p2/all-ssg/[...rest]',
-          query: { rest: ['hello'] },
+          pathname: "/p1/p2/all-ssg/[...rest]",
+          query: { rest: ["hello"] },
         }}
         id="ssg-catch-all-single-interpolated"
       >
@@ -201,8 +201,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          pathname: '/p1/p2/all-ssg/[...rest]',
-          query: { rest: ['hello1', 'hello2'] },
+          pathname: "/p1/p2/all-ssg/[...rest]",
+          query: { rest: ["hello1", "hello2"] },
         }}
         id="ssg-catch-all-multi-interpolated"
       >
@@ -230,7 +230,7 @@ const Page = () => {
       </Link>
       <p id="query">{JSON.stringify(Object.keys(useRouter().query))}</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

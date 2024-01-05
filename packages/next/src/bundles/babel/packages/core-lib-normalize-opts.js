@@ -1,1 +1,1 @@
-module.exports = require('./bundle').coreLibNormalizeOpts()
+module.exports = require("./bundle").coreLibNormalizeOpts();

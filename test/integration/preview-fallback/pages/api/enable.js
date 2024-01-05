@@ -1,4 +1,4 @@
 export default (req, res) => {
-  res.setPreviewData({})
-  res.end('enabled')
-}
+  res.setPreviewData({});
+  res.end("enabled");
+};

@@ -1,5 +1,5 @@
-const Another = () => 'hi'
+const Another = () => "hi";
 
-Another.getInitialProps = () => ({})
+Another.getInitialProps = () => ({});
 
-export default Another
+export default Another;

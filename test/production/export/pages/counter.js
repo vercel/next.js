@@ -1,12 +1,12 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
-let counter = 0
+let counter = 0;
 
 export default class Counter extends React.Component {
   increaseCounter() {
-    counter++
-    this.forceUpdate()
+    counter++;
+    this.forceUpdate();
   }
 
   render() {
@@ -22,6 +22,6 @@ export default class Counter extends React.Component {
           Increase
         </button>
       </div>
-    )
+    );
   }
 }

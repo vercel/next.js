@@ -1,3 +1,3 @@
-const React = require('react')
+const React = require("react");
 
-module.exports = () => <div>test2</div>
+module.exports = () => <div>test2</div>;

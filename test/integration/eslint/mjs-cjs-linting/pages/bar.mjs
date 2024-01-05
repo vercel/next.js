@@ -5,6 +5,6 @@ export default class Bar {
         <h1>Hello title</h1>
         <img src="img" />
       </div>
-    )
+    );
   }
 }

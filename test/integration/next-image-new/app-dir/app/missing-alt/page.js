@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/image'
-import testJPG from '../../public/test.jpg'
+import React from "react";
+import Image from "next/image";
+import testJPG from "../../public/test.jpg";
 
 export default function Page() {
   return (
@@ -9,5 +9,5 @@ export default function Page() {
 
       <Image src={testJPG} />
     </div>
-  )
+  );
 }

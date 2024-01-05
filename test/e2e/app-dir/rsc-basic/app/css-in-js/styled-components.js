@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import styled from 'styled-components'
+import styled from "styled-components";
 
 const Button = styled.button`
   display: inline-block;
@@ -10,17 +10,17 @@ const Button = styled.button`
   width: 11rem;
   color: blue;
   border: 2px solid blue;
-`
+`;
 
 const Box = styled.div`
   border: 1px solid blue;
   padding: 8px;
   margin: 8px 0;
-`
+`;
 
 const Title = styled.h3`
   color: blue;
-`
+`;
 
 export default () => {
   return (
@@ -28,5 +28,5 @@ export default () => {
       <Title>styled-components</Title>
       <Button>{`💅 This area belongs to styled-components`}</Button>
     </Box>
-  )
-}
+  );
+};

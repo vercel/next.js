@@ -1,22 +1,22 @@
-import type { DomainLocale } from '../../../server/config'
-import type { I18NConfig } from '../../../server/config-shared'
-import { acceptLanguage } from '../../../server/accept-header'
-import { denormalizePagePath } from '../page-path/denormalize-page-path'
-import { detectDomainLocale } from './detect-domain-locale'
-import { formatUrl } from '../router/utils/format-url'
-import { getCookieParser } from '../../../server/api-utils/get-cookie-parser'
+import type { DomainLocale } from "../../../server/config";
+import type { I18NConfig } from "../../../server/config-shared";
+import { acceptLanguage } from "../../../server/accept-header";
+import { denormalizePagePath } from "../page-path/denormalize-page-path";
+import { detectDomainLocale } from "./detect-domain-locale";
+import { formatUrl } from "../router/utils/format-url";
+import { getCookieParser } from "../../../server/api-utils/get-cookie-parser";
 
 interface Options {
-  defaultLocale: string
-  domainLocale?: DomainLocale
-  headers?: { [key: string]: string | string[] | undefined }
+  defaultLocale: string;
+  domainLocale?: DomainLocale;
+  headers?: { [key: string]: string | string[] | undefined };
   nextConfig: {
-    basePath?: string
-    i18n?: I18NConfig | null
-    trailingSlash?: boolean
-  }
-  pathLocale?: string
-  urlParsed: { hostname?: string | null; pathname: string }
+    basePath?: string;
+    i18n?: I18NConfig | null;
+    trailingSlash?: boolean;
+  };
+  pathLocale?: string;
+  urlParsed: { hostname?: string | null; pathname: string };
 }
 
 function getLocaleFromCookie(
@@ -25,10 +25,10 @@ function getLocaleFromCookie(
 ) {
   const nextLocale = getCookieParser(
     headers || {}
-  )()?.NEXT_LOCALE?.toLowerCase()
+  )()?.NEXT_LOCALE?.toLowerCase();
   return nextLocale
     ? i18n.locales.find((locale) => nextLocale === locale.toLowerCase())
-    : undefined
+    : undefined;
 }
 
 function detectLocale({
@@ -38,11 +38,11 @@ function detectLocale({
   preferredLocale,
   pathLocale,
 }: {
-  i18n: I18NConfig
-  preferredLocale?: string
-  headers?: { [key: string]: string | string[] | undefined }
-  domainLocale?: DomainLocale
-  pathLocale?: string
+  i18n: I18NConfig;
+  preferredLocale?: string;
+  headers?: { [key: string]: string | string[] | undefined };
+  domainLocale?: DomainLocale;
+  pathLocale?: string;
 }) {
   return (
     pathLocale ||
@@ -50,7 +50,7 @@ function detectLocale({
     getLocaleFromCookie(i18n, headers) ||
     preferredLocale ||
     i18n.defaultLocale
-  )
+  );
 }
 
 function getAcceptPreferredLocale(
@@ -58,11 +58,11 @@ function getAcceptPreferredLocale(
   headers?: { [key: string]: string | string[] | undefined }
 ) {
   if (
-    headers?.['accept-language'] &&
-    !Array.isArray(headers['accept-language'])
+    headers?.["accept-language"] &&
+    !Array.isArray(headers["accept-language"])
   ) {
     try {
-      return acceptLanguage(headers['accept-language'], i18n.locales)
+      return acceptLanguage(headers["accept-language"], i18n.locales);
     } catch (err) {}
   }
 }
@@ -78,40 +78,40 @@ export function getLocaleRedirect({
   if (
     nextConfig.i18n &&
     nextConfig.i18n.localeDetection !== false &&
-    denormalizePagePath(urlParsed.pathname) === '/'
+    denormalizePagePath(urlParsed.pathname) === "/"
   ) {
-    const preferredLocale = getAcceptPreferredLocale(nextConfig.i18n, headers)
+    const preferredLocale = getAcceptPreferredLocale(nextConfig.i18n, headers);
     const detectedLocale = detectLocale({
       i18n: nextConfig.i18n,
       preferredLocale,
       headers,
       pathLocale,
       domainLocale,
-    })
+    });
 
     const preferredDomain = detectDomainLocale(
       nextConfig.i18n.domains,
       undefined,
       preferredLocale
-    )
+    );
 
     if (domainLocale && preferredDomain) {
-      const isPDomain = preferredDomain.domain === domainLocale.domain
-      const isPLocale = preferredDomain.defaultLocale === preferredLocale
+      const isPDomain = preferredDomain.domain === domainLocale.domain;
+      const isPLocale = preferredDomain.defaultLocale === preferredLocale;
       if (!isPDomain || !isPLocale) {
-        const scheme = `http${preferredDomain.http ? '' : 's'}`
-        const rlocale = isPLocale ? '' : preferredLocale
-        return `${scheme}://${preferredDomain.domain}/${rlocale}`
+        const scheme = `http${preferredDomain.http ? "" : "s"}`;
+        const rlocale = isPLocale ? "" : preferredLocale;
+        return `${scheme}://${preferredDomain.domain}/${rlocale}`;
       }
     }
 
     if (detectedLocale.toLowerCase() !== defaultLocale.toLowerCase()) {
       return formatUrl({
         ...urlParsed,
-        pathname: `${nextConfig.basePath || ''}/${detectedLocale}${
-          nextConfig.trailingSlash ? '/' : ''
+        pathname: `${nextConfig.basePath || ""}/${detectedLocale}${
+          nextConfig.trailingSlash ? "/" : ""
         }`,
-      })
+      });
     }
   }
 }

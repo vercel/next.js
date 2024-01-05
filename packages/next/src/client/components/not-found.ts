@@ -1,6 +1,6 @@
-const NOT_FOUND_ERROR_CODE = 'NEXT_NOT_FOUND'
+const NOT_FOUND_ERROR_CODE = "NEXT_NOT_FOUND";
 
-type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
+type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE };
 
 /**
  * When used in a React server component, this will set the status code to 404.
@@ -8,9 +8,9 @@ type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
  */
 export function notFound(): never {
   // eslint-disable-next-line no-throw-literal
-  const error = new Error(NOT_FOUND_ERROR_CODE)
-  ;(error as NotFoundError).digest = NOT_FOUND_ERROR_CODE
-  throw error
+  const error = new Error(NOT_FOUND_ERROR_CODE);
+  (error as NotFoundError).digest = NOT_FOUND_ERROR_CODE;
+  throw error;
 }
 
 /**
@@ -21,5 +21,5 @@ export function notFound(): never {
  * @returns true if the error is a not found error
  */
 export function isNotFoundError(error: any): error is NotFoundError {
-  return error?.digest === NOT_FOUND_ERROR_CODE
+  return error?.digest === NOT_FOUND_ERROR_CODE;
 }

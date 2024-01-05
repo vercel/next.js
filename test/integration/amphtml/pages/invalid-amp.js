@@ -1,4 +1,4 @@
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default function Page() {
   return (
@@ -6,5 +6,5 @@ export default function Page() {
       <p id="invalid-amp">Invalid AMP Page</p>
       <amp-video src="/cats.mp4" layout="responsive" />
     </div>
-  )
+  );
 }

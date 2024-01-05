@@ -1,3 +1,3 @@
 export default function Catcher() {
-  return <div>Catcher</div>
+  return <div>Catcher</div>;
 }

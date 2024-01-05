@@ -1,3 +1,3 @@
 export function myFileFunction() {
-  return 'hello world!'
+  return "hello world!";
 }

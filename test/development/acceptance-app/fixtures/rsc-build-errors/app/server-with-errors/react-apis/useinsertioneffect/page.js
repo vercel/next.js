@@ -1,7 +1,7 @@
-import { useInsertionEffect } from 'react'
+import { useInsertionEffect } from "react";
 
-console.log({ useInsertionEffect })
+console.log({ useInsertionEffect });
 
 export default function Page() {
-  return null
+  return null;
 }

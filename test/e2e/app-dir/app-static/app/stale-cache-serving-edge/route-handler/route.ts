@@ -1,16 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
-const delay = 3000
+const delay = 3000;
 
 export async function GET(req: NextRequest) {
-  const start = Date.now()
+  const start = Date.now();
   const data = await fetch(
     `https://next-data-api-endpoint.vercel.app/api/delay?delay=${delay}`,
     { next: { revalidate: 3 } }
-  ).then((res) => res.json())
-  const fetchDuration = Date.now() - start
+  ).then((res) => res.json());
+  const fetchDuration = Date.now() - start;
 
-  return NextResponse.json({ fetchDuration, data, now: Date.now() })
+  return NextResponse.json({ fetchDuration, data, now: Date.now() });
 }

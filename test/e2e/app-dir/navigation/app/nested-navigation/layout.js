@@ -1,10 +1,10 @@
-import { use } from 'react'
-import { fetchCategories } from './getCategories'
-import React from 'react'
-import CategoryNav from './CategoryNav'
+import { use } from "react";
+import { fetchCategories } from "./getCategories";
+import React from "react";
+import CategoryNav from "./CategoryNav";
 
 export default function Layout({ children }) {
-  const categories = use(fetchCategories())
+  const categories = use(fetchCategories());
   return (
     <div>
       <div>
@@ -13,5 +13,5 @@ export default function Layout({ children }) {
 
       <div>{children}</div>
     </div>
-  )
+  );
 }

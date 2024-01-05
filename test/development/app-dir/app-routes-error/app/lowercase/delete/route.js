@@ -1,1 +1,1 @@
-export { DELETE as delete } from '../../../hello'
+export { DELETE as delete } from "../../../hello";

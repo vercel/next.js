@@ -1,64 +1,64 @@
-import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
-import type { FetchMetrics } from './base-http'
+import type { OutgoingHttpHeaders, ServerResponse } from "http";
+import type { Revalidate } from "./lib/revalidate";
+import type { FetchMetrics } from "./base-http";
 
 import {
   chainStreams,
   streamFromString,
   streamToString,
-} from './stream-utils/node-web-streams-helper'
-import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+} from "./stream-utils/node-web-streams-helper";
+import { isAbortError, pipeToNodeResponse } from "./pipe-readable";
 
-type ContentTypeOption = string | undefined
+type ContentTypeOption = string | undefined;
 
 export type AppPageRenderResultMetadata = {
-  flightData?: string
-  revalidate?: Revalidate
+  flightData?: string;
+  revalidate?: Revalidate;
   staticBailoutInfo?: {
-    stack?: string
-    description?: string
-  }
+    stack?: string;
+    description?: string;
+  };
 
   /**
    * The postponed state if the render had postponed and needs to be resumed.
    */
-  postponed?: string
+  postponed?: string;
 
   /**
    * The headers to set on the response that were added by the render.
    */
-  headers?: OutgoingHttpHeaders
-  fetchTags?: string
-  fetchMetrics?: FetchMetrics
-}
+  headers?: OutgoingHttpHeaders;
+  fetchTags?: string;
+  fetchMetrics?: FetchMetrics;
+};
 
 export type PagesRenderResultMetadata = {
-  pageData?: any
-  revalidate?: Revalidate
-  assetQueryString?: string
-  isNotFound?: boolean
-  isRedirect?: boolean
-}
+  pageData?: any;
+  revalidate?: Revalidate;
+  assetQueryString?: string;
+  isNotFound?: boolean;
+  isRedirect?: boolean;
+};
 
-export type StaticRenderResultMetadata = {}
+export type StaticRenderResultMetadata = {};
 
 export type RenderResultMetadata = AppPageRenderResultMetadata &
   PagesRenderResultMetadata &
-  StaticRenderResultMetadata
+  StaticRenderResultMetadata;
 
 export type RenderResultResponse =
   | ReadableStream<Uint8Array>[]
   | ReadableStream<Uint8Array>
   | string
-  | null
+  | null;
 
 export type RenderResultOptions<
   Metadata extends RenderResultMetadata = RenderResultMetadata
 > = {
-  contentType?: ContentTypeOption
-  waitUntil?: Promise<unknown>
-  metadata: Metadata
-}
+  contentType?: ContentTypeOption;
+  waitUntil?: Promise<unknown>;
+  metadata: Metadata;
+};
 
 export default class RenderResult<
   Metadata extends RenderResultMetadata = RenderResultMetadata
@@ -67,13 +67,13 @@ export default class RenderResult<
    * The detected content type for the response. This is used to set the
    * `Content-Type` header.
    */
-  public readonly contentType: ContentTypeOption
+  public readonly contentType: ContentTypeOption;
 
   /**
    * The metadata for the response. This is used to set the revalidation times
    * and other metadata.
    */
-  public readonly metadata: Readonly<Metadata>
+  public readonly metadata: Readonly<Metadata>;
 
   /**
    * The response itself. This can be a string, a stream, or null. If it's a
@@ -81,7 +81,7 @@ export default class RenderResult<
    * dynamic response. If it's null, then the response was not found or was
    * already sent.
    */
-  private response: RenderResultResponse
+  private response: RenderResultResponse;
 
   /**
    * Creates a new RenderResult instance from a static response.
@@ -90,23 +90,25 @@ export default class RenderResult<
    * @returns a new RenderResult instance
    */
   public static fromStatic(value: string) {
-    return new RenderResult<StaticRenderResultMetadata>(value, { metadata: {} })
+    return new RenderResult<StaticRenderResultMetadata>(value, {
+      metadata: {},
+    });
   }
 
-  private readonly waitUntil?: Promise<unknown>
+  private readonly waitUntil?: Promise<unknown>;
 
   constructor(
     response: RenderResultResponse,
     { contentType, waitUntil, metadata }: RenderResultOptions<Metadata>
   ) {
-    this.response = response
-    this.contentType = contentType
-    this.metadata = metadata
-    this.waitUntil = waitUntil
+    this.response = response;
+    this.contentType = contentType;
+    this.metadata = metadata;
+    this.waitUntil = waitUntil;
   }
 
   public assignMetadata(metadata: Metadata) {
-    Object.assign(this.metadata, metadata)
+    Object.assign(this.metadata, metadata);
   }
 
   /**
@@ -114,7 +116,7 @@ export default class RenderResult<
    * not found or was already sent.
    */
   public get isNull(): boolean {
-    return this.response === null
+    return this.response === null;
   }
 
   /**
@@ -122,7 +124,7 @@ export default class RenderResult<
    * was prerendered. If it's not, then it was generated dynamically.
    */
   public get isDynamic(): boolean {
-    return typeof this.response !== 'string'
+    return typeof this.response !== "string";
   }
 
   /**
@@ -132,24 +134,24 @@ export default class RenderResult<
    * @param stream Whether or not to return a promise if the response is dynamic
    * @returns The response as a string
    */
-  public toUnchunkedString(stream?: false): string
-  public toUnchunkedString(stream: true): Promise<string>
+  public toUnchunkedString(stream?: false): string;
+  public toUnchunkedString(stream: true): Promise<string>;
   public toUnchunkedString(stream = false): Promise<string> | string {
     if (this.response === null) {
-      throw new Error('Invariant: null responses cannot be unchunked')
+      throw new Error("Invariant: null responses cannot be unchunked");
     }
 
-    if (typeof this.response !== 'string') {
+    if (typeof this.response !== "string") {
       if (!stream) {
         throw new Error(
-          'Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js'
-        )
+          "Invariant: dynamic responses cannot be unchunked. This is a bug in Next.js"
+        );
       }
 
-      return streamToString(this.readable)
+      return streamToString(this.readable);
     }
 
-    return this.response
+    return this.response;
   }
 
   /**
@@ -158,18 +160,18 @@ export default class RenderResult<
    */
   private get readable(): ReadableStream<Uint8Array> {
     if (this.response === null) {
-      throw new Error('Invariant: null responses cannot be streamed')
+      throw new Error("Invariant: null responses cannot be streamed");
     }
-    if (typeof this.response === 'string') {
-      throw new Error('Invariant: static responses cannot be streamed')
+    if (typeof this.response === "string") {
+      throw new Error("Invariant: static responses cannot be streamed");
     }
 
     // If the response is an array of streams, then chain them together.
     if (Array.isArray(this.response)) {
-      return chainStreams(...this.response)
+      return chainStreams(...this.response);
     }
 
-    return this.response
+    return this.response;
   }
 
   /**
@@ -182,24 +184,24 @@ export default class RenderResult<
    */
   public chain(readable: ReadableStream<Uint8Array>) {
     if (this.response === null) {
-      throw new Error('Invariant: response is null. This is a bug in Next.js')
+      throw new Error("Invariant: response is null. This is a bug in Next.js");
     }
 
     // If the response is not an array of streams already, make it one.
-    let responses: ReadableStream<Uint8Array>[]
-    if (typeof this.response === 'string') {
-      responses = [streamFromString(this.response)]
+    let responses: ReadableStream<Uint8Array>[];
+    if (typeof this.response === "string") {
+      responses = [streamFromString(this.response)];
     } else if (Array.isArray(this.response)) {
-      responses = this.response
+      responses = this.response;
     } else {
-      responses = [this.response]
+      responses = [this.response];
     }
 
     // Add the new stream to the array.
-    responses.push(readable)
+    responses.push(readable);
 
     // Update the response.
-    this.response = responses
+    this.response = responses;
   }
 
   /**
@@ -217,29 +219,29 @@ export default class RenderResult<
         // is encountered, we'll abort the writable stream if we swallowed the
         // error.
         preventClose: true,
-      })
+      });
 
       // If there is a waitUntil promise, wait for it to resolve before
       // closing the writable stream.
-      if (this.waitUntil) await this.waitUntil
+      if (this.waitUntil) await this.waitUntil;
 
       // Close the writable stream.
-      await writable.close()
+      await writable.close();
     } catch (err) {
       // If this is an abort error, we should abort the writable stream (as we
       // took ownership of it when we started piping). We don't need to re-throw
       // because we handled the error.
       if (isAbortError(err)) {
         // Abort the writable stream if an error is encountered.
-        await writable.abort(err)
+        await writable.abort(err);
 
-        return
+        return;
       }
 
       // We're not aborting the writer here as when this method throws it's not
       // clear as to how so the caller should assume it's their responsibility
       // to clean up the writer.
-      throw err
+      throw err;
     }
   }
 
@@ -250,6 +252,6 @@ export default class RenderResult<
    * @param res
    */
   public async pipeToNodeResponse(res: ServerResponse) {
-    await pipeToNodeResponse(this.readable, res, this.waitUntil)
+    await pipeToNodeResponse(this.readable, res, this.waitUntil);
   }
 }

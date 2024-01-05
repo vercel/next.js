@@ -145,9 +145,9 @@ By default, Next.js will run ESLint for all files in the `pages/`, `app/`, `comp
 ```js filename="next.config.js"
 module.exports = {
   eslint: {
-    dirs: ['pages', 'utils'], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
+    dirs: ["pages", "utils"], // Only run ESLint on the 'pages' and 'utils' directories during production builds (next build)
   },
-}
+};
 ```
 
 Similarly, the `--dir` and `--file` flags can be used for `next lint` to lint specific directories and files:
@@ -233,16 +233,16 @@ Then, add `prettier` to your existing ESLint config:
 If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
 
 ```js filename=".lintstagedrc.js"
-const path = require('path')
+const path = require("path");
 
 const buildEslintCommand = (filenames) =>
   `next lint --fix --file ${filenames
     .map((f) => path.relative(process.cwd(), f))
-    .join(' --file ')}`
+    .join(" --file ")}`;
 
 module.exports = {
-  '*.{js,jsx,ts,tsx}': [buildEslintCommand],
-}
+  "*.{js,jsx,ts,tsx}": [buildEslintCommand],
+};
 ```
 
 ## Migrating Existing Config
@@ -265,9 +265,9 @@ Then we recommend either removing these settings if you prefer how these propert
 module.exports = {
   extends: [
     //...
-    'plugin:@next/next/recommended',
+    "plugin:@next/next/recommended",
   ],
-}
+};
 ```
 
 The plugin can be installed normally in your project without needing to run `next lint`:

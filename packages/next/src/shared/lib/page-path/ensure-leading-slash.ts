@@ -3,5 +3,5 @@
  * If there is not a leading slash, one is added, otherwise it is noop.
  */
 export function ensureLeadingSlash(path: string) {
-  return path.startsWith('/') ? path : `/${path}`
+  return path.startsWith("/") ? path : `/${path}`;
 }

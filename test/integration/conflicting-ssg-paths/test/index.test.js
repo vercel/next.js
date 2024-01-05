@@ -1,20 +1,20 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
-import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import fs from "fs-extra";
+import { join } from "path";
+import { nextBuild } from "next-test-utils";
 
-const appDir = join(__dirname, '../')
-const pagesDir = join(appDir, 'pages')
+const appDir = join(__dirname, "../");
+const pagesDir = join(appDir, "pages");
 
-describe('Conflicting SSG paths', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    afterEach(() => fs.remove(pagesDir))
+describe("Conflicting SSG paths", () => {
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
+    afterEach(() => fs.remove(pagesDir));
 
-    it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
-      await fs.ensureDir(join(pagesDir, 'blog'))
+    it("should show proper error when two dynamic SSG routes have conflicting paths", async () => {
+      await fs.ensureDir(join(pagesDir, "blog"));
       await fs.writeFile(
-        join(pagesDir, 'blog/[slug].js'),
+        join(pagesDir, "blog/[slug].js"),
         `
       export const getStaticProps = () => {
         return {
@@ -36,10 +36,10 @@ describe('Conflicting SSG paths', () => {
         return '/blog/[slug]'
       }
     `
-      )
+      );
 
       await fs.writeFile(
-        join(pagesDir, '[...catchAll].js'),
+        join(pagesDir, "[...catchAll].js"),
         `
       export const getStaticProps = () => {
         return {
@@ -61,38 +61,38 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-      )
+      );
 
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
-      })
-      const output = result.stdout + result.stderr
+      });
+      const output = result.stdout + result.stderr;
       expect(output).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-      )
+        "Conflicting paths returned from getStaticPaths, paths must be unique per page"
+      );
       expect(output).toContain(
-        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-      )
+        "https://nextjs.org/docs/messages/conflicting-ssg-paths"
+      );
       expect(output).toContain(
         `path: "/blog/conflicting" from page: "/[...catchAll]"`
-      )
-      expect(output).toContain(`conflicts with path: "/blog/conflicting"`)
-    })
+      );
+      expect(output).toContain(`conflicts with path: "/blog/conflicting"`);
+    });
 
-    it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
-      await fs.ensureDir(join(pagesDir, 'hello'))
+    it("should show proper error when a dynamic SSG route conflicts with normal route", async () => {
+      await fs.ensureDir(join(pagesDir, "hello"));
       await fs.writeFile(
-        join(pagesDir, 'hello/world.js'),
+        join(pagesDir, "hello/world.js"),
         `
       export default function Page() {
         return '/hello/world'
       }
     `
-      )
+      );
 
       await fs.writeFile(
-        join(pagesDir, '[...catchAll].js'),
+        join(pagesDir, "[...catchAll].js"),
         `
       export const getStaticProps = () => {
         return {
@@ -114,28 +114,28 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-      )
+      );
 
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
-      })
-      const output = result.stdout + result.stderr
+      });
+      const output = result.stdout + result.stderr;
       expect(output).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-      )
+        "Conflicting paths returned from getStaticPaths, paths must be unique per page"
+      );
       expect(output).toContain(
-        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-      )
+        "https://nextjs.org/docs/messages/conflicting-ssg-paths"
+      );
       expect(output).toContain(
         `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
-      )
-    })
+      );
+    });
 
-    it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
-      await fs.ensureDir(join(pagesDir, 'hello'))
+    it("should show proper error when a dynamic SSG route conflicts with SSR route", async () => {
+      await fs.ensureDir(join(pagesDir, "hello"));
       await fs.writeFile(
-        join(pagesDir, 'hello/world.js'),
+        join(pagesDir, "hello/world.js"),
         `
       export const getServerSideProps = () => ({ props: {} })
 
@@ -143,10 +143,10 @@ describe('Conflicting SSG paths', () => {
         return '/hello/world'
       }
     `
-      )
+      );
 
       await fs.writeFile(
-        join(pagesDir, '[...catchAll].js'),
+        join(pagesDir, "[...catchAll].js"),
         `
       export const getStaticProps = () => {
         return {
@@ -168,22 +168,22 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-      )
+      );
 
       const result = await nextBuild(appDir, undefined, {
         stdout: true,
         stderr: true,
-      })
-      const output = result.stdout + result.stderr
+      });
+      const output = result.stdout + result.stderr;
       expect(output).toContain(
-        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-      )
+        "Conflicting paths returned from getStaticPaths, paths must be unique per page"
+      );
       expect(output).toContain(
-        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-      )
+        "https://nextjs.org/docs/messages/conflicting-ssg-paths"
+      );
       expect(output).toContain(
         `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
-      )
-    })
-  })
-})
+      );
+    });
+  });
+});

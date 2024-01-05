@@ -1,39 +1,39 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe } from "e2e-utils";
 
 createNextDescribe(
-  'app-dir - esm js extension',
+  "app-dir - esm js extension",
   {
     files: __dirname,
   },
   ({ next }) => {
-    it('should be able to render nextjs api in app router', async () => {
-      const $ = await next.render$('/app')
+    it("should be able to render nextjs api in app router", async () => {
+      const $ = await next.render$("/app");
 
       async function validateDomNodes(selector: string) {
-        expect(await $(`${selector} .img`).prop('tagName')).toBe('IMG')
-        expect(await $(`${selector} .link`).prop('tagName')).toBe('A')
+        expect(await $(`${selector} .img`).prop("tagName")).toBe("IMG");
+        expect(await $(`${selector} .link`).prop("tagName")).toBe("A");
         expect(await $(`${selector} .unstable_getImgProps`).text()).toContain(
-          'function'
-        )
+          "function"
+        );
       }
 
-      await validateDomNodes('#with-ext')
-      await validateDomNodes('#without-ext')
+      await validateDomNodes("#with-ext");
+      await validateDomNodes("#without-ext");
 
-      expect($('head link[href="/test-ext.js"]').length).toBe(1)
-      expect($('head link[href="/test.js"]').length).toBe(1)
-    })
+      expect($('head link[href="/test-ext.js"]').length).toBe(1);
+      expect($('head link[href="/test.js"]').length).toBe(1);
+    });
 
-    it('should be able to use nextjs api in pages router', async () => {
-      const $ = await next.render$('/pages')
+    it("should be able to use nextjs api in pages router", async () => {
+      const $ = await next.render$("/pages");
 
-      expect(await $('meta[name="head-value-1"]').attr('content')).toBe(
-        'with-ext'
-      )
-      expect(await $('meta[name="head-value-2"]').attr('content')).toBe(
-        'without-ext'
-      )
-      expect(await $('.root').text()).toContain('pages')
-    })
+      expect(await $('meta[name="head-value-1"]').attr("content")).toBe(
+        "with-ext"
+      );
+      expect(await $('meta[name="head-value-2"]').attr("content")).toBe(
+        "without-ext"
+      );
+      expect(await $(".root").text()).toContain("pages");
+    });
   }
-)
+);

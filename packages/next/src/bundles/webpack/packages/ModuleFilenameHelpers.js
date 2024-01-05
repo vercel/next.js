@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').ModuleFilenameHelpers
+module.exports = require("./webpack.js").ModuleFilenameHelpers;

@@ -1,12 +1,12 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default function Layout({
   children,
   sidebar,
 }: {
-  children: React.ReactNode
-  sidebar: React.ReactNode
+  children: React.ReactNode;
+  sidebar: React.ReactNode;
 }) {
   return (
     <>
@@ -23,5 +23,5 @@ export default function Layout({
       {sidebar}
       {children}
     </>
-  )
+  );
 }

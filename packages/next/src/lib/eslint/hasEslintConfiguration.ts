@@ -1,11 +1,11 @@
-import { promises as fs } from 'fs'
+import { promises as fs } from "fs";
 
 export type ConfigAvailable = {
-  exists: boolean
-  emptyEslintrc?: boolean
-  emptyPkgJsonConfig?: boolean
-  firstTimeSetup?: true
-}
+  exists: boolean;
+  emptyEslintrc?: boolean;
+  emptyPkgJsonConfig?: boolean;
+  firstTimeSetup?: true;
+};
 
 export async function hasEslintConfiguration(
   eslintrcFile: string | null,
@@ -15,30 +15,30 @@ export async function hasEslintConfiguration(
     exists: false,
     emptyEslintrc: false,
     emptyPkgJsonConfig: false,
-  }
+  };
 
   if (eslintrcFile) {
-    const content = await fs.readFile(eslintrcFile, { encoding: 'utf8' }).then(
-      (txt) => txt.trim().replace(/\n/g, ''),
+    const content = await fs.readFile(eslintrcFile, { encoding: "utf8" }).then(
+      (txt) => txt.trim().replace(/\n/g, ""),
       () => null
-    )
+    );
 
     if (
-      content === '' ||
-      content === '{}' ||
-      content === '---' ||
-      content === 'module.exports = {}'
+      content === "" ||
+      content === "{}" ||
+      content === "---" ||
+      content === "module.exports = {}"
     ) {
-      configObject.emptyEslintrc = true
+      configObject.emptyEslintrc = true;
     } else {
-      configObject.exists = true
+      configObject.exists = true;
     }
   } else if (packageJsonConfig?.eslintConfig) {
     if (Object.keys(packageJsonConfig.eslintConfig).length) {
-      configObject.exists = true
+      configObject.exists = true;
     } else {
-      configObject.emptyPkgJsonConfig = true
+      configObject.emptyPkgJsonConfig = true;
     }
   }
-  return configObject
+  return configObject;
 }

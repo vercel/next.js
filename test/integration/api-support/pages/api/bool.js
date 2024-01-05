@@ -1,3 +1,3 @@
 export default (req, res) => {
-  res.json(true)
-}
+  res.json(true);
+};

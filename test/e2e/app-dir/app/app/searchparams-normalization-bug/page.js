@@ -1,8 +1,8 @@
-import Button from './client-component'
-import { headers } from 'next/headers'
+import Button from "./client-component";
+import { headers } from "next/headers";
 export default function Page() {
-  const headerStore = headers()
-  const headerValue = headerStore.get('test') || 'empty'
+  const headerStore = headers();
+  const headerValue = headerStore.get("test") || "empty";
 
   return (
     <>
@@ -11,5 +11,5 @@ export default function Page() {
       <Button value="b">Set B</Button>
       <Button value="c">Set C</Button>
     </>
-  )
+  );
 }

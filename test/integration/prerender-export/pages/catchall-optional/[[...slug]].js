@@ -1,18 +1,18 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getStaticProps({ params: { slug } }) {
   return {
     props: {
       slug: slug || [],
     },
-  }
+  };
 }
 
 export async function getStaticPaths() {
   return {
-    paths: [{ params: { slug: [] } }, { params: { slug: ['value'] } }],
+    paths: [{ params: { slug: [] } }, { params: { slug: ["value"] } }],
     fallback: false,
-  }
+  };
 }
 
 export default ({ slug }) => {
@@ -20,10 +20,10 @@ export default ({ slug }) => {
   // render fallback version and error)
   return (
     <>
-      <p id="catchall">Catch all: [{slug.join(', ')}]</p>
+      <p id="catchall">Catch all: [{slug.join(", ")}]</p>
       <Link href="/" id="home">
         to home
       </Link>
     </>
-  )
-}
+  );
+};

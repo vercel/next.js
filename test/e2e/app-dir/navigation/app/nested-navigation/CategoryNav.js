@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { TabNavItem } from './TabNavItem'
-import { useSelectedLayoutSegments } from 'next/navigation'
+import { TabNavItem } from "./TabNavItem";
+import { useSelectedLayoutSegments } from "next/navigation";
 
 const CategoryNav = ({ categories }) => {
-  const selectedLayoutSegment = useSelectedLayoutSegments()
+  const selectedLayoutSegment = useSelectedLayoutSegments();
 
   return (
-    <div style={{ display: 'flex' }}>
+    <div style={{ display: "flex" }}>
       <TabNavItem href="/nested-navigation" isActive={!selectedLayoutSegment}>
         Home
       </TabNavItem>
@@ -23,7 +23,7 @@ const CategoryNav = ({ categories }) => {
         </TabNavItem>
       ))}
     </div>
-  )
-}
+  );
+};
 
-export default CategoryNav
+export default CategoryNav;

@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginTransformModulesCommonjs()
+module.exports = require("./bundle").pluginTransformModulesCommonjs();

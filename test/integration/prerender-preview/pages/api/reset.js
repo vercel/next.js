@@ -5,6 +5,6 @@ export default (req, res) => {
           path: req.query.cookiePath,
         }
       : undefined
-  )
-  res.status(200).end()
-}
+  );
+  res.status(200).end();
+};

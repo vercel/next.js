@@ -10,17 +10,17 @@ description: Extend the default page extensions used by Next.js when resolving p
 By default, Next.js accepts files with the following extensions: `.tsx`, `.ts`, `.jsx`, `.js`. This can be modified to allow other extensions like markdown (`.md`, `.mdx`).
 
 ```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+const withMDX = require("@next/mdx")();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  pageExtensions: ['ts', 'tsx', 'mdx'],
+  pageExtensions: ["ts", "tsx", "mdx"],
   experimental: {
     mdxRs: true,
   },
-}
+};
 
-module.exports = withMDX(nextConfig)
+module.exports = withMDX(nextConfig);
 ```
 
 </AppOnly>
@@ -31,8 +31,8 @@ You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used b
 
 ```js filename="next.config.js"
 module.exports = {
-  pageExtensions: ['mdx', 'md', 'jsx', 'js', 'tsx', 'ts'],
-}
+  pageExtensions: ["mdx", "md", "jsx", "js", "tsx", "ts"],
+};
 ```
 
 Changing these values affects _all_ Next.js pages, including the following:
@@ -51,8 +51,8 @@ You can colocate test files or other files used by components in the `pages` dir
 
 ```js filename="next.config.js"
 module.exports = {
-  pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
-}
+  pageExtensions: ["page.tsx", "page.ts", "page.jsx", "page.js"],
+};
 ```
 
 Then, rename your pages to have a file extension that includes `.page` (e.g. rename `MyPage.tsx` to `MyPage.page.tsx`). Ensure you rename _all_ Next.js pages, including the files mentioned above.

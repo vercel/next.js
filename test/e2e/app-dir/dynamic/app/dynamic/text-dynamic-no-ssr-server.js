@@ -1,4 +1,4 @@
-import TextClient from './text-client'
+import TextClient from "./text-client";
 
 export default function Dynamic() {
   return (
@@ -8,5 +8,5 @@ export default function Dynamic() {
       </p>
       <TextClient />
     </>
-  )
+  );
 }

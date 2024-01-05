@@ -1,8 +1,8 @@
 export default function Nodejs() {
-  return 'nodejs'
+  return "nodejs";
 }
 
 export const config = {
   amp: false,
-  runtime: 'nodejs',
-}
+  runtime: "nodejs",
+};

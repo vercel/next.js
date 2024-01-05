@@ -1,1 +1,1 @@
-module.exports = require('./bundle').presetTypescript()
+module.exports = require("./bundle").presetTypescript();

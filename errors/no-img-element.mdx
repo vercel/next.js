@@ -23,7 +23,7 @@ Use [`next/image`](/docs/pages/api-reference/components/image) to improve perfor
 > Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx filename="pages/index.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 function Home() {
   return (
@@ -33,10 +33,10 @@ function Home() {
       width={800}
       height={500}
     />
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](/docs/pages/api-reference/components/image#unoptimized).
@@ -56,7 +56,7 @@ function Home() {
         height={500}
       />
     </picture>
-  )
+  );
 }
 ```
 

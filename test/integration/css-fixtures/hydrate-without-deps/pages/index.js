@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react'
-import css from './index.module.css'
-import Link from 'next/link'
+import { useEffect, useState } from "react";
+import css from "./index.module.css";
+import Link from "next/link";
 
 export default function Home() {
-  const [state, setState] = useState('')
+  const [state, setState] = useState("");
   useEffect(() => {
-    setState('mounted')
-  }, [])
+    setState("mounted");
+  }, []);
   return (
     <main>
       <h1 id="black-title" className={css.header}>
@@ -17,5 +17,5 @@ export default function Home() {
         To /client
       </Link>
     </main>
-  )
+  );
 }

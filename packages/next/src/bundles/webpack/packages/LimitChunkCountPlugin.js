@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').LimitChunkCountPlugin
+module.exports = require("./webpack.js").LimitChunkCountPlugin;

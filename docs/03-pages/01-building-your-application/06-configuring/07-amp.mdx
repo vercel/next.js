@@ -27,10 +27,10 @@ To enable AMP support for a page, and to learn more about the different AMP conf
 The AMP community provides [many components](https://amp.dev/documentation/components/) to make AMP pages more interactive. Next.js will automatically import all components used on a page and there is no need to manually import AMP component scripts:
 
 ```jsx
-export const config = { amp: true }
+export const config = { amp: true };
 
 function MyAmpPage() {
-  const date = new Date()
+  const date = new Date();
 
   return (
     <div>
@@ -44,10 +44,10 @@ function MyAmpPage() {
         .
       </amp-timeago>
     </div>
-  )
+  );
 }
 
-export default MyAmpPage
+export default MyAmpPage;
 ```
 
 The above example uses the [`amp-timeago`](https://amp.dev/documentation/components/amp-timeago/?format=websites) component.
@@ -55,12 +55,12 @@ The above example uses the [`amp-timeago`](https://amp.dev/documentation/compone
 By default, the latest version of a component is always imported. If you want to customize the version, you can use `next/head`, as in the following example:
 
 ```jsx
-import Head from 'next/head'
+import Head from "next/head";
 
-export const config = { amp: true }
+export const config = { amp: true };
 
 function MyAmpPage() {
-  const date = new Date()
+  const date = new Date();
 
   return (
     <div>
@@ -83,10 +83,10 @@ function MyAmpPage() {
         .
       </amp-timeago>
     </div>
-  )
+  );
 }
 
-export default MyAmpPage
+export default MyAmpPage;
 ```
 
 ## AMP Validation
@@ -102,9 +102,9 @@ You can set up custom AMP validator in `next.config.js` as shown below:
 ```js
 module.exports = {
   amp: {
-    validator: './custom_validator.js',
+    validator: "./custom_validator.js",
   },
-}
+};
 ```
 
 ### Skip AMP Validation
@@ -114,7 +114,7 @@ To turn off AMP validation add the following code to `next.config.js`
 ```js
 experimental: {
   amp: {
-    skipValidation: true
+    skipValidation: true;
   }
 }
 ```

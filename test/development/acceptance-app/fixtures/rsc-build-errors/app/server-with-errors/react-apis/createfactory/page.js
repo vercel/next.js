@@ -1,7 +1,7 @@
-import { createFactory } from 'react'
+import { createFactory } from "react";
 
-console.log({ createFactory })
+console.log({ createFactory });
 
 export default function Page() {
-  return null
+  return null;
 }

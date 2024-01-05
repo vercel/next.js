@@ -1,4 +1,4 @@
-import Component from '../../index'
+import Component from "../../index";
 export default function Page() {
-  return <Component />
+  return <Component />;
 }

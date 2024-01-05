@@ -1,10 +1,10 @@
-import css from 'styled-jsx/css'
+import css from "styled-jsx/css";
 
 const divStyles = css`
   div {
     color: orange;
   }
-`
+`;
 
 export default function Page(props) {
   return (
@@ -23,5 +23,5 @@ export default function Page(props) {
         }
       `}</style>
     </>
-  )
+  );
 }

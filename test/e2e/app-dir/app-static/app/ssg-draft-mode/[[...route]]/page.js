@@ -1,18 +1,18 @@
-import { draftMode } from 'next/headers'
+import { draftMode } from "next/headers";
 
 export default async function Page() {
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  ).then((res) => res.text())
+    "https://next-data-api-endpoint.vercel.app/api/random"
+  ).then((res) => res.text());
 
-  const { isEnabled } = draftMode()
+  const { isEnabled } = draftMode();
 
   return (
     <main>
       <pre id="draft-mode">{JSON.stringify({ isEnabled })}</pre>
       <p id="data">{data}</p>
     </main>
-  )
+  );
 }
 
 export const generateStaticParams = async () => {
@@ -21,12 +21,12 @@ export const generateStaticParams = async () => {
       route: [],
     },
     {
-      route: ['test'],
+      route: ["test"],
     },
     {
-      route: ['test-2'],
+      route: ["test-2"],
     },
-  ]
+  ];
 
-  return paths
-}
+  return paths;
+};

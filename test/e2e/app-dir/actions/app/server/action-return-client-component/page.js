@@ -1,5 +1,5 @@
-import { getComponent } from './actions'
-import { Form } from './form'
+import { getComponent } from "./actions";
+import { Form } from "./form";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <h1>Server Component loading client component through action</h1>
       <Form action={getComponent} />
     </>
-  )
+  );
 }

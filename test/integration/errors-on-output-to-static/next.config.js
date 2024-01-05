@@ -1,4 +1,4 @@
 module.exports = {
-  output: 'export',
-  distDir: 'static',
-}
+  output: "export",
+  distDir: "static",
+};

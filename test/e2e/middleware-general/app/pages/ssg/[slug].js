@@ -1,23 +1,23 @@
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
-import { useState } from 'react'
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { useState } from "react";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
   const [asPath, setAsPath] = useState(
     router.isReady ? router.asPath : router.href
-  )
+  );
 
   if (!props.params) {
-    console.error('props', props)
-    throw new Error('missing props!!!')
+    console.error("props", props);
+    throw new Error("missing props!!!");
   }
 
   useEffect(() => {
     if (router.isReady) {
-      setAsPath(router.asPath)
+      setAsPath(router.asPath);
     }
-  }, [router.asPath, router.isReady])
+  }, [router.asPath, router.isReady]);
 
   return (
     <>
@@ -27,14 +27,14 @@ export default function Page(props) {
       <p id="as-path">{asPath}</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }
 
 export function getStaticProps({ params }) {
-  if (params.slug.includes('not-found')) {
+  if (params.slug.includes("not-found")) {
     return {
       notFound: true,
-    }
+    };
   }
 
   return {
@@ -42,12 +42,12 @@ export function getStaticProps({ params }) {
       now: Date.now(),
       params,
     },
-  }
+  };
 }
 
 export function getStaticPaths() {
   return {
-    paths: ['/ssg/first', '/ssg/hello'],
-    fallback: 'blocking',
-  }
+    paths: ["/ssg/first", "/ssg/hello"],
+    fallback: "blocking",
+  };
 }

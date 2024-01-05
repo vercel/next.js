@@ -23,16 +23,16 @@
 
 /// <reference types="node" />
 
-declare module 'mini-css-extract-plugin'
-declare module 'next/dist/compiled/loader-utils3'
+declare module "mini-css-extract-plugin";
+declare module "next/dist/compiled/loader-utils3";
 
-declare module 'next/dist/compiled/webpack/webpack' {
-  import type webpackSources from 'webpack-sources1'
-  export function init(): void
-  export let BasicEvaluatedExpression: any
-  export let GraphHelpers: any
-  export let sources: typeof webpackSources
-  export let StringXor: any
+declare module "next/dist/compiled/webpack/webpack" {
+  import type webpackSources from "webpack-sources1";
+  export function init(): void;
+  export let BasicEvaluatedExpression: any;
+  export let GraphHelpers: any;
+  export let sources: typeof webpackSources;
+  export let StringXor: any;
   export {
     default as webpack,
     Compiler,
@@ -47,5 +47,5 @@ declare module 'next/dist/compiled/webpack/webpack' {
     ModuleFilenameHelpers,
     LoaderDefinitionFunction,
     LoaderContext,
-  } from 'webpack'
+  } from "webpack";
 }

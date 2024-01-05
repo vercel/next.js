@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
-  if (router.isFallback) return 'Loading...'
+  if (router.isFallback) return "Loading...";
 
   return (
     <>
@@ -21,23 +21,23 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
   // ensure getStaticProps isn't called without params
   if (!params || !params.slug) {
-    throw new Error(`missing params ${JSON.stringify(params)}`)
+    throw new Error(`missing params ${JSON.stringify(params)}`);
   }
 
-  if (params && params.slug === 'mixed-not-found-redirect') {
+  if (params && params.slug === "mixed-not-found-redirect") {
     return {
       notFound: true,
       redirect: {
-        destination: '/another',
+        destination: "/another",
         permanent: false,
       },
-    }
+    };
   }
 
   return {
@@ -47,33 +47,33 @@ export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
       locales,
       defaultLocale,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = ({ locales, defaultLocale }) => {
   // make sure locales were provided correctly
   if (!locales || locales.length !== 11) {
     throw new Error(
-      'locales missing in getStaticPaths!! got: ' + JSON.stringify(locales)
-    )
+      "locales missing in getStaticPaths!! got: " + JSON.stringify(locales)
+    );
   }
 
   if (!defaultLocale) {
-    throw new Error('missing defaultLocale in getStaticPaths')
+    throw new Error("missing defaultLocale in getStaticPaths");
   }
 
   const paths = [
     // the default locale will be used since one isn't defined here
-    { params: { slug: 'first' } },
-    { params: { slug: 'second' } },
-  ]
+    { params: { slug: "first" } },
+    { params: { slug: "second" } },
+  ];
 
   for (const locale of locales) {
-    paths.push({ params: { slug: 'always' }, locale })
+    paths.push({ params: { slug: "always" }, locale });
   }
 
   return {
     paths,
     fallback: true,
-  }
-}
+  };
+};

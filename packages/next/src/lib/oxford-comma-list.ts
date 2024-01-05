@@ -5,10 +5,10 @@ export function getOxfordCommaList(items: string[]): string {
         (index > 0
           ? index === length - 1
             ? length > 2
-              ? ', and '
-              : ' and '
-            : ', '
-          : '') + v
+              ? ", and "
+              : " and "
+            : ", "
+          : "") + v
     )
-    .join('')
+    .join("");
 }

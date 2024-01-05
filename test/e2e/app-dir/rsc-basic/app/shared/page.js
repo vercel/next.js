@@ -1,7 +1,7 @@
-import ClientFromDirect from '../../components/client'
-import ClientFromShared from '../../components/shared'
-import SharedFromClient from '../../components/shared-client'
-import Bar from '../../components/bar'
+import ClientFromDirect from "../../components/client";
+import ClientFromShared from "../../components/shared";
+import SharedFromClient from "../../components/shared-client";
+import Bar from "../../components/bar";
 
 export default function Page() {
   // All three client components should be rendered correctly, but only
@@ -25,5 +25,5 @@ export default function Page() {
       <br />
       <Bar />
     </div>
-  )
+  );
 }

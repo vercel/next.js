@@ -1,7 +1,7 @@
-import Runtime from '../utils/runtime'
-import Time from '../utils/time'
+import Runtime from "../utils/runtime";
+import Time from "../utils/time";
 
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -36,9 +36,9 @@ export default function Page() {
         to /node-ssr
       </Link>
     </div>
-  )
+  );
 }
 
 export const config = {
-  runtime: 'nodejs',
-}
+  runtime: "nodejs",
+};

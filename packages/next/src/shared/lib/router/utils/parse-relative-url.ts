@@ -1,13 +1,13 @@
-import type { ParsedUrlQuery } from 'querystring'
-import { getLocationOrigin } from '../../utils'
-import { searchParamsToUrlQuery } from './querystring'
+import type { ParsedUrlQuery } from "querystring";
+import { getLocationOrigin } from "../../utils";
+import { searchParamsToUrlQuery } from "./querystring";
 
 export interface ParsedRelativeUrl {
-  hash: string
-  href: string
-  pathname: string
-  query: ParsedUrlQuery
-  search: string
+  hash: string;
+  href: string;
+  pathname: string;
+  query: ParsedUrlQuery;
+  search: string;
 }
 
 /**
@@ -21,21 +21,21 @@ export function parseRelativeUrl(
   base?: string
 ): ParsedRelativeUrl {
   const globalBase = new URL(
-    typeof window === 'undefined' ? 'http://n' : getLocationOrigin()
-  )
+    typeof window === "undefined" ? "http://n" : getLocationOrigin()
+  );
 
   const resolvedBase = base
     ? new URL(base, globalBase)
-    : url.startsWith('.')
-    ? new URL(typeof window === 'undefined' ? 'http://n' : window.location.href)
-    : globalBase
+    : url.startsWith(".")
+    ? new URL(typeof window === "undefined" ? "http://n" : window.location.href)
+    : globalBase;
 
   const { pathname, searchParams, search, hash, href, origin } = new URL(
     url,
     resolvedBase
-  )
+  );
   if (origin !== globalBase.origin) {
-    throw new Error(`invariant: invalid relative URL, router received ${url}`)
+    throw new Error(`invariant: invalid relative URL, router received ${url}`);
   }
   return {
     pathname,
@@ -43,5 +43,5 @@ export function parseRelativeUrl(
     search,
     hash,
     href: href.slice(globalBase.origin.length),
-  }
+  };
 }

@@ -1,7 +1,7 @@
-import { createContext } from 'react'
+import { createContext } from "react";
 
-console.log({ createContext })
+console.log({ createContext });
 
 export default function Page() {
-  return null
+  return null;
 }

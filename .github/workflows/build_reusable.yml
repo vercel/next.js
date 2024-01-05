@@ -5,45 +5,45 @@ on:
     inputs:
       afterBuild:
         required: false
-        description: 'additional steps to run'
+        description: "additional steps to run"
         type: string
       # Toggles the mold linker. The default linker is much slower and can run into OOMs.
       # However, custom linkers won't work for wasm.
       mold:
         required: false
-        description: 'whether to use the mold linker'
+        description: "whether to use the mold linker"
         type: string
       skipInstallBuild:
         required: false
-        description: 'whether to skip pnpm install && pnpm build'
+        description: "whether to skip pnpm install && pnpm build"
         type: string
       skipNativeBuild:
         required: false
-        description: 'whether to skip building native modules'
+        description: "whether to skip building native modules"
         type: string
       uploadAnalyzerArtifacts:
         required: false
-        description: 'whether to upload analyzer artifacts'
+        description: "whether to upload analyzer artifacts"
         type: string
       nodeVersion:
         required: false
-        description: 'version of Node.js to use'
+        description: "version of Node.js to use"
         type: string
       needsRust:
         required: false
-        description: 'if rust is needed'
+        description: "if rust is needed"
         type: string
       needsNextest:
         required: false
-        description: 'if nextest rust dep is needed'
+        description: "if nextest rust dep is needed"
         type: string
       uploadSwcArtifact:
         required: false
-        description: 'if swc artifact needs uploading'
+        description: "if swc artifact needs uploading"
         type: string
       rustCacheKey:
         required: false
-        description: 'rustCacheKey to cache shared target assets'
+        description: "rustCacheKey to cache shared target assets"
         type: string
 
 env:
@@ -54,15 +54,15 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_TEAM: "vercel"
+  TURBO_REMOTE_ONLY: "true"
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
   NEXT_SKIP_NATIVE_POSTINSTALL: 1
   DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-  NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
+  NEXT_JUNIT_TEST_REPORT: "true"
+  DD_ENV: "ci"
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
 
@@ -70,10 +70,10 @@ jobs:
   build:
     timeout-minutes: 15
     runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+      - "self-hosted"
+      - "linux"
+      - "x64"
+      - "metal"
 
     steps:
       - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
@@ -94,7 +94,7 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: 'Install mold linker'
+      - name: "Install mold linker"
         if: ${{ inputs.mold == 'yes' }}
         run: |
           sudo apt update
@@ -114,7 +114,7 @@ jobs:
         uses: ijjk/rust-cache@turbo-cache-v1.0.7
         if: ${{ inputs.rustCacheKey }}
         with:
-          cache-provider: 'turbo'
+          cache-provider: "turbo"
           save-if: ${{ github.ref_name == 'canary' }}
           shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
 

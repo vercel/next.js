@@ -1,14 +1,14 @@
-import { use } from 'react'
+import { use } from "react";
 
 const fetchCategory = async (categorySlug) => {
   // artificial delay
-  await new Promise((resolve) => setTimeout(resolve, 3000))
+  await new Promise((resolve) => setTimeout(resolve, 3000));
 
-  return categorySlug + 'abc'
-}
+  return categorySlug + "abc";
+};
 
 export default function Page({ params }) {
-  const category = use(fetchCategory(params.categorySlug))
+  const category = use(fetchCategory(params.categorySlug));
 
-  return <div id="category-id">{category}</div>
+  return <div id="category-id">{category}</div>;
 }

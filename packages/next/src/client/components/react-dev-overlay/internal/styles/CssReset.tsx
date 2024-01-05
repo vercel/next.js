@@ -1,5 +1,5 @@
-import * as React from 'react'
-import { noop as css } from '../helpers/noop-template'
+import * as React from "react";
+import { noop as css } from "../helpers/noop-template";
 
 export function CssReset() {
   return (
@@ -47,10 +47,10 @@ export function CssReset() {
 
         :host {
           margin: 0;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-            'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
-            'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
-            'Noto Color Emoji';
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+            "Helvetica Neue", Arial, "Noto Sans", sans-serif,
+            "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol",
+            "Noto Color Emoji";
           font-size: 16px;
           font-weight: 400;
           line-height: 1.5;
@@ -59,7 +59,7 @@ export function CssReset() {
           background-color: #fff;
         }
 
-        [tabindex='-1']:focus:not(:focus-visible) {
+        [tabindex="-1"]:focus:not(:focus-visible) {
           outline: 0 !important;
         }
 
@@ -179,7 +179,7 @@ export function CssReset() {
         kbd,
         samp {
           font-family: SFMono-Regular, Menlo, Monaco, Consolas,
-            'Liberation Mono', 'Courier New', monospace;
+            "Liberation Mono", "Courier New", monospace;
           font-size: 1em;
         }
 
@@ -259,37 +259,37 @@ export function CssReset() {
         }
 
         button,
-        [type='button'],
-        [type='reset'],
-        [type='submit'] {
+        [type="button"],
+        [type="reset"],
+        [type="submit"] {
           -webkit-appearance: button;
         }
 
         button:not(:disabled),
-        [type='button']:not(:disabled),
-        [type='reset']:not(:disabled),
-        [type='submit']:not(:disabled) {
+        [type="button"]:not(:disabled),
+        [type="reset"]:not(:disabled),
+        [type="submit"]:not(:disabled) {
           cursor: pointer;
         }
 
         button::-moz-focus-inner,
-        [type='button']::-moz-focus-inner,
-        [type='reset']::-moz-focus-inner,
-        [type='submit']::-moz-focus-inner {
+        [type="button"]::-moz-focus-inner,
+        [type="reset"]::-moz-focus-inner,
+        [type="submit"]::-moz-focus-inner {
           padding: 0;
           border-style: none;
         }
 
-        input[type='radio'],
-        input[type='checkbox'] {
+        input[type="radio"],
+        input[type="checkbox"] {
           box-sizing: border-box;
           padding: 0;
         }
 
-        input[type='date'],
-        input[type='time'],
-        input[type='datetime-local'],
-        input[type='month'] {
+        input[type="date"],
+        input[type="time"],
+        input[type="datetime-local"],
+        input[type="month"] {
           -webkit-appearance: listbox;
         }
 
@@ -321,17 +321,17 @@ export function CssReset() {
           vertical-align: baseline;
         }
 
-        [type='number']::-webkit-inner-spin-button,
-        [type='number']::-webkit-outer-spin-button {
+        [type="number"]::-webkit-inner-spin-button,
+        [type="number"]::-webkit-outer-spin-button {
           height: auto;
         }
 
-        [type='search'] {
+        [type="search"] {
           outline-offset: -2px;
           -webkit-appearance: none;
         }
 
-        [type='search']::-webkit-search-decoration {
+        [type="search"]::-webkit-search-decoration {
           -webkit-appearance: none;
         }
 
@@ -358,5 +358,5 @@ export function CssReset() {
         }
       `}
     </style>
-  )
+  );
 }

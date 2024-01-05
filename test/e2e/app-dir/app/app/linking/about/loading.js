@@ -1,3 +1,3 @@
 export default function AboutLoading() {
-  return <p id="about-loading">About loading...</p>
+  return <p id="about-loading">About loading...</p>;
 }

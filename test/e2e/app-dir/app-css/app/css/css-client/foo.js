@@ -1,5 +1,5 @@
-import './client-foo.css'
+import "./client-foo.css";
 
 export default function Foo() {
-  return <b className="foo">foo</b>
+  return <b className="foo">foo</b>;
 }

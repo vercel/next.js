@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import React from 'react'
+import Image from "next/image";
+import React from "react";
 
 const Page = () => {
   return (
@@ -13,7 +13,7 @@ const Page = () => {
       />
       <p id="stubtext">This is the rotated page</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

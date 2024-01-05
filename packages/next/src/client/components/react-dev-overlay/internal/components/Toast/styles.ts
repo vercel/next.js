@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   [data-nextjs-toast] {
@@ -25,6 +25,6 @@ const styles = css`
     box-shadow: 0px var(--size-gap-double) var(--size-gap-quad)
       rgba(0, 0, 0, 0.25);
   }
-`
+`;
 
-export { styles }
+export { styles };

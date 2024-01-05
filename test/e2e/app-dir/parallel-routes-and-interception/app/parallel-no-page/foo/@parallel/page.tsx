@@ -4,5 +4,5 @@ export default function ParallelPage() {
       <p>Hello from parallel page!</p>
       <div id="timestamp">{Date.now()}</div>
     </>
-  )
+  );
 }

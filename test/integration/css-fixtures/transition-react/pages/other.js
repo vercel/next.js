@@ -1,21 +1,21 @@
-import React from 'react'
-import Link from 'next/link'
-import css from './other.module.css'
+import React from "react";
+import Link from "next/link";
+import css from "./other.module.css";
 
 export default class Other extends React.Component {
-  ref = React.createRef()
+  ref = React.createRef();
 
   constructor(props) {
-    super(props)
+    super(props);
     this.state = {
       color: null,
-    }
+    };
   }
 
   componentDidMount() {
     this.setState({
       color: window.getComputedStyle(this.ref.current).color,
-    })
+    });
   }
 
   render() {
@@ -29,6 +29,6 @@ export default class Other extends React.Component {
           {this.state.color}
         </h1>
       </main>
-    )
+    );
   }
 }

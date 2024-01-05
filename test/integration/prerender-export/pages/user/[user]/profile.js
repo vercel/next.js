@@ -1,17 +1,17 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export async function getStaticPaths() {
-  return { paths: [], fallback: false }
+  return { paths: [], fallback: false };
 }
 
 export async function getStaticProps({ params }) {
   return {
     props: {
       user: params.user,
-      time: (await import('perf_hooks')).performance.now(),
+      time: (await import("perf_hooks")).performance.now(),
     },
-  }
+  };
 }
 
 export default ({ user, time }) => {
@@ -23,5 +23,5 @@ export default ({ user, time }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

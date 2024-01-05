@@ -6,5 +6,5 @@ export default function Layout({ bar, foo }) {
       <h1>bar</h1>
       {bar}
     </div>
-  )
+  );
 }

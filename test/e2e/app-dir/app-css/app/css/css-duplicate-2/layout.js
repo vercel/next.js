@@ -1,5 +1,5 @@
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function Layout({ children }) {
-  return <div className={styles.foo}>{children}</div>
+  return <div className={styles.foo}>{children}</div>;
 }

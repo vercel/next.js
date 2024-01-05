@@ -1,5 +1,5 @@
-import Comp from './Comp'
-import { font1, font2 } from '../../fonts'
+import Comp from "./Comp";
+import { font1, font2 } from "../../fonts";
 
 export default function HomePage() {
   return (
@@ -10,7 +10,7 @@ export default function HomePage() {
       </p>
       <Comp />
     </>
-  )
+  );
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";

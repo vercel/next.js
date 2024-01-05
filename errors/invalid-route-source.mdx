@@ -1,5 +1,5 @@
 ---
-title: 'Invalid Custom Route `source`'
+title: "Invalid Custom Route `source`"
 ---
 
 ## Why This Error Occurred
@@ -38,16 +38,16 @@ Wrap the `RegExp` part of your `source` as an un-named parameter.
 
 ```ts filename="middleware.ts"
 const config = {
-  matcher: '/feedback/(?!general)',
-}
+  matcher: "/feedback/(?!general)",
+};
 ```
 
 **After**
 
 ```ts filename="middleware.ts"
 const config = {
-  matcher: '/feedback/((?!general).*)',
-}
+  matcher: "/feedback/((?!general).*)",
+};
 ```
 
 ## Useful Links

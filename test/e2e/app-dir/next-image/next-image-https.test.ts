@@ -1,7 +1,7 @@
-import { createNextDescribe } from '../../../lib/e2e-utils'
+import { createNextDescribe } from "../../../lib/e2e-utils";
 
 createNextDescribe(
-  'app dir - next-image (with https)',
+  "app dir - next-image (with https)",
   {
     files: __dirname,
     skipDeployment: true,
@@ -9,38 +9,38 @@ createNextDescribe(
   },
   ({ next }) => {
     if (!process.env.CI) {
-      console.warn('only runs on CI as it requires administrator privileges')
-      it('only runs on CI as it requires administrator privileges', () => {})
-      return
+      console.warn("only runs on CI as it requires administrator privileges");
+      it("only runs on CI as it requires administrator privileges", () => {});
+      return;
     }
 
-    it('loads images without any errors', async () => {
-      let failCount = 0
-      const browser = await next.browser('/', {
+    it("loads images without any errors", async () => {
+      let failCount = 0;
+      const browser = await next.browser("/", {
         beforePageLoad(page) {
-          page.on('response', (response) => {
-            const url = response.url()
-            if (!url.includes('/_next/image')) return
+          page.on("response", (response) => {
+            const url = response.url();
+            if (!url.includes("/_next/image")) return;
 
-            const status = response.status()
+            const status = response.status();
 
-            console.log(`URL: ${url} Status: ${status}`)
+            console.log(`URL: ${url} Status: ${status}`);
 
             if (!response.ok()) {
-              console.log(`Request failed: ${url}`)
-              failCount++
+              console.log(`Request failed: ${url}`);
+              failCount++;
             }
-          })
+          });
         },
-      })
-      const image = browser.elementByCss('#app-page')
-      const src = await image.getAttribute('src')
+      });
+      const image = browser.elementByCss("#app-page");
+      const src = await image.getAttribute("src");
 
       expect(src).toContain(
-        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90'
-      )
+        "/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"
+      );
 
-      expect(failCount).toBe(0)
-    })
+      expect(failCount).toBe(0);
+    });
   }
-)
+);

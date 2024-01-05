@@ -5,5 +5,5 @@ export default function Layout(props: { children: React.ReactNode }) {
         <div id="children">{props.children}</div>
       </body>
     </html>
-  )
+  );
 }

@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/components/navigation')
+module.exports = require("./dist/client/components/navigation");

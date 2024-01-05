@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { redirect } from 'next/navigation'
-import React from 'react'
+import { redirect } from "next/navigation";
+import React from "react";
 
 export default function Page() {
-  const [shouldRedirect, setShouldRedirect] = React.useState(false)
+  const [shouldRedirect, setShouldRedirect] = React.useState(false);
 
   if (shouldRedirect) {
-    redirect('/redirect/result')
+    redirect("/redirect/result");
   }
   return (
     <button
@@ -15,5 +15,5 @@ export default function Page() {
     >
       Redirect!
     </button>
-  )
+  );
 }

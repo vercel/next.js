@@ -1,5 +1,5 @@
-import 'css/global-scss'
+import "css/global-scss";
 
 export default function Index() {
-  return <div>Hello world!</div>
+  return <div>Hello world!</div>;
 }

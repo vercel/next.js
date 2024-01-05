@@ -1,22 +1,22 @@
-'use client'
-import { useSearchParams } from 'next/navigation'
+"use client";
+import { useSearchParams } from "next/navigation";
 
 export default function Page() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
   return (
     <>
       <h1 id="pushstate-string-url">PushState String Url</h1>
-      <pre id="my-data">{searchParams.get('query')}</pre>
+      <pre id="my-data">{searchParams.get("query")}</pre>
       <button
         onClick={() => {
           const previousQuery = new URL(window.location.href).searchParams.get(
-            'query'
-          )
+            "query"
+          );
           const url = `?query=${
-            previousQuery ? previousQuery + '-added' : 'foo'
-          }`
+            previousQuery ? previousQuery + "-added" : "foo"
+          }`;
 
-          window.history.pushState({}, '', url)
+          window.history.pushState({}, "", url);
         }}
         id="push-string-url"
       >
@@ -26,13 +26,13 @@ export default function Page() {
       <button
         onClick={() => {
           const previousQuery = new URL(window.location.href).searchParams.get(
-            'query'
-          )
+            "query"
+          );
           const url = `?query=${
-            previousQuery ? previousQuery + '-added' : 'foo'
-          }`
+            previousQuery ? previousQuery + "-added" : "foo"
+          }`;
 
-          window.history.pushState(null, '', url)
+          window.history.pushState(null, "", url);
         }}
         id="push-string-url-null"
       >
@@ -42,18 +42,18 @@ export default function Page() {
       <button
         onClick={() => {
           const previousQuery = new URL(window.location.href).searchParams.get(
-            'query'
-          )
+            "query"
+          );
           const url = `?query=${
-            previousQuery ? previousQuery + '-added' : 'foo'
-          }`
+            previousQuery ? previousQuery + "-added" : "foo"
+          }`;
 
-          window.history.replaceState(undefined, '', url)
+          window.history.replaceState(undefined, "", url);
         }}
         id="push-string-url-undefined"
       >
         Push searchParam with undefined data param
       </button>
     </>
-  )
+  );
 }

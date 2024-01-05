@@ -39,7 +39,7 @@ export async function getStaticProps() {
     host: process.env.DB_HOST,
     username: process.env.DB_USER,
     password: process.env.DB_PASS,
-  })
+  });
   // ...
 }
 ```
@@ -75,7 +75,7 @@ export async function GET() {
     host: process.env.DB_HOST,
     username: process.env.DB_USER,
     password: process.env.DB_PASS,
-  })
+  });
   // ...
 }
 ```
@@ -110,29 +110,29 @@ This will tell Next.js to replace all references to `process.env.NEXT_PUBLIC_ANA
 > **Note**: After being built, your app will no longer respond to changes to these environment variables. For instance, if you use a Heroku pipeline to promote slugs built in one environment to another environment, or if you build and deploy a single Docker image to multiple environments, all `NEXT_PUBLIC_` variables will be frozen with the value evaluated at build time, so these values need to be set appropriately when the project is built. If you need access to runtime environment values, you'll have to setup your own API to provide them to the client (either on demand or during initialization).
 
 ```js filename="pages/index.js"
-import setupAnalyticsService from '../lib/my-analytics-service'
+import setupAnalyticsService from "../lib/my-analytics-service";
 
 // 'NEXT_PUBLIC_ANALYTICS_ID' can be used here as it's prefixed by 'NEXT_PUBLIC_'.
 // It will be transformed at build time to `setupAnalyticsService('abcdefghijk')`.
-setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID)
+setupAnalyticsService(process.env.NEXT_PUBLIC_ANALYTICS_ID);
 
 function HomePage() {
-  return <h1>Hello World</h1>
+  return <h1>Hello World</h1>;
 }
 
-export default HomePage
+export default HomePage;
 ```
 
 Note that dynamic lookups will _not_ be inlined, such as:
 
 ```js
 // This will NOT be inlined, because it uses a variable
-const varName = 'NEXT_PUBLIC_ANALYTICS_ID'
-setupAnalyticsService(process.env[varName])
+const varName = "NEXT_PUBLIC_ANALYTICS_ID";
+setupAnalyticsService(process.env[varName]);
 
 // This will NOT be inlined, because it uses a variable
-const env = process.env
-setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID)
+const env = process.env;
+setupAnalyticsService(env.NEXT_PUBLIC_ANALYTICS_ID);
 ```
 
 ### Runtime Environment Variables
@@ -144,14 +144,14 @@ Next.js can support both build time and runtime environment variables.
 To read runtime environment variables, we recommend using `getServerSideProps` or [incrementally adopting the App Router](/docs/app/building-your-application/upgrading/app-router-migration). With the App Router, we can safely read environment variables on the server during dynamic rendering. This allows you to use a singular Docker image that can be promoted through multiple environments with different values.
 
 ```jsx
-import { unstable_noStore as noStore } from 'next/cache'
+import { unstable_noStore as noStore } from "next/cache";
 
 export default function Component() {
-  noStore()
+  noStore();
   // cookies(), headers(), and other dynamic functions
   // will also opt into dynamic rendering, making
   // this env variable is evaluated at runtime
-  const value = process.env.MY_VALUE
+  const value = process.env.MY_VALUE;
   // ...
 }
 ```
@@ -199,12 +199,12 @@ While running unit tests you can make sure to load your environment variables th
 
 ```js
 // The below can be used in a Jest global setup file or similar for your testing set-up
-import { loadEnvConfig } from '@next/env'
+import { loadEnvConfig } from "@next/env";
 
 export default async () => {
-  const projectDir = process.cwd()
-  loadEnvConfig(projectDir)
-}
+  const projectDir = process.cwd();
+  loadEnvConfig(projectDir);
+};
 ```
 
 ## Environment Variable Load Order

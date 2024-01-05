@@ -1,5 +1,5 @@
-import path from 'path'
-import fs from 'fs-extra'
+import path from "path";
+import fs from "fs-extra";
 import {
   check,
   findPort,
@@ -7,14 +7,14 @@ import {
   launchApp,
   nextBuild,
   renderViaHTTP,
-} from 'next-test-utils'
+} from "next-test-utils";
 
-const appDir = path.join(__dirname, '..')
+const appDir = path.join(__dirname, "..");
 
 const setupAppDir = async () => {
-  await fs.mkdir(path.join(__dirname, '../app'))
+  await fs.mkdir(path.join(__dirname, "../app"));
   await fs.writeFile(
-    path.join(__dirname, '../app/layout.js'),
+    path.join(__dirname, "../app/layout.js"),
     `
       export default function RootLayout({ children }) {
         return <html>
@@ -23,177 +23,179 @@ const setupAppDir = async () => {
         </html>
       }
     `
-  )
-  await fs.ensureFile(path.join(__dirname, '../app/hello/page.js'))
+  );
+  await fs.ensureFile(path.join(__dirname, "../app/hello/page.js"));
   await fs.writeFile(
-    path.join(__dirname, '../app/hello/page.js'),
+    path.join(__dirname, "../app/hello/page.js"),
     'export default function Page() { return "hello world" }'
-  )
+  );
 
   return async function teardownAppDir() {
-    await fs.remove(path.join(__dirname, '../app'))
-  }
-}
+    await fs.remove(path.join(__dirname, "../app"));
+  };
+};
 
-describe('page features telemetry', () => {
+describe("page features telemetry", () => {
   if (process.env.TURBOPACK) {
-    it('detects --turbo correctly for `next dev`', async () => {
-      let port = await findPort()
-      let stderr = ''
+    it("detects --turbo correctly for `next dev`", async () => {
+      let port = await findPort();
+      let stderr = "";
 
-      const teardown = await setupAppDir()
+      const teardown = await setupAppDir();
 
       try {
         const handleStderr = (msg) => {
-          stderr += msg
-        }
+          stderr += msg;
+        };
         let app = await launchApp(appDir, port, {
           onStderr: handleStderr,
           env: {
             NEXT_TELEMETRY_DEBUG: 1,
           },
           turbo: true,
-        })
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
+        });
+        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/);
+        await renderViaHTTP(port, "/hello");
 
         if (app) {
-          await killApp(app)
+          await killApp(app);
         }
 
         try {
-          expect(stderr).toContain('NEXT_CLI_SESSION_STARTED')
+          expect(stderr).toContain("NEXT_CLI_SESSION_STARTED");
           const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
             .exec(stderr)
-            .pop()
+            .pop();
 
-          expect(event1).toMatch(/"pagesDir": true/)
-          expect(event1).toMatch(/"turboFlag": true/)
+          expect(event1).toMatch(/"pagesDir": true/);
+          expect(event1).toMatch(/"turboFlag": true/);
         } catch (err) {
-          require('console').error('failing stderr', stderr, err)
-          throw err
+          require("console").error("failing stderr", stderr, err);
+          throw err;
         }
       } finally {
-        await teardown()
+        await teardown();
       }
-    })
+    });
 
-    it('detects --turbo correctly for `next dev` stopped', async () => {
-      let port = await findPort()
-      let stderr = ''
+    it("detects --turbo correctly for `next dev` stopped", async () => {
+      let port = await findPort();
+      let stderr = "";
 
-      const teardown = await setupAppDir()
+      const teardown = await setupAppDir();
 
       try {
         const handleStderr = (msg) => {
-          stderr += msg
-        }
+          stderr += msg;
+        };
         let app = await launchApp(appDir, port, {
           onStderr: handleStderr,
           env: {
             NEXT_TELEMETRY_DEBUG: 1,
           },
           turbo: true,
-        })
+        });
 
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
+        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/);
+        await renderViaHTTP(port, "/hello");
 
         if (app) {
-          await killApp(app)
+          await killApp(app);
         }
-        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/);
 
-        expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
+        expect(stderr).toContain("NEXT_CLI_SESSION_STOPPED");
         const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
           .exec(stderr)
-          .pop()
+          .pop();
 
-        expect(event1).toMatch(/"pagesDir": true/)
-        expect(event1).toMatch(/"turboFlag": true/)
+        expect(event1).toMatch(/"pagesDir": true/);
+        expect(event1).toMatch(/"turboFlag": true/);
 
         expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
+          await fs.pathExists(path.join(appDir, ".next/_events.json"))
+        ).toBe(false);
       } finally {
-        await teardown()
+        await teardown();
       }
-    })
+    });
   } else {
-    it('detects correctly for `next dev` stopped (no turbo)', async () => {
-      let port = await findPort()
-      let stderr = ''
+    it("detects correctly for `next dev` stopped (no turbo)", async () => {
+      let port = await findPort();
+      let stderr = "";
 
-      const teardown = await setupAppDir()
+      const teardown = await setupAppDir();
 
       try {
         const handleStderr = (msg) => {
-          stderr += msg
-        }
+          stderr += msg;
+        };
         let app = await launchApp(appDir, port, {
           onStderr: handleStderr,
           env: {
             NEXT_TELEMETRY_DEBUG: 1,
           },
-        })
+        });
 
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
+        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/);
+        await renderViaHTTP(port, "/hello");
 
         if (app) {
-          await killApp(app)
+          await killApp(app);
         }
 
-        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/);
 
-        expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
+        expect(stderr).toContain("NEXT_CLI_SESSION_STOPPED");
         const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
           .exec(stderr)
-          .pop()
+          .pop();
 
-        expect(event1).toMatch(/"turboFlag": false/)
-        expect(event1).toMatch(/"pagesDir": true/)
-        expect(event1).toMatch(/"appDir": true/)
+        expect(event1).toMatch(/"turboFlag": false/);
+        expect(event1).toMatch(/"pagesDir": true/);
+        expect(event1).toMatch(/"appDir": true/);
 
         expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
+          await fs.pathExists(path.join(appDir, ".next/_events.json"))
+        ).toBe(false);
       } finally {
-        await teardown()
+        await teardown();
       }
-    })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
-      'production mode',
+    });
+    (process.env.TURBOPACK ? describe.skip : describe)(
+      "production mode",
       () => {
-        it('should detect app page counts', async () => {
-          const teardown = await setupAppDir()
+        it("should detect app page counts", async () => {
+          const teardown = await setupAppDir();
 
           try {
-            await fs.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
+            await fs.ensureFile(path.join(__dirname, "../app/ssr/page.js"));
             await fs.writeFile(
-              path.join(__dirname, '../app/ssr/page.js'),
+              path.join(__dirname, "../app/ssr/page.js"),
               `
           export const revalidate = 0
           export default function Page() {
             return <p>ssr page</p>
           }
         `
-            )
-            await fs.ensureFile(path.join(__dirname, '../app/edge-ssr/page.js'))
+            );
+            await fs.ensureFile(
+              path.join(__dirname, "../app/edge-ssr/page.js")
+            );
             await fs.writeFile(
-              path.join(__dirname, '../app/edge-ssr/page.js'),
+              path.join(__dirname, "../app/edge-ssr/page.js"),
               `
           export const runtime = 'experimental-edge'
           export default function Page() {
             return <p>edge-ssr page</p>
           }
         `
-            )
+            );
             await fs.ensureFile(
-              path.join(__dirname, '../app/app-ssg/[slug]/page.js')
-            )
+              path.join(__dirname, "../app/app-ssg/[slug]/page.js")
+            );
             await fs.writeFile(
-              path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
+              path.join(__dirname, "../app/app-ssg/[slug]/page.js"),
               `
           export function generateStaticParams() {
             return [
@@ -205,125 +207,125 @@ describe('page features telemetry', () => {
             return <p>ssg page</p>
           }
         `
-            )
+            );
             const { stderr } = await nextBuild(appDir, [], {
               stderr: true,
               env: { NEXT_TELEMETRY_DEBUG: 1 },
-            })
+            });
 
             try {
-              expect(stderr).toContain('NEXT_BUILD_OPTIMIZED')
+              expect(stderr).toContain("NEXT_BUILD_OPTIMIZED");
               const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
                 .exec(stderr)
-                .pop()
-              expect(event1).toMatch(/"staticPropsPageCount": 2/)
-              expect(event1).toMatch(/"serverPropsPageCount": 2/)
-              expect(event1).toMatch(/"ssrPageCount": 3/)
-              expect(event1).toMatch(/"staticPageCount": 4/)
-              expect(event1).toMatch(/"totalPageCount": 11/)
-              expect(event1).toMatch(/"totalAppPagesCount": 5/)
-              expect(event1).toMatch(/"serverAppPagesCount": 2/)
-              expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
-              expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
+                .pop();
+              expect(event1).toMatch(/"staticPropsPageCount": 2/);
+              expect(event1).toMatch(/"serverPropsPageCount": 2/);
+              expect(event1).toMatch(/"ssrPageCount": 3/);
+              expect(event1).toMatch(/"staticPageCount": 4/);
+              expect(event1).toMatch(/"totalPageCount": 11/);
+              expect(event1).toMatch(/"totalAppPagesCount": 5/);
+              expect(event1).toMatch(/"serverAppPagesCount": 2/);
+              expect(event1).toMatch(/"edgeRuntimeAppCount": 1/);
+              expect(event1).toMatch(/"edgeRuntimePagesCount": 2/);
 
-              expect(stderr).toContain('NEXT_BUILD_COMPLETED')
+              expect(stderr).toContain("NEXT_BUILD_COMPLETED");
               const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
                 .exec(stderr)
-                .pop()
+                .pop();
 
-              expect(event2).toMatch(/"totalAppPagesCount": 5/)
+              expect(event2).toMatch(/"totalAppPagesCount": 5/);
             } catch (err) {
-              require('console').error('failing stderr', stderr, err)
-              throw err
+              require("console").error("failing stderr", stderr, err);
+              throw err;
             }
           } finally {
-            await teardown()
+            await teardown();
           }
-        })
+        });
 
-        it('detects reportWebVitals with no _app correctly for `next build`', async () => {
+        it("detects reportWebVitals with no _app correctly for `next build`", async () => {
           // Case 1: When _app.js does not exist.
           let build = await nextBuild(appDir, [], {
-            stderr: 'log',
-            stdout: 'log',
+            stderr: "log",
+            stdout: "log",
             env: { NEXT_TELEMETRY_DEBUG: 1 },
-          })
+          });
 
-          expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+          expect(build.stderr).toContain("NEXT_BUILD_OPTIMIZED");
           let event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
             .exec(build.stderr)
-            .pop()
-          expect(event1).toMatch(/hasReportWebVitals.*?false/)
-        })
+            .pop();
+          expect(event1).toMatch(/hasReportWebVitals.*?false/);
+        });
 
-        it('detect with reportWebVitals correctly for `next build`', async () => {
+        it("detect with reportWebVitals correctly for `next build`", async () => {
           // Case 2: When _app.js exist with reportWebVitals function.
           await fs.utimes(
-            path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
+            path.join(appDir, "pages", "_app_withreportwebvitals.empty"),
             new Date(),
             new Date()
-          )
+          );
           await fs.rename(
-            path.join(appDir, 'pages', '_app_withreportwebvitals.empty'),
-            path.join(appDir, 'pages', '_app.js')
-          )
+            path.join(appDir, "pages", "_app_withreportwebvitals.empty"),
+            path.join(appDir, "pages", "_app.js")
+          );
 
           const build = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: 1 },
-          })
+          });
 
           await fs.rename(
-            path.join(appDir, 'pages', '_app.js'),
-            path.join(appDir, 'pages', '_app_withreportwebvitals.empty')
-          )
+            path.join(appDir, "pages", "_app.js"),
+            path.join(appDir, "pages", "_app_withreportwebvitals.empty")
+          );
 
           try {
-            expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+            expect(build.stderr).toContain("NEXT_BUILD_OPTIMIZED");
             const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
               .exec(build.stderr)
-              .pop()
-            expect(event1).toMatch(/hasReportWebVitals.*?true/)
+              .pop();
+            expect(event1).toMatch(/hasReportWebVitals.*?true/);
           } catch (err) {
-            require('console').error(build.stderr)
-            throw err
+            require("console").error(build.stderr);
+            throw err;
           }
-        })
+        });
 
-        it('detect without reportWebVitals correctly for `next build`', async () => {
+        it("detect without reportWebVitals correctly for `next build`", async () => {
           // Case 3: When _app.js exist without reportWebVitals function.
           await fs.utimes(
-            path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
+            path.join(appDir, "pages", "_app_withoutreportwebvitals.empty"),
             new Date(),
             new Date()
-          )
+          );
           await fs.rename(
-            path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty'),
-            path.join(appDir, 'pages', '_app.js')
-          )
+            path.join(appDir, "pages", "_app_withoutreportwebvitals.empty"),
+            path.join(appDir, "pages", "_app.js")
+          );
 
           const build = await nextBuild(appDir, [], {
             stderr: true,
             env: { NEXT_TELEMETRY_DEBUG: 1 },
-          })
+          });
 
           await fs.rename(
-            path.join(appDir, 'pages', '_app.js'),
-            path.join(appDir, 'pages', '_app_withoutreportwebvitals.empty')
-          )
+            path.join(appDir, "pages", "_app.js"),
+            path.join(appDir, "pages", "_app_withoutreportwebvitals.empty")
+          );
 
           try {
-            expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+            expect(build.stderr).toContain("NEXT_BUILD_OPTIMIZED");
             const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
               .exec(build.stderr)
-              .pop()
-            expect(event1).toMatch(/hasReportWebVitals.*?false/)
+              .pop();
+            expect(event1).toMatch(/hasReportWebVitals.*?false/);
           } catch (err) {
-            require('console').error(build.stderr)
-            throw err
+            require("console").error(build.stderr);
+            throw err;
           }
-        })
+        });
       }
-    )
+    );
   }
-})
+});

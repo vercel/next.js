@@ -1,5 +1,5 @@
-import 'client-only'
+import "client-only";
 
 export default function Page() {
-  return 'pages/pages-ssr.js'
+  return "pages/pages-ssr.js";
 }

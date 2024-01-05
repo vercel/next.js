@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -10,14 +10,14 @@ export default function Page() {
       <p id="pathname">{router.pathname}</p>
       <p id="as-path">{router.asPath}</p>
     </>
-  )
+  );
 }
 
 export function getStaticPaths() {
   return {
-    paths: ['/static-ssg/first'],
-    fallback: 'blocking',
-  }
+    paths: ["/static-ssg/first"],
+    fallback: "blocking",
+  };
 }
 
 export function getStaticProps({ params }) {
@@ -26,5 +26,5 @@ export function getStaticProps({ params }) {
       now: Date.now(),
       params,
     },
-  }
+  };
 }

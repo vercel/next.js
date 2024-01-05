@@ -1,4 +1,4 @@
-import { nanoid } from 'nanoid'
+import { nanoid } from "nanoid";
 
 export default function Layout({ children }) {
   return (
@@ -6,5 +6,5 @@ export default function Layout({ children }) {
       <h1 id="render-id">{nanoid()}</h1>
       <div>{children}</div>
     </>
-  )
+  );
 }

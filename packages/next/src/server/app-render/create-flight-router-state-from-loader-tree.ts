@@ -1,22 +1,22 @@
-import type { LoaderTree } from '../lib/app-dir-module'
-import type { FlightRouterState, Segment } from './types'
-import type { GetDynamicParamFromSegment } from './app-render'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import type { LoaderTree } from "../lib/app-dir-module";
+import type { FlightRouterState, Segment } from "./types";
+import type { GetDynamicParamFromSegment } from "./app-render";
+import { PAGE_SEGMENT_KEY } from "../../shared/lib/segment";
 
 export function addSearchParamsIfPageSegment(
   segment: Segment,
   searchParams: any
 ) {
-  const isPageSegment = segment === PAGE_SEGMENT_KEY
+  const isPageSegment = segment === PAGE_SEGMENT_KEY;
 
   if (isPageSegment) {
-    const stringifiedQuery = JSON.stringify(searchParams)
-    return stringifiedQuery !== '{}'
-      ? segment + '?' + stringifiedQuery
-      : segment
+    const stringifiedQuery = JSON.stringify(searchParams);
+    return stringifiedQuery !== "{}"
+      ? segment + "?" + stringifiedQuery
+      : segment;
   }
 
-  return segment
+  return segment;
 }
 
 export function createFlightRouterStateFromLoaderTree(
@@ -25,17 +25,17 @@ export function createFlightRouterStateFromLoaderTree(
   searchParams: any,
   rootLayoutIncluded = false
 ): FlightRouterState {
-  const dynamicParam = getDynamicParamFromSegment(segment)
-  const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment
+  const dynamicParam = getDynamicParamFromSegment(segment);
+  const treeSegment = dynamicParam ? dynamicParam.treeSegment : segment;
 
   const segmentTree: FlightRouterState = [
     addSearchParamsIfPageSegment(treeSegment, searchParams),
     {},
-  ]
+  ];
 
-  if (!rootLayoutIncluded && typeof layout !== 'undefined') {
-    rootLayoutIncluded = true
-    segmentTree[4] = true
+  if (!rootLayoutIncluded && typeof layout !== "undefined") {
+    rootLayoutIncluded = true;
+    segmentTree[4] = true;
   }
 
   segmentTree[1] = Object.keys(parallelRoutes).reduce(
@@ -45,11 +45,11 @@ export function createFlightRouterStateFromLoaderTree(
         getDynamicParamFromSegment,
         searchParams,
         rootLayoutIncluded
-      )
-      return existingValue
+      );
+      return existingValue;
     },
     {} as FlightRouterState[1]
-  )
+  );
 
-  return segmentTree
+  return segmentTree;
 }

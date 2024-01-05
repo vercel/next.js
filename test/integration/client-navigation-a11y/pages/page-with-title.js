@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export default () => (
   <div id="page-with-title">
@@ -8,4 +8,4 @@ export default () => (
     <div>My heading</div>
     <div>Extraneous stuff</div>
   </div>
-)
+);

@@ -1,7 +1,7 @@
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect } from "react";
 
-console.log({ useLayoutEffect })
+console.log({ useLayoutEffect });
 
 export default function Page() {
-  return null
+  return null;
 }

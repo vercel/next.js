@@ -1,6 +1,6 @@
 export function One() {
-  return 'one'
+  return "one";
 }
 
-export * from './two'
-export { Two as TwoAliased } from './two'
+export * from "./two";
+export { Two as TwoAliased } from "./two";

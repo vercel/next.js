@@ -1,9 +1,9 @@
 export default function Page() {
-  return <p>Node</p>
+  return <p>Node</p>;
 }
 
 export function getServerSideProps() {
   return {
     props: {},
-  }
+  };
 }

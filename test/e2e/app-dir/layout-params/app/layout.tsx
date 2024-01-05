@@ -1,12 +1,12 @@
-import React from 'react'
-import ShowParams from './show-params'
+import React from "react";
+import ShowParams from "./show-params";
 
 export default function Layout({
   children,
   params,
 }: {
-  children: React.ReactNode
-  params: {}
+  children: React.ReactNode;
+  params: {};
 }) {
   return (
     <html>
@@ -18,5 +18,5 @@ export default function Layout({
         </div>
       </body>
     </html>
-  )
+  );
 }

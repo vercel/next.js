@@ -6,19 +6,19 @@
 export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
   // Find font files to download
   const fontFiles: Array<{
-    googleFontFileUrl: string
-    preloadFontFile: boolean
-  }> = []
+    googleFontFileUrl: string;
+    preloadFontFile: boolean;
+  }> = [];
 
   // Keep track of the current subset
-  let currentSubset = ''
-  for (const line of css.split('\n')) {
-    const newSubset = /\/\* (.+?) \*\//.exec(line)?.[1]
+  let currentSubset = "";
+  for (const line of css.split("\n")) {
+    const newSubset = /\/\* (.+?) \*\//.exec(line)?.[1];
     if (newSubset) {
       // Found new subset in a comment above the next @font-face declaration
-      currentSubset = newSubset
+      currentSubset = newSubset;
     } else {
-      const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1]
+      const googleFontFileUrl = /src: url\((.+?)\)/.exec(line)?.[1];
       if (
         googleFontFileUrl &&
         !fontFiles.some(
@@ -29,10 +29,10 @@ export function findFontFilesInCss(css: string, subsetsToPreload?: string[]) {
         fontFiles.push({
           googleFontFileUrl,
           preloadFontFile: !!subsetsToPreload?.includes(currentSubset),
-        })
+        });
       }
     }
   }
 
-  return fontFiles
+  return fontFiles;
 }

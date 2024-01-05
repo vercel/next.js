@@ -3,5 +3,5 @@ export default function Page() {
     <>
       <h1>Page</h1>
     </>
-  )
+  );
 }

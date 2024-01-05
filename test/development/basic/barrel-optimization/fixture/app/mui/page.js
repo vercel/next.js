@@ -1,5 +1,5 @@
-import { Button } from '@mui/material'
+import { Button } from "@mui/material";
 
 export default function Page() {
-  return <Button>test_mui</Button>
+  return <Button>test_mui</Button>;
 }

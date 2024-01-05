@@ -3,4 +3,4 @@ module.exports = {
   experimental: {
     adjustFontFallbacks: true,
   },
-}
+};

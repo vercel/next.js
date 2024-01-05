@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import testPng from '../images/test.png'
+import Image from "next/image";
+import testPng from "../images/test.png";
 
 export default function Layout({ children }) {
   return (
@@ -13,5 +13,5 @@ export default function Layout({ children }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

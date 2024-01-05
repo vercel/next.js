@@ -1,23 +1,23 @@
-const { StatsWriterPlugin } = require('webpack-stats-plugin')
-const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
+const { StatsWriterPlugin } = require("webpack-stats-plugin");
+const { BundleAnalyzerPlugin } = require("webpack-bundle-analyzer");
 
 module.exports = {
   experimental: {
     appDir: true,
   },
   webpack: (config, options) => {
-    const { nextRuntime = 'client' } = options
+    const { nextRuntime = "client" } = options;
     if (process.env.ANALYZE) {
-      if (nextRuntime === 'edge')
+      if (nextRuntime === "edge")
         config.plugins.push(
           new BundleAnalyzerPlugin({
-            analyzerMode: 'static',
+            analyzerMode: "static",
             openAnalyzer: true,
             reportFilename: options.isServer
-              ? '../analyze/server.html'
-              : './analyze/client.html',
+              ? "../analyze/server.html"
+              : "./analyze/client.html",
           })
-        )
+        );
       config.plugins.push(
         new StatsWriterPlugin({
           filename: `../webpack-stats-${nextRuntime}.json`,
@@ -27,8 +27,8 @@ module.exports = {
             modules: true,
           },
         })
-      )
+      );
     }
-    return config
+    return config;
   },
-}
+};

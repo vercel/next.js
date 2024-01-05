@@ -1,5 +1,5 @@
 const PartsPage = () => {
-  return <div className="title">Parts page</div>
-}
+  return <div className="title">Parts page</div>;
+};
 
-export default PartsPage
+export default PartsPage;

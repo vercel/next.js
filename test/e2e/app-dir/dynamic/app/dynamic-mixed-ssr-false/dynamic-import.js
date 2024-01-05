@@ -1,8 +1,8 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const DynamicSSRFalse = dynamic(() => import('./ssr-false-module'), {
+const DynamicSSRFalse = dynamic(() => import("./ssr-false-module"), {
   ssr: false,
-})
+});
 
 export default function page() {
   return (
@@ -10,5 +10,5 @@ export default function page() {
       <DynamicSSRFalse />
       <p id="content">dynamic-mixed-ssr-false</p>
     </div>
-  )
+  );
 }

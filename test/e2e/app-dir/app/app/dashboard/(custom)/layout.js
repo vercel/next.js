@@ -4,5 +4,5 @@ export default function CustomDashboardRootLayout({ children }) {
       <h2>Custom dashboard</h2>
       {children}
     </>
-  )
+  );
 }

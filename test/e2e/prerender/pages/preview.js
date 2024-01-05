@@ -4,7 +4,7 @@ export function getStaticProps({ preview, previewData }) {
       preview: preview || false,
       previewData: previewData || null,
     },
-  }
+  };
 }
 
 export default function Page(props) {
@@ -13,5 +13,5 @@ export default function Page(props) {
       <p id="page">/preview</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

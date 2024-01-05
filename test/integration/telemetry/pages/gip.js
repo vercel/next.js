@@ -1,7 +1,7 @@
 function A() {
-  return 'Hello World'
+  return "Hello World";
 }
 
-A.getInitialProps = () => ({ foo: 'bar' })
+A.getInitialProps = () => ({ foo: "bar" });
 
-export default A
+export default A;

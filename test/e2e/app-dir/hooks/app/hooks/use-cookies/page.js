@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default function Page() {
-  const cookiesList = cookies()
-  const hasCookie = cookiesList.has('use-cookies')
+  const cookiesList = cookies();
+  const hasCookie = cookiesList.has("use-cookies");
 
   return (
     <>
@@ -13,5 +13,5 @@ export default function Page() {
         <h2 id="does-not-have-cookie">Does not have use-cookies cookie</h2>
       )}
     </>
-  )
+  );
 }

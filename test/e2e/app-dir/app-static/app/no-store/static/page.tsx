@@ -1,22 +1,22 @@
-import { revalidateTag, unstable_cache } from 'next/cache'
-import { getUncachedRandomData } from '../no-store-fn'
-import { RevalidateButton } from '../revalidate-button'
+import { revalidateTag, unstable_cache } from "next/cache";
+import { getUncachedRandomData } from "../no-store-fn";
+import { RevalidateButton } from "../revalidate-button";
 
 export default async function Page() {
   async function revalidate() {
-    'use server'
-    await revalidateTag('no-store-fn')
+    "use server";
+    await revalidateTag("no-store-fn");
   }
 
   const cachedData = await unstable_cache(
     async () => {
-      return getUncachedRandomData()
+      return getUncachedRandomData();
     },
-    ['random'],
+    ["random"],
     {
-      tags: ['no-store-fn'],
+      tags: ["no-store-fn"],
     }
-  )()
+  )();
 
   return (
     <div>
@@ -24,5 +24,5 @@ export default async function Page() {
       <p id="data">cachedData: {cachedData.random}</p>
       <RevalidateButton onClick={revalidate} />
     </div>
-  )
+  );
 }

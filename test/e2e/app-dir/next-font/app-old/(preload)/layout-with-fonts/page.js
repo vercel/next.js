@@ -1,3 +1,3 @@
 export default function HomePage() {
-  return <p>Only layout</p>
+  return <p>Only layout</p>;
 }

@@ -1,9 +1,9 @@
 export default function Page() {
-  return null
+  return null;
 }
 
 export function generateMetadata() {
   return {
-    title: 'foo',
-  }
+    title: "foo",
+  };
 }

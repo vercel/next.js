@@ -1,7 +1,7 @@
-import Image from 'next/legacy/image'
-import testPng from '../../images/test.png'
+import Image from "next/legacy/image";
+import testPng from "../../images/test.png";
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";
 
 export default function LegacyEdgeLayout({ children }) {
   return (
@@ -10,5 +10,5 @@ export default function LegacyEdgeLayout({ children }) {
       <Image id="app-legacy-edge-layout" src={testPng} loading="eager" />
       {children}
     </>
-  )
+  );
 }

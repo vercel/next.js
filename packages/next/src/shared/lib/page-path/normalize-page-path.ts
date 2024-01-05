@@ -1,6 +1,6 @@
-import { ensureLeadingSlash } from './ensure-leading-slash'
-import { isDynamicRoute } from '../router/utils'
-import { NormalizeError } from '../utils'
+import { ensureLeadingSlash } from "./ensure-leading-slash";
+import { isDynamicRoute } from "../router/utils";
+import { NormalizeError } from "../utils";
 
 /**
  * Takes a page and transforms it into its file counterpart ensuring that the
@@ -15,19 +15,19 @@ export function normalizePagePath(page: string): string {
   const normalized =
     /^\/index(\/|$)/.test(page) && !isDynamicRoute(page)
       ? `/index${page}`
-      : page === '/'
-      ? '/index'
-      : ensureLeadingSlash(page)
+      : page === "/"
+      ? "/index"
+      : ensureLeadingSlash(page);
 
-  if (process.env.NEXT_RUNTIME !== 'edge') {
-    const { posix } = require('path')
-    const resolvedPage = posix.normalize(normalized)
+  if (process.env.NEXT_RUNTIME !== "edge") {
+    const { posix } = require("path");
+    const resolvedPage = posix.normalize(normalized);
     if (resolvedPage !== normalized) {
       throw new NormalizeError(
         `Requested and resolved page mismatch: ${normalized} ${resolvedPage}`
-      )
+      );
     }
   }
 
-  return normalized
+  return normalized;
 }

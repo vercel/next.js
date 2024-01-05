@@ -1,14 +1,14 @@
-import React from 'react'
-import Router from 'next/router'
+import React from "react";
+import Router from "next/router";
 
 class Page extends React.Component {
   componentDidMount() {
-    Router.push('/')
+    Router.push("/");
   }
 
   render() {
-    return <p>redirecting..</p>
+    return <p>redirecting..</p>;
   }
 }
 
-export default Page
+export default Page;

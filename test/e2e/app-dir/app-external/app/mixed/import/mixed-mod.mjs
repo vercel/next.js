@@ -1,5 +1,5 @@
-;(module) => {
-  module.exports = {}
-}
+(module) => {
+  module.exports = {};
+};
 
-export const value = 'relative-mixed-syntax-esm'
+export const value = "relative-mixed-syntax-esm";

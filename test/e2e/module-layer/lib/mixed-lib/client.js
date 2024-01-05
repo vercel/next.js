@@ -1,3 +1,3 @@
-import 'client-only'
+import "client-only";
 
-export const client = 'client:module'
+export const client = "client:module";

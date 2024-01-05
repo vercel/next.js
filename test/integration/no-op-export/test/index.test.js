@@ -1,32 +1,32 @@
 /* eslint-env jest */
 
-import path from 'path'
-import fs from 'fs-extra'
-import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import path from "path";
+import fs from "fs-extra";
+import { join } from "path";
+import { nextBuild } from "next-test-utils";
 
-const appDir = join(__dirname, '../')
-const nextConfig = join(appDir, 'next.config.js')
+const appDir = join(__dirname, "../");
+const nextConfig = join(appDir, "next.config.js");
 
 const addPage = async (page, content) => {
-  const pagePath = join(appDir, 'pages', page)
-  await fs.ensureDir(path.dirname(pagePath))
-  await fs.writeFile(pagePath, content)
-}
+  const pagePath = join(appDir, "pages", page);
+  await fs.ensureDir(path.dirname(pagePath));
+  await fs.writeFile(pagePath, content);
+};
 
-describe('no-op export', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+describe("no-op export", () => {
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
     afterEach(async () => {
       await Promise.all(
-        ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
+        [".next", "pages", "next.config.js", "out"].map((file) =>
           fs.remove(join(appDir, file))
         )
-      )
-    })
+      );
+    });
 
-    it('should not error for all server-side pages build', async () => {
+    it("should not error for all server-side pages build", async () => {
       await addPage(
-        '_error.js',
+        "_error.js",
         `
       import React from 'react'
       export default class Error extends React.Component {
@@ -42,9 +42,9 @@ describe('no-op export', () => {
         }
       }
     `
-      )
+      );
       await addPage(
-        '[slug].js',
+        "[slug].js",
         `
       export const getStaticProps = () => {
         return {
@@ -61,23 +61,23 @@ describe('no-op export', () => {
         return 'page'
       }
     `
-      )
+      );
       const result = await nextBuild(appDir, undefined, {
-        stderr: 'log',
-        stdout: 'log',
-      })
-      expect(result.code).toBe(0)
-    })
+        stderr: "log",
+        stdout: "log",
+      });
+      expect(result.code).toBe(0);
+    });
 
-    it('should not error for empty exportPathMap', async () => {
+    it("should not error for empty exportPathMap", async () => {
       await addPage(
-        'index.js',
+        "index.js",
         `
       export default function Index() {
         return 'hello world'
       }
     `
-      )
+      );
       await fs.writeFile(
         nextConfig,
         `
@@ -88,12 +88,12 @@ describe('no-op export', () => {
         }
       }
     `
-      )
+      );
       const buildResult = await nextBuild(appDir, undefined, {
-        stderr: 'log',
-        stdout: 'log',
-      })
-      expect(buildResult.code).toBe(0)
-    })
-  })
-})
+        stderr: "log",
+        stdout: "log",
+      });
+      expect(buildResult.code).toBe(0);
+    });
+  });
+});

@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default function Root({
   children,
   modal,
 }: {
-  children: React.ReactNode
-  modal: React.ReactNode
+  children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   return (
     <html>
@@ -14,5 +14,5 @@ export default function Root({
         <div id="slot">{modal}</div>
       </body>
     </html>
-  )
+  );
 }

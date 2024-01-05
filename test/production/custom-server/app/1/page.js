@@ -1,5 +1,5 @@
-import { version } from 'react'
+import { version } from "react";
 
 export default function Page() {
-  return <div>app: {version}</div>
+  return <div>app: {version}</div>;
 }

@@ -1,21 +1,21 @@
-import type { FlightSegmentPath, CacheNodeSeedData } from './types'
-import React, { type ReactNode } from 'react'
-import { isClientReference } from '../../lib/client-reference'
-import { getLayoutOrPageModule } from '../lib/app-dir-module'
-import type { LoaderTree } from '../lib/app-dir-module'
-import { interopDefault } from './interop-default'
-import { parseLoaderTree } from './parse-loader-tree'
-import type { CreateSegmentPath, AppRenderContext } from './app-render'
-import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
-import { getLayerAssets } from './get-layer-assets'
-import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
-import { validateRevalidate } from '../lib/patch-fetch'
-import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import type { FlightSegmentPath, CacheNodeSeedData } from "./types";
+import React, { type ReactNode } from "react";
+import { isClientReference } from "../../lib/client-reference";
+import { getLayoutOrPageModule } from "../lib/app-dir-module";
+import type { LoaderTree } from "../lib/app-dir-module";
+import { interopDefault } from "./interop-default";
+import { parseLoaderTree } from "./parse-loader-tree";
+import type { CreateSegmentPath, AppRenderContext } from "./app-render";
+import { createComponentStylesAndScripts } from "./create-component-styles-and-scripts";
+import { getLayerAssets } from "./get-layer-assets";
+import { hasLoadingComponentInTree } from "./has-loading-component-in-tree";
+import { validateRevalidate } from "../lib/patch-fetch";
+import { PARALLEL_ROUTE_DEFAULT_PATH } from "../../client/components/parallel-route-default";
 
 type ComponentTree = {
-  seedData: CacheNodeSeedData
-  styles: ReactNode
-}
+  seedData: CacheNodeSeedData;
+  styles: ReactNode;
+};
 
 /**
  * This component will call `React.postpone` that throws the postponed error.
@@ -23,11 +23,11 @@ type ComponentTree = {
 export const Postpone = ({
   postpone,
 }: {
-  postpone: (reason: string) => never
+  postpone: (reason: string) => never;
 }): never => {
   // Call the postpone API now with the reason set to "force-dynamic".
-  return postpone('dynamic = "force-dynamic" was used')
-}
+  return postpone('dynamic = "force-dynamic" was used');
+};
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -46,18 +46,18 @@ export async function createComponentTree({
   ctx,
   missingSlots,
 }: {
-  createSegmentPath: CreateSegmentPath
-  loaderTree: LoaderTree
-  parentParams: { [key: string]: any }
-  rootLayoutIncluded: boolean
-  firstItem?: boolean
-  injectedCSS: Set<string>
-  injectedJS: Set<string>
-  injectedFontPreloadTags: Set<string>
-  asNotFound?: boolean
-  metadataOutlet?: React.ReactNode
-  ctx: AppRenderContext
-  missingSlots?: Set<string>
+  createSegmentPath: CreateSegmentPath;
+  loaderTree: LoaderTree;
+  parentParams: { [key: string]: any };
+  rootLayoutIncluded: boolean;
+  firstItem?: boolean;
+  injectedCSS: Set<string>;
+  injectedJS: Set<string>;
+  injectedFontPreloadTags: Set<string>;
+  asNotFound?: boolean;
+  metadataOutlet?: React.ReactNode;
+  ctx: AppRenderContext;
+  missingSlots?: Set<string>;
 }): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -74,18 +74,24 @@ export async function createComponentTree({
     getDynamicParamFromSegment,
     isPrefetch,
     searchParamsProps,
-  } = ctx
+  } = ctx;
 
   const { page, layoutOrPagePath, segment, components, parallelRoutes } =
-    parseLoaderTree(tree)
+    parseLoaderTree(tree);
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const {
+    layout,
+    template,
+    error,
+    loading,
+    "not-found": notFound,
+  } = components;
 
-  const injectedCSSWithCurrentLayout = new Set(injectedCSS)
-  const injectedJSWithCurrentLayout = new Set(injectedJS)
+  const injectedCSSWithCurrentLayout = new Set(injectedCSS);
+  const injectedJSWithCurrentLayout = new Set(injectedJS);
   const injectedFontPreloadTagsWithCurrentLayout = new Set(
     injectedFontPreloadTags
-  )
+  );
 
   const layerAssets = getLayerAssets({
     ctx,
@@ -93,7 +99,7 @@ export async function createComponentTree({
     injectedCSS: injectedCSSWithCurrentLayout,
     injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-  })
+  });
 
   const [Template, templateStyles, templateScripts] = template
     ? await createComponentStylesAndScripts({
@@ -103,7 +109,7 @@ export async function createComponentTree({
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
-    : [React.Fragment]
+    : [React.Fragment];
 
   const [ErrorComponent, errorStyles, errorScripts] = error
     ? await createComponentStylesAndScripts({
@@ -113,7 +119,7 @@ export async function createComponentTree({
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
-    : []
+    : [];
 
   const [Loading, loadingStyles, loadingScripts] = loading
     ? await createComponentStylesAndScripts({
@@ -123,21 +129,21 @@ export async function createComponentTree({
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
-    : []
+    : [];
 
-  const isLayout = typeof layout !== 'undefined'
-  const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
+  const isLayout = typeof layout !== "undefined";
+  const isPage = typeof page !== "undefined";
+  const [layoutOrPageMod] = await getLayoutOrPageModule(tree);
 
   /**
    * Checks if the current segment is a root layout.
    */
-  const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded
+  const rootLayoutAtThisLevel = isLayout && !rootLayoutIncluded;
   /**
    * Checks if the current segment or any level above it has a root layout.
    */
   const rootLayoutIncludedAtThisLevelOrAbove =
-    rootLayoutIncluded || rootLayoutAtThisLevel
+    rootLayoutIncluded || rootLayoutAtThisLevel;
 
   const [NotFound, notFoundStyles] = notFound
     ? await createComponentStylesAndScripts({
@@ -147,68 +153,68 @@ export async function createComponentTree({
         injectedCSS: injectedCSSWithCurrentLayout,
         injectedJS: injectedJSWithCurrentLayout,
       })
-    : []
+    : [];
 
-  let dynamic = layoutOrPageMod?.dynamic
+  let dynamic = layoutOrPageMod?.dynamic;
 
-  if (nextConfigOutput === 'export') {
-    if (!dynamic || dynamic === 'auto') {
-      dynamic = 'error'
-    } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
-      staticGenerationStore.dynamicShouldError = true
+  if (nextConfigOutput === "export") {
+    if (!dynamic || dynamic === "auto") {
+      dynamic = "error";
+    } else if (dynamic === "force-dynamic") {
+      staticGenerationStore.forceDynamic = true;
+      staticGenerationStore.dynamicShouldError = true;
       staticGenerationBailout(`output: export`, {
         dynamic,
-        link: 'https://nextjs.org/docs/advanced-features/static-html-export',
-      })
+        link: "https://nextjs.org/docs/advanced-features/static-html-export",
+      });
     }
   }
 
-  if (typeof dynamic === 'string') {
+  if (typeof dynamic === "string") {
     // the nested most config wins so we only force-static
     // if it's configured above any parent that configured
     // otherwise
-    if (dynamic === 'error') {
-      staticGenerationStore.dynamicShouldError = true
-    } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
+    if (dynamic === "error") {
+      staticGenerationStore.dynamicShouldError = true;
+    } else if (dynamic === "force-dynamic") {
+      staticGenerationStore.forceDynamic = true;
 
       // TODO: (PPR) remove this bailout once PPR is the default
       if (!staticGenerationStore.postpone) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
-        staticGenerationBailout(`force-dynamic`, { dynamic })
+        staticGenerationBailout(`force-dynamic`, { dynamic });
       }
     } else {
-      staticGenerationStore.dynamicShouldError = false
-      if (dynamic === 'force-static') {
-        staticGenerationStore.forceStatic = true
+      staticGenerationStore.dynamicShouldError = false;
+      if (dynamic === "force-static") {
+        staticGenerationStore.forceStatic = true;
       } else {
-        staticGenerationStore.forceStatic = false
+        staticGenerationStore.forceStatic = false;
       }
     }
   }
 
-  if (typeof layoutOrPageMod?.fetchCache === 'string') {
-    staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+  if (typeof layoutOrPageMod?.fetchCache === "string") {
+    staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache;
   }
 
-  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+  if (typeof layoutOrPageMod?.revalidate !== "undefined") {
     validateRevalidate(
       layoutOrPageMod?.revalidate,
       staticGenerationStore.urlPathname
-    )
+    );
   }
 
-  if (typeof layoutOrPageMod?.revalidate === 'number') {
-    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
+  if (typeof layoutOrPageMod?.revalidate === "number") {
+    ctx.defaultRevalidate = layoutOrPageMod.revalidate as number;
 
     if (
-      typeof staticGenerationStore.revalidate === 'undefined' ||
-      (typeof staticGenerationStore.revalidate === 'number' &&
+      typeof staticGenerationStore.revalidate === "undefined" ||
+      (typeof staticGenerationStore.revalidate === "number" &&
         staticGenerationStore.revalidate > ctx.defaultRevalidate)
     ) {
-      staticGenerationStore.revalidate = ctx.defaultRevalidate
+      staticGenerationStore.revalidate = ctx.defaultRevalidate;
     }
 
     if (
@@ -219,33 +225,33 @@ export async function createComponentTree({
       // therefore we can't use the dynamic API.
       !staticGenerationStore.postpone
     ) {
-      const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
-      staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
+      const dynamicUsageDescription = `revalidate: 0 configured ${segment}`;
+      staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription;
 
-      throw new DynamicServerError(dynamicUsageDescription)
+      throw new DynamicServerError(dynamicUsageDescription);
     }
   }
 
   // If there's a dynamic usage error attached to the store, throw it.
   if (staticGenerationStore.dynamicUsageErr) {
-    throw staticGenerationStore.dynamicUsageErr
+    throw staticGenerationStore.dynamicUsageErr;
   }
 
   const LayoutOrPage = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
-    : undefined
+    : undefined;
 
   /**
    * The React Component to render.
    */
-  let Component = LayoutOrPage
-  const parallelKeys = Object.keys(parallelRoutes)
-  const hasSlotKey = parallelKeys.length > 1
+  let Component = LayoutOrPage;
+  const parallelKeys = Object.keys(parallelRoutes);
+  const hasSlotKey = parallelKeys.length > 1;
 
   if (hasSlotKey && rootLayoutAtThisLevel) {
     Component = (componentProps: any) => {
-      const NotFoundComponent = NotFound
-      const RootLayoutComponent = LayoutOrPage
+      const NotFoundComponent = NotFound;
+      const RootLayoutComponent = LayoutOrPage;
       return (
         <NotFoundBoundary
           notFound={
@@ -260,45 +266,45 @@ export async function createComponentTree({
         >
           <RootLayoutComponent {...componentProps} />
         </NotFoundBoundary>
-      )
-    }
+      );
+    };
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    const { isValidElementType } = require('next/dist/compiled/react-is')
+  if (process.env.NODE_ENV === "development") {
+    const { isValidElementType } = require("next/dist/compiled/react-is");
     if (
-      (isPage || typeof Component !== 'undefined') &&
+      (isPage || typeof Component !== "undefined") &&
       !isValidElementType(Component)
     ) {
       throw new Error(
         `The default export is not a React Component in page: "${pagePath}"`
-      )
+      );
     }
 
     if (
-      typeof ErrorComponent !== 'undefined' &&
+      typeof ErrorComponent !== "undefined" &&
       !isValidElementType(ErrorComponent)
     ) {
       throw new Error(
         `The default export of error is not a React Component in page: ${segment}`
-      )
+      );
     }
 
-    if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
+    if (typeof Loading !== "undefined" && !isValidElementType(Loading)) {
       throw new Error(
         `The default export of loading is not a React Component in ${segment}`
-      )
+      );
     }
 
-    if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
+    if (typeof NotFound !== "undefined" && !isValidElementType(NotFound)) {
       throw new Error(
         `The default export of notFound is not a React Component in ${segment}`
-      )
+      );
     }
   }
 
   // Handle dynamic segment params.
-  const segmentParam = getDynamicParamFromSegment(segment)
+  const segmentParam = getDynamicParamFromSegment(segment);
   /**
    * Create object holding the parent params and current params
    */
@@ -310,9 +316,9 @@ export async function createComponentTree({
           [segmentParam.param]: segmentParam.value,
         }
       : // Pass through parent params to children
-        parentParams
+        parentParams;
   // Resolve the segment param
-  const actualSegment = segmentParam ? segmentParam.treeSegment : segment
+  const actualSegment = segmentParam ? segmentParam.treeSegment : segment;
 
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
@@ -322,21 +328,21 @@ export async function createComponentTree({
       async (
         parallelRouteKey
       ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
-        const isChildrenRouteKey = parallelRouteKey === 'children'
+        const isChildrenRouteKey = parallelRouteKey === "children";
         const currentSegmentPath: FlightSegmentPath = firstItem
           ? [parallelRouteKey]
-          : [actualSegment, parallelRouteKey]
+          : [actualSegment, parallelRouteKey];
 
-        const parallelRoute = parallelRoutes[parallelRouteKey]
+        const parallelRoute = parallelRoutes[parallelRouteKey];
 
         const notFoundComponent =
-          NotFound && isChildrenRouteKey ? <NotFound /> : undefined
+          NotFound && isChildrenRouteKey ? <NotFound /> : undefined;
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
         // We also want to bail out if there's no Loading component in the tree.
-        let currentStyles = undefined
-        let childCacheNodeSeedData: CacheNodeSeedData | null = null
+        let currentStyles = undefined;
+        let childCacheNodeSeedData: CacheNodeSeedData | null = null;
 
         if (
           // Before PPR, the way instant navigations work in Next.js is we
@@ -376,19 +382,19 @@ export async function createComponentTree({
         } else {
           // Create the child component
 
-          if (process.env.NODE_ENV === 'development' && missingSlots) {
+          if (process.env.NODE_ENV === "development" && missingSlots) {
             // When we detect the default fallback (which triggers a 404), we collect the missing slots
             // to provide more helpful debug information during development mode.
-            const parsedTree = parseLoaderTree(parallelRoute)
+            const parsedTree = parseLoaderTree(parallelRoute);
             if (parsedTree.layoutOrPagePath === PARALLEL_ROUTE_DEFAULT_PATH) {
-              missingSlots.add(parallelRouteKey)
+              missingSlots.add(parallelRouteKey);
             }
           }
 
           const { seedData, styles: childComponentStyles } =
             await createComponentTree({
               createSegmentPath: (child) => {
-                return createSegmentPath([...currentSegmentPath, ...child])
+                return createSegmentPath([...currentSegmentPath, ...child]);
               },
               loaderTree: parallelRoute,
               parentParams: currentParams,
@@ -400,10 +406,10 @@ export async function createComponentTree({
               metadataOutlet,
               ctx,
               missingSlots,
-            })
+            });
 
-          currentStyles = childComponentStyles
-          childCacheNodeSeedData = seedData
+          currentStyles = childComponentStyles;
+          childCacheNodeSeedData = seedData;
         }
 
         // This is turned back into an object below.
@@ -432,20 +438,20 @@ export async function createComponentTree({
             styles={currentStyles}
           />,
           childCacheNodeSeedData,
-        ]
+        ];
       }
     )
-  )
+  );
 
   // Convert the parallel route map into an object after all promises have been resolved.
-  let parallelRouteProps: { [key: string]: React.ReactNode } = {}
+  let parallelRouteProps: { [key: string]: React.ReactNode } = {};
   let parallelRouteCacheNodeSeedData: {
-    [key: string]: CacheNodeSeedData | null
-  } = {}
+    [key: string]: CacheNodeSeedData | null;
+  } = {};
   for (const parallelRoute of parallelRouteMap) {
-    const [parallelRouteKey, parallelRouteProp, flightData] = parallelRoute
-    parallelRouteProps[parallelRouteKey] = parallelRouteProp
-    parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData
+    const [parallelRouteKey, parallelRouteProp, flightData] = parallelRoute;
+    parallelRouteProps[parallelRouteKey] = parallelRouteProp;
+    parallelRouteCacheNodeSeedData[parallelRouteKey] = flightData;
   }
 
   // When the segment does not have a layout or page we still have to add the layout router to ensure the path holds the loading component
@@ -462,7 +468,7 @@ export async function createComponentTree({
         <>{parallelRouteProps.children}</>,
       ],
       styles: layerAssets,
-    }
+    };
   }
 
   // If force-dynamic is used and the current render supports postponing, we
@@ -477,14 +483,14 @@ export async function createComponentTree({
         <Postpone postpone={staticGenerationStore.postpone} />,
       ],
       styles: layerAssets,
-    }
+    };
   }
 
-  const isClientComponent = isClientReference(layoutOrPageMod)
+  const isClientComponent = isClientReference(layoutOrPageMod);
 
   // If it's a not found route, and we don't have any matched parallel
   // routes, we try to render the not found component if it exists.
-  let notFoundComponent = {}
+  let notFoundComponent = {};
   if (
     NotFound &&
     asNotFound &&
@@ -496,14 +502,14 @@ export async function createComponentTree({
       children: (
         <>
           <meta name="robots" content="noindex" />
-          {process.env.NODE_ENV === 'development' && (
+          {process.env.NODE_ENV === "development" && (
             <meta name="next-error" content="not-found" />
           )}
           {notFoundStyles}
           <NotFound />
         </>
       ),
-    }
+    };
   }
 
   const props = {
@@ -516,14 +522,14 @@ export async function createComponentTree({
     // Query is only provided to page
     ...(() => {
       if (isClientComponent && staticGenerationStore.isStaticGeneration) {
-        return {}
+        return {};
       }
 
       if (isPage) {
-        return searchParamsProps
+        return searchParamsProps;
       }
     })(),
-  }
+  };
 
   return {
     seedData: [
@@ -553,5 +559,5 @@ export async function createComponentTree({
       </>,
     ],
     styles: layerAssets,
-  }
+  };
 }

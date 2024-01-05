@@ -2,9 +2,9 @@ module.exports = {
   rewrites() {
     return [
       {
-        source: '/:hello*',
-        destination: '/:hello',
+        source: "/:hello*",
+        destination: "/:hello",
       },
-    ]
+    ];
   },
-}
+};

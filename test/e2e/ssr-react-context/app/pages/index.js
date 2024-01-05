@@ -1,16 +1,16 @@
-import React from 'react'
-import { useIdk } from '../context'
+import React from "react";
+import { useIdk } from "../context";
 
 const Page = () => {
-  const idk = useIdk()
+  const idk = useIdk();
 
-  console.log(idk)
+  console.log(idk);
 
   return (
     <>
       <p>Value: {idk}</p>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

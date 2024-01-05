@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from "next/link";
+import React from "react";
 
 export default function Layout() {
   return (
@@ -8,5 +8,5 @@ export default function Layout() {
         link
       </Link>
     </div>
-  )
+  );
 }

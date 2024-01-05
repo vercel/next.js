@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import type { GetStaticProps } from 'next'
+import Link from "next/link";
+import type { GetStaticProps } from "next";
 
 type Props = {
-  random: number
-  draftMode: string
-}
+  random: number;
+  draftMode: string;
+};
 
 export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
   return {
@@ -13,8 +13,8 @@ export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
       draftMode: Boolean(draftMode).toString(),
     },
     revalidate: 100000,
-  }
-}
+  };
+};
 
 export default function Another(props: Props) {
   return (
@@ -28,5 +28,5 @@ export default function Another(props: Props) {
       </p>
       <Link href="/">Go home</Link>
     </>
-  )
+  );
 }

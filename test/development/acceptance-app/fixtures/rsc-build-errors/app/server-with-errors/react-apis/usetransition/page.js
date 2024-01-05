@@ -1,7 +1,7 @@
-import { useTransition } from 'react'
+import { useTransition } from "react";
 
-console.log({ useTransition })
+console.log({ useTransition });
 
 export default function Page() {
-  return null
+  return null;
 }

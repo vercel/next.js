@@ -1,12 +1,12 @@
-import { withRequestMeta } from '../../../helpers'
-import { NextRequest } from 'next/server'
+import { withRequestMeta } from "../../../helpers";
+import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const { searchParams } = request.nextUrl
+  const { searchParams } = request.nextUrl;
 
-  return new Response('hello, world', {
+  return new Response("hello, world", {
     headers: withRequestMeta({
-      ping: searchParams.get('ping'),
+      ping: searchParams.get("ping"),
     }),
-  })
+  });
 }

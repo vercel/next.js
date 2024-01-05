@@ -10,16 +10,16 @@ export default function Page({
   params,
   searchParams,
 }: {
-  params: { slug: string }
-  searchParams: { [key: string]: string | string[] | undefined }
+  params: { slug: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  return <h1>My Page</h1>
+  return <h1>My Page</h1>;
 }
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 export default function Page({ params, searchParams }) {
-  return <h1>My Page</h1>
+  return <h1>My Page</h1>;
 }
 ```
 

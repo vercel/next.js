@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import Script from 'next/script'
-import { useRouter } from 'next/navigation'
+import Script from "next/script";
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <div>
       <button
         id="dynamic-link"
-        onClick={() => router.push('/router/dynamic-gsp/1/')}
+        onClick={() => router.push("/router/dynamic-gsp/1/")}
       >
         Test routing
       </button>
@@ -19,5 +19,5 @@ export default function Page() {
         strategy="beforeInteractive"
       />
     </div>
-  )
+  );
 }

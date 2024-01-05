@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import img from './test.png'
+import Link from "next/link";
+import img from "./test.png";
 
 export default function ImageImport() {
   return (
@@ -14,5 +14,5 @@ export default function ImageImport() {
         </li>
       </ul>
     </main>
-  )
+  );
 }

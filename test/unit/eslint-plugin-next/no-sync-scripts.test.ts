@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-sync-scripts'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-sync-scripts";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('sync-scripts', rule, {
+ruleTester.run("sync-scripts", rule, {
   valid: [
     `import {Head} from 'next/document';
 
@@ -58,8 +58,8 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
-          type: 'JSXOpeningElement',
+            "Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -80,10 +80,10 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message:
-            'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts',
-          type: 'JSXOpeningElement',
+            "Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts",
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

@@ -1,8 +1,8 @@
-import { cookies, headers } from 'next/headers'
+import { cookies, headers } from "next/headers";
 
 export default function Layout({ children }) {
-  const curHeaders = headers()
-  const curCookies = cookies()
+  const curHeaders = headers();
+  const curCookies = cookies();
 
   return (
     <>
@@ -10,5 +10,5 @@ export default function Layout({ children }) {
       <p id="cookies">{JSON.stringify([...curCookies.getAll()])}</p>
       {children}
     </>
-  )
+  );
 }

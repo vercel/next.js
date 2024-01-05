@@ -3,5 +3,5 @@ export default function RootLayout({ children }) {
     <html className="group-root-layout">
       <body>{children}</body>
     </html>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 export default function Root({ parallel }: { parallel: React.ReactNode }) {
   return (
@@ -7,5 +7,5 @@ export default function Root({ parallel }: { parallel: React.ReactNode }) {
         <div id="children">{parallel}</div>
       </body>
     </html>
-  )
+  );
 }

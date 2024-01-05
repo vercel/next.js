@@ -1,10 +1,10 @@
 export const getStaticProps = () => ({
-  hello: 'world',
-})
+  hello: "world",
+});
 
 export const getStaticPaths = () => ({
   fallback: true,
   paths: [],
-})
+});
 
-export default () => 'hi'
+export default () => "hi";

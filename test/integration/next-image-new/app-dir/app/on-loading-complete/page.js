@@ -1,11 +1,11 @@
-'use client'
-import { useState } from 'react'
-import Image from 'next/image'
+"use client";
+import { useState } from "react";
+import Image from "next/image";
 
 const Page = () => {
   // Hoisted state to count each image load callback
-  const [idToCount, setIdToCount] = useState({})
-  const [clicked, setClicked] = useState(false)
+  const [idToCount, setIdToCount] = useState({});
+  const [clicked, setClicked] = useState(false);
 
   return (
     <div>
@@ -21,7 +21,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="2"
-        src={require('../../public/test.png')}
+        src={require("../../public/test.png")}
         placeholder="blur"
         idToCount={idToCount}
         setIdToCount={setIdToCount}
@@ -75,7 +75,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="8"
-        src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
+        src={clicked ? "/foo/test-rect.jpg" : "/wide.png"}
         width="500"
         height="500"
         idToCount={idToCount}
@@ -84,7 +84,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="9"
-        src={require('../../public/test.png')}
+        src={require("../../public/test.png")}
         placeholder="blur"
         idToCount={idToCount}
         setIdToCount={setIdToCount}
@@ -95,26 +95,26 @@ const Page = () => {
       </button>
       <div id="footer" />
     </div>
-  )
-}
+  );
+};
 
 function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
-  const [msg, setMsg] = useState('[LOADING]')
+  const [msg, setMsg] = useState("[LOADING]");
   return (
     <>
       <div className="wrap">
         <Image
           id={`img${id}`}
           onLoadingComplete={(img) => {
-            const { naturalWidth, naturalHeight, nodeName } = img
-            let count = idToCount[id] || 0
-            count++
-            idToCount[id] = count
-            setIdToCount(idToCount)
-            const name = nodeName.toLocaleLowerCase()
+            const { naturalWidth, naturalHeight, nodeName } = img;
+            let count = idToCount[id] || 0;
+            count++;
+            idToCount[id] = count;
+            setIdToCount(idToCount);
+            const name = nodeName.toLocaleLowerCase();
             setMsg(
               `loaded ${count} ${name}${id} with dimensions ${naturalWidth}x${naturalHeight}`
-            )
+            );
           }}
           {...props}
         />
@@ -122,7 +122,7 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
       <p id={`msg${id}`}>{msg}</p>
       <hr />
     </>
-  )
+  );
 }
 
-export default Page
+export default Page;

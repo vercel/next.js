@@ -1,13 +1,13 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-if (typeof window !== 'undefined') {
-  window.caughtErrors = []
-  const origError = window.console.error
+if (typeof window !== "undefined") {
+  window.caughtErrors = [];
+  const origError = window.console.error;
 
   window.console.error = function (...args) {
-    window.caughtErrors.push(args.join(' '))
-    return origError(...args)
-  }
+    window.caughtErrors.push(args.join(" "));
+    return origError(...args);
+  };
 }
 
 export default function Invalid() {
@@ -54,5 +54,5 @@ export default function Invalid() {
       </Link>
       <br />
     </>
-  )
+  );
 }

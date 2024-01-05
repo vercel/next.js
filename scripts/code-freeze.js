@@ -1,32 +1,32 @@
-const authToken = process.env.CODE_FREEZE_TOKEN
+const authToken = process.env.CODE_FREEZE_TOKEN;
 
 if (!authToken) {
-  throw new Error(`missing CODE_FREEZE_TOKEN env`)
+  throw new Error(`missing CODE_FREEZE_TOKEN env`);
 }
 
 const codeFreezeRule = {
-  context: 'Potentially publish release',
+  context: "Potentially publish release",
   app_id: 15368,
-}
+};
 
 async function updateRules(newRules) {
   const res = await fetch(
     `https://api.github.com/repos/vercel/next.js/branches/canary/protection`,
     {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        Accept: 'application/vnd.github+json',
+        Accept: "application/vnd.github+json",
         Authorization: `Bearer ${authToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
+        "X-GitHub-Api-Version": "2022-11-28",
       },
       body: JSON.stringify(newRules),
     }
-  )
+  );
 
   if (!res.ok) {
     throw new Error(
       `Failed to check for rule ${res.status} ${await res.text()}`
-    )
+    );
   }
 }
 
@@ -35,19 +35,19 @@ async function getCurrentRules() {
     `https://api.github.com/repos/vercel/next.js/branches/canary/protection`,
     {
       headers: {
-        Accept: 'application/vnd.github+json',
+        Accept: "application/vnd.github+json",
         Authorization: `Bearer ${authToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
+        "X-GitHub-Api-Version": "2022-11-28",
       },
     }
-  )
+  );
 
   if (!res.ok) {
     throw new Error(
       `Failed to check for rule ${res.status} ${await res.text()}`
-    )
+    );
   }
-  const data = await res.json()
+  const data = await res.json();
 
   return {
     required_status_checks: {
@@ -71,47 +71,47 @@ async function getCurrentRules() {
       teams: data.restrictions.teams?.map((team) => team.slug) || [],
       apps: data.restrictions.apps?.map((app) => app.slug) || [],
     },
-  }
+  };
 }
 
 async function main() {
-  const typeIdx = process.argv.indexOf('--type')
-  const type = process.argv[typeIdx + 1]
+  const typeIdx = process.argv.indexOf("--type");
+  const type = process.argv[typeIdx + 1];
 
-  if (type !== 'enable' && type !== 'disable') {
-    throw new Error(`--type should be enable or disable`)
+  if (type !== "enable" && type !== "disable") {
+    throw new Error(`--type should be enable or disable`);
   }
-  const isEnable = type === 'enable'
-  const currentRules = await getCurrentRules()
+  const isEnable = type === "enable";
+  const currentRules = await getCurrentRules();
   const hasRule = currentRules.required_status_checks.contexts?.some((ctx) => {
-    return ctx === codeFreezeRule.context
-  })
+    return ctx === codeFreezeRule.context;
+  });
 
-  console.log(currentRules)
+  console.log(currentRules);
 
   if (isEnable) {
     if (hasRule) {
-      console.log(`Already enabled`)
-      return
+      console.log(`Already enabled`);
+      return;
     }
-    currentRules.required_status_checks.contexts.push(codeFreezeRule.context)
-    await updateRules(currentRules)
-    console.log('Enabled code freeze')
+    currentRules.required_status_checks.contexts.push(codeFreezeRule.context);
+    await updateRules(currentRules);
+    console.log("Enabled code freeze");
   } else {
     if (!hasRule) {
-      console.log(`Already disabled`)
-      return
+      console.log(`Already disabled`);
+      return;
     }
     currentRules.required_status_checks.contexts =
       currentRules.required_status_checks.contexts.filter(
         (ctx) => ctx !== codeFreezeRule.context
-      )
-    await updateRules(currentRules)
-    console.log('Disabled code freeze')
+      );
+    await updateRules(currentRules);
+    console.log("Disabled code freeze");
   }
 }
 
 main().catch((err) => {
-  console.error(err)
-  process.exit(1)
-})
+  console.error(err);
+  process.exit(1);
+});

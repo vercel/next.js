@@ -1,9 +1,9 @@
 export default function Page() {
-  return 'opengraph-article'
+  return "opengraph-article";
 }
 
 export async function generateMetadata(_props, parentResolvingMetadata) {
-  const parentMetadata = await parentResolvingMetadata
+  const parentMetadata = await parentResolvingMetadata;
   return {
     openGraph: {
       ...parentMetadata.openGraph,
@@ -11,5 +11,5 @@ export async function generateMetadata(_props, parentResolvingMetadata) {
       // merging parent images URL instance should work
       images: [...parentMetadata.openGraph.images],
     },
-  }
+  };
 }

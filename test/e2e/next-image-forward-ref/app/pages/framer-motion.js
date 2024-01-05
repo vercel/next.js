@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
-import Image from 'next/image'
-import { motion } from 'framer-motion'
-import testPng from '../images/test.png'
+import React, { useState } from "react";
+import Image from "next/image";
+import { motion } from "framer-motion";
+import testPng from "../images/test.png";
 
 const CustomImage = React.forwardRef((props, ref) => (
   <Image
@@ -13,12 +13,12 @@ const CustomImage = React.forwardRef((props, ref) => (
     alt="test img"
     {...props}
   />
-))
+));
 
-const MotionImage = motion(CustomImage)
+const MotionImage = motion(CustomImage);
 
 export default function Page() {
-  const [clicked, setClicked] = useState(false)
+  const [clicked, setClicked] = useState(false);
   return (
     <MotionImage
       onClick={() => setClicked(true)}
@@ -26,5 +26,5 @@ export default function Page() {
       animate={{ opacity: clicked ? 0 : 1 }}
       transition={{ duration: 0.5 }}
     />
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import Reporter from './reporter'
+import Reporter from "./reporter";
 
 export default function component() {
   return (
@@ -6,5 +6,5 @@ export default function component() {
       <h1>Test</h1>
       <Reporter />
     </>
-  )
+  );
 }

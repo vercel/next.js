@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').NormalModule
+module.exports = require("./webpack.js").NormalModule;

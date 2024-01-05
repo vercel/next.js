@@ -1,20 +1,20 @@
-import path from 'path'
+import path from "path";
 
-import rule from '@next/eslint-plugin-next/dist/rules/no-document-import-in-page'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-document-import-in-page";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-document-import-in-page', rule, {
+ruleTester.run("no-document-import-in-page", rule, {
   valid: [
     {
       code: `import Document from "next/document"
@@ -28,7 +28,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
     },
     {
       code: `import Document from "next/document"
@@ -70,7 +70,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages/_document.page.tsx',
+      filename: "pages/_document.page.tsx",
     },
     {
       code: `import NDocument from "next/document"
@@ -84,7 +84,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages/_document/index.js',
+      filename: "pages/_document/index.js",
     },
     {
       code: `import NDocument from "next/document"
@@ -98,7 +98,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pages/_document/index.tsx',
+      filename: "pages/_document/index.tsx",
     },
     {
       code: `import Document from "next/document"
@@ -112,7 +112,7 @@ ruleTester.run('no-document-import-in-page', rule, {
       }
     }
     `,
-      filename: 'pagesapp/src/pages/_document.js',
+      filename: "pagesapp/src/pages/_document.js",
     },
   ],
   invalid: [
@@ -121,12 +121,12 @@ ruleTester.run('no-document-import-in-page', rule, {
 
       export const Test = () => <p>Test</p>
       `,
-      filename: 'components/test.js',
+      filename: "components/test.js",
       errors: [
         {
           message:
-            '`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page',
-          type: 'ImportDeclaration',
+            "`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page",
+          type: "ImportDeclaration",
         },
       ],
     },
@@ -135,12 +135,12 @@ ruleTester.run('no-document-import-in-page', rule, {
 
       export const Test = () => <p>Test</p>
       `,
-      filename: 'pages/test.js',
+      filename: "pages/test.js",
       errors: [
         {
           message:
-            '`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page',
-          type: 'ImportDeclaration',
+            "`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page",
+          type: "ImportDeclaration",
         },
       ],
     },
@@ -153,10 +153,10 @@ ruleTester.run('no-document-import-in-page', rule, {
       errors: [
         {
           message:
-            '`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page',
-          type: 'ImportDeclaration',
+            "`<Document />` from `next/document` should not be imported outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-document-import-in-page",
+          type: "ImportDeclaration",
         },
       ],
     },
   ],
-})
+});

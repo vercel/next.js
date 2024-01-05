@@ -1,39 +1,39 @@
-import { PageSignatureError } from '../error'
-import type { NextRequest } from './request'
+import { PageSignatureError } from "../error";
+import type { NextRequest } from "./request";
 
-const responseSymbol = Symbol('response')
-const passThroughSymbol = Symbol('passThrough')
-export const waitUntilSymbol = Symbol('waitUntil')
+const responseSymbol = Symbol("response");
+const passThroughSymbol = Symbol("passThrough");
+export const waitUntilSymbol = Symbol("waitUntil");
 
 class FetchEvent {
   readonly [waitUntilSymbol]: Promise<any>[] = [];
   [responseSymbol]?: Promise<Response>;
-  [passThroughSymbol] = false
+  [passThroughSymbol] = false;
 
   // eslint-disable-next-line @typescript-eslint/no-useless-constructor
   constructor(_request: Request) {}
 
   respondWith(response: Response | Promise<Response>): void {
     if (!this[responseSymbol]) {
-      this[responseSymbol] = Promise.resolve(response)
+      this[responseSymbol] = Promise.resolve(response);
     }
   }
 
   passThroughOnException(): void {
-    this[passThroughSymbol] = true
+    this[passThroughSymbol] = true;
   }
 
   waitUntil(promise: Promise<any>): void {
-    this[waitUntilSymbol].push(promise)
+    this[waitUntilSymbol].push(promise);
   }
 }
 
 export class NextFetchEvent extends FetchEvent {
-  sourcePage: string
+  sourcePage: string;
 
   constructor(params: { request: NextRequest; page: string }) {
-    super(params.request)
-    this.sourcePage = params.page
+    super(params.request);
+    this.sourcePage = params.page;
   }
 
   /**
@@ -44,7 +44,7 @@ export class NextFetchEvent extends FetchEvent {
   get request() {
     throw new PageSignatureError({
       page: this.sourcePage,
-    })
+    });
   }
 
   /**
@@ -55,6 +55,6 @@ export class NextFetchEvent extends FetchEvent {
   respondWith() {
     throw new PageSignatureError({
       page: this.sourcePage,
-    })
+    });
   }
 }

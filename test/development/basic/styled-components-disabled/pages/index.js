@@ -1,4 +1,4 @@
-import styled, { css } from 'styled-components'
+import styled, { css } from "styled-components";
 const Button = styled.a`
   /* This renders the buttons above... Edit me! */
   display: inline-block;
@@ -18,7 +18,7 @@ const Button = styled.a`
       background: white;
       color: black;
     `}
-`
+`;
 
 export default function Home() {
   return (
@@ -34,5 +34,5 @@ export default function Home() {
 
       <Button href="/docs">Documentation</Button>
     </div>
-  )
+  );
 }

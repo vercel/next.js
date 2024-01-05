@@ -1,6 +1,6 @@
-import React from 'react'
-import Comp from '../../components/index.jsx'
+import React from "react";
+import Comp from "../../components/index.jsx";
 
 export default function Home() {
-  return <Comp />
+  return <Comp />;
 }

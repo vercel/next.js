@@ -1,9 +1,9 @@
-import React from 'react'
+import React from "react";
 
-import { World } from 'components/world'
+import { World } from "components/world";
 
 // External
-import { Counter } from '../../shared/components/counter'
+import { Counter } from "../../shared/components/counter";
 
 export default function HelloPage(): JSX.Element {
   return (
@@ -12,5 +12,5 @@ export default function HelloPage(): JSX.Element {
       <br />
       <Counter />
     </div>
-  )
+  );
 }

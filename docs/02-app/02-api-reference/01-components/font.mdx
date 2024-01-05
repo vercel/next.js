@@ -205,21 +205,21 @@ If you would like to set your styles in an external style sheet and specify addi
 In addition to importing the font, also import the CSS file where the CSS variable is defined and set the variable option of the font loader object as follows:
 
 ```tsx filename="app/page.tsx" switcher
-import { Inter } from 'next/font/google'
-import styles from '../styles/component.module.css'
+import { Inter } from "next/font/google";
+import styles from "../styles/component.module.css";
 
 const inter = Inter({
-  variable: '--font-inter',
-})
+  variable: "--font-inter",
+});
 ```
 
 ```jsx filename="app/page.js" switcher
-import { Inter } from 'next/font/google'
-import styles from '../styles/component.module.css'
+import { Inter } from "next/font/google";
+import styles from "../styles/component.module.css";
 
 const inter = Inter({
-  variable: '--font-inter',
-})
+  variable: "--font-inter",
+});
 ```
 
 To use the font, set the `className` of the parent container of the text you would like to style to the font loader's `variable` value and the `className` of the text to the `styles` property from the external CSS file.
@@ -257,41 +257,41 @@ For example, create a `fonts.ts` file in a `styles` folder at the root of your a
 Then, specify your font definitions as follows:
 
 ```ts filename="styles/fonts.ts" switcher
-import { Inter, Lora, Source_Sans_3 } from 'next/font/google'
-import localFont from 'next/font/local'
+import { Inter, Lora, Source_Sans_3 } from "next/font/google";
+import localFont from "next/font/local";
 
 // define your variable fonts
-const inter = Inter()
-const lora = Lora()
+const inter = Inter();
+const lora = Lora();
 // define 2 weights of a non-variable font
-const sourceCodePro400 = Source_Sans_3({ weight: '400' })
-const sourceCodePro700 = Source_Sans_3({ weight: '700' })
+const sourceCodePro400 = Source_Sans_3({ weight: "400" });
+const sourceCodePro700 = Source_Sans_3({ weight: "700" });
 // define a custom local font where GreatVibes-Regular.ttf is stored in the styles folder
-const greatVibes = localFont({ src: './GreatVibes-Regular.ttf' })
+const greatVibes = localFont({ src: "./GreatVibes-Regular.ttf" });
 
-export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes }
+export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes };
 ```
 
 ```js filename="styles/fonts.js" switcher
-import { Inter, Lora, Source_Sans_3 } from 'next/font/google'
-import localFont from 'next/font/local'
+import { Inter, Lora, Source_Sans_3 } from "next/font/google";
+import localFont from "next/font/local";
 
 // define your variable fonts
-const inter = Inter()
-const lora = Lora()
+const inter = Inter();
+const lora = Lora();
 // define 2 weights of a non-variable font
-const sourceCodePro400 = Source_Sans_3({ weight: '400' })
-const sourceCodePro700 = Source_Sans_3({ weight: '700' })
+const sourceCodePro400 = Source_Sans_3({ weight: "400" });
+const sourceCodePro700 = Source_Sans_3({ weight: "700" });
 // define a custom local font where GreatVibes-Regular.ttf is stored in the styles folder
-const greatVibes = localFont({ src: './GreatVibes-Regular.ttf' })
+const greatVibes = localFont({ src: "./GreatVibes-Regular.ttf" });
 
-export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes }
+export { inter, lora, sourceCodePro400, sourceCodePro700, greatVibes };
 ```
 
 You can now use these definitions in your code as follows:
 
 ```tsx filename="app/page.tsx" switcher
-import { inter, lora, sourceCodePro700, greatVibes } from '../styles/fonts'
+import { inter, lora, sourceCodePro700, greatVibes } from "../styles/fonts";
 
 export default function Page() {
   return (
@@ -303,12 +303,12 @@ export default function Page() {
       </p>
       <p className={greatVibes.className}>My title in Great Vibes font</p>
     </div>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import { inter, lora, sourceCodePro700, greatVibes } from '../styles/fonts'
+import { inter, lora, sourceCodePro700, greatVibes } from "../styles/fonts";
 
 export default function Page() {
   return (
@@ -320,7 +320,7 @@ export default function Page() {
       </p>
       <p className={greatVibes.className}>My title in Great Vibes font</p>
     </div>
-  )
+  );
 }
 ```
 
@@ -339,11 +339,11 @@ To make it easier to access the font definitions in your code, you can define a 
 You can now import any font definition as follows:
 
 ```tsx filename="app/about/page.tsx" switcher
-import { greatVibes, sourceCodePro400 } from '@/fonts'
+import { greatVibes, sourceCodePro400 } from "@/fonts";
 ```
 
 ```jsx filename="app/about/page.js" switcher
-import { greatVibes, sourceCodePro400 } from '@/fonts'
+import { greatVibes, sourceCodePro400 } from "@/fonts";
 ```
 
 ## Version Changes

@@ -1,17 +1,17 @@
-import fontData from './font-data.json'
+import fontData from "./font-data.json";
 
 type GoogleFontsMetadata = {
   [fontFamily: string]: {
-    weights: string[]
-    styles: string[]
-    subsets: string[]
+    weights: string[];
+    styles: string[];
+    subsets: string[];
     axes?: Array<{
-      tag: string
-      min: number
-      max: number
-      defaultValue: number
-    }>
-  }
-}
+      tag: string;
+      min: number;
+      max: number;
+      defaultValue: number;
+    }>;
+  };
+};
 
-export const googleFontsMetadata: GoogleFontsMetadata = fontData
+export const googleFontsMetadata: GoogleFontsMetadata = fontData;

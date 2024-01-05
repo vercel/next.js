@@ -1,12 +1,12 @@
 function ErrorTrigger() {
-  return <div>error-trigger</div>
+  return <div>error-trigger</div>;
 }
 
 ErrorTrigger.getInitialProps = () => {
-  throw new Error('Intentional Error')
+  throw new Error("Intentional Error");
 
   // eslint-disable-next-line no-unreachable
-  return {}
-}
+  return {};
+};
 
-export default ErrorTrigger
+export default ErrorTrigger;

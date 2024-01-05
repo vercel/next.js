@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function ShallowLayout({ children }) {
   return (
@@ -87,5 +87,5 @@ export default function ShallowLayout({ children }) {
       </div>
       {children}
     </>
-  )
+  );
 }

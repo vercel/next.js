@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import { Meta } from '../components/meta'
+import Head from "next/head";
+import { Meta } from "../components/meta";
 
 export default function Page(props) {
   return (
@@ -11,5 +11,5 @@ export default function Page(props) {
       <Meta />
       <p>index page</p>
     </>
-  )
+  );
 }

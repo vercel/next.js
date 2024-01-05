@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginProposalObjectRestSpread()
+module.exports = require("./bundle").pluginProposalObjectRestSpread();

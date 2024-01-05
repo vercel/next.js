@@ -1,44 +1,44 @@
 /* eslint-env jest */
 
-import { findPort, killApp, launchApp, renderViaHTTP } from 'next-test-utils'
-import { join } from 'path'
-import waitPort from 'wait-port'
+import { findPort, killApp, launchApp, renderViaHTTP } from "next-test-utils";
+import { join } from "path";
+import waitPort from "wait-port";
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, "../");
 
-let appPort
-let app
+let appPort;
+let app;
 
   // Skipped as it's not relevant to Turbopack.
-;(process.env.TURBOPACK ? describe.skip : describe)(
-  'Handles a broken webpack plugin (precompile)',
+(process.env.TURBOPACK ? describe.skip : describe)(
+  "Handles a broken webpack plugin (precompile)",
   () => {
-    let stderr = ''
+    let stderr = "";
     beforeAll(async () => {
-      appPort = await findPort()
+      appPort = await findPort();
       app = await launchApp(appDir, appPort, {
         stderr: true,
         nextStart: true,
         onStderr(text) {
-          stderr += text
+          stderr += text;
         },
-      })
+      });
       await waitPort({
-        host: 'localhost',
+        host: "localhost",
         port: appPort,
-      })
-    })
-    afterAll(() => killApp(app))
+      });
+    });
+    afterAll(() => killApp(app));
 
     beforeEach(() => {
-      stderr = ''
-    })
+      stderr = "";
+    });
 
-    it('should render error correctly', async () => {
-      const text = await renderViaHTTP(appPort, '/')
-      expect(text).toContain('Internal Server Error')
+    it("should render error correctly", async () => {
+      const text = await renderViaHTTP(appPort, "/");
+      expect(text).toContain("Internal Server Error");
 
-      expect(stderr).toMatch('Error: oops')
-    })
+      expect(stderr).toMatch("Error: oops");
+    });
   }
-)
+);

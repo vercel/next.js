@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>/overriden/[slug]</p>
+  return <p>/overriden/[slug]</p>;
 }
 
 export function getStaticProps({ params }) {
@@ -7,12 +7,12 @@ export function getStaticProps({ params }) {
     props: {
       params,
     },
-  }
+  };
 }
 
 export function getStaticPaths() {
   return {
     paths: [],
-    fallback: 'blocking',
-  }
+    fallback: "blocking",
+  };
 }

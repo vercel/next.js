@@ -1,71 +1,71 @@
-import path from 'path'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import webdriver from 'next-webdriver'
+import path from "path";
+import { createNext, FileRef } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import webdriver from "next-webdriver";
 
-describe('prerender native module', () => {
-  let next: NextInstance
+describe("prerender native module", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
         pages: new FileRef(
-          path.join(__dirname, 'prerender-native-module/pages')
+          path.join(__dirname, "prerender-native-module/pages")
         ),
-        'data.sqlite': new FileRef(
-          path.join(__dirname, 'prerender-native-module/data.sqlite')
+        "data.sqlite": new FileRef(
+          path.join(__dirname, "prerender-native-module/data.sqlite")
         ),
       },
       dependencies: {
-        sqlite: '4.0.22',
-        sqlite3: '5.0.2',
+        sqlite: "4.0.22",
+        sqlite3: "5.0.2",
       },
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('should render index correctly', async () => {
-    const browser = await webdriver(next.url, '/')
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
+  it("should render index correctly", async () => {
+    const browser = await webdriver(next.url, "/");
+    expect(await browser.elementByCss("#index").text()).toBe("index page");
+    expect(JSON.parse(await browser.elementByCss("#props").text())).toEqual({
       index: true,
-    })
-  })
+    });
+  });
 
-  it('should render /blog/first correctly', async () => {
-    const browser = await webdriver(next.url, '/blog/first')
+  it("should render /blog/first correctly", async () => {
+    const browser = await webdriver(next.url, "/blog/first");
 
-    expect(await browser.elementByCss('#blog').text()).toBe('blog page')
-    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-      params: { slug: 'first' },
+    expect(await browser.elementByCss("#blog").text()).toBe("blog page");
+    expect(JSON.parse(await browser.elementByCss("#props").text())).toEqual({
+      params: { slug: "first" },
       blog: true,
       users: [
-        { id: 1, first_name: 'john', last_name: 'deux' },
-        { id: 2, first_name: 'zeit', last_name: 'geist' },
+        { id: 1, first_name: "john", last_name: "deux" },
+        { id: 2, first_name: "zeit", last_name: "geist" },
       ],
-    })
-  })
+    });
+  });
 
-  it('should render /blog/second correctly', async () => {
-    const browser = await webdriver(next.url, '/blog/second')
-    await browser.waitForElementByCss('#blog')
+  it("should render /blog/second correctly", async () => {
+    const browser = await webdriver(next.url, "/blog/second");
+    await browser.waitForElementByCss("#blog");
 
-    expect(await browser.elementByCss('#blog').text()).toBe('blog page')
-    expect(JSON.parse(await browser.elementByCss('#props').text())).toEqual({
-      params: { slug: 'second' },
+    expect(await browser.elementByCss("#blog").text()).toBe("blog page");
+    expect(JSON.parse(await browser.elementByCss("#props").text())).toEqual({
+      params: { slug: "second" },
       blog: true,
       users: [
-        { id: 1, first_name: 'john', last_name: 'deux' },
-        { id: 2, first_name: 'zeit', last_name: 'geist' },
+        { id: 1, first_name: "john", last_name: "deux" },
+        { id: 2, first_name: "zeit", last_name: "geist" },
       ],
-    })
-  })
+    });
+  });
 
   if ((global as any).isNextStart) {
-    it('should output traces', async () => {
+    it("should output traces", async () => {
       const checks = [
         {
-          page: '/_app',
+          page: "/_app",
           tests: [
             /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
@@ -75,7 +75,7 @@ describe('prerender native module', () => {
           notTests: [],
         },
         {
-          page: '/blog/[slug]',
+          page: "/blog/[slug]",
           tests: [
             /webpack-runtime\.js/,
             /node_modules\/react\/index\.js/,
@@ -89,24 +89,24 @@ describe('prerender native module', () => {
           ],
           notTests: [],
         },
-      ]
+      ];
 
       for (const check of checks) {
         const contents = await next.readFile(
-          path.join('.next/server/pages/', check.page + '.js.nft.json')
-        )
-        const { version, files } = JSON.parse(contents)
-        expect(version).toBe(1)
+          path.join(".next/server/pages/", check.page + ".js.nft.json")
+        );
+        const { version, files } = JSON.parse(contents);
+        expect(version).toBe(1);
         expect(
           check.tests.every((item) => files.some((file) => item.test(file)))
-        ).toBe(true)
+        ).toBe(true);
 
-        if (path.sep === '/') {
+        if (path.sep === "/") {
           expect(
             check.notTests.some((item) => files.some((file) => item.test(file)))
-          ).toBe(false)
+          ).toBe(false);
         }
       }
-    })
+    });
   }
-})
+});

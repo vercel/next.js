@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => {
   return (
@@ -26,5 +26,5 @@ export default () => {
         </li>
       </ul>
     </div>
-  )
-}
+  );
+};

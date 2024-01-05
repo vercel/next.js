@@ -1,10 +1,10 @@
-import type { RouteModule } from '../../route-modules/route-module'
-import type { ModuleLoader } from './module-loader'
+import type { RouteModule } from "../../route-modules/route-module";
+import type { ModuleLoader } from "./module-loader";
 
-import { NodeModuleLoader } from './node-module-loader'
+import { NodeModuleLoader } from "./node-module-loader";
 
 export interface AppLoaderModule<M extends RouteModule = RouteModule> {
-  routeModule: M
+  routeModule: M;
 }
 
 export class RouteModuleLoader {
@@ -12,11 +12,11 @@ export class RouteModuleLoader {
     id: string,
     loader: ModuleLoader = new NodeModuleLoader()
   ): Promise<M> {
-    const module: AppLoaderModule<M> = await loader.load(id)
-    if ('routeModule' in module) {
-      return module.routeModule
+    const module: AppLoaderModule<M> = await loader.load(id);
+    if ("routeModule" in module) {
+      return module.routeModule;
     }
 
-    throw new Error(`Module "${id}" does not export a routeModule.`)
+    throw new Error(`Module "${id}" does not export a routeModule.`);
   }
 }

@@ -3,5 +3,5 @@ export default function Page() {
     <>
       <p id="another">top level another</p>
     </>
-  )
+  );
 }

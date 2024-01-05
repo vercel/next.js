@@ -1,5 +1,5 @@
 ---
-title: 'No children were passed to `<Link>`'
+title: "No children were passed to `<Link>`"
 ---
 
 ## Why This Error Occurred
@@ -9,7 +9,7 @@ In your application code, `next/link` was used without passing a child:
 For example:
 
 ```jsx filename="pages/index.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -18,7 +18,7 @@ export default function Home() {
       // or
       <Link href="/about" legacyBehavior />
     </>
-  )
+  );
 }
 ```
 
@@ -27,7 +27,7 @@ export default function Home() {
 Make sure one child is used when using `<Link>`:
 
 ```jsx filename="pages/index.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -38,6 +38,6 @@ export default function Home() {
         <a>To About</a>
       </Link>
     </>
-  )
+  );
 }
 ```

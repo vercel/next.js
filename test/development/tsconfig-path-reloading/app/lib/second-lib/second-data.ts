@@ -1,3 +1,3 @@
 export const secondData = {
-  hello: 'again',
-}
+  hello: "again",
+};

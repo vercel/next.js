@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export default () => (
   <>
@@ -7,4 +7,4 @@ export default () => (
     </Head>
     <p id="with-title">hi</p>
   </>
-)
+);

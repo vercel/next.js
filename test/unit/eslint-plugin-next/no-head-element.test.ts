@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-head-element'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-head-element";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-head-element', rule, {
+ruleTester.run("no-head-element", rule, {
   valid: [
     {
       code: `import Head from 'next/head';
@@ -29,7 +29,7 @@ ruleTester.run('no-head-element', rule, {
         }
       }
     `,
-      filename: 'pages/index.js',
+      filename: "pages/index.js",
     },
     {
       code: `import Head from 'next/head';
@@ -46,7 +46,7 @@ ruleTester.run('no-head-element', rule, {
         }
       }
     `,
-      filename: 'pages/index.tsx',
+      filename: "pages/index.tsx",
     },
     {
       code: `
@@ -61,7 +61,7 @@ ruleTester.run('no-head-element', rule, {
         );
       }
     `,
-      filename: './app/layout.js',
+      filename: "./app/layout.js",
     },
   ],
   invalid: [
@@ -78,12 +78,12 @@ ruleTester.run('no-head-element', rule, {
           );
         }
       }`,
-      filename: './pages/index.js',
+      filename: "./pages/index.js",
       errors: [
         {
           message:
-            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
-          type: 'JSXOpeningElement',
+            "Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -104,14 +104,14 @@ ruleTester.run('no-head-element', rule, {
           );
         }
       }`,
-      filename: 'pages/index.ts',
+      filename: "pages/index.ts",
       errors: [
         {
           message:
-            'Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element',
-          type: 'JSXOpeningElement',
+            "Do not use `<head>` element. Use `<Head />` from `next/head` instead. See: https://nextjs.org/docs/messages/no-head-element",
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

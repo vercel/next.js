@@ -5,6 +5,6 @@ const nextConfig = {
   experimental: {
     windowHistorySupport: true,
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

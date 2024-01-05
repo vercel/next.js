@@ -1,5 +1,5 @@
-import { Button } from 'my-client-lib'
+import { Button } from "my-client-lib";
 
 export default function Page() {
-  return <Button />
+  return <Button />;
 }

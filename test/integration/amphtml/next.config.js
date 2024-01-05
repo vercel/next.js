@@ -4,7 +4,7 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   amp: {
-    canonicalBase: 'http://localhost:1234',
+    canonicalBase: "http://localhost:1234",
   },
   // edit here
-}
+};

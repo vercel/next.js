@@ -1,4 +1,4 @@
-import { redText } from './index.module.scss'
+import { redText } from "./index.module.scss";
 
 function Home() {
   return (
@@ -7,9 +7,9 @@ function Home() {
         This text should be red.
       </div>
       <br />
-      <input key={'' + Math.random()} id="text-input" type="text" />
+      <input key={"" + Math.random()} id="text-input" type="text" />
     </>
-  )
+  );
 }
 
-export default Home
+export default Home;

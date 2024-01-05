@@ -3,5 +3,5 @@ export default function AnotherPage(props) {
     <>
       <p>hello from newroot/dashboard/another</p>
     </>
-  )
+  );
 }

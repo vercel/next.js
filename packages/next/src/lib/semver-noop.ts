@@ -3,5 +3,5 @@
 // We're trying to minimize the size of the worker bundle.
 
 export function satisfies() {
-  return true
+  return true;
 }

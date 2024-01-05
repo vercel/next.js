@@ -1,13 +1,13 @@
-import React from 'react'
+import React from "react";
 
 export default class SnapScrollPosition extends React.Component {
   constructor(props) {
-    super(props)
-    this.state = { positionY: -1 }
+    super(props);
+    this.state = { positionY: -1 };
   }
 
   componentDidMount() {
-    this.setState({ positionY: window.scrollY })
+    this.setState({ positionY: window.scrollY });
   }
 
   render() {
@@ -18,11 +18,11 @@ export default class SnapScrollPosition extends React.Component {
             <div key={`item-${i}`} id={`item-${i}`}>
               {i}
             </div>
-          )
+          );
         })}
 
         <span id="scroll-pos-y">{this.state.positionY}</span>
       </main>
-    )
+    );
   }
 }

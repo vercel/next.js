@@ -2,113 +2,116 @@ import {
   extractICSS,
   replaceValueSymbols,
   replaceSymbols,
-} from 'next/dist/compiled/icss-utils'
+} from "next/dist/compiled/icss-utils";
 
-import { normalizeUrl, resolveRequests, requestify } from '../utils'
+import { normalizeUrl, resolveRequests, requestify } from "../utils";
 
 const plugin = (options: any = {}) => {
   return {
-    postcssPlugin: 'postcss-icss-parser',
+    postcssPlugin: "postcss-icss-parser",
     async OnceExit(root: any) {
-      const importReplacements = Object.create(null)
-      const { icssImports, icssExports } = extractICSS(root)
-      const imports = new Map()
-      const tasks = []
+      const importReplacements = Object.create(null);
+      const { icssImports, icssExports } = extractICSS(root);
+      const imports = new Map();
+      const tasks = [];
 
       // eslint-disable-next-line guard-for-in
       for (const url in icssImports) {
-        const tokens = icssImports[url]
+        const tokens = icssImports[url];
 
         if (Object.keys(tokens).length === 0) {
           // eslint-disable-next-line no-continue
-          continue
+          continue;
         }
 
-        let normalizedUrl = url
-        let prefix = ''
+        let normalizedUrl = url;
+        let prefix = "";
 
-        const queryParts = normalizedUrl.split('!')
+        const queryParts = normalizedUrl.split("!");
 
         if (queryParts.length > 1) {
-          normalizedUrl = queryParts.pop()!
-          prefix = queryParts.join('!')
+          normalizedUrl = queryParts.pop()!;
+          prefix = queryParts.join("!");
         }
 
         const request = requestify(
           normalizeUrl(normalizedUrl, true),
           options.rootContext
-        )
+        );
         const doResolve = async () => {
-          const { resolver, context } = options
+          const { resolver, context } = options;
           const resolvedUrl = await resolveRequests(resolver, context, [
             ...new Set([normalizedUrl, request]),
-          ])
+          ]);
 
           if (!resolvedUrl) {
-            return
+            return;
           }
 
           // eslint-disable-next-line consistent-return
-          return { url: resolvedUrl, prefix, tokens }
-        }
+          return { url: resolvedUrl, prefix, tokens };
+        };
 
-        tasks.push(doResolve())
+        tasks.push(doResolve());
       }
 
-      const results = await Promise.all(tasks)
+      const results = await Promise.all(tasks);
 
       for (let index = 0; index <= results.length - 1; index++) {
-        const item = results[index]
+        const item = results[index];
 
         if (!item) {
           // eslint-disable-next-line no-continue
-          continue
+          continue;
         }
 
-        const newUrl = item.prefix ? `${item.prefix}!${item.url}` : item.url
-        const importKey = newUrl
-        let importName = imports.get(importKey)
+        const newUrl = item.prefix ? `${item.prefix}!${item.url}` : item.url;
+        const importKey = newUrl;
+        let importName = imports.get(importKey);
 
         if (!importName) {
-          importName = `___CSS_LOADER_ICSS_IMPORT_${imports.size}___`
-          imports.set(importKey, importName)
+          importName = `___CSS_LOADER_ICSS_IMPORT_${imports.size}___`;
+          imports.set(importKey, importName);
 
           options.imports.push({
-            type: 'icss_import',
+            type: "icss_import",
             importName,
             url: options.urlHandler(newUrl),
             icss: true,
             index,
-          })
+          });
 
-          options.api.push({ importName, dedupe: true, index })
+          options.api.push({ importName, dedupe: true, index });
         }
 
         for (const [replacementIndex, token] of Object.keys(
           item.tokens
         ).entries()) {
-          const replacementName = `___CSS_LOADER_ICSS_IMPORT_${index}_REPLACEMENT_${replacementIndex}___`
-          const localName = item.tokens[token]
+          const replacementName = `___CSS_LOADER_ICSS_IMPORT_${index}_REPLACEMENT_${replacementIndex}___`;
+          const localName = item.tokens[token];
 
-          importReplacements[token] = replacementName
+          importReplacements[token] = replacementName;
 
-          options.replacements.push({ replacementName, importName, localName })
+          options.replacements.push({ replacementName, importName, localName });
         }
       }
 
       if (Object.keys(importReplacements).length > 0) {
-        replaceSymbols(root, importReplacements)
+        replaceSymbols(root, importReplacements);
       }
 
       for (const name of Object.keys(icssExports)) {
-        const value = replaceValueSymbols(icssExports[name], importReplacements)
+        const value = replaceValueSymbols(
+          icssExports[name],
+          importReplacements
+        );
 
-        options.exports.push({ name, value })
+        options.exports.push({ name, value });
       }
     },
-  }
-}
+  };
+};
 
-plugin.postcss = true
+plugin.postcss = true;
 
-export default plugin
+export default plugin;

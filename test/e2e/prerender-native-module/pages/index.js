@@ -3,8 +3,8 @@ export const getStaticProps = () => {
     props: {
       index: true,
     },
-  }
-}
+  };
+};
 
 export default function Page(props) {
   return (
@@ -12,5 +12,5 @@ export default function Page(props) {
       <p id="index">index page</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

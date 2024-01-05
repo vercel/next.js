@@ -1,12 +1,12 @@
 module.exports = {
   experimental: {
-    esmExternals: 'loose',
+    esmExternals: "loose",
   },
   webpack(config, { isServer }) {
     config.resolve.alias = {
       ...config.resolve.alias,
-      'preact/compat': 'react',
-    }
-    return config
+      "preact/compat": "react",
+    };
+    return config;
   },
-}
+};

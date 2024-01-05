@@ -1,9 +1,9 @@
 export async function getServerSideProps() {
   return {
     props: {
-      idk: 'oops',
+      idk: "oops",
     },
-  }
+  };
 }
 
-export default () => 'hi'
+export default () => "hi";

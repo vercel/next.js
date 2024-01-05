@@ -2,13 +2,13 @@
 // "asset path" being its javascript file, data file, prerendered html,...
 export default function getAssetPathFromRoute(
   route: string,
-  ext: string = ''
+  ext: string = ""
 ): string {
   const path =
-    route === '/'
-      ? '/index'
+    route === "/"
+      ? "/index"
       : /^\/index(\/|$)/.test(route)
       ? `/index${route}`
-      : route
-  return path + ext
+      : route;
+  return path + ext;
 }

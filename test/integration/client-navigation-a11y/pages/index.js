@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div id="page-container">
@@ -18,4 +18,4 @@ export default () => (
       Go to a page without an h1 or a title
     </Link>
   </div>
-)
+);

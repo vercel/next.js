@@ -1,3 +1,3 @@
-aa = 10 //eslint-disable-line
+aa = 10; //eslint-disable-line
 
-export default () => <div>Hello</div>
+export default () => <div>Hello</div>;

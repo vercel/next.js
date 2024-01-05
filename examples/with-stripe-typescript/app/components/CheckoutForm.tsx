@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
+import React, { useState } from "react";
 
-import CustomDonationInput from '@/components/CustomDonationInput'
-import StripeTestCards from '@/components/StripeTestCards'
+import CustomDonationInput from "@/components/CustomDonationInput";
+import StripeTestCards from "@/components/StripeTestCards";
 
-import { formatAmountForDisplay } from '@/utils/stripe-helpers'
-import * as config from '@/config'
-import { createCheckoutSession } from '@/actions/stripe'
+import { formatAmountForDisplay } from "@/utils/stripe-helpers";
+import * as config from "@/config";
+import { createCheckoutSession } from "@/actions/stripe";
 
 export default function CheckoutForm(): JSX.Element {
-  const [loading] = useState<boolean>(false)
+  const [loading] = useState<boolean>(false);
   const [input, setInput] = useState<{ customDonation: number }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
-  })
+  });
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
     e
@@ -21,7 +21,7 @@ export default function CheckoutForm(): JSX.Element {
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value,
-    })
+    });
 
   return (
     <form action={createCheckoutSession}>
@@ -44,5 +44,5 @@ export default function CheckoutForm(): JSX.Element {
         Donate {formatAmountForDisplay(input.customDonation, config.CURRENCY)}
       </button>
     </form>
-  )
+  );
 }

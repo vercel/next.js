@@ -1,4 +1,4 @@
-import EmotionRootStyleRegistry from './emotion-root-style-registry'
+import EmotionRootStyleRegistry from "./emotion-root-style-registry";
 
 export default function RootLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function RootLayout({ children }) {
         <EmotionRootStyleRegistry>{children}</EmotionRootStyleRegistry>
       </body>
     </html>
-  )
+  );
 }

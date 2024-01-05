@@ -1,11 +1,11 @@
-import { useHooks } from './hooks'
-import { useHooks as useHooks2 } from './hooks-ext'
-import { Components } from './components'
-import { Components as Components2 } from './components-ext'
+import { useHooks } from "./hooks";
+import { useHooks as useHooks2 } from "./hooks-ext";
+import { Components } from "./components";
+import { Components as Components2 } from "./components-ext";
 
 export default function Page() {
-  useHooks()
-  useHooks2()
+  useHooks();
+  useHooks2();
 
   return (
     <>
@@ -16,5 +16,5 @@ export default function Page() {
         <Components2 />
       </div>
     </>
-  )
+  );
 }

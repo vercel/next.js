@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from "next/link";
+import React from "react";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
         data-next-shallow-replace
         replace
         shallow
-        href={{ query: { params: 'testParams' } }}
+        href={{ query: { params: "testParams" } }}
       >
         Shallow replace
       </Link>
@@ -19,7 +19,7 @@ const Page = () => {
         </button>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

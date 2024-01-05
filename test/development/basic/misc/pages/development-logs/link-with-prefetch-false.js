@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function PrefetchFalsePage() {
   return (
@@ -7,5 +7,5 @@ export default function PrefetchFalsePage() {
         Prefetch set to false
       </Link>
     </div>
-  )
+  );
 }

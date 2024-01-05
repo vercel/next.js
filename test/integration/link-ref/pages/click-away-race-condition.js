@@ -1,45 +1,45 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const useClickAway = (ref, onClickAway) => {
   useEffect(() => {
     const handler = (event) => {
-      const el = ref.current
+      const el = ref.current;
 
       // when menu is open and clicked inside menu, A is expected to be false
       // when menu is open and clicked outside menu, A is expected to be true
-      console.log('A', el && !el.contains(event.target))
+      console.log("A", el && !el.contains(event.target));
 
-      el && !el.contains(event.target) && onClickAway(event)
-    }
+      el && !el.contains(event.target) && onClickAway(event);
+    };
 
     let timeoutID = setTimeout(() => {
-      timeoutID = null
-      document.addEventListener('click', handler)
-    }, 0)
+      timeoutID = null;
+      document.addEventListener("click", handler);
+    }, 0);
 
     return () => {
       if (timeoutID != null) {
-        clearTimeout(timeoutID)
+        clearTimeout(timeoutID);
       }
-      document.removeEventListener('click', handler)
-    }
-  }, [onClickAway, ref])
-}
+      document.removeEventListener("click", handler);
+    };
+  }, [onClickAway, ref]);
+};
 
 export default function App() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
-  const menuRef = useRef(null)
+  const menuRef = useRef(null);
 
   const onClickAway = useCallback(() => {
-    console.log('click away, open', open)
+    console.log("click away, open", open);
     if (open) {
-      setOpen(false)
+      setOpen(false);
     }
-  }, [open])
+  }, [open]);
 
-  useClickAway(menuRef, onClickAway)
+  useClickAway(menuRef, onClickAway);
 
   return (
     <div>
@@ -52,5 +52,5 @@ export default function App() {
         </div>
       )}
     </div>
-  )
+  );
 }

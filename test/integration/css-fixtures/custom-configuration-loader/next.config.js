@@ -5,16 +5,16 @@ const config = {
       use: [
         defaultLoaders.babel,
         {
-          loader: require('styled-jsx/webpack').loader,
+          loader: require("styled-jsx/webpack").loader,
           options: {
-            type: (fileName, options) => options.query.type || 'scoped',
+            type: (fileName, options) => options.query.type || "scoped",
           },
         },
       ],
-    })
+    });
 
-    return config
+    return config;
   },
-}
+};
 
-module.exports = config
+module.exports = config;

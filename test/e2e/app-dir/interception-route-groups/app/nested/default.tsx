@@ -1,3 +1,3 @@
 export default function Default() {
-  return <div>Default Children (nested)</div>
+  return <div>Default Children (nested)</div>;
 }

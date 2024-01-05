@@ -1,5 +1,5 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
@@ -34,5 +34,5 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

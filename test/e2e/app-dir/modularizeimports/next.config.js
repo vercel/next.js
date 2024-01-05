@@ -1,19 +1,19 @@
-const withMDX = require('@next/mdx')()
+const withMDX = require("@next/mdx")();
 
 /**
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
+  pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
   modularizeImports: {
-    'design-system/icons': {
-      transform: 'design-system/icons/{{ kebabCase member }}',
+    "design-system/icons": {
+      transform: "design-system/icons/{{ kebabCase member }}",
       skipDefaultConversion: true,
     },
   },
   experimental: {
     mdxRs: true,
   },
-}
+};
 
-module.exports = withMDX(nextConfig)
+module.exports = withMDX(nextConfig);

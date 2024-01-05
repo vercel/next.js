@@ -1,5 +1,5 @@
-import 'css/global-css'
+import "css/global-css";
 
 export default function Index() {
-  return <div>Hello world!</div>
+  return <div>Hello world!</div>;
 }

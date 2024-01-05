@@ -1,11 +1,11 @@
-import { useState } from 'react'
-import Link from 'next/link'
-import type { GetStaticProps } from 'next'
+import { useState } from "react";
+import Link from "next/link";
+import type { GetStaticProps } from "next";
 
 type Props = {
-  random: number
-  draftMode: string
-}
+  random: number;
+  draftMode: string;
+};
 
 export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
   return {
@@ -14,11 +14,11 @@ export const getStaticProps: GetStaticProps<Props> = ({ draftMode }) => {
       draftMode: Boolean(draftMode).toString(),
     },
     revalidate: 100000,
-  }
-}
+  };
+};
 
 export default function Home(props: Props) {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
   return (
     <>
       <h1>Home</h1>
@@ -36,5 +36,5 @@ export default function Home(props: Props) {
       </p>
       <Link href="/another">Visit another page</Link>
     </>
-  )
+  );
 }

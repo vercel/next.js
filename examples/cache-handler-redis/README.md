@@ -44,7 +44,7 @@ Then, build and start the Next.js app as usual.
   if (process.env.SERVER_STARTED) {
     IncrementalCache.onCreation(() => {
       // Your code here
-    })
+    });
   }
   ```
 
@@ -56,12 +56,12 @@ Then, build and start the Next.js app as usual.
   ```js
   IncrementalCache.onCreation(() => {
     return {
-      diskAccessMode: 'read-no/write-no', // Default is 'read-yes/write-yes'
+      diskAccessMode: "read-no/write-no", // Default is 'read-yes/write-yes'
       cache: {
         // The same cache configuration as in the example
       },
-    }
-  })
+    };
+  });
   ```
 
   This may be useful if you use only App dir and don't mind if Redis instance fails.

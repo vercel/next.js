@@ -25,38 +25,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
-const path = require('path')
+const path = require("path");
 // eslint-disable-next-line import/no-extraneous-dependencies
-const Watchpack = require('watchpack')
-const toArr = (val) => (Array.isArray(val) ? val : val == null ? [] : [val])
+const Watchpack = require("watchpack");
+const toArr = (val) => (Array.isArray(val) ? val : val == null ? [] : [val]);
 
 module.exports = function (Taskr, _utils) {
   Taskr.plugin(
-    'watch',
+    "watch",
     { every: false, files: false },
     // eslint-disable-next-line require-yield
     function* (_, directory, names, opts) {
       const wp = new Watchpack({
         aggregateTimeout: 5,
         followSymlinks: true,
-        ignored: '**/.git',
-      })
+        ignored: "**/.git",
+      });
 
-      names = toArr(names)
-      opts = opts || {}
+      names = toArr(names);
+      opts = opts || {};
 
-      const dirToWatch = path.join(__dirname, directory)
+      const dirToWatch = path.join(__dirname, directory);
       wp.watch({
         directories: [dirToWatch],
         startTime: Date.now() - 10000,
-      })
+      });
 
-      wp.on('aggregated', function (_changes, _removals) {
+      wp.on("aggregated", function (_changes, _removals) {
         // No matter if there's a removal or change the task has to run
-        return Taskr.serial(names, opts)
-      })
+        return Taskr.serial(names, opts);
+      });
 
-      return
+      return;
     }
-  )
-}
+  );
+};

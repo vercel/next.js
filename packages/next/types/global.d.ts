@@ -4,54 +4,54 @@
 declare namespace NodeJS {
   // only for rust, see https://github.com/napi-rs/napi-rs/issues/1630
   interface TTY {
-    setBlocking(blocking: boolean): void
+    setBlocking(blocking: boolean): void;
   }
 
   interface WriteStream {
-    _handle?: TTY
+    _handle?: TTY;
   }
 
   interface Process {
     /**
      * @deprecated Use `typeof window` instead
      */
-    readonly browser: boolean
+    readonly browser: boolean;
   }
 
   interface ProcessEnv {
-    readonly NODE_ENV: 'development' | 'production' | 'test'
+    readonly NODE_ENV: "development" | "production" | "test";
   }
 
   interface RequestInit extends globalThis.RequestInit {
-    next?: NextFetchRequestConfig | undefined
+    next?: NextFetchRequestConfig | undefined;
   }
 }
 
-declare module '*.module.css' {
-  const classes: { readonly [key: string]: string }
-  export default classes
+declare module "*.module.css" {
+  const classes: { readonly [key: string]: string };
+  export default classes;
 }
 
-declare module '*.module.sass' {
-  const classes: { readonly [key: string]: string }
-  export default classes
+declare module "*.module.sass" {
+  const classes: { readonly [key: string]: string };
+  export default classes;
 }
 
-declare module '*.module.scss' {
-  const classes: { readonly [key: string]: string }
-  export default classes
+declare module "*.module.scss" {
+  const classes: { readonly [key: string]: string };
+  export default classes;
 }
 
 interface Window {
-  MSInputMethodContext?: unknown
-  __NEXT_HMR_CB?: null | ((message?: string) => void)
+  MSInputMethodContext?: unknown;
+  __NEXT_HMR_CB?: null | ((message?: string) => void);
 }
 
 interface NextFetchRequestConfig {
-  revalidate?: number | false
-  tags?: string[]
+  revalidate?: number | false;
+  tags?: string[];
 }
 
 interface RequestInit {
-  next?: NextFetchRequestConfig | undefined
+  next?: NextFetchRequestConfig | undefined;
 }

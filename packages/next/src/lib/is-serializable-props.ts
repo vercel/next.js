@@ -1,9 +1,9 @@
 import {
   isPlainObject,
   getObjectClassLabel,
-} from '../shared/lib/is-plain-object'
+} from "../shared/lib/is-plain-object";
 
-const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 
 export class SerializableError extends Error {
   constructor(page: string, method: string, path: string, message: string) {
@@ -11,7 +11,7 @@ export class SerializableError extends Error {
       path
         ? `Error serializing \`${path}\` returned from \`${method}\` in "${page}".\nReason: ${message}`
         : `Error serializing props returned from \`${method}\` in "${page}".\nReason: ${message}`
-    )
+    );
   }
 }
 
@@ -24,11 +24,11 @@ export function isSerializableProps(
     throw new SerializableError(
       page,
       method,
-      '',
+      "",
       `Props must be returned as a plain object from ${method}: \`{ props: { ... } }\` (received: \`${getObjectClassLabel(
         input
       )}\`).`
-    )
+    );
   }
 
   function visit(visited: Map<any, string>, value: any, path: string) {
@@ -38,12 +38,12 @@ export function isSerializableProps(
         method,
         path,
         `Circular references cannot be expressed in JSON (references: \`${
-          visited.get(value) || '(self)'
+          visited.get(value) || "(self)"
         }\`).`
-      )
+      );
     }
 
-    visited.set(value, path)
+    visited.set(value, path);
   }
 
   function isSerializable(
@@ -51,7 +51,7 @@ export function isSerializableProps(
     value: any,
     path: string
   ): true {
-    const type = typeof value
+    const type = typeof value;
     if (
       // `null` can be serialized, but not `undefined`.
       value === null ||
@@ -60,39 +60,39 @@ export function isSerializableProps(
       //
       // `object` is special-cased below, as it may represent `null`, an Array,
       // a plain object, a class, et al.
-      type === 'boolean' ||
-      type === 'number' ||
-      type === 'string'
+      type === "boolean" ||
+      type === "number" ||
+      type === "string"
     ) {
-      return true
+      return true;
     }
 
-    if (type === 'undefined') {
+    if (type === "undefined") {
       throw new SerializableError(
         page,
         method,
         path,
-        '`undefined` cannot be serialized as JSON. Please use `null` or omit this value.'
-      )
+        "`undefined` cannot be serialized as JSON. Please use `null` or omit this value."
+      );
     }
 
     if (isPlainObject(value)) {
-      visit(refs, value, path)
+      visit(refs, value, path);
 
       if (
         Object.entries(value).every(([key, nestedValue]) => {
           const nextPath = regexpPlainIdentifier.test(key)
             ? `${path}.${key}`
-            : `${path}[${JSON.stringify(key)}]`
+            : `${path}[${JSON.stringify(key)}]`;
 
-          const newRefs = new Map(refs)
+          const newRefs = new Map(refs);
           return (
             isSerializable(newRefs, key, nextPath) &&
             isSerializable(newRefs, nestedValue, nextPath)
-          )
+          );
         })
       ) {
-        return true
+        return true;
       }
 
       throw new SerializableError(
@@ -100,19 +100,19 @@ export function isSerializableProps(
         method,
         path,
         `invariant: Unknown error encountered in Object.`
-      )
+      );
     }
 
     if (Array.isArray(value)) {
-      visit(refs, value, path)
+      visit(refs, value, path);
 
       if (
         value.every((nestedValue, index) => {
-          const newRefs = new Map(refs)
-          return isSerializable(newRefs, nestedValue, `${path}[${index}]`)
+          const newRefs = new Map(refs);
+          return isSerializable(newRefs, nestedValue, `${path}[${index}]`);
         })
       ) {
-        return true
+        return true;
       }
 
       throw new SerializableError(
@@ -120,7 +120,7 @@ export function isSerializableProps(
         method,
         path,
         `invariant: Unknown error encountered in Array.`
-      )
+      );
     }
 
     // None of these can be expressed as JSON:
@@ -129,15 +129,15 @@ export function isSerializableProps(
       page,
       method,
       path,
-      '`' +
+      "`" +
         type +
-        '`' +
-        (type === 'object'
+        "`" +
+        (type === "object"
           ? ` ("${Object.prototype.toString.call(value)}")`
-          : '') +
-        ' cannot be serialized as JSON. Please only return JSON serializable data types.'
-    )
+          : "") +
+        " cannot be serialized as JSON. Please only return JSON serializable data types."
+    );
   }
 
-  return isSerializable(new Map(), input, '')
+  return isSerializable(new Map(), input, "");
 }

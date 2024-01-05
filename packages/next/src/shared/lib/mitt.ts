@@ -14,33 +14,33 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 // It's been edited for the needs of this script
 // See the LICENSE at the top of the file
 
-type Handler = (...evts: any[]) => void
+type Handler = (...evts: any[]) => void;
 
 export type MittEmitter<T> = {
-  on(type: T, handler: Handler): void
-  off(type: T, handler: Handler): void
-  emit(type: T, ...evts: any[]): void
-}
+  on(type: T, handler: Handler): void;
+  off(type: T, handler: Handler): void;
+  emit(type: T, ...evts: any[]): void;
+};
 
 export default function mitt(): MittEmitter<string> {
-  const all: { [s: string]: Handler[] } = Object.create(null)
+  const all: { [s: string]: Handler[] } = Object.create(null);
 
   return {
     on(type: string, handler: Handler) {
-      ;(all[type] || (all[type] = [])).push(handler)
+      (all[type] || (all[type] = [])).push(handler);
     },
 
     off(type: string, handler: Handler) {
       if (all[type]) {
-        all[type].splice(all[type].indexOf(handler) >>> 0, 1)
+        all[type].splice(all[type].indexOf(handler) >>> 0, 1);
       }
     },
 
     emit(type: string, ...evts: any[]) {
       // eslint-disable-next-line array-callback-return
-      ;(all[type] || []).slice().map((handler: Handler) => {
-        handler(...evts)
-      })
+      (all[type] || []).slice().map((handler: Handler) => {
+        handler(...evts);
+      });
     },
-  }
+  };
 }

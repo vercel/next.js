@@ -1,6 +1,6 @@
-'use client'
-import testImage from '../../../public/test.jpg'
-import Image from 'next/image'
+"use client";
+import testImage from "../../../public/test.jpg";
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -11,17 +11,17 @@ export default function Page() {
 
       <button
         onClick={() => {
-          import('../../../data').then((mod) => {
-            console.log('loaded data', mod)
-          })
+          import("../../../data").then((mod) => {
+            console.log("loaded data", mod);
+          });
         }}
         id="dynamic-import"
       >
         click me
       </button>
     </>
-  )
+  );
 }
 
-export const runtime = 'edge'
-export const preferredRegion = 'iad1'
+export const runtime = "edge";
+export const preferredRegion = "iad1";

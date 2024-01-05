@@ -1,5 +1,5 @@
 // @ts-check
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 /**
  * @param {import('next/server').NextRequest} request
@@ -8,13 +8,13 @@ import { NextResponse } from 'next/server'
 export function middleware(request) {
   if (
     request.nextUrl.pathname ===
-    '/hooks/use-selected-layout-segment/rewritten-middleware'
+    "/hooks/use-selected-layout-segment/rewritten-middleware"
   ) {
     return NextResponse.rewrite(
       new URL(
-        '/hooks/use-selected-layout-segment/first/slug3/second/catch/all',
+        "/hooks/use-selected-layout-segment/first/slug3/second/catch/all",
         request.url
       )
-    )
+    );
   }
 }

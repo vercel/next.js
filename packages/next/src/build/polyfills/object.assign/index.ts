@@ -1,10 +1,10 @@
-var assign = Object.assign.bind(Object)
+var assign = Object.assign.bind(Object);
 function g() {
-  return assign
+  return assign;
 }
 Object.defineProperties(g(), {
   implementation: { get: g },
   shim: { value: g },
   getPolyfill: { value: g },
-})
-module.exports = g()
+});
+module.exports = g();

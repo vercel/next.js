@@ -1,86 +1,86 @@
 const clientGlobs = [
   {
-    name: 'Client Bundles (main, webpack)',
+    name: "Client Bundles (main, webpack)",
     globs: [
-      '.next/static/runtime/+(main|webpack)-*',
-      '.next/static/chunks/!(polyfills*)',
+      ".next/static/runtime/+(main|webpack)-*",
+      ".next/static/chunks/!(polyfills*)",
     ],
   },
   {
-    name: 'Legacy Client Bundles (polyfills)',
-    globs: ['.next/static/chunks/+(polyfills)-*'],
+    name: "Legacy Client Bundles (polyfills)",
+    globs: [".next/static/chunks/+(polyfills)-*"],
   },
   {
-    name: 'Client Pages',
-    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
+    name: "Client Pages",
+    globs: [".next/static/BUILD_ID/pages/**/*.js", ".next/static/css/**/*"],
   },
   {
-    name: 'Client Build Manifests',
-    globs: ['.next/static/BUILD_ID/_buildManifest*'],
+    name: "Client Build Manifests",
+    globs: [".next/static/BUILD_ID/_buildManifest*"],
   },
   {
-    name: 'Rendered Page Sizes',
-    globs: ['fetched-pages/**/*.html'],
+    name: "Rendered Page Sizes",
+    globs: ["fetched-pages/**/*.html"],
   },
   {
-    name: 'Edge SSR bundle Size',
+    name: "Edge SSR bundle Size",
     globs: [
-      '.next/server/pages/edge-ssr.js',
-      '.next/server/app/app-edge-ssr/page.js',
+      ".next/server/pages/edge-ssr.js",
+      ".next/server/app/app-edge-ssr/page.js",
     ],
   },
   {
-    name: 'Middleware size',
+    name: "Middleware size",
     globs: [
-      '.next/server/middleware*.js',
-      '.next/server/edge-runtime-webpack.js',
+      ".next/server/middleware*.js",
+      ".next/server/edge-runtime-webpack.js",
     ],
   },
   {
-    name: 'Next Runtimes',
-    globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
+    name: "Next Runtimes",
+    globs: ["node_modules/next/dist/compiled/next-server/**/*.js"],
   },
-]
+];
 
 const renames = [
   {
-    srcGlob: '.next/static/chunks/pages',
-    dest: '.next/static/BUILD_ID/pages',
+    srcGlob: ".next/static/chunks/pages",
+    dest: ".next/static/BUILD_ID/pages",
   },
   {
-    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
+    srcGlob: ".next/static/BUILD_ID/pages/**/*.js",
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*.js',
+    srcGlob: ".next/static/runtime/*.js",
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*.js',
+    srcGlob: ".next/static/chunks/*.js",
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/*/_buildManifest.js',
-    dest: '.next/static/BUILD_ID/_buildManifest.js',
+    srcGlob: ".next/static/*/_buildManifest.js",
+    dest: ".next/static/BUILD_ID/_buildManifest.js",
   },
-]
+];
 
 module.exports = {
-  commentHeading: 'Stats from current PR',
-  commentReleaseHeading: 'Stats from current release',
-  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next build',
-  appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next start --port $PORT',
-  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next --port $PORT',
-  mainRepo: 'vercel/next.js',
-  mainBranch: 'canary',
+  commentHeading: "Stats from current PR",
+  commentReleaseHeading: "Stats from current release",
+  appBuildCommand: "NEXT_TELEMETRY_DISABLED=1 pnpm next build",
+  appStartCommand: "NEXT_TELEMETRY_DISABLED=1 pnpm next start --port $PORT",
+  appDevCommand: "NEXT_TELEMETRY_DISABLED=1 pnpm next --port $PORT",
+  mainRepo: "vercel/next.js",
+  mainBranch: "canary",
   autoMergeMain: true,
   configs: [
     {
-      title: 'Default Build',
-      diff: 'onOutputChange',
+      title: "Default Build",
+      diff: "onOutputChange",
       diffConfigFiles: [
         {
-          path: 'next.config.js',
+          path: "next.config.js",
           content: `
             module.exports = {
               generateBuildId: () => 'BUILD_ID',
@@ -97,7 +97,7 @@ module.exports = {
       renames,
       configFiles: [
         {
-          path: 'next.config.js',
+          path: "next.config.js",
           content: `
           module.exports = {
               generateBuildId: () => 'BUILD_ID'
@@ -108,9 +108,9 @@ module.exports = {
       filesToTrack: clientGlobs,
       // will be output to fetched-pages/${pathname}.html
       pagesToFetch: [
-        'http://localhost:$PORT/',
-        'http://localhost:$PORT/link',
-        'http://localhost:$PORT/withRouter',
+        "http://localhost:$PORT/",
+        "http://localhost:$PORT/link",
+        "http://localhost:$PORT/withRouter",
       ],
       // TODO: investigate replacing "ab" for this
       // pagesToBench: [
@@ -124,4 +124,4 @@ module.exports = {
       // },
     },
   ],
-}
+};

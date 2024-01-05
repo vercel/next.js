@@ -1,28 +1,28 @@
-import { bold, cyan } from '../picocolors'
-import os from 'os'
-import path from 'path'
+import { bold, cyan } from "../picocolors";
+import os from "os";
+import path from "path";
 
-import { FatalError } from '../fatal-error'
-import isError from '../is-error'
+import { FatalError } from "../fatal-error";
+import isError from "../is-error";
 
 export async function getTypeScriptConfiguration(
-  ts: typeof import('typescript'),
+  ts: typeof import("typescript"),
   tsConfigPath: string,
   metaOnly?: boolean
-): Promise<import('typescript').ParsedCommandLine> {
+): Promise<import("typescript").ParsedCommandLine> {
   try {
-    const formatDiagnosticsHost: import('typescript').FormatDiagnosticsHost = {
+    const formatDiagnosticsHost: import("typescript").FormatDiagnosticsHost = {
       getCanonicalFileName: (fileName: string) => fileName,
       getCurrentDirectory: ts.sys.getCurrentDirectory,
       getNewLine: () => os.EOL,
-    }
+    };
 
-    const { config, error } = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
+    const { config, error } = ts.readConfigFile(tsConfigPath, ts.sys.readFile);
     if (error) {
-      throw new FatalError(ts.formatDiagnostic(error, formatDiagnosticsHost))
+      throw new FatalError(ts.formatDiagnostic(error, formatDiagnosticsHost));
     }
 
-    let configToParse: any = config
+    let configToParse: any = config;
 
     const result = ts.parseJsonConfigFileContent(
       configToParse,
@@ -32,40 +32,40 @@ export async function getTypeScriptConfiguration(
         ? {
             ...ts.sys,
             readDirectory(_path, extensions, _excludes, _includes, _depth) {
-              return [extensions ? `file${extensions[0]}` : `file.ts`]
+              return [extensions ? `file${extensions[0]}` : `file.ts`];
             },
           }
         : ts.sys,
       path.dirname(tsConfigPath)
-    )
+    );
 
     if (result.errors) {
       result.errors = result.errors.filter(
         ({ code }) =>
           // No inputs were found in config file
           code !== 18003
-      )
+      );
     }
 
     if (result.errors?.length) {
       throw new FatalError(
         ts.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
-      )
+      );
     }
 
-    return result
+    return result;
   } catch (err) {
-    if (isError(err) && err.name === 'SyntaxError') {
-      const reason = '\n' + (err.message ?? '')
+    if (isError(err) && err.name === "SyntaxError") {
+      const reason = "\n" + (err.message ?? "");
       throw new FatalError(
         bold(
-          'Could not parse' +
-            cyan('tsconfig.json') +
-            '.' +
-            ' Please make sure it contains syntactically correct JSON.'
+          "Could not parse" +
+            cyan("tsconfig.json") +
+            "." +
+            " Please make sure it contains syntactically correct JSON."
         ) + reason
-      )
+      );
     }
-    throw err
+    throw err;
   }
 }

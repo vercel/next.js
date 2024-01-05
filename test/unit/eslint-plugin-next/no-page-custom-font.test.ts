@@ -1,20 +1,20 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-page-custom-font'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-page-custom-font";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-const filename = 'pages/_document.js'
+const filename = "pages/_document.js";
 
-ruleTester.run('no-page-custom-font', rule, {
+ruleTester.run("no-page-custom-font", rule, {
   valid: [
     {
       code: `import Document, { Html, Head } from "next/document";
@@ -144,12 +144,12 @@ ruleTester.run('no-page-custom-font', rule, {
         )
       }
       `,
-      filename: 'pages/index.tsx',
+      filename: "pages/index.tsx",
       errors: [
         {
           message:
-            'Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
-          type: 'JSXOpeningElement',
+            "Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -188,13 +188,13 @@ ruleTester.run('no-page-custom-font', rule, {
       errors: [
         {
           message:
-            'Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+            "Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font",
         },
         {
           message:
-            'Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font',
+            "Using `<link />` outside of `<Head>` will disable automatic font optimization. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font",
         },
       ],
     },
   ],
-})
+});

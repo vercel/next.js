@@ -1,4 +1,4 @@
-const value = await Promise.resolve(42)
+const value = await Promise.resolve(42);
 
 export default function Index({ appValue }) {
   return (
@@ -6,5 +6,5 @@ export default function Index({ appValue }) {
       <div id="app-value">{appValue}</div>
       <div id="page-value">{value}</div>
     </main>
-  )
+  );
 }

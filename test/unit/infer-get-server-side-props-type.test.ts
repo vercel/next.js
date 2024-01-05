@@ -1,69 +1,69 @@
 import type {
   InferGetServerSidePropsType,
   GetServerSidePropsContext,
-} from 'next'
-import { expectTypeOf } from 'expect-type'
+} from "next";
+import { expectTypeOf } from "expect-type";
 
-describe('InferGetServerSidePropsType', () => {
-  it('should work with sync functions', async () => {
+describe("InferGetServerSidePropsType", () => {
+  it("should work with sync functions", async () => {
     function getServerSideProps(context: GetServerSidePropsContext) {
       if (context.params?.notFound) {
         return {
           notFound: true,
-        }
+        };
       }
 
       return {
         props: {
-          foo: 'bar',
+          foo: "bar",
         },
-      }
+      };
     }
 
-    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>
+    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>;
 
-    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>()
-  })
+    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>();
+  });
 
-  it('should work with async functions', async () => {
+  it("should work with async functions", async () => {
     async function getServerSideProps(context: GetServerSidePropsContext) {
       if (context.params?.notFound) {
         return {
           notFound: true,
-        }
+        };
       }
 
       if (context.params?.redirect) {
         return {
           redirect: {
-            destination: '/',
+            destination: "/",
           },
-        }
+        };
       }
 
       return {
         props: {
-          foo: 'bar',
+          foo: "bar",
         },
-      }
+      };
     }
 
-    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>
+    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>;
 
-    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>()
-  })
+    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>();
+  });
 
-  it('should work with promised props', async () => {
+  it("should work with promised props", async () => {
     async function getServerSideProps() {
       return {
         props: Promise.resolve({
-          foo: 'bar',
+          foo: "bar",
         }),
-      }
+      };
     }
 
-    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>
+    type PageProps = InferGetServerSidePropsType<typeof getServerSideProps>;
 
-    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>()
-  })
-})
+    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>();
+  });
+});

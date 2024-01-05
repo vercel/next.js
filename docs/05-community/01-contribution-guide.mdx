@@ -197,10 +197,10 @@ Code blocks should contain a minimum working example that can be copied and past
 For example, if you're showing how to use the `<Link>` component, you should include the `import` statement and the `<Link>` component itself.
 
 ```tsx filename="app/page.tsx"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/about">About</Link>
+  return <Link href="/about">About</Link>;
 }
 ```
 
@@ -252,30 +252,30 @@ Code lines can be highlighted. This is useful when you want to draw attention to
 **Single Line:** `highlight={1}`
 
 ```tsx filename="app/page.tsx" {1}
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/about">About</Link>
+  return <Link href="/about">About</Link>;
 }
 ```
 
 **Multiple Lines:** `highlight={1,3}`
 
 ```tsx filename="app/page.tsx" highlight={1,3}
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/about">About</Link>
+  return <Link href="/about">About</Link>;
 }
 ```
 
 **Range of Lines:** `highlight={1-5}`
 
 ```tsx filename="app/page.tsx" highlight={1-5}
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/about">About</Link>
+  return <Link href="/about">About</Link>;
 }
 ```
 

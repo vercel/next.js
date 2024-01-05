@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import Link from 'next/link'
+import Head from "next/head";
+import Link from "next/link";
 
 const WithFont = () => {
   return (
@@ -18,13 +18,13 @@ const WithFont = () => {
         <Link href="/without-font">Without font</Link>
       </div>
     </>
-  )
-}
+  );
+};
 
 export const getServerSideProps = async () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
-export default WithFont
+export default WithFont;

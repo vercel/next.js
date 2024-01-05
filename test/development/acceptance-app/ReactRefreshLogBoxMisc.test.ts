@@ -1,25 +1,25 @@
-import { sandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import path from 'path'
-import { outdent } from 'outdent'
+import { sandbox } from "development-sandbox";
+import { FileRef, nextTestSetup } from "e2e-utils";
+import path from "path";
+import { outdent } from "outdent";
 
 // TODO: re-enable these tests after figuring out what is causing
 // them to be so unreliable in CI
-describe.skip('ReactRefreshLogBox app', () => {
+describe.skip("ReactRefreshLogBox app", () => {
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    files: new FileRef(path.join(__dirname, "fixtures", "default-template")),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: "latest",
+      "react-dom": "latest",
     },
     skipStart: true,
-  })
+  });
 
-  test('<Link> with multiple children', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("<Link> with multiple children", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -32,33 +32,33 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
-    )
+    );
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
+                "#nextjs__container_errors_desc a:nth-of-type(1)"
               ) as any
           ).href
       )
-    ).toMatch('https://nextjs.org/docs/messages/link-multiple-children')
+    ).toMatch("https://nextjs.org/docs/messages/link-multiple-children");
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('<Link> component props errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("<Link> component props errors", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -66,15 +66,15 @@ describe.skip('ReactRefreshLogBox app', () => {
           return <Link />
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
-    )
+    );
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -82,11 +82,11 @@ describe.skip('ReactRefreshLogBox app', () => {
           return <Link href="/">Abc</Link>
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -106,11 +106,11 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -130,11 +130,11 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -154,11 +154,11 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -178,12 +178,12 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchSnapshot()
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxDescription()).toMatchSnapshot();
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Link from 'next/link'
 
@@ -203,18 +203,18 @@ describe.skip('ReactRefreshLogBox app', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxDescription()).toMatchSnapshot()
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxDescription()).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('server-side only compilation errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("server-side only compilation errors", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'app/page.js',
+      "app/page.js",
       outdent`
         'use client'
         import myLibrary from 'my-non-existent-library'
@@ -229,9 +229,9 @@ describe.skip('ReactRefreshLogBox app', () => {
           return <h1>{props.result}</h1>
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    await cleanup()
-  })
-})
+    expect(await session.hasRedbox(true)).toBe(true);
+    await cleanup();
+  });
+});

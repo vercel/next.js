@@ -1,1 +1,1 @@
-export { CodeFrame } from './CodeFrame'
+export { CodeFrame } from "./CodeFrame";

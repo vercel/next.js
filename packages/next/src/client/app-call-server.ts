@@ -1,10 +1,10 @@
-import { getServerActionDispatcher } from './components/app-router'
+import { getServerActionDispatcher } from "./components/app-router";
 
 export async function callServer(actionId: string, actionArgs: any[]) {
-  const actionDispatcher = getServerActionDispatcher()
+  const actionDispatcher = getServerActionDispatcher();
 
   if (!actionDispatcher) {
-    throw new Error('Invariant: missing action dispatcher.')
+    throw new Error("Invariant: missing action dispatcher.");
   }
 
   return new Promise((resolve, reject) => {
@@ -13,6 +13,6 @@ export async function callServer(actionId: string, actionArgs: any[]) {
       actionArgs,
       resolve,
       reject,
-    })
-  })
+    });
+  });
 }

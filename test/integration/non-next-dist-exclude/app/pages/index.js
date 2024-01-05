@@ -1,7 +1,7 @@
-import NotNext from 'notnext'
+import NotNext from "notnext";
 
-const Page = () => <NotNext />
+const Page = () => <NotNext />;
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default Page
+export default Page;

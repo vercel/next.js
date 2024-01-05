@@ -1,1 +1,1 @@
-export type PageExtensions = string[]
+export type PageExtensions = string[];

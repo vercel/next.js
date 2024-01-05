@@ -1,5 +1,5 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -22,9 +22,9 @@ export default function Page() {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const metadata = {
-  title: 'index page',
-}
+  title: "index page",
+};

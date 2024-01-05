@@ -1,14 +1,14 @@
-import type { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from "http";
 
-import type { Duplex } from 'stream'
+import type { Duplex } from "stream";
 
 export type WorkerRequestHandler = (
   req: IncomingMessage,
   res: ServerResponse
-) => Promise<any>
+) => Promise<any>;
 
 export type WorkerUpgradeHandler = (
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer
-) => any
+) => any;

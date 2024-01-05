@@ -1,5 +1,5 @@
-import type { I18NProvider } from '../helpers/i18n-provider'
-import type { Normalizer } from './normalizer'
+import type { I18NProvider } from "../helpers/i18n-provider";
+import type { Normalizer } from "./normalizer";
 
 /**
  * Normalizes the pathname by removing the locale prefix if any.
@@ -14,7 +14,7 @@ export class LocaleRouteNormalizer implements Normalizer {
    * @returns The pathname without the locale prefix (if any).
    */
   public normalize(pathname: string): string {
-    const match = this.provider.analyze(pathname)
-    return match.pathname
+    const match = this.provider.analyze(pathname);
+    return match.pathname;
   }
 }

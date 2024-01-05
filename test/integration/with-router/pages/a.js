@@ -1,9 +1,9 @@
-import * as React from 'react'
-import { withRouter } from 'next/router'
+import * as React from "react";
+import { withRouter } from "next/router";
 
 class PageA extends React.Component {
   goToB() {
-    this.props.router.push('/b')
+    this.props.router.push("/b");
   }
 
   render() {
@@ -11,8 +11,8 @@ class PageA extends React.Component {
       <div id="page-a">
         <button onClick={() => this.goToB()}>Go to B</button>
       </div>
-    )
+    );
   }
 }
 
-export default withRouter(PageA)
+export default withRouter(PageA);

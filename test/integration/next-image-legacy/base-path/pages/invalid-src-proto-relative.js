@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -7,7 +7,7 @@ const Page = () => {
       <p>Invalid Protocol Relative Source</p>
       <Image src="//assets.example.com/img.jpg" width="10" height="10" />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

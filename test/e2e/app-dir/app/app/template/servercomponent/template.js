@@ -1,4 +1,4 @@
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function Template({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function Template({ children }) {
       </h1>
       {children}
     </>
-  )
+  );
 }

@@ -1,9 +1,9 @@
-import { graphql, useRelayEnvironment, QueryRenderer } from 'react-relay'
+import { graphql, useRelayEnvironment, QueryRenderer } from "react-relay";
 
-import type { pagesQueryResponse } from '@/types/pagesQuery.graphql'
+import type { pagesQueryResponse } from "@/types/pagesQuery.graphql";
 
 function Component() {
-  const env = useRelayEnvironment()
+  const env = useRelayEnvironment();
   return (
     <QueryRenderer
       environment={env}
@@ -23,13 +23,13 @@ function Component() {
             <div>
               Data requested: <span>{props.viewer.user.id}</span>
             </div>
-          )
+          );
         }
 
-        return <div>Loading...</div>
+        return <div>Loading...</div>;
       }}
     />
-  )
+  );
 }
 
-export default Component
+export default Component;

@@ -11,24 +11,24 @@ You are using a Middleware function that uses `Response.redirect(url)`, `NextRes
 To fix this error you must always pass absolute URL for redirecting and rewriting. There are several ways to get the absolute URL but the recommended way is to clone `NextURL` and mutate it:
 
 ```ts filename="middleware.ts"
-import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const url = request.nextUrl.clone()
-  url.pathname = '/dest'
-  return NextResponse.rewrite(url)
+  const url = request.nextUrl.clone();
+  url.pathname = "/dest";
+  return NextResponse.rewrite(url);
 }
 ```
 
 Another way to fix this error could be to use the original URL as the base but this will not consider configuration like `basePath` or `locale`:
 
 ```ts filename="middleware.ts"
-import type { NextRequest } from 'next/server'
-import { NextResponse } from 'next/server'
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  return NextResponse.rewrite(new URL('/dest', request.url))
+  return NextResponse.rewrite(new URL("/dest", request.url));
 }
 ```
 

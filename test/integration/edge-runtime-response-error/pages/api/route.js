@@ -1,5 +1,5 @@
 export default async function handler(request) {
-  return 'Boom'
+  return "Boom";
 }
 
-export const config = { runtime: 'edge' }
+export const config = { runtime: "edge" };

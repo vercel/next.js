@@ -28,12 +28,12 @@ To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you c
 Open `next.config.js` and add the `assetPrefix` config:
 
 ```js filename="next.config.js"
-const isProd = process.env.NODE_ENV === 'production'
+const isProd = process.env.NODE_ENV === "production";
 
 module.exports = {
   // Use the CDN in production and localhost for development.
-  assetPrefix: isProd ? 'https://cdn.mydomain.com' : undefined,
-}
+  assetPrefix: isProd ? "https://cdn.mydomain.com" : undefined,
+};
 ```
 
 Next.js will automatically use your asset prefix for the JavaScript and CSS files it loads from the `/_next/` path (`.next/static/` folder). For example, with the above configuration, the following request for a JS chunk:

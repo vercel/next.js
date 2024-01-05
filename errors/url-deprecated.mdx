@@ -1,5 +1,5 @@
 ---
-title: '`url` is deprecated'
+title: "`url` is deprecated"
 ---
 
 ## Why This Error Occurred
@@ -20,17 +20,17 @@ The `router` property that is injected will hold the same values as `url`, like 
 Here's an example of using `withRouter`:
 
 ```js filename="pages/index.js"
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 
 class Page extends React.Component {
   render() {
-    const { router } = this.props
-    console.log(router)
-    return <div>{router.pathname}</div>
+    const { router } = this.props;
+    console.log(router);
+    return <div>{router.pathname}</div>;
   }
 }
 
-export default withRouter(Page)
+export default withRouter(Page);
 ```
 
 We provide a codemod (a code to code transformation) to automatically change the `url` property usages to `withRouter`.

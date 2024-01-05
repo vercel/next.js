@@ -5,5 +5,5 @@ export default function Root({ children }: { children: React.ReactNode }) {
     <html>
       <body>{children}</body>
     </html>
-  )
+  );
 }

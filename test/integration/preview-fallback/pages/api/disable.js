@@ -1,4 +1,4 @@
 export default (req, res) => {
-  res.clearPreviewData({})
-  res.end('disabled')
-}
+  res.clearPreviewData({});
+  res.end("disabled");
+};

@@ -1,7 +1,7 @@
-import Foo from '../components/Foo'
-import Bar from '../components/Bar'
+import Foo from "../components/Foo";
+import Bar from "../components/Bar";
 
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default () => (
   <div>
@@ -13,4 +13,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+);

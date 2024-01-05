@@ -1,5 +1,5 @@
-import React from 'react'
-import ClientComponent from './client-component'
+import React from "react";
+import ClientComponent from "./client-component";
 
 export default ({ searchParams }) => {
   return (
@@ -7,5 +7,5 @@ export default ({ searchParams }) => {
       <div id="search-params">{JSON.stringify(searchParams)}</div>
       <ClientComponent />
     </div>
-  )
-}
+  );
+};

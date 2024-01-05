@@ -1,11 +1,11 @@
-import Link from 'next/link'
-import { getData } from './actions'
+import Link from "next/link";
+import { getData } from "./actions";
 
 export default async function Home() {
-  const data = await getData()
+  const data = await getData();
   const randomNumber = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  ).then((res) => res.text())
+    "https://next-data-api-endpoint.vercel.app/api/random"
+  ).then((res) => res.text());
 
   return (
     <div>
@@ -22,5 +22,5 @@ export default async function Home() {
         </ul>
       </div>
     </div>
-  )
+  );
 }

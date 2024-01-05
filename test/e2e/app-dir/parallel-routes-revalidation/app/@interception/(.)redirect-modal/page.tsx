@@ -1,5 +1,5 @@
-import { RedirectForm } from '../../components/RedirectForm'
-import { redirectAction } from '../../actions'
+import { RedirectForm } from "../../components/RedirectForm";
+import { redirectAction } from "../../actions";
 
 export default function Page() {
   return (
@@ -10,5 +10,5 @@ export default function Page() {
 
       <RedirectForm action={redirectAction} />
     </dialog>
-  )
+  );
 }

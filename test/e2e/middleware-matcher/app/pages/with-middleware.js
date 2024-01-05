@@ -4,13 +4,13 @@ export default function Page({ message }) {
       <p>This should run the middleware</p>
       <p>{message}</p>
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = () => {
   return {
     props: {
-      message: 'Hello, cruel world.',
+      message: "Hello, cruel world.",
     },
-  }
-}
+  };
+};

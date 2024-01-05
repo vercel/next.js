@@ -1,4 +1,4 @@
-import { normalizePathSep } from './normalize-path-sep'
+import { normalizePathSep } from "./normalize-path-sep";
 
 /**
  * Removes the file extension for a page and the trailing `index` if it exists
@@ -14,18 +14,18 @@ import { normalizePathSep } from './normalize-path-sep'
 export function removePagePathTail(
   pagePath: string,
   options: {
-    extensions: ReadonlyArray<string>
-    keepIndex?: boolean
+    extensions: ReadonlyArray<string>;
+    keepIndex?: boolean;
   }
 ) {
   pagePath = normalizePathSep(pagePath).replace(
-    new RegExp(`\\.+(?:${options.extensions.join('|')})$`),
-    ''
-  )
+    new RegExp(`\\.+(?:${options.extensions.join("|")})$`),
+    ""
+  );
 
   if (options.keepIndex !== true) {
-    pagePath = pagePath.replace(/\/index$/, '') || '/'
+    pagePath = pagePath.replace(/\/index$/, "") || "/";
   }
 
-  return pagePath
+  return pagePath;
 }

@@ -1,9 +1,9 @@
-import { NonSuspensePage } from '../../../../components/page'
+import { NonSuspensePage } from "../../../../components/page";
 
 export default function Page() {
-  return <NonSuspensePage />
+  return <NonSuspensePage />;
 }
 
 export const generateStaticParams = async () => {
-  return []
-}
+  return [];
+};

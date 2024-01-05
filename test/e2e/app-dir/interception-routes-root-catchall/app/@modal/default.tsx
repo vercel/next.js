@@ -1,3 +1,3 @@
 export default function Default() {
-  return <div>default @modal</div>
+  return <div>default @modal</div>;
 }

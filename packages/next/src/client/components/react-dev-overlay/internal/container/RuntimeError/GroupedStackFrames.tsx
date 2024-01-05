@@ -1,16 +1,16 @@
-import React from 'react'
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
-import { CallStackFrame } from './CallStackFrame'
-import { FrameworkIcon } from './FrameworkIcon'
+import React from "react";
+import type { StackFramesGroup } from "../../helpers/group-stack-frames-by-framework";
+import { CallStackFrame } from "./CallStackFrame";
+import { FrameworkIcon } from "./FrameworkIcon";
 
 function FrameworkGroup({
   framework,
   stackFrames,
   all,
 }: {
-  framework: NonNullable<StackFramesGroup['framework']>
-  stackFrames: StackFramesGroup['stackFrames']
-  all: boolean
+  framework: NonNullable<StackFramesGroup["framework"]>;
+  stackFrames: StackFramesGroup["stackFrames"];
+  all: boolean;
 }) {
   return (
     <>
@@ -33,7 +33,7 @@ function FrameworkGroup({
             <path d="M9 18l6-6-6-6" />
           </svg>
           <FrameworkIcon framework={framework} />
-          {framework === 'react' ? 'React' : 'Next.js'}
+          {framework === "react" ? "React" : "Next.js"}
         </summary>
 
         {stackFrames.map((frame, index) => (
@@ -41,15 +41,15 @@ function FrameworkGroup({
         ))}
       </details>
     </>
-  )
+  );
 }
 
 export function GroupedStackFrames({
   groupedStackFrames,
   all,
 }: {
-  groupedStackFrames: StackFramesGroup[]
-  all: boolean
+  groupedStackFrames: StackFramesGroup[];
+  all: boolean;
 }) {
   return (
     <>
@@ -63,7 +63,7 @@ export function GroupedStackFrames({
               stackFrames={stackFramesGroup.stackFrames}
               all={all}
             />
-          )
+          );
         }
 
         return (
@@ -74,8 +74,8 @@ export function GroupedStackFrames({
               frame={frame}
             />
           ))
-        )
+        );
       })}
     </>
-  )
+  );
 }

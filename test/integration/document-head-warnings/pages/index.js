@@ -8,7 +8,7 @@ function Hi() {
         }
       `}</style>
     </div>
-  )
+  );
 }
 
-export default Hi
+export default Hi;

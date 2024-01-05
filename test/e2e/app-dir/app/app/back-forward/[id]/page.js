@@ -1,17 +1,17 @@
-'use client'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function Page({ params }) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <h1 id={`message-${params.id}`}>Hello from {params.id}</h1>
       <Link
-        href={params.id === '1' ? '/back-forward/2' : '/back-forward/1'}
+        href={params.id === "1" ? "/back-forward/2" : "/back-forward/1"}
         id="to-other-page"
       >
-        Go to {params.id === '1' ? '2' : '1'}
+        Go to {params.id === "1" ? "2" : "1"}
       </Link>
       <button onClick={() => router.back()} id="back-button">
         Back
@@ -20,5 +20,5 @@ export default function Page({ params }) {
         Forward
       </button>
     </>
-  )
+  );
 }

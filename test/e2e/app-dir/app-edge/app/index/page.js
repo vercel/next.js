@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>the /index route</p>
+  return <p>the /index route</p>;
 }
 
-export const runtime = 'edge'
+export const runtime = "edge";

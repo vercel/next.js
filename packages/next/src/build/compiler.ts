@@ -1,29 +1,29 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { Span } from '../trace'
+import { webpack } from "next/dist/compiled/webpack/webpack";
+import type { Span } from "../trace";
 
 export type CompilerResult = {
-  errors: webpack.StatsError[]
-  warnings: webpack.StatsError[]
-  stats: webpack.Stats | undefined
-}
+  errors: webpack.StatsError[];
+  warnings: webpack.StatsError[];
+  stats: webpack.Stats | undefined;
+};
 
 function generateStats(
   result: CompilerResult,
   stat: webpack.Stats
 ): CompilerResult {
   const { errors, warnings } = stat.toJson({
-    preset: 'errors-warnings',
+    preset: "errors-warnings",
     moduleTrace: true,
-  })
+  });
   if (errors && errors.length > 0) {
-    result.errors.push(...errors)
+    result.errors.push(...errors);
   }
 
   if (warnings && warnings.length > 0) {
-    result.warnings.push(...warnings)
+    result.warnings.push(...warnings);
   }
 
-  return result
+  return result;
 }
 
 // Webpack 5 requires the compiler to be closed (to save caches)
@@ -31,8 +31,8 @@ function generateStats(
 function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
   return new Promise<void>((resolve, reject) => {
     // @ts-ignore Close only exists on the compiler in webpack 5
-    return compiler.close((err: any) => (err ? reject(err) : resolve()))
-  })
+    return compiler.close((err: any) => (err ? reject(err) : resolve()));
+  });
 }
 
 export function runCompiler(
@@ -43,21 +43,21 @@ export function runCompiler(
   }: { runWebpackSpan: Span; inputFileSystem?: any }
 ): Promise<[result: CompilerResult, inputFileSystem?: any]> {
   return new Promise((resolve, reject) => {
-    const compiler = webpack(config) as unknown as webpack.Compiler
+    const compiler = webpack(config) as unknown as webpack.Compiler;
     // Ensure we use the previous inputFileSystem
     if (inputFileSystem) {
-      compiler.inputFileSystem = inputFileSystem
+      compiler.inputFileSystem = inputFileSystem;
     }
-    compiler.fsStartTime = Date.now()
+    compiler.fsStartTime = Date.now();
     compiler.run((err, stats) => {
-      const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
-        name: config.name || 'unknown',
-      })
+      const webpackCloseSpan = runWebpackSpan.traceChild("webpack-close", {
+        name: config.name || "unknown",
+      });
       webpackCloseSpan
         .traceAsyncFn(() => closeCompiler(compiler))
         .then(() => {
           if (err) {
-            const reason = err.stack ?? err.toString()
+            const reason = err.stack ?? err.toString();
             if (reason) {
               return resolve([
                 {
@@ -66,18 +66,18 @@ export function runCompiler(
                   stats,
                 },
                 compiler.inputFileSystem,
-              ])
+              ]);
             }
-            return reject(err)
-          } else if (!stats) throw new Error('No Stats from webpack')
+            return reject(err);
+          } else if (!stats) throw new Error("No Stats from webpack");
 
           const result = webpackCloseSpan
-            .traceChild('webpack-generate-error-stats')
+            .traceChild("webpack-generate-error-stats")
             .traceFn(() =>
               generateStats({ errors: [], warnings: [], stats }, stats)
-            )
-          return resolve([result, compiler.inputFileSystem])
-        })
-    })
-  })
+            );
+          return resolve([result, compiler.inputFileSystem]);
+        });
+    });
+  });
 }

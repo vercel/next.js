@@ -1,6 +1,6 @@
-import type { CacheFs } from '../../shared/lib/utils'
+import type { CacheFs } from "../../shared/lib/utils";
 
-import fs from 'fs'
+import fs from "fs";
 
 export const nodeFs: CacheFs = {
   existsSync: fs.existsSync,
@@ -9,4 +9,4 @@ export const nodeFs: CacheFs = {
   writeFile: (f, d) => fs.promises.writeFile(f, d),
   mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
   stat: (f) => fs.promises.stat(f),
-}
+};

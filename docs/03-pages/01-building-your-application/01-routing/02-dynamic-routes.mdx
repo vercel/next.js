@@ -22,11 +22,11 @@ Dynamic Segments can be accessed from [`useRouter`](/docs/pages/api-reference/fu
 For example, a blog could include the following route `pages/blog/[slug].js` where `[slug]` is the Dynamic Segment for blog posts.
 
 ```jsx
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
-  return <p>Post: {router.query.slug}</p>
+  const router = useRouter();
+  return <p>Post: {router.query.slug}</p>;
 }
 ```
 

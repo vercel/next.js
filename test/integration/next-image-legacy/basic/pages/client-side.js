@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import Link from 'next/link'
+import React from "react";
+import Image from "next/legacy/image";
+import Link from "next/link";
 
 const ClientSide = () => {
   return (
@@ -92,7 +92,7 @@ const ClientSide = () => {
         Errors
       </Link>
     </div>
-  )
-}
+  );
+};
 
-export default ClientSide
+export default ClientSide;

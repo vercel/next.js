@@ -1,5 +1,5 @@
-import { Server } from './server'
-import { Client } from './client'
+import { Server } from "./server";
+import { Client } from "./client";
 
 export default async function Page() {
   return (
@@ -9,5 +9,5 @@ export default async function Page() {
       <hr />
       <Client />
     </>
-  )
+  );
 }

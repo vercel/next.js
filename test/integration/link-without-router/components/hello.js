@@ -1,6 +1,6 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default function Hello() {
-  return <Link href="/">Click me</Link>
+  return <Link href="/">Click me</Link>;
 }

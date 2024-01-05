@@ -1,34 +1,34 @@
-import { sandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import path from 'path'
-import { describeVariants as describe } from 'next-test-utils'
-import { outdent } from 'outdent'
+import { sandbox } from "development-sandbox";
+import { FileRef, nextTestSetup } from "e2e-utils";
+import path from "path";
+import { describeVariants as describe } from "next-test-utils";
+import { outdent } from "outdent";
 
 // TODO-APP: Investigate snapshot mismatch
-describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
+describe.each(["default", "turbo"])("ReactRefreshLogBox app %s", () => {
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    files: new FileRef(path.join(__dirname, "fixtures", "default-template")),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: "latest",
+      "react-dom": "latest",
     },
     skipStart: true,
-  })
+  });
 
   // Module trace is only available with webpack 5
-  test('Node.js builtins', async () => {
+  test("Node.js builtins", async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
         [
-          'node_modules/my-package/index.js',
+          "node_modules/my-package/index.js",
           outdent`
             const dns = require('dns')
             module.exports = dns
           `,
         ],
         [
-          'node_modules/my-package/package.json',
+          "node_modules/my-package/package.json",
           outdent`
             {
               "name": "my-package",
@@ -37,10 +37,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           `,
         ],
       ])
-    )
+    );
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import pkg from 'my-package'
 
@@ -48,8 +48,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           return (pkg ? <h1>Package loaded</h1> : <h1>Package did not load</h1>)
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "./node_modules/my-package/index.js:1:12
       Module not found: Can't resolve 'dns'
@@ -59,16 +59,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       Import trace for requested module:
       ./index.js
       ./app/page.js"
-    `)
+    `);
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Module not found', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("Module not found", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Comp from 'b'
         export default function Oops() {
@@ -79,11 +79,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    const source = await session.getRedboxSource()
+    const source = await session.getRedboxSource();
     expect(source).toMatchInlineSnapshot(`
       "./index.js:1:0
       Module not found: Can't resolve 'b'
@@ -96,16 +96,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
       Import trace for requested module:
       ./app/page.js"
-    `)
+    `);
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Module not found empty import trace', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("Module not found empty import trace", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'app/page.js',
+      "app/page.js",
       outdent`
         'use client'
         import Comp from 'b'
@@ -117,11 +117,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    const source = await session.getRedboxSource()
+    const source = await session.getRedboxSource();
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
         "./app/page.js:2:0
@@ -134,7 +134,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           5 |     <div>
 
         https://nextjs.org/docs/messages/module-not-found"
-      `)
+      `);
     } else {
       expect(source).toMatchInlineSnapshot(`
               "./app/page.js:2:0
@@ -146,18 +146,18 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                 5 |     <div>
 
               https://nextjs.org/docs/messages/module-not-found"
-          `)
+          `);
     }
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Module not found missing global CSS', async () => {
+  test("Module not found missing global CSS", async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
         [
-          'app/page.js',
+          "app/page.js",
           outdent`
             'use client'
             import './non-existent.css'
@@ -167,10 +167,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           `,
         ],
       ])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    const source = await session.getRedboxSource()
+    const source = await session.getRedboxSource();
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
         "./app/page.js:2:0
@@ -183,7 +183,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           5 | }
 
         https://nextjs.org/docs/messages/module-not-found"
-      `)
+      `);
     } else {
       expect(source).toMatchInlineSnapshot(`
               "./app/page.js:2:0
@@ -195,22 +195,22 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                 5 | }
 
               https://nextjs.org/docs/messages/module-not-found"
-          `)
+          `);
     }
     await session.patch(
-      'app/page.js',
+      "app/page.js",
       outdent`
         'use client'
         export default function Page(props) {
           return <p>index page</p>
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
-    ).toContain('index page')
+    ).toContain("index page");
 
-    await cleanup()
-  })
-})
+    await cleanup();
+  });
+});

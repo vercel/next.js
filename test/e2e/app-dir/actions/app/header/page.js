@@ -1,15 +1,15 @@
-import UI from './ui'
+import UI from "./ui";
 
 import {
   getCookie,
   getHeader,
   setCookie,
   setCookieAndRedirect,
-} from './actions'
-import { validator } from './validator'
+} from "./actions";
+import { validator } from "./validator";
 
 export default function Page() {
-  const prefix = 'Prefix:'
+  const prefix = "Prefix:";
   return (
     <UI
       getCookie={getCookie}
@@ -17,9 +17,9 @@ export default function Page() {
       setCookie={setCookie}
       setCookieAndRedirect={setCookieAndRedirect}
       getAuthedUppercase={validator(async (str) => {
-        'use server'
-        return prefix + ' ' + str.toUpperCase()
+        "use server";
+        return prefix + " " + str.toUpperCase();
       })}
     />
-  )
+  );
 }

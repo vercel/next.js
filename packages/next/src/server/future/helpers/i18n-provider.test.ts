@@ -1,30 +1,30 @@
-import type { DomainLocale } from '../../config'
-import { I18NProvider } from './i18n-provider'
-import type { LocaleAnalysisResult } from './i18n-provider'
+import type { DomainLocale } from "../../config";
+import { I18NProvider } from "./i18n-provider";
+import type { LocaleAnalysisResult } from "./i18n-provider";
 
-describe('I18NProvider', () => {
+describe("I18NProvider", () => {
   const config = {
-    defaultLocale: 'en',
-    locales: ['en', 'fr', 'en-CA'],
+    defaultLocale: "en",
+    locales: ["en", "fr", "en-CA"],
     domains: [
       {
-        domain: 'example.com',
-        defaultLocale: 'en',
-        locales: ['en-CA'],
+        domain: "example.com",
+        defaultLocale: "en",
+        locales: ["en-CA"],
       },
       {
-        domain: 'example.fr',
-        defaultLocale: 'fr',
+        domain: "example.fr",
+        defaultLocale: "fr",
       },
     ],
-  }
-  const provider = new I18NProvider(config)
+  };
+  const provider = new I18NProvider(config);
 
-  describe('detectDomainLocale', () => {
+  describe("detectDomainLocale", () => {
     it.each<{
-      domain: string | undefined
-      detectedLocale: string | undefined
-      expected: DomainLocale | undefined
+      domain: string | undefined;
+      detectedLocale: string | undefined;
+      expected: DomainLocale | undefined;
     }>([
       // Verify domains.
       ...config.domains.map((domainLocale) => ({
@@ -35,51 +35,51 @@ describe('I18NProvider', () => {
 
       // Verify not-found domains.
       {
-        domain: 'example.de',
+        domain: "example.de",
         detectedLocale: undefined,
         expected: undefined,
       },
 
       // Verify that the other detected locale will support the domain.
       {
-        domain: 'example.ca',
-        detectedLocale: 'en-CA',
+        domain: "example.ca",
+        detectedLocale: "en-CA",
         expected: config.domains.find((domainLocale) =>
-          domainLocale.locales?.includes('en-CA')
+          domainLocale.locales?.includes("en-CA")
         ),
       },
-    ])('for domain $domain', ({ domain, detectedLocale, expected }) => {
+    ])("for domain $domain", ({ domain, detectedLocale, expected }) => {
       expect(provider.detectDomainLocale(domain, detectedLocale)).toEqual(
         expected
-      )
-    })
-  })
+      );
+    });
+  });
 
-  it('should detect the correct domain locale', () => {
-    expect(provider.detectDomainLocale('example.com')).toEqual({
-      domain: 'example.com',
-      defaultLocale: 'en',
-      locales: ['en-CA'],
-    })
-    expect(provider.detectDomainLocale('example.fr')).toEqual({
-      domain: 'example.fr',
-      defaultLocale: 'fr',
-    })
-    expect(provider.detectDomainLocale('example.de')).toBeUndefined()
-  })
+  it("should detect the correct domain locale", () => {
+    expect(provider.detectDomainLocale("example.com")).toEqual({
+      domain: "example.com",
+      defaultLocale: "en",
+      locales: ["en-CA"],
+    });
+    expect(provider.detectDomainLocale("example.fr")).toEqual({
+      domain: "example.fr",
+      defaultLocale: "fr",
+    });
+    expect(provider.detectDomainLocale("example.de")).toBeUndefined();
+  });
 
-  describe('analyze', () => {
+  describe("analyze", () => {
     it.each<{
-      pathname: string
-      defaultLocale: string | undefined
-      expected: LocaleAnalysisResult
+      pathname: string;
+      defaultLocale: string | undefined;
+      expected: LocaleAnalysisResult;
     }>([
       // Verify un-prefixed index routes.
       {
-        pathname: '/',
+        pathname: "/",
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/',
+          pathname: "/",
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -87,10 +87,10 @@ describe('I18NProvider', () => {
 
       // Verify un-prefixed other routes.
       {
-        pathname: '/another/page',
+        pathname: "/another/page",
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page',
+          pathname: "/another/page",
           detectedLocale: config.defaultLocale,
           inferredFromDefault: true,
         },
@@ -101,7 +101,7 @@ describe('I18NProvider', () => {
         pathname: `/${locale}`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/',
+          pathname: "/",
           detectedLocale: locale,
           inferredFromDefault: false,
         },
@@ -112,16 +112,16 @@ describe('I18NProvider', () => {
         pathname: `/${locale}/another/page`,
         defaultLocale: config.defaultLocale,
         expected: {
-          pathname: '/another/page',
+          pathname: "/another/page",
           detectedLocale: locale,
           inferredFromDefault: false,
         },
       })),
     ])(
-      'for pathname $pathname and defaultLocale $defaultLocale',
+      "for pathname $pathname and defaultLocale $defaultLocale",
       ({ pathname, defaultLocale, expected }) => {
-        expect(provider.analyze(pathname, { defaultLocale })).toEqual(expected)
+        expect(provider.analyze(pathname, { defaultLocale })).toEqual(expected);
       }
-    )
-  })
-})
+    );
+  });
+});

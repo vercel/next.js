@@ -1,5 +1,5 @@
-import { getRSCModuleInformation } from '../../analysis/get-page-static-info'
-import { getModuleBuildInfo } from './get-module-build-info'
+import { getRSCModuleInformation } from "../../analysis/get-page-static-info";
+import { getModuleBuildInfo } from "./get-module-build-info";
 
 export default function transformSource(
   this: any,
@@ -7,13 +7,13 @@ export default function transformSource(
   sourceMap: any
 ) {
   // Avoid buffer to be consumed
-  if (typeof source !== 'string') {
-    throw new Error('Expected source to have been transformed to a string.')
+  if (typeof source !== "string") {
+    throw new Error("Expected source to have been transformed to a string.");
   }
 
   // Assign the RSC meta information to buildInfo.
-  const buildInfo = getModuleBuildInfo(this._module)
-  buildInfo.rsc = getRSCModuleInformation(source, false)
+  const buildInfo = getModuleBuildInfo(this._module);
+  buildInfo.rsc = getRSCModuleInformation(source, false);
 
   // This is a server action entry module in the client layer. We need to attach
   // noop exports of `callServer` wrappers for each action.
@@ -26,8 +26,8 @@ function __build_action__(action, args) {
 }
 
 ${source}
-`
+`;
   }
 
-  return this.callback(null, source, sourceMap)
+  return this.callback(null, source, sourceMap);
 }

@@ -6,5 +6,5 @@
  *   - `/` -> `/`
  */
 export function removeTrailingSlash(route: string) {
-  return route.replace(/\/$/, '') || '/'
+  return route.replace(/\/$/, "") || "/";
 }

@@ -6,37 +6,37 @@ description: API reference for `getStaticProps`. Learn how to use `getStaticProp
 Exporting a function called `getStaticProps` will pre-render a page at build time using the props returned from the function:
 
 ```tsx filename="pages/index.tsx" switcher
-import type { InferGetStaticPropsType, GetStaticProps } from 'next'
+import type { InferGetStaticPropsType, GetStaticProps } from "next";
 
 type Repo = {
-  name: string
-  stargazers_count: number
-}
+  name: string;
+  stargazers_count: number;
+};
 
 export const getStaticProps = (async (context) => {
-  const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
-  return { props: { repo } }
+  const res = await fetch("https://api.github.com/repos/vercel/next.js");
+  const repo = await res.json();
+  return { props: { repo } };
 }) satisfies GetStaticProps<{
-  repo: Repo
-}>
+  repo: Repo;
+}>;
 
 export default function Page({
   repo,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  return repo.stargazers_count
+  return repo.stargazers_count;
 }
 ```
 
 ```jsx filename="pages/index.js" switcher
 export async function getStaticPaths() {
-  const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
-  return { props: { repo } }
+  const res = await fetch("https://api.github.com/repos/vercel/next.js");
+  const repo = await res.json();
+  return { props: { repo } };
 }
 
 export default function Page({ repo }) {
-  return repo.stargazers_count
+  return repo.stargazers_count;
 }
 ```
 
@@ -68,7 +68,7 @@ The `props` object is a key-value pair, where each value is received by the page
 export async function getStaticProps(context) {
   return {
     props: { message: `Next.js is awesome` }, // will be passed to the page component as props
-  }
+  };
 }
 ```
 
@@ -81,8 +81,8 @@ The `revalidate` property is the amount in seconds after which a page re-generat
 // It may be called again, on a serverless function, if
 // revalidation is enabled and a new request comes in
 export async function getStaticProps() {
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const res = await fetch("https://.../posts");
+  const posts = await res.json();
 
   return {
     props: {
@@ -92,7 +92,7 @@ export async function getStaticProps() {
     // - When a request comes in
     // - At most once every 10 seconds
     revalidate: 10, // In seconds
-  }
+  };
 }
 ```
 
@@ -110,18 +110,18 @@ The `notFound` boolean allows the page to return a `404` status and [404 Page](/
 
 ```js
 export async function getStaticProps(context) {
-  const res = await fetch(`https://.../data`)
-  const data = await res.json()
+  const res = await fetch(`https://.../data`);
+  const data = await res.json();
 
   if (!data) {
     return {
       notFound: true,
-    }
+    };
   }
 
   return {
     props: { data }, // will be passed to the page component as props
-  }
+  };
 }
 ```
 
@@ -135,22 +135,22 @@ In some rare cases, you might need to assign a custom status code for older `HTT
 
 ```js
 export async function getStaticProps(context) {
-  const res = await fetch(`https://...`)
-  const data = await res.json()
+  const res = await fetch(`https://...`);
+  const data = await res.json();
 
   if (!data) {
     return {
       redirect: {
-        destination: '/',
+        destination: "/",
         permanent: false,
         // statusCode: 301
       },
-    }
+    };
   }
 
   return {
     props: { data }, // will be passed to the page component as props
-  }
+  };
 }
 ```
 
@@ -167,8 +167,8 @@ Since Next.js compiles your code into a separate directory you can't use `__dirn
 Instead you can use `process.cwd()` which gives you the directory where Next.js is being executed.
 
 ```jsx
-import { promises as fs } from 'fs'
-import path from 'path'
+import { promises as fs } from "fs";
+import path from "path";
 
 // posts will be populated at build time by getStaticProps()
 function Blog({ posts }) {
@@ -181,19 +181,19 @@ function Blog({ posts }) {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
 // This function gets called at build time on server-side.
 // It won't be called on client-side, so you can even do
 // direct database queries.
 export async function getStaticProps() {
-  const postsDirectory = path.join(process.cwd(), 'posts')
-  const filenames = await fs.readdir(postsDirectory)
+  const postsDirectory = path.join(process.cwd(), "posts");
+  const filenames = await fs.readdir(postsDirectory);
 
   const posts = filenames.map(async (filename) => {
-    const filePath = path.join(postsDirectory, filename)
-    const fileContents = await fs.readFile(filePath, 'utf8')
+    const filePath = path.join(postsDirectory, filename);
+    const fileContents = await fs.readFile(filePath, "utf8");
 
     // Generally you would parse/transform the contents
     // For example you can transform markdown to HTML here
@@ -201,18 +201,18 @@ export async function getStaticProps() {
     return {
       filename,
       content: fileContents,
-    }
-  })
+    };
+  });
   // By returning { props: { posts } }, the Blog component
   // will receive `posts` as a prop at build time
   return {
     props: {
       posts: await Promise.all(posts),
     },
-  }
+  };
 }
 
-export default Blog
+export default Blog;
 ```
 
 ## Version History

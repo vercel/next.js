@@ -1,7 +1,7 @@
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 
 function useWithRouter(props) {
-  return <div>I use withRouter</div>
+  return <div>I use withRouter</div>;
 }
 
 // we add getServerSideProps to prevent static optimization
@@ -9,7 +9,7 @@ function useWithRouter(props) {
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
-export default withRouter(useWithRouter)
+export default withRouter(useWithRouter);

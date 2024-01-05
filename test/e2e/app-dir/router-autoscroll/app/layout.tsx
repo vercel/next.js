@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import React, { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from "next/link";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const router = useRouter();
 
   // We export these so that we can access them from tests
   useEffect(() => {
     // @ts-ignore
-    window.router = router
+    window.router = router;
     // @ts-ignore
-    window.React = React
-  }, [router])
+    window.React = React;
+  }, [router]);
 
   return (
     <html>
@@ -25,7 +25,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         <div
           style={{
-            position: 'fixed',
+            position: "fixed",
             top: 0,
             left: 0,
           }}
@@ -35,5 +35,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

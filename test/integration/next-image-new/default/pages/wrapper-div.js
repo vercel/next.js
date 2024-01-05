@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -21,9 +21,9 @@ const Page = () => {
           width="1200"
           height="700"
           style={{
-            paddingLeft: '4rem',
-            width: '100%',
-            objectPosition: '30% 30%',
+            paddingLeft: "4rem",
+            width: "100%",
+            objectPosition: "30% 30%",
           }}
           sizes="50vh"
         />
@@ -44,11 +44,11 @@ const Page = () => {
           width="400"
           height="400"
           loading="eager"
-          style={{ width: '50%', height: 'auto' }}
+          style={{ width: "50%", height: "auto" }}
         />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

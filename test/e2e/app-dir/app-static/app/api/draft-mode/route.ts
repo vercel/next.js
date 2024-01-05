@@ -1,16 +1,16 @@
-import { draftMode } from 'next/headers'
-import { NextRequest, NextResponse } from 'next/server'
+import { draftMode } from "next/headers";
+import { NextRequest, NextResponse } from "next/server";
 
 export function GET(req: NextRequest) {
-  const status = req.nextUrl.searchParams.get('status')
+  const status = req.nextUrl.searchParams.get("status");
 
-  if (status === 'enable') {
-    draftMode().enable()
+  if (status === "enable") {
+    draftMode().enable();
   } else {
-    draftMode().disable()
+    draftMode().disable();
   }
 
   return NextResponse.json({
     status,
-  })
+  });
 }

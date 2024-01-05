@@ -1,12 +1,12 @@
-import { promises as fs } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
-import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
+import { promises as fs } from "node:fs";
+import { fileURLToPath } from "node:url";
+import FileSystemCache from "next/dist/server/lib/incremental-cache/file-system-cache";
+import { nodeFs } from "next/dist/server/lib/node-fs-methods";
 
-const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
+const cacheDir = fileURLToPath(new URL("./cache", import.meta.url));
 
-describe('FileSystemCache', () => {
-  it('set image route', async () => {
+describe("FileSystemCache", () => {
+  it("set image route", async () => {
     const fsCache = new FileSystemCache({
       _appDir: true,
       _pagesDir: true,
@@ -18,37 +18,37 @@ describe('FileSystemCache', () => {
       experimental: {
         ppr: false,
       },
-    })
+    });
 
     const binary = await fs.readFile(
-      fileURLToPath(new URL('./images/icon.png', import.meta.url))
-    )
+      fileURLToPath(new URL("./images/icon.png", import.meta.url))
+    );
 
     await fsCache.set(
-      'icon.png',
+      "icon.png",
       {
         body: binary,
         headers: {
-          'Content-Type': 'image/png',
+          "Content-Type": "image/png",
         },
         status: 200,
-        kind: 'ROUTE',
+        kind: "ROUTE",
       },
       {}
-    )
+    );
 
-    expect((await fsCache.get('icon.png')).value).toEqual({
+    expect((await fsCache.get("icon.png")).value).toEqual({
       body: binary,
       headers: {
-        'Content-Type': 'image/png',
+        "Content-Type": "image/png",
       },
       status: 200,
-      kind: 'ROUTE',
-    })
-  })
-})
+      kind: "ROUTE",
+    });
+  });
+});
 
-describe('FileSystemCache (isrMemory 0)', () => {
+describe("FileSystemCache (isrMemory 0)", () => {
   const fsCache = new FileSystemCache({
     _appDir: true,
     _pagesDir: true,
@@ -61,69 +61,69 @@ describe('FileSystemCache (isrMemory 0)', () => {
       ppr: false,
     },
     maxMemoryCacheSize: 0, // disable memory cache
-  })
+  });
 
-  it('should cache fetch', async () => {
+  it("should cache fetch", async () => {
     await fsCache.set(
-      'fetch-cache',
+      "fetch-cache",
       {
-        kind: 'FETCH',
+        kind: "FETCH",
         data: {
           headers: {},
-          body: 'MTcwMDA1NjM4MQ==',
+          body: "MTcwMDA1NjM4MQ==",
           status: 200,
-          url: 'http://my-api.local',
+          url: "http://my-api.local",
         },
         revalidate: 30,
       },
       {
         fetchCache: true,
         revalidate: 30,
-        fetchUrl: 'http://my-api.local',
+        fetchUrl: "http://my-api.local",
         fetchIdx: 5,
-        tags: ['server-time'],
+        tags: ["server-time"],
       }
-    )
+    );
 
-    const res = await fsCache.get('fetch-cache', {
-      tags: ['server-time'],
-      kindHint: 'fetch',
-    })
+    const res = await fsCache.get("fetch-cache", {
+      tags: ["server-time"],
+      kindHint: "fetch",
+    });
 
     expect(res.value).toEqual({
-      kind: 'FETCH',
+      kind: "FETCH",
       data: {
         headers: {},
-        body: 'MTcwMDA1NjM4MQ==',
+        body: "MTcwMDA1NjM4MQ==",
         status: 200,
-        url: 'http://my-api.local',
+        url: "http://my-api.local",
       },
       revalidate: 30,
-      tags: ['server-time'],
-    })
-  })
+      tags: ["server-time"],
+    });
+  });
 
-  it('should cache unstable_cache', async () => {
+  it("should cache unstable_cache", async () => {
     await fsCache.set(
-      'unstable-cache',
+      "unstable-cache",
       {
-        kind: 'FETCH',
-        data: { headers: {}, body: '1700056381', status: 200, url: '' },
+        kind: "FETCH",
+        data: { headers: {}, body: "1700056381", status: 200, url: "" },
         revalidate: 30,
       },
-      { revalidate: 30, fetchCache: true, tags: ['server-time2'] }
-    )
+      { revalidate: 30, fetchCache: true, tags: ["server-time2"] }
+    );
 
-    const res = await fsCache.get('unstable-cache', {
-      tags: ['server-time'],
-      kindHint: 'fetch',
-    })
+    const res = await fsCache.get("unstable-cache", {
+      tags: ["server-time"],
+      kindHint: "fetch",
+    });
 
     expect(res.value).toEqual({
-      kind: 'FETCH',
-      data: { headers: {}, body: '1700056381', status: 200, url: '' },
+      kind: "FETCH",
+      data: { headers: {}, body: "1700056381", status: 200, url: "" },
       revalidate: 30,
-      tags: ['server-time2'],
-    })
-  })
-})
+      tags: ["server-time2"],
+    });
+  });
+});

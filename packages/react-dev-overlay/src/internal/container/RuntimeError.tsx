@@ -1,43 +1,43 @@
-import * as React from 'react'
-import type { StackFrame } from 'stacktrace-parser'
-import { CodeFrame } from '../components/CodeFrame'
-import type { ReadyRuntimeError } from '../helpers/getErrorByType'
-import { noop as css } from '../helpers/noop-template'
-import type { OriginalStackFrame } from '../helpers/stack-frame'
-import { getFrameSource } from '../helpers/stack-frame'
+import * as React from "react";
+import type { StackFrame } from "stacktrace-parser";
+import { CodeFrame } from "../components/CodeFrame";
+import type { ReadyRuntimeError } from "../helpers/getErrorByType";
+import { noop as css } from "../helpers/noop-template";
+import type { OriginalStackFrame } from "../helpers/stack-frame";
+import { getFrameSource } from "../helpers/stack-frame";
 
-export type RuntimeErrorProps = { error: ReadyRuntimeError }
+export type RuntimeErrorProps = { error: ReadyRuntimeError };
 
 const CallStackFrame: React.FC<{
-  frame: OriginalStackFrame
+  frame: OriginalStackFrame;
 }> = function CallStackFrame({ frame }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
-  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
-  const hasSource = Boolean(frame.originalCodeFrame)
+  const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame;
+  const hasSource = Boolean(frame.originalCodeFrame);
 
   const open = React.useCallback(() => {
-    if (!hasSource) return
+    if (!hasSource) return;
 
-    const params = new URLSearchParams()
+    const params = new URLSearchParams();
     for (const key in f) {
-      params.append(key, ((f as any)[key] ?? '').toString())
+      params.append(key, ((f as any)[key] ?? "").toString());
     }
 
     self
       .fetch(
         `${
-          process.env.__NEXT_ROUTER_BASEPATH || ''
+          process.env.__NEXT_ROUTER_BASEPATH || ""
         }/__nextjs_launch-editor?${params.toString()}`
       )
       .then(
         () => {},
         () => {
-          console.error('There was an issue opening this code in your editor.')
+          console.error("There was an issue opening this code in your editor.");
         }
-      )
-  }, [hasSource, f])
+      );
+  }, [hasSource, f]);
 
   return (
     <div data-nextjs-call-stack-frame>
@@ -45,11 +45,11 @@ const CallStackFrame: React.FC<{
         {f.methodName}
       </h3>
       <div
-        data-has-source={hasSource ? 'true' : undefined}
+        data-has-source={hasSource ? "true" : undefined}
         tabIndex={hasSource ? 10 : undefined}
-        role={hasSource ? 'link' : undefined}
+        role={hasSource ? "link" : undefined}
         onClick={open}
-        title={hasSource ? 'Click to open in your editor' : undefined}
+        title={hasSource ? "Click to open in your editor" : undefined}
       >
         <span>{getFrameSource(f)}</span>
         <svg
@@ -67,8 +67,8 @@ const CallStackFrame: React.FC<{
         </svg>
       </div>
     </div>
-  )
-}
+  );
+};
 
 const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   error,
@@ -79,11 +79,11 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
         entry.expanded &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
-    )
-  }, [error.frames])
+    );
+  }, [error.frames]);
   const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return error.frames[firstFirstPartyFrameIndex] ?? null
-  }, [error.frames, firstFirstPartyFrameIndex])
+    return error.frames[firstFirstPartyFrameIndex] ?? null;
+  }, [error.frames, firstFirstPartyFrameIndex]);
 
   const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
     () =>
@@ -91,37 +91,37 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
         ? []
         : error.frames.slice(0, firstFirstPartyFrameIndex),
     [error.frames, firstFirstPartyFrameIndex]
-  )
+  );
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const [all, setAll] = React.useState(firstFrame == null);
   const toggleAll = React.useCallback(() => {
-    setAll((v) => !v)
-  }, [])
+    setAll((v) => !v);
+  }, []);
 
   const leadingFrames = React.useMemo(
     () => allLeadingFrames.filter((f) => f.expanded || all),
     [all, allLeadingFrames]
-  )
+  );
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
     () => error.frames.slice(firstFirstPartyFrameIndex + 1),
     [error.frames, firstFirstPartyFrameIndex]
-  )
+  );
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
     () => allCallStackFrames.filter((f) => f.expanded || all),
     [all, allCallStackFrames]
-  )
+  );
 
   const canShowMore = React.useMemo<boolean>(() => {
     return (
       allCallStackFrames.length !== visibleCallStackFrames.length ||
       (all && firstFrame != null)
-    )
+    );
   }, [
     all,
     allCallStackFrames.length,
     firstFrame,
     visibleCallStackFrames.length,
-  ])
+  ]);
 
   return (
     <React.Fragment>
@@ -169,13 +169,13 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             type="button"
             onClick={toggleAll}
           >
-            {all ? 'Hide' : 'Show'} collapsed frames
+            {all ? "Hide" : "Show"} collapsed frames
           </button>
         </React.Fragment>
       ) : undefined}
     </React.Fragment>
-  )
-}
+  );
+};
 
 export const styles = css`
   button[data-nextjs-data-runtime-error-collapsed-action] {
@@ -199,7 +199,7 @@ export const styles = css`
     font-family: var(--font-stack-monospace);
     color: var(--color-stack-h6);
   }
-  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
+  [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded="false"] {
     color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div {
@@ -226,6 +226,6 @@ export const styles = css`
   [data-nextjs-call-stack-frame] > div[data-has-source] > svg {
     display: unset;
   }
-`
+`;
 
-export { RuntimeError }
+export { RuntimeError };

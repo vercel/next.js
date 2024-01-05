@@ -1,5 +1,5 @@
-import Document, { Head, Html, Main, NextScript } from 'next/document'
-import React from 'react'
+import Document, { Head, Html, Main, NextScript } from "next/document";
+import React from "react";
 
 class WeddingDocument extends Document {
   render() {
@@ -9,8 +9,8 @@ class WeddingDocument extends Document {
         <Main />
         <NextScript />
       </Html>
-    )
+    );
   }
 }
 
-export default WeddingDocument
+export default WeddingDocument;

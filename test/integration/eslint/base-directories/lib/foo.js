@@ -5,6 +5,6 @@ export default class Foo {
         <h1>Hello title</h1>
         <link href="/example.css" rel="stylesheet" />
       </div>
-    )
+    );
   }
 }

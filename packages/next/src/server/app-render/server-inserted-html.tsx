@@ -1,14 +1,14 @@
 // Provider for the `useServerInsertedHTML` API to register callbacks to insert
 // elements into the HTML stream.
 
-import React from 'react'
-import { ServerInsertedHTMLContext } from '../../shared/lib/server-inserted-html.shared-runtime'
+import React from "react";
+import { ServerInsertedHTMLContext } from "../../shared/lib/server-inserted-html.shared-runtime";
 
 export function createServerInsertedHTML() {
-  const serverInsertedHTMLCallbacks: (() => React.ReactNode)[] = []
+  const serverInsertedHTMLCallbacks: (() => React.ReactNode)[] = [];
   const addInsertedHtml = (handler: () => React.ReactNode) => {
-    serverInsertedHTMLCallbacks.push(handler)
-  }
+    serverInsertedHTMLCallbacks.push(handler);
+  };
 
   return {
     ServerInsertedHTMLProvider({ children }: { children: JSX.Element }) {
@@ -16,14 +16,14 @@ export function createServerInsertedHTML() {
         <ServerInsertedHTMLContext.Provider value={addInsertedHtml}>
           {children}
         </ServerInsertedHTMLContext.Provider>
-      )
+      );
     },
     renderServerInsertedHTML() {
       return serverInsertedHTMLCallbacks.map((callback, index) => (
-        <React.Fragment key={'__next_server_inserted__' + index}>
+        <React.Fragment key={"__next_server_inserted__" + index}>
           {callback()}
         </React.Fragment>
-      ))
+      ));
     },
-  }
+  };
 }

@@ -1,10 +1,10 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
 export default function Page() {
   return (
@@ -12,5 +12,5 @@ export default function Page() {
       <p id="another">another</p>
       <p id="query">{JSON.stringify(useRouter().query)}</p>
     </>
-  )
+  );
 }

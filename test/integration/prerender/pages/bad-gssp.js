@@ -1,7 +1,7 @@
 export function getServerSideProps() {
-  throw new Error('lol')
+  throw new Error("lol");
 }
 
 export default function BadGssp() {
-  return <div />
+  return <div />;
 }

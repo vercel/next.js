@@ -1,6 +1,6 @@
-import type { Span } from '../../../trace'
-import transform from './transform'
-import type { NextJsLoaderContext } from './types'
+import type { Span } from "../../../trace";
+import transform from "./transform";
+import type { NextJsLoaderContext } from "./types";
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,
@@ -8,14 +8,14 @@ async function nextBabelLoader(
   inputSource: string,
   inputSourceMap: object | null | undefined
 ) {
-  const filename = this.resourcePath
-  const target = this.target
+  const filename = this.resourcePath;
+  const target = this.target;
   const loaderOptions = parentTrace
-    .traceChild('get-options')
+    .traceChild("get-options")
     // @ts-ignore TODO: remove ignore once webpack 5 types are used
-    .traceFn(() => this.getOptions())
+    .traceFn(() => this.getOptions());
 
-  const loaderSpanInner = parentTrace.traceChild('next-babel-turbo-transform')
+  const loaderSpanInner = parentTrace.traceChild("next-babel-turbo-transform");
   const { code: transformedSource, map: outputSourceMap } =
     loaderSpanInner.traceFn(() =>
       transform.call(
@@ -27,9 +27,9 @@ async function nextBabelLoader(
         target,
         loaderSpanInner
       )
-    )
+    );
 
-  return [transformedSource, outputSourceMap]
+  return [transformedSource, outputSourceMap];
 }
 
 const nextBabelLoaderOuter = function nextBabelLoaderOuter(
@@ -37,9 +37,11 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
   inputSource: string,
   inputSourceMap: object | null | undefined
 ) {
-  const callback = this.async()
+  const callback = this.async();
 
-  const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
+  const loaderSpan = this.currentTraceSpan.traceChild(
+    "next-babel-turbo-loader"
+  );
   loaderSpan
     .traceAsyncFn(() =>
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)
@@ -48,9 +50,9 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
       ([transformedSource, outputSourceMap]: any) =>
         callback?.(null, transformedSource, outputSourceMap || inputSourceMap),
       (err) => {
-        callback?.(err)
+        callback?.(err);
       }
-    )
-}
+    );
+};
 
-export default nextBabelLoaderOuter
+export default nextBabelLoaderOuter;

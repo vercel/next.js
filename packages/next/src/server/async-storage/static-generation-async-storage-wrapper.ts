@@ -1,24 +1,24 @@
-import type { AsyncStorageWrapper } from './async-storage-wrapper'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import type { AsyncLocalStorage } from 'async_hooks'
-import type { IncrementalCache } from '../lib/incremental-cache'
+import type { AsyncStorageWrapper } from "./async-storage-wrapper";
+import type { StaticGenerationStore } from "../../client/components/static-generation-async-storage.external";
+import type { AsyncLocalStorage } from "async_hooks";
+import type { IncrementalCache } from "../lib/incremental-cache";
 
 export type StaticGenerationContext = {
-  urlPathname: string
-  postpone?: (reason: string) => never
+  urlPathname: string;
+  postpone?: (reason: string) => never;
   renderOpts: {
-    originalPathname?: string
-    incrementalCache?: IncrementalCache
-    supportsDynamicHTML: boolean
-    isRevalidate?: boolean
-    isOnDemandRevalidate?: boolean
-    isBot?: boolean
-    nextExport?: boolean
-    fetchCache?: StaticGenerationStore['fetchCache']
-    isDraftMode?: boolean
-    isServerAction?: boolean
-    waitUntil?: Promise<any>
-    experimental: { ppr: boolean }
+    originalPathname?: string;
+    incrementalCache?: IncrementalCache;
+    supportsDynamicHTML: boolean;
+    isRevalidate?: boolean;
+    isOnDemandRevalidate?: boolean;
+    isBot?: boolean;
+    nextExport?: boolean;
+    fetchCache?: StaticGenerationStore["fetchCache"];
+    isDraftMode?: boolean;
+    isServerAction?: boolean;
+    waitUntil?: Promise<any>;
+    experimental: { ppr: boolean };
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -28,9 +28,9 @@ export type StaticGenerationContext = {
      * @deprecated should only be used as a temporary workaround
      */
     // TODO: remove this when we resolve accessing the store outside the execution context
-    store?: StaticGenerationStore
-  }
-}
+    store?: StaticGenerationStore;
+  };
+};
 
 export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
   StaticGenerationStore,
@@ -61,7 +61,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
     const isStaticGeneration =
       !renderOpts.supportsDynamicHTML &&
       !renderOpts.isDraftMode &&
-      !renderOpts.isServerAction
+      !renderOpts.isServerAction;
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
@@ -84,20 +84,20 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
         isStaticGeneration && renderOpts.experimental.ppr && postpone
           ? (reason: string) => {
               // Keep track of if the postpone API has been called.
-              store.postponeWasTriggered = true
+              store.postponeWasTriggered = true;
 
               return postpone(
                 `This page needs to bail out of prerendering at this point because it used ${reason}. ` +
                   `React throws this special object to indicate where. It should not be caught by ` +
                   `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
-              )
+              );
             }
           : undefined,
-    }
+    };
 
     // TODO: remove this when we resolve accessing the store outside the execution context
-    renderOpts.store = store
+    renderOpts.store = store;
 
-    return storage.run(store, callback, store)
+    return storage.run(store, callback, store);
   },
-}
+};

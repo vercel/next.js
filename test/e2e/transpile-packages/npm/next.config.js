@@ -1,3 +1,3 @@
 module.exports = {
-  transpilePackages: ['css'],
-}
+  transpilePackages: ["css"],
+};

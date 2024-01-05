@@ -1,16 +1,16 @@
-import React from 'react'
+import React from "react";
 
 interface Animal {
-  animalStuff: any
+  animalStuff: any;
 }
 interface Dog extends Animal {
-  dogStuff: any
+  dogStuff: any;
 }
 
 class AnimalHouse {
-  resident: Animal
+  resident: Animal;
   constructor(animal: Animal) {
-    this.resident = animal
+    this.resident = animal;
   }
 }
 class DogHouse extends AnimalHouse {
@@ -18,36 +18,36 @@ class DogHouse extends AnimalHouse {
   // after the call to 'super()' when
   // using 'useDefineForClassFields'!
   // @ts-ignore
-  resident: Dog
+  resident: Dog;
   // useless constructor only for type checker
   /* eslint-disable @typescript-eslint/no-useless-constructor */
   constructor(dog: Dog) {
-    super(dog)
+    super(dog);
   }
 }
 
 class DogHouseWithDeclare extends AnimalHouse {
-  declare resident: Dog
+  declare resident: Dog;
   // useless constructor only for type checker
   /* eslint-disable @typescript-eslint/no-useless-constructor */
   constructor(dog: Dog) {
-    super(dog)
+    super(dog);
   }
 }
 
 export default function AnimalView() {
   const dog = new DogHouse({
-    animalStuff: 'animal',
-    dogStuff: 'dog',
-  })
+    animalStuff: "animal",
+    dogStuff: "dog",
+  });
   const dogDeclare = new DogHouseWithDeclare({
-    animalStuff: 'animal',
-    dogStuff: 'dog',
-  })
+    animalStuff: "animal",
+    dogStuff: "dog",
+  });
   return (
     <>
-      <div id={'dog'}>{dog.resident}</div>
-      <div id={'dogDecl'}>{dogDeclare.resident?.dogStuff}</div>
+      <div id={"dog"}>{dog.resident}</div>
+      <div id={"dogDecl"}>{dogDeclare.resident?.dogStuff}</div>
     </>
-  )
+  );
 }

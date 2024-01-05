@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').ExternalsPlugin
+module.exports = require("./webpack.js").ExternalsPlugin;

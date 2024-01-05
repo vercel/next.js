@@ -1,6 +1,6 @@
 export default () => {
-  if (typeof window !== 'undefined') {
-    window.didHydrate = true
+  if (typeof window !== "undefined") {
+    window.didHydrate = true;
   }
-  return 'details'
-}
+  return "details";
+};

@@ -22,10 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import { SourceMapConsumer } from 'next/dist/compiled/source-map'
-import valueProcessor from './lib/value-processor'
-import { defaultJoin } from './lib/join-function'
-import process from './lib/postcss'
+import { SourceMapConsumer } from "next/dist/compiled/source-map";
+import valueProcessor from "./lib/value-processor";
+import { defaultJoin } from "./lib/join-function";
+import process from "./lib/postcss";
 /**
  * A webpack loader that resolves absolute url() paths relative to their original source file.
  * Requires source-maps to do any meaningful work.
@@ -48,15 +48,15 @@ export default async function resolveUrlLoader(
       join: defaultJoin,
     },
     this.getOptions()
-  )
+  );
 
-  let sourceMapConsumer
+  let sourceMapConsumer;
   if (sourceMap) {
-    sourceMapConsumer = new SourceMapConsumer(sourceMap)
+    sourceMapConsumer = new SourceMapConsumer(sourceMap);
   }
 
-  const callback = this.async()
-  const { postcss } = await options.postcss()
+  const callback = this.async();
+  const { postcss } = await options.postcss();
   process(postcss, this.resourcePath, content, {
     outputSourceMap: Boolean(options.sourceMap),
     transformDeclaration: valueProcessor(this.resourcePath, options),
@@ -66,11 +66,11 @@ export default async function resolveUrlLoader(
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
     .catch(onFailure)
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    .then(onSuccess)
+    .then(onSuccess);
 
   function onFailure(error: Error) {
     // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    callback(encodeError('CSS error', error))
+    callback(encodeError("CSS error", error));
   }
 
   function onSuccess(reworked: any) {
@@ -78,11 +78,11 @@ export default async function resolveUrlLoader(
       // complete with source-map
       //  source-map sources are relative to the file being processed
       if (options.sourceMap) {
-        callback(null, reworked.content, reworked.map)
+        callback(null, reworked.content, reworked.map);
       }
       // complete without source-map
       else {
-        callback(null, reworked.content)
+        callback(null, reworked.content);
       }
     }
   }
@@ -90,20 +90,20 @@ export default async function resolveUrlLoader(
   function encodeError(label: any, exception: any) {
     return new Error(
       [
-        'resolve-url-loader',
-        ': ',
+        "resolve-url-loader",
+        ": ",
         [label]
           .concat(
-            (typeof exception === 'string' && exception) ||
+            (typeof exception === "string" && exception) ||
               (exception instanceof Error && [
                 exception.message,
-                (exception as any).stack.split('\n', 2)[1].trim(),
+                (exception as any).stack.split("\n", 2)[1].trim(),
               ]) ||
               []
           )
           .filter(Boolean)
-          .join('\n  '),
-      ].join('')
-    )
+          .join("\n  "),
+      ].join("")
+    );
   }
 }

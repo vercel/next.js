@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 export default function Layout({ parallel }: { parallel: React.ReactNode }) {
   return (
@@ -6,5 +6,5 @@ export default function Layout({ parallel }: { parallel: React.ReactNode }) {
       <h2>LAYOUT</h2>
       {parallel}
     </>
-  )
+  );
 }

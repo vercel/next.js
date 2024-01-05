@@ -1,3 +1,3 @@
 module.exports = {
-  plugins: [require('postcss-trolling')],
-}
+  plugins: [require("postcss-trolling")],
+};

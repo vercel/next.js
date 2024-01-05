@@ -1,3 +1,3 @@
 export default function NoopHead() {
-  return null
+  return null;
 }

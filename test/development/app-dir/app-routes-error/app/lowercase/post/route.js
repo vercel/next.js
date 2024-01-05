@@ -1,1 +1,1 @@
-export { POST as post } from '../../../hello'
+export { POST as post } from "../../../hello";

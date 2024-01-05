@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import img from '../public/äöüščří.png'
+import React from "react";
+import Image from "next/legacy/image";
+import img from "../public/äöüščří.png";
 
 const Page = () => {
   return (
@@ -27,7 +27,7 @@ const Page = () => {
         height={200}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

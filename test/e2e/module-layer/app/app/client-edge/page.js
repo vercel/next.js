@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import 'client-only'
+import "client-only";
 
 export default function Page() {
-  return 'app/client-edge/page.js'
+  return "app/client-edge/page.js";
 }
 
-export const runtime = 'edge'
+export const runtime = "edge";

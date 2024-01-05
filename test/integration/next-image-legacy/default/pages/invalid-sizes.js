@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -26,12 +26,12 @@ const Page = () => {
         height={400}
         sizes="50vw"
       />
-      <div style={{ position: 'relative', width: '200px', height: '200px' }}>
+      <div style={{ position: "relative", width: "200px", height: "200px" }}>
         <Image src="/test.gif" layout="fill" objectFit="cover" sizes="50vw" />
       </div>
       <footer>footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

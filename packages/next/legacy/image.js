@@ -1,1 +1,1 @@
-module.exports = require('../dist/client/legacy/image')
+module.exports = require("../dist/client/legacy/image");

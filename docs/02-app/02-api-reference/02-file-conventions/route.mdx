@@ -55,7 +55,7 @@ The `request` object is a [NextRequest](/docs/app/api-reference/functions/next-r
 
 ```ts filename="app/dashboard/[team]/route.js"
 export async function GET(request, context: { params }) {
-  const team = params.team // '1'
+  const team = params.team; // '1'
 }
 ```
 

@@ -1,4 +1,4 @@
-export const revalidate = 0
+export const revalidate = 0;
 
 export default function Page() {
   return (
@@ -6,5 +6,5 @@ export default function Page() {
       <p id="page">/ssr-forced</p>
       <p id="date">{Date.now()}</p>
     </>
-  )
+  );
 }

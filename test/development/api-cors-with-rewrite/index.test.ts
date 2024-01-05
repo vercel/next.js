@@ -1,14 +1,14 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { fetchViaHTTP } from "next-test-utils";
 
-describe('Rewritten API Requests should pass OPTIONS requests to the api function', () => {
-  let next: NextInstance
+describe("Rewritten API Requests should pass OPTIONS requests to the api function", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/api/some-endpoint.js': `
+        "pages/api/some-endpoint.js": `
           export default (req, res) => {
             res.end("successfully hit some-endpoint!")
           } 
@@ -20,8 +20,8 @@ describe('Rewritten API Requests should pass OPTIONS requests to the api functio
             beforeFiles: [
               // Nextjs by default requires a /api prefix, let's remove that
               {
-                source: '/:path*',
-                destination: '/api/:path*',
+                source: "/:path*",
+                destination: "/api/:path*",
               },
             ],
             afterFiles: [],
@@ -29,17 +29,17 @@ describe('Rewritten API Requests should pass OPTIONS requests to the api functio
           }),
       },
       dependencies: {},
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('should pass OPTIONS requests to the api function', async () => {
-    const res = await fetchViaHTTP(next.url, '/some-endpoint', null, {
-      method: 'OPTIONS',
+  it("should pass OPTIONS requests to the api function", async () => {
+    const res = await fetchViaHTTP(next.url, "/some-endpoint", null, {
+      method: "OPTIONS",
       headers: {
-        Origin: 'http://localhost:3000',
+        Origin: "http://localhost:3000",
       },
-    })
-    expect(await res.text()).toContain('successfully hit some-endpoint!')
-  })
-})
+    });
+    expect(await res.text()).toContain("successfully hit some-endpoint!");
+  });
+});

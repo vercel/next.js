@@ -1,31 +1,31 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
-import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { killApp, findPort, launchApp, check } from 'next-test-utils'
+import fs from "fs-extra";
+import { join } from "path";
+import webdriver from "next-webdriver";
+import { killApp, findPort, launchApp, check } from "next-test-utils";
 
-const appDir = join(__dirname, '../')
-const appPage = join(appDir, 'pages/_app.js')
-const documentPage = join(appDir, 'pages/_document.js')
+const appDir = join(__dirname, "../");
+const appPage = join(appDir, "pages/_app.js");
+const documentPage = join(appDir, "pages/_document.js");
 
-let appPort
-let app
+let appPort;
+let app;
 
-describe('_app/_document add HMR', () => {
+describe("_app/_document add HMR", () => {
   beforeAll(async () => {
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
+    appPort = await findPort();
+    app = await launchApp(appDir, appPort);
+  });
+  afterAll(() => killApp(app));
 
   // TODO: figure out why test fails.
-  it.skip('should HMR when _app is added', async () => {
-    const browser = await webdriver(appPort, '/')
+  it.skip("should HMR when _app is added", async () => {
+    const browser = await webdriver(appPort, "/");
     try {
-      const html = await browser.eval('document.documentElement.innerHTML')
-      expect(html).not.toContain('custom _app')
-      expect(html).toContain('index page')
+      const html = await browser.eval("document.documentElement.innerHTML");
+      expect(html).not.toContain("custom _app");
+      expect(html).toContain("index page");
 
       await fs.writeFile(
         appPage,
@@ -39,32 +39,32 @@ describe('_app/_document add HMR', () => {
           )
         }
       `
-      )
+      );
 
       await check(async () => {
-        const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _app') && html.includes('index page')
-          ? 'success'
-          : html
-      }, 'success')
+        const html = await browser.eval("document.documentElement.innerHTML");
+        return html.includes("custom _app") && html.includes("index page")
+          ? "success"
+          : html;
+      }, "success");
     } finally {
-      await fs.remove(appPage)
+      await fs.remove(appPage);
       await check(async () => {
-        const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _app') && html.includes('index page')
-          ? 'restored'
-          : html
-      }, 'restored')
+        const html = await browser.eval("document.documentElement.innerHTML");
+        return !html.includes("custom _app") && html.includes("index page")
+          ? "restored"
+          : html;
+      }, "restored");
     }
-  })
+  });
 
   // TODO: Figure out why test fails.
-  it.skip('should HMR when _document is added', async () => {
-    const browser = await webdriver(appPort, '/')
+  it.skip("should HMR when _document is added", async () => {
+    const browser = await webdriver(appPort, "/");
     try {
-      const html = await browser.eval('document.documentElement.innerHTML')
-      expect(html).not.toContain('custom _document')
-      expect(html).toContain('index page')
+      const html = await browser.eval("document.documentElement.innerHTML");
+      expect(html).not.toContain("custom _document");
+      expect(html).toContain("index page");
 
       await fs.writeFile(
         documentPage,
@@ -94,22 +94,22 @@ describe('_app/_document add HMR', () => {
         export default MyDocument
 
       `
-      )
+      );
 
       await check(async () => {
-        const html = await browser.eval('document.documentElement.innerHTML')
-        return html.includes('custom _document') && html.includes('index page')
-          ? 'success'
-          : html
-      }, 'success')
+        const html = await browser.eval("document.documentElement.innerHTML");
+        return html.includes("custom _document") && html.includes("index page")
+          ? "success"
+          : html;
+      }, "success");
     } finally {
-      await fs.remove(documentPage)
+      await fs.remove(documentPage);
       await check(async () => {
-        const html = await browser.eval('document.documentElement.innerHTML')
-        return !html.includes('custom _document') && html.includes('index page')
-          ? 'restored'
-          : html
-      }, 'restored')
+        const html = await browser.eval("document.documentElement.innerHTML");
+        return !html.includes("custom _document") && html.includes("index page")
+          ? "restored"
+          : html;
+      }, "restored");
     }
-  })
-})
+  });
+});

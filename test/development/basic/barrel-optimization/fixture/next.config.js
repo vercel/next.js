@@ -1,6 +1,6 @@
 module.exports = {
-  transpilePackages: ['my-client-lib'],
+  transpilePackages: ["my-client-lib"],
   experimental: {
-    optimizePackageImports: ['my-lib', 'recursive-barrel', 'my-client-lib'],
+    optimizePackageImports: ["my-lib", "recursive-barrel", "my-client-lib"],
   },
-}
+};

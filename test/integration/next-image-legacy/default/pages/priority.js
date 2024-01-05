@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -53,7 +53,7 @@ const Page = () => {
       />
       <p id="stubtext">This is the priority page</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

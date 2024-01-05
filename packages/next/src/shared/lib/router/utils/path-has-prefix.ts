@@ -1,4 +1,4 @@
-import { parsePath } from './parse-path'
+import { parsePath } from "./parse-path";
 
 /**
  * Checks if a given path starts with a given prefix. It ensures it matches
@@ -8,10 +8,10 @@ import { parsePath } from './parse-path'
  * @param prefix The prefix to check against.
  */
 export function pathHasPrefix(path: string, prefix: string) {
-  if (typeof path !== 'string') {
-    return false
+  if (typeof path !== "string") {
+    return false;
   }
 
-  const { pathname } = parsePath(path)
-  return pathname === prefix || pathname.startsWith(prefix + '/')
+  const { pathname } = parsePath(path);
+  return pathname === prefix || pathname.startsWith(prefix + "/");
 }

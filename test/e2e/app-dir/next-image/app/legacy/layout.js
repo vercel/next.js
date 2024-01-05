@@ -1,5 +1,5 @@
-import Image from 'next/legacy/image'
-import testPng from '../../images/test.png'
+import Image from "next/legacy/image";
+import testPng from "../../images/test.png";
 
 export default function LegacyLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function LegacyLayout({ children }) {
       <Image id="app-legacy-layout" src={testPng} loading="eager" />
       {children}
     </>
-  )
+  );
 }

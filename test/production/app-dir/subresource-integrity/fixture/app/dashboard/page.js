@@ -1,8 +1,8 @@
-import ClientComp from './client-comp-client'
+import ClientComp from "./client-comp-client";
 
 export default function DashboardPage(props) {
-  if (typeof WebSocket === 'undefined') {
-    throw new Error('missing WebSocket constructor!!')
+  if (typeof WebSocket === "undefined") {
+    throw new Error("missing WebSocket constructor!!");
   }
   return (
     <>
@@ -13,7 +13,7 @@ export default function DashboardPage(props) {
       <p className="green">this is green</p>
       <ClientComp />
     </>
-  )
+  );
 }
 
-export const runtime = 'edge'
+export const runtime = "edge";

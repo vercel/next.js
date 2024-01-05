@@ -1,5 +1,5 @@
-import React from 'react'
+import React from "react";
 
 export default function CompTsx() {
-  return <div id="tsx">CompTsx</div>
+  return <div id="tsx">CompTsx</div>;
 }

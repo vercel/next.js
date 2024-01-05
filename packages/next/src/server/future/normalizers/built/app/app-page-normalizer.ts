@@ -1,5 +1,5 @@
-import { PAGE_TYPES } from '../../../../../lib/page-types'
-import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
+import { PAGE_TYPES } from "../../../../../lib/page-types";
+import { AbsoluteFilenameNormalizer } from "../../absolute-filename-normalizer";
 
 /**
  * DevAppPageNormalizer is a normalizer that is used to normalize a pathname
@@ -7,6 +7,6 @@ import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
  */
 export class DevAppPageNormalizer extends AbsoluteFilenameNormalizer {
   constructor(appDir: string, extensions: ReadonlyArray<string>) {
-    super(appDir, extensions, PAGE_TYPES.APP)
+    super(appDir, extensions, PAGE_TYPES.APP);
   }
 }

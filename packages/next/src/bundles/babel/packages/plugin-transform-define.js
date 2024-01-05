@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginTransformDefine()
+module.exports = require("./bundle").pluginTransformDefine();

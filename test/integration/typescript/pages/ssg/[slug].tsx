@@ -1,24 +1,24 @@
-import { GetStaticPaths, GetStaticProps } from 'next'
+import { GetStaticPaths, GetStaticProps } from "next";
 
 type Params = {
-  slug: string
-}
+  slug: string;
+};
 
 type Props = {
-  data: string
-  title: string
-}
+  data: string;
+  title: string;
+};
 
 type PreviewData = {
-  title: string
-}
+  title: string;
+};
 
 export const getStaticPaths: GetStaticPaths<Params> = async () => {
   return {
-    paths: [{ params: { slug: 'test' } }],
+    paths: [{ params: { slug: "test" } }],
     fallback: false,
-  }
-}
+  };
+};
 
 export const getStaticProps: GetStaticProps<
   Props,
@@ -28,16 +28,16 @@ export const getStaticProps: GetStaticProps<
   return {
     props: {
       data: params!.slug,
-      title: previewData?.title || 'default title',
+      title: previewData?.title || "default title",
     },
     revalidate: false,
-  }
-}
+  };
+};
 
 export default function Page({ data, title }: Props) {
   return (
     <h1>
       {data} {title}
     </h1>
-  )
+  );
 }

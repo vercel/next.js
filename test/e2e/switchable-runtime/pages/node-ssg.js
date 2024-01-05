@@ -1,5 +1,5 @@
-import Runtime from '../utils/runtime'
-import Time from '../utils/time'
+import Runtime from "../utils/runtime";
+import Time from "../utils/time";
 
 export default function Page({ type }) {
   return (
@@ -10,17 +10,17 @@ export default function Page({ type }) {
       <br />
       <Time />
     </div>
-  )
+  );
 }
 
 export function getStaticProps() {
   return {
     props: {
-      type: 'SSG',
+      type: "SSG",
     },
-  }
+  };
 }
 
 export const config = {
-  runtime: 'nodejs',
-}
+  runtime: "nodejs",
+};

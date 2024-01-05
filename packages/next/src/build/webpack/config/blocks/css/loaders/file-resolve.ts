@@ -3,11 +3,11 @@ export function cssFileResolve(
   _resourcePath: string,
   urlImports: any
 ) {
-  if (url.startsWith('/')) {
-    return false
+  if (url.startsWith("/")) {
+    return false;
   }
   if (!urlImports && /^[a-z][a-z0-9+.-]*:/i.test(url)) {
-    return false
+    return false;
   }
-  return true
+  return true;
 }

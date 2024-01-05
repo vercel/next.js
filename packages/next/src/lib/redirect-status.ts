@@ -1,17 +1,17 @@
-import { RedirectStatusCode } from '../client/components/redirect-status-code'
+import { RedirectStatusCode } from "../client/components/redirect-status-code";
 
-export const allowedStatusCodes = new Set([301, 302, 303, 307, 308])
+export const allowedStatusCodes = new Set([301, 302, 303, 307, 308]);
 
 export function getRedirectStatus(route: {
-  statusCode?: number
-  permanent?: boolean
+  statusCode?: number;
+  permanent?: boolean;
 }): number {
   return (
     route.statusCode ||
     (route.permanent
       ? RedirectStatusCode.PermanentRedirect
       : RedirectStatusCode.TemporaryRedirect)
-  )
+  );
 }
 
 // for redirects we restrict matching /_next and for all routes
@@ -22,10 +22,10 @@ export function modifyRouteRegex(regex: string, restrictedPaths?: string[]) {
     regex = regex.replace(
       /\^/,
       `^(?!${restrictedPaths
-        .map((path) => path.replace(/\//g, '\\/'))
-        .join('|')})`
-    )
+        .map((path) => path.replace(/\//g, "\\/"))
+        .join("|")})`
+    );
   }
-  regex = regex.replace(/\$$/, '(?:\\/)?$')
-  return regex
+  regex = regex.replace(/\$$/, "(?:\\/)?$");
+  return regex;
 }

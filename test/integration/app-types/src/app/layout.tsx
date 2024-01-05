@@ -1,8 +1,8 @@
-import { Metadata } from 'next'
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'My App',
-}
+  title: "My App",
+};
 
 export default function Root({ children }: { children: React.ReactNode }) {
   return (
@@ -12,5 +12,5 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

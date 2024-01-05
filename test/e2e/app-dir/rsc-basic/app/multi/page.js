@@ -1,5 +1,5 @@
-import Bar from '../../components/bar'
+import Bar from "../../components/bar";
 
 export default function Multi() {
-  return <Bar />
+  return <Bar />;
 }

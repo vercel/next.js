@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import styles from './lazy.module.css'
+import styles from "./lazy.module.css";
 
 export default function LazyComponent() {
   return (
@@ -9,5 +9,5 @@ export default function LazyComponent() {
         next-dynamic lazy
       </p>
     </>
-  )
+  );
 }

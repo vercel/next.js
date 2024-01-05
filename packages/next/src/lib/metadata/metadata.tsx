@@ -1,7 +1,7 @@
-import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
-import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { GetDynamicParamFromSegment } from "../../server/app-render/app-render";
+import type { LoaderTree } from "../../server/lib/app-dir-module";
 
-import React from 'react'
+import React from "react";
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -9,25 +9,25 @@ import {
   BasicMeta,
   ViewportMeta,
   VerificationMeta,
-} from './generate/basic'
-import { AlternatesMetadata } from './generate/alternate'
+} from "./generate/basic";
+import { AlternatesMetadata } from "./generate/alternate";
 import {
   OpenGraphMetadata,
   TwitterMetadata,
   AppLinksMeta,
-} from './generate/opengraph'
-import { IconsMetadata } from './generate/icons'
-import { resolveMetadata } from './resolve-metadata'
-import { MetaFilter } from './generate/meta'
+} from "./generate/opengraph";
+import { IconsMetadata } from "./generate/icons";
+import { resolveMetadata } from "./resolve-metadata";
+import { MetaFilter } from "./generate/meta";
 import type {
   ResolvedMetadata,
   ResolvedViewport,
-} from './types/metadata-interface'
+} from "./types/metadata-interface";
 import {
   createDefaultMetadata,
   createDefaultViewport,
-} from './default-metadata'
-import { isNotFoundError } from '../../client/components/not-found'
+} from "./default-metadata";
+import { isNotFoundError } from "../../client/components/not-found";
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -43,31 +43,31 @@ export function createMetadataComponents({
   appUsingSizeAdjustment,
   errorType,
 }: {
-  tree: LoaderTree
-  pathname: string
-  searchParams: { [key: string]: any }
-  getDynamicParamFromSegment: GetDynamicParamFromSegment
-  appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
+  tree: LoaderTree;
+  pathname: string;
+  searchParams: { [key: string]: any };
+  getDynamicParamFromSegment: GetDynamicParamFromSegment;
+  appUsingSizeAdjustment: boolean;
+  errorType?: "not-found" | "redirect";
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
     pathname,
-  }
+  };
 
-  let resolve: (value: Error | undefined) => void | undefined
+  let resolve: (value: Error | undefined) => void | undefined;
   // Only use promise.resolve here to avoid unhandled rejections
   const metadataErrorResolving = new Promise<Error | undefined>((res) => {
-    resolve = res
-  })
+    resolve = res;
+  });
 
   async function MetadataTree() {
-    const defaultMetadata = createDefaultMetadata()
-    const defaultViewport = createDefaultViewport()
-    let metadata: ResolvedMetadata | undefined = defaultMetadata
-    let viewport: ResolvedViewport | undefined = defaultViewport
-    let error: any
-    const errorMetadataItem: [null, null, null] = [null, null, null]
-    const errorConvention = errorType === 'redirect' ? undefined : errorType
+    const defaultMetadata = createDefaultMetadata();
+    const defaultViewport = createDefaultViewport();
+    let metadata: ResolvedMetadata | undefined = defaultMetadata;
+    let viewport: ResolvedViewport | undefined = defaultViewport;
+    let error: any;
+    const errorMetadataItem: [null, null, null] = [null, null, null];
+    const errorConvention = errorType === "redirect" ? undefined : errorType;
 
     const [resolvedError, resolvedMetadata, resolvedViewport] =
       await resolveMetadata({
@@ -79,13 +79,13 @@ export function createMetadataComponents({
         getDynamicParamFromSegment,
         errorConvention,
         metadataContext,
-      })
+      });
     if (!resolvedError) {
-      viewport = resolvedViewport
-      metadata = resolvedMetadata
-      resolve(undefined)
+      viewport = resolvedViewport;
+      metadata = resolvedMetadata;
+      resolve(undefined);
     } else {
-      error = resolvedError
+      error = resolvedError;
       // If the error triggers in initial metadata resolving, re-resolve with proper error type.
       // They'll be saved for flight data, when hydrates, it will replaces the SSR'd metadata with this.
       // for not-found error: resolve not-found metadata
@@ -98,14 +98,14 @@ export function createMetadataComponents({
             errorMetadataItem,
             searchParams,
             getDynamicParamFromSegment,
-            errorConvention: 'not-found',
+            errorConvention: "not-found",
             metadataContext,
-          })
-        viewport = notFoundViewport
-        metadata = notFoundMetadata
-        error = notFoundMetadataError || error
+          });
+        viewport = notFoundViewport;
+        metadata = notFoundMetadata;
+        error = notFoundMetadataError || error;
       }
-      resolve(error)
+      resolve(error);
     }
 
     const elements = MetaFilter([
@@ -120,26 +120,26 @@ export function createMetadataComponents({
       TwitterMetadata({ twitter: metadata.twitter }),
       AppLinksMeta({ appLinks: metadata.appLinks }),
       IconsMetadata({ icons: metadata.icons }),
-    ])
+    ]);
 
-    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
+    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />);
 
     return (
       <>
         {elements.map((el, index) => {
-          return React.cloneElement(el as React.ReactElement, { key: index })
+          return React.cloneElement(el as React.ReactElement, { key: index });
         })}
       </>
-    )
+    );
   }
 
   async function MetadataOutlet() {
-    const error = await metadataErrorResolving
+    const error = await metadataErrorResolving;
     if (error) {
-      throw error
+      throw error;
     }
-    return null
+    return null;
   }
 
-  return [MetadataTree, MetadataOutlet]
+  return [MetadataTree, MetadataOutlet];
 }

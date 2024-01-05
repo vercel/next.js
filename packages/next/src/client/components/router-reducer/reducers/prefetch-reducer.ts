@@ -1,29 +1,29 @@
-import { fetchServerResponse } from '../fetch-server-response'
+import { fetchServerResponse } from "../fetch-server-response";
 import type {
   PrefetchAction,
   ReducerState,
   ReadonlyReducerState,
-} from '../router-reducer-types'
-import { PrefetchKind } from '../router-reducer-types'
-import { prunePrefetchCache } from './prune-prefetch-cache'
-import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
-import { PromiseQueue } from '../../promise-queue'
-import { createPrefetchCacheKey } from './create-prefetch-cache-key'
+} from "../router-reducer-types";
+import { PrefetchKind } from "../router-reducer-types";
+import { prunePrefetchCache } from "./prune-prefetch-cache";
+import { NEXT_RSC_UNION_QUERY } from "../../app-router-headers";
+import { PromiseQueue } from "../../promise-queue";
+import { createPrefetchCacheKey } from "./create-prefetch-cache-key";
 
-export const prefetchQueue = new PromiseQueue(5)
+export const prefetchQueue = new PromiseQueue(5);
 
 export function prefetchReducer(
   state: ReadonlyReducerState,
   action: PrefetchAction
 ): ReducerState {
   // let's prune the prefetch cache before we do anything else
-  prunePrefetchCache(state.prefetchCache)
+  prunePrefetchCache(state.prefetchCache);
 
-  const { url } = action
-  url.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  const { url } = action;
+  url.searchParams.delete(NEXT_RSC_UNION_QUERY);
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  const cacheEntry = state.prefetchCache.get(prefetchCacheKey)
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl);
+  const cacheEntry = state.prefetchCache.get(prefetchCacheKey);
 
   if (cacheEntry) {
     /**
@@ -34,7 +34,7 @@ export function prefetchReducer(
       state.prefetchCache.set(prefetchCacheKey, {
         ...cacheEntry,
         kind: action.kind,
-      })
+      });
     }
 
     /**
@@ -47,7 +47,7 @@ export function prefetchReducer(
         action.kind === PrefetchKind.FULL
       )
     ) {
-      return state
+      return state;
     }
   }
 
@@ -61,7 +61,7 @@ export function prefetchReducer(
       state.buildId,
       action.kind
     )
-  )
+  );
 
   // Create new tree based on the flightSegmentPath and router state patch
   state.prefetchCache.set(prefetchCacheKey, {
@@ -71,7 +71,7 @@ export function prefetchReducer(
     kind: action.kind,
     prefetchTime: Date.now(),
     lastUsedTime: null,
-  })
+  });
 
-  return state
+  return state;
 }

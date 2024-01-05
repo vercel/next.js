@@ -1,1 +1,1 @@
-export { OPTIONS as options } from '../../../hello'
+export { OPTIONS as options } from "../../../hello";

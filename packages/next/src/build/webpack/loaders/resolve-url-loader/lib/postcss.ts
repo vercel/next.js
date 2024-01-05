@@ -22,10 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-import path from 'path'
-import { prepend, remove } from './file-protocol'
+import path from "path";
+import { prepend, remove } from "./file-protocol";
 
-const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g
+const ORPHAN_CR_REGEX = /\r(?!\n)(.|\n)?/g;
 
 export default function process(
   postcss: any,
@@ -37,7 +37,7 @@ export default function process(
 
   // prepend file protocol to all sources to avoid problems with source map
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
-  return postcss([postcss.plugin('postcss-resolve-url', postcssPlugin)])
+  return postcss([postcss.plugin("postcss-resolve-url", postcssPlugin)])
     .process(sourceContent, {
       from: prepend(sourceFile),
       map: params.outputSourceMap && {
@@ -50,7 +50,7 @@ export default function process(
     .then((result: any) => ({
       content: result.css,
       map: params.outputSourceMap ? remove(result.map.toJSON()) : null,
-    }))
+    }));
 
   /**
    * Plugin for postcss that follows SASS transpilation.
@@ -58,41 +58,42 @@ export default function process(
   function postcssPlugin() {
     return function (styles: any) {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      styles.walkDecls(eachDeclaration)
-    }
+      styles.walkDecls(eachDeclaration);
+    };
 
     /**
      * Process a declaration from the syntax tree.
      * @param declaration
      */
     function eachDeclaration(declaration: any) {
-      const isValid = declaration.value && declaration.value.indexOf('url') >= 0
+      const isValid =
+        declaration.value && declaration.value.indexOf("url") >= 0;
       if (isValid) {
         // reverse the original source-map to find the original source file before transpilation
         const startPosApparent = declaration.source.start,
           startPosOriginal =
             params.sourceMapConsumer &&
-            params.sourceMapConsumer.originalPositionFor(startPosApparent)
+            params.sourceMapConsumer.originalPositionFor(startPosApparent);
 
         // we require a valid directory for the specified file
         const directory =
           startPosOriginal &&
           startPosOriginal.source &&
-          remove(path.dirname(startPosOriginal.source))
+          remove(path.dirname(startPosOriginal.source));
         if (directory) {
           declaration.value = params.transformDeclaration(
             declaration.value,
             directory
-          )
+          );
         }
         // source-map present but invalid entry
         else if (params.sourceMapConsumer) {
           throw new Error(
-            'source-map information is not available at url() declaration ' +
+            "source-map information is not available at url() declaration " +
               (ORPHAN_CR_REGEX.test(sourceContent)
-                ? '(found orphan CR, try removeCR option)'
-                : '(no orphan CR found)')
-          )
+                ? "(found orphan CR, try removeCR option)"
+                : "(no orphan CR found)")
+          );
         }
       }
     }

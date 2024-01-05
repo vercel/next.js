@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Page = () => (
   <>
@@ -13,10 +13,10 @@ const Page = () => (
     <br />
     <Link
       href={{
-        pathname: '/with-params',
+        pathname: "/with-params",
         query: {
           something: 1,
-          another: 'value',
+          another: "value",
         },
       }}
       as="/params/1?another=value"
@@ -54,6 +54,6 @@ const Page = () => (
     </Link>
     <br />
   </>
-)
+);
 
-export default Page
+export default Page;

@@ -1,9 +1,9 @@
 export default function Fallback() {
-  return null
+  return null;
 }
 
 export async function getStaticProps() {
   return {
     props: {},
-  }
+  };
 }

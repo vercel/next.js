@@ -1,1 +1,1 @@
-module.exports = require('../../module.compiled').vendored['contexts'].Loadable
+module.exports = require("../../module.compiled").vendored["contexts"].Loadable;

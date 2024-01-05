@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const About = () => {
   return (
@@ -7,7 +7,7 @@ const About = () => {
         Test No IntersectionObserver
       </Link>
     </div>
-  )
-}
+  );
+};
 
-export default About
+export default About;

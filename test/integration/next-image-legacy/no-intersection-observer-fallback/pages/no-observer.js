@@ -1,4 +1,4 @@
-import Image from 'next/legacy/image'
+import Image from "next/legacy/image";
 
 const Lazy = () => {
   return (
@@ -15,7 +15,7 @@ const Lazy = () => {
         loading="lazy"
       ></Image>
     </div>
-  )
-}
+  );
+};
 
-export default Lazy
+export default Lazy;

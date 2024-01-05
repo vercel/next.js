@@ -1,5 +1,5 @@
-import getConfig from 'next/config'
-const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
+import getConfig from "next/config";
+const { serverRuntimeConfig, publicRuntimeConfig } = getConfig();
 
 export default () => (
   <div>
@@ -7,4 +7,4 @@ export default () => (
     <p id="server-and-client">{publicRuntimeConfig.staticFolder}</p>
     <p id="env">{process.env.customVar}</p>
   </div>
-)
+);

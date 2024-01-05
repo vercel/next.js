@@ -1,12 +1,12 @@
-import { computeChangedPath } from './compute-changed-path'
+import { computeChangedPath } from "./compute-changed-path";
 import type {
   Mutable,
   ReadonlyReducerState,
   ReducerState,
-} from './router-reducer-types'
+} from "./router-reducer-types";
 
 function isNotUndefined<T>(value: T): value is Exclude<T, undefined> {
-  return typeof value !== 'undefined'
+  return typeof value !== "undefined";
 }
 
 export function handleMutable(
@@ -14,19 +14,19 @@ export function handleMutable(
   mutable: Mutable
 ): ReducerState {
   // shouldScroll is true by default, can override to false.
-  const shouldScroll = mutable.shouldScroll ?? true
+  const shouldScroll = mutable.shouldScroll ?? true;
 
-  let nextUrl = state.nextUrl
+  let nextUrl = state.nextUrl;
 
   if (isNotUndefined(mutable.patchedTree)) {
     // If we received a patched tree, we need to compute the changed path.
-    const changedPath = computeChangedPath(state.tree, mutable.patchedTree)
+    const changedPath = computeChangedPath(state.tree, mutable.patchedTree);
     if (changedPath) {
       // If the tree changed, we need to update the nextUrl
-      nextUrl = changedPath
+      nextUrl = changedPath;
     } else if (!nextUrl) {
       // if the tree ends up being the same (ie, no changed path), and we don't have a nextUrl, then we should use the canonicalUrl
-      nextUrl = state.canonicalUrl
+      nextUrl = state.canonicalUrl;
     }
     // otherwise this will be a no-op and continue to use the existing nextUrl
   }
@@ -62,12 +62,12 @@ export function handleMutable(
           false,
       onlyHashChange:
         !!mutable.hashFragment &&
-        state.canonicalUrl.split('#', 1)[0] ===
-          mutable.canonicalUrl?.split('#', 1)[0],
+        state.canonicalUrl.split("#", 1)[0] ===
+          mutable.canonicalUrl?.split("#", 1)[0],
       hashFragment: shouldScroll
         ? // Empty hash should trigger default behavior of scrolling layout into view.
           // #top is handled in layout-router.
-          mutable.hashFragment && mutable.hashFragment !== ''
+          mutable.hashFragment && mutable.hashFragment !== ""
           ? // Remove leading # and decode hash to make non-latin hashes work.
             decodeURIComponent(mutable.hashFragment.slice(1))
           : state.focusAndScrollRef.hashFragment
@@ -88,5 +88,5 @@ export function handleMutable(
       ? mutable.patchedTree
       : state.tree,
     nextUrl,
-  }
+  };
 }

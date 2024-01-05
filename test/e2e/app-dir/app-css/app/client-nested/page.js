@@ -3,5 +3,5 @@ export default function ClientPage() {
     <>
       <p>hello from app/client-nested</p>
     </>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import React from 'react'
-import Image from 'next/image'
-import style from '../style.module.css'
-import img from '../public/test.jpg'
+import React from "react";
+import Image from "next/image";
+import style from "../style.module.css";
+import img from "../public/test.jpg";
 
 const Page = () => {
   return (
@@ -25,7 +25,7 @@ const Page = () => {
 
       <footer>Footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

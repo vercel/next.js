@@ -4,5 +4,5 @@ export default function Page({ params: { id } }) {
       <h2>main slot</h2>
       <p id="main-slot">{id}</p>
     </div>
-  )
+  );
 }

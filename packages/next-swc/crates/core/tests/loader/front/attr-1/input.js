@@ -9,5 +9,5 @@ export default function Foo() {
         `}
       </style>
     </div>
-  )
+  );
 }

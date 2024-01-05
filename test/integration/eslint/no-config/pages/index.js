@@ -4,6 +4,6 @@ export default class Test {
       <div>
         <h1>Hello title</h1>
       </div>
-    )
+    );
   }
 }

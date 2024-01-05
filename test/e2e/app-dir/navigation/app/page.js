@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function Page() {
-  const params = useSearchParams()
+  const params = useSearchParams();
   return (
     <>
       <Link id="set-query" href="/?a=b&c=d">
@@ -12,5 +12,5 @@ export default function Page() {
       </Link>
       <div id="query">{params.toString()}</div>
     </>
-  )
+  );
 }

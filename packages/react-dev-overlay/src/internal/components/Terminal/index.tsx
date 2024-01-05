@@ -1,1 +1,1 @@
-export { Terminal } from './Terminal'
+export { Terminal } from "./Terminal";

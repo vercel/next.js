@@ -1,3 +1,3 @@
 export default function Page(props) {
-  return <p>{'index - pages'}</p>
+  return <p>{"index - pages"}</p>;
 }

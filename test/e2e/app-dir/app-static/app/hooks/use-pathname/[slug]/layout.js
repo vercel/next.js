@@ -1,7 +1,7 @@
 export default function Layout({ children }) {
-  return children
+  return children;
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'slug' }]
+  return [{ slug: "slug" }];
 }

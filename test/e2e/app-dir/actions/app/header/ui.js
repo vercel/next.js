@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
 export default function UI({
   getCookie,
@@ -9,7 +9,7 @@ export default function UI({
   setCookieAndRedirect,
   getAuthedUppercase,
 }) {
-  const [result, setResult] = useState('')
+  const [result, setResult] = useState("");
 
   return (
     <div>
@@ -18,10 +18,10 @@ export default function UI({
         id="cookie"
         onClick={async () => {
           // set cookie
-          const random = Math.random()
-          document.cookie = `random=${random}`
-          const res = await getCookie('random')
-          setResult(random + ':' + res.value)
+          const random = Math.random();
+          document.cookie = `random=${random}`;
+          const res = await getCookie("random");
+          setResult(random + ":" + res.value);
         }}
       >
         getCookie
@@ -30,15 +30,15 @@ export default function UI({
         id="setCookie"
         onClick={async () => {
           // set cookie on server side
-          const random = Math.random()
-          const res = await setCookie('random-server', random)
+          const random = Math.random();
+          const res = await setCookie("random-server", random);
           setResult(
             random +
-              ':' +
+              ":" +
               res.value +
-              ':' +
+              ":" +
               document.cookie.match(/random-server=([^;]+)/)?.[1]
-          )
+          );
         }}
       >
         setCookie
@@ -46,8 +46,8 @@ export default function UI({
       <button
         id="header"
         onClick={async () => {
-          const res = await getHeader('User-Agent')
-          setResult(res)
+          const res = await getHeader("User-Agent");
+          setResult(res);
         }}
       >
         getHeader
@@ -56,10 +56,10 @@ export default function UI({
         id="authed"
         onClick={async () => {
           try {
-            const res = await getAuthedUppercase('hello, world')
-            setResult(res)
+            const res = await getAuthedUppercase("hello, world");
+            setResult(res);
           } catch (err) {
-            setResult('Error: ' + err.message)
+            setResult("Error: " + err.message);
           }
         }}
       >
@@ -70,15 +70,15 @@ export default function UI({
           id="setCookieAndRedirect"
           formAction={async () => {
             await setCookieAndRedirect(
-              'redirect',
+              "redirect",
               Math.random().toString(36).substring(7),
-              '/redirect-target'
-            )
+              "/redirect-target"
+            );
           }}
         >
           setCookieAndRedirect
         </button>
       </form>
     </div>
-  )
+  );
 }

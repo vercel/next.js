@@ -1,21 +1,21 @@
-import rule from '@next/eslint-plugin-next/dist/rules/inline-script-id'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/inline-script-id";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
+});
 
 const errorMessage =
-  '`next/script` components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id'
+  "`next/script` components with inline content must specify an `id` attribute. See: https://nextjs.org/docs/messages/inline-script-id";
 
-const ruleTester = new RuleTester()
-ruleTester.run('inline-script-id', rule, {
+const ruleTester = new RuleTester();
+ruleTester.run("inline-script-id", rule, {
   valid: [
     {
       code: `import Script from 'next/script';
@@ -124,7 +124,7 @@ ruleTester.run('inline-script-id', rule, {
       errors: [
         {
           message: errorMessage,
-          type: 'JSXElement',
+          type: "JSXElement",
         },
       ],
     },
@@ -143,7 +143,7 @@ ruleTester.run('inline-script-id', rule, {
       errors: [
         {
           message: errorMessage,
-          type: 'JSXElement',
+          type: "JSXElement",
         },
       ],
     },
@@ -160,7 +160,7 @@ ruleTester.run('inline-script-id', rule, {
       errors: [
         {
           message: errorMessage,
-          type: 'JSXElement',
+          type: "JSXElement",
         },
       ],
     },
@@ -179,9 +179,9 @@ ruleTester.run('inline-script-id', rule, {
       errors: [
         {
           message: errorMessage,
-          type: 'JSXElement',
+          type: "JSXElement",
         },
       ],
     },
   ],
-})
+});

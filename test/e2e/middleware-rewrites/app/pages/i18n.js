@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home({ locale }) {
   return (
@@ -32,9 +32,9 @@ export default function Home({ locale }) {
         </li>
       </ul>
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => ({
   props: { locale: query.locale },
-})
+});

@@ -3,6 +3,6 @@ const Home = () => (
     <p>Home</p>
     /* Badly formatted comment */
   </div>
-)
+);
 
-export default Home
+export default Home;

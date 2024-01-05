@@ -1,5 +1,5 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export async function getServerSideProps({ query }) {
   return {
@@ -8,7 +8,7 @@ export async function getServerSideProps({ query }) {
       comment: query.comment,
       time: new Date().getTime(),
     },
-  }
+  };
 }
 
 export default ({ post, comment, time }) => {
@@ -21,5 +21,5 @@ export default ({ post, comment, time }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

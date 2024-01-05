@@ -26,42 +26,45 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-import vm from 'vm'
-import { transformSync } from './index'
-import { getJestSWCOptions } from './options'
+import vm from "vm";
+import { transformSync } from "./index";
+import { getJestSWCOptions } from "./options";
 import type {
   TransformerCreator,
   TransformOptions,
   SyncTransformer,
-} from '@jest/transform'
-import type { Config } from '@jest/types'
-import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
-import type { ResolvedBaseUrl } from '../load-jsconfig'
+} from "@jest/transform";
+import type { Config } from "@jest/types";
+import type {
+  NextConfig,
+  ExperimentalConfig,
+} from "../../server/config-shared";
+import type { ResolvedBaseUrl } from "../load-jsconfig";
 
-type TransformerConfig = Config.TransformerConfig[1]
+type TransformerConfig = Config.TransformerConfig[1];
 export interface JestTransformerConfig extends TransformerConfig {
-  jsConfig: any
-  resolvedBaseUrl?: ResolvedBaseUrl
-  pagesDir?: string
-  serverComponents?: boolean
-  isEsmProject: boolean
-  modularizeImports?: NextConfig['modularizeImports']
-  swcPlugins: ExperimentalConfig['swcPlugins']
-  compilerOptions: NextConfig['compiler']
+  jsConfig: any;
+  resolvedBaseUrl?: ResolvedBaseUrl;
+  pagesDir?: string;
+  serverComponents?: boolean;
+  isEsmProject: boolean;
+  modularizeImports?: NextConfig["modularizeImports"];
+  swcPlugins: ExperimentalConfig["swcPlugins"];
+  compilerOptions: NextConfig["compiler"];
 }
 
 // Jest use the `vm` [Module API](https://nodejs.org/api/vm.html#vm_class_vm_module) for ESM.
 // see https://github.com/facebook/jest/issues/9430
-const isSupportEsm = 'Module' in vm
+const isSupportEsm = "Module" in vm;
 
 function getJestConfig(
   jestConfig: TransformOptions<JestTransformerConfig>
 ): Config.ProjectConfig {
-  return 'config' in jestConfig
+  return "config" in jestConfig
     ? // jest 27
       jestConfig.config
     : // jest 26
-      (jestConfig as unknown as Config.ProjectConfig)
+      (jestConfig as unknown as Config.ProjectConfig);
 }
 
 function isEsm(
@@ -74,7 +77,7 @@ function isEsm(
     jestConfig.extensionsToTreatAsEsm?.some((ext: any) =>
       filename.endsWith(ext)
     )
-  )
+  );
 }
 
 const createTransformer: TransformerCreator<
@@ -82,12 +85,12 @@ const createTransformer: TransformerCreator<
   JestTransformerConfig
 > = (inputOptions) => ({
   process(src, filename, jestOptions) {
-    const jestConfig = getJestConfig(jestOptions)
+    const jestConfig = getJestConfig(jestOptions);
 
     const swcTransformOpts = getJestSWCOptions({
       isServer:
-        jestConfig.testEnvironment === 'node' ||
-        jestConfig.testEnvironment.includes('jest-environment-node'),
+        jestConfig.testEnvironment === "node" ||
+        jestConfig.testEnvironment.includes("jest-environment-node"),
       filename,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
@@ -99,10 +102,10 @@ const createTransformer: TransformerCreator<
       esm:
         isSupportEsm &&
         isEsm(Boolean(inputOptions?.isEsmProject), filename, jestConfig),
-    })
+    });
 
-    return transformSync(src, { ...swcTransformOpts, filename })
+    return transformSync(src, { ...swcTransformOpts, filename });
   },
-})
+});
 
-module.exports = { createTransformer }
+module.exports = { createTransformer };

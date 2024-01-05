@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState } from "react";
 
-console.log({ useState })
+console.log({ useState });
 
 export default function Page() {
-  return null
+  return null;
 }

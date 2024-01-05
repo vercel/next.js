@@ -1,7 +1,7 @@
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export default async function Page({ params }) {
-  const data = headers()
+  const data = headers();
 
   return (
     <>
@@ -10,5 +10,5 @@ export default async function Page({ params }) {
       <p id="now">{Date.now()}</p>
       <p id="data">{data}</p>
     </>
-  )
+  );
 }

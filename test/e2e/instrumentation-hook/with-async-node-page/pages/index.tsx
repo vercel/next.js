@@ -1,5 +1,5 @@
 export default function Page({ finished }) {
-  return <p>{`Node - finished: ${finished}`}</p>
+  return <p>{`Node - finished: ${finished}`}</p>;
 }
 
 export async function getServerSideProps() {
@@ -7,5 +7,5 @@ export async function getServerSideProps() {
     props: {
       finished: Boolean(globalThis.instrumentationFinished),
     },
-  }
+  };
 }

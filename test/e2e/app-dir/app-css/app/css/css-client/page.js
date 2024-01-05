@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import 'next/link'
+import "next/link";
 
-import './client-page.css'
-import styles from './inner/ClientComponent.module.css'
+import "./client-page.css";
+import styles from "./inner/ClientComponent.module.css";
 
 export default function Page() {
   return (
@@ -13,5 +13,5 @@ export default function Page() {
         huge
       </div>
     </>
-  )
+  );
 }

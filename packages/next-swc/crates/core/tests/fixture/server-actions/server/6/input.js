@@ -1,8 +1,8 @@
-import f, { f1, f2 } from 'foo'
+import f, { f1, f2 } from "foo";
 
-const f3 = 1
-var f4
-let f5
+const f3 = 1;
+var f4;
+let f5;
 
 const [
   f6,
@@ -16,34 +16,34 @@ const [
     ...f17
   },
   ...f18
-] = []
+] = [];
 
 if (true) {
-  const g19 = 1
+  const g19 = 1;
 }
 
 function x() {
-  const f2 = 1
-  const g20 = 1
+  const f2 = 1;
+  const g20 = 1;
 }
 
 export function y(p, [p1, { p2 }], ...p3) {
-  const f2 = 1
-  const f11 = 1
-  const f19 = 1
+  const f2 = 1;
+  const f11 = 1;
+  const f19 = 1;
 
   if (true) {
-    const f8 = 1
+    const f8 = 1;
   }
 
   async function action() {
-    'use server'
+    "use server";
 
-    const f17 = 1
+    const f17 = 1;
 
     if (true) {
-      const f18 = 1
-      const f19 = 1
+      const f18 = 1;
+      const f19 = 1;
     }
 
     console.log(
@@ -69,8 +69,8 @@ export function y(p, [p1, { p2 }], ...p3) {
       g19,
       g20,
       globalThis
-    )
+    );
   }
 
-  return <Button action={action}>Delete</Button>
+  return <Button action={action}>Delete</Button>;
 }

@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next'
+import { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(
   req: NextApiRequest,
@@ -6,7 +6,7 @@ export default function handler(
 ) {
   res.status(200).json({
     data: {
-      greeting: 'Hello, World!',
+      greeting: "Hello, World!",
     },
-  })
+  });
 }

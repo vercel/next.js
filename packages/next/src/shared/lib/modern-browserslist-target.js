@@ -7,11 +7,11 @@
  * import.meta: https://caniuse.com/mdn-javascript_operators_import_meta
  */
 const MODERN_BROWSERSLIST_TARGET = [
-  'chrome 64',
-  'edge 79',
-  'firefox 67',
-  'opera 51',
-  'safari 12',
-]
+  "chrome 64",
+  "edge 79",
+  "firefox 67",
+  "opera 51",
+  "safari 12",
+];
 
-module.exports = MODERN_BROWSERSLIST_TARGET
+module.exports = MODERN_BROWSERSLIST_TARGET;

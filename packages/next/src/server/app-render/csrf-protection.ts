@@ -4,75 +4,75 @@
 // https://nextjs.org/docs/app/api-reference/components/image#remotepatterns
 // TODO - retrofit micromatch to work in edge and use that instead
 function matchWildcardDomain(domain: string, pattern: string) {
-  const domainParts = domain.split('.')
-  const patternParts = pattern.split('.')
+  const domainParts = domain.split(".");
+  const patternParts = pattern.split(".");
 
   if (patternParts.length < 1) {
     // pattern is empty and therefore invalid to match against
-    return false
+    return false;
   }
 
   if (domainParts.length < patternParts.length) {
     // domain has too few segments and thus cannot match
-    return false
+    return false;
   }
 
-  let depth = 0
+  let depth = 0;
   while (patternParts.length && depth++ < 2) {
-    const patternPart = patternParts.pop()
-    const domainPart = domainParts.pop()
+    const patternPart = patternParts.pop();
+    const domainPart = domainParts.pop();
 
     switch (patternPart) {
-      case '':
-      case '*':
-      case '**': {
+      case "":
+      case "*":
+      case "**": {
         // invalid pattern. pattern segments must be non empty
         // Additionally wildcards are only supported below the domain level
-        return false
+        return false;
       }
       default: {
         if (domainPart !== patternPart) {
-          return false
+          return false;
         }
       }
     }
   }
 
   while (patternParts.length) {
-    const patternPart = patternParts.pop()
-    const domainPart = domainParts.pop()
+    const patternPart = patternParts.pop();
+    const domainPart = domainParts.pop();
 
     switch (patternPart) {
-      case '': {
+      case "": {
         // invalid pattern. pattern segments must be non empty
-        return false
+        return false;
       }
-      case '*': {
+      case "*": {
         // wildcard matches anything so we continue if the domain part is non-empty
         if (domainPart) {
-          continue
+          continue;
         } else {
-          return false
+          return false;
         }
       }
-      case '**': {
+      case "**": {
         // if this is not the last item in the pattern the pattern is invalid
         if (patternParts.length > 0) {
-          return false
+          return false;
         }
         // recursive wildcard matches anything so we terminate here if the domain part is non empty
-        return domainPart !== undefined
+        return domainPart !== undefined;
       }
       default: {
         if (domainPart !== patternPart) {
-          return false
+          return false;
         }
       }
     }
   }
 
   // We exhausted the pattern. If we also exhausted the domain we have a match
-  return domainParts.length === 0
+  return domainParts.length === 0;
 }
 
 export const isCsrfOriginAllowed = (
@@ -84,5 +84,5 @@ export const isCsrfOriginAllowed = (
       allowedOrigin &&
       (allowedOrigin === originDomain ||
         matchWildcardDomain(originDomain, allowedOrigin))
-  )
-}
+  );
+};

@@ -1,10 +1,10 @@
 /**
  * @type {import('next').NextConfig}
  */
-const config = {}
+const config = {};
 
 if (process.env.BASE_PATH) {
-  config.basePath = process.env.BASE_PATH
+  config.basePath = process.env.BASE_PATH;
 }
 
-module.exports = config
+module.exports = config;

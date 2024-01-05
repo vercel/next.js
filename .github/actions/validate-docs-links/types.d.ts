@@ -1,2 +1,2 @@
-declare module 'remark-rehype'
-declare module 'rehype-raw'
+declare module "remark-rehype";
+declare module "rehype-raw";

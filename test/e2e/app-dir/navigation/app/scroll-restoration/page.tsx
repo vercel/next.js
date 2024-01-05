@@ -1,10 +1,10 @@
-'use client'
-import Link from 'next/link'
-import React, { useContext } from 'react'
-import { ItemsContext } from './context'
+"use client";
+import Link from "next/link";
+import React, { useContext } from "react";
+import { ItemsContext } from "./context";
 
 export default function Page() {
-  const { items, loadMoreItems } = useContext(ItemsContext)
+  const { items, loadMoreItems } = useContext(ItemsContext);
 
   return (
     <div>
@@ -19,5 +19,5 @@ export default function Page() {
       </button>
       <Link href="/scroll-restoration/other">Go to Other</Link>
     </div>
-  )
+  );
 }

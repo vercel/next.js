@@ -1,3 +1,3 @@
 export default function NotFound() {
-  return 'app-not-found'
+  return "app-not-found";
 }

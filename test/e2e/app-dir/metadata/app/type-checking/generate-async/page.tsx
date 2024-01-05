@@ -1,11 +1,11 @@
-import type { ResolvingMetadata } from 'next'
+import type { ResolvingMetadata } from "next";
 
 export default function Page() {
-  return null
+  return null;
 }
 
 export async function generateMetadata(_, __: ResolvingMetadata) {
   return {
-    title: 'foo',
-  }
+    title: "foo",
+  };
 }

@@ -1,3 +1,3 @@
-import data from '../lib/data'
+import data from "../lib/data";
 
-export default () => <div>{data.name}</div>
+export default () => <div>{data.name}</div>;

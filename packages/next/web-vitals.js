@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/web-vitals')
+module.exports = require("./dist/client/web-vitals");

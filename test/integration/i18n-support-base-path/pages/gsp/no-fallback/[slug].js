@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
-  if (router.isFallback) return 'Loading...'
+  if (router.isFallback) return "Loading...";
 
   return (
     <>
@@ -21,13 +21,13 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
   // ensure getStaticProps isn't called without params
   if (!params || !params.slug) {
-    throw new Error(`missing params ${JSON.stringify(params)}`)
+    throw new Error(`missing params ${JSON.stringify(params)}`);
   }
 
   return {
@@ -37,17 +37,17 @@ export const getStaticProps = ({ params, locale, locales, defaultLocale }) => {
       locales,
       defaultLocale,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     paths: [
-      { params: { slug: 'first' } },
-      '/gsp/no-fallback/second',
-      { params: { slug: 'first' }, locale: 'en-US' },
-      '/nl-NL/gsp/no-fallback/second',
+      { params: { slug: "first" } },
+      "/gsp/no-fallback/second",
+      { params: { slug: "first" }, locale: "en-US" },
+      "/nl-NL/gsp/no-fallback/second",
     ],
     fallback: false,
-  }
-}
+  };
+};

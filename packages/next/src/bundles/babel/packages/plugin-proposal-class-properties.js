@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginProposalClassProperties()
+module.exports = require("./bundle").pluginProposalClassProperties();

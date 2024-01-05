@@ -1,15 +1,15 @@
-import { useAmp } from 'next/amp'
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import { useAmp } from "next/amp";
+import Document, { Html, Head, Main, NextScript } from "next/document";
 
 const AmpTst = () => {
-  const isAmp = useAmp()
-  return <p>{isAmp ? 'AMP Power!!!' : 'no AMP for you...'}</p>
-}
+  const isAmp = useAmp();
+  return <p>{isAmp ? "AMP Power!!!" : "no AMP for you..."}</p>;
+};
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
-    return { ...initialProps }
+    const initialProps = await Document.getInitialProps(ctx);
+    return { ...initialProps };
   }
 
   render() {
@@ -22,8 +22,8 @@ class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }
 
-export default MyDocument
+export default MyDocument;

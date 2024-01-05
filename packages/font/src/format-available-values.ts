@@ -3,4 +3,4 @@
  * ["a", "b", "c"] => "`a`, `b`, `c`"
  */
 export const formatAvailableValues = (values: string[]) =>
-  values.map((val) => `\`${val}\``).join(', ')
+  values.map((val) => `\`${val}\``).join(", ");

@@ -1,21 +1,21 @@
-import type { Telemetry } from '../../telemetry/storage'
-import { traceGlobals } from '../shared'
-import type { TraceEvent } from '../types'
+import type { Telemetry } from "../../telemetry/storage";
+import { traceGlobals } from "../shared";
+import type { TraceEvent } from "../types";
 
 const TRACE_EVENT_ACCESSLIST = new Map(
   Object.entries({
-    'webpack-invalidated': 'WEBPACK_INVALIDATED',
+    "webpack-invalidated": "WEBPACK_INVALIDATED",
   })
-)
+);
 
 const reportToTelemetry = ({ name, duration }: TraceEvent) => {
-  const eventName = TRACE_EVENT_ACCESSLIST.get(name)
+  const eventName = TRACE_EVENT_ACCESSLIST.get(name);
   if (!eventName) {
-    return
+    return;
   }
-  const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
+  const telemetry: Telemetry | undefined = traceGlobals.get("telemetry");
   if (!telemetry) {
-    return
+    return;
   }
 
   telemetry.record({
@@ -23,10 +23,10 @@ const reportToTelemetry = ({ name, duration }: TraceEvent) => {
     payload: {
       durationInMicroseconds: duration,
     },
-  })
-}
+  });
+};
 
 export default {
   flushAll: () => {},
   report: reportToTelemetry,
-}
+};

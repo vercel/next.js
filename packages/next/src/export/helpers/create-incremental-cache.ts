@@ -1,10 +1,10 @@
-import type { NextEnabledDirectories } from '../../server/base-server'
+import type { NextEnabledDirectories } from "../../server/base-server";
 
-import path from 'path'
-import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { hasNextSupport } from '../../telemetry/ci-info'
-import { nodeFs } from '../../server/lib/node-fs-methods'
-import { interopDefault } from '../../lib/interop-default'
+import path from "path";
+import { IncrementalCache } from "../../server/lib/incremental-cache";
+import { hasNextSupport } from "../../telemetry/ci-info";
+import { nodeFs } from "../../server/lib/node-fs-methods";
+import { interopDefault } from "../../lib/interop-default";
 
 export async function createIncrementalCache({
   incrementalCacheHandlerPath,
@@ -16,17 +16,17 @@ export async function createIncrementalCache({
   experimental,
   flushToDisk,
 }: {
-  incrementalCacheHandlerPath?: string
-  isrMemoryCacheSize?: number
-  fetchCacheKeyPrefix?: string
-  distDir: string
-  dir: string
-  enabledDirectories: NextEnabledDirectories
-  experimental: { ppr: boolean }
-  flushToDisk?: boolean
+  incrementalCacheHandlerPath?: string;
+  isrMemoryCacheSize?: number;
+  fetchCacheKeyPrefix?: string;
+  distDir: string;
+  dir: string;
+  enabledDirectories: NextEnabledDirectories;
+  experimental: { ppr: boolean };
+  flushToDisk?: boolean;
 }) {
   // Custom cache handler overrides.
-  let CacheHandler: any
+  let CacheHandler: any;
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
       (
@@ -36,7 +36,7 @@ export async function createIncrementalCache({
             : path.join(dir, incrementalCacheHandlerPath)
         )
       ).default
-    )
+    );
   }
 
   const incrementalCache = new IncrementalCache({
@@ -51,22 +51,22 @@ export async function createIncrementalCache({
       routes: {},
       dynamicRoutes: {},
       preview: {
-        previewModeEncryptionKey: '',
-        previewModeId: '',
-        previewModeSigningKey: '',
+        previewModeEncryptionKey: "",
+        previewModeId: "",
+        previewModeSigningKey: "",
       },
       notFoundRoutes: [],
     }),
     fs: nodeFs,
     pagesDir: enabledDirectories.pages,
     appDir: enabledDirectories.app,
-    serverDistDir: path.join(distDir, 'server'),
+    serverDistDir: path.join(distDir, "server"),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
     experimental,
-  })
+  });
 
-  ;(globalThis as any).__incrementalCache = incrementalCache
+  (globalThis as any).__incrementalCache = incrementalCache;
 
-  return incrementalCache
+  return incrementalCache;
 }

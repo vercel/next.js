@@ -1,15 +1,15 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-import { revalidatePath } from 'next/cache'
-import { addData } from '../../actions'
+import { revalidatePath } from "next/cache";
+import { addData } from "../../actions";
 
 export default function Page() {
   async function createItem() {
-    'use server'
+    "use server";
 
-    await addData(new Date().toISOString())
+    await addData(new Date().toISOString());
 
-    revalidatePath('/', 'layout')
+    revalidatePath("/", "layout");
   }
 
   return (
@@ -26,5 +26,5 @@ export default function Page() {
 
       <Link href="/">Close</Link>
     </dialog>
-  )
+  );
 }

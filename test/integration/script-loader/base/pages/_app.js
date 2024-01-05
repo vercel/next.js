@@ -1,6 +1,6 @@
-import Script from 'next/script'
+import Script from "next/script";
 
-import '../styles/styles.css'
+import "../styles/styles.css";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -17,7 +17,7 @@ function MyApp({ Component, pageProps }) {
       />
       <Component {...pageProps} />
     </>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

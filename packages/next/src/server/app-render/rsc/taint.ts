@@ -4,13 +4,13 @@ Files in the rsc directory are meant to be packaged as part of the RSC graph usi
 
 */
 
-import * as React from 'react'
+import * as React from "react";
 
-type Reference = object
-type TaintableUniqueValue = string | bigint | ArrayBufferView
+type Reference = object;
+type TaintableUniqueValue = string | bigint | ArrayBufferView;
 
 function notImplemented() {
-  throw new Error('Taint can only be used with the taint flag.')
+  throw new Error("Taint can only be used with the taint flag.");
 }
 
 export const taintObjectReference: (
@@ -19,7 +19,7 @@ export const taintObjectReference: (
 ) => void = process.env.__NEXT_EXPERIMENTAL_REACT
   ? // @ts-ignore
     React.experimental_taintObjectReference
-  : notImplemented
+  : notImplemented;
 export const taintUniqueValue: (
   message: string | undefined,
   lifetime: Reference,
@@ -27,4 +27,4 @@ export const taintUniqueValue: (
 ) => void = process.env.__NEXT_EXPERIMENTAL_REACT
   ? // @ts-ignore
     React.experimental_taintUniqueValue
-  : notImplemented
+  : notImplemented;

@@ -1,4 +1,4 @@
-export const config = { amp: 'hybrid' }
+export const config = { amp: "hybrid" };
 
-const Page = () => <p>Hello amp</p>
-export default Page
+const Page = () => <p>Hello amp</p>;
+export default Page;

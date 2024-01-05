@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-export const dynamic = 'force-static'
+export const dynamic = "force-static";
 
 export function generateStaticParams() {
-  return [{ slug: 'first' }, { slug: 'second' }]
+  return [{ slug: "first" }, { slug: "second" }];
 }
 
 export default function Page({ params }) {
@@ -16,5 +16,5 @@ export default function Page({ params }) {
         </li>
       </ul>
     </main>
-  )
+  );
 }

@@ -2,16 +2,16 @@ name: build-and-deploy
 
 on:
   push:
-    branches: ['canary']
+    branches: ["canary"]
   workflow_dispatch:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
   TURBO_VERSION: 1.10.9
   NODE_LTS_VERSION: 20
-  CARGO_PROFILE_RELEASE_LTO: 'true'
-  TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  CARGO_PROFILE_RELEASE_LTO: "true"
+  TURBO_TEAM: "vercel"
+  TURBO_REMOTE_ONLY: "true"
 
 jobs:
   build:
@@ -79,22 +79,22 @@ jobs:
       matrix:
         settings:
           - host:
-              - 'self-hosted'
-              - 'macos'
-              - 'arm64'
+              - "self-hosted"
+              - "macos"
+              - "arm64"
 
-            target: 'x86_64-apple-darwin'
+            target: "x86_64-apple-darwin"
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
               turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin --release
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
-              - 'self-hosted'
-              - 'macos'
-              - 'arm64'
+              - "self-hosted"
+              - "macos"
+              - "arm64"
 
-            target: 'aarch64-apple-darwin'
+            target: "aarch64-apple-darwin"
             build: |
               export CC=$(xcrun -f clang);
               export CXX=$(xcrun -f clang++);
@@ -105,45 +105,45 @@ jobs:
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
+              - "self-hosted"
+              - "windows"
+              - "x64"
 
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-release -vvv --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
-            target: 'x86_64-pc-windows-msvc'
+            target: "x86_64-pc-windows-msvc"
 
           - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
+              - "self-hosted"
+              - "windows"
+              - "x64"
 
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-no-plugin -vvv --remote-cache-timeout 90 --summarize -- --release --target i686-pc-windows-msvc
-            target: 'i686-pc-windows-msvc'
+            target: "i686-pc-windows-msvc"
 
           - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
+              - "self-hosted"
+              - "windows"
+              - "x64"
 
-            target: 'aarch64-pc-windows-msvc'
+            target: "aarch64-pc-windows-msvc"
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
               turbo run build-native-no-plugin-woa-release -vvv --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
+              - "self-hosted"
+              - "linux"
+              - "x64"
+              - "metal"
 
-            target: 'x86_64-unknown-linux-gnu'
+            target: "x86_64-unknown-linux-gnu"
             # [NOTE] If you want to update / modify build steps, check these things:
             # - We use docker images to pin the glibc version to link against,
             #   even if host target is identical to the container image (i.e host: x64-linux, image: x64-linux)
@@ -166,12 +166,12 @@ jobs:
               objdump -T native/next-swc.*.node | grep GLIBC_
 
           - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
+              - "self-hosted"
+              - "linux"
+              - "x64"
+              - "metal"
 
-            target: 'x86_64-unknown-linux-musl'
+            target: "x86_64-unknown-linux-musl"
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
               set -e &&
@@ -185,12 +185,12 @@ jobs:
               strip native/next-swc.*.node
 
           - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
+              - "self-hosted"
+              - "linux"
+              - "x64"
+              - "metal"
 
-            target: 'aarch64-unknown-linux-gnu'
+            target: "aarch64-unknown-linux-gnu"
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
             build: >-
               set -e &&
@@ -207,12 +207,12 @@ jobs:
               objdump -T native/next-swc.*.node | grep GLIBC_
 
           - host:
-              - 'self-hosted'
-              - 'linux'
-              - 'x64'
-              - 'metal'
+              - "self-hosted"
+              - "linux"
+              - "x64"
+              - "metal"
 
-            target: 'aarch64-unknown-linux-musl'
+            target: "aarch64-unknown-linux-musl"
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
             build: >-
               set -e &&
@@ -271,8 +271,8 @@ jobs:
       - name: Cache on ${{ github.ref_name }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.7
         with:
-          save-if: 'true'
-          cache-provider: 'turbo'
+          save-if: "true"
+          cache-provider: "turbo"
           shared-key: build-${{ matrix.settings.target }}-${{ hashFiles('.cargo/config.toml') }}
 
       # we only need custom caching for docker builds
@@ -295,16 +295,16 @@ jobs:
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
         run: pnpm turbo run cache-build-native --force -- ${{ matrix.settings.target }}
 
-      - name: 'Build'
+      - name: "Build"
         run: ${{ matrix.settings.build }}
         if: ${{ !matrix.settings.docker }}
 
-      - name: 'check build cache status'
+      - name: "check build cache status"
         id: check-did-build
         run: if [[ ! -z $(ls packages/next-swc/native) ]]; then echo "DID_BUILD=true" >> $GITHUB_OUTPUT; fi
 
       # Try to upload metrics for Turbopack to datadog's CI pipeline execution
-      - name: 'Collect turbopack build metrics'
+      - name: "Collect turbopack build metrics"
         id: check-turbopack-bytesize
         if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
         continue-on-error: true
@@ -346,10 +346,10 @@ jobs:
         target: [web, nodejs]
 
     runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+      - "self-hosted"
+      - "linux"
+      - "x64"
+      - "metal"
 
     steps:
       - uses: actions/checkout@v3
@@ -467,10 +467,10 @@ jobs:
   releaseStats:
     name: Release Stats
     runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+      - "self-hosted"
+      - "linux"
+      - "x64"
+      - "metal"
     timeout-minutes: 25
     needs: [publishRelease]
     steps:

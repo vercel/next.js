@@ -1,8 +1,8 @@
-export const dynamic = 'force-static'
+export const dynamic = "force-static";
 
-import Link from 'next/link'
-import { Suspense } from 'react'
-import UseSearchParams from '../search-params'
+import Link from "next/link";
+import { Suspense } from "react";
+import UseSearchParams from "../search-params";
 
 export default function Page() {
   return (
@@ -15,5 +15,5 @@ export default function Page() {
         To /
       </Link>
     </Suspense>
-  )
+  );
 }

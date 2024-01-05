@@ -1,11 +1,11 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from "next/document";
 
-const docValue = await Promise.resolve('doc value')
+const docValue = await Promise.resolve("doc value");
 
 class MyDocument extends Document {
   static async getInitialProps(ctx) {
-    const initialProps = await Document.getInitialProps(ctx)
-    return { ...initialProps, docValue }
+    const initialProps = await Document.getInitialProps(ctx);
+    return { ...initialProps, docValue };
   }
 
   render() {
@@ -18,8 +18,8 @@ class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }
 
-export default MyDocument
+export default MyDocument;

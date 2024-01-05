@@ -1,3 +1,3 @@
 export default () => {
-  return <div>module.exports</div>
-}
+  return <div>module.exports</div>;
+};

@@ -20,20 +20,20 @@ While generating static pages, Next.js will throw a `DynamicServerError` if it d
 ### Example of Incorrect Usage
 
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 async function getCookieData() {
   return new Promise((resolve) =>
     setTimeout(() => {
       // cookies will be called outside of the async context, causing a build-time error
-      resolve(cookies().getAll())
+      resolve(cookies().getAll());
     }, 1000)
-  )
+  );
 }
 
 export default async function Page() {
-  const cookieData = await getCookieData()
-  return <div>Hello World</div>
+  const cookieData = await getCookieData();
+  return <div>Hello World</div>;
 }
 ```
 
@@ -47,19 +47,19 @@ export default async function Page() {
 ### Example of Correct Usage
 
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 async function getCookieData() {
-  const cookieData = cookies().getAll()
+  const cookieData = cookies().getAll();
   return new Promise((resolve) =>
     setTimeout(() => {
-      resolve(cookieData)
+      resolve(cookieData);
     }, 1000)
-  )
+  );
 }
 
 export default async function Page() {
-  const cookieData = await getCookieData()
-  return <div>Hello World</div>
+  const cookieData = await getCookieData();
+  return <div>Hello World</div>;
 }
 ```

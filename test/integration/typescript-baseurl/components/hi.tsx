@@ -1,5 +1,5 @@
-import React from 'react'
+import React from "react";
 
 export function Hi(): JSX.Element {
-  return <>Hi</>
+  return <>Hi</>;
 }

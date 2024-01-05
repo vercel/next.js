@@ -1,1 +1,1 @@
-export const config = 'world'
+export const config = "world";

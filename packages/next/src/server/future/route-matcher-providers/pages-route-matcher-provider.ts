@@ -1,29 +1,29 @@
-import { isAPIRoute } from '../../../lib/is-api-route'
-import { BLOCKED_PAGES, PAGES_MANIFEST } from '../../../shared/lib/constants'
-import { RouteKind } from '../route-kind'
+import { isAPIRoute } from "../../../lib/is-api-route";
+import { BLOCKED_PAGES, PAGES_MANIFEST } from "../../../shared/lib/constants";
+import { RouteKind } from "../route-kind";
 import {
   PagesLocaleRouteMatcher,
   PagesRouteMatcher,
-} from '../route-matchers/pages-route-matcher'
+} from "../route-matchers/pages-route-matcher";
 import type {
   Manifest,
   ManifestLoader,
-} from './helpers/manifest-loaders/manifest-loader'
-import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import type { I18NProvider } from '../helpers/i18n-provider'
-import { PagesNormalizers } from '../normalizers/built/pages'
+} from "./helpers/manifest-loaders/manifest-loader";
+import { ManifestRouteMatcherProvider } from "./manifest-route-matcher-provider";
+import type { I18NProvider } from "../helpers/i18n-provider";
+import { PagesNormalizers } from "../normalizers/built/pages";
 
 export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesRouteMatcher> {
-  private readonly normalizers: PagesNormalizers
+  private readonly normalizers: PagesNormalizers;
 
   constructor(
     distDir: string,
     manifestLoader: ManifestLoader,
     private readonly i18nProvider?: I18NProvider
   ) {
-    super(PAGES_MANIFEST, manifestLoader)
+    super(PAGES_MANIFEST, manifestLoader);
 
-    this.normalizers = new PagesNormalizers(distDir)
+    this.normalizers = new PagesNormalizers(distDir);
   }
 
   protected async transform(
@@ -37,19 +37,19 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
       // internal pages).
       .filter((pathname) => {
         const normalized =
-          this.i18nProvider?.analyze(pathname).pathname ?? pathname
+          this.i18nProvider?.analyze(pathname).pathname ?? pathname;
 
         // Skip any blocked pages.
-        if (BLOCKED_PAGES.includes(normalized)) return false
+        if (BLOCKED_PAGES.includes(normalized)) return false;
 
-        return true
-      })
+        return true;
+      });
 
-    const matchers: Array<PagesRouteMatcher> = []
+    const matchers: Array<PagesRouteMatcher> = [];
     for (const page of pathnames) {
       if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page);
 
         matchers.push(
           new PagesLocaleRouteMatcher({
@@ -62,7 +62,7 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
               locale: detectedLocale,
             },
           })
-        )
+        );
       } else {
         matchers.push(
           new PagesRouteMatcher({
@@ -73,10 +73,10 @@ export class PagesRouteMatcherProvider extends ManifestRouteMatcherProvider<Page
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),
           })
-        )
+        );
       }
     }
 
-    return matchers
+    return matchers;
   }
 }

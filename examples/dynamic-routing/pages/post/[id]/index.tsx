@@ -1,10 +1,10 @@
-import { useRouter } from 'next/router'
-import Link from 'next/link'
-import Header from '../../../components/header'
+import { useRouter } from "next/router";
+import Link from "next/link";
+import Header from "../../../components/header";
 
 export default function PostPage() {
-  const router = useRouter()
-  const id = router.query.id as string
+  const router = useRouter();
+  const id = router.query.id as string;
 
   return (
     <>
@@ -19,5 +19,5 @@ export default function PostPage() {
         </li>
       </ul>
     </>
-  )
+  );
 }

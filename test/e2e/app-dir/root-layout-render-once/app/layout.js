@@ -1,8 +1,8 @@
-import React from 'react'
+import React from "react";
 
-export const revalidate = 0
+export const revalidate = 0;
 
-let value = 0
+let value = 0;
 export default function Layout({ children }) {
   return (
     <html>
@@ -12,5 +12,5 @@ export default function Layout({ children }) {
         <p id="counter">{value++}</p>
       </body>
     </html>
-  )
+  );
 }

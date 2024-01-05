@@ -11,45 +11,45 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 */
 
 const preserveCamelCase = (string: string, locale: string) => {
-  let isLastCharLower = false
-  let isLastCharUpper = false
-  let isLastLastCharUpper = false
+  let isLastCharLower = false;
+  let isLastCharUpper = false;
+  let isLastLastCharUpper = false;
 
   for (let i = 0; i < string.length; i++) {
-    const character = string[i]
+    const character = string[i];
 
     if (isLastCharLower && /[\p{Lu}]/u.test(character)) {
-      string = string.slice(0, i) + '-' + string.slice(i)
-      isLastCharLower = false
-      isLastLastCharUpper = isLastCharUpper
-      isLastCharUpper = true
-      i++
+      string = string.slice(0, i) + "-" + string.slice(i);
+      isLastCharLower = false;
+      isLastLastCharUpper = isLastCharUpper;
+      isLastCharUpper = true;
+      i++;
     } else if (
       isLastCharUpper &&
       isLastLastCharUpper &&
       /[\p{Ll}]/u.test(character)
     ) {
-      string = string.slice(0, i - 1) + '-' + string.slice(i - 1)
-      isLastLastCharUpper = isLastCharUpper
-      isLastCharUpper = false
-      isLastCharLower = true
+      string = string.slice(0, i - 1) + "-" + string.slice(i - 1);
+      isLastLastCharUpper = isLastCharUpper;
+      isLastCharUpper = false;
+      isLastCharLower = true;
     } else {
       isLastCharLower =
         character.toLocaleLowerCase(locale) === character &&
-        character.toLocaleUpperCase(locale) !== character
-      isLastLastCharUpper = isLastCharUpper
+        character.toLocaleUpperCase(locale) !== character;
+      isLastLastCharUpper = isLastCharUpper;
       isLastCharUpper =
         character.toLocaleUpperCase(locale) === character &&
-        character.toLocaleLowerCase(locale) !== character
+        character.toLocaleLowerCase(locale) !== character;
     }
   }
 
-  return string
-}
+  return string;
+};
 
 const preserveConsecutiveUppercase = (input: string) => {
-  return input.replace(/^[\p{Lu}](?![\p{Lu}])/gu, (m1) => m1.toLowerCase())
-}
+  return input.replace(/^[\p{Lu}](?![\p{Lu}])/gu, (m1) => m1.toLowerCase());
+};
 
 const postProcess = (input: string, options: { locale: string }) => {
   return input
@@ -58,58 +58,58 @@ const postProcess = (input: string, options: { locale: string }) => {
     )
     .replace(/\d+([\p{Alpha}\p{N}_]|$)/gu, (m) =>
       m.toLocaleUpperCase(options.locale)
-    )
-}
+    );
+};
 
 const camelCase = (input: string | string[], options?: any) => {
-  if (!(typeof input === 'string' || Array.isArray(input))) {
-    throw new TypeError('Expected the input to be `string | string[]`')
+  if (!(typeof input === "string" || Array.isArray(input))) {
+    throw new TypeError("Expected the input to be `string | string[]`");
   }
 
   options = {
     pascalCase: false,
     preserveConsecutiveUppercase: false,
     ...options,
-  }
+  };
 
   if (Array.isArray(input)) {
     input = input
       .map((x) => x.trim())
       .filter((x) => x.length)
-      .join('-')
+      .join("-");
   } else {
-    input = input.trim()
+    input = input.trim();
   }
 
   if (input.length === 0) {
-    return ''
+    return "";
   }
 
   if (input.length === 1) {
     return options.pascalCase
       ? input.toLocaleUpperCase(options.locale)
-      : input.toLocaleLowerCase(options.locale)
+      : input.toLocaleLowerCase(options.locale);
   }
 
-  const hasUpperCase = input !== input.toLocaleLowerCase(options.locale)
+  const hasUpperCase = input !== input.toLocaleLowerCase(options.locale);
 
   if (hasUpperCase) {
-    input = preserveCamelCase(input, options.locale)
+    input = preserveCamelCase(input, options.locale);
   }
 
-  input = input.replace(/^[_.\- ]+/, '')
+  input = input.replace(/^[_.\- ]+/, "");
 
   if (options.preserveConsecutiveUppercase) {
-    input = preserveConsecutiveUppercase(input)
+    input = preserveConsecutiveUppercase(input);
   } else {
-    input = input.toLocaleLowerCase()
+    input = input.toLocaleLowerCase();
   }
 
   if (options.pascalCase) {
-    input = input.charAt(0).toLocaleUpperCase(options.locale) + input.slice(1)
+    input = input.charAt(0).toLocaleUpperCase(options.locale) + input.slice(1);
   }
 
-  return postProcess(input, options)
-}
+  return postProcess(input, options);
+};
 
-export default camelCase
+export default camelCase;

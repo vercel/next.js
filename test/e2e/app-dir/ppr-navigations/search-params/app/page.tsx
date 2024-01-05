@@ -1,11 +1,11 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default async function Page({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: { [key: string]: string | string[] | undefined };
 }) {
-  const hasParams = Object.keys(searchParams).length > 0
+  const hasParams = Object.keys(searchParams).length > 0;
   return (
     <>
       <Link href="/?blazing=good">Go</Link>
@@ -15,5 +15,5 @@ export default async function Page({
         </div>
       ) : null}
     </>
-  )
+  );
 }

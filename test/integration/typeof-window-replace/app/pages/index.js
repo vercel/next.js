@@ -1,12 +1,12 @@
-import MyComp from 'comps'
+import MyComp from "comps";
 
 const Page = () => (
   <>
     <p>Hello {typeof window}</p>
     <MyComp />
   </>
-)
+);
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default Page
+export default Page;

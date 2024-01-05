@@ -1,10 +1,10 @@
-import React, { Suspense } from 'react'
-import { Dynamic } from '../../../../../components/dynamic'
+import React, { Suspense } from "react";
+import { Dynamic } from "../../../../../components/dynamic";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export function generateStaticParams() {
-  return []
+  return [];
 }
 
 export default ({ params: { slug } }) => {
@@ -16,5 +16,5 @@ export default ({ params: { slug } }) => {
     >
       <Dynamic pathname={`/dynamic/force-dynamic/nested/${slug}`} />
     </Suspense>
-  )
-}
+  );
+};

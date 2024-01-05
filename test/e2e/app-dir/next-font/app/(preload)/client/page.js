@@ -1,6 +1,6 @@
-'use client'
-import Comp from './Comp'
-import { font5 } from '../../../fonts'
+"use client";
+import Comp from "./Comp";
+import { font5 } from "../../../fonts";
 
 export default function HomePage() {
   return (
@@ -10,5 +10,5 @@ export default function HomePage() {
       </p>
       <Comp />
     </>
-  )
+  );
 }

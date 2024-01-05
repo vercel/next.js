@@ -1,4 +1,4 @@
-import { ClientDynamicShared } from './ClientShared'
+import { ClientDynamicShared } from "./ClientShared";
 
 export default function FeedPage() {
   return (
@@ -9,5 +9,5 @@ export default function FeedPage() {
         <ClientDynamicShared />
       </section>
     </main>
-  )
+  );
 }

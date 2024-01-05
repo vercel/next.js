@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react'
-import css from './index.module.css'
+import { useEffect, useState } from "react";
+import css from "./index.module.css";
 
 export default function Home() {
-  const [state, setState] = useState('')
+  const [state, setState] = useState("");
   useEffect(() => {
-    setState('mounted')
-  }, [])
+    setState("mounted");
+  }, []);
   return (
     <main>
       <h1 id="red-title" className={css.headerRed}>
@@ -13,5 +13,5 @@ export default function Home() {
       </h1>
       <p>{state}</p>
     </main>
-  )
+  );
 }

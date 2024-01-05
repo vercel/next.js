@@ -1,1 +1,1 @@
-export * from '../server/web/exports/index'
+export * from "../server/web/exports/index";

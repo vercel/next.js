@@ -1,6 +1,6 @@
-import type { PAGE_TYPES } from '../../../lib/page-types'
-import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import type { Normalizer } from './normalizer'
+import type { PAGE_TYPES } from "../../../lib/page-types";
+import { absolutePathToPage } from "../../../shared/lib/page-path/absolute-path-to-page";
+import type { Normalizer } from "./normalizer";
 
 /**
  * Normalizes a given filename so that it's relative to the provided directory.
@@ -25,6 +25,6 @@ export class AbsoluteFilenameNormalizer implements Normalizer {
       keepIndex: false,
       dir: this.dir,
       pagesType: this.pagesType,
-    })
+    });
   }
 }

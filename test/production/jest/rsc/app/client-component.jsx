@@ -1,5 +1,5 @@
-'use client'
+"use client";
 
 export default function Counter() {
-  return <h2>Hello</h2>
+  return <h2>Hello</h2>;
 }

@@ -1,11 +1,11 @@
-import Head from 'next/head'
-import AnotherHead from 'next/head.js'
-import { useRouter } from 'next/router'
-import { useRouter as useRouter2 } from 'next/router.js'
+import Head from "next/head";
+import AnotherHead from "next/head.js";
+import { useRouter } from "next/router";
+import { useRouter as useRouter2 } from "next/router.js";
 
 export default function Page() {
-  useRouter()
-  useRouter2()
+  useRouter();
+  useRouter2();
   return (
     <>
       <Head>
@@ -16,5 +16,5 @@ export default function Page() {
       </AnotherHead>
       <div className="root">pages</div>
     </>
-  )
+  );
 }

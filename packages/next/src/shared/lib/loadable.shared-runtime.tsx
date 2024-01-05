@@ -22,39 +22,39 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 // https://github.com/jamiebuilds/react-loadable/blob/v5.5.0/src/index.js
 // Modified to be compatible with webpack 4 / Next.js
 
-import React from 'react'
-import { LoadableContext } from './loadable-context.shared-runtime'
+import React from "react";
+import { LoadableContext } from "./loadable-context.shared-runtime";
 
 function resolve(obj: any) {
-  return obj && obj.default ? obj.default : obj
+  return obj && obj.default ? obj.default : obj;
 }
 
-const ALL_INITIALIZERS: any[] = []
-const READY_INITIALIZERS: any[] = []
-let initialized = false
+const ALL_INITIALIZERS: any[] = [];
+const READY_INITIALIZERS: any[] = [];
+let initialized = false;
 
 function load(loader: any) {
-  let promise = loader()
+  let promise = loader();
 
   let state: any = {
     loading: true,
     loaded: null,
     error: null,
-  }
+  };
 
   state.promise = promise
     .then((loaded: any) => {
-      state.loading = false
-      state.loaded = loaded
-      return loaded
+      state.loading = false;
+      state.loaded = loaded;
+      return loaded;
     })
     .catch((err: any) => {
-      state.loading = false
-      state.error = err
-      throw err
-    })
+      state.loading = false;
+      state.error = err;
+      throw err;
+    });
 
-  return state
+  return state;
 }
 
 function createLoadableComponent(loadFn: any, options: any) {
@@ -68,66 +68,66 @@ function createLoadableComponent(loadFn: any, options: any) {
       modules: null,
     },
     options
-  )
+  );
 
   /** @type LoadableSubscription */
-  let subscription: any = null
+  let subscription: any = null;
   function init() {
     if (!subscription) {
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      const sub = new LoadableSubscription(loadFn, opts)
+      const sub = new LoadableSubscription(loadFn, opts);
       subscription = {
         getCurrentValue: sub.getCurrentValue.bind(sub),
         subscribe: sub.subscribe.bind(sub),
         retry: sub.retry.bind(sub),
         promise: sub.promise.bind(sub),
-      }
+      };
     }
-    return subscription.promise()
+    return subscription.promise();
   }
 
   // Server only
-  if (typeof window === 'undefined') {
-    ALL_INITIALIZERS.push(init)
+  if (typeof window === "undefined") {
+    ALL_INITIALIZERS.push(init);
   }
 
   // Client only
-  if (!initialized && typeof window !== 'undefined') {
+  if (!initialized && typeof window !== "undefined") {
     // require.resolveWeak check is needed for environments that don't have it available like Jest
     const moduleIds =
-      opts.webpack && typeof (require as any).resolveWeak === 'function'
+      opts.webpack && typeof (require as any).resolveWeak === "function"
         ? opts.webpack()
-        : opts.modules
+        : opts.modules;
     if (moduleIds) {
       READY_INITIALIZERS.push((ids: any) => {
         for (const moduleId of moduleIds) {
           if (ids.includes(moduleId)) {
-            return init()
+            return init();
           }
         }
-      })
+      });
     }
   }
 
   function useLoadableModule() {
-    init()
+    init();
 
-    const context = React.useContext(LoadableContext)
+    const context = React.useContext(LoadableContext);
     if (context && Array.isArray(opts.modules)) {
       opts.modules.forEach((moduleName: any) => {
-        context(moduleName)
-      })
+        context(moduleName);
+      });
     }
   }
 
   function LoadableComponent(props: any, ref: any) {
-    useLoadableModule()
+    useLoadableModule();
 
     const state = (React as any).useSyncExternalStore(
       subscription.subscribe,
       subscription.getCurrentValue,
       subscription.getCurrentValue
-    )
+    );
 
     React.useImperativeHandle(
       ref,
@@ -135,7 +135,7 @@ function createLoadableComponent(loadFn: any, options: any) {
         retry: subscription.retry,
       }),
       []
-    )
+    );
 
     return React.useMemo(() => {
       if (state.loading || state.error) {
@@ -145,84 +145,84 @@ function createLoadableComponent(loadFn: any, options: any) {
           timedOut: state.timedOut,
           error: state.error,
           retry: subscription.retry,
-        })
+        });
       } else if (state.loaded) {
-        return React.createElement(resolve(state.loaded), props)
+        return React.createElement(resolve(state.loaded), props);
       } else {
-        return null
+        return null;
       }
-    }, [props, state])
+    }, [props, state]);
   }
 
-  LoadableComponent.preload = () => init()
-  LoadableComponent.displayName = 'LoadableComponent'
+  LoadableComponent.preload = () => init();
+  LoadableComponent.displayName = "LoadableComponent";
 
-  return React.forwardRef(LoadableComponent)
+  return React.forwardRef(LoadableComponent);
 }
 
 class LoadableSubscription {
-  _loadFn: any
-  _opts: any
-  _callbacks: any
-  _delay: any
-  _timeout: any
-  _res: any
-  _state: any
+  _loadFn: any;
+  _opts: any;
+  _callbacks: any;
+  _delay: any;
+  _timeout: any;
+  _res: any;
+  _state: any;
   constructor(loadFn: any, opts: any) {
-    this._loadFn = loadFn
-    this._opts = opts
-    this._callbacks = new Set()
-    this._delay = null
-    this._timeout = null
+    this._loadFn = loadFn;
+    this._opts = opts;
+    this._callbacks = new Set();
+    this._delay = null;
+    this._timeout = null;
 
-    this.retry()
+    this.retry();
   }
 
   promise() {
-    return this._res.promise
+    return this._res.promise;
   }
 
   retry() {
-    this._clearTimeouts()
-    this._res = this._loadFn(this._opts.loader)
+    this._clearTimeouts();
+    this._res = this._loadFn(this._opts.loader);
 
     this._state = {
       pastDelay: false,
       timedOut: false,
-    }
+    };
 
-    const { _res: res, _opts: opts } = this
+    const { _res: res, _opts: opts } = this;
 
     if (res.loading) {
-      if (typeof opts.delay === 'number') {
+      if (typeof opts.delay === "number") {
         if (opts.delay === 0) {
-          this._state.pastDelay = true
+          this._state.pastDelay = true;
         } else {
           this._delay = setTimeout(() => {
             this._update({
               pastDelay: true,
-            })
-          }, opts.delay)
+            });
+          }, opts.delay);
         }
       }
 
-      if (typeof opts.timeout === 'number') {
+      if (typeof opts.timeout === "number") {
         this._timeout = setTimeout(() => {
-          this._update({ timedOut: true })
-        }, opts.timeout)
+          this._update({ timedOut: true });
+        }, opts.timeout);
       }
     }
 
     this._res.promise
       .then(() => {
-        this._update({})
-        this._clearTimeouts()
+        this._update({});
+        this._clearTimeouts();
       })
       .catch((_err: any) => {
-        this._update({})
-        this._clearTimeouts()
-      })
-    this._update({})
+        this._update({});
+        this._clearTimeouts();
+      });
+    this._update({});
   }
 
   _update(partial: any) {
@@ -232,71 +232,71 @@ class LoadableSubscription {
       loaded: this._res.loaded,
       loading: this._res.loading,
       ...partial,
-    }
-    this._callbacks.forEach((callback: any) => callback())
+    };
+    this._callbacks.forEach((callback: any) => callback());
   }
 
   _clearTimeouts() {
-    clearTimeout(this._delay)
-    clearTimeout(this._timeout)
+    clearTimeout(this._delay);
+    clearTimeout(this._timeout);
   }
 
   getCurrentValue() {
-    return this._state
+    return this._state;
   }
 
   subscribe(callback: any) {
-    this._callbacks.add(callback)
+    this._callbacks.add(callback);
     return () => {
-      this._callbacks.delete(callback)
-    }
+      this._callbacks.delete(callback);
+    };
   }
 }
 
 function Loadable(opts: any) {
-  return createLoadableComponent(load, opts)
+  return createLoadableComponent(load, opts);
 }
 
 function flushInitializers(initializers: any, ids?: any): any {
-  let promises = []
+  let promises = [];
 
   while (initializers.length) {
-    let init = initializers.pop()
-    promises.push(init(ids))
+    let init = initializers.pop();
+    promises.push(init(ids));
   }
 
   return Promise.all(promises).then(() => {
     if (initializers.length) {
-      return flushInitializers(initializers, ids)
+      return flushInitializers(initializers, ids);
     }
-  })
+  });
 }
 
 Loadable.preloadAll = () => {
   return new Promise((resolveInitializers, reject) => {
-    flushInitializers(ALL_INITIALIZERS).then(resolveInitializers, reject)
-  })
-}
+    flushInitializers(ALL_INITIALIZERS).then(resolveInitializers, reject);
+  });
+};
 
 Loadable.preloadReady = (ids: (string | number)[] = []): Promise<void> => {
   return new Promise<void>((resolvePreload) => {
     const res = () => {
-      initialized = true
-      return resolvePreload()
-    }
+      initialized = true;
+      return resolvePreload();
+    };
     // We always will resolve, errors should be handled within loading UIs.
-    flushInitializers(READY_INITIALIZERS, ids).then(res, res)
-  })
-}
+    flushInitializers(READY_INITIALIZERS, ids).then(res, res);
+  });
+};
 
 declare global {
   interface Window {
-    __NEXT_PRELOADREADY?: (ids?: (string | number)[]) => Promise<void>
+    __NEXT_PRELOADREADY?: (ids?: (string | number)[]) => Promise<void>;
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.__NEXT_PRELOADREADY = Loadable.preloadReady
+if (typeof window !== "undefined") {
+  window.__NEXT_PRELOADREADY = Loadable.preloadReady;
 }
 
-export default Loadable
+export default Loadable;

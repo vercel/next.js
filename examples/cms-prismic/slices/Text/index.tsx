@@ -1,7 +1,7 @@
-import { PrismicRichText, SliceComponentProps } from '@prismicio/react'
-import { Content } from '@prismicio/client'
+import { PrismicRichText, SliceComponentProps } from "@prismicio/react";
+import { Content } from "@prismicio/client";
 
-type TextProps = SliceComponentProps<Content.TextSlice>
+type TextProps = SliceComponentProps<Content.TextSlice>;
 
 const Text = ({ slice }: TextProps) => {
   return (
@@ -21,7 +21,7 @@ const Text = ({ slice }: TextProps) => {
         }}
       />
     </section>
-  )
-}
+  );
+};
 
-export default Text
+export default Text;

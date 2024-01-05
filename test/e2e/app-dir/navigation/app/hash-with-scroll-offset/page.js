@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import './global.css'
+import Link from "next/link";
+import "./global.css";
 
 export default function HashPage() {
   // Create list of 5000 items that all have unique id
-  const items = Array.from({ length: 5000 }, (_, i) => ({ id: i }))
+  const items = Array.from({ length: 5000 }, (_, i) => ({ id: i }));
 
   return (
-    <div style={{ fontFamily: 'sans-serif', fontSize: '16px' }}>
+    <div style={{ fontFamily: "sans-serif", fontSize: "16px" }}>
       <p>Hash Page</p>
       <Link href="/hash#hash-6" id="link-to-6">
         To 6
@@ -37,5 +37,5 @@ export default function HashPage() {
         ))}
       </div>
     </div>
-  )
+  );
 }

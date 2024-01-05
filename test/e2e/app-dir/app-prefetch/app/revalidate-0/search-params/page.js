@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home({ searchParams }) {
   return (
@@ -7,5 +7,5 @@ export default function Home({ searchParams }) {
       <Link href="?foo=true">Add search params</Link>
       <Link href="/revalidate-0/search-params">Clear Params</Link>
     </>
-  )
+  );
 }

@@ -1,7 +1,7 @@
-import 'server-only'
+import "server-only";
 
 export function GET() {
-  return new Response('app-route-edge/route.js')
+  return new Response("app-route-edge/route.js");
 }
 
-export const runtime = 'edge'
+export const runtime = "edge";

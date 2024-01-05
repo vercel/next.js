@@ -1,7 +1,7 @@
 export default function Page() {
-  return 'unsupported metadata'
+  return "unsupported metadata";
 }
 
 export const metadata = {
-  themeColor: 'light',
-}
+  themeColor: "light",
+};

@@ -1,7 +1,7 @@
-import * as classes from 'example'
+import * as classes from "example";
 
 function Home() {
-  return <div>This should fail at build time {JSON.stringify(classes)}.</div>
+  return <div>This should fail at build time {JSON.stringify(classes)}.</div>;
 }
 
-export default Home
+export default Home;

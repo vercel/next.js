@@ -1,1 +1,1 @@
-export default () => 'got to the page'
+export default () => "got to the page";

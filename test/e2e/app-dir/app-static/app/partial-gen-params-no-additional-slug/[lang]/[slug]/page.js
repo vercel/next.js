@@ -1,25 +1,25 @@
-export const dynamicParams = false
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const res = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?staticGen'
-  )
+    "https://next-data-api-endpoint.vercel.app/api/random?staticGen"
+  );
 
-  const data = await res.text()
-  const fetchSlug = Math.round(Number(data) * 100)
-  console.log('partial-gen-params fetch', fetchSlug)
+  const data = await res.text();
+  const fetchSlug = Math.round(Number(data) * 100);
+  console.log("partial-gen-params fetch", fetchSlug);
 
   return [
     {
-      slug: 'first',
+      slug: "first",
     },
     {
-      slug: 'second',
+      slug: "second",
     },
     {
-      slug: fetchSlug + '',
+      slug: fetchSlug + "",
     },
-  ]
+  ];
 }
 
 export default function Page({ params }) {
@@ -28,5 +28,5 @@ export default function Page({ params }) {
       <p id="page">/partial-gen-params/[lang]/[slug]</p>
       <p id="params">{JSON.stringify(params)}</p>
     </>
-  )
+  );
 }

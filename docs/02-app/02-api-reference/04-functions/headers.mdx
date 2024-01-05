@@ -10,24 +10,24 @@ The `headers` function allows you to read the HTTP incoming request headers from
 This API extends the [Web Headers API](https://developer.mozilla.org/docs/Web/API/Headers). It is **read-only**, meaning you cannot `set` / `delete` the outgoing request headers.
 
 ```tsx filename="app/page.tsx" switcher
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export default function Page() {
-  const headersList = headers()
-  const referer = headersList.get('referer')
+  const headersList = headers();
+  const referer = headersList.get("referer");
 
-  return <div>Referer: {referer}</div>
+  return <div>Referer: {referer}</div>;
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export default function Page() {
-  const headersList = headers()
-  const referer = headersList.get('referer')
+  const headersList = headers();
+  const referer = headersList.get("referer");
 
-  return <div>Referer: {referer}</div>
+  return <div>Referer: {referer}</div>;
 }
 ```
 
@@ -38,7 +38,7 @@ export default function Page() {
 ### API Reference
 
 ```tsx
-const headersList = headers()
+const headersList = headers();
 ```
 
 #### Parameters
@@ -63,17 +63,17 @@ const headersList = headers()
 `headers()` can be used in combination with [Suspense for Data Fetching](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating).
 
 ```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { headers } from 'next/headers'
+import { Suspense } from "react";
+import { headers } from "next/headers";
 
 async function User() {
-  const authorization = headers().get('authorization')
-  const res = await fetch('...', {
+  const authorization = headers().get("authorization");
+  const res = await fetch("...", {
     headers: { authorization }, // Forward the authorization header
-  })
-  const user = await res.json()
+  });
+  const user = await res.json();
 
-  return <h1>{user.name}</h1>
+  return <h1>{user.name}</h1>;
 }
 
 export default function Page() {
@@ -81,7 +81,7 @@ export default function Page() {
     <Suspense fallback={null}>
       <User />
     </Suspense>
-  )
+  );
 }
 ```
 
@@ -90,18 +90,18 @@ export default function Page() {
 `headers()` can be used to get the IP address of the client.
 
 ```jsx filename="app/page.js"
-import { Suspense } from 'react'
-import { headers } from 'next/headers'
+import { Suspense } from "react";
+import { headers } from "next/headers";
 
 function IP() {
-  const FALLBACK_IP_ADDRESS = '0.0.0.0'
-  const forwardedFor = headers().get('x-forwarded-for')
+  const FALLBACK_IP_ADDRESS = "0.0.0.0";
+  const forwardedFor = headers().get("x-forwarded-for");
 
   if (forwardedFor) {
-    return forwardedFor.split(',')[0] ?? FALLBACK_IP_ADDRESS
+    return forwardedFor.split(",")[0] ?? FALLBACK_IP_ADDRESS;
   }
 
-  return headers().get('x-real-ip') ?? FALLBACK_IP_ADDRESS
+  return headers().get("x-real-ip") ?? FALLBACK_IP_ADDRESS;
 }
 
 export default function Page() {
@@ -109,7 +109,7 @@ export default function Page() {
     <Suspense fallback={null}>
       <IP />
     </Suspense>
-  )
+  );
 }
 ```
 

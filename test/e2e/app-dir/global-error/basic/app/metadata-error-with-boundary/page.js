@@ -1,9 +1,9 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export function generateMetadata() {
-  throw new Error('Metadata error')
+  throw new Error("Metadata error");
 }
 
 export default function Page() {
-  return <p>Metadata error</p>
+  return <p>Metadata error</p>;
 }

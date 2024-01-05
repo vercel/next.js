@@ -1,10 +1,10 @@
-import { Hello } from '@mycomponent'
+import { Hello } from "@mycomponent";
 
 // prevent static generation
 export function getServerSideProps() {
   return {
     props: {},
-  }
+  };
 }
 
 export default function SingleAlias() {
@@ -12,5 +12,5 @@ export default function SingleAlias() {
     <div>
       <Hello />
     </div>
-  )
+  );
 }

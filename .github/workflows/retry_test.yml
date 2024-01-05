@@ -2,7 +2,7 @@ name: retry-tests
 
 on:
   workflow_run:
-    workflows: ['build-and-test']
+    workflows: ["build-and-test"]
     branches: [canary]
     types:
       - completed

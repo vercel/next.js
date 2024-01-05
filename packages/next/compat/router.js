@@ -1,1 +1,1 @@
-module.exports = require('../dist/client/compat/router')
+module.exports = require("../dist/client/compat/router");

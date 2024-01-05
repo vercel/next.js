@@ -1,1 +1,1 @@
-export default () => <div>Build</div>
+export default () => <div>Build</div>;

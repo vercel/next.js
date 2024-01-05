@@ -1,10 +1,10 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 const Page = () => {
-  const { query } = useRouter()
-  return <p id="query">{JSON.stringify(query)}</p>
-}
+  const { query } = useRouter();
+  return <p id="query">{JSON.stringify(query)}</p>;
+};
 
-Page.getInitialProps = () => ({ hello: 'GIPGIP' })
+Page.getInitialProps = () => ({ hello: "GIPGIP" });
 
-export default Page
+export default Page;

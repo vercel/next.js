@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/router')
+module.exports = require("./dist/client/router");

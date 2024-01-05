@@ -1,4 +1,4 @@
-import Foo from './foo'
+import Foo from "./foo";
 
 export default function Bar() {
   return (
@@ -6,5 +6,5 @@ export default function Bar() {
       {`bar.server.js: `}
       <Foo />
     </div>
-  )
+  );
 }

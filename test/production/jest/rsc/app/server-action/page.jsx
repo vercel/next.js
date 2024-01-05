@@ -1,9 +1,9 @@
-import { action } from './action'
+import { action } from "./action";
 
 export default function Page() {
   return (
     <button data-testid="log" onClick={action}>
       log
     </button>
-  )
+  );
 }

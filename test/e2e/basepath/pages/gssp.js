@@ -1,13 +1,13 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export const getServerSideProps = () => {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
       random: Math.random(),
     },
-  }
-}
+  };
+};
 
 export default (props) => (
   <>
@@ -16,4 +16,4 @@ export default (props) => (
     <div id="pathname">{useRouter().pathname}</div>
     <div id="asPath">{useRouter().asPath}</div>
   </>
-)
+);

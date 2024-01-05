@@ -1,18 +1,18 @@
-import React from 'react'
+import React from "react";
 
 export default class InstanceInitialPropsPage extends React.Component {
   async getInitialProps() {
-    return fetchData()
+    return fetchData();
   }
 
   render() {
-    return <p>{this.props.name}</p>
+    return <p>{this.props.name}</p>;
   }
 }
 
 function fetchData() {
   const p = new Promise((resolve) => {
-    setTimeout(() => resolve({ name: 'Anderson Leite' }), 10)
-  })
-  return p
+    setTimeout(() => resolve({ name: "Anderson Leite" }), 10);
+  });
+  return p;
 }

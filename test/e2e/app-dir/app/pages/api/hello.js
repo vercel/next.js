@@ -1,5 +1,5 @@
 export default function api(req) {
-  return new Response('hello')
+  return new Response("hello");
 }
 
-export const runtime = 'edge'
+export const runtime = "edge";

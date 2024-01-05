@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 function Home({ stars }) {
   return (
@@ -16,11 +16,11 @@ function Home({ stars }) {
         <div>Next stars: {stars}</div>
       </main>
     </div>
-  )
+  );
 }
 
 Home.getInitialProps = async () => {
-  return { stars: Math.random() * 1000 }
-}
+  return { stars: Math.random() * 1000 };
+};
 
-export default Home
+export default Home;

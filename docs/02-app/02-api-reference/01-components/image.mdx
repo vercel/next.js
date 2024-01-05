@@ -21,7 +21,7 @@ description: Optimize Images in your Next.js Application using the built-in `nex
 This API reference will help you understand how to use [props](#props) and [configuration options](#configuration-options) available for the Image Component. For features and usage, please see the [Image Component](/docs/app/building-your-application/optimizing/images) page.
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -31,7 +31,7 @@ export default function Page() {
       height={500}
       alt="Picture of the author"
     />
-  )
+  );
 }
 ```
 
@@ -65,7 +65,7 @@ Here's a summary of the props available for the Image Component:
 The Image Component requires the following properties: `src`, `width`, `height`, and `alt`.
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -77,7 +77,7 @@ export default function Page() {
         alt="Picture of the author"
       />
     </div>
-  )
+  );
 }
 ```
 
@@ -129,13 +129,13 @@ A `loader` is a function returning a URL string for the image, given the followi
 Here is an example of using a custom loader:
 
 ```js
-'use client'
+"use client";
 
-import Image from 'next/image'
+import Image from "next/image";
 
 const imageLoader = ({ src, width, quality }) => {
-  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
-}
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`;
+};
 
 export default function Page() {
   return (
@@ -146,7 +146,7 @@ export default function Page() {
       width={500}
       height={500}
     />
-  )
+  );
 }
 ```
 
@@ -192,7 +192,7 @@ The `sizes` property serves two important purposes related to image performance:
 For example, if you know your styling will cause an image to be full-width on mobile devices, in a 2-column layout on tablets, and a 3-column layout on desktop displays, you should include a sizes property such as the following:
 
 ```jsx
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -203,7 +203,7 @@ export default function Page() {
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
       />
     </div>
-  )
+  );
 }
 ```
 
@@ -238,7 +238,7 @@ Should only be used when the image is visible above the fold. Defaults to `false
 ### `placeholder`
 
 ```js
-placeholder = 'empty' // "empty" | "blur" | "data:image/..."
+placeholder = "empty"; // "empty" | "blur" | "data:image/..."
 ```
 
 A placeholder to use while the image is loading. Possible values are `blur`, `empty`, or `data:image/...`. Defaults to `empty`.
@@ -267,12 +267,12 @@ Allows passing CSS styles to the underlying image element.
 
 ```jsx filename="components/ProfileImage.js"
 const imageStyle = {
-  borderRadius: '50%',
-  border: '1px solid #fff',
-}
+  borderRadius: "50%",
+  border: "1px solid #fff",
+};
 
 export default function ProfileImage() {
-  return <Image src="..." style={imageStyle} />
+  return <Image src="..." style={imageStyle} />;
 }
 ```
 
@@ -333,7 +333,7 @@ A callback function that is invoked if the image fails to load.
 > **Recommendation**: This property is only meant for advanced use cases. Switching an image to load with `eager` will normally **hurt performance**. We recommend using the [`priority`](#priority) property instead, which will eagerly preload the image.
 
 ```js
-loading = 'lazy' // {lazy} | {eager}
+loading = "lazy"; // {lazy} | {eager}
 ```
 
 The loading behavior of the image. Defaults to `lazy`.
@@ -371,11 +371,11 @@ When true, the source image will be served as-is instead of changing quality,
 size, or format. Defaults to `false`.
 
 ```js
-import Image from 'next/image'
+import Image from "next/image";
 
 const UnoptimizedImage = (props) => {
-  return <Image {...props} unoptimized />
-}
+  return <Image {...props} unoptimized />;
+};
 ```
 
 Since Next.js 12.3.0, this prop can be assigned to all images by updating `next.config.js` with the following configuration:
@@ -385,7 +385,7 @@ module.exports = {
   images: {
     unoptimized: true,
   },
-}
+};
 ```
 
 ### Other Props
@@ -409,14 +409,14 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'example.com',
-        port: '',
-        pathname: '/account123/**',
+        protocol: "https",
+        hostname: "example.com",
+        port: "",
+        pathname: "/account123/**",
       },
     ],
   },
-}
+};
 ```
 
 > **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://example.com/account123/`. Any other protocol, hostname, port, or unmatched path will respond with 400 Bad Request.
@@ -428,12 +428,12 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: '**.example.com',
+        protocol: "https",
+        hostname: "**.example.com",
       },
     ],
   },
-}
+};
 ```
 
 > **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
@@ -458,9 +458,9 @@ Below is an example of the `domains` property in the `next.config.js` file:
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    domains: ['assets.acme.com'],
+    domains: ["assets.acme.com"],
   },
-}
+};
 ```
 
 ### `loaderFile`
@@ -470,19 +470,19 @@ If you want to use a cloud provider to optimize images instead of using the Next
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    loader: 'custom',
-    loaderFile: './my/image/loader.js',
+    loader: "custom",
+    loaderFile: "./my/image/loader.js",
   },
-}
+};
 ```
 
 This must point to a file relative to the root of your Next.js application. The file must export a default function that returns a string, for example:
 
 ```js
-'use client'
+"use client";
 
 export default function myImageLoader({ src, width, quality }) {
-  return `https://example.com/${src}?w=${width}&q=${quality || 75}`
+  return `https://example.com/${src}?w=${width}&q=${quality || 75}`;
 }
 ```
 
@@ -513,7 +513,7 @@ module.exports = {
   images: {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   },
-}
+};
 ```
 
 ### `imageSizes`
@@ -529,7 +529,7 @@ module.exports = {
   images: {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
-}
+};
 ```
 
 ### `formats`
@@ -543,9 +543,9 @@ If no configuration is provided, the default below is used.
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    formats: ['image/webp'],
+    formats: ["image/webp"],
   },
-}
+};
 ```
 
 You can enable AVIF support with the following configuration.
@@ -553,9 +553,9 @@ You can enable AVIF support with the following configuration.
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ["image/avif", "image/webp"],
   },
-}
+};
 ```
 
 > **Good to know**:
@@ -590,7 +590,7 @@ module.exports = {
   images: {
     minimumCacheTTL: 60,
   },
-}
+};
 ```
 
 The expiration (or rather Max Age) of the optimized image is defined by either the `minimumCacheTTL` or the upstream image `Cache-Control` header, whichever is larger.
@@ -612,7 +612,7 @@ module.exports = {
   images: {
     disableStaticImages: true,
   },
-}
+};
 ```
 
 ### `dangerouslyAllowSVG`
@@ -625,10 +625,10 @@ If you need to serve SVG images with the default Image Optimization API, you can
 module.exports = {
   images: {
     dangerouslyAllowSVG: true,
-    contentDispositionType: 'attachment',
+    contentDispositionType: "attachment",
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
-}
+};
 ```
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
@@ -650,8 +650,8 @@ You can render a responsive image using one of the following methods below.
 If the source image is not dynamic, you can statically import to create a responsive image:
 
 ```jsx filename="components/author.js"
-import Image from 'next/image'
-import me from '../photos/me.jpg'
+import Image from "next/image";
+import me from "../photos/me.jpg";
 
 export default function Author() {
   return (
@@ -660,11 +660,11 @@ export default function Author() {
       alt="Picture of the author"
       sizes="100vw"
       style={{
-        width: '100%',
-        height: 'auto',
+        width: "100%",
+        height: "auto",
       }}
     />
-  )
+  );
 }
 ```
 
@@ -677,7 +677,7 @@ Try it out:
 If the source image is a dynamic or a remote url, you will also need to provide `width` and `height` to set the correct aspect ratio of the responsive image:
 
 ```jsx filename="components/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page({ photoUrl }) {
   return (
@@ -686,13 +686,13 @@ export default function Page({ photoUrl }) {
       alt="Picture of the author"
       sizes="100vw"
       style={{
-        width: '100%',
-        height: 'auto',
+        width: "100%",
+        height: "auto",
       }}
       width={500}
       height={300}
     />
-  )
+  );
 }
 ```
 
@@ -705,22 +705,22 @@ Try it out:
 If you don't know the aspect ratio, you will need to set the [`fill`](#fill) prop and set `position: relative` on the parent. Optionally, you can set `object-fit` style depending on the desired stretch vs crop behavior:
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page({ photoUrl }) {
   return (
-    <div style={{ position: 'relative', width: '500px', height: '300px' }}>
+    <div style={{ position: "relative", width: "500px", height: "300px" }}>
       <Image
         src={photoUrl}
         alt="Picture of the author"
         sizes="500px"
         fill
         style={{
-          objectFit: 'contain',
+          objectFit: "contain",
         }}
       />
     </div>
-  )
+  );
 }
 ```
 
@@ -748,40 +748,40 @@ If you want to display a different image for light and dark mode, you can create
 ```
 
 ```tsx filename="components/theme-image.tsx" switcher
-import styles from './theme-image.module.css'
-import Image, { ImageProps } from 'next/image'
+import styles from "./theme-image.module.css";
+import Image, { ImageProps } from "next/image";
 
-type Props = Omit<ImageProps, 'src' | 'priority' | 'loading'> & {
-  srcLight: string
-  srcDark: string
-}
+type Props = Omit<ImageProps, "src" | "priority" | "loading"> & {
+  srcLight: string;
+  srcDark: string;
+};
 
 const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props
+  const { srcLight, srcDark, ...rest } = props;
 
   return (
     <>
       <Image {...rest} src={srcLight} className={styles.imgLight} />
       <Image {...rest} src={srcDark} className={styles.imgDark} />
     </>
-  )
-}
+  );
+};
 ```
 
 ```jsx filename="components/theme-image.js" switcher
-import styles from './theme-image.module.css'
-import Image from 'next/image'
+import styles from "./theme-image.module.css";
+import Image from "next/image";
 
 const ThemeImage = (props) => {
-  const { srcLight, srcDark, ...rest } = props
+  const { srcLight, srcDark, ...rest } = props;
 
   return (
     <>
       <Image {...rest} src={srcLight} className={styles.imgLight} />
       <Image {...rest} src={srcDark} className={styles.imgDark} />
     </>
-  )
-}
+  );
+};
 ```
 
 > **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).

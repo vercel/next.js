@@ -1,15 +1,15 @@
 function CircularJSONErrorPage() {
-  return <div>This won't render</div>
+  return <div>This won't render</div>;
 }
 
 CircularJSONErrorPage.getInitialProps = () => {
   // This creates a circular JSON object
-  const object = {}
-  object.arr = [object, object]
-  object.arr.push(object.arr)
-  object.obj = object
+  const object = {};
+  object.arr = [object, object];
+  object.arr.push(object.arr);
+  object.obj = object;
 
-  return object
-}
+  return object;
+};
 
-export default CircularJSONErrorPage
+export default CircularJSONErrorPage;

@@ -1,7 +1,7 @@
-import dynamic from 'next/dynamic'
-import { Suspense } from 'react'
+import dynamic from "next/dynamic";
+import { Suspense } from "react";
 
-const Foo = dynamic(() => import('../components/foo'), { suspense: true })
+const Foo = dynamic(() => import("../components/foo"), { suspense: true });
 
 export default () => (
   <div>
@@ -9,4 +9,4 @@ export default () => (
       <Foo />
     </Suspense>
   </div>
-)
+);

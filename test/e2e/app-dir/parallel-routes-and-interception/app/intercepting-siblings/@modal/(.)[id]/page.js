@@ -4,5 +4,5 @@ export default function Page({ params: { id } }) {
       <h2>intercepting-siblings</h2>
       <p id="intercepted-sibling">{id}</p>
     </div>
-  )
+  );
 }

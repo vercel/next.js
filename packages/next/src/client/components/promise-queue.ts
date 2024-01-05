@@ -5,56 +5,56 @@
     things as well.
 */
 export class PromiseQueue {
-  #maxConcurrency: number
-  #runningCount: number
+  #maxConcurrency: number;
+  #runningCount: number;
   #queue: Array<{
-    promiseFn: Promise<any>
-    task: () => void
-  }>
+    promiseFn: Promise<any>;
+    task: () => void;
+  }>;
 
   constructor(maxConcurrency = 5) {
-    this.#maxConcurrency = maxConcurrency
-    this.#runningCount = 0
-    this.#queue = []
+    this.#maxConcurrency = maxConcurrency;
+    this.#runningCount = 0;
+    this.#queue = [];
   }
 
   enqueue<T>(promiseFn: () => Promise<T>): Promise<T> {
-    let taskResolve: (value: T | PromiseLike<T>) => void
-    let taskReject: (reason?: any) => void
+    let taskResolve: (value: T | PromiseLike<T>) => void;
+    let taskReject: (reason?: any) => void;
 
     const taskPromise = new Promise((resolve, reject) => {
-      taskResolve = resolve
-      taskReject = reject
-    }) as Promise<T>
+      taskResolve = resolve;
+      taskReject = reject;
+    }) as Promise<T>;
 
     const task = async () => {
       try {
-        this.#runningCount++
-        const result = await promiseFn()
-        taskResolve(result)
+        this.#runningCount++;
+        const result = await promiseFn();
+        taskResolve(result);
       } catch (error) {
-        taskReject(error)
+        taskReject(error);
       } finally {
-        this.#runningCount--
-        this.#processNext()
+        this.#runningCount--;
+        this.#processNext();
       }
-    }
+    };
 
-    const enqueueResult = { promiseFn: taskPromise, task }
+    const enqueueResult = { promiseFn: taskPromise, task };
     // wonder if we should take a LIFO approach here
-    this.#queue.push(enqueueResult)
-    this.#processNext()
+    this.#queue.push(enqueueResult);
+    this.#processNext();
 
-    return taskPromise
+    return taskPromise;
   }
 
   bump(promiseFn: Promise<any>) {
-    const index = this.#queue.findIndex((item) => item.promiseFn === promiseFn)
+    const index = this.#queue.findIndex((item) => item.promiseFn === promiseFn);
 
     if (index > -1) {
-      const bumpedItem = this.#queue.splice(index, 1)[0]
-      this.#queue.unshift(bumpedItem)
-      this.#processNext(true)
+      const bumpedItem = this.#queue.splice(index, 1)[0];
+      this.#queue.unshift(bumpedItem);
+      this.#processNext(true);
     }
   }
 
@@ -63,7 +63,7 @@ export class PromiseQueue {
       (this.#runningCount < this.#maxConcurrency || forced) &&
       this.#queue.length > 0
     ) {
-      this.#queue.shift()?.task()
+      this.#queue.shift()?.task();
     }
   }
 }

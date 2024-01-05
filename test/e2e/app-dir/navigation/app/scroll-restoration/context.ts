@@ -1,10 +1,10 @@
-import { createContext } from 'react'
+import { createContext } from "react";
 
 export interface Item {
-  id: number
+  id: number;
 }
 
 export const ItemsContext = createContext<{
-  items: Item[]
-  loadMoreItems: () => void
-}>({ items: [], loadMoreItems: () => {} })
+  items: Item[];
+  loadMoreItems: () => void;
+}>({ items: [], loadMoreItems: () => {} });

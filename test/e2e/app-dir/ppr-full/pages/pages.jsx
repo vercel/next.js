@@ -1,5 +1,5 @@
-import React from 'react'
-import { Layout } from '../components/layout'
+import React from "react";
+import { Layout } from "../components/layout";
 
 export default () => {
   return (
@@ -9,5 +9,5 @@ export default () => {
         <dd data-pathname="/pages">/pages</dd>
       </dl>
     </Layout>
-  )
-}
+  );
+};

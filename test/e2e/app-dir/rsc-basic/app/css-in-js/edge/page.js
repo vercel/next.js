@@ -1,5 +1,5 @@
-import Comp from '../styled-jsx'
-import StyledComp from '../styled-components'
+import Comp from "../styled-jsx";
+import StyledComp from "../styled-components";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <Comp />
       <StyledComp />
     </div>
-  )
+  );
 }

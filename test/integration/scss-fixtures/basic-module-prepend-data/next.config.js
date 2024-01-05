@@ -4,4 +4,4 @@ module.exports = {
       $var: red;
     `,
   },
-}
+};

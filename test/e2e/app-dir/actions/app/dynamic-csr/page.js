@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const DynamicComponent = dynamic(() => import('./csr').then((mod) => mod.CSR), {
+const DynamicComponent = dynamic(() => import("./csr").then((mod) => mod.CSR), {
   ssr: false,
-})
+});
 
 export default function Client() {
   return (
     <div>
       <DynamicComponent />
     </div>
-  )
+  );
 }

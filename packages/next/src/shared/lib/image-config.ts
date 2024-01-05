@@ -1,51 +1,51 @@
 export const VALID_LOADERS = [
-  'default',
-  'imgix',
-  'cloudinary',
-  'akamai',
-  'custom',
-] as const
+  "default",
+  "imgix",
+  "cloudinary",
+  "akamai",
+  "custom",
+] as const;
 
-export type LoaderValue = (typeof VALID_LOADERS)[number]
+export type LoaderValue = (typeof VALID_LOADERS)[number];
 
 export type ImageLoaderProps = {
-  src: string
-  width: number
-  quality?: number
-}
+  src: string;
+  width: number;
+  quality?: number;
+};
 
 export type ImageLoaderPropsWithConfig = ImageLoaderProps & {
-  config: Readonly<ImageConfig>
-}
+  config: Readonly<ImageConfig>;
+};
 
 export type RemotePattern = {
   /**
    * Must be `http` or `https`.
    */
-  protocol?: 'http' | 'https'
+  protocol?: "http" | "https";
 
   /**
    * Can be literal or wildcard.
    * Single `*` matches a single subdomain.
    * Double `**` matches any number of subdomains.
    */
-  hostname: string
+  hostname: string;
 
   /**
    * Can be literal port such as `8080` or empty string
    * meaning no port.
    */
-  port?: string
+  port?: string;
 
   /**
    * Can be literal or wildcard.
    * Single `*` matches a single path segment.
    * Double `**` matches any number of path segments.
    */
-  pathname?: string
-}
+  pathname?: string;
+};
 
-type ImageFormat = 'image/avif' | 'image/webp'
+type ImageFormat = "image/avif" | "image/webp";
 
 /**
  * Image configurations
@@ -54,65 +54,65 @@ type ImageFormat = 'image/avif' | 'image/webp'
  */
 export type ImageConfigComplete = {
   /** @see [Device sizes documentation](https://nextjs.org/docs/api-reference/next/image#device-sizes) */
-  deviceSizes: number[]
+  deviceSizes: number[];
 
   /** @see [Image sizing documentation](https://nextjs.org/docs/basic-features/image-optimization#image-sizing) */
-  imageSizes: number[]
+  imageSizes: number[];
 
   /** @see [Image loaders configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader) */
-  loader: LoaderValue
+  loader: LoaderValue;
 
   /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration) */
-  path: string
+  path: string;
 
   /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
-  loaderFile: string
+  loaderFile: string;
 
   /**
    * @deprecated Use `remotePatterns` instead.
    */
-  domains: string[]
+  domains: string[];
 
   /** @see [Disable static image import configuration](https://nextjs.org/docs/api-reference/next/image#disable-static-imports) */
-  disableStaticImages: boolean
+  disableStaticImages: boolean;
 
   /** @see [Cache behavior](https://nextjs.org/docs/api-reference/next/image#caching-behavior) */
-  minimumCacheTTL: number
+  minimumCacheTTL: number;
 
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
-  formats: ImageFormat[]
+  formats: ImageFormat[];
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
-  dangerouslyAllowSVG: boolean
+  dangerouslyAllowSVG: boolean;
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
-  contentSecurityPolicy: string
+  contentSecurityPolicy: string;
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
-  contentDispositionType: 'inline' | 'attachment'
+  contentDispositionType: "inline" | "attachment";
 
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#remotepatterns) */
-  remotePatterns: RemotePattern[]
+  remotePatterns: RemotePattern[];
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
-  unoptimized: boolean
-}
+  unoptimized: boolean;
+};
 
-export type ImageConfig = Partial<ImageConfigComplete>
+export type ImageConfig = Partial<ImageConfigComplete>;
 
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
   imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-  path: '/_next/image',
-  loader: 'default',
-  loaderFile: '',
+  path: "/_next/image",
+  loader: "default",
+  loaderFile: "",
   domains: [],
   disableStaticImages: false,
   minimumCacheTTL: 60,
-  formats: ['image/webp'],
+  formats: ["image/webp"],
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
-  contentDispositionType: 'inline',
+  contentDispositionType: "inline",
   remotePatterns: [],
   unoptimized: false,
-}
+};

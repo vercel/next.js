@@ -4,5 +4,5 @@ export default function Layout({ children }) {
       <h1 id="parallel-layout">parallel layout</h1>
       {children}
     </div>
-  )
+  );
 }

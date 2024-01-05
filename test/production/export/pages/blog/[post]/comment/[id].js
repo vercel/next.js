@@ -1,16 +1,16 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 const Page = () => {
-  const router = useRouter()
-  const { post, id } = router.query
+  const router = useRouter();
+  const { post, id } = router.query;
 
   return (
     <>
-      <p>{`Blog post ${post} comment ${id || '(all)'}`}</p>
+      <p>{`Blog post ${post} comment ${id || "(all)"}`}</p>
     </>
-  )
-}
+  );
+};
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default Page
+export default Page;

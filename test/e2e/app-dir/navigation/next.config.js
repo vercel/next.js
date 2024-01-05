@@ -2,10 +2,10 @@ module.exports = {
   redirects: () => {
     return [
       {
-        source: '/redirect/a',
-        destination: '/redirect-dest',
+        source: "/redirect/a",
+        destination: "/redirect-dest",
         permanent: false,
       },
-    ]
+    ];
   },
-}
+};

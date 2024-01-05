@@ -1,10 +1,10 @@
-import React from 'react'
-import { GoogleAnalytics, sendGAEvent } from '@next/third-parties/google'
+import React from "react";
+import { GoogleAnalytics, sendGAEvent } from "@next/third-parties/google";
 
 const Page = () => {
   const onClick = () => {
-    sendGAEvent({ event: 'buttonClicked', value: 'xyz' })
-  }
+    sendGAEvent({ event: "buttonClicked", value: "xyz" });
+  };
 
   return (
     <div class="container">
@@ -15,7 +15,7 @@ const Page = () => {
       </button>
       <GoogleAnalytics gaId="GA-XYZ" />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

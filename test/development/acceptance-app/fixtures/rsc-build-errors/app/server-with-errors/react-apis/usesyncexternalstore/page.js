@@ -1,7 +1,7 @@
-import { useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from "react";
 
-console.log({ useSyncExternalStore })
+console.log({ useSyncExternalStore });
 
 export default function Page() {
-  return null
+  return null;
 }

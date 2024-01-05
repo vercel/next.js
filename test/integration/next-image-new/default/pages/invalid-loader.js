@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -44,7 +44,7 @@ const Page = () => {
       />
       <footer>footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

@@ -3,5 +3,5 @@ export default function Default() {
     <div>
       <div>Default</div>
     </div>
-  )
+  );
 }

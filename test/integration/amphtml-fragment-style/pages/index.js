@@ -1,4 +1,4 @@
-export const config = { amp: true }
+export const config = { amp: true };
 
 const Comp = () => (
   <div>
@@ -9,7 +9,7 @@ const Comp = () => (
       }
     `}</style>
   </div>
-)
+);
 
-Comp.getInitialProps = () => ({})
-export default Comp
+Comp.getInitialProps = () => ({});
+export default Comp;

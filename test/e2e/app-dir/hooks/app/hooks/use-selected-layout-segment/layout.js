@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
 import {
   useSelectedLayoutSegments,
   useSelectedLayoutSegment,
-} from 'next/navigation'
+} from "next/navigation";
 
 export default function Layout({ children }) {
-  const selectedLayoutSegments = useSelectedLayoutSegments()
-  const selectedLayoutSegment = useSelectedLayoutSegment()
+  const selectedLayoutSegments = useSelectedLayoutSegments();
+  const selectedLayoutSegment = useSelectedLayoutSegment();
 
   return (
     <>
@@ -15,5 +15,5 @@ export default function Layout({ children }) {
       <p id="outer-layout-segment">{JSON.stringify(selectedLayoutSegment)}</p>
       {children}
     </>
-  )
+  );
 }

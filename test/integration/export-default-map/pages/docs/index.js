@@ -1,5 +1,5 @@
-import { useAmp } from 'next/amp'
+import { useAmp } from "next/amp";
 
-export const config = { amp: 'hybrid' }
+export const config = { amp: "hybrid" };
 
-export default () => <p>I'm an {useAmp() ? 'AMP' : 'normal'} page</p>
+export default () => <p>I'm an {useAmp() ? "AMP" : "normal"} page</p>;

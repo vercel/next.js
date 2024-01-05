@@ -1,14 +1,14 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-let serverHitCount = 0
+let serverHitCount = 0;
 
 export async function getServerSideProps() {
-  await new Promise((resolve) => setTimeout(resolve, 500))
+  await new Promise((resolve) => setTimeout(resolve, 500));
   return {
     props: {
       count: ++serverHitCount,
     },
-  }
+  };
 }
 
 export default ({ count }) => (
@@ -23,4 +23,4 @@ export default ({ count }) => (
       to something
     </Link>
   </>
-)
+);

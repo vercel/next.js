@@ -1,11 +1,11 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getServerSideProps({ params }) {
   return {
     props: {
       params,
     },
-  }
+  };
 }
 
 export default function Page({ params }) {
@@ -16,5 +16,5 @@ export default function Page({ params }) {
         To About
       </Link>
     </>
-  )
+  );
 }

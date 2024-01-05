@@ -1,1 +1,1 @@
-console.log('test-noop')
+console.log("test-noop");

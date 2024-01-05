@@ -22,24 +22,24 @@ function Home() {
     <div>
       <a href="/about">About Us</a>
     </div>
-  )
+  );
 }
 ```
 
 **After:**
 
 ```jsx filename="pages/index.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 function Home() {
   return (
     <div>
       <Link href="/about">About Us</Link>
     </div>
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 ### Options

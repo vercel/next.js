@@ -1,5 +1,5 @@
-import { foo } from 'external-package'
+import { foo } from "external-package";
 
 export default function Page() {
-  return <div>{foo}</div>
+  return <div>{foo}</div>;
 }

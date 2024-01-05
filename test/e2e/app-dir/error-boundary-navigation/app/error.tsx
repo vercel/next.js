@@ -1,5 +1,5 @@
-'use client'
-import Link from 'next/link'
+"use client";
+import Link from "next/link";
 
 export default function ErrorComponent() {
   return (
@@ -9,5 +9,5 @@ export default function ErrorComponent() {
         To Result
       </Link>
     </>
-  )
+  );
 }

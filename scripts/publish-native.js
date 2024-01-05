@@ -1,46 +1,46 @@
 #!/usr/bin/env node
 
-const path = require('path')
-const execa = require('execa')
-const { Sema } = require('async-sema')
-const { readFile, readdir, writeFile, cp } = require('fs/promises')
+const path = require("path");
+const execa = require("execa");
+const { Sema } = require("async-sema");
+const { readFile, readdir, writeFile, cp } = require("fs/promises");
 
-const cwd = process.cwd()
+const cwd = process.cwd();
 
-;(async function () {
+(async function () {
   try {
-    const publishSema = new Sema(2)
+    const publishSema = new Sema(2);
 
     let version = JSON.parse(
-      await readFile(path.join(cwd, 'lerna.json'))
-    ).version
+      await readFile(path.join(cwd, "lerna.json"))
+    ).version;
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
+    let nativePackagesDir = path.join(cwd, "packages/next-swc/crates/napi/npm");
     let platforms = (await readdir(nativePackagesDir)).filter(
-      (name) => !name.startsWith('.')
-    )
+      (name) => !name.startsWith(".")
+    );
 
     await Promise.all(
       platforms.map(async (platform) => {
-        await publishSema.acquire()
+        await publishSema.acquire();
 
         try {
-          let binaryName = `next-swc.${platform}.node`
+          let binaryName = `next-swc.${platform}.node`;
           await cp(
-            path.join(cwd, 'packages/next-swc/native', binaryName),
+            path.join(cwd, "packages/next-swc/native", binaryName),
             path.join(nativePackagesDir, platform, binaryName)
-          )
+          );
           let pkg = JSON.parse(
             await readFile(
-              path.join(nativePackagesDir, platform, 'package.json')
+              path.join(nativePackagesDir, platform, "package.json")
             )
-          )
-          pkg.version = version
+          );
+          pkg.version = version;
           await writeFile(
-            path.join(nativePackagesDir, platform, 'package.json'),
+            path.join(nativePackagesDir, platform, "package.json"),
             JSON.stringify(pkg, null, 2)
-          )
+          );
           await execa(
             `npm`,
             [
@@ -48,96 +48,96 @@ const cwd = process.cwd()
               `${path.join(nativePackagesDir, platform)}`,
               `--access`,
               `public`,
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              ...(version.includes("canary") ? ["--tag", "canary"] : []),
             ],
-            { stdio: 'inherit' }
-          )
+            { stdio: "inherit" }
+          );
         } catch (err) {
           // don't block publishing other versions on single platform error
-          console.error(`Failed to publish`, platform, err)
+          console.error(`Failed to publish`, platform, err);
 
           if (
             err.message &&
             err.message.includes(
-              'You cannot publish over the previously published versions'
+              "You cannot publish over the previously published versions"
             )
           ) {
-            console.error('Ignoring already published error', platform, err)
+            console.error("Ignoring already published error", platform, err);
           } else {
             // throw err
           }
         } finally {
-          publishSema.release()
+          publishSema.release();
         }
       })
-    )
+    );
 
     // Update name/version of wasm packages and publish
-    const pkgDirectory = 'packages/next-swc/crates/wasm'
-    let wasmDir = path.join(cwd, pkgDirectory)
+    const pkgDirectory = "packages/next-swc/crates/wasm";
+    let wasmDir = path.join(cwd, pkgDirectory);
     await Promise.all(
-      ['web', 'nodejs'].map(async (wasmTarget) => {
-        await publishSema.acquire()
+      ["web", "nodejs"].map(async (wasmTarget) => {
+        await publishSema.acquire();
         let wasmPkg = JSON.parse(
           await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
-        )
-        wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
-        wasmPkg.version = version
+        );
+        wasmPkg.name = `@next/swc-wasm-${wasmTarget}`;
+        wasmPkg.version = version;
         wasmPkg.repository = {
-          type: 'git',
-          url: 'https://github.com/vercel/next.js',
+          type: "git",
+          url: "https://github.com/vercel/next.js",
           directory: pkgDirectory,
-        }
+        };
         await writeFile(
           path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
           JSON.stringify(wasmPkg, null, 2)
-        )
+        );
         try {
           await execa(
             `npm`,
             [
-              'publish',
+              "publish",
               `${path.join(wasmDir, `pkg-${wasmTarget}`)}`,
-              '--access',
-              'public',
-              ...(version.includes('canary') ? ['--tag', 'canary'] : []),
+              "--access",
+              "public",
+              ...(version.includes("canary") ? ["--tag", "canary"] : []),
             ],
-            { stdio: 'inherit' }
-          )
+            { stdio: "inherit" }
+          );
         } catch (err) {
           // don't block publishing other versions on single platform error
-          console.error(`Failed to publish`, wasmTarget, err)
+          console.error(`Failed to publish`, wasmTarget, err);
           if (
             err.message &&
             err.message.includes(
-              'You cannot publish over the previously published versions'
+              "You cannot publish over the previously published versions"
             )
           ) {
-            console.error('Ignoring already published error', wasmTarget)
+            console.error("Ignoring already published error", wasmTarget);
           } else {
             // throw err
           }
         } finally {
-          publishSema.release()
+          publishSema.release();
         }
       })
-    )
+    );
 
     // Update optional dependencies versions
     let nextPkg = JSON.parse(
-      await readFile(path.join(cwd, 'packages/next/package.json'))
-    )
+      await readFile(path.join(cwd, "packages/next/package.json"))
+    );
     for (let platform of platforms) {
-      let optionalDependencies = nextPkg.optionalDependencies || {}
-      optionalDependencies['@next/swc-' + platform] = version
-      nextPkg.optionalDependencies = optionalDependencies
+      let optionalDependencies = nextPkg.optionalDependencies || {};
+      optionalDependencies["@next/swc-" + platform] = version;
+      nextPkg.optionalDependencies = optionalDependencies;
     }
     await writeFile(
-      path.join(path.join(cwd, 'packages/next/package.json')),
+      path.join(path.join(cwd, "packages/next/package.json")),
       JSON.stringify(nextPkg, null, 2)
-    )
+    );
   } catch (err) {
-    console.error(err)
-    process.exit(1)
+    console.error(err);
+    process.exit(1);
   }
-})()
+})();

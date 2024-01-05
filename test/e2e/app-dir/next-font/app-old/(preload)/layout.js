@@ -1,4 +1,4 @@
-import { font1 } from '../../fonts'
+import { font1 } from "../../fonts";
 
 export default function Root({ children }) {
   return (
@@ -13,5 +13,5 @@ export default function Root({ children }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

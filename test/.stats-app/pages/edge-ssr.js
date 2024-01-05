@@ -1,5 +1,5 @@
 export default function page() {
-  return 'edge-ssr'
+  return "edge-ssr";
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";

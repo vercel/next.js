@@ -1,10 +1,10 @@
-import { isMetadataRoute, isStaticMetadataRoute } from './is-metadata-route'
-import path from '../../shared/lib/isomorphic/path'
-import { interpolateDynamicPath } from '../../server/server-utils'
-import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { djb2Hash } from '../../shared/lib/hash'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { isMetadataRoute, isStaticMetadataRoute } from "./is-metadata-route";
+import path from "../../shared/lib/isomorphic/path";
+import { interpolateDynamicPath } from "../../server/server-utils";
+import { getNamedRouteRegex } from "../../shared/lib/router/utils/route-regex";
+import { djb2Hash } from "../../shared/lib/hash";
+import { normalizeAppPath } from "../../shared/lib/router/utils/app-paths";
+import { normalizePathSep } from "../../shared/lib/page-path/normalize-path-sep";
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -15,12 +15,12 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
  * /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
  */
 function getMetadataRouteSuffix(page: string) {
-  let suffix = ''
+  let suffix = "";
 
-  if ((page.includes('(') && page.includes(')')) || page.includes('@')) {
-    suffix = djb2Hash(page).toString(36).slice(0, 6)
+  if ((page.includes("(") && page.includes(")")) || page.includes("@")) {
+    suffix = djb2Hash(page).toString(36).slice(0, 6);
   }
-  return suffix
+  return suffix;
 }
 
 /**
@@ -35,15 +35,15 @@ export function fillMetadataSegment(
   params: any,
   imageSegment: string
 ) {
-  const pathname = normalizeAppPath(segment)
-  const routeRegex = getNamedRouteRegex(pathname, false)
-  const route = interpolateDynamicPath(pathname, params, routeRegex)
-  const suffix = getMetadataRouteSuffix(segment)
-  const routeSuffix = suffix ? `-${suffix}` : ''
+  const pathname = normalizeAppPath(segment);
+  const routeRegex = getNamedRouteRegex(pathname, false);
+  const route = interpolateDynamicPath(pathname, params, routeRegex);
+  const suffix = getMetadataRouteSuffix(segment);
+  const routeSuffix = suffix ? `-${suffix}` : "";
 
-  const { name, ext } = path.parse(imageSegment)
+  const { name, ext } = path.parse(imageSegment);
 
-  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
+  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`));
 }
 
 /**
@@ -57,34 +57,34 @@ export function fillMetadataSegment(
  */
 export function normalizeMetadataRoute(page: string) {
   if (!isMetadataRoute(page)) {
-    return page
+    return page;
   }
-  let route = page
-  let suffix = ''
-  if (page === '/robots') {
-    route += '.txt'
-  } else if (page === '/manifest') {
-    route += '.webmanifest'
-  } else if (page.endsWith('/sitemap')) {
-    route += '.xml'
+  let route = page;
+  let suffix = "";
+  if (page === "/robots") {
+    route += ".txt";
+  } else if (page === "/manifest") {
+    route += ".webmanifest";
+  } else if (page.endsWith("/sitemap")) {
+    route += ".xml";
   } else {
     // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
-    const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
-    suffix = getMetadataRouteSuffix(pathnamePrefix)
+    const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1));
+    suffix = getMetadataRouteSuffix(pathnamePrefix);
   }
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.
-  if (!route.endsWith('/route')) {
-    const { dir, name: baseName, ext } = path.parse(route)
-    const isStaticRoute = isStaticMetadataRoute(page)
+  if (!route.endsWith("/route")) {
+    const { dir, name: baseName, ext } = path.parse(route);
+    const isStaticRoute = isStaticMetadataRoute(page);
 
     route = path.posix.join(
       dir,
-      `${baseName}${suffix ? `-${suffix}` : ''}${ext}`,
-      isStaticRoute ? '' : '[[...__metadata_id__]]',
-      'route'
-    )
+      `${baseName}${suffix ? `-${suffix}` : ""}${ext}`,
+      isStaticRoute ? "" : "[[...__metadata_id__]]",
+      "route"
+    );
   }
 
-  return route
+  return route;
 }

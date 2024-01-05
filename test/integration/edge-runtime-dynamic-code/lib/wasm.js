@@ -14,22 +14,22 @@ const SQUARE_WASM_BUFFER = new Uint8Array([
   0x05, 0x03, 0x01, 0x00, 0x01, 0x07, 0x13, 0x02, 0x06, 0x6d, 0x65, 0x6d, 0x6f,
   0x72, 0x79, 0x02, 0x00, 0x06, 0x73, 0x71, 0x75, 0x61, 0x72, 0x65, 0x00, 0x00,
   0x0a, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x00, 0x6c, 0x0b,
-])
+]);
 
-import squareWasmModule from './square.wasm?module'
+import squareWasmModule from "./square.wasm?module";
 
 export async function usingWebAssemblyCompile(x) {
-  const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)
-  const instance = await WebAssembly.instantiate(module, {})
-  return { value: instance.exports.square(x) }
+  const module = await WebAssembly.compile(SQUARE_WASM_BUFFER);
+  const instance = await WebAssembly.instantiate(module, {});
+  return { value: instance.exports.square(x) };
 }
 
 export async function usingWebAssemblyInstantiateWithBuffer(x) {
-  const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})
-  return { value: instance.exports.square(x) }
+  const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {});
+  return { value: instance.exports.square(x) };
 }
 
 export async function usingWebAssemblyInstantiate(x) {
-  const instance = await WebAssembly.instantiate(squareWasmModule)
-  return { value: instance.exports.square(x) }
+  const instance = await WebAssembly.instantiate(squareWasmModule);
+  return { value: instance.exports.square(x) };
 }

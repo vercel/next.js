@@ -1,18 +1,18 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export const getServerSideProps = ({ params, resolvedUrl }) => {
   return {
     props: {
       resolvedUrl,
-      hello: 'world',
+      hello: "world",
       slug: params.slug,
       random: Math.random(),
     },
-  }
-}
+  };
+};
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <p id="dynamic">dynamic page</p>
@@ -21,5 +21,5 @@ export default function Page(props) {
       <p id="router">{JSON.stringify(router)}</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

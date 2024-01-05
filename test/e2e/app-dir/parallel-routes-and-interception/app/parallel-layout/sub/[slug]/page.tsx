@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'parallel layout slug'
+  return "parallel layout slug";
 }

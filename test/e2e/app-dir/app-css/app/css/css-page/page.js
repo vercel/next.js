@@ -1,6 +1,6 @@
-import './style.css'
+import "./style.css";
 
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function Page() {
   return (
@@ -10,5 +10,5 @@ export default function Page() {
         CSSM
       </div>
     </>
-  )
+  );
 }

@@ -1,1 +1,1 @@
-module.exports = require('./bundle').core()
+module.exports = require("./bundle").core();

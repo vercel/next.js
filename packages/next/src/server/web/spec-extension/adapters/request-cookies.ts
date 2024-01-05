@@ -1,8 +1,8 @@
-import type { RequestCookies } from '../cookies'
-import type { StaticGenerationStore } from '../../../../client/components/static-generation-async-storage.external'
+import type { RequestCookies } from "../cookies";
+import type { StaticGenerationStore } from "../../../../client/components/static-generation-async-storage.external";
 
-import { ResponseCookies } from '../cookies'
-import { ReflectAdapter } from './reflect'
+import { ResponseCookies } from "../cookies";
+import { ReflectAdapter } from "./reflect";
 
 /**
  * @internal
@@ -10,12 +10,12 @@ import { ReflectAdapter } from './reflect'
 export class ReadonlyRequestCookiesError extends Error {
   constructor() {
     super(
-      'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options'
-    )
+      "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#cookiessetname-value-options"
+    );
   }
 
   public static callable() {
-    throw new ReadonlyRequestCookiesError()
+    throw new ReadonlyRequestCookiesError();
   }
 }
 
@@ -24,148 +24,148 @@ export class ReadonlyRequestCookiesError extends Error {
 // we want to return the response cookie.
 export type ReadonlyRequestCookies = Omit<
   RequestCookies,
-  'set' | 'clear' | 'delete'
+  "set" | "clear" | "delete"
 > &
-  Pick<ResponseCookies, 'set' | 'delete'>
+  Pick<ResponseCookies, "set" | "delete">;
 
 export class RequestCookiesAdapter {
   public static seal(cookies: RequestCookies): ReadonlyRequestCookies {
     return new Proxy(cookies as any, {
       get(target, prop, receiver) {
         switch (prop) {
-          case 'clear':
-          case 'delete':
-          case 'set':
-            return ReadonlyRequestCookiesError.callable
+          case "clear":
+          case "delete":
+          case "set":
+            return ReadonlyRequestCookiesError.callable;
           default:
-            return ReflectAdapter.get(target, prop, receiver)
+            return ReflectAdapter.get(target, prop, receiver);
         }
       },
-    })
+    });
   }
 }
 
-const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for('next.mutated.cookies')
+const SYMBOL_MODIFY_COOKIE_VALUES = Symbol.for("next.mutated.cookies");
 
 export function getModifiedCookieValues(
   cookies: ResponseCookies
 ): ResponseCookie[] {
   const modified: ResponseCookie[] | undefined = (cookies as unknown as any)[
     SYMBOL_MODIFY_COOKIE_VALUES
-  ]
+  ];
   if (!modified || !Array.isArray(modified) || modified.length === 0) {
-    return []
+    return [];
   }
 
-  return modified
+  return modified;
 }
 
 export function appendMutableCookies(
   headers: Headers,
   mutableCookies: ResponseCookies
 ): boolean {
-  const modifiedCookieValues = getModifiedCookieValues(mutableCookies)
+  const modifiedCookieValues = getModifiedCookieValues(mutableCookies);
   if (modifiedCookieValues.length === 0) {
-    return false
+    return false;
   }
 
   // Return a new response that extends the response with
   // the modified cookies as fallbacks. `res` cookies
   // will still take precedence.
-  const resCookies = new ResponseCookies(headers)
-  const returnedCookies = resCookies.getAll()
+  const resCookies = new ResponseCookies(headers);
+  const returnedCookies = resCookies.getAll();
 
   // Set the modified cookies as fallbacks.
   for (const cookie of modifiedCookieValues) {
-    resCookies.set(cookie)
+    resCookies.set(cookie);
   }
 
   // Set the original cookies as the final values.
   for (const cookie of returnedCookies) {
-    resCookies.set(cookie)
+    resCookies.set(cookie);
   }
 
-  return true
+  return true;
 }
 
 type ResponseCookie = NonNullable<
-  ReturnType<InstanceType<typeof ResponseCookies>['get']>
->
+  ReturnType<InstanceType<typeof ResponseCookies>["get"]>
+>;
 
 export class MutableRequestCookiesAdapter {
   public static wrap(
     cookies: RequestCookies,
     onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
-    const responseCookes = new ResponseCookies(new Headers())
+    const responseCookes = new ResponseCookies(new Headers());
     for (const cookie of cookies.getAll()) {
-      responseCookes.set(cookie)
+      responseCookes.set(cookie);
     }
 
-    let modifiedValues: ResponseCookie[] = []
-    const modifiedCookies = new Set<string>()
+    let modifiedValues: ResponseCookie[] = [];
+    const modifiedCookies = new Set<string>();
     const updateResponseCookies = () => {
       // TODO-APP: change method of getting staticGenerationAsyncStore
       const staticGenerationAsyncStore = (fetch as any)
         .__nextGetStaticStore?.()
-        ?.getStore() as undefined | StaticGenerationStore
+        ?.getStore() as undefined | StaticGenerationStore;
       if (staticGenerationAsyncStore) {
-        staticGenerationAsyncStore.pathWasRevalidated = true
+        staticGenerationAsyncStore.pathWasRevalidated = true;
       }
 
-      const allCookies = responseCookes.getAll()
-      modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
+      const allCookies = responseCookes.getAll();
+      modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name));
       if (onUpdateCookies) {
-        const serializedCookies: string[] = []
+        const serializedCookies: string[] = [];
         for (const cookie of modifiedValues) {
-          const tempCookies = new ResponseCookies(new Headers())
-          tempCookies.set(cookie)
-          serializedCookies.push(tempCookies.toString())
+          const tempCookies = new ResponseCookies(new Headers());
+          tempCookies.set(cookie);
+          serializedCookies.push(tempCookies.toString());
         }
 
-        onUpdateCookies(serializedCookies)
+        onUpdateCookies(serializedCookies);
       }
-    }
+    };
 
     return new Proxy(responseCookes, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values
           case SYMBOL_MODIFY_COOKIE_VALUES:
-            return modifiedValues
+            return modifiedValues;
 
           // TODO: Throw error if trying to set a cookie after the response
           // headers have been set.
-          case 'delete':
+          case "delete":
             return function (...args: [string] | [ResponseCookie]) {
               modifiedCookies.add(
-                typeof args[0] === 'string' ? args[0] : args[0].name
-              )
+                typeof args[0] === "string" ? args[0] : args[0].name
+              );
               try {
-                target.delete(...args)
+                target.delete(...args);
               } finally {
-                updateResponseCookies()
+                updateResponseCookies();
               }
-            }
-          case 'set':
+            };
+          case "set":
             return function (
               ...args:
                 | [key: string, value: string, cookie?: Partial<ResponseCookie>]
                 | [options: ResponseCookie]
             ) {
               modifiedCookies.add(
-                typeof args[0] === 'string' ? args[0] : args[0].name
-              )
+                typeof args[0] === "string" ? args[0] : args[0].name
+              );
               try {
-                return target.set(...args)
+                return target.set(...args);
               } finally {
-                updateResponseCookies()
+                updateResponseCookies();
               }
-            }
+            };
           default:
-            return ReflectAdapter.get(target, prop, receiver)
+            return ReflectAdapter.get(target, prop, receiver);
         }
       },
-    })
+    });
   }
 }

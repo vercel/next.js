@@ -1,1 +1,1 @@
-export default (_req, res) => res.send('All Good')
+export default (_req, res) => res.send("All Good");

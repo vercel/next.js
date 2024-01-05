@@ -1,7 +1,7 @@
-import { Component } from 'react'
+import { Component } from "react";
 
-console.log({ Component })
+console.log({ Component });
 
 export default function Page() {
-  return null
+  return null;
 }

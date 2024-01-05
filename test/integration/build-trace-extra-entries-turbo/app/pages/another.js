@@ -1,11 +1,11 @@
-import 'nested-structure/constants'
+import "nested-structure/constants";
 
 export default function Page() {
-  return <p>another page</p>
+  return <p>another page</p>;
 }
 
 export function getStaticProps() {
   return {
     props: {},
-  }
+  };
 }

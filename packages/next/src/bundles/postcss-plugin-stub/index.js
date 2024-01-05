@@ -9,17 +9,17 @@
 
 function pluginCreator() {
   return {
-    postcssPlugin: 'postcss-plugin-stub',
+    postcssPlugin: "postcss-plugin-stub",
     prepare() {
-      return {}
+      return {};
     },
-  }
+  };
 }
-pluginCreator.postcss = true
+pluginCreator.postcss = true;
 
-Object.defineProperty(exports, '__esModule', {
+Object.defineProperty(exports, "__esModule", {
   value: true,
-})
+});
 
-module.exports = pluginCreator
-module.exports.default = pluginCreator
+module.exports = pluginCreator;
+module.exports.default = pluginCreator;

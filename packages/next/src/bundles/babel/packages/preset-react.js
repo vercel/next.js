@@ -1,1 +1,1 @@
-module.exports = require('./bundle').presetReact()
+module.exports = require("./bundle").presetReact();

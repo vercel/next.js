@@ -1,5 +1,5 @@
-import React from 'react'
-import { Client } from './client'
+import React from "react";
+import { Client } from "./client";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <p id="interception-slot">interception from @slot/nested</p>
       <Client />
     </>
-  )
+  );
 }

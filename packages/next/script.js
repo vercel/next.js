@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/script')
+module.exports = require("./dist/client/script");

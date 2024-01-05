@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Another = () => (
   <div>
@@ -7,12 +7,12 @@ const Another = () => (
     </Link>
     <br />
     <Link
-      href={{ pathname: '/', query: { complex: 'yes%' } }}
+      href={{ pathname: "/", query: { complex: "yes%" } }}
       id="hello-complex"
     >
       Hello Complex
     </Link>
   </div>
-)
+);
 
-export default Another
+export default Another;

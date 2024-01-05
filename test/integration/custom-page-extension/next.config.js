@@ -1,3 +1,3 @@
 module.exports = {
-  pageExtensions: ['page.js'],
-}
+  pageExtensions: ["page.js"],
+};

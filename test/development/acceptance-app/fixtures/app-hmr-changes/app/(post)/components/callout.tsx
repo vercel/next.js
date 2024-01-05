@@ -3,4 +3,4 @@ export const Callout = ({ emoji = null, text }) => (
     <span className="block w-6 text-center text-xl mr-2">{emoji}</span>
     <span className="block grow">{text}</span>
   </div>
-)
+);

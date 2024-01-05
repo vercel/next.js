@@ -1,5 +1,5 @@
 export async function getStaticProps() {
-  return { props: { prop: 'hello' } }
+  return { props: { prop: "hello" } };
 }
 
 export default function About({ prop }) {
@@ -7,5 +7,5 @@ export default function About({ prop }) {
     <>
       about <div id="prop">{prop}</div>
     </>
-  )
+  );
 }

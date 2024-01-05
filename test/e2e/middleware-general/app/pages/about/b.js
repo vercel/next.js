@@ -3,5 +3,5 @@ export default function AboutB() {
     <div>
       <h1>AboutB</h1>
     </div>
-  )
+  );
 }

@@ -5,42 +5,42 @@ import type {
   ExportedPageFile,
   FileWriter,
   WorkerRenderOpts,
-} from './types'
+} from "./types";
 
-import '../server/node-environment'
+import "../server/node-environment";
 
-process.env.NEXT_IS_EXPORT_WORKER = 'true'
+process.env.NEXT_IS_EXPORT_WORKER = "true";
 
-import { extname, join, dirname, sep } from 'path'
-import fs from 'fs/promises'
-import { loadComponents } from '../server/load-components'
-import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { requireFontManifest } from '../server/require'
-import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
-import { trace } from '../trace'
-import { setHttpClientAndAgentOptions } from '../server/setup-http-agent-env'
-import isError from '../lib/is-error'
-import { addRequestMeta } from '../server/request-meta'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { extname, join, dirname, sep } from "path";
+import fs from "fs/promises";
+import { loadComponents } from "../server/load-components";
+import { isDynamicRoute } from "../shared/lib/router/utils/is-dynamic";
+import { normalizePagePath } from "../shared/lib/page-path/normalize-page-path";
+import { requireFontManifest } from "../server/require";
+import { normalizeLocalePath } from "../shared/lib/i18n/normalize-locale-path";
+import { trace } from "../trace";
+import { setHttpClientAndAgentOptions } from "../server/setup-http-agent-env";
+import isError from "../lib/is-error";
+import { addRequestMeta } from "../server/request-meta";
+import { normalizeAppPath } from "../shared/lib/router/utils/app-paths";
 
-import { createRequestResponseMocks } from '../server/lib/mock-request'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
-import { hasNextSupport } from '../telemetry/ci-info'
-import { exportAppRoute } from './routes/app-route'
-import { exportAppPage } from './routes/app-page'
-import { exportPages } from './routes/pages'
-import { getParams } from './helpers/get-params'
-import { createIncrementalCache } from './helpers/create-incremental-cache'
-import { isPostpone } from '../server/lib/router-utils/is-postpone'
-import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
-import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
+import { createRequestResponseMocks } from "../server/lib/mock-request";
+import { isAppRouteRoute } from "../lib/is-app-route-route";
+import { hasNextSupport } from "../telemetry/ci-info";
+import { exportAppRoute } from "./routes/app-route";
+import { exportAppPage } from "./routes/app-page";
+import { exportPages } from "./routes/pages";
+import { getParams } from "./helpers/get-params";
+import { createIncrementalCache } from "./helpers/create-incremental-cache";
+import { isPostpone } from "../server/lib/router-utils/is-postpone";
+import { isMissingPostponeDataError } from "../server/app-render/is-missing-postpone-error";
+import { isDynamicUsageError } from "./helpers/is-dynamic-usage-error";
 
-const envConfig = require('../shared/lib/runtime-config.external')
+const envConfig = require("../shared/lib/runtime-config.external");
 
-;(globalThis as any).__NEXT_DATA__ = {
+(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
-}
+};
 
 async function exportPageImpl(
   input: ExportPageInput,
@@ -67,10 +67,10 @@ async function exportPageImpl(
     ampValidatorPath,
     trailingSlash,
     enabledDirectories,
-  } = input
+  } = input;
 
   if (enableExperimentalReact) {
-    process.env.__NEXT_EXPERIMENTAL_REACT = 'true'
+    process.env.__NEXT_EXPERIMENTAL_REACT = "true";
   }
 
   const {
@@ -88,65 +88,65 @@ async function exportPageImpl(
 
     // Pull the original query out.
     query: originalQuery = {},
-  } = pathMap
+  } = pathMap;
 
   try {
-    let query = { ...originalQuery }
-    const pathname = normalizeAppPath(page)
-    const isDynamic = isDynamicRoute(page)
-    const outDir = isAppDir ? join(distDir, 'server/app') : input.outDir
+    let query = { ...originalQuery };
+    const pathname = normalizeAppPath(page);
+    const isDynamic = isDynamicRoute(page);
+    const outDir = isAppDir ? join(distDir, "server/app") : input.outDir;
 
-    let params: { [key: string]: string | string[] } | undefined
+    let params: { [key: string]: string | string[] } | undefined;
 
-    const filePath = normalizePagePath(path)
-    const ampPath = `${filePath}.amp`
-    let renderAmpPath = ampPath
+    const filePath = normalizePagePath(path);
+    const ampPath = `${filePath}.amp`;
+    let renderAmpPath = ampPath;
 
-    let updatedPath = query.__nextSsgPath || path
-    delete query.__nextSsgPath
+    let updatedPath = query.__nextSsgPath || path;
+    delete query.__nextSsgPath;
 
-    let locale = query.__nextLocale || input.renderOpts.locale
-    delete query.__nextLocale
+    let locale = query.__nextLocale || input.renderOpts.locale;
+    delete query.__nextLocale;
 
     if (input.renderOpts.locale) {
       const localePathResult = normalizeLocalePath(
         path,
         input.renderOpts.locales
-      )
+      );
 
       if (localePathResult.detectedLocale) {
-        updatedPath = localePathResult.pathname
-        locale = localePathResult.detectedLocale
+        updatedPath = localePathResult.pathname;
+        locale = localePathResult.detectedLocale;
 
         if (locale === input.renderOpts.defaultLocale) {
-          renderAmpPath = `${normalizePagePath(updatedPath)}.amp`
+          renderAmpPath = `${normalizePagePath(updatedPath)}.amp`;
         }
       }
     }
 
     // We need to show a warning if they try to provide query values
     // for an auto-exported page since they won't be available
-    const hasOrigQueryValues = Object.keys(originalQuery).length > 0
+    const hasOrigQueryValues = Object.keys(originalQuery).length > 0;
 
     // Check if the page is a specified dynamic route
     const { pathname: nonLocalizedPath } = normalizeLocalePath(
       path,
       input.renderOpts.locales
-    )
+    );
 
     if (isDynamic && page !== nonLocalizedPath) {
-      const normalizedPage = isAppDir ? normalizeAppPath(page) : page
+      const normalizedPage = isAppDir ? normalizeAppPath(page) : page;
 
-      params = getParams(normalizedPage, updatedPath)
+      params = getParams(normalizedPage, updatedPath);
       if (params) {
         query = {
           ...query,
           ...params,
-        }
+        };
       }
     }
 
-    const { req, res } = createRequestResponseMocks({ url: updatedPath })
+    const { req, res } = createRequestResponseMocks({ url: updatedPath });
 
     // If this is a status code page, then set the response code.
     for (const statusCode of [404, 500]) {
@@ -157,13 +157,13 @@ async function exportPageImpl(
           `/${statusCode}/index.html`,
         ].some((p) => p === updatedPath || `/${locale}${p}` === updatedPath)
       ) {
-        res.statusCode = statusCode
+        res.statusCode = statusCode;
       }
     }
 
     // Ensure that the URL has a trailing slash if it's configured.
-    if (trailingSlash && !req.url?.endsWith('/')) {
-      req.url += '/'
+    if (trailingSlash && !req.url?.endsWith("/")) {
+      req.url += "/";
     }
 
     if (
@@ -172,49 +172,49 @@ async function exportPageImpl(
       input.renderOpts.domainLocales &&
       input.renderOpts.domainLocales.some(
         (dl) =>
-          dl.defaultLocale === locale || dl.locales?.includes(locale || '')
+          dl.defaultLocale === locale || dl.locales?.includes(locale || "")
       )
     ) {
-      addRequestMeta(req, 'isLocaleDomain', true)
+      addRequestMeta(req, "isLocaleDomain", true);
     }
 
     envConfig.setConfig({
       serverRuntimeConfig,
       publicRuntimeConfig: input.renderOpts.runtimeConfig,
-    })
+    });
 
     const getHtmlFilename = (p: string) =>
-      subFolders ? `${p}${sep}index.html` : `${p}.html`
+      subFolders ? `${p}${sep}index.html` : `${p}.html`;
 
-    let htmlFilename = getHtmlFilename(filePath)
+    let htmlFilename = getHtmlFilename(filePath);
 
     // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
     // extension of `.slug]`
-    const pageExt = isDynamic || isAppDir ? '' : extname(page)
-    const pathExt = isDynamic || isAppDir ? '' : extname(path)
+    const pageExt = isDynamic || isAppDir ? "" : extname(page);
+    const pathExt = isDynamic || isAppDir ? "" : extname(path);
 
     // force output 404.html for backwards compat
-    if (path === '/404.html') {
-      htmlFilename = path
+    if (path === "/404.html") {
+      htmlFilename = path;
     }
     // Make sure page isn't a folder with a dot in the name e.g. `v1.2`
-    else if (pageExt !== pathExt && pathExt !== '') {
-      const isBuiltinPaths = ['/500', '/404'].some(
-        (p) => p === path || p === path + '.html'
-      )
+    else if (pageExt !== pathExt && pathExt !== "") {
+      const isBuiltinPaths = ["/500", "/404"].some(
+        (p) => p === path || p === path + ".html"
+      );
       // If the ssg path has .html extension, and it's not builtin paths, use it directly
       // Otherwise, use that as the filename instead
-      const isHtmlExtPath = !isBuiltinPaths && path.endsWith('.html')
-      htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path
-    } else if (path === '/') {
+      const isHtmlExtPath = !isBuiltinPaths && path.endsWith(".html");
+      htmlFilename = isHtmlExtPath ? getHtmlFilename(path) : path;
+    } else if (path === "/") {
       // If the path is the root, just use index.html
-      htmlFilename = 'index.html'
+      htmlFilename = "index.html";
     }
 
-    const baseDir = join(outDir, dirname(htmlFilename))
-    let htmlFilepath = join(outDir, htmlFilename)
+    const baseDir = join(outDir, dirname(htmlFilename));
+    let htmlFilepath = join(outDir, htmlFilename);
 
-    await fs.mkdir(baseDir, { recursive: true })
+    await fs.mkdir(baseDir, { recursive: true });
 
     // If the fetch cache was enabled, we need to create an incremental
     // cache instance for this page.
@@ -233,7 +233,7 @@ async function exportPageImpl(
             // changes to better support it
             flushToDisk: !hasNextSupport,
           })
-        : undefined
+        : undefined;
 
     // Handle App Routes.
     if (isAppDir && isAppRouteRoute(page)) {
@@ -246,14 +246,14 @@ async function exportPageImpl(
         distDir,
         htmlFilepath,
         fileWriter
-      )
+      );
     }
 
     const components = await loadComponents({
       distDir,
       page,
       isAppPath: isAppDir,
-    })
+    });
 
     const renderOpts: WorkerRenderOpts = {
       ...components,
@@ -267,17 +267,17 @@ async function exportPageImpl(
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,
-    }
+    };
 
     if (hasNextSupport) {
-      renderOpts.isRevalidate = true
+      renderOpts.isRevalidate = true;
     }
 
     // Handle App Pages
     if (isAppDir) {
       // Set the incremental cache on the renderOpts, that's how app page's
       // consume it.
-      renderOpts.incrementalCache = incrementalCache
+      renderOpts.incrementalCache = incrementalCache;
 
       return await exportAppPage(
         req,
@@ -291,7 +291,7 @@ async function exportPageImpl(
         debugOutput,
         isDynamicError,
         fileWriter
-      )
+      );
     }
 
     return await exportPages(
@@ -313,17 +313,17 @@ async function exportPageImpl(
       renderOpts,
       components,
       fileWriter
-    )
+    );
   } catch (err) {
     // if this is a postpone error, it's logged elsewhere, so no need to log it again here
     if (!isMissingPostponeDataError(err)) {
       console.error(
         `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
           (isError(err) && err.stack ? err.stack : err)
-      )
+      );
     }
 
-    return { error: true }
+    return { error: true };
   }
 }
 
@@ -333,35 +333,35 @@ export default async function exportPage(
   // Configure the http agent.
   setHttpClientAndAgentOptions({
     httpAgentOptions: input.httpAgentOptions,
-  })
+  });
 
-  const files: ExportedPageFile[] = []
+  const files: ExportedPageFile[] = [];
   const baseFileWriter: FileWriter = async (
     type,
     path,
     content,
-    encodingOptions = 'utf-8'
+    encodingOptions = "utf-8"
   ) => {
-    await fs.mkdir(dirname(path), { recursive: true })
-    await fs.writeFile(path, content, encodingOptions)
-    files.push({ type, path })
-  }
+    await fs.mkdir(dirname(path), { recursive: true });
+    await fs.writeFile(path, content, encodingOptions);
+    files.push({ type, path });
+  };
 
-  const exportPageSpan = trace('export-page-worker', input.parentSpanId)
+  const exportPageSpan = trace("export-page-worker", input.parentSpanId);
 
-  const start = Date.now()
+  const start = Date.now();
 
   // Export the page.
   const result = await exportPageSpan.traceAsyncFn(async () => {
-    return await exportPageImpl(input, baseFileWriter)
-  })
+    return await exportPageImpl(input, baseFileWriter);
+  });
 
   // If there was no result, then we can exit early.
-  if (!result) return
+  if (!result) return;
 
   // If there was an error, then we can exit early.
-  if ('error' in result) {
-    return { error: result.error, duration: Date.now() - start, files: [] }
+  if ("error" in result) {
+    return { error: result.error, duration: Date.now() - start, files: [] };
   }
 
   // Otherwise we can return the result.
@@ -374,26 +374,26 @@ export default async function exportPage(
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
-  }
+  };
 }
 
-process.on('unhandledRejection', (err: unknown) => {
+process.on("unhandledRejection", (err: unknown) => {
   // if it's a postpone error, it'll be handled later
   // when the postponed promise is actually awaited.
   if (isPostpone(err)) {
-    return
+    return;
   }
 
   // we don't want to log these errors
   if (isDynamicUsageError(err)) {
-    return
+    return;
   }
 
-  console.error(err)
-})
+  console.error(err);
+});
 
-process.on('rejectionHandled', () => {
+process.on("rejectionHandled", () => {
   // It is ok to await a Promise late in Next.js as it allows for better
   // prefetching patterns to avoid waterfalls. We ignore logging these.
   // We should've already errored in anyway unhandledRejection.
-})
+});

@@ -1,5 +1,5 @@
-import CompWithFonts from '../components/CompWithFonts'
-import { openSans } from './_app'
+import CompWithFonts from "../components/CompWithFonts";
+import { openSans } from "./_app";
 
 export default function WithFonts() {
   return (
@@ -10,5 +10,5 @@ export default function WithFonts() {
       </div>
       <div id="with-fonts-open-sans-style" style={openSans.style} />
     </>
-  )
+  );
 }

@@ -1,47 +1,47 @@
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
-import type { PageConfig } from '../../../../../types'
-import type { ParsedUrlQuery } from 'querystring'
-import type { __ApiPreviewProps } from '../../../api-utils'
-import type { RouteModuleOptions } from '../route-module'
+import type { IncomingMessage, ServerResponse } from "http";
+import type { PagesAPIRouteDefinition } from "../../route-definitions/pages-api-route-definition";
+import type { PageConfig } from "../../../../../types";
+import type { ParsedUrlQuery } from "querystring";
+import type { __ApiPreviewProps } from "../../../api-utils";
+import type { RouteModuleOptions } from "../route-module";
 
-import { RouteModule, type RouteModuleHandleContext } from '../route-module'
-import { apiResolver } from '../../../api-utils/node/api-resolver'
+import { RouteModule, type RouteModuleHandleContext } from "../route-module";
+import { apiResolver } from "../../../api-utils/node/api-resolver";
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
   res: ServerResponse
-) => Promise<void>
+) => Promise<void>;
 
 /**
  * The PagesAPIModule is the type of the module exported by the bundled Pages
  * API module.
  */
 export type PagesAPIModule =
-  typeof import('../../../../build/templates/pages-api')
+  typeof import("../../../../build/templates/pages-api");
 
 type PagesAPIUserlandModule = {
   /**
    * The exported handler method.
    */
-  readonly default: PagesAPIHandleFn
+  readonly default: PagesAPIHandleFn;
 
   /**
    * The exported page config.
    */
-  readonly config?: PageConfig
-}
+  readonly config?: PageConfig;
+};
 
 type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
   /**
    * The incoming server request in non-edge runtime.
    */
-  req?: IncomingMessage
+  req?: IncomingMessage;
 
   /**
    * The outgoing server response in non-edge runtime.
    */
-  res?: ServerResponse
+  res?: ServerResponse;
 
   /**
    * The revalidate method used by the `revalidate` API.
@@ -49,68 +49,68 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
    * @param config the configuration for the revalidation
    */
   revalidate: (config: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
-  }) => Promise<void>
+    urlPath: string;
+    revalidateHeaders: { [key: string]: string | string[] };
+    opts: { unstable_onlyGenerated?: boolean };
+  }) => Promise<void>;
 
   /**
    * The hostname for the request.
    */
-  hostname?: string
+  hostname?: string;
 
   /**
    * Keys allowed in the revalidate call.
    */
-  allowedRevalidateHeaderKeys?: string[]
+  allowedRevalidateHeaderKeys?: string[];
 
   /**
    * Whether to trust the host header.
    */
-  trustHostHeader?: boolean
+  trustHostHeader?: boolean;
 
   /**
    * The query for the request.
    */
-  query: ParsedUrlQuery
+  query: ParsedUrlQuery;
 
   /**
    * The preview props used by the `preview` API.
    */
-  previewProps: __ApiPreviewProps
+  previewProps: __ApiPreviewProps;
 
   /**
    * True if the server is in development mode.
    */
-  dev: boolean
+  dev: boolean;
 
   /**
    * True if the server is in minimal mode.
    */
-  minimalMode: boolean
+  minimalMode: boolean;
 
   /**
    * The page that's being rendered.
    */
-  page: string
-}
+  page: string;
+};
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
->
+>;
 
 export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
   constructor(options: PagesAPIRouteModuleOptions) {
-    super(options)
+    super(options);
 
-    if (typeof options.userland.default !== 'function') {
+    if (typeof options.userland.default !== "function") {
       throw new Error(
         `Page ${options.definition.page} does not export a default function.`
-      )
+      );
     }
   }
 
@@ -140,8 +140,8 @@ export class PagesAPIRouteModule extends RouteModule<
       context.minimalMode,
       context.dev,
       context.page
-    )
+    );
   }
 }
 
-export default PagesAPIRouteModule
+export default PagesAPIRouteModule;

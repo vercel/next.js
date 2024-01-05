@@ -1,6 +1,6 @@
-import Image from 'next/image'
-import LegacyImage from 'next/legacy/image'
-import png from '../public/test.png'
+import Image from "next/image";
+import LegacyImage from "next/legacy/image";
+import png from "../public/test.png";
 
 export default function Page() {
   return (
@@ -10,5 +10,5 @@ export default function Page() {
       <hr />
       <LegacyImage src={png} alt="" />
     </>
-  )
+  );
 }

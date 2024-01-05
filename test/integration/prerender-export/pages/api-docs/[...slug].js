@@ -1,27 +1,27 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export const getStaticProps = () => {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
-    paths: ['/api-docs/first'],
+    paths: ["/api-docs/first"],
     fallback: false,
-  }
-}
+  };
+};
 
 export default function Slug(props) {
-  if (useRouter().isFallback) return 'Loading...'
+  if (useRouter().isFallback) return "Loading...";
 
   return (
     <>
       <p id="api-docs">API Docs</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

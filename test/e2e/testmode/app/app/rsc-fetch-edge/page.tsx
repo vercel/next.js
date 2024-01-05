@@ -1,12 +1,12 @@
 // We want to trace this fetch in runtime
-export const dynamic = 'force-dynamic'
-export const runtime = 'edge'
+export const dynamic = "force-dynamic";
+export const runtime = "edge";
 
 export async function generateMetadata() {
-  return {}
+  return {};
 }
 
 export default async function Page() {
-  const text = await (await fetch('https://example.com')).text()
-  return <pre>{text}</pre>
+  const text = await (await fetch("https://example.com")).text();
+  return <pre>{text}</pre>;
 }

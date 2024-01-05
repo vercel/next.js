@@ -1,4 +1,4 @@
-import { nanoid } from 'nanoid'
+import { nanoid } from "nanoid";
 
 export default function Page() {
   return (
@@ -6,5 +6,5 @@ export default function Page() {
       <h1>Static Page</h1>
       <p id="nanoid">{nanoid()}</p>
     </>
-  )
+  );
 }

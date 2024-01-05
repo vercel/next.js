@@ -1,9 +1,9 @@
-import type { RouteDefinition } from './route-definition'
-import { RouteKind } from '../route-kind'
+import type { RouteDefinition } from "./route-definition";
+import { RouteKind } from "../route-kind";
 
 export interface AppPageRouteDefinition
   extends RouteDefinition<RouteKind.APP_PAGE> {
-  readonly appPaths: ReadonlyArray<string>
+  readonly appPaths: ReadonlyArray<string>;
 }
 
 /**
@@ -12,5 +12,5 @@ export interface AppPageRouteDefinition
 export function isAppPageRouteDefinition(
   definition: RouteDefinition
 ): definition is AppPageRouteDefinition {
-  return definition.kind === RouteKind.APP_PAGE
+  return definition.kind === RouteKind.APP_PAGE;
 }

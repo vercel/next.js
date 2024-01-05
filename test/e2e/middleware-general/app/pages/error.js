@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Errors() {
   return (
@@ -7,5 +7,5 @@ export default function Errors() {
         Throw on data
       </Link>
     </div>
-  )
+  );
 }

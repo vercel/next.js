@@ -23,15 +23,15 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-import path from 'path'
-import fs from 'fs'
+import path from "path";
+import fs from "fs";
 
 const compose =
   (f: any, g: any) =>
   (...args: any[]) =>
-    f(g(...args))
+    f(g(...args));
 
-const simpleJoin = compose(path.normalize, path.join)
+const simpleJoin = compose(path.normalize, path.join);
 
 /**
  * The default join function iterates over possible base paths until a suitable join is found.
@@ -47,14 +47,14 @@ export const defaultJoin = createJoinForPredicate(function predicate(
   i: any,
   next: any
 ) {
-  const absolute = simpleJoin(base, uri)
-  return fs.existsSync(absolute) ? absolute : next(i === 0 ? absolute : null)
+  const absolute = simpleJoin(base, uri);
+  return fs.existsSync(absolute) ? absolute : next(i === 0 ? absolute : null);
 },
-'defaultJoin')
+"defaultJoin");
 
 function* createIterator(arr: any) {
   for (const i of arr) {
-    yield i
+    yield i;
   }
 }
 
@@ -94,7 +94,7 @@ function createJoinForPredicate(
     /** An options hash */
     options: { debug?: any | boolean; root: string }
   ) {
-    const log = createDebugLogger(options.debug)
+    const log = createDebugLogger(options.debug);
 
     /**
      * Join function proper.
@@ -110,59 +110,59 @@ function createJoinForPredicate(
       baseOrIteratorOrAbsent: any
     ) {
       const iterator =
-        (typeof baseOrIteratorOrAbsent === 'undefined' &&
+        (typeof baseOrIteratorOrAbsent === "undefined" &&
           createIterator([options.root])) ||
-        (typeof baseOrIteratorOrAbsent === 'string' &&
+        (typeof baseOrIteratorOrAbsent === "string" &&
           createIterator([baseOrIteratorOrAbsent])) ||
-        baseOrIteratorOrAbsent
+        baseOrIteratorOrAbsent;
 
-      const result = runIterator([])
-      log(createJoinMsg, [filename, uri, result, result.isFound])
+      const result = runIterator([]);
+      log(createJoinMsg, [filename, uri, result, result.isFound]);
 
-      return typeof result.absolute === 'string' ? result.absolute : uri
+      return typeof result.absolute === "string" ? result.absolute : uri;
 
       function runIterator(accumulator: any) {
-        const nextItem = iterator.next()
-        var base = !nextItem.done && nextItem.value
-        if (typeof base === 'string') {
+        const nextItem = iterator.next();
+        var base = !nextItem.done && nextItem.value;
+        if (typeof base === "string") {
           const element = predicate(
             filename,
             uri,
             base,
             accumulator.length,
             next
-          )
+          );
 
-          if (typeof element === 'string' && path.isAbsolute(element)) {
+          if (typeof element === "string" && path.isAbsolute(element)) {
             return Object.assign(accumulator.concat(base), {
               isFound: true,
               absolute: element,
-            })
+            });
           } else if (Array.isArray(element)) {
-            return element
+            return element;
           } else {
             throw new Error(
-              'predicate must return an absolute path or the result of calling next()'
-            )
+              "predicate must return an absolute path or the result of calling next()"
+            );
           }
         } else {
-          return accumulator
+          return accumulator;
         }
 
         function next(fallback: any) {
           return runIterator(
             Object.assign(
               accumulator.concat(base),
-              typeof fallback === 'string' && { absolute: fallback }
+              typeof fallback === "string" && { absolute: fallback }
             )
-          )
+          );
         }
       }
-    }
+    };
   }
 
   function toString() {
-    return '[Function: ' + name + ']'
+    return "[Function: " + name + "]";
   }
 
   return Object.assign(
@@ -171,7 +171,7 @@ function createJoinForPredicate(
       valueOf: toString,
       toString: toString,
     }
-  )
+  );
 }
 
 /**
@@ -189,11 +189,11 @@ function createJoinMsg(
   isFound: boolean
 ): string {
   return [
-    'resolve-url-loader: ' + pathToString(file) + ': ' + uri,
+    "resolve-url-loader: " + pathToString(file) + ": " + uri,
     //
     ...bases.map(pathToString).filter(Boolean),
-    ...(isFound ? ['FOUND'] : ['NOT FOUND']),
-  ].join('\n  ')
+    ...(isFound ? ["FOUND"] : ["NOT FOUND"]),
+  ].join("\n  ");
 
   /**
    * If given path is within `process.cwd()` then show relative posix path, otherwise show absolute posix path.
@@ -205,20 +205,20 @@ function createJoinMsg(
     absolute: string
   ): string | null {
     if (!absolute) {
-      return null
+      return null;
     } else {
-      const relative = path.relative(process.cwd(), absolute).split(path.sep)
+      const relative = path.relative(process.cwd(), absolute).split(path.sep);
 
       return (
-        relative[0] === '..'
+        relative[0] === ".."
           ? absolute.split(path.sep)
-          : ['.'].concat(relative).filter(Boolean)
-      ).join('/')
+          : ["."].concat(relative).filter(Boolean)
+      ).join("/");
     }
   }
 }
 
-exports.createJoinMsg = createJoinMsg
+exports.createJoinMsg = createJoinMsg;
 
 /**
  * A factory for a log function predicated on the given debug parameter.
@@ -235,19 +235,19 @@ function createDebugLogger(
   /** A boolean or debug function */
   debug: any | boolean
 ): any {
-  const log = !!debug && (typeof debug === 'function' ? debug : console.log)
-  const cache: any = {}
-  return log ? actuallyLog : noop
+  const log = !!debug && (typeof debug === "function" ? debug : console.log);
+  const cache: any = {};
+  return log ? actuallyLog : noop;
 
   function noop() {}
 
   function actuallyLog(msgFn: any, params: any) {
-    const key = JSON.stringify(params)
+    const key = JSON.stringify(params);
     if (!cache[key]) {
-      cache[key] = true
-      log(msgFn.apply(null, params))
+      cache[key] = true;
+      log(msgFn.apply(null, params));
     }
   }
 }
 
-exports.createDebugLogger = createDebugLogger
+exports.createDebugLogger = createDebugLogger;

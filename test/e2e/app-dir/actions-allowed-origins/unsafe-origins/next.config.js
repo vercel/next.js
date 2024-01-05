@@ -4,4 +4,4 @@ module.exports = {
   logging: {
     fetches: {},
   },
-}
+};

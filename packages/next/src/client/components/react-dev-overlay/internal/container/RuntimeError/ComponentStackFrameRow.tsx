@@ -1,17 +1,17 @@
-import React from 'react'
-import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
-import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import React from "react";
+import type { ComponentStackFrame } from "../../helpers/parse-component-stack";
+import { useOpenInEditor } from "../../helpers/use-open-in-editor";
 
 export function ComponentStackFrameRow({
   componentStackFrame: { component, file, lineNumber, column },
 }: {
-  componentStackFrame: ComponentStackFrame
+  componentStackFrame: ComponentStackFrame;
 }) {
   const open = useOpenInEditor({
     file,
     column,
     lineNumber,
-  })
+  });
 
   return (
     <div data-nextjs-component-stack-frame>
@@ -19,9 +19,9 @@ export function ComponentStackFrameRow({
       {file ? (
         <div
           tabIndex={10} // match CallStackFrame
-          role={'link'}
+          role={"link"}
           onClick={open}
-          title={'Click to open in your editor'}
+          title={"Click to open in your editor"}
         >
           <span>
             {file} ({lineNumber}:{column})
@@ -42,5 +42,5 @@ export function ComponentStackFrameRow({
         </div>
       ) : null}
     </div>
-  )
+  );
 }

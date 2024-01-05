@@ -1,22 +1,22 @@
-import { useAmp } from 'next/amp'
+import { useAmp } from "next/amp";
 
 export const config = {
-  amp: 'hybrid',
-}
+  amp: "hybrid",
+};
 
 export const getStaticProps = () => {
   return {
     props: {
-      hello: 'hello',
+      hello: "hello",
       random: Math.random(),
     },
-  }
-}
+  };
+};
 
 export default ({ hello, random }) => (
   <>
-    <p id="use-amp">useAmp: {useAmp() ? 'yes' : 'no'}</p>
+    <p id="use-amp">useAmp: {useAmp() ? "yes" : "no"}</p>
     <p id="hello">{hello}</p>
     <p id="random">{random}</p>
   </>
-)
+);

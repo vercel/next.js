@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { inc } from './action'
+import { inc } from "./action";
 
 export function Client() {
   return (
@@ -9,5 +9,5 @@ export function Client() {
         Inc
       </button>
     </form>
-  )
+  );
 }

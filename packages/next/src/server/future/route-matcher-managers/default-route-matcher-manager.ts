@@ -1,73 +1,78 @@
-import { isDynamicRoute } from '../../../shared/lib/router/utils'
-import type { RouteKind } from '../route-kind'
-import type { RouteMatch } from '../route-matches/route-match'
-import type { RouteDefinition } from '../route-definitions/route-definition'
-import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import type { RouteMatcher } from '../route-matchers/route-matcher'
-import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
-import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
-import { DetachedPromise } from '../../../lib/detached-promise'
+import { isDynamicRoute } from "../../../shared/lib/router/utils";
+import type { RouteKind } from "../route-kind";
+import type { RouteMatch } from "../route-matches/route-match";
+import type { RouteDefinition } from "../route-definitions/route-definition";
+import type { RouteMatcherProvider } from "../route-matcher-providers/route-matcher-provider";
+import type { RouteMatcher } from "../route-matchers/route-matcher";
+import type {
+  MatchOptions,
+  RouteMatcherManager,
+} from "./route-matcher-manager";
+import { getSortedRoutes } from "../../../shared/lib/router/utils";
+import { LocaleRouteMatcher } from "../route-matchers/locale-route-matcher";
+import { ensureLeadingSlash } from "../../../shared/lib/page-path/ensure-leading-slash";
+import { DetachedPromise } from "../../../lib/detached-promise";
 
 interface RouteMatchers {
-  static: ReadonlyArray<RouteMatcher>
-  dynamic: ReadonlyArray<RouteMatcher>
-  duplicates: Record<string, ReadonlyArray<RouteMatcher>>
+  static: ReadonlyArray<RouteMatcher>;
+  dynamic: ReadonlyArray<RouteMatcher>;
+  duplicates: Record<string, ReadonlyArray<RouteMatcher>>;
 }
 
 export class DefaultRouteMatcherManager implements RouteMatcherManager {
-  private readonly providers: Array<RouteMatcherProvider> = []
+  private readonly providers: Array<RouteMatcherProvider> = [];
   protected readonly matchers: RouteMatchers = {
     static: [],
     dynamic: [],
     duplicates: {},
-  }
-  private lastCompilationID = this.compilationID
+  };
+  private lastCompilationID = this.compilationID;
 
   /**
    * When this value changes, it indicates that a change has been introduced
    * that requires recompilation.
    */
   private get compilationID() {
-    return this.providers.length
+    return this.providers.length;
   }
 
-  private waitTillReadyPromise?: Promise<void>
+  private waitTillReadyPromise?: Promise<void>;
   public async waitTillReady(): Promise<void> {
     if (this.waitTillReadyPromise) {
-      await this.waitTillReadyPromise
-      delete this.waitTillReadyPromise
+      await this.waitTillReadyPromise;
+      delete this.waitTillReadyPromise;
     }
   }
 
-  private previousMatchers: ReadonlyArray<RouteMatcher> = []
+  private previousMatchers: ReadonlyArray<RouteMatcher> = [];
   public async reload() {
-    const { promise, resolve, reject } = new DetachedPromise<void>()
-    this.waitTillReadyPromise = promise
+    const { promise, resolve, reject } = new DetachedPromise<void>();
+    this.waitTillReadyPromise = promise;
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
     // we error out.
-    const compilationID = this.compilationID
+    const compilationID = this.compilationID;
 
     try {
       // Collect all the matchers from each provider.
-      const matchers: Array<RouteMatcher> = []
+      const matchers: Array<RouteMatcher> = [];
 
       // Get all the providers matchers.
       const providersMatchers: ReadonlyArray<ReadonlyArray<RouteMatcher>> =
-        await Promise.all(this.providers.map((provider) => provider.matchers()))
+        await Promise.all(
+          this.providers.map((provider) => provider.matchers())
+        );
 
       // Use this to detect duplicate pathnames.
-      const all = new Map<string, RouteMatcher>()
-      const duplicates: Record<string, RouteMatcher[]> = {}
+      const all = new Map<string, RouteMatcher>();
+      const duplicates: Record<string, RouteMatcher[]> = {};
       for (const providerMatchers of providersMatchers) {
         for (const matcher of providerMatchers) {
           // Reset duplicated matches when reloading from pages conflicting state.
-          if (matcher.duplicated) delete matcher.duplicated
+          if (matcher.duplicated) delete matcher.duplicated;
           // Test to see if the matcher being added is a duplicate.
-          const duplicate = all.get(matcher.definition.pathname)
+          const duplicate = all.get(matcher.definition.pathname);
           if (duplicate) {
             // This looks a little weird, but essentially if the pathname
             // already exists in the duplicates map, then we got that array
@@ -83,27 +88,27 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
             // is so important! Array's are always references!
             const others = duplicates[matcher.definition.pathname] ?? [
               duplicate,
-            ]
-            others.push(matcher)
-            duplicates[matcher.definition.pathname] = others
+            ];
+            others.push(matcher);
+            duplicates[matcher.definition.pathname] = others;
 
             // Add duplicated details to each route.
-            duplicate.duplicated = others
-            matcher.duplicated = others
+            duplicate.duplicated = others;
+            matcher.duplicated = others;
 
             // TODO: see if we should error for duplicates in production?
           }
 
-          matchers.push(matcher)
+          matchers.push(matcher);
 
           // Add the matcher's pathname to the set.
-          all.set(matcher.definition.pathname, matcher)
+          all.set(matcher.definition.pathname, matcher);
         }
       }
 
       // Update the duplicate matchers. This is used in the development manager
       // to warn about duplicates.
-      this.matchers.duplicates = duplicates
+      this.matchers.duplicates = duplicates;
 
       // If the cache is the same as what we just parsed, we can exit now. We
       // can tell by using the `===` which compares object identity, which for
@@ -114,15 +119,15 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
           (cachedMatcher, index) => cachedMatcher === matchers[index]
         )
       ) {
-        return
+        return;
       }
-      this.previousMatchers = matchers
+      this.previousMatchers = matchers;
 
       // For matchers that are for static routes, filter them now.
-      this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic)
+      this.matchers.static = matchers.filter((matcher) => !matcher.isDynamic);
 
       // For matchers that are for dynamic routes, filter them and sort them now.
-      const dynamic = matchers.filter((matcher) => matcher.isDynamic)
+      const dynamic = matchers.filter((matcher) => matcher.isDynamic);
 
       // As `getSortedRoutes` only takes an array of strings, we need to create
       // a map of the pathnames (used for sorting) and the matchers. When we
@@ -130,75 +135,77 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
       // handle this, we keep a map of all the indexes (in `reference`) and
       // merge them in later.
 
-      const reference = new Map<string, number[]>()
-      const pathnames = new Array<string>()
+      const reference = new Map<string, number[]>();
+      const pathnames = new Array<string>();
       for (let index = 0; index < dynamic.length; index++) {
         // Grab the pathname from the definition.
-        const pathname = dynamic[index].definition.pathname
+        const pathname = dynamic[index].definition.pathname;
 
         // Grab the index in the dynamic array, push it into the reference.
-        const indexes = reference.get(pathname) ?? []
-        indexes.push(index)
+        const indexes = reference.get(pathname) ?? [];
+        indexes.push(index);
 
         // If this is the first one set it. If it isn't, we don't need to
         // because pushing above on the array will mutate the array already
         // stored there because array's are always a reference!
-        if (indexes.length === 1) reference.set(pathname, indexes)
+        if (indexes.length === 1) reference.set(pathname, indexes);
         // Otherwise, continue, we've already added this pathname before.
-        else continue
+        else continue;
 
-        pathnames.push(pathname)
+        pathnames.push(pathname);
       }
 
       // Sort the array of pathnames.
-      const sorted = getSortedRoutes(pathnames)
+      const sorted = getSortedRoutes(pathnames);
 
       // For each of the sorted pathnames, iterate over them, grabbing the list
       // of indexes and merging them back into the new `sortedDynamicMatchers`
       // array. The order of the same matching pathname doesn't matter because
       // they will have other matching characteristics (like the locale) that
       // is considered.
-      const sortedDynamicMatchers: Array<RouteMatcher> = []
+      const sortedDynamicMatchers: Array<RouteMatcher> = [];
       for (const pathname of sorted) {
-        const indexes = reference.get(pathname)
+        const indexes = reference.get(pathname);
         if (!Array.isArray(indexes)) {
-          throw new Error('Invariant: expected to find identity in indexes map')
+          throw new Error(
+            "Invariant: expected to find identity in indexes map"
+          );
         }
 
-        const dynamicMatches = indexes.map((index) => dynamic[index])
+        const dynamicMatches = indexes.map((index) => dynamic[index]);
 
-        sortedDynamicMatchers.push(...dynamicMatches)
+        sortedDynamicMatchers.push(...dynamicMatches);
       }
 
-      this.matchers.dynamic = sortedDynamicMatchers
+      this.matchers.dynamic = sortedDynamicMatchers;
 
       // This means that there was a new matcher pushed while we were waiting
       if (this.compilationID !== compilationID) {
         throw new Error(
-          'Invariant: expected compilation to finish before new matchers were added, possible missing await'
-        )
+          "Invariant: expected compilation to finish before new matchers were added, possible missing await"
+        );
       }
     } catch (err) {
-      reject(err)
+      reject(err);
     } finally {
       // The compilation ID matched, so mark the complication as finished.
-      this.lastCompilationID = compilationID
-      resolve()
+      this.lastCompilationID = compilationID;
+      resolve();
     }
   }
 
   public push(provider: RouteMatcherProvider): void {
-    this.providers.push(provider)
+    this.providers.push(provider);
   }
 
   public async test(pathname: string, options: MatchOptions): Promise<boolean> {
     // See if there's a match for the pathname...
-    const match = await this.match(pathname, options)
+    const match = await this.match(pathname, options);
 
     // This default implementation only needs to check to see if there _was_ a
     // match. The development matcher actually changes it's behavior by not
     // recompiling the routes.
-    return match !== null
+    return match !== null;
   }
 
   public async match(
@@ -209,10 +216,10 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // it, otherwise return null below. If no match is found, the inner block
     // won't be called.
     for await (const match of this.matchAll(pathname, options)) {
-      return match
+      return match;
     }
 
-    return null
+    return null;
   }
 
   /**
@@ -229,17 +236,17 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     options: MatchOptions
   ): RouteMatch | null {
     if (matcher instanceof LocaleRouteMatcher) {
-      return matcher.match(pathname, options)
+      return matcher.match(pathname, options);
     }
 
     // If the locale was inferred from the default locale, then it will have
     // already added a locale to the pathname. We need to remove it before
     // matching because this matcher is not locale aware.
     if (options.i18n?.inferredFromDefault) {
-      return matcher.match(options.i18n.pathname)
+      return matcher.match(options.i18n.pathname);
     }
 
-    return matcher.match(pathname)
+    return matcher.match(pathname);
   }
 
   public async *matchAll(
@@ -254,12 +261,12 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // times.
     if (this.lastCompilationID !== this.compilationID) {
       throw new Error(
-        'Invariant: expected routes to have been loaded before match'
-      )
+        "Invariant: expected routes to have been loaded before match"
+      );
     }
 
     // Ensure that path matching is done with a leading slash.
-    pathname = ensureLeadingSlash(pathname)
+    pathname = ensureLeadingSlash(pathname);
 
     // If this pathname doesn't look like a dynamic route, and this pathname is
     // listed in the normalized list of routes, then return it. This ensures
@@ -267,26 +274,26 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
     // with the list of normalized routes.
     if (!isDynamicRoute(pathname)) {
       for (const matcher of this.matchers.static) {
-        const match = this.validate(pathname, matcher, options)
-        if (!match) continue
+        const match = this.validate(pathname, matcher, options);
+        if (!match) continue;
 
-        yield match
+        yield match;
       }
     }
 
     // If we should skip handling dynamic routes, exit now.
-    if (options?.skipDynamic) return null
+    if (options?.skipDynamic) return null;
 
     // Loop over the dynamic matchers, yielding each match.
     for (const matcher of this.matchers.dynamic) {
-      const match = this.validate(pathname, matcher, options)
-      if (!match) continue
+      const match = this.validate(pathname, matcher, options);
+      if (!match) continue;
 
-      yield match
+      yield match;
     }
 
     // We tried direct matching against the pathname and against all the dynamic
     // paths, so there was no match.
-    return null
+    return null;
   }
 }

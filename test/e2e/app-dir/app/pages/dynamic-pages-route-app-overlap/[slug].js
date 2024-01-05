@@ -3,5 +3,5 @@ export default function Page() {
     <p id="pages-text">
       hello from pages/dynamic-pages-route-app-overlap/[slug]
     </p>
-  )
+  );
 }

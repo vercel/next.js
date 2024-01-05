@@ -1,5 +1,5 @@
-import { denormalizePagePath } from './denormalize-page-path'
-import path from '../isomorphic/path'
+import { denormalizePagePath } from "./denormalize-page-path";
+import path from "../isomorphic/path";
 
 /**
  * Calculate all possible pagePaths for a given normalized pagePath along with
@@ -18,23 +18,23 @@ export function getPagePaths(
   extensions: string[],
   isAppDir: boolean
 ) {
-  const page = denormalizePagePath(normalizedPagePath)
+  const page = denormalizePagePath(normalizedPagePath);
 
-  let prefixes: string[]
+  let prefixes: string[];
   if (isAppDir) {
-    prefixes = [page]
-  } else if (normalizedPagePath.endsWith('/index')) {
-    prefixes = [path.join(page, 'index')]
+    prefixes = [page];
+  } else if (normalizedPagePath.endsWith("/index")) {
+    prefixes = [path.join(page, "index")];
   } else {
-    prefixes = [page, path.join(page, 'index')]
+    prefixes = [page, path.join(page, "index")];
   }
 
-  const paths: string[] = []
+  const paths: string[] = [];
   for (const extension of extensions) {
     for (const prefix of prefixes) {
-      paths.push(`${prefix}.${extension}`)
+      paths.push(`${prefix}.${extension}`);
     }
   }
 
-  return paths
+  return paths;
 }

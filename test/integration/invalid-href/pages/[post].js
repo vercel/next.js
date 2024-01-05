@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'hi from post'
+  return "hi from post";
 }

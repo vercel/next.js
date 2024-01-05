@@ -1,1 +1,1 @@
-export { GET } from '../_handlers/route'
+export { GET } from "../_handlers/route";

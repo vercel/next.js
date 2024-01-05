@@ -1,25 +1,25 @@
-import { promises } from 'fs'
-import * as Log from '../build/output/log'
-import findUp from 'next/dist/compiled/find-up'
+import { promises } from "fs";
+import * as Log from "../build/output/log";
+import findUp from "next/dist/compiled/find-up";
 // @ts-ignore no-json types
-import nextPkgJson from 'next/package.json'
-import type { UnwrapPromise } from './coalesced-function'
-import { isCI } from '../telemetry/ci-info'
-import { getRegistry } from './helpers/get-registry'
+import nextPkgJson from "next/package.json";
+import type { UnwrapPromise } from "./coalesced-function";
+import { isCI } from "../telemetry/ci-info";
+import { getRegistry } from "./helpers/get-registry";
 
-let registry: string | undefined
+let registry: string | undefined;
 
 async function fetchPkgInfo(pkg: string) {
-  if (!registry) registry = getRegistry()
-  const res = await fetch(`${registry}${pkg}`)
+  if (!registry) registry = getRegistry();
+  const res = await fetch(`${registry}${pkg}`);
 
   if (!res.ok) {
     throw new Error(
       `Failed to fetch registry info for ${pkg}, got status ${res.status}`
-    )
+    );
   }
-  const data = await res.json()
-  const versionData = data.versions[nextPkgJson.version]
+  const data = await res.json();
+  const versionData = data.versions[nextPkgJson.version];
 
   return {
     os: versionData.os,
@@ -27,7 +27,7 @@ async function fetchPkgInfo(pkg: string) {
     engines: versionData.engines,
     tarball: versionData.dist.tarball,
     integrity: versionData.dist.integrity,
-  }
+  };
 }
 
 /**
@@ -38,25 +38,27 @@ async function fetchPkgInfo(pkg: string) {
  */
 export async function patchIncorrectLockfile(dir: string) {
   if (process.env.NEXT_IGNORE_INCORRECT_LOCKFILE) {
-    return
+    return;
   }
-  const lockfilePath = await findUp('package-lock.json', { cwd: dir })
+  const lockfilePath = await findUp("package-lock.json", { cwd: dir });
 
   if (!lockfilePath) {
     // if no lockfile present there is no action to take
-    return
+    return;
   }
-  const content = await promises.readFile(lockfilePath, 'utf8')
+  const content = await promises.readFile(lockfilePath, "utf8");
   // maintain current line ending
-  const endingNewline = content.endsWith('\r\n')
-    ? '\r\n'
-    : content.endsWith('\n')
-    ? '\n'
-    : ''
+  const endingNewline = content.endsWith("\r\n")
+    ? "\r\n"
+    : content.endsWith("\n")
+    ? "\n"
+    : "";
 
-  const lockfileParsed = JSON.parse(content)
-  const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10)
-  const expectedSwcPkgs = Object.keys(nextPkgJson['optionalDependencies'] || {})
+  const lockfileParsed = JSON.parse(content);
+  const lockfileVersion = parseInt(lockfileParsed?.lockfileVersion, 10);
+  const expectedSwcPkgs = Object.keys(
+    nextPkgJson["optionalDependencies"] || {}
+  );
 
   const patchDependency = (
     pkg: string,
@@ -67,8 +69,8 @@ export async function patchIncorrectLockfile(dir: string) {
       resolved: pkgData.tarball,
       integrity: pkgData.integrity,
       optional: true,
-    }
-  }
+    };
+  };
 
   const patchPackage = (
     pkg: string,
@@ -82,44 +84,44 @@ export async function patchIncorrectLockfile(dir: string) {
       optional: true,
       os: pkgData.os,
       engines: pkgData.engines,
-    }
-  }
+    };
+  };
 
   try {
-    const supportedVersions = [1, 2, 3]
+    const supportedVersions = [1, 2, 3];
 
     if (!supportedVersions.includes(lockfileVersion)) {
       // bail on unsupported version
-      return
+      return;
     }
     // v1 only uses dependencies
     // v2 uses dependencies and packages
     // v3 only uses packages
     const shouldPatchDependencies =
-      lockfileVersion === 1 || lockfileVersion === 2
-    const shouldPatchPackages = lockfileVersion === 2 || lockfileVersion === 3
+      lockfileVersion === 1 || lockfileVersion === 2;
+    const shouldPatchPackages = lockfileVersion === 2 || lockfileVersion === 3;
 
     if (
       (shouldPatchDependencies && !lockfileParsed.dependencies) ||
       (shouldPatchPackages && !lockfileParsed.packages)
     ) {
       // invalid lockfile so bail
-      return
+      return;
     }
-    const missingSwcPkgs = []
-    let pkgPrefix: string | undefined
+    const missingSwcPkgs = [];
+    let pkgPrefix: string | undefined;
 
     if (shouldPatchPackages) {
-      pkgPrefix = ''
+      pkgPrefix = "";
       for (const pkg of Object.keys(lockfileParsed.packages)) {
-        if (pkg.endsWith('node_modules/next')) {
-          pkgPrefix = pkg.substring(0, pkg.length - 4)
+        if (pkg.endsWith("node_modules/next")) {
+          pkgPrefix = pkg.substring(0, pkg.length - 4);
         }
       }
 
       if (!pkgPrefix) {
         // unable to locate the next package so bail
-        return
+        return;
       }
     }
 
@@ -128,48 +130,48 @@ export async function patchIncorrectLockfile(dir: string) {
         (shouldPatchDependencies && !lockfileParsed.dependencies[pkg]) ||
         (shouldPatchPackages && !lockfileParsed.packages[`${pkgPrefix}${pkg}`])
       ) {
-        missingSwcPkgs.push(pkg)
+        missingSwcPkgs.push(pkg);
       }
     }
     if (missingSwcPkgs.length === 0) {
-      return
+      return;
     }
     Log.warn(
       `Found lockfile missing swc dependencies,`,
-      isCI ? 'run next locally to automatically patch' : 'patching...'
-    )
+      isCI ? "run next locally to automatically patch" : "patching..."
+    );
 
     if (isCI) {
       // no point in updating in CI as the user can't save the patch
-      return
+      return;
     }
     const pkgsData = await Promise.all(
       missingSwcPkgs.map((pkg) => fetchPkgInfo(pkg))
-    )
+    );
 
     for (let i = 0; i < pkgsData.length; i++) {
-      const pkg = missingSwcPkgs[i]
-      const pkgData = pkgsData[i]
+      const pkg = missingSwcPkgs[i];
+      const pkgData = pkgsData[i];
 
       if (shouldPatchDependencies) {
-        patchDependency(pkg, pkgData)
+        patchDependency(pkg, pkgData);
       }
       if (shouldPatchPackages) {
-        patchPackage(`${pkgPrefix}${pkg}`, pkgData)
+        patchPackage(`${pkgPrefix}${pkg}`, pkgData);
       }
     }
 
     await promises.writeFile(
       lockfilePath,
       JSON.stringify(lockfileParsed, null, 2) + endingNewline
-    )
+    );
     Log.warn(
       'Lockfile was successfully patched, please run "npm install" to ensure @next/swc dependencies are downloaded'
-    )
+    );
   } catch (err) {
     Log.error(
       `Failed to patch lockfile, please try uninstalling and reinstalling next in this workspace`
-    )
-    console.error(err)
+    );
+    console.error(err);
   }
 }

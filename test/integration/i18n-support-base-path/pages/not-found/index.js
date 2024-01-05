@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -18,14 +18,14 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ locale, locales }) => {
-  if (locale === 'en' || locale === 'nl') {
+  if (locale === "en" || locale === "nl") {
     return {
       notFound: true,
-    }
+    };
   }
 
   return {
@@ -33,5 +33,5 @@ export const getStaticProps = ({ locale, locales }) => {
       locale,
       locales,
     },
-  }
-}
+  };
+};

@@ -1,5 +1,5 @@
-import React from 'react'
+import React from "react";
 
 export function World(): JSX.Element {
-  return <>World</>
+  return <>World</>;
 }

@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').FetchCompileAsyncWasmPlugin
+module.exports = require("./webpack.js").FetchCompileAsyncWasmPlugin;

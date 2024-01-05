@@ -1,1 +1,1 @@
-export default false
+export default false;

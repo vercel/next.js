@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
   if (useRouter().isFallback) {
-    return <p>Loading...</p>
+    return <p>Loading...</p>;
   }
 
   return (
@@ -22,20 +22,20 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export function getStaticPaths() {
   return {
     paths: [
-      '/fallback-true-blog/first',
-      '/fallback-true-blog/build-time-1',
-      '/fallback-true-blog/build-time-2',
-      '/fallback-true-blog/build-time-3',
-      '/fallback-true-blog/build-time-4',
+      "/fallback-true-blog/first",
+      "/fallback-true-blog/build-time-1",
+      "/fallback-true-blog/build-time-2",
+      "/fallback-true-blog/build-time-3",
+      "/fallback-true-blog/build-time-4",
     ],
     fallback: true,
-  }
+  };
 }
 
 export function getStaticProps({ params }) {
@@ -44,5 +44,5 @@ export function getStaticProps({ params }) {
       params,
       time: Date.now(),
     },
-  }
+  };
 }

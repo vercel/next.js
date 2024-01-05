@@ -1,1 +1,1 @@
-export * from '../client/components/headers'
+export * from "../client/components/headers";

@@ -3,5 +3,5 @@ export function isInAmpMode({
   hybrid = false,
   hasQuery = false,
 } = {}): boolean {
-  return ampFirst || (hybrid && hasQuery)
+  return ampFirst || (hybrid && hasQuery);
 }

@@ -19,7 +19,7 @@ Given a name, set a cookie with the given value on the request.
 // Given incoming request /home
 // Set a cookie to hide the banner
 // request will have a `Set-Cookie:show-banner=false;path=/home` header
-request.cookies.set('show-banner', 'false')
+request.cookies.set("show-banner", "false");
 ```
 
 ### `get(name)`
@@ -29,7 +29,7 @@ Given a cookie name, return the value of the cookie. If the cookie is not found,
 ```ts
 // Given incoming request /home
 // { name: 'show-banner', value: 'false', Path: '/home' }
-request.cookies.get('show-banner')
+request.cookies.get("show-banner");
 ```
 
 ### `getAll()`
@@ -42,9 +42,9 @@ Given a cookie name, return the values of the cookie. If no name is given, retur
 //   { name: 'experiments', value: 'new-pricing-page', Path: '/home' },
 //   { name: 'experiments', value: 'winter-launch', Path: '/home' },
 // ]
-request.cookies.getAll('experiments')
+request.cookies.getAll("experiments");
 // Alternatively, get all cookies for the request
-request.cookies.getAll()
+request.cookies.getAll();
 ```
 
 ### `delete(name)`
@@ -53,7 +53,7 @@ Given a cookie name, delete the cookie from the request.
 
 ```ts
 // Returns true for deleted, false is nothing is deleted
-request.cookies.delete('experiments')
+request.cookies.delete("experiments");
 ```
 
 ### `has(name)`
@@ -62,7 +62,7 @@ Given a cookie name, return `true` if the cookie exists on the request.
 
 ```ts
 // Returns true if cookie exists, false if it does not
-request.cookies.has('experiments')
+request.cookies.has("experiments");
 ```
 
 ### `clear()`
@@ -70,7 +70,7 @@ request.cookies.has('experiments')
 Remove the `Set-Cookie` header from the request.
 
 ```ts
-request.cookies.clear()
+request.cookies.clear();
 ```
 
 ## `nextUrl`
@@ -79,9 +79,9 @@ Extends the native [`URL`](https://developer.mozilla.org/docs/Web/API/URL) API w
 
 ```ts
 // Given a request to /home, pathname is /home
-request.nextUrl.pathname
+request.nextUrl.pathname;
 // Given a request to /home?name=lee, searchParams is { 'name': 'lee' }
-request.nextUrl.searchParams
+request.nextUrl.searchParams;
 ```
 
 The following options are available:
@@ -125,9 +125,9 @@ The `ip` property is a string that contains the IP address of the request. This 
 
 ```ts
 // Provided by Vercel
-request.ip
+request.ip;
 // Self-hosting
-request.headers.get('X-Forwarded-For')
+request.headers.get("X-Forwarded-For");
 ```
 
 ## `geo`
@@ -138,15 +138,15 @@ The `geo` property is an object that contains the geographic information of the 
 
 ```ts
 // Provided by Vercel
-request.geo.city
-request.geo.country
-request.geo.region
-request.geo.latitude
-request.geo.longitude
+request.geo.city;
+request.geo.country;
+request.geo.region;
+request.geo.latitude;
+request.geo.longitude;
 
 // Self-hosting
 function getGeo(request) {
-  let ip = request.headers.get('X-Forwarded-For')
+  let ip = request.headers.get("X-Forwarded-For");
   // Use a third-party service to lookup the geographic information
 }
 ```

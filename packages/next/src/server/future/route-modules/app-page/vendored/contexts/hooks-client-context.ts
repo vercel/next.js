@@ -1,3 +1,3 @@
-module.exports = require('../../module.compiled').vendored[
-  'contexts'
-].HooksClientContext
+module.exports = require("../../module.compiled").vendored[
+  "contexts"
+].HooksClientContext;

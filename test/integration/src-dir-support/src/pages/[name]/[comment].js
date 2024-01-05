@@ -1,8 +1,8 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 const $comment = ({ gipQuery }) => {
-  const router = useRouter()
-  const { query } = router
+  const router = useRouter();
+  const { query } = router;
 
   return (
     <>
@@ -11,11 +11,11 @@ const $comment = ({ gipQuery }) => {
       </p>
       <span>gip {gipQuery && gipQuery.name}</span>
     </>
-  )
-}
+  );
+};
 
 $comment.getInitialProps = async ({ query }) => {
-  return { gipQuery: query }
-}
+  return { gipQuery: query };
+};
 
-export default $comment
+export default $comment;

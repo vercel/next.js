@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
 export default function Form({ action }) {
-  const submit = (n) => action('a'.repeat(1024 * 1024 * n))
+  const submit = (n) => action("a".repeat(1024 * 1024 * n));
   return (
     <>
       <button id="size-1mb" onClick={() => submit(1)}>
@@ -11,5 +11,5 @@ export default function Form({ action }) {
         2mb
       </button>
     </>
-  )
+  );
 }

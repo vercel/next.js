@@ -5,5 +5,5 @@ export default function Page({ params }) {
         hello from app/dashboard/deployments/info/[id]. ID is: {params.id}
       </p>
     </>
-  )
+  );
 }

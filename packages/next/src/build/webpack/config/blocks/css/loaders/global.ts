@@ -1,15 +1,15 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { ConfigurationContext } from '../../../utils'
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import type { ConfigurationContext } from "../../../utils";
 
-import { getClientStyleLoader } from './client'
-import { cssFileResolve } from './file-resolve'
+import { getClientStyleLoader } from "./client";
+import { cssFileResolve } from "./file-resolve";
 
 export function getGlobalCssLoader(
   ctx: ConfigurationContext,
   postcss: any,
   preProcessors: readonly webpack.RuleSetUseItem[] = []
 ): webpack.RuleSetUseItem[] {
-  const loaders: webpack.RuleSetUseItem[] = []
+  const loaders: webpack.RuleSetUseItem[] = [];
 
   if (ctx.isClient) {
     // Add appropriate development more or production mode style
@@ -21,12 +21,12 @@ export function getGlobalCssLoader(
         isDevelopment: ctx.isDevelopment,
         assetPrefix: ctx.assetPrefix,
       })
-    )
+    );
   }
 
   // Resolve CSS `@import`s and `url()`s
   loaders.push({
-    loader: require.resolve('../../../../loaders/css-loader/src'),
+    loader: require.resolve("../../../../loaders/css-loader/src"),
     options: {
       postcss,
       importLoaders: 1 + preProcessors.length,
@@ -37,21 +37,21 @@ export function getGlobalCssLoader(
       import: (url: string, _: any, resourcePath: string) =>
         cssFileResolve(url, resourcePath, ctx.experimental.urlImports),
     },
-  })
+  });
 
   // Compile CSS
   loaders.push({
-    loader: require.resolve('../../../../loaders/postcss-loader/src'),
+    loader: require.resolve("../../../../loaders/postcss-loader/src"),
     options: {
       postcss,
     },
-  })
+  });
 
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
     // order of preprocessors.
     ...preProcessors.slice().reverse()
-  )
+  );
 
-  return loaders
+  return loaders;
 }

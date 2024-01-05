@@ -1,27 +1,27 @@
-import type { SchedulerFn } from './scheduler'
+import type { SchedulerFn } from "./scheduler";
 
-import { DetachedPromise } from './detached-promise'
+import { DetachedPromise } from "./detached-promise";
 
 type CacheKeyFn<K, C extends string | number | null> = (
   key: K
-) => PromiseLike<C> | C
+) => PromiseLike<C> | C;
 
 type BatcherOptions<K, C extends string | number | null> = {
-  cacheKeyFn?: CacheKeyFn<K, C>
-  schedulerFn?: SchedulerFn<void>
-}
+  cacheKeyFn?: CacheKeyFn<K, C>;
+  schedulerFn?: SchedulerFn<void>;
+};
 
 type WorkFn<V, C> = (
   key: C,
   resolve: (value: V | PromiseLike<V>) => void
-) => Promise<V>
+) => Promise<V>;
 
 /**
  * A wrapper for a function that will only allow one call to the function to
  * execute at a time.
  */
 export class Batcher<K, V, C extends string | number | null> {
-  private readonly pending = new Map<C, Promise<V>>()
+  private readonly pending = new Map<C, Promise<V>>();
 
   protected constructor(
     private readonly cacheKeyFn?: CacheKeyFn<K, C>,
@@ -40,15 +40,15 @@ export class Batcher<K, V, C extends string | number | null> {
    */
   public static create<K extends string | number | null, V>(
     options?: BatcherOptions<K, K>
-  ): Batcher<K, V, K>
+  ): Batcher<K, V, K>;
   public static create<K, V, C extends string | number | null>(
     options: BatcherOptions<K, C> &
-      Required<Pick<BatcherOptions<K, C>, 'cacheKeyFn'>>
-  ): Batcher<K, V, C>
+      Required<Pick<BatcherOptions<K, C>, "cacheKeyFn">>
+  ): Batcher<K, V, C>;
   public static create<K, V, C extends string | number | null>(
     options?: BatcherOptions<K, C>
   ): Batcher<K, V, C> {
-    return new Batcher<K, V, C>(options?.cacheKeyFn, options?.schedulerFn)
+    return new Batcher<K, V, C>(options?.cacheKeyFn, options?.schedulerFn);
   }
 
   /**
@@ -62,31 +62,31 @@ export class Batcher<K, V, C extends string | number | null> {
    * @returns a promise that resolves to the result of the function
    */
   public async batch(key: K, fn: WorkFn<V, C>): Promise<V> {
-    const cacheKey = (this.cacheKeyFn ? await this.cacheKeyFn(key) : key) as C
+    const cacheKey = (this.cacheKeyFn ? await this.cacheKeyFn(key) : key) as C;
     if (cacheKey === null) {
-      return fn(cacheKey, Promise.resolve)
+      return fn(cacheKey, Promise.resolve);
     }
 
-    const pending = this.pending.get(cacheKey)
-    if (pending) return pending
+    const pending = this.pending.get(cacheKey);
+    if (pending) return pending;
 
-    const { promise, resolve, reject } = new DetachedPromise<V>()
-    this.pending.set(cacheKey, promise)
+    const { promise, resolve, reject } = new DetachedPromise<V>();
+    this.pending.set(cacheKey, promise);
 
     this.schedulerFn(async () => {
       try {
-        const result = await fn(cacheKey, resolve)
+        const result = await fn(cacheKey, resolve);
 
         // Resolving a promise multiple times is a no-op, so we can safely
         // resolve all pending promises with the same result.
-        resolve(result)
+        resolve(result);
       } catch (err) {
-        reject(err)
+        reject(err);
       } finally {
-        this.pending.delete(cacheKey)
+        this.pending.delete(cacheKey);
       }
-    })
+    });
 
-    return promise
+    return promise;
   }
 }

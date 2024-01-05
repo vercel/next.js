@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 function aLink(props) {
   return (
@@ -6,7 +6,7 @@ function aLink(props) {
       <h3>A Link page!</h3>
       <Link href="/">Go to /</Link>
     </div>
-  )
+  );
 }
 
 // we add getServerSideProps to prevent static optimization
@@ -14,7 +14,7 @@ function aLink(props) {
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
-export default aLink
+export default aLink;

@@ -24,28 +24,28 @@ Create your first page by adding a `page.js` file inside the `app` directory:
 ```tsx filename="app/page.tsx" switcher
 // `app/page.tsx` is the UI for the `/` URL
 export default function Page() {
-  return <h1>Hello, Home page!</h1>
+  return <h1>Hello, Home page!</h1>;
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 // `app/page.js` is the UI for the `/` URL
 export default function Page() {
-  return <h1>Hello, Home page!</h1>
+  return <h1>Hello, Home page!</h1>;
 }
 ```
 
 ```tsx filename="app/dashboard/page.tsx" switcher
 // `app/dashboard/page.tsx` is the UI for the `/dashboard` URL
 export default function Page() {
-  return <h1>Hello, Dashboard Page!</h1>
+  return <h1>Hello, Dashboard Page!</h1>;
 }
 ```
 
 ```jsx filename="app/dashboard/page.js" switcher
 // `app/dashboard/page.js` is the UI for the `/dashboard` URL
 export default function Page() {
-  return <h1>Hello, Dashboard Page!</h1>
+  return <h1>Hello, Dashboard Page!</h1>;
 }
 ```
 
@@ -75,7 +75,7 @@ You can define a layout by `default` exporting a React component from a `layout.
 export default function DashboardLayout({
   children, // will be a page or nested layout
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <section>
@@ -84,7 +84,7 @@ export default function DashboardLayout({
 
       {children}
     </section>
-  )
+  );
 }
 ```
 
@@ -99,7 +99,7 @@ export default function DashboardLayout({
 
       {children}
     </section>
-  )
+  );
 }
 ```
 
@@ -124,13 +124,13 @@ The root layout is defined at the top level of the `app` directory and applies t
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -140,7 +140,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -170,15 +170,15 @@ Layouts defined inside a folder (e.g. `app/dashboard/layout.js`) apply to specif
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 
 ```jsx filename="app/dashboard/layout.js" switcher
 export default function DashboardLayout({ children }) {
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 
@@ -221,13 +221,13 @@ A template can be defined by exporting a default React component from a `templat
 
 ```tsx filename="app/template.tsx" switcher
 export default function Template({ children }: { children: React.ReactNode }) {
-  return <div>{children}</div>
+  return <div>{children}</div>;
 }
 ```
 
 ```jsx filename="app/template.js" switcher
 export default function Template({ children }) {
-  return <div>{children}</div>
+  return <div>{children}</div>;
 }
 ```
 
@@ -247,24 +247,24 @@ In the `app` directory, you can modify the `<head>` HTML elements such as `title
 Metadata can be defined by exporting a [`metadata` object](/docs/app/api-reference/functions/generate-metadata#the-metadata-object) or [`generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function) in a [`layout.js`](/docs/app/api-reference/file-conventions/layout) or [`page.js`](/docs/app/api-reference/file-conventions/page) file.
 
 ```tsx filename="app/page.tsx" switcher
-import { Metadata } from 'next'
+import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'Next.js',
-}
+  title: "Next.js",
+};
 
 export default function Page() {
-  return '...'
+  return "...";
 }
 ```
 
 ```jsx filename="app/page.js" switcher
 export const metadata = {
-  title: 'Next.js',
-}
+  title: "Next.js",
+};
 
 export default function Page() {
-  return '...'
+  return "...";
 }
 ```
 

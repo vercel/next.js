@@ -5,14 +5,14 @@ module.exports = {
     return {
       afterFiles: [
         {
-          source: '/rewrite/edge',
-          destination: '/edge',
+          source: "/rewrite/edge",
+          destination: "/edge",
         },
         {
-          source: '/rewrite/api/edge',
-          destination: '/api/edge',
+          source: "/rewrite/api/edge",
+          destination: "/api/edge",
         },
       ],
-    }
+    };
   },
-}
+};

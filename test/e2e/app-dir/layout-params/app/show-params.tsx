@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default function ShowParams({
   prefix,
   params,
 }: {
-  prefix: string
-  params: Record<string, unknown>
+  prefix: string;
+  params: Record<string, unknown>;
 }) {
   return (
     <div id={`${prefix}-layout`}>
@@ -15,5 +15,5 @@ export default function ShowParams({
         </div>
       ))}
     </div>
-  )
+  );
 }

@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import css from './other.module.css'
+import Link from "next/link";
+import css from "./other.module.css";
 
 export default function Other() {
   return (
@@ -12,5 +12,5 @@ export default function Other() {
         Red
       </h1>
     </main>
-  )
+  );
 }

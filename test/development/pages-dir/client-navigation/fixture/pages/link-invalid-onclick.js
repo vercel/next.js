@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useState } from 'react'
+import Link from "next/link";
+import { useState } from "react";
 
 export default function Page(props) {
-  const [errorCount, setErrorCount] = useState(0)
+  const [errorCount, setErrorCount] = useState(0);
 
   function Button(props) {
     return (
@@ -10,18 +10,18 @@ export default function Page(props) {
         id="custom-button"
         href={props.href}
         onClick={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           try {
-            props.onClick()
+            props.onClick();
           } catch (err) {
-            setErrorCount(errorCount + 1)
-            console.error(err)
+            setErrorCount(errorCount + 1);
+            console.error(err);
           }
         }}
       >
         {props.href}
       </a>
-    )
+    );
   }
 
   return (
@@ -31,5 +31,5 @@ export default function Page(props) {
         <Button />
       </Link>
     </>
-  )
+  );
 }

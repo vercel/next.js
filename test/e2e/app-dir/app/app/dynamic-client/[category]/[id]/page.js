@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function IdPage({ children, params }) {
   return (
     <>
       <p>
-        Id Page. Params:{' '}
+        Id Page. Params:{" "}
         <span id="id-page-params">{JSON.stringify(params)}</span>
       </p>
       {children}
@@ -15,5 +15,5 @@ export default function IdPage({ children, params }) {
         {JSON.stringify(Object.fromEntries(useSearchParams()))}
       </p>
     </>
-  )
+  );
 }

@@ -1,5 +1,5 @@
-'use client'
+"use client";
 
 export default function Error() {
-  return <p id="error">Local error boundary</p>
+  return <p id="error">Local error boundary</p>;
 }

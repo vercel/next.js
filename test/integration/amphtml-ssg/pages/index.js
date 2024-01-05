@@ -1,1 +1,1 @@
-export default () => <p>normal old page</p>
+export default () => <p>normal old page</p>;

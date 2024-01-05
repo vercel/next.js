@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-before-interactive-script-outside-document', rule, {
+ruleTester.run("no-before-interactive-script-outside-document", rule, {
   valid: [
     {
       code: `
@@ -42,7 +42,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
     },
     {
       code: `
@@ -72,7 +72,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.tsx',
+      filename: "pages/_document.tsx",
     },
     {
       code: `
@@ -101,7 +101,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.tsx',
+      filename: "pages/_document.tsx",
     },
     {
       code: `
@@ -118,7 +118,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/app/layout.tsx',
+      filename: "/Users/user_name/projects/project-name/app/layout.tsx",
     },
     {
       code: `
@@ -135,7 +135,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: 'C:\\Users\\username\\projects\\project-name\\app\\layout.tsx',
+      filename: "C:\\Users\\username\\projects\\project-name\\app\\layout.tsx",
     },
     {
       code: `
@@ -152,7 +152,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/src/app/layout.tsx',
+      filename: "/Users/user_name/projects/project-name/src/app/layout.tsx",
     },
     {
       code: `
@@ -170,7 +170,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
+        "C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx",
     },
   ].map((obj, idx) => ({
     ...obj,
@@ -194,7 +194,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: 'pages/index.js',
+      filename: "pages/index.js",
       errors: [
         {
           message:
@@ -216,7 +216,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           ></Script>
         );
       }`,
-      filename: 'components/outside-known-dirs.js',
+      filename: "components/outside-known-dirs.js",
       errors: [
         {
           message:
@@ -239,7 +239,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
+      filename: "/Users/user_name/projects/project-name/pages/layout.tsx",
       errors: [
         {
           message:
@@ -263,7 +263,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename:
-        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+        "C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx",
       errors: [
         {
           message:
@@ -286,7 +286,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
+      filename: "/Users/user_name/projects/project-name/src/pages/layout.tsx",
       errors: [
         {
           message:
@@ -310,7 +310,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename:
-        'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
+        "C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx",
       errors: [
         {
           message:
@@ -324,4 +324,4 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       ${obj.code}
     `,
   })),
-})
+});

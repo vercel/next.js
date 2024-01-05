@@ -1,6 +1,6 @@
 export default function Layout(props: {
-  children: React.ReactNode
-  modal: React.ReactNode
+  children: React.ReactNode;
+  modal: React.ReactNode;
 }) {
   return (
     <html>
@@ -9,5 +9,5 @@ export default function Layout(props: {
         <div id="modal">{props.modal}</div>
       </body>
     </html>
-  )
+  );
 }

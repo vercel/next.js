@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { nanoid } from 'nanoid'
+import Link from "next/link";
+import { nanoid } from "nanoid";
 
 export default function Page() {
   return (
@@ -9,5 +9,5 @@ export default function Page() {
         To Navigation
       </Link>
     </>
-  )
+  );
 }

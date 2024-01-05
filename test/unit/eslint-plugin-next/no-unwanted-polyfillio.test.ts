@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-unwanted-polyfillio'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-unwanted-polyfillio";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('unwanted-polyfillsio', rule, {
+ruleTester.run("unwanted-polyfillsio", rule, {
   valid: [
     `import {Head} from 'next/document';
 
@@ -67,8 +67,8 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
-          type: 'JSXOpeningElement',
+            "No duplicate polyfills from Polyfill.io are allowed. WeakSet, Promise, Promise.prototype.finally, es2015, es5, es6 are already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -87,8 +87,8 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
-          type: 'JSXOpeningElement',
+            "No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -106,8 +106,8 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
-          type: 'JSXOpeningElement',
+            "No duplicate polyfills from Polyfill.io are allowed. Array.prototype.copyWithin is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -127,9 +127,9 @@ ruleTester.run('unwanted-polyfillsio', rule, {
       errors: [
         {
           message:
-            'No duplicate polyfills from Polyfill.io are allowed. Object.fromEntries is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio',
+            "No duplicate polyfills from Polyfill.io are allowed. Object.fromEntries is already shipped with Next.js. See: https://nextjs.org/docs/messages/no-unwanted-polyfillio",
         },
       ],
     },
   ],
-})
+});

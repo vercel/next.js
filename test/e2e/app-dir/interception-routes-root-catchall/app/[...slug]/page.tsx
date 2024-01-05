@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>Root Catch-All Page</div>
+  return <div>Root Catch-All Page</div>;
 }

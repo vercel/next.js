@@ -1,3 +1,3 @@
 export function Marker() {
-  return <span>Marker was rendered!</span>
+  return <span>Marker was rendered!</span>;
 }

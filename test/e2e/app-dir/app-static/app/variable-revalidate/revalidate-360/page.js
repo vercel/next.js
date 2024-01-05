@@ -1,43 +1,43 @@
-import { unstable_cache } from 'next/cache'
+import { unstable_cache } from "next/cache";
 
-export const revalidate = 0
+export const revalidate = 0;
 
 export default async function Page() {
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    "https://next-data-api-endpoint.vercel.app/api/random?page",
     {
-      next: { revalidate: 360, tags: ['thankyounext'] },
+      next: { revalidate: 360, tags: ["thankyounext"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const data2 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a=b',
+    "https://next-data-api-endpoint.vercel.app/api/random?a=b",
     {
-      next: { revalidate: 360, tags: ['thankyounext', 'justputit'] },
+      next: { revalidate: 360, tags: ["thankyounext", "justputit"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const cachedData = await unstable_cache(
     async () => {
       const fetchedRandom = await fetch(
-        'https://next-data-api-endpoint.vercel.app/api/random'
-      ).then((res) => res.json())
+        "https://next-data-api-endpoint.vercel.app/api/random"
+      ).then((res) => res.json());
 
       const fetchedRandomNoStore = await fetch(
-        'https://next-data-api-endpoint.vercel.app/api/random',
+        "https://next-data-api-endpoint.vercel.app/api/random",
         {
-          cache: 'no-store',
+          cache: "no-store",
         }
-      ).then((res) => res.json())
+      ).then((res) => res.json());
 
       const fetchedRandomRevalidateZero = await fetch(
-        'https://next-data-api-endpoint.vercel.app/api/random',
+        "https://next-data-api-endpoint.vercel.app/api/random",
         {
           next: {
             revalidate: 0,
           },
         }
-      ).then((res) => res.json())
+      ).then((res) => res.json());
 
       return {
         now: Date.now(),
@@ -45,41 +45,41 @@ export default async function Page() {
         fetchedRandom,
         fetchedRandomNoStore,
         fetchedRandomRevalidateZero,
-      }
+      };
     },
-    ['random'],
+    ["random"],
     {
-      tags: ['thankyounext'],
+      tags: ["thankyounext"],
       revalidate: 10,
     }
-  )()
+  )();
 
   const cacheInner = unstable_cache(
     async () => {
-      console.log('calling cacheInner')
+      console.log("calling cacheInner");
       const data = await fetch(
-        'https://next-data-api-endpoint.vercel.app/api/random?something',
+        "https://next-data-api-endpoint.vercel.app/api/random?something",
         {
-          next: { revalidate: 15, tags: ['thankyounext'] },
+          next: { revalidate: 15, tags: ["thankyounext"] },
         }
-      ).then((res) => res.text())
-      return data
+      ).then((res) => res.text());
+      return data;
     },
     [],
     { revalidate: 360 }
-  )
+  );
 
   const cacheOuter = unstable_cache(
     () => {
-      console.log('cacheOuter')
-      return cacheInner()
+      console.log("cacheOuter");
+      return cacheInner();
     },
     [],
     {
       revalidate: 1000,
-      tags: ['thankyounext'],
+      tags: ["thankyounext"],
     }
-  )()
+  )();
 
   return (
     <>
@@ -94,5 +94,5 @@ export default async function Page() {
       <p id="now">{Date.now()}</p>
       <p id="nested-cache">nested cache: {cacheOuter}</p>
     </>
-  )
+  );
 }

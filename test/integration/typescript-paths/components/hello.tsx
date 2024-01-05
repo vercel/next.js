@@ -1,5 +1,5 @@
-import React from 'react'
+import React from "react";
 
 export function Hello() {
-  return <>Hello</>
+  return <>Hello</>;
 }

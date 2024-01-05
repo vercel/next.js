@@ -22,33 +22,33 @@ Create a `next.config.js` in your project
 
 ```js
 // next.config.js
-const withMDX = require('@next/mdx')()
-module.exports = withMDX()
+const withMDX = require("@next/mdx")();
+module.exports = withMDX();
 ```
 
 Optionally you can provide [MDX plugins](https://mdxjs.com/advanced/plugins#plugins):
 
 ```js
 // next.config.js
-const withMDX = require('@next/mdx')({
+const withMDX = require("@next/mdx")({
   options: {
     remarkPlugins: [],
     rehypePlugins: [],
   },
-})
-module.exports = withMDX()
+});
+module.exports = withMDX();
 ```
 
 Optionally you can add your custom Next.js configuration as parameter
 
 ```js
 // next.config.js
-const withMDX = require('@next/mdx')()
+const withMDX = require("@next/mdx")();
 module.exports = withMDX({
   webpack(config, options) {
-    return config
+    return config;
   },
-})
+});
 ```
 
 By default MDX will only match and compile MDX files with the `.mdx` extension.
@@ -56,10 +56,10 @@ However, it can also be optionally configured to handle markdown files with the 
 
 ```js
 // next.config.js
-const withMDX = require('@next/mdx')({
+const withMDX = require("@next/mdx")({
   extension: /\.(md|mdx)$/,
-})
-module.exports = withMDX()
+});
+module.exports = withMDX();
 ```
 
 In addition, MDX can be customized with compiler options, see the [mdx documentation](https://mdxjs.com/packages/mdx/#compilefile-options) for details on supported options.
@@ -70,12 +70,12 @@ Define the `pageExtensions` option to have Next.js handle `.md` and `.mdx` files
 
 ```js
 // next.config.js
-const withMDX = require('@next/mdx')({
+const withMDX = require("@next/mdx")({
   extension: /\.mdx?$/,
-})
+});
 module.exports = withMDX({
-  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
-})
+  pageExtensions: ["js", "jsx", "ts", "tsx", "md", "mdx"],
+});
 ```
 
 ## TypeScript
@@ -107,7 +107,7 @@ Create a `mdx-components.js` file at the root of your project with the following
 ```js
 // This file is required to use @next/mdx in the `app` directory.
 export function useMDXComponents(components) {
-  return components
+  return components;
   // Allows customizing built-in components, e.g. to add styling.
   // return {
   //   h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,

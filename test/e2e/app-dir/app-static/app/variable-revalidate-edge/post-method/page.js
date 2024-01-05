@@ -1,72 +1,72 @@
-import { fetchRetry } from '../../../lib/fetch-retry'
+import { fetchRetry } from "../../../lib/fetch-retry";
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";
 
 export default async function Page() {
   const data = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
-      method: 'POST',
+      method: "POST",
       next: {
         revalidate: 10,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataWithBody1 = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
-      method: 'POST',
-      body: JSON.stringify({ hello: 'world' }),
+      method: "POST",
+      body: JSON.stringify({ hello: "world" }),
       next: {
         revalidate: 10,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataWithBody2 = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
-      method: 'POST',
+      method: "POST",
       body: new ReadableStream({
         start(controller) {
-          controller.enqueue(JSON.stringify({ another: 'one' }))
-          controller.close()
+          controller.enqueue(JSON.stringify({ another: "one" }));
+          controller.close();
         },
       }),
-      duplex: 'half',
+      duplex: "half",
       next: {
         revalidate: 10,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
-  const formData = new FormData()
-  formData.append('hello', 'value')
-  formData.append('another', new Blob(['some text'], { type: 'text/plain' }))
-  formData.append('another', 'text')
+  const formData = new FormData();
+  formData.append("hello", "value");
+  formData.append("another", new Blob(["some text"], { type: "text/plain" }));
+  formData.append("another", "text");
 
   const dataWithBody3 = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
-      method: 'POST',
+      method: "POST",
       body: formData,
       next: {
         revalidate: 10,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataWithBody4 = await fetchRetry(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
-      method: 'POST',
-      body: new URLSearchParams('myParam=myValue&myParam=anotherValue'),
+      method: "POST",
+      body: new URLSearchParams("myParam=myValue&myParam=anotherValue"),
       next: {
         revalidate: 30,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   return (
     <>
@@ -77,5 +77,5 @@ export default async function Page() {
       <p id="data-body3">{dataWithBody3}</p>
       <p id="data-body4">{dataWithBody4}</p>
     </>
-  )
+  );
 }

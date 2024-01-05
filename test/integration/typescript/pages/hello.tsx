@@ -1,11 +1,11 @@
-import { useRouter } from 'next/router'
-import React from 'react'
-import { hello } from '../components/hello'
-import Image from '../components/image'
-import Link from '../components/link'
-import Router from '../components/router'
-import { World } from '../components/world'
-import { value as resolveOrderValue } from '../extension-order/js-first'
+import { useRouter } from "next/router";
+import React from "react";
+import { hello } from "../components/hello";
+import Image from "../components/image";
+import Link from "../components/link";
+import Router from "../components/router";
+import { World } from "../components/world";
+import { value as resolveOrderValue } from "../extension-order/js-first";
 
 export enum SearchEntity {
   SEARCH_ENTITY_NONE = 0,
@@ -18,24 +18,24 @@ export enum SearchEntity {
 // supports override
 class Test {
   show() {
-    console.log('show Test')
+    console.log("show Test");
   }
 }
 
 class Test2 extends Test {
   override show() {
-    console.log('overriding show Test')
+    console.log("overriding show Test");
   }
 }
 
-new Test2().show()
+new Test2().show();
 
 export default function HelloPage(): JSX.Element {
-  const router = useRouter()
-  console.log(process.browser)
-  console.log(router.pathname)
-  console.log(router.isReady)
-  console.log(router.isPreview)
+  const router = useRouter();
+  console.log(process.browser);
+  console.log(router.pathname);
+  console.log(router.isReady);
+  console.log(router.isPreview);
   return (
     <div>
       <p>One trillion dollars: {1_000_000_000_000}</p>
@@ -45,5 +45,5 @@ export default function HelloPage(): JSX.Element {
       <Link />
       <Image />
     </div>
-  )
+  );
 }

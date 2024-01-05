@@ -1,4 +1,4 @@
 /* eslint-disable */
-import React from 'react'
+import React from "react";
 
-export default () => <>My component!</>
+export default () => <>My component!</>;

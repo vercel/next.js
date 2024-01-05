@@ -5,5 +5,5 @@ export default function DashboardPagePage() {
     <>
       <p>hello dashboard/page!</p>
     </>
-  )
+  );
 }

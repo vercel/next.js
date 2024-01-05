@@ -1,7 +1,7 @@
 export function getServerSideProps() {
-  return { props: {} }
+  return { props: {} };
 }
 
 export default function Page() {
-  return <p>/ssr</p>
+  return <p>/ssr</p>;
 }

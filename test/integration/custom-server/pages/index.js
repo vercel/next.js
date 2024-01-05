@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Index() {
   return (
@@ -7,5 +7,5 @@ export default function Index() {
         Asset
       </Link>
     </div>
-  )
+  );
 }

@@ -27,113 +27,113 @@
 //
 // https://github.com/facebook/metro/blob/d6b9685c730d0d63577db40f41369157f28dfa3a/packages/metro/src/lib/polyfills/require.js
 
-import RefreshRuntime from 'react-refresh/runtime'
+import RefreshRuntime from "react-refresh/runtime";
 
 type ModuleHotStatus =
-  | 'idle'
-  | 'check'
-  | 'prepare'
-  | 'ready'
-  | 'dispose'
-  | 'apply'
-  | 'abort'
-  | 'fail'
+  | "idle"
+  | "check"
+  | "prepare"
+  | "ready"
+  | "dispose"
+  | "apply"
+  | "abort"
+  | "fail";
 
-type ModuleHotStatusHandler = (status: ModuleHotStatus) => void
+type ModuleHotStatusHandler = (status: ModuleHotStatus) => void;
 
 declare const module: {
   hot: {
-    status: () => ModuleHotStatus
-    addStatusHandler: (handler: ModuleHotStatusHandler) => void
-    removeStatusHandler: (handler: ModuleHotStatusHandler) => void
-  }
-}
+    status: () => ModuleHotStatus;
+    addStatusHandler: (handler: ModuleHotStatusHandler) => void;
+    removeStatusHandler: (handler: ModuleHotStatusHandler) => void;
+  };
+};
 
 function isSafeExport(key: string): boolean {
   return (
-    key === '__esModule' ||
-    key === '__N_SSG' ||
-    key === '__N_SSP' ||
+    key === "__esModule" ||
+    key === "__N_SSG" ||
+    key === "__N_SSP" ||
     // TODO: remove this key from page config instead of allow listing it
-    key === 'config'
-  )
+    key === "config"
+  );
 }
 
 function registerExportsForReactRefresh(
   moduleExports: unknown,
   moduleID: string
 ) {
-  RefreshRuntime.register(moduleExports, moduleID + ' %exports%')
-  if (moduleExports == null || typeof moduleExports !== 'object') {
+  RefreshRuntime.register(moduleExports, moduleID + " %exports%");
+  if (moduleExports == null || typeof moduleExports !== "object") {
     // Exit if we can't iterate over exports.
     // (This is important for legacy environments.)
-    return
+    return;
   }
   for (var key in moduleExports) {
     if (isSafeExport(key)) {
-      continue
+      continue;
     }
     try {
-      var exportValue = moduleExports[key]
+      var exportValue = moduleExports[key];
     } catch {
       // This might fail due to circular dependencies
-      continue
+      continue;
     }
-    var typeID = moduleID + ' %exports% ' + key
-    RefreshRuntime.register(exportValue, typeID)
+    var typeID = moduleID + " %exports% " + key;
+    RefreshRuntime.register(exportValue, typeID);
   }
 }
 
 function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
-  var signature = []
-  signature.push(RefreshRuntime.getFamilyByType(moduleExports))
-  if (moduleExports == null || typeof moduleExports !== 'object') {
+  var signature = [];
+  signature.push(RefreshRuntime.getFamilyByType(moduleExports));
+  if (moduleExports == null || typeof moduleExports !== "object") {
     // Exit if we can't iterate over exports.
     // (This is important for legacy environments.)
-    return signature
+    return signature;
   }
   for (var key in moduleExports) {
     if (isSafeExport(key)) {
-      continue
+      continue;
     }
     try {
-      var exportValue = moduleExports[key]
+      var exportValue = moduleExports[key];
     } catch {
       // This might fail due to circular dependencies
-      continue
+      continue;
     }
-    signature.push(key)
-    signature.push(RefreshRuntime.getFamilyByType(exportValue))
+    signature.push(key);
+    signature.push(RefreshRuntime.getFamilyByType(exportValue));
   }
-  return signature
+  return signature;
 }
 
 function isReactRefreshBoundary(moduleExports: unknown): boolean {
   if (RefreshRuntime.isLikelyComponentType(moduleExports)) {
-    return true
+    return true;
   }
-  if (moduleExports == null || typeof moduleExports !== 'object') {
+  if (moduleExports == null || typeof moduleExports !== "object") {
     // Exit if we can't iterate over exports.
-    return false
+    return false;
   }
-  var hasExports = false
-  var areAllExportsComponents = true
+  var hasExports = false;
+  var areAllExportsComponents = true;
   for (var key in moduleExports) {
-    hasExports = true
+    hasExports = true;
     if (isSafeExport(key)) {
-      continue
+      continue;
     }
     try {
-      var exportValue = moduleExports[key]
+      var exportValue = moduleExports[key];
     } catch {
       // This might fail due to circular dependencies
-      return false
+      return false;
     }
     if (!RefreshRuntime.isLikelyComponentType(exportValue)) {
-      areAllExportsComponents = false
+      areAllExportsComponents = false;
     }
   }
-  return hasExports && areAllExportsComponents
+  return hasExports && areAllExportsComponents;
 }
 
 function shouldInvalidateReactRefreshBoundary(
@@ -141,57 +141,57 @@ function shouldInvalidateReactRefreshBoundary(
   nextSignature: unknown[]
 ): boolean {
   if (prevSignature.length !== nextSignature.length) {
-    return true
+    return true;
   }
   for (var i = 0; i < nextSignature.length; i++) {
     if (prevSignature[i] !== nextSignature[i]) {
-      return true
+      return true;
     }
   }
-  return false
+  return false;
 }
 
-var isUpdateScheduled: boolean = false
+var isUpdateScheduled: boolean = false;
 // This function aggregates updates from multiple modules into a single React Refresh call.
 function scheduleUpdate() {
   if (isUpdateScheduled) {
-    return
+    return;
   }
-  isUpdateScheduled = true
+  isUpdateScheduled = true;
 
   function canApplyUpdate(status: ModuleHotStatus) {
-    return status === 'idle'
+    return status === "idle";
   }
 
   function applyUpdate() {
-    isUpdateScheduled = false
+    isUpdateScheduled = false;
     try {
-      RefreshRuntime.performReactRefresh()
+      RefreshRuntime.performReactRefresh();
     } catch (err) {
       console.warn(
-        'Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n' +
+        "Warning: Failed to re-render. We will retry on the next Fast Refresh event.\n" +
           err
-      )
+      );
     }
   }
 
   if (canApplyUpdate(module.hot.status())) {
     // Apply update on the next tick.
     Promise.resolve().then(() => {
-      applyUpdate()
-    })
-    return
+      applyUpdate();
+    });
+    return;
   }
 
   const statusHandler = (status) => {
     if (canApplyUpdate(status)) {
-      module.hot.removeStatusHandler(statusHandler)
-      applyUpdate()
+      module.hot.removeStatusHandler(statusHandler);
+      applyUpdate();
     }
-  }
+  };
 
   // Apply update once the HMR runtime's status is idle.
-  module.hot.addStatusHandler(statusHandler)
+  module.hot.addStatusHandler(statusHandler);
 }
 
 // Needs to be compatible with IE11
@@ -201,4 +201,4 @@ export default {
   shouldInvalidateReactRefreshBoundary: shouldInvalidateReactRefreshBoundary,
   getRefreshBoundarySignature: getRefreshBoundarySignature,
   scheduleUpdate: scheduleUpdate,
-}
+};

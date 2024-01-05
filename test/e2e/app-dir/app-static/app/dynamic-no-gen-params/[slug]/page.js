@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page({ params }) {
   return (
@@ -18,5 +18,5 @@ export default function Page({ params }) {
       </Link>
       <br />
     </>
-  )
+  );
 }

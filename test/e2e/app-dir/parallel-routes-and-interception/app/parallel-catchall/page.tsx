@@ -3,5 +3,5 @@ export default function Page() {
     <div>
       <div>Page</div>
     </div>
-  )
+  );
 }

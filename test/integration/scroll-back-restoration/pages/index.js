@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Page = ({ loaded }) => {
   const link = (
@@ -8,15 +8,15 @@ const Page = ({ loaded }) => {
       style={{
         marginLeft: 5000,
         width: 95000,
-        display: 'block',
+        display: "block",
       }}
     >
       to another
     </Link>
-  )
+  );
 
-  if (typeof window !== 'undefined') {
-    window.didHydrate = true
+  if (typeof window !== "undefined") {
+    window.didHydrate = true;
   }
 
   if (loaded) {
@@ -26,24 +26,24 @@ const Page = ({ loaded }) => {
           style={{
             width: 10000,
             height: 10000,
-            background: 'orange',
+            background: "orange",
           }}
         />
         {link}
         <div id="end-el">the end</div>
       </>
-    )
+    );
   }
 
-  return link
-}
+  return link;
+};
 
-export default Page
+export default Page;
 
 export const getServerSideProps = () => {
   return {
     props: {
       loaded: true,
     },
-  }
-}
+  };
+};

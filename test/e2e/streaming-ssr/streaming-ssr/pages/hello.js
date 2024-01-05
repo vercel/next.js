@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -6,7 +6,7 @@ export default function Page() {
       <p>hello nextjs</p>
       <Link href="/">home</Link>
     </div>
-  )
+  );
 }
 
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: "experimental-edge" };

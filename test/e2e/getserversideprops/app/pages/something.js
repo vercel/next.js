@@ -1,18 +1,18 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ params, query, resolvedUrl }) {
   return {
     props: {
       resolvedUrl: resolvedUrl,
-      world: 'world',
+      world: "world",
       query: query || {},
       params: params || {},
       time: new Date().getTime(),
       random: Math.random(),
     },
-  }
+  };
 }
 
 export default ({
@@ -24,7 +24,7 @@ export default ({
   appProps,
   resolvedUrl,
 }) => {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -46,5 +46,5 @@ export default ({
         to another
       </Link>
     </>
-  )
-}
+  );
+};

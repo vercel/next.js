@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import {
   IceCream,
@@ -22,13 +22,13 @@ import {
   LucideEdit3,
   TextSelection,
   createLucideIcon,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { Tab, RadioGroup, Transition } from '@headlessui/react'
+import { Tab, RadioGroup, Transition } from "@headlessui/react";
 
 export function Comp() {
   // eslint-disable-next-line no-undef
-  globalThis.__noop__ = createLucideIcon
+  globalThis.__noop__ = createLucideIcon;
   return (
     <>
       <IceCream />
@@ -66,13 +66,13 @@ export function Comp() {
       <RadioGroup>
         <RadioGroup.Label>Plan</RadioGroup.Label>
         <RadioGroup.Option value="startup">
-          {({ checked }) => <span>{checked ? 'checked' : ''} Startup</span>}
+          {({ checked }) => <span>{checked ? "checked" : ""} Startup</span>}
         </RadioGroup.Option>
         <RadioGroup.Option value="business">
-          {({ checked }) => <span>{checked ? 'checked' : ''} Business</span>}
+          {({ checked }) => <span>{checked ? "checked" : ""} Business</span>}
         </RadioGroup.Option>
       </RadioGroup>
       <Transition show>I will fade in and out</Transition>
     </>
-  )
+  );
 }

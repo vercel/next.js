@@ -4,5 +4,5 @@ export default function AppLayout({ children }) {
       <head></head>
       <body>{children}</body>
     </html>
-  )
+  );
 }

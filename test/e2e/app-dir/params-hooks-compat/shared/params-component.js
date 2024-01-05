@@ -1,9 +1,9 @@
-import React from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
+import React from "react";
+import { useParams, useSearchParams } from "next/navigation";
 
 export function ParamsComponent() {
-  const params = useParams()
-  const searchParams = useSearchParams()
+  const params = useParams();
+  const searchParams = useSearchParams();
 
   return (
     <div>
@@ -19,5 +19,5 @@ export function ParamsComponent() {
         )}
       </pre>
     </div>
-  )
+  );
 }

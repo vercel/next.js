@@ -1,4 +1,4 @@
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from "../server/config-shared";
 
 export function hasCustomExportOutput(config: NextConfigComplete) {
   // In the past, a user had to run "next build" to generate
@@ -10,5 +10,5 @@ export function hasCustomExportOutput(config: NextConfigComplete) {
   // e.g.
   // Will set config.distDir to .next to make sure the manifests
   // are still reading from temporary .next directory.
-  return config.output === 'export' && config.distDir !== '.next'
+  return config.output === "export" && config.distDir !== ".next";
 }

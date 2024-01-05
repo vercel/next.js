@@ -1,1 +1,1 @@
-module.exports = require('../../../dist/experimental/testmode/playwright/msw')
+module.exports = require("../../../dist/experimental/testmode/playwright/msw");

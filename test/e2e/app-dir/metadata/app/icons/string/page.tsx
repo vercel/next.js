@@ -1,7 +1,7 @@
 export default function page() {
-  return 'icons'
+  return "icons";
 }
 
 export const metadata = {
-  icons: '/icon.png',
-}
+  icons: "/icon.png",
+};

@@ -1,1 +1,1 @@
-export default () => '404 page'
+export default () => "404 page";

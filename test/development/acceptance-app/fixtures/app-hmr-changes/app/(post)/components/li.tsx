@@ -15,5 +15,5 @@ export function LI({ children }) {
     >
       {children}
     </li>
-  )
+  );
 }

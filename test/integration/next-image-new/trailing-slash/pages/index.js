@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/image'
-import img from '../public/test.jpg'
+import React from "react";
+import Image from "next/image";
+import img from "../public/test.jpg";
 
 const Page = () => {
   return (
@@ -8,7 +8,7 @@ const Page = () => {
       <p>Trailing Slash</p>
       <Image id="test1" src={img} />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

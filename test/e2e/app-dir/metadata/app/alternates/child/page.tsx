@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'alternate-child'
+  return "alternate-child";
 }

@@ -1,3 +1,3 @@
 export default () => {
-  return '4'
-}
+  return "4";
+};

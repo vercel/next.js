@@ -1,5 +1,5 @@
 ---
-title: 'No `styled-jsx` in `_document`'
+title: "No `styled-jsx` in `_document`"
 ---
 
 > Prevent usage of `styled-jsx` in `pages/_document.js`.
@@ -16,8 +16,8 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css filename="styles.css"
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
-    'Arial', sans-serif;
+  font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica",
+    "Arial", sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
@@ -27,11 +27,11 @@ body {
 Create a `pages/_app.{js,tsx}` file if not already present. Then, import the `styles.css` file.
 
 ```jsx filename="pages/_app.js"
-import '../styles.css'
+import "../styles.css";
 
 // This default export is required in a new `pages/_app.js` file.
 export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 

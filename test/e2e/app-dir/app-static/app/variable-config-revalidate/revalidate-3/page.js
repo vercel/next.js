@@ -1,18 +1,18 @@
-export const revalidate = 3
+export const revalidate = 3;
 
 export const metadata = {
-  title: 'Cache Test',
-}
+  title: "Cache Test",
+};
 
 export default async function Page() {
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
       next: {
         revalidate: 9,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   return (
     <>
@@ -20,5 +20,5 @@ export default async function Page() {
       <p id="date">{Date.now()}</p>
       <p id="random-data">{data}</p>
     </>
-  )
+  );
 }

@@ -1,1 +1,1 @@
-export { PATCH as patch } from '../../../hello'
+export { PATCH as patch } from "../../../hello";

@@ -1,6 +1,6 @@
 export const config = {
-  runtime: 'experimental-edge',
-}
+  runtime: "experimental-edge",
+};
 
 export default function Page(props) {
   return (
@@ -8,7 +8,7 @@ export default function Page(props) {
       <p id="page">/[id]</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }
 
 export function getServerSideProps({ req, params, query }) {
@@ -19,5 +19,5 @@ export function getServerSideProps({ req, params, query }) {
       params,
       now: Date.now(),
     },
-  }
+  };
 }

@@ -8,5 +8,5 @@ export default function Bar() {
         }
       `}</style>
     </div>
-  )
+  );
 }

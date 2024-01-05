@@ -1,5 +1,5 @@
 ---
-title: 'Link `passHref`'
+title: "Link `passHref`"
 ---
 
 > Ensure `passHref` is used with custom `Link` components.
@@ -13,22 +13,22 @@ title: 'Link `passHref`'
 If you're using a custom component that wraps an `<a>` tag, make sure to add `passHref`:
 
 ```jsx filename="nav-link.js"
-import Link from 'next/link'
-import styled from 'styled-components'
+import Link from "next/link";
+import styled from "styled-components";
 
 const StyledLink = styled.a`
   color: red;
-`
+`;
 
 function NavLink({ href, name }) {
   return (
     <Link href={href} passHref>
       <StyledLink>{name}</StyledLink>
     </Link>
-  )
+  );
 }
 
-export default NavLink
+export default NavLink;
 ```
 
 ## Useful Links

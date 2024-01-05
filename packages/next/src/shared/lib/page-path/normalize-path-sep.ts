@@ -4,5 +4,5 @@
  *  - `foo\/bar\/baz` -> `foo/bar/baz`
  */
 export function normalizePathSep(path: string): string {
-  return path.replace(/\\/g, '/')
+  return path.replace(/\\/g, "/");
 }

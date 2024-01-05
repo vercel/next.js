@@ -26,15 +26,15 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 import type {
   NodePath,
   types as BabelTypes,
-} from 'next/dist/compiled/babel/core'
-import type { PluginObj } from 'next/dist/compiled/babel/core'
+} from "next/dist/compiled/babel/core";
+import type { PluginObj } from "next/dist/compiled/babel/core";
 
-import { relative as relativePath } from 'path'
+import { relative as relativePath } from "path";
 
 export default function ({
   types: t,
 }: {
-  types: typeof BabelTypes
+  types: typeof BabelTypes;
 }): PluginObj {
   return {
     visitor: {
@@ -42,173 +42,173 @@ export default function ({
         path: NodePath<BabelTypes.ImportDeclaration>,
         state: any
       ) {
-        let source = path.node.source.value
-        if (source !== 'next/dynamic') return
+        let source = path.node.source.value;
+        if (source !== "next/dynamic") return;
 
-        let defaultSpecifier = path.get('specifiers').find((specifier) => {
-          return specifier.isImportDefaultSpecifier()
-        })
+        let defaultSpecifier = path.get("specifiers").find((specifier) => {
+          return specifier.isImportDefaultSpecifier();
+        });
 
-        if (!defaultSpecifier) return
+        if (!defaultSpecifier) return;
 
-        const bindingName = defaultSpecifier.node.local.name
-        const binding = path.scope.getBinding(bindingName)
+        const bindingName = defaultSpecifier.node.local.name;
+        const binding = path.scope.getBinding(bindingName);
 
         if (!binding) {
-          return
+          return;
         }
 
         binding.referencePaths.forEach((refPath) => {
-          let callExpression = refPath.parentPath
+          let callExpression = refPath.parentPath;
 
           if (
             callExpression.isMemberExpression() &&
             callExpression.node.computed === false
           ) {
-            const property = callExpression.get('property')
+            const property = callExpression.get("property");
             if (
               !Array.isArray(property) &&
-              property.isIdentifier({ name: 'Map' })
+              property.isIdentifier({ name: "Map" })
             ) {
-              callExpression = callExpression.parentPath
+              callExpression = callExpression.parentPath;
             }
           }
 
-          if (!callExpression.isCallExpression()) return
+          if (!callExpression.isCallExpression()) return;
 
           const callExpression_ =
-            callExpression as NodePath<BabelTypes.CallExpression>
+            callExpression as NodePath<BabelTypes.CallExpression>;
 
-          let args = callExpression_.get('arguments')
+          let args = callExpression_.get("arguments");
           if (args.length > 2) {
             throw callExpression_.buildCodeFrameError(
-              'next/dynamic only accepts 2 arguments'
-            )
+              "next/dynamic only accepts 2 arguments"
+            );
           }
 
           if (!args[0]) {
-            return
+            return;
           }
 
-          let loader
-          let options
+          let loader;
+          let options;
 
           if (args[0].isObjectExpression()) {
-            options = args[0]
+            options = args[0];
           } else {
             if (!args[1]) {
-              callExpression_.node.arguments.push(t.objectExpression([]))
+              callExpression_.node.arguments.push(t.objectExpression([]));
             }
             // This is needed as the code is modified above
-            args = callExpression_.get('arguments')
-            loader = args[0]
-            options = args[1]
+            args = callExpression_.get("arguments");
+            loader = args[0];
+            options = args[1];
           }
 
-          if (!options.isObjectExpression()) return
-          const options_ = options as NodePath<BabelTypes.ObjectExpression>
+          if (!options.isObjectExpression()) return;
+          const options_ = options as NodePath<BabelTypes.ObjectExpression>;
 
-          let properties = options_.get('properties')
+          let properties = options_.get("properties");
           let propertiesMap: {
             [key: string]: NodePath<
               | BabelTypes.ObjectProperty
               | BabelTypes.ObjectMethod
               | BabelTypes.SpreadElement
               | BabelTypes.BooleanLiteral
-            >
-          } = {}
+            >;
+          } = {};
 
           properties.forEach((property) => {
-            const key: any = property.get('key')
-            propertiesMap[key.node.name] = property
-          })
+            const key: any = property.get("key");
+            propertiesMap[key.node.name] = property;
+          });
 
           if (propertiesMap.loadableGenerated) {
-            return
+            return;
           }
 
           if (propertiesMap.loader) {
-            loader = propertiesMap.loader.get('value')
+            loader = propertiesMap.loader.get("value");
           }
 
           if (propertiesMap.modules) {
-            loader = propertiesMap.modules.get('value')
+            loader = propertiesMap.modules.get("value");
           }
 
           if (!loader || Array.isArray(loader)) {
-            return
+            return;
           }
-          const dynamicImports: BabelTypes.Expression[] = []
-          const dynamicKeys: BabelTypes.Expression[] = []
+          const dynamicImports: BabelTypes.Expression[] = [];
+          const dynamicKeys: BabelTypes.Expression[] = [];
 
           if (propertiesMap.ssr) {
-            const ssr = propertiesMap.ssr.get('value')
-            const nodePath = Array.isArray(ssr) ? undefined : ssr
+            const ssr = propertiesMap.ssr.get("value");
+            const nodePath = Array.isArray(ssr) ? undefined : ssr;
 
             if (nodePath) {
               const nonSSR =
-                nodePath.node.type === 'BooleanLiteral' &&
-                nodePath.node.value === false
+                nodePath.node.type === "BooleanLiteral" &&
+                nodePath.node.value === false;
               // If `ssr` is set to `false`, erase the loader for server side
               if (nonSSR && loader && state.file.opts.caller?.isServer) {
                 loader.replaceWith(
                   t.arrowFunctionExpression([], t.nullLiteral(), true)
-                )
+                );
               }
             }
           }
 
           loader.traverse({
             Import(importPath) {
-              const importArguments = importPath.parentPath.get('arguments')
-              if (!Array.isArray(importArguments)) return
-              const node: any = importArguments[0].node
-              dynamicImports.push(node)
+              const importArguments = importPath.parentPath.get("arguments");
+              if (!Array.isArray(importArguments)) return;
+              const node: any = importArguments[0].node;
+              dynamicImports.push(node);
               dynamicKeys.push(
                 t.binaryExpression(
-                  '+',
+                  "+",
                   t.stringLiteral(
                     (state.file.opts.caller?.pagesDir
                       ? relativePath(
                           state.file.opts.caller.pagesDir,
                           state.file.opts.filename
                         )
-                      : state.file.opts.filename) + ' -> '
+                      : state.file.opts.filename) + " -> "
                   ),
                   node
                 )
-              )
+              );
             },
-          })
+          });
 
-          if (!dynamicImports.length) return
+          if (!dynamicImports.length) return;
 
           options.node.properties.push(
             t.objectProperty(
-              t.identifier('loadableGenerated'),
+              t.identifier("loadableGenerated"),
               t.objectExpression(
                 state.file.opts.caller?.isDev ||
                   state.file.opts.caller?.isServer
                   ? [
                       t.objectProperty(
-                        t.identifier('modules'),
+                        t.identifier("modules"),
                         t.arrayExpression(dynamicKeys)
                       ),
                     ]
                   : [
                       t.objectProperty(
-                        t.identifier('webpack'),
+                        t.identifier("webpack"),
                         t.arrowFunctionExpression(
                           [],
                           t.arrayExpression(
                             dynamicImports.map((dynamicImport) => {
                               return t.callExpression(
                                 t.memberExpression(
-                                  t.identifier('require'),
-                                  t.identifier('resolveWeak')
+                                  t.identifier("require"),
+                                  t.identifier("resolveWeak")
                                 ),
                                 [dynamicImport]
-                              )
+                              );
                             })
                           )
                         )
@@ -216,17 +216,17 @@ export default function ({
                     ]
               )
             )
-          )
+          );
 
           // Turns `dynamic(import('something'))` into `dynamic(() => import('something'))` for backwards compat.
           // This is the replicate the behavior in versions below Next.js 7 where we magically handled not executing the `import()` too.
           // We'll deprecate this behavior and provide a codemod for it in 7.1.
           if (loader.isCallExpression()) {
-            const arrowFunction = t.arrowFunctionExpression([], loader.node)
-            loader.replaceWith(arrowFunction)
+            const arrowFunction = t.arrowFunctionExpression([], loader.node);
+            loader.replaceWith(arrowFunction);
           }
-        })
+        });
       },
     },
-  }
+  };
 }

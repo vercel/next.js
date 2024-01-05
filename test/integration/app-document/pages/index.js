@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 export default () => (
   <div>
     <div className="page-index">index</div>
@@ -8,4 +8,4 @@ export default () => (
     </Link>
     <span className="css-in-js-class" />
   </div>
-)
+);

@@ -1,9 +1,9 @@
-let runtimeConfig: any
+let runtimeConfig: any;
 
 export default () => {
-  return runtimeConfig
-}
+  return runtimeConfig;
+};
 
 export function setConfig(configValue: any): void {
-  runtimeConfig = configValue
+  runtimeConfig = configValue;
 }

@@ -1,1 +1,1 @@
-module.exports = require('../dist/google/loader')
+module.exports = require("../dist/google/loader");

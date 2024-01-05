@@ -26,22 +26,22 @@ CSS Modules locally scope CSS by automatically creating a unique class name. Thi
 CSS Modules can be imported into any file inside the `app` directory:
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
-import styles from './styles.module.css'
+import styles from "./styles.module.css";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <section className={styles.dashboard}>{children}</section>
+  return <section className={styles.dashboard}>{children}</section>;
 }
 ```
 
 ```jsx filename="app/dashboard/layout.js" switcher
-import styles from './styles.module.css'
+import styles from "./styles.module.css";
 
 export default function DashboardLayout({ children }) {
-  return <section className={styles.dashboard}>{children}</section>
+  return <section className={styles.dashboard}>{children}</section>;
 }
 ```
 
@@ -73,7 +73,7 @@ You do not need to worry about .error {} colliding with any other `.css` or
 Then, create `components/Button.js`, importing and using the above CSS file:
 
 ```jsx filename="components/Button.js"
-import styles from './Button.module.css'
+import styles from "./Button.module.css";
 
 export function Button() {
   return (
@@ -85,7 +85,7 @@ export function Button() {
     >
       Destroy
     </button>
-  )
+  );
 }
 ```
 
@@ -118,31 +118,31 @@ Inside the root layout (`app/layout.js`), import the `global.css` stylesheet to 
 
 ```tsx filename="app/layout.tsx" switcher
 // These styles apply to every route in the application
-import './global.css'
+import "./global.css";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 // These styles apply to every route in the application
-import './global.css'
+import "./global.css";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -156,8 +156,8 @@ For example, consider the following stylesheet named `styles.css`:
 
 ```css filename="styles.css"
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
-    'Arial', sans-serif;
+  font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica",
+    "Arial", sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
@@ -168,11 +168,11 @@ Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/cu
 Then, [`import`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import) the `styles.css` file.
 
 ```jsx filename="pages/_app.js"
-import '../styles.css'
+import "../styles.css";
 
 // This default export is required in a new `pages/_app.js` file.
 export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 
@@ -184,17 +184,17 @@ In development, expressing stylesheets this way allows your styles to be hot rel
 In production, all CSS files will be automatically concatenated into a single minified `.css` file. The order that the CSS is concatenated will match the order the CSS is imported into the `_app.js` file. Pay special attention to imported JS modules that include their own CSS; the JS module's CSS will be concatenated following the same ordering rules as imported CSS files. For example:
 
 ```jsx
-import '../styles.css'
+import "../styles.css";
 // The CSS in ErrorBoundary depends on the global CSS in styles.css,
 // so we import it after styles.css.
-import ErrorBoundary from '../components/ErrorBoundary'
+import ErrorBoundary from "../components/ErrorBoundary";
 
 export default function MyApp({ Component, pageProps }) {
   return (
     <ErrorBoundary>
       <Component {...pageProps} />
     </ErrorBoundary>
-  )
+  );
 }
 ```
 
@@ -207,30 +207,30 @@ export default function MyApp({ Component, pageProps }) {
 Stylesheets published by external packages can be imported anywhere in the `app` directory, including colocated components:
 
 ```tsx filename="app/layout.tsx" switcher
-import 'bootstrap/dist/css/bootstrap.css'
+import "bootstrap/dist/css/bootstrap.css";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body className="container">{children}</body>
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
-import 'bootstrap/dist/css/bootstrap.css'
+import "bootstrap/dist/css/bootstrap.css";
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="container">{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -251,25 +251,25 @@ For global stylesheets, like `bootstrap` or `nprogress`, you should import the f
 For example:
 
 ```jsx filename="pages/_app.js"
-import 'bootstrap/dist/css/bootstrap.css'
+import "bootstrap/dist/css/bootstrap.css";
 
 export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 
 For importing CSS required by a third-party component, you can do so in your component. For example:
 
 ```jsx filename="components/example-dialog.js"
-import { useState } from 'react'
-import { Dialog } from '@reach/dialog'
-import VisuallyHidden from '@reach/visually-hidden'
-import '@reach/dialog/styles.css'
+import { useState } from "react";
+import { Dialog } from "@reach/dialog";
+import VisuallyHidden from "@reach/visually-hidden";
+import "@reach/dialog/styles.css";
 
 function ExampleDialog(props) {
-  const [showDialog, setShowDialog] = useState(false)
-  const open = () => setShowDialog(true)
-  const close = () => setShowDialog(false)
+  const [showDialog, setShowDialog] = useState(false);
+  const open = () => setShowDialog(true);
+  const close = () => setShowDialog(false);
 
   return (
     <div>
@@ -282,7 +282,7 @@ function ExampleDialog(props) {
         <p>Hello there. I am a dialog</p>
       </Dialog>
     </div>
-  )
+  );
 }
 ```
 

@@ -1,9 +1,9 @@
-import { ensureLeadingSlash } from './ensure-leading-slash'
-import { normalizePathSep } from './normalize-path-sep'
-import path from '../isomorphic/path'
-import { removePagePathTail } from './remove-page-path-tail'
-import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import type { PAGE_TYPES } from '../../../lib/page-types'
+import { ensureLeadingSlash } from "./ensure-leading-slash";
+import { normalizePathSep } from "./normalize-path-sep";
+import path from "../isomorphic/path";
+import { removePagePathTail } from "./remove-page-path-tail";
+import { normalizeMetadataRoute } from "../../../lib/metadata/get-metadata-route";
+import type { PAGE_TYPES } from "../../../lib/page-types";
 
 /**
  * Given the absolute path to the pages folder, an absolute file path for a
@@ -23,19 +23,19 @@ import type { PAGE_TYPES } from '../../../lib/page-types'
 export function absolutePathToPage(
   pagePath: string,
   options: {
-    extensions: string[] | readonly string[]
-    keepIndex: boolean
-    dir: string
-    pagesType: PAGE_TYPES
+    extensions: string[] | readonly string[];
+    keepIndex: boolean;
+    dir: string;
+    pagesType: PAGE_TYPES;
   }
 ) {
-  const isAppDir = options.pagesType === 'app'
+  const isAppDir = options.pagesType === "app";
   const page = removePagePathTail(
     normalizePathSep(ensureLeadingSlash(path.relative(options.dir, pagePath))),
     {
       extensions: options.extensions,
       keepIndex: options.keepIndex,
     }
-  )
-  return isAppDir ? normalizeMetadataRoute(page) : page
+  );
+  return isAppDir ? normalizeMetadataRoute(page) : page;
 }

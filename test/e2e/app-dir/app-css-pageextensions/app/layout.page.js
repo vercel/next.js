@@ -1,4 +1,4 @@
-import '../styles/global.css'
+import "../styles/global.css";
 
 export default function Root({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function Root({ children }) {
       </head>
       <body className="this-is-the-document-body">{children}</body>
     </html>
-  )
+  );
 }

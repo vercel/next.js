@@ -3,5 +3,5 @@ export default function ChangelogPage(props) {
     <>
       <p>hello from app/dashboard/changelog</p>
     </>
-  )
+  );
 }

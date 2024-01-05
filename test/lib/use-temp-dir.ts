@@ -1,6 +1,6 @@
-import fs from 'fs-extra'
-import os from 'os'
-import path from 'path'
+import fs from "fs-extra";
+import os from "os";
+import path from "path";
 
 /**
  * Create a randomly-named directory in `os.tmpdir()`, await a function call,
@@ -12,19 +12,19 @@ export async function useTempDir(
 ) {
   const folder = path.join(
     os.tmpdir(),
-    'next-test-' + Math.random().toString(36).slice(2)
-  )
-  await fs.mkdirp(folder)
+    "next-test-" + Math.random().toString(36).slice(2)
+  );
+  await fs.mkdirp(folder);
 
   if (mode) {
-    await fs.chmod(folder, mode)
+    await fs.chmod(folder, mode);
   }
 
   try {
-    await fn(folder)
+    await fn(folder);
   } finally {
     if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-      await fs.remove(folder)
+      await fs.remove(folder);
     }
   }
 }

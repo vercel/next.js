@@ -1,4 +1,4 @@
-import { BlueButton } from './blue-button'
+import { BlueButton } from "./blue-button";
 
 export default function ServerLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function ServerLayout({ children }) {
       </div>
       {children}
     </>
-  )
+  );
 }

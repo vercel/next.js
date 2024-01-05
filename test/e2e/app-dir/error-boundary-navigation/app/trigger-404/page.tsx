@@ -1,7 +1,7 @@
-import { notFound } from 'next/navigation'
+import { notFound } from "next/navigation";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default function Page() {
-  notFound()
+  notFound();
 }

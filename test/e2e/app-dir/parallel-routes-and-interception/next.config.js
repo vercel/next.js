@@ -6,16 +6,16 @@ const nextConfig = {
     return {
       beforeFiles: [
         {
-          source: '/foo',
-          destination: '/en/foo',
+          source: "/foo",
+          destination: "/en/foo",
         },
         {
-          source: '/photos',
-          destination: '/en/photos',
+          source: "/photos",
+          destination: "/en/photos",
         },
       ],
-    }
+    };
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

@@ -4,6 +4,6 @@ const Home = () => (
     <script src="https://example.com" />
     /* Badly formatted comment */
   </div>
-)
+);
 
-export default Home
+export default Home;

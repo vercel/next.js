@@ -5,7 +5,7 @@ const Other = () => {
       <h2>bar!</h2>
       <div id="on-other"></div>
     </div>
-  )
-}
+  );
+};
 
-export default Other
+export default Other;

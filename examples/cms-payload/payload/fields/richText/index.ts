@@ -2,18 +2,18 @@ import {
   RichTextElement,
   RichTextField,
   RichTextLeaf,
-} from 'payload/dist/fields/config/types'
-import deepMerge from '../../utilities/deepMerge'
-import elements from './elements'
-import leaves from './leaves'
+} from "payload/dist/fields/config/types";
+import deepMerge from "../../utilities/deepMerge";
+import elements from "./elements";
+import leaves from "./leaves";
 
 type RichText = (
   overrides?: Partial<RichTextField>,
   additions?: {
-    elements?: RichTextElement[]
-    leaves?: RichTextLeaf[]
+    elements?: RichTextElement[];
+    leaves?: RichTextLeaf[];
   }
-) => RichTextField
+) => RichTextField;
 
 const richText: RichText = (
   overrides,
@@ -24,8 +24,8 @@ const richText: RichText = (
 ) =>
   deepMerge<RichTextField, Partial<RichTextField>>(
     {
-      name: 'richText',
-      type: 'richText',
+      name: "richText",
+      type: "richText",
       required: true,
       admin: {
         elements: [...elements, ...(additions.elements || [])],
@@ -33,6 +33,6 @@ const richText: RichText = (
       },
     },
     overrides || {}
-  )
+  );
 
-export default richText
+export default richText;

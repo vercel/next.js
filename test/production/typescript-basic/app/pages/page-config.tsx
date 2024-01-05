@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { PageConfig } from 'next'
+import Link from "next/link";
+import { PageConfig } from "next";
 
 export const config: PageConfig = {
   unstable_runtimeJS: false,
-}
+};
 
 export default function Page() {
   return (
@@ -11,5 +11,5 @@ export default function Page() {
       <p>hello world</p>
       <Link href="/another">to /another</Link>
     </>
-  )
+  );
 }

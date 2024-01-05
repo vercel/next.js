@@ -9,15 +9,15 @@ A **layout** is UI that is shared between routes.
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 
 ```jsx filename="app/dashboard/layout.js" switcher
 export default function DashboardLayout({ children }) {
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 
@@ -27,13 +27,13 @@ A **root layout** is the top-most layout in the root `app` directory. It is used
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -43,7 +43,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 
@@ -70,15 +70,15 @@ export default function ShopLayout({
   children,
   params,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
   params: {
-    tag: string
-    item: string
-  }
+    tag: string;
+    item: string;
+  };
 }) {
   // URL -> /shop/shoes/nike-air-max-97
   // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 
@@ -86,7 +86,7 @@ export default function ShopLayout({
 export default function ShopLayout({ children, params }) {
   // URL -> /shop/shoes/nike-air-max-97
   // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  return <section>{children}</section>
+  return <section>{children}</section>;
 }
 ```
 

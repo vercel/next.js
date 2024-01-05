@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import './style.css'
+import "./style.css";
 
 export default function Comp() {
-  return <h1 className="red">Hello</h1>
+  return <h1 className="red">Hello</h1>;
 }

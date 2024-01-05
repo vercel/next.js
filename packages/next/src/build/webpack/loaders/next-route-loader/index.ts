@@ -1,101 +1,101 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import type { MiddlewareConfig } from "../../../analysis/get-page-static-info";
 
-import { stringify } from 'querystring'
+import { stringify } from "querystring";
 import {
   type ModuleBuildInfo,
   getModuleBuildInfo,
-} from '../get-module-build-info'
-import { RouteKind } from '../../../../server/future/route-kind'
-import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-page-path'
-import { decodeFromBase64, encodeToBase64 } from '../utils'
-import { isInstrumentationHookFile } from '../../../worker'
-import { loadEntrypoint } from '../../../load-entrypoint'
-import type { MappedPages } from '../../../build-context'
+} from "../get-module-build-info";
+import { RouteKind } from "../../../../server/future/route-kind";
+import { normalizePagePath } from "../../../../shared/lib/page-path/normalize-page-path";
+import { decodeFromBase64, encodeToBase64 } from "../utils";
+import { isInstrumentationHookFile } from "../../../worker";
+import { loadEntrypoint } from "../../../load-entrypoint";
+import type { MappedPages } from "../../../build-context";
 
 type RouteLoaderOptionsPagesAPIInput = {
-  kind: RouteKind.PAGES_API
-  page: string
-  preferredRegion: string | string[] | undefined
-  absolutePagePath: string
-  middlewareConfig: MiddlewareConfig
-}
+  kind: RouteKind.PAGES_API;
+  page: string;
+  preferredRegion: string | string[] | undefined;
+  absolutePagePath: string;
+  middlewareConfig: MiddlewareConfig;
+};
 
 type RouteLoaderOptionsPagesInput = {
-  kind: RouteKind.PAGES
-  page: string
-  pages: MappedPages
-  preferredRegion: string | string[] | undefined
-  absolutePagePath: string
-  middlewareConfig: MiddlewareConfig
-}
+  kind: RouteKind.PAGES;
+  page: string;
+  pages: MappedPages;
+  preferredRegion: string | string[] | undefined;
+  absolutePagePath: string;
+  middlewareConfig: MiddlewareConfig;
+};
 
 type RouteLoaderOptionsInput =
   | RouteLoaderOptionsPagesInput
-  | RouteLoaderOptionsPagesAPIInput
+  | RouteLoaderOptionsPagesAPIInput;
 
 type RouteLoaderPagesAPIOptions = {
-  kind: RouteKind.PAGES_API
+  kind: RouteKind.PAGES_API;
 
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: string;
 
   /**
    * The preferred region for this route.
    */
-  preferredRegion: string | string[] | undefined
+  preferredRegion: string | string[] | undefined;
 
   /**
    * The absolute path to the userland page file.
    */
-  absolutePagePath: string
+  absolutePagePath: string;
 
   /**
    * The middleware config for this route.
    */
-  middlewareConfigBase64: string
-}
+  middlewareConfigBase64: string;
+};
 
 type RouteLoaderPagesOptions = {
-  kind: RouteKind.PAGES
+  kind: RouteKind.PAGES;
 
   /**
    * The page name for this particular route.
    */
-  page: string
+  page: string;
 
   /**
    * The preferred region for this route.
    */
-  preferredRegion: string | string[] | undefined
+  preferredRegion: string | string[] | undefined;
 
   /**
    * The absolute path to the userland page file.
    */
-  absolutePagePath: string
+  absolutePagePath: string;
 
   /**
    * The absolute paths to the app path file.
    */
-  absoluteAppPath: string
+  absoluteAppPath: string;
 
   /**
    * The absolute paths to the document path file.
    */
-  absoluteDocumentPath: string
+  absoluteDocumentPath: string;
 
   /**
    * The middleware config for this route.
    */
-  middlewareConfigBase64: string
-}
+  middlewareConfigBase64: string;
+};
 
 /**
  * The options for the route loader.
  */
-type RouteLoaderOptions = RouteLoaderPagesOptions | RouteLoaderPagesAPIOptions
+type RouteLoaderOptions = RouteLoaderPagesOptions | RouteLoaderPagesAPIOptions;
 
 /**
  * Returns the loader entry for a given page.
@@ -113,12 +113,12 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         absolutePagePath: options.absolutePagePath,
         // These are the path references to the internal components that may be
         // overridden by userland components.
-        absoluteAppPath: options.pages['/_app'],
-        absoluteDocumentPath: options.pages['/_document'],
+        absoluteAppPath: options.pages["/_app"],
+        absoluteDocumentPath: options.pages["/_document"],
         middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
-      }
+      };
 
-      return `next-route-loader?${stringify(query)}!`
+      return `next-route-loader?${stringify(query)}!`;
     }
     case RouteKind.PAGES_API: {
       const query: RouteLoaderPagesAPIOptions = {
@@ -127,12 +127,12 @@ export function getRouteLoaderEntry(options: RouteLoaderOptionsInput): string {
         preferredRegion: options.preferredRegion,
         absolutePagePath: options.absolutePagePath,
         middlewareConfigBase64: encodeToBase64(options.middlewareConfig),
-      }
+      };
 
-      return `next-route-loader?${stringify(query)}!`
+      return `next-route-loader?${stringify(query)}!`;
     }
     default: {
-      throw new Error('Invariant: Unexpected route kind')
+      throw new Error("Invariant: Unexpected route kind");
     }
   }
 }
@@ -150,7 +150,7 @@ const loadPages = async (
 ) => {
   const middlewareConfig: MiddlewareConfig = decodeFromBase64(
     middlewareConfigBase64
-  )
+  );
 
   // Attach build info to the module.
   buildInfo.route = {
@@ -158,25 +158,25 @@ const loadPages = async (
     absolutePagePath,
     preferredRegion,
     middlewareConfig,
-  }
+  };
 
-  let file = await loadEntrypoint('pages', {
+  let file = await loadEntrypoint("pages", {
     VAR_USERLAND: absolutePagePath,
     VAR_MODULE_DOCUMENT: absoluteDocumentPath,
     VAR_MODULE_APP: absoluteAppPath,
     VAR_DEFINITION_PAGE: normalizePagePath(page),
     VAR_DEFINITION_PATHNAME: page,
-  })
+  });
 
   if (isInstrumentationHookFile(page)) {
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
-    file += '\nexport const register = hoist(userland, "register")'
+    file += '\nexport const register = hoist(userland, "register")';
   }
 
-  return file
-}
+  return file;
+};
 
 const loadPagesAPI = async (
   {
@@ -189,7 +189,7 @@ const loadPagesAPI = async (
 ) => {
   const middlewareConfig: MiddlewareConfig = decodeFromBase64(
     middlewareConfigBase64
-  )
+  );
 
   // Attach build info to the module.
   buildInfo.route = {
@@ -197,14 +197,14 @@ const loadPagesAPI = async (
     absolutePagePath,
     preferredRegion,
     middlewareConfig,
-  }
+  };
 
-  return await loadEntrypoint('pages-api', {
+  return await loadEntrypoint("pages-api", {
     VAR_USERLAND: absolutePagePath,
     VAR_DEFINITION_PAGE: normalizePagePath(page),
     VAR_DEFINITION_PATHNAME: page,
-  })
-}
+  });
+};
 
 /**
  * Handles the `next-route-loader` options.
@@ -213,23 +213,23 @@ const loadPagesAPI = async (
 const loader: webpack.LoaderDefinitionFunction<RouteLoaderOptions> =
   async function () {
     if (!this._module) {
-      throw new Error('Invariant: expected this to reference a module')
+      throw new Error("Invariant: expected this to reference a module");
     }
 
-    const buildInfo = getModuleBuildInfo(this._module)
-    const opts = this.getOptions()
+    const buildInfo = getModuleBuildInfo(this._module);
+    const opts = this.getOptions();
 
     switch (opts.kind) {
       case RouteKind.PAGES: {
-        return await loadPages(opts, buildInfo)
+        return await loadPages(opts, buildInfo);
       }
       case RouteKind.PAGES_API: {
-        return await loadPagesAPI(opts, buildInfo)
+        return await loadPagesAPI(opts, buildInfo);
       }
       default: {
-        throw new Error('Invariant: Unexpected route kind')
+        throw new Error("Invariant: Unexpected route kind");
       }
     }
-  }
+  };
 
-export default loader
+export default loader;

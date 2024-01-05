@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -45,7 +45,7 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ locale, locales, defaultLocale, params }) => {
@@ -56,21 +56,21 @@ export const getStaticProps = ({ locale, locales, defaultLocale, params }) => {
       locales,
       defaultLocale,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     paths: [
       {
         params: { slug: [] },
-        locale: 'en-US',
+        locale: "en-US",
       },
       {
         params: { slug: undefined },
-        locale: 'fr',
+        locale: "fr",
       },
     ],
-    fallback: 'blocking',
-  }
-}
+    fallback: "blocking",
+  };
+};

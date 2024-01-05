@@ -1,13 +1,13 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export async function getStaticProps({ params }) {
   return {
     props: {
-      lotsOfData: new Array(256 * 1000).fill('a').join(''),
+      lotsOfData: new Array(256 * 1000).fill("a").join(""),
     },
     revalidate: false,
-  }
+  };
 }
 
 export default (props) => {
@@ -22,5 +22,5 @@ export default (props) => {
         to another
       </Link>
     </>
-  )
-}
+  );
+};

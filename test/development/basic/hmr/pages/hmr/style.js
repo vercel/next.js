@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 export default function Style() {
   return (
     <React.Fragment>
@@ -13,5 +13,5 @@ export default function Style() {
         </p>
       </div>
     </React.Fragment>
-  )
+  );
 }

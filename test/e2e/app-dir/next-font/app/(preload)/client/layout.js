@@ -1,5 +1,5 @@
-'use client'
-import { font4 } from '../../../fonts'
+"use client";
+import { font4 } from "../../../fonts";
 
 export default function Root({ children }) {
   return (
@@ -9,5 +9,5 @@ export default function Root({ children }) {
       </p>
       {children}
     </>
-  )
+  );
 }

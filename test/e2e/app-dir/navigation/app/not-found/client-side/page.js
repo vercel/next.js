@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import { notFound } from 'next/navigation'
-import React from 'react'
+import { notFound } from "next/navigation";
+import React from "react";
 
 export default function Page() {
-  const [notFoundEnabled, enableNotFound] = React.useState(false)
+  const [notFoundEnabled, enableNotFound] = React.useState(false);
 
   if (notFoundEnabled) {
-    notFound()
+    notFound();
   }
   return (
     <button onClick={() => React.startTransition(() => enableNotFound(true))}>
       Not Found!
     </button>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import React from 'react'
+import React from "react";
 
 export async function getServerSideProps({ res }) {
-  res.setHeader('Cache-Control', 'public, max-age=3600')
+  res.setHeader("Cache-Control", "public, max-age=3600");
   return {
-    props: { world: 'world' },
-  }
+    props: { world: "world" },
+  };
 }
 
 export default ({ world }) => {
-  return <p>hello: {world}</p>
-}
+  return <p>hello: {world}</p>;
+};

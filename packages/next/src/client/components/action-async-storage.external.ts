@@ -1,11 +1,11 @@
-import type { AsyncLocalStorage } from 'async_hooks'
-import { createAsyncLocalStorage } from './async-local-storage'
+import type { AsyncLocalStorage } from "async_hooks";
+import { createAsyncLocalStorage } from "./async-local-storage";
 
 export interface ActionStore {
-  readonly isAction?: boolean
-  readonly isAppRoute?: boolean
+  readonly isAction?: boolean;
+  readonly isAppRoute?: boolean;
 }
 
-export type ActionAsyncStorage = AsyncLocalStorage<ActionStore>
+export type ActionAsyncStorage = AsyncLocalStorage<ActionStore>;
 
-export const actionAsyncStorage: ActionAsyncStorage = createAsyncLocalStorage()
+export const actionAsyncStorage: ActionAsyncStorage = createAsyncLocalStorage();

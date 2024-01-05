@@ -1,8 +1,8 @@
-import { normalizeAppPath } from '../../../../../shared/lib/router/utils/app-paths'
-import { Normalizers } from '../../normalizers'
-import { wrapNormalizerFn } from '../../wrap-normalizer-fn'
-import { UnderscoreNormalizer } from '../../underscore-normalizer'
-import type { Normalizer } from '../../normalizer'
+import { normalizeAppPath } from "../../../../../shared/lib/router/utils/app-paths";
+import { Normalizers } from "../../normalizers";
+import { wrapNormalizerFn } from "../../wrap-normalizer-fn";
+import { UnderscoreNormalizer } from "../../underscore-normalizer";
+import type { Normalizer } from "../../normalizer";
 
 export class AppPathnameNormalizer extends Normalizers {
   constructor() {
@@ -12,11 +12,11 @@ export class AppPathnameNormalizer extends Normalizers {
       wrapNormalizerFn(normalizeAppPath),
       // The page should have the `%5F` characters replaced with `_` characters.
       new UnderscoreNormalizer(),
-    ])
+    ]);
   }
 
   public normalize(page: string): string {
-    return super.normalize(page)
+    return super.normalize(page);
   }
 }
 
@@ -27,10 +27,10 @@ export class DevAppPathnameNormalizer extends Normalizers {
       pageNormalizer,
       // Normalize the app page to a pathname.
       new AppPathnameNormalizer(),
-    ])
+    ]);
   }
 
   public normalize(filename: string): string {
-    return super.normalize(filename)
+    return super.normalize(filename);
   }
 }

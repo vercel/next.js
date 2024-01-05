@@ -1,7 +1,7 @@
-import { useDeferredValue } from 'react'
+import { useDeferredValue } from "react";
 
-console.log({ useDeferredValue })
+console.log({ useDeferredValue });
 
 export default function Page() {
-  return null
+  return null;
 }

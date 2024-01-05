@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <p>/_sport/[slug]/test</p>
@@ -9,5 +9,5 @@ export default function Page() {
       <p id="as-path">{router.asPath}</p>
       <p id="pathname">{router.pathname}</p>
     </>
-  )
+  );
 }

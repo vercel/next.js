@@ -1,9 +1,9 @@
-let moduleState = 'INITIAL'
+let moduleState = "INITIAL";
 
 export function setState(state) {
-  moduleState = state
+  moduleState = state;
 }
 
 export default function currentState() {
-  return moduleState
+  return moduleState;
 }

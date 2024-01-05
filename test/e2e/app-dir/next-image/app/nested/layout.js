@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import testJpg from './test.jpg'
+import Image from "next/image";
+import testJpg from "./test.jpg";
 
 export default function NestedLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function NestedLayout({ children }) {
       <Image id="app-nested-layout" src={testJpg} quality={70} />
       {children}
     </>
-  )
+  );
 }

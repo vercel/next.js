@@ -1,3 +1,3 @@
 export default function () {
-  return <p>hello world</p>
+  return <p>hello world</p>;
 }

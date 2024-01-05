@@ -1,1 +1,1 @@
-export default () => `hello ${1_000}`
+export default () => `hello ${1_000}`;

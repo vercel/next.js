@@ -1,9 +1,9 @@
-import { RouterHooksFixtures } from '../../components/router-hooks-fixtures'
+import { RouterHooksFixtures } from "../../components/router-hooks-fixtures";
 
 export default function Page() {
-  return <RouterHooksFixtures />
+  return <RouterHooksFixtures />;
 }
 
 export const getStaticProps = () => {
-  return { props: {} }
-}
+  return { props: {} };
+};

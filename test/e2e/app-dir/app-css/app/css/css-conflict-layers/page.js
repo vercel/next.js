@@ -1,6 +1,6 @@
-import './page.css'
+import "./page.css";
 
-import { Button } from './button'
+import { Button } from "./button";
 
 export default function Page() {
   return (
@@ -9,5 +9,5 @@ export default function Page() {
         Button: <Button />
       </div>
     </>
-  )
+  );
 }

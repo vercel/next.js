@@ -1,4 +1,4 @@
-import styled, { css } from 'styled-components'
+import styled, { css } from "styled-components";
 const Button = styled.a`
   /* This renders the buttons above... Edit me! */
   display: inline-block;
@@ -18,10 +18,10 @@ const Button = styled.a`
       background: white;
       color: black;
     `}
-`
+`;
 
 export default function Home() {
-  console.log('__render__')
+  console.log("__render__");
   return (
     <div
       id="wrap-div"
@@ -42,5 +42,5 @@ export default function Home() {
         Documentation
       </Button>
     </div>
-  )
+  );
 }

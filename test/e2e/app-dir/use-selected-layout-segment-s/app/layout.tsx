@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import RenderValues from './render-values'
+import Link from "next/link";
+import RenderValues from "./render-values";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,5 +25,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

@@ -1,7 +1,7 @@
 /**
  * Used to cache in createInfinitePromise
  */
-let infinitePromise: Promise<void>
+let infinitePromise: Promise<void>;
 
 /**
  * Create a Promise that does not resolve. This is used to suspend when data is not available yet.
@@ -15,8 +15,8 @@ export function createInfinitePromise() {
       //   infinitePromise = new Error('Infinite promise')
       //   resolve()
       // }, 5000)
-    })
+    });
   }
 
-  return infinitePromise
+  return infinitePromise;
 }

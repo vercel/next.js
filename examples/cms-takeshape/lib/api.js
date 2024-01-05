@@ -1,25 +1,25 @@
-const API_URL = `https://api.takeshape.io/project/${process.env.TAKESHAPE_PROJECT_ID}/graphql`
-const API_KEY = process.env.TAKESHAPE_API_KEY
+const API_URL = `https://api.takeshape.io/project/${process.env.TAKESHAPE_PROJECT_ID}/graphql`;
+const API_KEY = process.env.TAKESHAPE_API_KEY;
 
 async function fetchAPI(query, { variables } = {}) {
   const res = await fetch(API_URL, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${API_KEY}`,
     },
     body: JSON.stringify({
       query,
       variables,
     }),
-  })
+  });
 
-  const json = await res.json()
+  const json = await res.json();
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
-  return json.data
+  return json.data;
 }
 
 export async function getPreviewPostBySlug(slug) {
@@ -37,8 +37,8 @@ export async function getPreviewPostBySlug(slug) {
         slug,
       },
     }
-  )
-  return (data?.post?.items || [])[0]
+  );
+  return (data?.post?.items || [])[0];
 }
 
 export async function getAllPostsWithSlug() {
@@ -50,8 +50,8 @@ export async function getAllPostsWithSlug() {
         }
       }
     }
-  `)
-  return data?.allPosts?.items
+  `);
+  return data?.allPosts?.items;
 }
 
 export async function getAllPostsForHome(preview) {
@@ -83,8 +83,8 @@ export async function getAllPostsForHome(preview) {
         preview,
       },
     }
-  )
-  return data?.allPosts?.items
+  );
+  return data?.allPosts?.items;
 }
 
 export async function getPostAndMorePosts(slug, preview) {
@@ -92,7 +92,7 @@ export async function getPostAndMorePosts(slug, preview) {
     `
   query PostBySlug($slug: String, $onlyEnabled: Boolean) {
     post: getPostList(filter: { term: {slug: $slug}}, ${
-      preview ? '' : 'where: { _status: { eq: "enabled" } },'
+      preview ? "" : 'where: { _status: { eq: "enabled" } },'
     } size: 1, onlyEnabled: $onlyEnabled) {
       items {
         title
@@ -112,7 +112,7 @@ export async function getPostAndMorePosts(slug, preview) {
     }
     morePosts: getPostList(
       filter: { bool: { must_not: { term: {slug: $slug}}}}, , ${
-        preview ? '' : 'where: { _status: { eq: "enabled" } },'
+        preview ? "" : 'where: { _status: { eq: "enabled" } },'
       }
       sort: { field: "date", order: "desc" }, size: 2, onlyEnabled: $onlyEnabled) {
       items {
@@ -139,6 +139,6 @@ export async function getPostAndMorePosts(slug, preview) {
         onlyEnabled: !preview,
       },
     }
-  )
-  return data
+  );
+  return data;
 }

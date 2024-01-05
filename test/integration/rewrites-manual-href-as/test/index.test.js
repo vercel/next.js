@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import { join } from "path";
 import {
   check,
   findPort,
@@ -8,175 +8,175 @@ import {
   launchApp,
   nextBuild,
   nextStart,
-} from 'next-test-utils'
-import webdriver from 'next-webdriver'
+} from "next-test-utils";
+import webdriver from "next-webdriver";
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, "../");
 
-let appPort
-let app
+let appPort;
+let app;
 
 const runTests = () => {
-  it('should allow manual href/as on index page', async () => {
-    const browser = await webdriver(appPort, '/')
+  it("should allow manual href/as on index page", async () => {
+    const browser = await webdriver(appPort, "/");
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeFalsy()
-    await browser.eval('window.beforeNav = 1')
+    expect(await browser.elementByCss("#index").text()).toBe("index page");
+    expect(await browser.hasElementByCssSelector("#modal")).toBeFalsy();
+    await browser.eval("window.beforeNav = 1");
 
-    await browser.elementByCss('#to-modal').click()
+    await browser.elementByCss("#to-modal").click();
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      imageId: '123',
-    })
-
-    await browser
-      .elementByCss('#to-preview')
-      .click()
-      .waitForElementByCss('#preview')
-
-    expect(await browser.elementByCss('#preview').text()).toBe('preview page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      slug: '123',
-    })
-
-    await browser.back()
+    expect(await browser.elementByCss("#index").text()).toBe("index page");
+    expect(await browser.hasElementByCssSelector("#modal")).toBeTruthy();
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({
+      imageId: "123",
+    });
 
     await browser
-      .elementByCss('#to-another')
+      .elementByCss("#to-preview")
       .click()
-      .waitForElementByCss('#another')
+      .waitForElementByCss("#preview");
 
-    expect(await browser.elementByCss('#another').text()).toBe('another page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss("#preview").text()).toBe("preview page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({
+      slug: "123",
+    });
 
-    await browser.back()
-
-    await browser.elementByCss('#to-rewrite-me').click()
-
-    expect(await browser.elementByCss('#another').text()).toBe('another page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
-
-    await browser.back()
+    await browser.back();
 
     await browser
-      .elementByCss('#to-index-as-rewrite')
+      .elementByCss("#to-another")
       .click()
-      .waitForElementByCss('#index')
+      .waitForElementByCss("#another");
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
-  })
+    expect(await browser.elementByCss("#another").text()).toBe("another page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
 
-  it('should allow manual href/as on dynamic page', async () => {
-    const browser = await webdriver(appPort, '/preview/123')
+    await browser.back();
 
-    expect(await browser.elementByCss('#preview').text()).toBe('preview page')
-    await browser.eval('window.beforeNav = 1')
+    await browser.elementByCss("#to-rewrite-me").click();
+
+    expect(await browser.elementByCss("#another").text()).toBe("another page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
+
+    await browser.back();
 
     await browser
-      .elementByCss('#to-modal')
+      .elementByCss("#to-index-as-rewrite")
       .click()
-      .waitForElementByCss('#index')
+      .waitForElementByCss("#index");
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      imageId: '123',
-    })
+    expect(await browser.elementByCss("#index").text()).toBe("index page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
+  });
+
+  it("should allow manual href/as on dynamic page", async () => {
+    const browser = await webdriver(appPort, "/preview/123");
+
+    expect(await browser.elementByCss("#preview").text()).toBe("preview page");
+    await browser.eval("window.beforeNav = 1");
 
     await browser
-      .elementByCss('#to-preview')
+      .elementByCss("#to-modal")
       .click()
-      .waitForElementByCss('#preview')
+      .waitForElementByCss("#index");
 
-    expect(await browser.elementByCss('#preview').text()).toBe('preview page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      slug: '123',
-    })
+    expect(await browser.elementByCss("#index").text()).toBe("index page");
+    expect(await browser.hasElementByCssSelector("#modal")).toBeTruthy();
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({
+      imageId: "123",
+    });
 
-    await browser.elementByCss('#to-preview').click()
+    await browser
+      .elementByCss("#to-preview")
+      .click()
+      .waitForElementByCss("#preview");
 
-    expect(await browser.elementByCss('#preview').text()).toBe('preview page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(await browser.elementByCss("#preview").text()).toBe("preview page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({
+      slug: "123",
+    });
+
+    await browser.elementByCss("#to-preview").click();
+
+    expect(await browser.elementByCss("#preview").text()).toBe("preview page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
     await check(
       async () =>
         JSON.parse(
           await browser.eval('document.querySelector("#query").innerHTML')
         ).slug,
-      '321'
-    )
+      "321"
+    );
 
     await browser
-      .elementByCss('#to-another')
+      .elementByCss("#to-another")
       .click()
-      .waitForElementByCss('#another')
+      .waitForElementByCss("#another");
 
-    expect(await browser.elementByCss('#another').text()).toBe('another page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss("#another").text()).toBe("another page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
 
-    await browser.back().waitForElementByCss('#preview')
-    await browser.elementByCss('#to-rewrite-me').click()
+    await browser.back().waitForElementByCss("#preview");
+    await browser.elementByCss("#to-rewrite-me").click();
 
-    expect(await browser.elementByCss('#another').text()).toBe('another page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
+    expect(await browser.elementByCss("#another").text()).toBe("another page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
 
-    await browser.back().waitForElementByCss('#preview')
+    await browser.back().waitForElementByCss("#preview");
 
     await browser
-      .elementByCss('#to-preview-as-rewrite')
+      .elementByCss("#to-preview-as-rewrite")
       .click()
-      .waitForElementByCss('#preview')
+      .waitForElementByCss("#preview");
 
-    expect(await browser.elementByCss('#preview').text()).toBe('preview page')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      slug: '321',
-    })
+    expect(await browser.elementByCss("#preview").text()).toBe("preview page");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({
+      slug: "321",
+    });
 
-    await browser.back().waitForElementByCss('#preview')
+    await browser.back().waitForElementByCss("#preview");
 
     await browser
-      .elementByCss('#to-news-as-blog')
+      .elementByCss("#to-news-as-blog")
       .click()
-      .waitForElementByCss('#news')
+      .waitForElementByCss("#news");
 
-    expect(await browser.elementByCss('#news').text()).toBe('news page')
-    expect(await browser.elementByCss('#asPath').text()).toBe('/blog')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
-  })
-}
+    expect(await browser.elementByCss("#news").text()).toBe("news page");
+    expect(await browser.elementByCss("#asPath").text()).toBe("/blog");
+    expect(await browser.eval("window.beforeNav")).toBe(1);
+    expect(JSON.parse(await browser.elementByCss("#query").text())).toEqual({});
+  });
+};
 
-describe('rewrites manual href/as', () => {
-  describe('dev mode', () => {
+describe("rewrites manual href/as", () => {
+  describe("dev mode", () => {
     beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      appPort = await findPort();
+      app = await launchApp(appDir, appPort);
+    });
+    afterAll(() => killApp(app));
 
-    runTests()
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runTests();
+  });
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
     beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      await nextBuild(appDir);
+      appPort = await findPort();
+      app = await nextStart(appDir, appPort);
+    });
+    afterAll(() => killApp(app));
 
-    runTests()
-  })
-})
+    runTests();
+  });
+});

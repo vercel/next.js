@@ -1,8 +1,8 @@
-import NextImage, { unstable_getImgProps } from 'next/image'
-import Link from 'next/link'
-import Script from 'next/script'
+import NextImage, { unstable_getImgProps } from "next/image";
+import Link from "next/link";
+import Script from "next/script";
 
-import src from '../../public/test.jpg'
+import src from "../../public/test.jpg";
 
 export function Components() {
   return (
@@ -14,5 +14,5 @@ export function Components() {
       </Link>
       <Script className="script" src="/test.js" />
     </>
-  )
+  );
 }

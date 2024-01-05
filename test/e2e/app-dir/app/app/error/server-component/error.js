@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 export default function ErrorBoundary({ error, reset }) {
   return (
@@ -9,5 +9,5 @@ export default function ErrorBoundary({ error, reset }) {
         Try again
       </button>
     </>
-  )
+  );
 }

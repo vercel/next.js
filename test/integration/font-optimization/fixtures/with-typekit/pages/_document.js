@@ -1,12 +1,12 @@
-import * as React from 'react'
-import Document, { Main, NextScript, Head, Html } from 'next/document'
+import * as React from "react";
+import Document, { Main, NextScript, Head, Html } from "next/document";
 
 export default class MyDocument extends Document {
   constructor(props) {
-    super(props)
-    const { __NEXT_DATA__, ids } = props
+    super(props);
+    const { __NEXT_DATA__, ids } = props;
     if (ids) {
-      __NEXT_DATA__.ids = ids
+      __NEXT_DATA__.ids = ids;
     }
   }
 
@@ -21,6 +21,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

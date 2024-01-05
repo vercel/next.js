@@ -1,3 +1,3 @@
-import { ParamsComponent } from '../../shared/params-component'
+import { ParamsComponent } from "../../shared/params-component";
 
-export default ParamsComponent
+export default ParamsComponent;

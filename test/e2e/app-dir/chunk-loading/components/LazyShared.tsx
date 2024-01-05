@@ -1,10 +1,10 @@
-import { lazy } from 'react'
+import { lazy } from "react";
 
 const LazySuperShared = lazy(async () => {
-  const module = await import('./SuperShared')
-  return { default: module.SuperShared }
-})
+  const module = await import("./SuperShared");
+  return { default: module.SuperShared };
+});
 
 export function LazyShared() {
-  return <LazySuperShared from="dynamic" />
+  return <LazySuperShared from="dynamic" />;
 }

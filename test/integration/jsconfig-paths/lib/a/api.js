@@ -1,5 +1,5 @@
-import data from 'mypackage/data'
+import data from "mypackage/data";
 
-console.log(data)
+console.log(data);
 
-export default () => 'Hello from a'
+export default () => "Hello from a";

@@ -1,5 +1,5 @@
-const Index = () => 'hi'
+const Index = () => "hi";
 
-Index.getInitialProps = () => ({})
+Index.getInitialProps = () => ({});
 
-export default Index
+export default Index;

@@ -1,5 +1,5 @@
-import Detector from './detector'
-import ClientDetector from './client-detector'
+import Detector from "./detector";
+import ClientDetector from "./client-detector";
 
 export default function Page() {
   return (
@@ -9,5 +9,5 @@ export default function Page() {
       Client: <ClientDetector />
       <br />
     </div>
-  )
+  );
 }

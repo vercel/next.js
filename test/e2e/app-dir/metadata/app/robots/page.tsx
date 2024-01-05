@@ -1,5 +1,5 @@
 export default function page() {
-  return 'robots'
+  return "robots";
 }
 
 export const metadata = {
@@ -13,9 +13,9 @@ export const metadata = {
       follow: false,
       noimageindex: true,
 
-      'max-video-preview': 'standard',
-      'max-image-preview': -1,
-      'max-snippet': -1,
+      "max-video-preview": "standard",
+      "max-image-preview": -1,
+      "max-snippet": -1,
     },
   },
-}
+};

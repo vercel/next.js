@@ -1,5 +1,5 @@
-import ClientComponent from './component'
+import ClientComponent from "./component";
 
 export default async function Page() {
-  return <ClientComponent config={process.env} />
+  return <ClientComponent config={process.env} />;
 }

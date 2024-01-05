@@ -1,12 +1,12 @@
 export default () => {
-  if (typeof window !== 'undefined') {
-    window.didRender = true
+  if (typeof window !== "undefined") {
+    window.didRender = true;
   }
   return (
     <>
       <script
-        dangerouslySetInnerHTML={{ __html: 'window.Promise = undefined' }}
+        dangerouslySetInnerHTML={{ __html: "window.Promise = undefined" }}
       />
     </>
-  )
-}
+  );
+};

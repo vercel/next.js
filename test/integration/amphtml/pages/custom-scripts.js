@@ -1,6 +1,6 @@
-import Head from 'next/head'
+import Head from "next/head";
 
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default () => (
   <div>
@@ -14,4 +14,4 @@ export default () => (
     </Head>
     <p>We only allow AMP scripts now</p>
   </div>
-)
+);

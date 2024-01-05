@@ -1,14 +1,14 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
-const delay = 3000
+const delay = 3000;
 
 export default async function Page(props) {
-  const start = Date.now()
+  const start = Date.now();
   const data = await fetch(
     `https://next-data-api-endpoint.vercel.app/api/delay?delay=${delay}`,
     { next: { revalidate: 3 } }
-  ).then((res) => res.json())
-  const fetchDuration = Date.now() - start
+  ).then((res) => res.json());
+  const fetchDuration = Date.now() - start;
 
   return (
     <>
@@ -16,5 +16,5 @@ export default async function Page(props) {
         {JSON.stringify({ fetchDuration, data, now: Date.now() })}
       </p>
     </>
-  )
+  );
 }

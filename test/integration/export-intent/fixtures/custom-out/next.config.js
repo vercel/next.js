@@ -1,5 +1,5 @@
 module.exports = {
-  output: 'export',
-  distDir: 'lel',
+  output: "export",
+  distDir: "lel",
   exportTrailingSlash: true,
-}
+};

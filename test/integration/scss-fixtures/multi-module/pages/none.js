@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function None() {
   return (
     <>
-      <div id="verify-black" style={{ color: 'black' }}>
+      <div id="verify-black" style={{ color: "black" }}>
         This text should be black.
       </div>
       <br />
@@ -15,5 +15,5 @@ export default function None() {
         Blue
       </Link>
     </>
-  )
+  );
 }

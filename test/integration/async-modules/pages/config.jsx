@@ -1,13 +1,13 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export const config = {
   amp: true,
-}
+};
 
-await Promise.resolve('tadaa')
+await Promise.resolve("tadaa");
 
 export default function Config() {
-  const date = new Date()
+  const date = new Date();
   return (
     <div>
       <Head>
@@ -28,5 +28,5 @@ export default function Config() {
         fail
       </amp-timeago>
     </div>
-  )
+  );
 }

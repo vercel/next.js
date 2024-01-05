@@ -1,21 +1,21 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-async-client-component'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-async-client-component";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
 const message =
-  'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'
+  "Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component";
 
-ruleTester.run('no-async-client-component single line', rule, {
+ruleTester.run("no-async-client-component single line", rule, {
   valid: [
     `
     export default async function MyComponent() {
@@ -39,9 +39,9 @@ ruleTester.run('no-async-client-component single line', rule, {
       ],
     },
   ],
-})
+});
 
-ruleTester.run('no-async-client-component single line capitalization', rule, {
+ruleTester.run("no-async-client-component single line capitalization", rule, {
   valid: [
     `
     "use client"
@@ -67,9 +67,9 @@ ruleTester.run('no-async-client-component single line capitalization', rule, {
       ],
     },
   ],
-})
+});
 
-ruleTester.run('no-async-client-component multiple line', rule, {
+ruleTester.run("no-async-client-component multiple line", rule, {
   valid: [
     `
     async function MyComponent() {
@@ -97,9 +97,9 @@ ruleTester.run('no-async-client-component multiple line', rule, {
       ],
     },
   ],
-})
+});
 
-ruleTester.run('no-async-client-component multiple line capitalization', rule, {
+ruleTester.run("no-async-client-component multiple line capitalization", rule, {
   valid: [
     `
     "use client"
@@ -129,9 +129,9 @@ ruleTester.run('no-async-client-component multiple line capitalization', rule, {
       ],
     },
   ],
-})
+});
 
-ruleTester.run('no-async-client-component arrow function', rule, {
+ruleTester.run("no-async-client-component arrow function", rule, {
   valid: [
     `
     "use client"
@@ -161,4 +161,4 @@ ruleTester.run('no-async-client-component arrow function', rule, {
       ],
     },
   ],
-})
+});

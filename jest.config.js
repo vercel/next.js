@@ -1,54 +1,54 @@
-const nextJest = require('next/jest')
+const nextJest = require("next/jest");
 
-const createJestConfig = nextJest()
+const createJestConfig = nextJest();
 
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
-  testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
-  setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
+  testMatch: ["**/*.test.js", "**/*.test.ts", "**/*.test.jsx", "**/*.test.tsx"],
+  setupFilesAfterEnv: ["<rootDir>/jest-setup-after-env.ts"],
   verbose: true,
-  rootDir: 'test',
+  rootDir: "test",
   roots: [
-    '<rootDir>',
-    '<rootDir>/../packages/next/src/',
-    '<rootDir>/../packages/font/src/',
+    "<rootDir>",
+    "<rootDir>/../packages/next/src/",
+    "<rootDir>/../packages/font/src/",
   ],
-  modulePathIgnorePatterns: ['/\\.next/'],
-  modulePaths: ['<rootDir>/lib'],
-  transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
+  modulePathIgnorePatterns: ["/\\.next/"],
+  modulePaths: ["<rootDir>/lib"],
+  transformIgnorePatterns: ["/next[/\\\\]dist/", "/\\.next/"],
   moduleNameMapper: {
-    '@next/font/(.*)': '@next/font/$1',
+    "@next/font/(.*)": "@next/font/$1",
   },
-}
+};
 
 // Check if the environment variable is set to enable test report,
 // Insert a reporter to generate a junit report to upload.
 //
 // This won't count retries to avoid tests being reported twice.
 // Our test report will report test results for flaky tests as failed without retry.
-const enableTestReport = !!process.env.NEXT_JUNIT_TEST_REPORT
+const enableTestReport = !!process.env.NEXT_JUNIT_TEST_REPORT;
 
 if (enableTestReport) {
   if (!customJestConfig.reporters) {
-    customJestConfig.reporters = ['default']
+    customJestConfig.reporters = ["default"];
   }
 
   const outputDirectory = process.env.TURBOPACK
-    ? '<rootDir>/turbopack-test-junit-report'
-    : '<rootDir>/test-junit-report'
+    ? "<rootDir>/turbopack-test-junit-report"
+    : "<rootDir>/test-junit-report";
 
   customJestConfig.reporters.push([
-    'jest-junit',
+    "jest-junit",
     {
       outputDirectory,
-      reportTestSuiteErrors: 'true',
-      uniqueOutputName: 'true',
-      outputName: 'nextjs-test-junit',
-      addFileAttribute: 'true',
+      reportTestSuiteErrors: "true",
+      uniqueOutputName: "true",
+      outputName: "nextjs-test-junit",
+      addFileAttribute: "true",
     },
-  ])
+  ]);
 }
 
 // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
+module.exports = createJestConfig(customJestConfig);

@@ -1,16 +1,16 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { hasRedbox, renderViaHTTP } from 'next-test-utils'
-import webdriver from 'next-webdriver'
-import cheerio from 'cheerio'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { hasRedbox, renderViaHTTP } from "next-test-utils";
+import webdriver from "next-webdriver";
+import cheerio from "cheerio";
 
-describe('Type module interop', () => {
-  let next: NextInstance
+describe("Type module interop", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/index.js': `
+        "pages/index.js": `
           import Link from 'next/link'
           import Head from 'next/head'
           import Script from 'next/script'
@@ -44,7 +44,7 @@ describe('Type module interop', () => {
             )
           } 
         `,
-        'pages/modules.jsx': `
+        "pages/modules.jsx": `
           import Link from 'next/link'
           import Image from 'next/image'
 
@@ -59,55 +59,55 @@ describe('Type module interop', () => {
             )
           }
         `,
-        'components/example.jsx': `
+        "components/example.jsx": `
           export default function Example() {
             return <p>An example components load via next/dynamic</p>
           }
         `,
       },
       dependencies: {},
-    })
+    });
 
     // can't modify build output after deploy
     if (!(global as any).isNextDeploy) {
-      const contents = await next.readFile('package.json')
-      const pkg = JSON.parse(contents)
+      const contents = await next.readFile("package.json");
+      const pkg = JSON.parse(contents);
       await next.patchFile(
-        'package.json',
+        "package.json",
         JSON.stringify({
           ...pkg,
-          type: 'module',
+          type: "module",
         })
-      )
+      );
     }
-  })
-  afterAll(() => next.destroy())
+  });
+  afterAll(() => next.destroy());
 
-  it('should render server-side', async () => {
-    const html = await renderViaHTTP(next.url, '/')
-    expect(html).toContain('hello world')
+  it("should render server-side", async () => {
+    const html = await renderViaHTTP(next.url, "/");
+    expect(html).toContain("hello world");
     // component load via next/dynamic should rendered on the server side
-    expect(html).toContain('An example components load via next/dynamic')
+    expect(html).toContain("An example components load via next/dynamic");
     // imported next/amp should work on the server side
-    const $ = cheerio.load(html)
-    expect($('#isAmp').text()).toContain('false')
-  })
+    const $ = cheerio.load(html);
+    expect($("#isAmp").text()).toContain("false");
+  });
 
-  it('should render client-side', async () => {
-    const browser = await webdriver(next.url, '/')
-    expect(await hasRedbox(browser, false)).toBe(false)
-    await browser.close()
-  })
+  it("should render client-side", async () => {
+    const browser = await webdriver(next.url, "/");
+    expect(await hasRedbox(browser, false)).toBe(false);
+    await browser.close();
+  });
 
-  it('should render server-side with modules', async () => {
-    const html = await renderViaHTTP(next.url, '/modules')
-    const $ = cheerio.load(html)
-    expect($('#link-to-home').text()).toBe('link to home')
-  })
+  it("should render server-side with modules", async () => {
+    const html = await renderViaHTTP(next.url, "/modules");
+    const $ = cheerio.load(html);
+    expect($("#link-to-home").text()).toBe("link to home");
+  });
 
-  it('should render client-side with modules', async () => {
-    const browser = await webdriver(next.url, '/modules')
-    expect(await hasRedbox(browser, false)).toBe(false)
-    await browser.close()
-  })
-})
+  it("should render client-side with modules", async () => {
+    const browser = await webdriver(next.url, "/modules");
+    expect(await hasRedbox(browser, false)).toBe(false);
+    await browser.close();
+  });
+});

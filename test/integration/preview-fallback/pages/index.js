@@ -4,9 +4,9 @@ export const getStaticProps = ({ preview, previewData }) => {
       preview: !!preview,
       previewData: previewData || null,
     },
-  }
-}
+  };
+};
 
 export default function Index(props) {
-  return <p id="props">{JSON.stringify(props)}</p>
+  return <p id="props">{JSON.stringify(props)}</p>;
 }

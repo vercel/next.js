@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div className="nav-about">
@@ -8,4 +8,4 @@ export default () => (
 
     <p>This is the about page.</p>
   </div>
-)
+);

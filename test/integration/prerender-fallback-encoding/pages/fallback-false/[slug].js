@@ -1,11 +1,11 @@
-import { useRouter } from 'next/router'
-import getPaths from '../../paths'
+import { useRouter } from "next/router";
+import getPaths from "../../paths";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (router.isFallback) {
-    return 'Loading...'
+    return "Loading...";
   }
 
   return (
@@ -19,7 +19,7 @@ export default function Page(props) {
         })}
       </p>
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ params }) => {
@@ -28,12 +28,12 @@ export const getStaticProps = ({ params }) => {
       random: Math.random(),
       params,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
-    paths: getPaths('/fallback-false'),
+    paths: getPaths("/fallback-false"),
     fallback: false,
-  }
-}
+  };
+};

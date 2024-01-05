@@ -1,3 +1,3 @@
-module.exports = require('../../module.compiled').vendored[
-  'react-rsc'
-].ReactJsxRuntime
+module.exports = require("../../module.compiled").vendored[
+  "react-rsc"
+].ReactJsxRuntime;

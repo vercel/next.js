@@ -1,10 +1,10 @@
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 
 const Link = withRouter(({ router, children, href }) => {
   const handleClick = (e) => {
-    e.preventDefault()
-    router.push(href)
-  }
+    e.preventDefault();
+    router.push(href);
+  };
 
   return (
     <div>
@@ -14,12 +14,12 @@ const Link = withRouter(({ router, children, href }) => {
         {children}
       </a>
     </div>
-  )
-})
+  );
+});
 
 export default () => (
   <div className="nav-with-hoc">
     <Link href="/nav">Go Back</Link>
     <p>This is the about page.</p>
   </div>
-)
+);

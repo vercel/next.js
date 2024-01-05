@@ -1,3 +1,3 @@
 export default function Another() {
-  return 'hello from another!'
+  return "hello from another!";
 }

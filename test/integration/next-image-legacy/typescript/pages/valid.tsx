@@ -1,10 +1,10 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import testTall from '../public/tall.png'
-import svg from '../public/test.svg'
-import avif from '../public/test.avif'
-import { ImageCard } from '../components/image-card'
-import { DynamicSrcImage } from '../components/image-dynamic-src'
+import React from "react";
+import Image from "next/legacy/image";
+import testTall from "../public/tall.png";
+import svg from "../public/test.svg";
+import avif from "../public/test.avif";
+import { ImageCard } from "../components/image-card";
+import { DynamicSrcImage } from "../components/image-dynamic-src";
 
 const Page = () => {
   return (
@@ -22,7 +22,7 @@ const Page = () => {
         width="500"
         height="500"
       />
-      <div style={{ position: 'relative', width: 100, height: 100 }}>
+      <div style={{ position: "relative", width: 100, height: 100 }}>
         <Image
           id="layout-fill"
           src="https://image-optimization-test.vercel.app/test.jpg"
@@ -106,7 +106,7 @@ const Page = () => {
       />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

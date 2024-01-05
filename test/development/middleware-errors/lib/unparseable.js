@@ -1,1 +1,1 @@
-throw new Error('This file synchronously fails while loading')
+throw new Error("This file synchronously fails while loading");

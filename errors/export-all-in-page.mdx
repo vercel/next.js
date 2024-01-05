@@ -7,26 +7,26 @@ title: Re-exporting all exports from a page is disallowed
 The following export can potentially break Next.js' compilation of pages:
 
 ```jsx filename="pages/example.js"
-export * from '...'
+export * from "...";
 ```
 
 This is because Node.js code may be leaked to the browser build, causing an error. For example, the following two pages:
 
 ```jsx filename="pages/example-a.js"
-import fs from 'fs'
+import fs from "fs";
 
 export default function A() {
-  return <main />
+  return <main />;
 }
 
 export function getStaticProps() {
-  fs
-  return { props: {} }
+  fs;
+  return { props: {} };
 }
 ```
 
 ```jsx filename="pages/example-b.js"
-export * from './example-a'
+export * from "./example-a";
 ```
 
 Would cause the following error:
@@ -40,7 +40,7 @@ Module not found: Can't resolve 'fs' in './pages/example-b.js'
 Update your page to re-export the default component only:
 
 ```jsx filename="pages/example-a.js"
-export { default } from './example-b'
+export { default } from "./example-b";
 ```
 
 If the other page uses `getServerSideProps` or `getStaticProps`, you can re-export those individually too:

@@ -1,5 +1,5 @@
-'use server'
+"use server";
 
 export async function action(data) {
-  console.log(data)
+  console.log(data);
 }

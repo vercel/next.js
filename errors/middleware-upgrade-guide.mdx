@@ -55,17 +55,17 @@ You should declare **one single Middleware file** in your application, which sho
 Middleware will be invoked for **every route in the app**, and a custom matcher can be used to define matching filters. The following is an example for a Middleware that triggers for `/about/*` and `/dashboard/:path*`, the custom matcher is defined in an exported config object:
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  return NextResponse.rewrite(new URL('/about-2', request.url))
+  return NextResponse.rewrite(new URL("/about-2", request.url));
 }
 
 // Supports both a single string value or an array of matchers
 export const config = {
-  matcher: ['/about/:path*', '/dashboard/:path*'],
-}
+  matcher: ["/about/:path*", "/dashboard/:path*"],
+};
 ```
 
 The matcher config also allows full regex so matching like negative lookaheads or character matching is supported. An example of a negative lookahead to match all except specific paths can be seen here:
@@ -79,22 +79,22 @@ export const config = {
      * - _next/static (static files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|favicon.ico).*)',
+    "/((?!api|_next/static|favicon.ico).*)",
   ],
-}
+};
 ```
 
 While the config option is preferred since it doesn't get invoked on every request, you can also use conditional statements to only run the Middleware when it matches specific paths. One advantage of using conditionals is defining explicit ordering for when Middleware executes. The following example shows how you can merge two previously nested Middleware:
 
 ```ts filename="middleware.ts"
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith('/about')) {
+  if (request.nextUrl.pathname.startsWith("/about")) {
     // This logic is only applied to /about
   }
 
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+  if (request.nextUrl.pathname.startsWith("/dashboard")) {
     // This logic is only applied to /dashboard
   }
 }
@@ -115,10 +115,10 @@ To respect the differences in client-side and server-side navigation, and to hel
 The following patterns will no longer work:
 
 ```js
-new Response('a text value')
-new Response(streamOrBuffer)
-new Response(JSON.stringify(obj), { headers: 'application/json' })
-NextResponse.json()
+new Response("a text value");
+new Response(streamOrBuffer);
+new Response(JSON.stringify(obj), { headers: "application/json" });
+NextResponse.json();
 ```
 
 ### How to upgrade
@@ -128,37 +128,37 @@ For cases where Middleware is used to respond (such as authorization), you shoul
 #### Before
 
 ```ts filename="pages/_middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { isAuthValid } from './lib/auth'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isAuthValid } from "./lib/auth";
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
   if (isAuthValid(request)) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  return NextResponse.json({ message: 'Auth required' }, { status: 401 })
+  return NextResponse.json({ message: "Auth required" }, { status: 401 });
 }
 ```
 
 #### After
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
-import { isAuthValid } from './lib/auth'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { isAuthValid } from "./lib/auth";
 
 export function middleware(request: NextRequest) {
   // Example function to validate auth
   if (isAuthValid(request)) {
-    return NextResponse.next()
+    return NextResponse.next();
   }
 
-  const loginUrl = new URL('/login', request.url)
-  loginUrl.searchParams.set('from', request.nextUrl.pathname)
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("from", request.nextUrl.pathname);
 
-  return NextResponse.redirect(loginUrl)
+  return NextResponse.redirect(loginUrl);
 }
 ```
 
@@ -167,21 +167,21 @@ export function middleware(request: NextRequest) {
 If you were previously using Middleware to forward headers to an external API, you can now use [Edge API Routes](/docs/pages/building-your-application/routing/api-routes):
 
 ```ts filename="pages/api/proxy.ts"
-import { type NextRequest } from 'next/server'
+import { type NextRequest } from "next/server";
 
 export const config = {
-  runtime: 'edge',
-}
+  runtime: "edge",
+};
 
 export default async function handler(req: NextRequest) {
-  const authorization = req.cookies.get('authorization')
-  return fetch('https://backend-api.com/api/protected', {
+  const authorization = req.cookies.get("authorization");
+  return fetch("https://backend-api.com/api/protected", {
     method: req.method,
     headers: {
       authorization,
     },
-    redirect: 'manual',
-  })
+    redirect: "manual",
+  });
 }
 ```
 
@@ -213,29 +213,29 @@ As well as other extended methods from `Map`.
 
 ```javascript
 // pages/_middleware.ts
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
   // create an instance of the class to access the public methods. This uses `next()`,
   // you could use `redirect()` or `rewrite()` as well
-  let response = NextResponse.next()
+  let response = NextResponse.next();
   // get the cookies from the request
-  let cookieFromRequest = request.cookies['my-cookie']
+  let cookieFromRequest = request.cookies["my-cookie"];
   // set the `cookie`
-  response.cookie('hello', 'world')
+  response.cookie("hello", "world");
   // set the `cookie` with options
-  const cookieWithOptions = response.cookie('hello', 'world', {
-    path: '/',
+  const cookieWithOptions = response.cookie("hello", "world", {
+    path: "/",
     maxAge: 1000 * 60 * 60 * 24 * 7,
     httpOnly: true,
-    sameSite: 'strict',
-    domain: 'example.com',
-  })
+    sameSite: "strict",
+    domain: "example.com",
+  });
   // clear the `cookie`
-  response.clearCookie('hello')
+  response.clearCookie("hello");
 
-  return response
+  return response;
 }
 ```
 
@@ -243,23 +243,23 @@ export function middleware(request: NextRequest) {
 
 ```ts filename="middleware.ts"
 export function middleware() {
-  const response = new NextResponse()
+  const response = new NextResponse();
 
   // set a cookie
-  response.cookies.set('vercel', 'fast')
+  response.cookies.set("vercel", "fast");
 
   // set another cookie with options
-  response.cookies.set('nextjs', 'awesome', { path: '/test' })
+  response.cookies.set("nextjs", "awesome", { path: "/test" });
 
   // get all the details of a cookie
-  const { value, ...options } = response.cookies.getWithOptions('vercel')
-  console.log(value) // => 'fast'
-  console.log(options) // => { name: 'vercel', Path: '/test' }
+  const { value, ...options } = response.cookies.getWithOptions("vercel");
+  console.log(value); // => 'fast'
+  console.log(options); // => { name: 'vercel', Path: '/test' }
 
   // deleting a cookie will mark it as expired
-  response.cookies.delete('vercel')
+  response.cookies.delete("vercel");
 
-  return response
+  return response;
 }
 ```
 
@@ -284,27 +284,27 @@ The helper is imported from `next/server` and allows you to opt in to using the 
 #### Before
 
 ```ts filename="pages/_middleware.ts"
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const url = request.nextUrl
-  const viewport = request.ua.device.type === 'mobile' ? 'mobile' : 'desktop'
-  url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrite(url)
+  const url = request.nextUrl;
+  const viewport = request.ua.device.type === "mobile" ? "mobile" : "desktop";
+  url.searchParams.set("viewport", viewport);
+  return NextResponse.rewrite(url);
 }
 ```
 
 #### After
 
 ```ts filename="middleware.ts"
-import { NextRequest, NextResponse, userAgent } from 'next/server'
+import { NextRequest, NextResponse, userAgent } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const url = request.nextUrl
-  const { device } = userAgent(request)
-  const viewport = device.type === 'mobile' ? 'mobile' : 'desktop'
-  url.searchParams.set('viewport', viewport)
-  return NextResponse.rewrite(url)
+  const url = request.nextUrl;
+  const { device } = userAgent(request);
+  const viewport = device.type === "mobile" ? "mobile" : "desktop";
+  url.searchParams.set("viewport", viewport);
+  return NextResponse.rewrite(url);
 }
 ```
 
@@ -327,17 +327,17 @@ Use [`URLPattern`](https://developer.mozilla.org/docs/Web/API/URLPattern) to che
 #### Before
 
 ```ts filename="pages/_middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest, NextFetchEvent } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest, NextFetchEvent } from "next/server";
 
 export function middleware(request: NextRequest, event: NextFetchEvent) {
-  const { params } = event.request.page
-  const { locale, slug } = params
+  const { params } = event.request.page;
+  const { locale, slug } = params;
 
   if (locale && slug) {
-    const { search, protocol, host } = request.nextUrl
-    const url = new URL(`${protocol}//${locale}.${host}/${slug}${search}`)
-    return NextResponse.redirect(url)
+    const { search, protocol, host } = request.nextUrl;
+    const url = new URL(`${protocol}//${locale}.${host}/${slug}${search}`);
+    return NextResponse.redirect(url);
   }
 }
 ```
@@ -345,37 +345,37 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 #### After
 
 ```ts filename="middleware.ts"
-import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/server'
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const PATTERNS = [
   [
-    new URLPattern({ pathname: '/:locale/:slug' }),
+    new URLPattern({ pathname: "/:locale/:slug" }),
     ({ pathname }) => pathname.groups,
   ],
-]
+];
 
 const params = (url) => {
-  const input = url.split('?')[0]
-  let result = {}
+  const input = url.split("?")[0];
+  let result = {};
 
   for (const [pattern, handler] of PATTERNS) {
-    const patternResult = pattern.exec(input)
-    if (patternResult !== null && 'pathname' in patternResult) {
-      result = handler(patternResult)
-      break
+    const patternResult = pattern.exec(input);
+    if (patternResult !== null && "pathname" in patternResult) {
+      result = handler(patternResult);
+      break;
     }
   }
-  return result
-}
+  return result;
+};
 
 export function middleware(request: NextRequest) {
-  const { locale, slug } = params(request.url)
+  const { locale, slug } = params(request.url);
 
   if (locale && slug) {
-    const { search, protocol, host } = request.nextUrl
-    const url = new URL(`${protocol}//${locale}.${host}/${slug}${search}`)
-    return NextResponse.redirect(url)
+    const { search, protocol, host } = request.nextUrl;
+    const url = new URL(`${protocol}//${locale}.${host}/${slug}${search}`);
+    return NextResponse.redirect(url);
   }
 }
 ```

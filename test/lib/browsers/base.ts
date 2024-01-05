@@ -1,4 +1,4 @@
-export type Event = 'request'
+export type Event = "request";
 
 /**
  * This is the base Browser interface all browser
@@ -11,25 +11,25 @@ export type Event = 'request'
  * You can manually await this interface to wait for completion of the last scheduled command.
  */
 export abstract class BrowserInterface implements PromiseLike<any> {
-  private promise?: Promise<any>
-  then: Promise<any>['then']
-  catch: Promise<any>['catch']
-  finally: Promise<any>['finally'];
+  private promise?: Promise<any>;
+  then: Promise<any>["then"];
+  catch: Promise<any>["catch"];
+  finally: Promise<any>["finally"];
 
   // necessary for the type of the function below
-  readonly [Symbol.toStringTag]: string = 'BrowserInterface'
+  readonly [Symbol.toStringTag]: string = "BrowserInterface";
 
   protected chain<T>(
     nextCall: (current: any) => T | PromiseLike<T>
   ): BrowserInterface & Promise<T> {
     if (!this.promise) {
-      this.promise = Promise.resolve(this)
+      this.promise = Promise.resolve(this);
     }
-    this.promise = this.promise.then(nextCall)
-    this.then = (...args) => this.promise.then(...args)
-    this.catch = (...args) => this.promise.catch(...args)
-    this.finally = (...args) => this.promise.finally(...args)
-    return this
+    this.promise = this.promise.then(nextCall);
+    this.then = (...args) => this.promise.then(...args);
+    this.catch = (...args) => this.promise.catch(...args);
+    this.finally = (...args) => this.promise.finally(...args);
+    return this;
   }
 
   /**
@@ -42,12 +42,12 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     return new Promise<T>((resolve, reject) => {
       this.chain(async (...args: any[]) => {
         try {
-          resolve(await callback(...args))
+          resolve(await callback(...args));
         } catch (error) {
-          reject(error)
+          reject(error);
         }
-      })
-    })
+      });
+    });
   }
 
   async setup(
@@ -61,65 +61,65 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   async quit(): Promise<void> {}
 
   elementsByCss(selector: string): BrowserInterface[] {
-    return [this]
+    return [this];
   }
   elementByCss(selector: string): BrowserInterface {
-    return this
+    return this;
   }
   elementById(selector: string): BrowserInterface {
-    return this
+    return this;
   }
   touchStart(): BrowserInterface {
-    return this
+    return this;
   }
   click(opts?: { modifierKey?: boolean }): BrowserInterface {
-    return this
+    return this;
   }
   keydown(key: string): BrowserInterface {
-    return this
+    return this;
   }
   keyup(key: string): BrowserInterface {
-    return this
+    return this;
   }
   focusPage(): BrowserInterface {
-    return this
+    return this;
   }
   type(text: string): BrowserInterface {
-    return this
+    return this;
   }
   moveTo(): BrowserInterface {
-    return this
+    return this;
   }
   // TODO(NEXT-290): type this correctly as awaitable
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
-    return this
+    return this;
   }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
-    return this
+    return this;
   }
   /**
    * Use browsers `go back` functionality.
    */
   back(options?: any): BrowserInterface {
-    return this
+    return this;
   }
   /**
    * Use browsers `go forward` functionality. Inverse of back.
    */
   forward(options?: any): BrowserInterface {
-    return this
+    return this;
   }
   refresh(): BrowserInterface {
-    return this
+    return this;
   }
   setDimensions(opts: { height: number; width: number }): BrowserInterface {
-    return this
+    return this;
   }
   addCookie(opts: { name: string; value: string }): BrowserInterface {
-    return this
+    return this;
   }
   deleteCookies(): BrowserInterface {
-    return this
+    return this;
   }
   on(event: Event, cb: (...args: any[]) => void) {}
   off(event: Event, cb: (...args: any[]) => void) {}
@@ -130,47 +130,47 @@ export abstract class BrowserInterface implements PromiseLike<any> {
       cpuThrottleRate,
       beforePageLoad,
     }: {
-      disableCache?: boolean
-      cpuThrottleRate?: number
-      beforePageLoad?: Function
+      disableCache?: boolean;
+      cpuThrottleRate?: number;
+      beforePageLoad?: Function;
     }
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
 
   async getValue<T = any>(): Promise<T> {
-    return
+    return;
   }
   async getAttribute<T = any>(name: string): Promise<T> {
-    return
+    return;
   }
   async eval<T = any>(snippet: string | Function, ...args: any[]): Promise<T> {
-    return
+    return;
   }
   async evalAsync<T = any>(
     snippet: string | Function,
     ...args: any[]
   ): Promise<T> {
-    return
+    return;
   }
   async text(): Promise<string> {
-    return ''
+    return "";
   }
   async getComputedCss(prop: string): Promise<string> {
-    return ''
+    return "";
   }
   async hasElementByCssSelector(selector: string): Promise<boolean> {
-    return false
+    return false;
   }
   async log(): Promise<
-    { source: 'error' | 'info' | 'log'; message: string }[]
+    { source: "error" | "info" | "log"; message: string }[]
   > {
-    return []
+    return [];
   }
   async websocketFrames(): Promise<any[]> {
-    return []
+    return [];
   }
   async url(): Promise<string> {
-    return ''
+    return "";
   }
 
   async waitForIdleNetwork(): Promise<void> {}

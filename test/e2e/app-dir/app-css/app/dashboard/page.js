@@ -1,4 +1,4 @@
-import ClientComp from './client-comp-client'
+import ClientComp from "./client-comp-client";
 
 export default function DashboardPage(props) {
   return (
@@ -10,7 +10,7 @@ export default function DashboardPage(props) {
       <p className="green">this is green</p>
       <ClientComp />
     </>
-  )
+  );
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";

@@ -1,20 +1,20 @@
-import * as React from 'react'
+import * as React from "react";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogHeader,
-} from '../components/Dialog'
-import { Overlay } from '../components/Overlay'
-import { Terminal } from '../components/Terminal'
-import { noop as css } from '../helpers/noop-template'
+} from "../components/Dialog";
+import { Overlay } from "../components/Overlay";
+import { Terminal } from "../components/Terminal";
+import { noop as css } from "../helpers/noop-template";
 
-export type BuildErrorProps = { message: string }
+export type BuildErrorProps = { message: string };
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
 }) {
-  const noop = React.useCallback(() => {}, [])
+  const noop = React.useCallback(() => {}, []);
   return (
     <Overlay fixed>
       <Dialog
@@ -41,8 +41,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
         </DialogContent>
       </Dialog>
     </Overlay>
-  )
-}
+  );
+};
 
 export const styles = css`
   .nextjs-container-build-error-header > h4 {
@@ -61,4 +61,4 @@ export const styles = css`
   .nextjs-container-build-error-body small {
     color: var(--color-font);
   }
-`
+`;

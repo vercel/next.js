@@ -4,5 +4,5 @@ export default function Layout({ children }) {
       <h1>Dynamic with Layout</h1>
       {children}
     </div>
-  )
+  );
 }

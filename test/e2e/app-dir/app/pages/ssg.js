@@ -1,4 +1,4 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
   return (
@@ -6,11 +6,11 @@ export default function Page(props) {
       <p>hello from ssg</p>
       <p id="query">{JSON.stringify(useRouter().query)}</p>
     </>
-  )
+  );
 }
 
 export function getStaticProps() {
   return {
     props: {},
-  }
+  };
 }

@@ -1,5 +1,5 @@
-import React from 'react'
-import { Links } from './links'
+import React from "react";
+import { Links } from "./links";
 
 export const Layout = ({ children }) => {
   return (
@@ -14,5 +14,5 @@ export const Layout = ({ children }) => {
       </aside>
       <main>{children}</main>
     </>
-  )
-}
+  );
+};

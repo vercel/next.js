@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { redirectAction } from './actions'
+import { redirectAction } from "./actions";
 
 export default function Form() {
   return (
@@ -11,5 +11,5 @@ export default function Form() {
         Go there
       </button>
     </form>
-  )
+  );
 }

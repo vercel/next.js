@@ -3,5 +3,5 @@ module.exports = (phase, { defaultConfig }) => {
     phase,
     defaultConfig,
     customConfig: true,
-  }
-}
+  };
+};

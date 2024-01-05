@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { useFormState } from 'react-dom'
-import { appendName } from './actions'
-import { useEffect, useState } from 'react'
+import { useFormState } from "react-dom";
+import { appendName } from "./actions";
+import { useEffect, useState } from "react";
 
 export default function Page() {
   const [state, appendNameFormAction] = useFormState(
     appendName,
-    'initial-state',
-    '/client/form-state'
-  )
+    "initial-state",
+    "/client/form-state"
+  );
 
-  const [hydrated, setHydrated] = useState(false)
+  const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
-    setHydrated(true)
-  }, [])
+    setHydrated(true);
+  }, []);
 
   return (
     <>
@@ -27,5 +27,5 @@ export default function Page() {
       </form>
       {hydrated ? <p id="hydrated">hydrated</p> : null}
     </>
-  )
+  );
 }

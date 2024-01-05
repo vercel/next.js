@@ -1,3 +1,3 @@
 export default function Foo() {
-  return 'bar slot'
+  return "bar slot";
 }

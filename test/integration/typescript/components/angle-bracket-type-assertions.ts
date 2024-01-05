@@ -1,4 +1,4 @@
 // eslint-disable-next-line
-const myVar = <any>'test'
+const myVar = <any>"test";
 
-export default myVar
+export default myVar;

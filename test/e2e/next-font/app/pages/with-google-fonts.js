@@ -1,27 +1,31 @@
-import { Fraunces, Indie_Flower, Roboto } from 'next/font/google'
+import { Fraunces, Indie_Flower, Roboto } from "next/font/google";
 
 const indieFlower = Indie_Flower({
-  weight: '400',
+  weight: "400",
   preload: false,
-  subsets: ['latin'],
-})
-const fraunces = Fraunces({ weight: '400', preload: false, subsets: ['latin'] })
+  subsets: ["latin"],
+});
+const fraunces = Fraunces({
+  weight: "400",
+  preload: false,
+  subsets: ["latin"],
+});
 
 const robotoMultiple = Roboto({
-  weight: ['900', '100'],
-  style: ['normal', 'italic'],
-  subsets: ['latin'],
-})
+  weight: ["900", "100"],
+  style: ["normal", "italic"],
+  subsets: ["latin"],
+});
 const frauncesMultiple = Fraunces({
-  style: ['italic', 'normal'],
-  axes: ['SOFT', 'WONK', 'opsz'],
-  subsets: ['latin'],
-})
+  style: ["italic", "normal"],
+  axes: ["SOFT", "WONK", "opsz"],
+  subsets: ["latin"],
+});
 
 const frauncesMultipleWeights = Fraunces({
-  weight: ['100', '400', '900'],
-  subsets: ['latin'],
-})
+  weight: ["100", "400", "900"],
+  subsets: ["latin"],
+});
 
 export default function WithFonts() {
   return (
@@ -45,5 +49,5 @@ export default function WithFonts() {
         {JSON.stringify(frauncesMultipleWeights)}
       </div>
     </>
-  )
+  );
 }

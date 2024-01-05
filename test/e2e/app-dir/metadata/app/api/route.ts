@@ -1,3 +1,3 @@
 export function GET() {
-  return new Response('hello api route')
+  return new Response("hello api route");
 }

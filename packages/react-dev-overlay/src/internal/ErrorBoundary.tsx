@@ -1,21 +1,21 @@
-import React from 'react'
+import React from "react";
 
 type ErrorBoundaryProps = {
-  children?: React.ReactNode
-  onError: (error: Error, componentStack: string | null) => void
-  globalOverlay?: boolean
-  isMounted?: boolean
-}
-type ErrorBoundaryState = { error: Error | null }
+  children?: React.ReactNode;
+  onError: (error: Error, componentStack: string | null) => void;
+  globalOverlay?: boolean;
+  isMounted?: boolean;
+};
+type ErrorBoundaryState = { error: Error | null };
 
 class ErrorBoundary extends React.PureComponent<
   ErrorBoundaryProps,
   ErrorBoundaryState
 > {
-  state = { error: null }
+  state = { error: null };
 
   static getDerivedStateFromError(error: Error) {
-    return { error }
+    return { error };
   }
 
   componentDidCatch(
@@ -24,9 +24,9 @@ class ErrorBoundary extends React.PureComponent<
     // accidentally excluded in some versions.
     errorInfo?: { componentStack?: string | null }
   ) {
-    this.props.onError(error, errorInfo?.componentStack || null)
+    this.props.onError(error, errorInfo?.componentStack || null);
     if (!this.props.globalOverlay) {
-      this.setState({ error })
+      this.setState({ error });
     }
   }
 
@@ -44,8 +44,8 @@ class ErrorBoundary extends React.PureComponent<
       ) : null
     ) : (
       this.props.children
-    )
+    );
   }
 }
 
-export { ErrorBoundary }
+export { ErrorBoundary };

@@ -1,24 +1,24 @@
-import { stringifyRequest } from '../stringify-request'
+import { stringifyRequest } from "../stringify-request";
 
 export type ClientPagesLoaderOptions = {
-  absolutePagePath: string
-  page: string
-}
+  absolutePagePath: string;
+  page: string;
+};
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
 function nextClientPagesLoader(this: any) {
   const pagesLoaderSpan = this.currentTraceSpan.traceChild(
-    'next-client-pages-loader'
-  )
+    "next-client-pages-loader"
+  );
 
   return pagesLoaderSpan.traceFn(() => {
     const { absolutePagePath, page } =
-      this.getOptions() as ClientPagesLoaderOptions
+      this.getOptions() as ClientPagesLoaderOptions;
 
-    pagesLoaderSpan.setAttribute('absolutePagePath', absolutePagePath)
+    pagesLoaderSpan.setAttribute("absolutePagePath", absolutePagePath);
 
-    const stringifiedPageRequest = stringifyRequest(this, absolutePagePath)
-    const stringifiedPage = JSON.stringify(page)
+    const stringifiedPageRequest = stringifyRequest(this, absolutePagePath);
+    const stringifiedPage = JSON.stringify(page);
 
     return `
     (window.__NEXT_P = window.__NEXT_P || []).push([
@@ -32,8 +32,8 @@ function nextClientPagesLoader(this: any) {
         window.__NEXT_P.push([${stringifiedPage}])
       });
     }
-  `
-  })
+  `;
+  });
 }
 
-export default nextClientPagesLoader
+export default nextClientPagesLoader;

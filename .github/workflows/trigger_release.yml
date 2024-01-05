@@ -1,7 +1,7 @@
 on:
   schedule:
     # run every day at 23:15
-    - cron: '15 23 * * *'
+    - cron: "15 23 * * *"
 
   workflow_dispatch:
     inputs:

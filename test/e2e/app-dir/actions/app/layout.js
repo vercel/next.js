@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function RootLayout({ children }) {
   return (
@@ -26,5 +26,5 @@ export default function RootLayout({ children }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

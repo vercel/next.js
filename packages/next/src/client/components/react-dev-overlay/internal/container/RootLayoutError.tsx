@@ -1,26 +1,26 @@
-import React from 'react'
+import React from "react";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogHeader,
-} from '../components/Dialog'
-import { Overlay } from '../components/Overlay'
-import { Terminal } from '../components/Terminal'
-import { noop as css } from '../helpers/noop-template'
+} from "../components/Dialog";
+import { Overlay } from "../components/Overlay";
+import { Terminal } from "../components/Terminal";
+import { noop as css } from "../helpers/noop-template";
 
-export type RootLayoutErrorProps = { missingTags: string[] }
+export type RootLayoutErrorProps = { missingTags: string[] };
 
 export const RootLayoutError: React.FC<RootLayoutErrorProps> =
   function BuildError({ missingTags }) {
     const message =
-      'Please make sure to include the following tags in your root layout: <html>, <body>.\n\n' +
+      "Please make sure to include the following tags in your root layout: <html>, <body>.\n\n" +
       `Missing required root layout tag${
-        missingTags.length === 1 ? '' : 's'
+        missingTags.length === 1 ? "" : "s"
       }: ` +
-      missingTags.join(', ')
+      missingTags.join(", ");
 
-    const noop = React.useCallback(() => {}, [])
+    const noop = React.useCallback(() => {}, []);
     return (
       <Overlay fixed>
         <Dialog
@@ -49,8 +49,8 @@ export const RootLayoutError: React.FC<RootLayoutErrorProps> =
           </DialogContent>
         </Dialog>
       </Overlay>
-    )
-  }
+    );
+  };
 
 export const styles = css`
   .nextjs-container-root-layout-error-header > h4 {
@@ -69,4 +69,4 @@ export const styles = css`
   .nextjs-container-root-layout-error-body small {
     color: #757575;
   }
-`
+`;

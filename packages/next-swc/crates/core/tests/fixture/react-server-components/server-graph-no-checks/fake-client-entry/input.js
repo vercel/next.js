@@ -1,5 +1,5 @@
 export default function () {
-  return null
+  return null;
 }
 
 // prettier-ignore

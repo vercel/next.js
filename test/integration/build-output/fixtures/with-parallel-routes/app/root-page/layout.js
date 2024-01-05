@@ -5,5 +5,5 @@ export default function Layout({ children, header, footer }) {
       {children}
       {footer}
     </>
-  )
+  );
 }

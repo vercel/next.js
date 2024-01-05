@@ -1,5 +1,5 @@
 ---
-title: 'Viewport `meta` tags should not be used in `_document.js` `<Head>`'
+title: "Viewport `meta` tags should not be used in `_document.js` `<Head>`"
 ---
 
 ## Why This Error Occurred
@@ -12,7 +12,7 @@ The viewport tag should be handled by `next/head` in `pages/_app.js`.
 Set your viewport `meta` tag in `pages/_app.js` instead:
 
 ```tsx filename="pages/_app.js"
-import Head from 'next/head'
+import Head from "next/head";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -22,10 +22,10 @@ function MyApp({ Component, pageProps }) {
       </Head>
       <Component {...pageProps} />
     </>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;
 ```
 
 ## Useful Links

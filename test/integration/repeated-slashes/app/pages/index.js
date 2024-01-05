@@ -1,3 +1,3 @@
 export default function Index(props) {
-  return <p id="index">index page</p>
+  return <p id="index">index page</p>;
 }

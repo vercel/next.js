@@ -26,18 +26,18 @@ SOFTWARE.
  * Prepend file:// protocol to source path string or source-map sources.
  */
 export function prepend(candidate: any) {
-  if (typeof candidate === 'string') {
-    return 'file://' + candidate
+  if (typeof candidate === "string") {
+    return "file://" + candidate;
   } else if (
     candidate &&
-    typeof candidate === 'object' &&
+    typeof candidate === "object" &&
     Array.isArray(candidate.sources)
   ) {
     return Object.assign({}, candidate, {
       sources: candidate.sources.map(prepend),
-    })
+    });
   } else {
-    throw new Error('expected string|object')
+    throw new Error("expected string|object");
   }
 }
 
@@ -45,17 +45,17 @@ export function prepend(candidate: any) {
  * Remove file:// protocol from source path string or source-map sources.
  */
 export function remove(candidate: any) {
-  if (typeof candidate === 'string') {
-    return candidate.replace(/^file:\/{2}/, '')
+  if (typeof candidate === "string") {
+    return candidate.replace(/^file:\/{2}/, "");
   } else if (
     candidate &&
-    typeof candidate === 'object' &&
+    typeof candidate === "object" &&
     Array.isArray(candidate.sources)
   ) {
     return Object.assign({}, candidate, {
       sources: candidate.sources.map(remove),
-    })
+    });
   } else {
-    throw new Error('expected string|object')
+    throw new Error("expected string|object");
   }
 }

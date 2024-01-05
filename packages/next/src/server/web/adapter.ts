@@ -1,82 +1,82 @@
-import type { NextMiddleware, RequestData, FetchEventResult } from './types'
-import type { RequestInit } from './spec-extension/request'
-import type { PrerenderManifest } from '../../build'
-import { PageSignatureError } from './error'
-import { fromNodeOutgoingHttpHeaders } from './utils'
-import { NextFetchEvent } from './spec-extension/fetch-event'
-import { NextRequest } from './spec-extension/request'
-import { NextResponse } from './spec-extension/response'
-import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
-import { waitUntilSymbol } from './spec-extension/fetch-event'
-import { NextURL } from './next-url'
-import { stripInternalSearchParams } from '../internal-utils'
-import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
-import { NEXT_QUERY_PARAM_PREFIX } from '../../lib/constants'
-import { ensureInstrumentationRegistered } from './globals'
-import { RequestAsyncStorageWrapper } from '../async-storage/request-async-storage-wrapper'
-import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
-import { getTracer } from '../lib/trace/tracer'
-import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
+import type { NextMiddleware, RequestData, FetchEventResult } from "./types";
+import type { RequestInit } from "./spec-extension/request";
+import type { PrerenderManifest } from "../../build";
+import { PageSignatureError } from "./error";
+import { fromNodeOutgoingHttpHeaders } from "./utils";
+import { NextFetchEvent } from "./spec-extension/fetch-event";
+import { NextRequest } from "./spec-extension/request";
+import { NextResponse } from "./spec-extension/response";
+import { relativizeURL } from "../../shared/lib/router/utils/relativize-url";
+import { waitUntilSymbol } from "./spec-extension/fetch-event";
+import { NextURL } from "./next-url";
+import { stripInternalSearchParams } from "../internal-utils";
+import { normalizeRscURL } from "../../shared/lib/router/utils/app-paths";
+import { FLIGHT_PARAMETERS } from "../../client/components/app-router-headers";
+import { NEXT_QUERY_PARAM_PREFIX } from "../../lib/constants";
+import { ensureInstrumentationRegistered } from "./globals";
+import { RequestAsyncStorageWrapper } from "../async-storage/request-async-storage-wrapper";
+import { requestAsyncStorage } from "../../client/components/request-async-storage.external";
+import { getTracer } from "../lib/trace/tracer";
+import type { TextMapGetter } from "next/dist/compiled/@opentelemetry/api";
 
 class NextRequestHint extends NextRequest {
-  sourcePage: string
-  fetchMetrics?: FetchEventResult['fetchMetrics']
+  sourcePage: string;
+  fetchMetrics?: FetchEventResult["fetchMetrics"];
 
   constructor(params: {
-    init: RequestInit
-    input: Request | string
-    page: string
+    init: RequestInit;
+    input: Request | string;
+    page: string;
   }) {
-    super(params.input, params.init)
-    this.sourcePage = params.page
+    super(params.input, params.init);
+    this.sourcePage = params.page;
   }
 
   get request() {
-    throw new PageSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage });
   }
 
   respondWith() {
-    throw new PageSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage });
   }
 
   waitUntil() {
-    throw new PageSignatureError({ page: this.sourcePage })
+    throw new PageSignatureError({ page: this.sourcePage });
   }
 }
 
 const headersGetter: TextMapGetter<Headers> = {
   keys: (headers) => Array.from(headers.keys()),
   get: (headers, key) => headers.get(key) ?? undefined,
-}
+};
 
 export type AdapterOptions = {
-  handler: NextMiddleware
-  page: string
-  request: RequestData
-  IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
-}
+  handler: NextMiddleware;
+  page: string;
+  request: RequestData;
+  IncrementalCache?: typeof import("../lib/incremental-cache").IncrementalCache;
+};
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
   fn
 ) => {
-  const tracer = getTracer()
-  return tracer.withPropagatedContext(request.headers, fn, headersGetter)
-}
+  const tracer = getTracer();
+  return tracer.withPropagatedContext(request.headers, fn, headersGetter);
+};
 
-let testApisIntercepted = false
+let testApisIntercepted = false;
 
 function ensureTestApisIntercepted() {
   if (!testApisIntercepted) {
-    testApisIntercepted = true
-    if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
+    testApisIntercepted = true;
+    if (process.env.NEXT_PRIVATE_TEST_PROXY === "true") {
       const {
         interceptTestApis,
         wrapRequestHandler,
-      } = require('next/dist/experimental/testmode/server-edge')
-      interceptTestApis()
-      propagator = wrapRequestHandler(propagator)
+      } = require("next/dist/experimental/testmode/server-edge");
+      interceptTestApis();
+      propagator = wrapRequestHandler(propagator);
     }
   }
 }
@@ -84,70 +84,70 @@ function ensureTestApisIntercepted() {
 export async function adapter(
   params: AdapterOptions
 ): Promise<FetchEventResult> {
-  ensureTestApisIntercepted()
-  await ensureInstrumentationRegistered()
+  ensureTestApisIntercepted();
+  await ensureInstrumentationRegistered();
 
   // TODO-APP: use explicit marker for this
-  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== "undefined";
   const prerenderManifest: PrerenderManifest | undefined =
-    typeof self.__PRERENDER_MANIFEST === 'string'
+    typeof self.__PRERENDER_MANIFEST === "string"
       ? JSON.parse(self.__PRERENDER_MANIFEST)
-      : undefined
+      : undefined;
 
-  params.request.url = normalizeRscURL(params.request.url)
+  params.request.url = normalizeRscURL(params.request.url);
 
   const requestUrl = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
-  })
+  });
 
   // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
   // Instead we use the keys before iteration.
-  const keys = [...requestUrl.searchParams.keys()]
+  const keys = [...requestUrl.searchParams.keys()];
   for (const key of keys) {
-    const value = requestUrl.searchParams.getAll(key)
+    const value = requestUrl.searchParams.getAll(key);
 
     if (
       key !== NEXT_QUERY_PARAM_PREFIX &&
       key.startsWith(NEXT_QUERY_PARAM_PREFIX)
     ) {
-      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length)
-      requestUrl.searchParams.delete(normalizedKey)
+      const normalizedKey = key.substring(NEXT_QUERY_PARAM_PREFIX.length);
+      requestUrl.searchParams.delete(normalizedKey);
 
       for (const val of value) {
-        requestUrl.searchParams.append(normalizedKey, val)
+        requestUrl.searchParams.append(normalizedKey, val);
       }
-      requestUrl.searchParams.delete(key)
+      requestUrl.searchParams.delete(key);
     }
   }
 
   // Ensure users only see page requests, never data requests.
-  const buildId = requestUrl.buildId
-  requestUrl.buildId = ''
+  const buildId = requestUrl.buildId;
+  requestUrl.buildId = "";
 
-  const isDataReq = params.request.headers['x-nextjs-data']
+  const isDataReq = params.request.headers["x-nextjs-data"];
 
-  if (isDataReq && requestUrl.pathname === '/index') {
-    requestUrl.pathname = '/'
+  if (isDataReq && requestUrl.pathname === "/index") {
+    requestUrl.pathname = "/";
   }
 
-  const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
-  const flightHeaders = new Map()
+  const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers);
+  const flightHeaders = new Map();
   // Parameters should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const param of FLIGHT_PARAMETERS) {
-      const key = param.toString().toLowerCase()
-      const value = requestHeaders.get(key)
+      const key = param.toString().toLowerCase();
+      const value = requestHeaders.get(key);
       if (value) {
-        flightHeaders.set(key, requestHeaders.get(key))
-        requestHeaders.delete(key)
+        flightHeaders.set(key, requestHeaders.get(key));
+        requestHeaders.delete(key);
       }
     }
   }
 
   const normalizeUrl = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
     ? new URL(params.request.url)
-    : requestUrl
+    : requestUrl;
 
   const request = new NextRequestHint({
     page: params.page,
@@ -162,7 +162,7 @@ export async function adapter(
       nextConfig: params.request.nextConfig,
       signal: params.request.signal,
     },
-  })
+  });
 
   /**
    * This allows to identify the request as a data request. The user doesn't
@@ -170,26 +170,26 @@ export async function adapter(
    * purposes.
    */
   if (isDataReq) {
-    Object.defineProperty(request, '__isData', {
+    Object.defineProperty(request, "__isData", {
       enumerable: false,
       value: true,
-    })
+    });
   }
 
   if (
     !(globalThis as any).__incrementalCache &&
     (params as any).IncrementalCache
   ) {
-    ;(globalThis as any).__incrementalCache = new (
+    (globalThis as any).__incrementalCache = new (
       params as any
     ).IncrementalCache({
       appDir: true,
       fetchCache: true,
-      minimalMode: process.env.NODE_ENV !== 'development',
+      minimalMode: process.env.NODE_ENV !== "development",
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
-      dev: process.env.NODE_ENV === 'development',
+      dev: process.env.NODE_ENV === "development",
       requestHeaders: params.request.headers as any,
-      requestProtocol: 'https',
+      requestProtocol: "https",
       getPrerenderManifest: () => {
         return {
           version: -1 as any, // letting us know this doesn't conform to spec
@@ -197,21 +197,21 @@ export async function adapter(
           dynamicRoutes: {},
           notFoundRoutes: [],
           preview: {
-            previewModeId: 'development-id',
+            previewModeId: "development-id",
           } as any, // `preview` is special case read in next-dev-server
-        }
+        };
       },
-    })
+    });
   }
 
-  const event = new NextFetchEvent({ request, page: params.page })
-  let response
-  let cookiesFromResponse
+  const event = new NextFetchEvent({ request, page: params.page });
+  let response;
+  let cookiesFromResponse;
 
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
+      params.page === "/middleware" || params.page === "/src/middleware";
     if (isMiddleware) {
       return RequestAsyncStorageWrapper.wrap(
         requestAsyncStorage,
@@ -219,29 +219,29 @@ export async function adapter(
           req: request,
           renderOpts: {
             onUpdateCookies: (cookies) => {
-              cookiesFromResponse = cookies
+              cookiesFromResponse = cookies;
             },
             // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
             previewProps: prerenderManifest?.preview || {
-              previewModeId: 'development-id',
-              previewModeEncryptionKey: '',
-              previewModeSigningKey: '',
+              previewModeId: "development-id",
+              previewModeEncryptionKey: "",
+              previewModeSigningKey: "",
             },
           },
         },
         () => params.handler(request, event)
-      )
+      );
     }
-    return params.handler(request, event)
-  })
+    return params.handler(request, event);
+  });
 
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
-    throw new TypeError('Expected an instance of Response to be returned')
+    throw new TypeError("Expected an instance of Response to be returned");
   }
 
   if (response && cookiesFromResponse) {
-    response.headers.set('set-cookie', cookiesFromResponse)
+    response.headers.set("set-cookie", cookiesFromResponse);
   }
 
   /**
@@ -250,18 +250,18 @@ export async function adapter(
    * an internal rewrite. Also we make sure the outgoing rewrite URL is
    * a data URL if the request was a data request.
    */
-  const rewrite = response?.headers.get('x-middleware-rewrite')
+  const rewrite = response?.headers.get("x-middleware-rewrite");
   if (response && rewrite) {
     const rewriteUrl = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
-    })
+    });
 
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (rewriteUrl.host === request.nextUrl.host) {
-        rewriteUrl.buildId = buildId || rewriteUrl.buildId
-        response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+        rewriteUrl.buildId = buildId || rewriteUrl.buildId;
+        response.headers.set("x-middleware-rewrite", String(rewriteUrl));
       }
     }
 
@@ -273,7 +273,7 @@ export async function adapter(
     const relativizedRewrite = relativizeURL(
       String(rewriteUrl),
       String(requestUrl)
-    )
+    );
 
     if (
       isDataReq &&
@@ -285,7 +285,7 @@ export async function adapter(
         relativizedRewrite.match(/http(s)?:\/\//)
       )
     ) {
-      response.headers.set('x-nextjs-rewrite', relativizedRewrite)
+      response.headers.set("x-nextjs-rewrite", relativizedRewrite);
     }
   }
 
@@ -294,24 +294,24 @@ export async function adapter(
    * default and we must also make sure the outgoing URL is a data one if
    * the incoming request was a data request.
    */
-  const redirect = response?.headers.get('Location')
+  const redirect = response?.headers.get("Location");
   if (response && redirect && !isEdgeRendering) {
     const redirectURL = new NextURL(redirect, {
       forceLocale: false,
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
-    })
+    });
 
     /**
      * Responses created from redirects have immutable headers so we have
      * to clone the response to be able to modify it.
      */
-    response = new Response(response.body, response)
+    response = new Response(response.body, response);
 
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === request.nextUrl.host) {
-        redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', String(redirectURL))
+        redirectURL.buildId = buildId || redirectURL.buildId;
+        response.headers.set("Location", String(redirectURL));
       }
     }
 
@@ -321,32 +321,32 @@ export async function adapter(
      * the client knows the destination.
      */
     if (isDataReq) {
-      response.headers.delete('Location')
+      response.headers.delete("Location");
       response.headers.set(
-        'x-nextjs-redirect',
+        "x-nextjs-redirect",
         relativizeURL(String(redirectURL), String(requestUrl))
-      )
+      );
     }
   }
 
-  const finalResponse = response ? response : NextResponse.next()
+  const finalResponse = response ? response : NextResponse.next();
 
   // Flight headers are not overridable / removable so they are applied at the end.
   const middlewareOverrideHeaders = finalResponse.headers.get(
-    'x-middleware-override-headers'
-  )
-  const overwrittenHeaders: string[] = []
+    "x-middleware-override-headers"
+  );
+  const overwrittenHeaders: string[] = [];
   if (middlewareOverrideHeaders) {
     for (const [key, value] of flightHeaders) {
-      finalResponse.headers.set(`x-middleware-request-${key}`, value)
-      overwrittenHeaders.push(key)
+      finalResponse.headers.set(`x-middleware-request-${key}`, value);
+      overwrittenHeaders.push(key);
     }
 
     if (overwrittenHeaders.length > 0) {
       finalResponse.headers.set(
-        'x-middleware-override-headers',
-        middlewareOverrideHeaders + ',' + overwrittenHeaders.join(',')
-      )
+        "x-middleware-override-headers",
+        middlewareOverrideHeaders + "," + overwrittenHeaders.join(",")
+      );
     }
   }
 
@@ -354,5 +354,5 @@ export async function adapter(
     response: finalResponse,
     waitUntil: Promise.all(event[waitUntilSymbol]),
     fetchMetrics: request.fetchMetrics,
-  }
+  };
 }

@@ -6,16 +6,16 @@ export const enum AVIFTune {
 }
 
 export interface EncodeOptions {
-  cqLevel: number
-  denoiseLevel: number
-  cqAlphaLevel: number
-  tileRowsLog2: number
-  tileColsLog2: number
-  speed: number
-  subsample: number
-  chromaDeltaQ: boolean
-  sharpness: number
-  tune: AVIFTune
+  cqLevel: number;
+  denoiseLevel: number;
+  cqAlphaLevel: number;
+  tileRowsLog2: number;
+  tileColsLog2: number;
+  speed: number;
+  subsample: number;
+  chromaDeltaQ: boolean;
+  sharpness: number;
+  tune: AVIFTune;
 }
 
 export interface AVIFModule extends EmscriptenWasm.Module {
@@ -24,9 +24,9 @@ export interface AVIFModule extends EmscriptenWasm.Module {
     width: number,
     height: number,
     options: EncodeOptions
-  ): Uint8Array
+  ): Uint8Array;
 }
 
-declare var moduleFactory: EmscriptenWasm.ModuleFactory<AVIFModule>
+declare var moduleFactory: EmscriptenWasm.ModuleFactory<AVIFModule>;
 
-export default moduleFactory
+export default moduleFactory;

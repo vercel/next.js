@@ -1,9 +1,9 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 class Button extends React.Component {
   render() {
-    return <button {...this.props}>Click me</button>
+    return <button {...this.props}>Click me</button>;
   }
 }
 
@@ -13,4 +13,4 @@ export default () => (
       <Button id="btn-link" />
     </Link>
   </div>
-)
+);

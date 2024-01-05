@@ -1,14 +1,14 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { createNext } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { fetchViaHTTP } from "next-test-utils";
 
-describe('undici fetch', () => {
-  let next: NextInstance
+describe("undici fetch", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        'pages/api/globalFetch.js': `
+        "pages/api/globalFetch.js": `
           import { ReadableStream } from 'node:stream/web';
           export default async function globalFetch(req, res) {
             try {
@@ -20,21 +20,21 @@ describe('undici fetch', () => {
             }
           }
         `,
-        'pages/api/globalHeaders.js': `
+        "pages/api/globalHeaders.js": `
           export default async function globalHeaders(req, res) {
             res.json({
               value: (new Headers())[Symbol.iterator].name === 'entries'
             })
           }
         `,
-        'pages/api/globalRequest.js': `
+        "pages/api/globalRequest.js": `
           export default async function globalRequest(req, res) {
             res.json({
               value: (new Request('https://example.vercel.sh')).headers[Symbol.iterator].name === 'entries'
             })
           }
         `,
-        'pages/api/globalResponse.js': `
+        "pages/api/globalResponse.js": `
           export default async function globalResponse(req, res) {
             res.json({
               value: (new Response()).headers[Symbol.iterator].name === 'entries'
@@ -43,33 +43,33 @@ describe('undici fetch', () => {
         `,
       },
       dependencies: {},
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  describe('undici', () => {
-    it('global fetch should return true when undici is used', async () => {
-      const result = await fetchViaHTTP(next.url, '/api/globalFetch')
-      const data = await result.json()
-      expect(data.value).toBe(true)
-    })
+  describe("undici", () => {
+    it("global fetch should return true when undici is used", async () => {
+      const result = await fetchViaHTTP(next.url, "/api/globalFetch");
+      const data = await result.json();
+      expect(data.value).toBe(true);
+    });
 
-    it('global Headers should return true when undici is used', async () => {
-      const result = await fetchViaHTTP(next.url, '/api/globalHeaders')
-      const data = await result.json()
-      expect(data.value).toBe(true)
-    })
+    it("global Headers should return true when undici is used", async () => {
+      const result = await fetchViaHTTP(next.url, "/api/globalHeaders");
+      const data = await result.json();
+      expect(data.value).toBe(true);
+    });
 
-    it('global Request should return true when undici is used', async () => {
-      const result = await fetchViaHTTP(next.url, '/api/globalRequest')
-      const data = await result.json()
-      expect(data.value).toBe(true)
-    })
+    it("global Request should return true when undici is used", async () => {
+      const result = await fetchViaHTTP(next.url, "/api/globalRequest");
+      const data = await result.json();
+      expect(data.value).toBe(true);
+    });
 
-    it('global Response should return true when undici is used', async () => {
-      const result = await fetchViaHTTP(next.url, '/api/globalResponse')
-      const data = await result.json()
-      expect(data.value).toBe(true)
-    })
-  })
-})
+    it("global Response should return true when undici is used", async () => {
+      const result = await fetchViaHTTP(next.url, "/api/globalResponse");
+      const data = await result.json();
+      expect(data.value).toBe(true);
+    });
+  });
+});

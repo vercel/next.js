@@ -1,10 +1,10 @@
 // @ts-check
 
 // @ts-ignore
-import { createNextDescribe } from 'e2e-utils'
-import cheerio from 'cheerio'
+import { createNextDescribe } from "e2e-utils";
+import cheerio from "cheerio";
 
-const { i18n } = require('./next.config')
+const { i18n } = require("./next.config");
 
 const urls = [
   // Include the app page without a locale.
@@ -13,10 +13,10 @@ const urls = [
     : [
         // TODO: enable for deploy mode when behavior is corrected
         {
-          pathname: '/blog/first-post',
+          pathname: "/blog/first-post",
           expected: {
-            pathname: '/blog/first-post',
-            page: '/app/blog/[slug]/page.js',
+            pathname: "/blog/first-post",
+            page: "/app/blog/[slug]/page.js",
           },
         },
       ]),
@@ -30,10 +30,10 @@ const urls = [
   // Include the pages page without a locale (should default to the default
   // locale).
   {
-    pathname: '/about',
+    pathname: "/about",
     expected: {
       pathname: `/${i18n.defaultLocale}/about`,
-      page: '/pages/about.js',
+      page: "/pages/about.js",
     },
   },
 
@@ -42,41 +42,41 @@ const urls = [
     pathname: `/${locale}/about`,
     expected: {
       pathname: `/${locale}/about`,
-      page: '/pages/about.js',
+      page: "/pages/about.js",
     },
   })),
-]
+];
 
 createNextDescribe(
-  'i18n-hybrid',
+  "i18n-hybrid",
   {
     files: __dirname,
   },
   ({ next }) => {
     it.each(urls.filter((url) => !url.expected))(
-      'does not resolve $pathname',
+      "does not resolve $pathname",
       async (url) => {
         const res = await next.fetch(url.pathname, {
-          redirect: 'manual',
-        })
+          redirect: "manual",
+        });
 
-        expect(res.status).toBe(404)
+        expect(res.status).toBe(404);
       }
-    )
+    );
 
     it.each(urls.filter((url) => url.expected))(
-      'does resolve $pathname',
+      "does resolve $pathname",
       async (url) => {
         const res = await next.fetch(url.pathname, {
-          redirect: 'manual',
-        })
+          redirect: "manual",
+        });
 
-        expect(res.status).toBe(200)
+        expect(res.status).toBe(200);
 
-        const $ = cheerio.load(await res.text())
-        const debug = JSON.parse($('#debug').text())
-        expect(debug).toEqual(url.expected)
+        const $ = cheerio.load(await res.text());
+        const debug = JSON.parse($("#debug").text());
+        expect(debug).toEqual(url.expected);
       }
-    )
+    );
   }
-)
+);

@@ -1,1 +1,1 @@
-export default () => <div>Index</div>
+export default () => <div>Index</div>;

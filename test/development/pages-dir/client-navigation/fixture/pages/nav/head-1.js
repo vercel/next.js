@@ -1,6 +1,6 @@
-import React from 'react'
-import Head from 'next/head'
-import Link from 'next/link'
+import React from "react";
+import Head from "next/head";
+import Link from "next/link";
 
 export default (props) => (
   <div id="head-1">
@@ -15,4 +15,4 @@ export default (props) => (
       to head 3
     </Link>
   </div>
-)
+);

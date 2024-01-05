@@ -1,52 +1,52 @@
-import execa from 'execa'
-import fs from 'fs/promises'
-import path from 'path'
+import execa from "execa";
+import fs from "fs/promises";
+import path from "path";
 
 export async function generatePackageJson(folder, withLocalNext = false) {
   const packageJson = JSON.parse(
-    await fs.readFile(path.join(folder, 'package.json'))
-  )
+    await fs.readFile(path.join(folder, "package.json"))
+  );
 
-  const currentVersions = await getCurrentRootReactPackagesVersions()
+  const currentVersions = await getCurrentRootReactPackagesVersions();
 
-  packageJson.dependencies = packageJson.dependencies || {}
-  packageJson.dependencies['react'] = currentVersions.react
-  packageJson.dependencies['react-dom'] = currentVersions['react-dom']
+  packageJson.dependencies = packageJson.dependencies || {};
+  packageJson.dependencies["react"] = currentVersions.react;
+  packageJson.dependencies["react-dom"] = currentVersions["react-dom"];
   if (withLocalNext) {
-    packageJson.dependencies.next = await packNextBuild(folder)
+    packageJson.dependencies.next = await packNextBuild(folder);
   } else {
-    packageJson.dependencies.next = await getCurrentNextVersion()
+    packageJson.dependencies.next = await getCurrentNextVersion();
   }
 
   await fs.writeFile(
-    path.join(folder, 'package.json'),
+    path.join(folder, "package.json"),
     JSON.stringify(packageJson, null, 2)
-  )
+  );
 }
 
 export async function packNextBuild(folder) {
-  const process = await execa('npm', [
-    'pack',
-    '../../packages/next',
+  const process = await execa("npm", [
+    "pack",
+    "../../packages/next",
     `--pack-destination=${folder}`,
-  ])
+  ]);
 
-  return `file:./${process.stdout}`
+  return `file:./${process.stdout}`;
 }
 
 async function getCurrentNextVersion() {
   const packageJson = JSON.parse(
-    await fs.readFile('../../packages/next/package.json', 'utf8')
-  )
-  return packageJson.version
+    await fs.readFile("../../packages/next/package.json", "utf8")
+  );
+  return packageJson.version;
 }
 
 async function getCurrentRootReactPackagesVersions() {
   const packageJson = JSON.parse(
-    await fs.readFile('../../package.json', 'utf8')
-  )
+    await fs.readFile("../../package.json", "utf8")
+  );
   return {
-    react: packageJson.devDependencies['react'],
-    'react-dom': packageJson.devDependencies['react-dom'],
-  }
+    react: packageJson.devDependencies["react"],
+    "react-dom": packageJson.devDependencies["react-dom"],
+  };
 }

@@ -1,4 +1,4 @@
 // populated with tests
-export default () => {}
+export default () => {};
 
-export const config = { matcher: '/' }
+export const config = { matcher: "/" };

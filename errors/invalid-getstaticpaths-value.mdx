@@ -1,5 +1,5 @@
 ---
-title: 'Invalid `getStaticPaths` Return Value'
+title: "Invalid `getStaticPaths` Return Value"
 ---
 
 ## Why This Error Occurred
@@ -32,12 +32,12 @@ This property is an [Array](https://developer.mozilla.org/docs/Web/JavaScript/Re
     return {
       paths: [
         // String variant:
-        '/blog/first-post',
+        "/blog/first-post",
         // Object variant:
-        { params: { slug: 'second-post' } },
+        { params: { slug: "second-post" } },
       ],
       fallback: true,
-    }
+    };
   }
   ```
 

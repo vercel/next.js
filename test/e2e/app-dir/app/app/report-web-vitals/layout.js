@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react";
 
 export default function ClientNestedLayout({ children }) {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
   useEffect(() => {
-    setCount(1)
-  }, [])
+    setCount(1);
+  }, []);
   return (
     <>
       <h1>Client Nested. Count: {count}</h1>
@@ -15,5 +15,5 @@ export default function ClientNestedLayout({ children }) {
       </button>
       {children}
     </>
-  )
+  );
 }

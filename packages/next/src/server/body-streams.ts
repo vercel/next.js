@@ -1,6 +1,6 @@
-import type { IncomingMessage } from 'http'
-import type { Readable } from 'stream'
-import { PassThrough } from 'stream'
+import type { IncomingMessage } from "http";
+import type { Readable } from "stream";
+import { PassThrough } from "stream";
 
 export function requestToBodyStream(
   context: { ReadableStream: typeof ReadableStream },
@@ -10,11 +10,11 @@ export function requestToBodyStream(
   return new context.ReadableStream({
     start: async (controller) => {
       for await (const chunk of stream) {
-        controller.enqueue(new KUint8Array(chunk))
+        controller.enqueue(new KUint8Array(chunk));
       }
-      controller.close()
+      controller.close();
     },
-  })
+  });
 }
 
 function replaceRequestBody<T extends IncomingMessage>(
@@ -22,34 +22,34 @@ function replaceRequestBody<T extends IncomingMessage>(
   stream: Readable
 ): T {
   for (const key in stream) {
-    let v = stream[key as keyof Readable] as any
-    if (typeof v === 'function') {
-      v = v.bind(base)
+    let v = stream[key as keyof Readable] as any;
+    if (typeof v === "function") {
+      v = v.bind(base);
     }
-    base[key as keyof T] = v
+    base[key as keyof T] = v;
   }
 
-  return base
+  return base;
 }
 
 export interface CloneableBody {
-  finalize(): Promise<void>
-  cloneBodyStream(): Readable
+  finalize(): Promise<void>;
+  cloneBodyStream(): Readable;
 }
 
 export function getCloneableBody<T extends IncomingMessage>(
   readable: T
 ): CloneableBody {
-  let buffered: Readable | null = null
+  let buffered: Readable | null = null;
 
   const endPromise = new Promise<void | { error?: unknown }>(
     (resolve, reject) => {
-      readable.on('end', resolve)
-      readable.on('error', reject)
+      readable.on("end", resolve);
+      readable.on("error", reject);
     }
   ).catch((error) => {
-    return { error }
-  })
+    return { error };
+  });
 
   return {
     /**
@@ -59,13 +59,13 @@ export function getCloneableBody<T extends IncomingMessage>(
      */
     async finalize(): Promise<void> {
       if (buffered) {
-        const res = await endPromise
+        const res = await endPromise;
 
-        if (res && typeof res === 'object' && res.error) {
-          throw res.error
+        if (res && typeof res === "object" && res.error) {
+          throw res.error;
         }
-        replaceRequestBody(readable, buffered)
-        buffered = readable
+        replaceRequestBody(readable, buffered);
+        buffered = readable;
       }
     },
     /**
@@ -73,19 +73,19 @@ export function getCloneableBody<T extends IncomingMessage>(
      * to pass into a middleware
      */
     cloneBodyStream() {
-      const input = buffered ?? readable
-      const p1 = new PassThrough()
-      const p2 = new PassThrough()
-      input.on('data', (chunk) => {
-        p1.push(chunk)
-        p2.push(chunk)
-      })
-      input.on('end', () => {
-        p1.push(null)
-        p2.push(null)
-      })
-      buffered = p2
-      return p1
+      const input = buffered ?? readable;
+      const p1 = new PassThrough();
+      const p2 = new PassThrough();
+      input.on("data", (chunk) => {
+        p1.push(chunk);
+        p2.push(chunk);
+      });
+      input.on("end", () => {
+        p1.push(null);
+        p2.push(null);
+      });
+      buffered = p2;
+      return p1;
     },
-  }
+  };
 }

@@ -1,8 +1,8 @@
-export const runtime = 'edge'
+export const runtime = "edge";
 
-import { fn1 } from '../fn'
+import { fn1 } from "../fn";
 
 export default function EdgePage() {
-  fn1()
-  return <p>hello world</p>
+  fn1();
+  return <p>hello world</p>;
 }

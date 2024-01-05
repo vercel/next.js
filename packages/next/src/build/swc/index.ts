@@ -1,52 +1,52 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import path from 'path'
-import { pathToFileURL } from 'url'
-import { platform, arch } from 'os'
-import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
-import * as Log from '../output/log'
-import { getParserOptions } from './options'
-import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
-import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
-import { downloadWasmSwc, downloadNativeNextSwc } from '../../lib/download-swc'
-import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
-import { isDeepStrictEqual } from 'util'
-import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
-import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
-import type { PageExtensions } from '../page-extensions-type'
+import path from "path";
+import { pathToFileURL } from "url";
+import { platform, arch } from "os";
+import { platformArchTriples } from "next/dist/compiled/@napi-rs/triples";
+import * as Log from "../output/log";
+import { getParserOptions } from "./options";
+import { eventSwcLoadFailure } from "../../telemetry/events/swc-load-failure";
+import { patchIncorrectLockfile } from "../../lib/patch-incorrect-lockfile";
+import { downloadWasmSwc, downloadNativeNextSwc } from "../../lib/download-swc";
+import type { NextConfigComplete, TurboRule } from "../../server/config-shared";
+import { isDeepStrictEqual } from "util";
+import { getDefineEnv } from "../webpack/plugins/define-env-plugin";
+import type { DefineEnvPluginOptions } from "../webpack/plugins/define-env-plugin";
+import type { PageExtensions } from "../page-extensions-type";
 
-const nextVersion = process.env.__NEXT_VERSION as string
+const nextVersion = process.env.__NEXT_VERSION as string;
 
-const ArchName = arch()
-const PlatformName = platform()
+const ArchName = arch();
+const PlatformName = platform();
 
 const infoLog = (...args: any[]) => {
   if (process.env.NEXT_PRIVATE_BUILD_WORKER) {
-    return
+    return;
   }
   if (process.env.DEBUG) {
-    Log.info(...args)
+    Log.info(...args);
   }
-}
+};
 
 /**
  * Based on napi-rs's target triples, returns triples that have corresponding next-swc binaries.
  */
 export const getSupportedArchTriples: () => Record<string, any> = () => {
-  const { darwin, win32, linux, freebsd, android } = platformArchTriples
+  const { darwin, win32, linux, freebsd, android } = platformArchTriples;
 
   return {
     darwin,
     win32: {
       arm64: win32.arm64,
       ia32: win32.ia32.filter(
-        (triple: { abi: string }) => triple.abi === 'msvc'
+        (triple: { abi: string }) => triple.abi === "msvc"
       ),
-      x64: win32.x64.filter((triple: { abi: string }) => triple.abi === 'msvc'),
+      x64: win32.x64.filter((triple: { abi: string }) => triple.abi === "msvc"),
     },
     linux: {
       // linux[x64] includes `gnux32` abi, with x64 arch.
       x64: linux.x64.filter(
-        (triple: { abi: string }) => triple.abi !== 'gnux32'
+        (triple: { abi: string }) => triple.abi !== "gnux32"
       ),
       arm64: linux.arm64,
       // This target is being deprecated, however we keep it in `knownDefaultWasmFallbackTriples` for now
@@ -60,34 +60,34 @@ export const getSupportedArchTriples: () => Record<string, any> = () => {
       arm64: android.arm64,
       arm: android.arm,
     },
-  }
-}
+  };
+};
 
 const triples = (() => {
-  const supportedArchTriples = getSupportedArchTriples()
-  const targetTriple = supportedArchTriples[PlatformName]?.[ArchName]
+  const supportedArchTriples = getSupportedArchTriples();
+  const targetTriple = supportedArchTriples[PlatformName]?.[ArchName];
 
   // If we have supported triple, return it right away
   if (targetTriple) {
-    return targetTriple
+    return targetTriple;
   }
 
   // If there isn't corresponding target triple in `supportedArchTriples`, check if it's excluded from original raw triples
   // Otherwise, it is completely unsupported platforms.
-  let rawTargetTriple = platformArchTriples[PlatformName]?.[ArchName]
+  let rawTargetTriple = platformArchTriples[PlatformName]?.[ArchName];
 
   if (rawTargetTriple) {
     Log.warn(
       `Trying to load next-swc for target triple ${rawTargetTriple}, but there next-swc does not have native bindings support`
-    )
+    );
   } else {
     Log.warn(
       `Trying to load next-swc for unsupported platforms ${PlatformName}/${ArchName}`
-    )
+    );
   }
 
-  return []
-})()
+  return [];
+})();
 
 // Allow to specify an absolute path to the custom turbopack binary to load.
 // If one of env variables is set, `loadNative` will try to use any turbo-* interfaces from specified
@@ -96,15 +96,15 @@ const triples = (() => {
 //
 // Note these are internal flag: there's no stability, feature guarantee.
 const __INTERNAL_CUSTOM_TURBOPACK_BINDINGS =
-  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
+  process.env.__INTERNAL_CUSTOM_TURBOPACK_BINDINGS;
 
 function checkVersionMismatch(pkgData: any) {
-  const version = pkgData.version
+  const version = pkgData.version;
 
   if (version && version !== nextVersion) {
     Log.warn(
       `Mismatching @next/swc version, detected: ${version} while Next.js is on ${nextVersion}. Please ensure these match`
-    )
+    );
   }
 }
 
@@ -114,72 +114,72 @@ function checkVersionMismatch(pkgData: any) {
 // once we can verify loading-wasm-first won't cause visible regressions,
 // we'll not include native bindings for these platform at all.
 const knownDefaultWasmFallbackTriples = [
-  'x86_64-unknown-freebsd',
-  'aarch64-linux-android',
-  'arm-linux-androideabi',
-  'armv7-unknown-linux-gnueabihf',
-  'i686-pc-windows-msvc',
+  "x86_64-unknown-freebsd",
+  "aarch64-linux-android",
+  "arm-linux-androideabi",
+  "armv7-unknown-linux-gnueabihf",
+  "i686-pc-windows-msvc",
   // WOA targets are TBD, while current userbase is small we may support it in the future
   //'aarch64-pc-windows-msvc',
-]
+];
 
 // The last attempt's error code returned when cjs require to native bindings fails.
 // If node.js throws an error without error code, this should be `unknown` instead of undefined.
 // For the wasm-first targets (`knownDefaultWasmFallbackTriples`) this will be `unsupported_target`.
 let lastNativeBindingsLoadErrorCode:
-  | 'unknown'
-  | 'unsupported_target'
+  | "unknown"
+  | "unsupported_target"
   | string
-  | undefined = undefined
-let nativeBindings: any
-let wasmBindings: any
-let downloadWasmPromise: any
-let pendingBindings: any
-let swcTraceFlushGuard: any
-let swcHeapProfilerFlushGuard: any
-let swcCrashReporterFlushGuard: any
-let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
+  | undefined = undefined;
+let nativeBindings: any;
+let wasmBindings: any;
+let downloadWasmPromise: any;
+let pendingBindings: any;
+let swcTraceFlushGuard: any;
+let swcHeapProfilerFlushGuard: any;
+let swcCrashReporterFlushGuard: any;
+let downloadNativeBindingsPromise: Promise<void> | undefined = undefined;
 
-export const lockfilePatchPromise: { cur?: Promise<void> } = {}
+export const lockfilePatchPromise: { cur?: Promise<void> } = {};
 
 export interface Binding {
-  isWasm: boolean
+  isWasm: boolean;
   turbo: {
-    startTrace: any
-    nextBuild?: any
-    createTurboTasks?: any
+    startTrace: any;
+    nextBuild?: any;
+    createTurboTasks?: any;
     entrypoints: {
-      stream: any
-      get: any
-    }
+      stream: any;
+      get: any;
+    };
     mdx: {
-      compile: any
-      compileSync: any
-    }
+      compile: any;
+      compileSync: any;
+    };
     createProject: (
       options: ProjectOptions,
       turboEngineOptions?: TurboEngineOptions
-    ) => Promise<Project>
-  }
-  minify: any
-  minifySync: any
-  transform: any
-  transformSync: any
-  parse: any
-  parseSync: any
-  getTargetTriple(): string | undefined
-  initCustomTraceSubscriber?: any
-  teardownTraceSubscriber?: any
-  initHeapProfiler?: any
-  teardownHeapProfiler?: any
-  teardownCrashReporter?: any
+    ) => Promise<Project>;
+  };
+  minify: any;
+  minifySync: any;
+  transform: any;
+  transformSync: any;
+  parse: any;
+  parseSync: any;
+  getTargetTriple(): string | undefined;
+  initCustomTraceSubscriber?: any;
+  teardownTraceSubscriber?: any;
+  initHeapProfiler?: any;
+  teardownHeapProfiler?: any;
+  teardownCrashReporter?: any;
 }
 
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
   if (pendingBindings) {
-    return pendingBindings
+    return pendingBindings;
   }
 
   // rust needs stdout to be blocking, otherwise it will throw an error (on macOS at least) when writing a lot of data (logs) to it
@@ -187,11 +187,11 @@ export async function loadBindings(
   // and https://github.com/nodejs/node/blob/main/doc/api/process.md#a-note-on-process-io
   if (process.stdout._handle != null) {
     // @ts-ignore
-    process.stdout._handle.setBlocking(true)
+    process.stdout._handle.setBlocking(true);
   }
   if (process.stderr._handle != null) {
     // @ts-ignore
-    process.stderr._handle.setBlocking(true)
+    process.stderr._handle.setBlocking(true);
   }
 
   pendingBindings = new Promise(async (resolve, _reject) => {
@@ -200,31 +200,31 @@ export async function loadBindings(
       // even if it doesn't fail to load locally
       lockfilePatchPromise.cur = patchIncorrectLockfile(process.cwd()).catch(
         console.error
-      )
+      );
     }
 
-    let attempts: any[] = []
-    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
+    let attempts: any[] = [];
+    const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM;
     const unsupportedPlatform = triples.some(
       (triple: any) =>
         !!triple?.raw && knownDefaultWasmFallbackTriples.includes(triple.raw)
-    )
-    const isWebContainer = process.versions.webcontainer
+    );
+    const isWebContainer = process.versions.webcontainer;
     const shouldLoadWasmFallbackFirst =
       (!disableWasmFallback && unsupportedPlatform && useWasmBinary) ||
-      isWebContainer
+      isWebContainer;
 
     if (!unsupportedPlatform && useWasmBinary) {
       Log.warn(
         `experimental.useWasmBinary is not an option for supported platform ${PlatformName}/${ArchName} and will be ignored.`
-      )
+      );
     }
 
     if (shouldLoadWasmFallbackFirst) {
-      lastNativeBindingsLoadErrorCode = 'unsupported_target'
-      const fallbackBindings = await tryLoadWasmWithFallback(attempts)
+      lastNativeBindingsLoadErrorCode = "unsupported_target";
+      const fallbackBindings = await tryLoadWasmWithFallback(attempts);
       if (fallbackBindings) {
-        return resolve(fallbackBindings)
+        return resolve(fallbackBindings);
       }
     }
 
@@ -237,62 +237,62 @@ export async function loadBindings(
     // with other reasons than `ERR_MODULE_NOT_FOUND`.
     // - Lastly, falls back to wasm binding where possible.
     try {
-      return resolve(loadNative())
+      return resolve(loadNative());
     } catch (a) {
       if (
         Array.isArray(a) &&
-        a.every((m) => m.includes('it was not installed'))
+        a.every((m) => m.includes("it was not installed"))
       ) {
-        let fallbackBindings = await tryLoadNativeWithFallback(attempts)
+        let fallbackBindings = await tryLoadNativeWithFallback(attempts);
 
         if (fallbackBindings) {
-          return resolve(fallbackBindings)
+          return resolve(fallbackBindings);
         }
       }
 
-      attempts = attempts.concat(a)
+      attempts = attempts.concat(a);
     }
 
-    logLoadFailure(attempts, true)
-  })
-  return pendingBindings
+    logLoadFailure(attempts, true);
+  });
+  return pendingBindings;
 }
 
 async function tryLoadNativeWithFallback(attempts: Array<string>) {
   const nativeBindingsDirectory = path.join(
-    path.dirname(require.resolve('next/package.json')),
-    'next-swc-fallback'
-  )
+    path.dirname(require.resolve("next/package.json")),
+    "next-swc-fallback"
+  );
 
   if (!downloadNativeBindingsPromise) {
     downloadNativeBindingsPromise = downloadNativeNextSwc(
       nextVersion,
       nativeBindingsDirectory,
       triples.map((triple: any) => triple.platformArchABI)
-    )
+    );
   }
-  await downloadNativeBindingsPromise
+  await downloadNativeBindingsPromise;
 
   try {
-    let bindings = loadNative(nativeBindingsDirectory)
-    return bindings
+    let bindings = loadNative(nativeBindingsDirectory);
+    return bindings;
   } catch (a: any) {
-    attempts.concat(a)
+    attempts.concat(a);
   }
-  return undefined
+  return undefined;
 }
 
 async function tryLoadWasmWithFallback(attempts: any) {
   try {
-    let bindings = await loadWasm('')
+    let bindings = await loadWasm("");
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
-      wasm: 'enabled',
+      wasm: "enabled",
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
-    })
-    return bindings
+    });
+    return bindings;
   } catch (a) {
-    attempts = attempts.concat(a)
+    attempts = attempts.concat(a);
   }
 
   try {
@@ -301,71 +301,71 @@ async function tryLoadWasmWithFallback(attempts: any) {
     // as node_module import attempts are cached and can't be re-attempted
     // x-ref: https://github.com/nodejs/modules/issues/307
     const wasmDirectory = path.join(
-      path.dirname(require.resolve('next/package.json')),
-      'wasm'
-    )
+      path.dirname(require.resolve("next/package.json")),
+      "wasm"
+    );
     if (!downloadWasmPromise) {
-      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory)
+      downloadWasmPromise = downloadWasmSwc(nextVersion, wasmDirectory);
     }
-    await downloadWasmPromise
-    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href)
+    await downloadWasmPromise;
+    let bindings = await loadWasm(pathToFileURL(wasmDirectory).href);
     // @ts-expect-error TODO: this event has a wrong type.
     eventSwcLoadFailure({
-      wasm: 'fallback',
+      wasm: "fallback",
       nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
-    })
+    });
 
     // still log native load attempts so user is
     // aware it failed and should be fixed
     for (const attempt of attempts) {
-      Log.warn(attempt)
+      Log.warn(attempt);
     }
-    return bindings
+    return bindings;
   } catch (a) {
-    attempts = attempts.concat(a)
+    attempts = attempts.concat(a);
   }
 }
 
 function loadBindingsSync() {
-  let attempts: any[] = []
+  let attempts: any[] = [];
   try {
-    return loadNative()
+    return loadNative();
   } catch (a) {
-    attempts = attempts.concat(a)
+    attempts = attempts.concat(a);
   }
 
   // we can leverage the wasm bindings if they are already
   // loaded
   if (wasmBindings) {
-    return wasmBindings
+    return wasmBindings;
   }
 
-  logLoadFailure(attempts)
+  logLoadFailure(attempts);
 }
 
-let loggingLoadFailure = false
+let loggingLoadFailure = false;
 
 function logLoadFailure(attempts: any, triedWasm = false) {
   // make sure we only emit the event and log the failure once
-  if (loggingLoadFailure) return
-  loggingLoadFailure = true
+  if (loggingLoadFailure) return;
+  loggingLoadFailure = true;
 
   for (let attempt of attempts) {
-    Log.warn(attempt)
+    Log.warn(attempt);
   }
 
   // @ts-expect-error TODO: this event has a wrong type.
   eventSwcLoadFailure({
-    wasm: triedWasm ? 'failed' : undefined,
+    wasm: triedWasm ? "failed" : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
     .then(() => lockfilePatchPromise.cur || Promise.resolve())
     .finally(() => {
       Log.error(
         `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
-      )
-      process.exit(1)
-    })
+      );
+      process.exit(1);
+    });
 }
 
 export interface ProjectOptions {
@@ -373,17 +373,17 @@ export interface ProjectOptions {
    * A root path from which all files must be nested under. Trying to access
    * a file outside this root will fail. Think of this as a chroot.
    */
-  rootPath: string
+  rootPath: string;
 
   /**
    * A path inside the root_path which contains the app/pages directories.
    */
-  projectPath: string
+  projectPath: string;
 
   /**
    * The next.config.js contents.
    */
-  nextConfig: NextConfigComplete
+  nextConfig: NextConfigComplete;
 
   /**
    * Jsconfig, or tsconfig contents.
@@ -393,33 +393,33 @@ export interface ProjectOptions {
    * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
    */
   jsConfig: {
-    compilerOptions: object
-  }
+    compilerOptions: object;
+  };
 
   /**
    * A map of environment variables to use when compiling code.
    */
-  env: Record<string, string>
+  env: Record<string, string>;
 
-  defineEnv: DefineEnv
+  defineEnv: DefineEnv;
 
   /**
    * Whether to watch the filesystem for file changes.
    */
-  watch: boolean
+  watch: boolean;
 
   /**
    * The address of the dev server.
    */
-  serverAddr: string
+  serverAddr: string;
 }
 
-type RustifiedEnv = { name: string; value: string }[]
+type RustifiedEnv = { name: string; value: string }[];
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedEnv;
+  edge: RustifiedEnv;
+  nodejs: RustifiedEnv;
 }
 
 export function createDefineEnv({
@@ -435,13 +435,13 @@ export function createDefineEnv({
   previewModeId,
 }: Omit<
   DefineEnvPluginOptions,
-  'isClient' | 'isNodeOrEdgeCompilation' | 'isEdgeServer' | 'isNodeServer'
+  "isClient" | "isNodeOrEdgeCompilation" | "isEdgeServer" | "isNodeServer"
 >): DefineEnv {
   let defineEnv: DefineEnv = {
     client: [],
     edge: [],
     nodejs: [],
-  }
+  };
 
   for (const variant of Object.keys(defineEnv) as (keyof typeof defineEnv)[]) {
     defineEnv[variant] = rustifyEnv(
@@ -454,165 +454,165 @@ export function createDefineEnv({
         distDir,
         fetchCacheKeyPrefix,
         hasRewrites,
-        isClient: variant === 'client',
-        isEdgeServer: variant === 'edge',
-        isNodeOrEdgeCompilation: variant === 'nodejs' || variant === 'edge',
-        isNodeServer: variant === 'nodejs',
+        isClient: variant === "client",
+        isEdgeServer: variant === "edge",
+        isNodeOrEdgeCompilation: variant === "nodejs" || variant === "edge",
+        isNodeServer: variant === "nodejs",
         middlewareMatchers,
         previewModeId,
       })
-    )
+    );
   }
 
-  return defineEnv
+  return defineEnv;
 }
 
 export interface TurboEngineOptions {
   /**
    * An upper bound of memory that turbopack will attempt to stay under.
    */
-  memoryLimit?: number
+  memoryLimit?: number;
 }
 
 export type StyledString =
   | {
-      type: 'text'
-      value: string
+      type: "text";
+      value: string;
     }
   | {
-      type: 'code'
-      value: string
+      type: "code";
+      value: string;
     }
   | {
-      type: 'strong'
-      value: string
+      type: "strong";
+      value: string;
     }
   | {
-      type: 'stack'
-      value: StyledString[]
+      type: "stack";
+      value: StyledString[];
     }
   | {
-      type: 'line'
-      value: StyledString[]
-    }
+      type: "line";
+      value: StyledString[];
+    };
 
 export interface Issue {
-  severity: string
-  category: string
-  filePath: string
-  title: StyledString
-  description?: StyledString
-  detail?: StyledString
+  severity: string;
+  category: string;
+  filePath: string;
+  title: StyledString;
+  description?: StyledString;
+  detail?: StyledString;
   source?: {
     source: {
-      ident: string
-      content?: string
-    }
+      ident: string;
+      content?: string;
+    };
     range?: {
-      start: { line: number; column: number }
-      end: { line: number; column: number }
-    }
-  }
-  documentationLink: string
-  subIssues: Issue[]
+      start: { line: number; column: number };
+      end: { line: number; column: number };
+    };
+  };
+  documentationLink: string;
+  subIssues: Issue[];
 }
 
 export interface Diagnostics {
-  category: string
-  name: string
-  payload: unknown
+  category: string;
+  name: string;
+  payload: unknown;
 }
 
 export type TurbopackResult<T = {}> = T & {
-  issues: Issue[]
-  diagnostics: Diagnostics[]
-}
+  issues: Issue[];
+  diagnostics: Diagnostics[];
+};
 
 export interface Middleware {
-  endpoint: Endpoint
+  endpoint: Endpoint;
 }
 
 export interface Instrumentation {
-  nodeJs: Endpoint
-  edge: Endpoint
+  nodeJs: Endpoint;
+  edge: Endpoint;
 }
 
 export interface Entrypoints {
-  routes: Map<string, Route>
-  middleware?: Middleware
-  instrumentation?: Instrumentation
-  pagesDocumentEndpoint: Endpoint
-  pagesAppEndpoint: Endpoint
-  pagesErrorEndpoint: Endpoint
+  routes: Map<string, Route>;
+  middleware?: Middleware;
+  instrumentation?: Instrumentation;
+  pagesDocumentEndpoint: Endpoint;
+  pagesAppEndpoint: Endpoint;
+  pagesErrorEndpoint: Endpoint;
 }
 
 export interface Update {
-  update: unknown
+  update: unknown;
 }
 
 export interface HmrIdentifiers {
-  identifiers: string[]
+  identifiers: string[];
 }
 
 interface TurbopackStackFrame {
-  column: number | null
-  file: string
-  isServer: boolean
-  line: number
-  methodName: string | null
+  column: number | null;
+  file: string;
+  isServer: boolean;
+  line: number;
+  methodName: string | null;
 }
 
 export interface UpdateInfo {
-  duration: number
-  tasks: number
+  duration: number;
+  tasks: number;
 }
 
 export interface Project {
-  update(options: Partial<ProjectOptions>): Promise<void>
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
-  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+  update(options: Partial<ProjectOptions>): Promise<void>;
+  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>;
+  hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>;
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
-  >
-  getSourceForAsset(filePath: string): Promise<string | null>
+  >;
+  getSourceForAsset(filePath: string): Promise<string | null>;
   traceSource(
     stackFrame: TurbopackStackFrame
-  ): Promise<TurbopackStackFrame | null>
-  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
+  ): Promise<TurbopackStackFrame | null>;
+  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>;
 }
 
 export type Route =
   | {
-      type: 'conflict'
+      type: "conflict";
     }
   | {
-      type: 'app-page'
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      type: "app-page";
+      htmlEndpoint: Endpoint;
+      rscEndpoint: Endpoint;
     }
   | {
-      type: 'app-route'
-      endpoint: Endpoint
+      type: "app-route";
+      endpoint: Endpoint;
     }
   | {
-      type: 'page'
-      htmlEndpoint: Endpoint
-      dataEndpoint: Endpoint
+      type: "page";
+      htmlEndpoint: Endpoint;
+      dataEndpoint: Endpoint;
     }
   | {
-      type: 'page-api'
-      endpoint: Endpoint
-    }
+      type: "page-api";
+      endpoint: Endpoint;
+    };
 
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
-  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+  writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>;
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>;
   /**
    * Listen to server-side changes to the endpoint.
    * After serverChanged() has been awaited it will listen to changes.
@@ -620,45 +620,45 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult>>;
 }
 
 interface EndpointConfig {
-  dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
-  dynamicParams?: boolean
-  revalidate?: 'never' | 'force-cache' | number
+  dynamic?: "auto" | "force-dynamic" | "error" | "force-static";
+  dynamicParams?: boolean;
+  revalidate?: "never" | "force-cache" | number;
   fetchCache?:
-    | 'auto'
-    | 'default-cache'
-    | 'only-cache'
-    | 'force-cache'
-    | 'default-no-store'
-    | 'only-no-store'
-    | 'force-no-store'
-  runtime?: 'nodejs' | 'edge'
-  preferredRegion?: string
+    | "auto"
+    | "default-cache"
+    | "only-cache"
+    | "force-cache"
+    | "default-no-store"
+    | "only-no-store"
+    | "force-no-store";
+  runtime?: "nodejs" | "edge";
+  preferredRegion?: string;
 }
 
 export type ServerPath = {
-  path: string
-  contentHash: string
-}
+  path: string;
+  contentHash: string;
+};
 
 export type WrittenEndpoint =
   | {
-      type: 'nodejs'
+      type: "nodejs";
       /** The entry path for the endpoint. */
-      entryPath: string
+      entryPath: string;
       /** All server paths that has been written for the endpoint. */
-      serverPaths: ServerPath[]
-      config: EndpointConfig
+      serverPaths: ServerPath[];
+      config: EndpointConfig;
     }
   | {
-      type: 'edge'
+      type: "edge";
       /** All server paths that has been written for the endpoint. */
-      serverPaths: ServerPath[]
-      config: EndpointConfig
-    }
+      serverPaths: ServerPath[];
+      config: EndpointConfig;
+    };
 
 function rustifyEnv(env: Record<string, string>): RustifiedEnv {
   return Object.entries(env)
@@ -666,16 +666,16 @@ function rustifyEnv(env: Record<string, string>): RustifiedEnv {
     .map(([name, value]) => ({
       name,
       value,
-    }))
+    }));
 }
 
 // TODO(sokra) Support wasm option.
 function bindingToApi(binding: any, _wasm: boolean) {
   type NativeFunction<T> = (
     callback: (err: Error, value: T) => void
-  ) => Promise<{ __napiType: 'RootTask' }>
+  ) => Promise<{ __napiType: "RootTask" }>;
 
-  const cancel = new (class Cancel extends Error {})()
+  const cancel = new (class Cancel extends Error {})();
 
   /**
    * Utility function to ensure all variants of an enum are handled.
@@ -684,14 +684,14 @@ function bindingToApi(binding: any, _wasm: boolean) {
     never: never,
     computeMessage: (arg: any) => string
   ): never {
-    throw new Error(`Invariant: ${computeMessage(never)}`)
+    throw new Error(`Invariant: ${computeMessage(never)}`);
   }
 
   async function withErrorCause<T>(fn: () => Promise<T>): Promise<T> {
     try {
-      return await fn()
+      return await fn();
     } catch (nativeError: any) {
-      throw new Error(nativeError.message, { cause: nativeError })
+      throw new Error(nativeError.message, { cause: nativeError });
     }
   }
 
@@ -707,64 +707,64 @@ function bindingToApi(binding: any, _wasm: boolean) {
   ): AsyncIterableIterator<T> {
     type BufferItem =
       | { err: Error; value: undefined }
-      | { err: undefined; value: T }
+      | { err: undefined; value: T };
     // A buffer of produced items. This will only contain values if the
     // consumer is slower than the producer.
-    let buffer: BufferItem[] = []
+    let buffer: BufferItem[] = [];
     // A deferred value waiting for the next produced item. This will only
     // exist if the consumer is faster than the producer.
     let waiting:
       | {
-          resolve: (value: T) => void
-          reject: (error: Error) => void
+          resolve: (value: T) => void;
+          reject: (error: Error) => void;
         }
-      | undefined
-    let canceled = false
+      | undefined;
+    let canceled = false;
 
     // The native function will call this every time it emits a new result. We
     // either need to notify a waiting consumer, or buffer the new result until
     // the consumer catches up.
     const emitResult = (err: Error | undefined, value: T | undefined) => {
       if (waiting) {
-        let { resolve, reject } = waiting
-        waiting = undefined
-        if (err) reject(err)
-        else resolve(value!)
+        let { resolve, reject } = waiting;
+        waiting = undefined;
+        if (err) reject(err);
+        else resolve(value!);
       } else {
-        const item = { err, value } as BufferItem
-        if (useBuffer) buffer.push(item)
-        else buffer[0] = item
+        const item = { err, value } as BufferItem;
+        if (useBuffer) buffer.push(item);
+        else buffer[0] = item;
       }
-    }
+    };
 
     const iterator = (async function* () {
-      const task = await withErrorCause(() => nativeFunction(emitResult))
+      const task = await withErrorCause(() => nativeFunction(emitResult));
       try {
         while (!canceled) {
           if (buffer.length > 0) {
-            const item = buffer.shift()!
-            if (item.err) throw item.err
-            yield item.value
+            const item = buffer.shift()!;
+            if (item.err) throw item.err;
+            yield item.value;
           } else {
             // eslint-disable-next-line no-loop-func
             yield new Promise<T>((resolve, reject) => {
-              waiting = { resolve, reject }
-            })
+              waiting = { resolve, reject };
+            });
           }
         }
       } catch (e) {
-        if (e === cancel) return
-        throw e
+        if (e === cancel) return;
+        throw e;
       } finally {
-        binding.rootTaskDispose(task)
+        binding.rootTaskDispose(task);
       }
-    })()
+    })();
     iterator.return = async () => {
-      canceled = true
-      if (waiting) waiting.reject(cancel)
-      return { value: undefined, done: true } as IteratorReturnResult<never>
-    }
-    return iterator
+      canceled = true;
+      if (waiting) waiting.reject(cancel);
+      return { value: undefined, done: true } as IteratorReturnResult<never>;
+    };
+    return iterator;
   }
 
   async function rustifyProjectOptions(
@@ -777,14 +777,14 @@ function bindingToApi(binding: any, _wasm: boolean) {
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
       defineEnv: options.defineEnv,
-    }
+    };
   }
 
   class ProjectImpl implements Project {
-    private _nativeProject: { __napiType: 'Project' }
+    private _nativeProject: { __napiType: "Project" };
 
-    constructor(nativeProject: { __napiType: 'Project' }) {
-      this._nativeProject = nativeProject
+    constructor(nativeProject: { __napiType: "Project" }) {
+      this._nativeProject = nativeProject;
     }
 
     async update(options: ProjectOptions) {
@@ -793,127 +793,127 @@ function bindingToApi(binding: any, _wasm: boolean) {
           this._nativeProject,
           await rustifyProjectOptions(options)
         )
-      )
+      );
     }
 
     entrypointsSubscribe() {
-      type NapiEndpoint = { __napiType: 'Endpoint' }
+      type NapiEndpoint = { __napiType: "Endpoint" };
 
       type NapiEntrypoints = {
-        routes: NapiRoute[]
-        middleware?: NapiMiddleware
-        instrumentation?: NapiInstrumentation
-        pagesDocumentEndpoint: NapiEndpoint
-        pagesAppEndpoint: NapiEndpoint
-        pagesErrorEndpoint: NapiEndpoint
-      }
+        routes: NapiRoute[];
+        middleware?: NapiMiddleware;
+        instrumentation?: NapiInstrumentation;
+        pagesDocumentEndpoint: NapiEndpoint;
+        pagesAppEndpoint: NapiEndpoint;
+        pagesErrorEndpoint: NapiEndpoint;
+      };
 
       type NapiMiddleware = {
-        endpoint: NapiEndpoint
-        runtime: 'nodejs' | 'edge'
-        matcher?: string[]
-      }
+        endpoint: NapiEndpoint;
+        runtime: "nodejs" | "edge";
+        matcher?: string[];
+      };
 
       type NapiInstrumentation = {
-        nodeJs: NapiEndpoint
-        edge: NapiEndpoint
-      }
+        nodeJs: NapiEndpoint;
+        edge: NapiEndpoint;
+      };
 
       type NapiRoute = {
-        pathname: string
+        pathname: string;
       } & (
         | {
-            type: 'page'
-            htmlEndpoint: NapiEndpoint
-            dataEndpoint: NapiEndpoint
+            type: "page";
+            htmlEndpoint: NapiEndpoint;
+            dataEndpoint: NapiEndpoint;
           }
         | {
-            type: 'page-api'
-            endpoint: NapiEndpoint
+            type: "page-api";
+            endpoint: NapiEndpoint;
           }
         | {
-            type: 'app-page'
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            type: "app-page";
+            htmlEndpoint: NapiEndpoint;
+            rscEndpoint: NapiEndpoint;
           }
         | {
-            type: 'app-route'
-            endpoint: NapiEndpoint
+            type: "app-route";
+            endpoint: NapiEndpoint;
           }
         | {
-            type: 'conflict'
+            type: "conflict";
           }
-      )
+      );
 
       const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
         false,
         async (callback) =>
           binding.projectEntrypointsSubscribe(this._nativeProject, callback)
-      )
+      );
       return (async function* () {
         for await (const entrypoints of subscription) {
-          const routes = new Map()
+          const routes = new Map();
           for (const { pathname, ...nativeRoute } of entrypoints.routes) {
-            let route: Route
-            const routeType = nativeRoute.type
+            let route: Route;
+            const routeType = nativeRoute.type;
             switch (routeType) {
-              case 'page':
+              case "page":
                 route = {
-                  type: 'page',
+                  type: "page",
                   htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
                   dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
-                }
-                break
-              case 'page-api':
+                };
+                break;
+              case "page-api":
                 route = {
-                  type: 'page-api',
+                  type: "page-api",
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'app-page':
+                };
+                break;
+              case "app-page":
                 route = {
-                  type: 'app-page',
+                  type: "app-page",
                   htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
                   rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
-                }
-                break
-              case 'app-route':
+                };
+                break;
+              case "app-route":
                 route = {
-                  type: 'app-route',
+                  type: "app-route",
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'conflict':
+                };
+                break;
+              case "conflict":
                 route = {
-                  type: 'conflict',
-                }
-                break
+                  type: "conflict",
+                };
+                break;
               default:
-                const _exhaustiveCheck: never = routeType
+                const _exhaustiveCheck: never = routeType;
                 invariant(
                   nativeRoute,
                   () => `Unknown route type: ${_exhaustiveCheck}`
-                )
+                );
             }
-            routes.set(pathname, route)
+            routes.set(pathname, route);
           }
           const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
             endpoint: new EndpointImpl(middleware.endpoint),
             runtime: middleware.runtime,
             matcher: middleware.matcher,
-          })
+          });
           const middleware = entrypoints.middleware
             ? napiMiddlewareToMiddleware(entrypoints.middleware)
-            : undefined
+            : undefined;
           const napiInstrumentationToInstrumentation = (
             instrumentation: NapiInstrumentation
           ) => ({
             nodeJs: new EndpointImpl(instrumentation.nodeJs),
             edge: new EndpointImpl(instrumentation.edge),
-          })
+          });
           const instrumentation = entrypoints.instrumentation
             ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
-            : undefined
+            : undefined;
           yield {
             routes,
             middleware,
@@ -927,9 +927,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
             ),
             issues: entrypoints.issues,
             diagnostics: entrypoints.diagnostics,
-          }
+          };
         }
-      })()
+      })();
     }
 
     hmrEvents(identifier: string) {
@@ -937,8 +937,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
         true,
         async (callback) =>
           binding.projectHmrEvents(this._nativeProject, identifier, callback)
-      )
-      return subscription
+      );
+      return subscription;
     }
 
     hmrIdentifiersSubscribe() {
@@ -946,18 +946,18 @@ function bindingToApi(binding: any, _wasm: boolean) {
         false,
         async (callback) =>
           binding.projectHmrIdentifiersSubscribe(this._nativeProject, callback)
-      )
-      return subscription
+      );
+      return subscription;
     }
 
     traceSource(
       stackFrame: TurbopackStackFrame
     ): Promise<TurbopackStackFrame | null> {
-      return binding.projectTraceSource(this._nativeProject, stackFrame)
+      return binding.projectTraceSource(this._nativeProject, stackFrame);
     }
 
     getSourceForAsset(filePath: string): Promise<string | null> {
-      return binding.projectGetSourceForAsset(this._nativeProject, filePath)
+      return binding.projectGetSourceForAsset(this._nativeProject, filePath);
     }
 
     updateInfoSubscribe() {
@@ -965,22 +965,22 @@ function bindingToApi(binding: any, _wasm: boolean) {
         true,
         async (callback) =>
           binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
-      )
-      return subscription
+      );
+      return subscription;
     }
   }
 
   class EndpointImpl implements Endpoint {
-    private _nativeEndpoint: { __napiType: 'Endpoint' }
+    private _nativeEndpoint: { __napiType: "Endpoint" };
 
-    constructor(nativeEndpoint: { __napiType: 'Endpoint' }) {
-      this._nativeEndpoint = nativeEndpoint
+    constructor(nativeEndpoint: { __napiType: "Endpoint" }) {
+      this._nativeEndpoint = nativeEndpoint;
     }
 
     async writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>> {
       return await withErrorCause(() =>
         binding.endpointWriteToDisk(this._nativeEndpoint)
-      )
+      );
     }
 
     async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
@@ -991,9 +991,9 @@ function bindingToApi(binding: any, _wasm: boolean) {
             await this._nativeEndpoint,
             callback
           )
-      )
-      await clientSubscription.next()
-      return clientSubscription
+      );
+      await clientSubscription.next();
+      return clientSubscription;
     }
 
     async serverChanged(
@@ -1007,26 +1007,28 @@ function bindingToApi(binding: any, _wasm: boolean) {
             includeIssues,
             callback
           )
-      )
-      await serverSubscription.next()
-      return serverSubscription
+      );
+      await serverSubscription.next();
+      return serverSubscription;
     }
   }
 
   async function serializeNextConfig(
     nextConfig: NextConfigComplete
   ): Promise<string> {
-    let nextConfigSerializable = nextConfig as any
+    let nextConfigSerializable = nextConfig as any;
 
     nextConfigSerializable.generateBuildId =
-      await nextConfig.generateBuildId?.()
+      await nextConfig.generateBuildId?.();
 
     // TODO: these functions takes arguments, have to be supported in a different way
-    nextConfigSerializable.exportPathMap = {}
-    nextConfigSerializable.webpack = nextConfig.webpack && {}
+    nextConfigSerializable.exportPathMap = {};
+    nextConfigSerializable.webpack = nextConfig.webpack && {};
 
     if (nextConfig.experimental?.turbo?.rules) {
-      ensureLoadersHaveSerializableOptions(nextConfig.experimental.turbo?.rules)
+      ensureLoadersHaveSerializableOptions(
+        nextConfig.experimental.turbo?.rules
+      );
     }
 
     nextConfigSerializable.modularizeImports =
@@ -1038,7 +1040,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
                 {
                   ...config,
                   transform:
-                    typeof config.transform === 'string'
+                    typeof config.transform === "string"
                       ? config.transform
                       : Object.entries(config.transform).map(([key, value]) => [
                           key,
@@ -1048,24 +1050,24 @@ function bindingToApi(binding: any, _wasm: boolean) {
               ]
             )
           )
-        : undefined
+        : undefined;
 
-    return JSON.stringify(nextConfigSerializable, null, 2)
+    return JSON.stringify(nextConfigSerializable, null, 2);
   }
 
   function ensureLoadersHaveSerializableOptions(
     turbopackRules: Record<string, TurboRule>
   ) {
     for (const [glob, rule] of Object.entries(turbopackRules)) {
-      const loaderItems = Array.isArray(rule) ? rule : rule.loaders
+      const loaderItems = Array.isArray(rule) ? rule : rule.loaders;
       for (const loaderItem of loaderItems) {
         if (
-          typeof loaderItem !== 'string' &&
+          typeof loaderItem !== "string" &&
           !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
         ) {
           throw new Error(
             `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
-          )
+          );
         }
       }
     }
@@ -1080,31 +1082,31 @@ function bindingToApi(binding: any, _wasm: boolean) {
         await rustifyProjectOptions(options),
         turboEngineOptions || {}
       )
-    )
+    );
   }
 
-  return createProject
+  return createProject;
 }
 
-async function loadWasm(importPath = '') {
+async function loadWasm(importPath = "") {
   if (wasmBindings) {
-    return wasmBindings
+    return wasmBindings;
   }
 
-  let attempts = []
-  for (let pkg of ['@next/swc-wasm-nodejs', '@next/swc-wasm-web']) {
+  let attempts = [];
+  for (let pkg of ["@next/swc-wasm-nodejs", "@next/swc-wasm-web"]) {
     try {
-      let pkgPath = pkg
+      let pkgPath = pkg;
 
       if (importPath) {
         // the import path must be exact when not in node_modules
-        pkgPath = path.join(importPath, pkg, 'wasm.js')
+        pkgPath = path.join(importPath, pkg, "wasm.js");
       }
-      let bindings = await import(pkgPath)
-      if (pkg === '@next/swc-wasm-web') {
-        bindings = await bindings.default()
+      let bindings = await import(pkgPath);
+      if (pkg === "@next/swc-wasm-web") {
+        bindings = await bindings.default();
       }
-      infoLog('next-swc build: wasm build @next/swc-wasm-web')
+      infoLog("next-swc build: wasm build @next/swc-wasm-web");
 
       // Note wasm binary does not support async intefaces yet, all async
       // interface coereces to sync interfaces.
@@ -1114,34 +1116,34 @@ async function loadWasm(importPath = '') {
           // TODO: we can remove fallback to sync interface once new stable version of next-swc gets published (current v12.2)
           return bindings?.transform
             ? bindings.transform(src.toString(), options)
-            : Promise.resolve(bindings.transformSync(src.toString(), options))
+            : Promise.resolve(bindings.transformSync(src.toString(), options));
         },
         transformSync(src: string, options: any) {
-          return bindings.transformSync(src.toString(), options)
+          return bindings.transformSync(src.toString(), options);
         },
         minify(src: string, options: any) {
           return bindings?.minify
             ? bindings.minify(src.toString(), options)
-            : Promise.resolve(bindings.minifySync(src.toString(), options))
+            : Promise.resolve(bindings.minifySync(src.toString(), options));
         },
         minifySync(src: string, options: any) {
-          return bindings.minifySync(src.toString(), options)
+          return bindings.minifySync(src.toString(), options);
         },
         parse(src: string, options: any) {
           return bindings?.parse
             ? bindings.parse(src.toString(), options)
-            : Promise.resolve(bindings.parseSync(src.toString(), options))
+            : Promise.resolve(bindings.parseSync(src.toString(), options));
         },
         parseSync(src: string, options: any) {
-          const astStr = bindings.parseSync(src.toString(), options)
-          return astStr
+          const astStr = bindings.parseSync(src.toString(), options);
+          return astStr;
         },
         getTargetTriple() {
-          return undefined
+          return undefined;
         },
         turbo: {
           startTrace: () => {
-            Log.error('Wasm binding does not support trace yet')
+            Log.error("Wasm binding does not support trace yet");
           },
           entrypoints: {
             stream: (
@@ -1157,7 +1159,7 @@ async function loadWasm(importPath = '') {
                 applicationDir,
                 pageExtensions,
                 callbackFn
-              )
+              );
             },
             get: (
               turboTasks: any,
@@ -1170,7 +1172,7 @@ async function loadWasm(importPath = '') {
                 rootDir,
                 applicationDir,
                 pageExtensions
-              )
+              );
             },
           },
         },
@@ -1180,41 +1182,41 @@ async function loadWasm(importPath = '') {
           compileSync: (src: string, options: any) =>
             bindings.mdxCompileSync(src, getMdxOptions(options)),
         },
-      }
-      return wasmBindings
+      };
+      return wasmBindings;
     } catch (e: any) {
       // Only log attempts for loading wasm when loading as fallback
       if (importPath) {
-        if (e?.code === 'ERR_MODULE_NOT_FOUND') {
-          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+        if (e?.code === "ERR_MODULE_NOT_FOUND") {
+          attempts.push(`Attempted to load ${pkg}, but it was not installed`);
         } else {
           attempts.push(
             `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
-          )
+          );
         }
       }
     }
   }
 
-  throw attempts
+  throw attempts;
 }
 
 function loadNative(importPath?: string) {
   if (nativeBindings) {
-    return nativeBindings
+    return nativeBindings;
   }
 
   const customBindings = !!__INTERNAL_CUSTOM_TURBOPACK_BINDINGS
     ? require(__INTERNAL_CUSTOM_TURBOPACK_BINDINGS)
-    : null
-  let bindings: any
-  let attempts: any[] = []
+    : null;
+  let bindings: any;
+  let attempts: any[] = [];
 
   for (const triple of triples) {
     try {
-      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`)
-      infoLog('next-swc build: local built @next/swc')
-      break
+      bindings = require(`@next/swc/native/next-swc.${triple.platformArchABI}.node`);
+      infoLog("next-swc build: local built @next/swc");
+      break;
     } catch (e) {}
   }
 
@@ -1226,22 +1228,22 @@ function loadNative(importPath?: string) {
             `@next/swc-${triple.platformArchABI}`,
             `next-swc.${triple.platformArchABI}.node`
           )
-        : `@next/swc-${triple.platformArchABI}`
+        : `@next/swc-${triple.platformArchABI}`;
       try {
-        bindings = require(pkg)
+        bindings = require(pkg);
         if (!importPath) {
-          checkVersionMismatch(require(`${pkg}/package.json`))
+          checkVersionMismatch(require(`${pkg}/package.json`));
         }
-        break
+        break;
       } catch (e: any) {
-        if (e?.code === 'MODULE_NOT_FOUND') {
-          attempts.push(`Attempted to load ${pkg}, but it was not installed`)
+        if (e?.code === "MODULE_NOT_FOUND") {
+          attempts.push(`Attempted to load ${pkg}, but it was not installed`);
         } else {
           attempts.push(
             `Attempted to load ${pkg}, but an error occurred: ${e.message ?? e}`
-          )
+          );
         }
-        lastNativeBindingsLoadErrorCode = e?.code ?? 'unknown'
+        lastNativeBindingsLoadErrorCode = e?.code ?? "unknown";
       }
     }
   }
@@ -1264,55 +1266,55 @@ function loadNative(importPath?: string) {
       transform(src: string, options: any) {
         const isModule =
           typeof src !== undefined &&
-          typeof src !== 'string' &&
-          !Buffer.isBuffer(src)
-        options = options || {}
+          typeof src !== "string" &&
+          !Buffer.isBuffer(src);
+        options = options || {};
 
         if (options?.jsc?.parser) {
-          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+          options.jsc.parser.syntax = options.jsc.parser.syntax ?? "ecmascript";
         }
 
         return bindings.transform(
           isModule ? JSON.stringify(src) : src,
           isModule,
           toBuffer(options)
-        )
+        );
       },
 
       transformSync(src: string, options: any) {
         if (typeof src === undefined) {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
-          )
+          );
         } else if (Buffer.isBuffer(src)) {
           throw new Error(
             "transformSync doesn't implement taking the source code as Buffer"
-          )
+          );
         }
-        const isModule = typeof src !== 'string'
-        options = options || {}
+        const isModule = typeof src !== "string";
+        options = options || {};
 
         if (options?.jsc?.parser) {
-          options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript'
+          options.jsc.parser.syntax = options.jsc.parser.syntax ?? "ecmascript";
         }
 
         return bindings.transformSync(
           isModule ? JSON.stringify(src) : src,
           isModule,
           toBuffer(options)
-        )
+        );
       },
 
       minify(src: string, options: any) {
-        return bindings.minify(toBuffer(src), toBuffer(options ?? {}))
+        return bindings.minify(toBuffer(src), toBuffer(options ?? {}));
       },
 
       minifySync(src: string, options: any) {
-        return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
+        return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}));
       },
 
       parse(src: string, options: any) {
-        return bindings.parse(src, toBuffer(options ?? {}))
+        return bindings.parse(src, toBuffer(options ?? {}));
       },
 
       getTargetTriple: bindings.getTargetTriple,
@@ -1323,18 +1325,18 @@ function loadNative(importPath?: string) {
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
         nextBuild: (options: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
+          initHeapProfiler();
+          const ret = (customBindings ?? bindings).nextBuild(options);
 
-          return ret
+          return ret;
         },
         startTrace: (options = {}, turboTasks: unknown) => {
-          initHeapProfiler()
+          initHeapProfiler();
           const ret = (customBindings ?? bindings).runTurboTracing(
             toBuffer({ exact: true, ...options }),
             turboTasks
-          )
-          return ret
+          );
+          return ret;
         },
         createTurboTasks: (memoryLimit?: number): unknown =>
           bindings.createTurboTasks(memoryLimit),
@@ -1352,7 +1354,7 @@ function loadNative(importPath?: string) {
               applicationDir,
               pageExtensions,
               fn
-            )
+            );
           },
           get: (
             turboTasks: any,
@@ -1365,7 +1367,7 @@ function loadNative(importPath?: string) {
               rootDir,
               applicationDir,
               pageExtensions
-            )
+            );
           },
         },
         createProject: bindingToApi(customBindings ?? bindings, false),
@@ -1376,11 +1378,11 @@ function loadNative(importPath?: string) {
         compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
       },
-    }
-    return nativeBindings
+    };
+    return nativeBindings;
   }
 
-  throw attempts
+  throw attempts;
 }
 
 /// Build a mdx options object contains default values that
@@ -1394,59 +1396,59 @@ function getMdxOptions(options: any = {}) {
       gfmStrikethroughSingleTilde: true,
       mathTextSingleDollar: true,
     },
-  }
+  };
 
-  return ret
+  return ret;
 }
 
 function toBuffer(t: any) {
-  return Buffer.from(JSON.stringify(t))
+  return Buffer.from(JSON.stringify(t));
 }
 
 export async function isWasm(): Promise<boolean> {
-  let bindings = await loadBindings()
-  return bindings.isWasm
+  let bindings = await loadBindings();
+  return bindings.isWasm;
 }
 
 export async function transform(src: string, options?: any): Promise<any> {
-  let bindings = await loadBindings()
-  return bindings.transform(src, options)
+  let bindings = await loadBindings();
+  return bindings.transform(src, options);
 }
 
 export function transformSync(src: string, options?: any): any {
-  let bindings = loadBindingsSync()
-  return bindings.transformSync(src, options)
+  let bindings = loadBindingsSync();
+  return bindings.transformSync(src, options);
 }
 
 export async function minify(src: string, options: any): Promise<string> {
-  let bindings = await loadBindings()
-  return bindings.minify(src, options)
+  let bindings = await loadBindings();
+  return bindings.minify(src, options);
 }
 
 export function minifySync(src: string, options: any): string {
-  let bindings = loadBindingsSync()
-  return bindings.minifySync(src, options)
+  let bindings = loadBindingsSync();
+  return bindings.minifySync(src, options);
 }
 
 export async function parse(src: string, options: any): Promise<any> {
-  let bindings = await loadBindings()
-  let parserOptions = getParserOptions(options)
+  let bindings = await loadBindings();
+  let parserOptions = getParserOptions(options);
   return bindings
     .parse(src, parserOptions)
-    .then((astStr: any) => JSON.parse(astStr))
+    .then((astStr: any) => JSON.parse(astStr));
 }
 
 export function getBinaryMetadata() {
-  let bindings
+  let bindings;
   try {
-    bindings = loadNative()
+    bindings = loadNative();
   } catch (e) {
     // Suppress exceptions, this fn allows to fail to load native bindings
   }
 
   return {
     target: bindings?.getTargetTriple?.(),
-  }
+  };
 }
 
 /**
@@ -1456,10 +1458,10 @@ export function getBinaryMetadata() {
 export const initCustomTraceSubscriber = (traceFileName?: string): void => {
   if (!swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
-    let bindings = loadNative()
-    swcTraceFlushGuard = bindings.initCustomTraceSubscriber(traceFileName)
+    let bindings = loadNative();
+    swcTraceFlushGuard = bindings.initCustomTraceSubscriber(traceFileName);
   }
-}
+};
 
 /**
  * Initialize heap profiler, if possible.
@@ -1470,13 +1472,13 @@ export const initCustomTraceSubscriber = (traceFileName?: string): void => {
 export const initHeapProfiler = () => {
   try {
     if (!swcHeapProfilerFlushGuard) {
-      let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler()
+      let bindings = loadNative();
+      swcHeapProfilerFlushGuard = bindings.initHeapProfiler();
     }
   } catch (_) {
     // Suppress exceptions, this fn allows to fail to load native bindings
   }
-}
+};
 
 /**
  * Teardown heap profiler, if possible.
@@ -1485,21 +1487,21 @@ export const initHeapProfiler = () => {
  * and calling it will not do anything.
  */
 export const teardownHeapProfiler = (() => {
-  let flushed = false
+  let flushed = false;
   return (): void => {
     if (!flushed) {
-      flushed = true
+      flushed = true;
       try {
-        let bindings = loadNative()
+        let bindings = loadNative();
         if (swcHeapProfilerFlushGuard) {
-          bindings.teardownHeapProfiler(swcHeapProfilerFlushGuard)
+          bindings.teardownHeapProfiler(swcHeapProfilerFlushGuard);
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings
       }
     }
-  }
-})()
+  };
+})();
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.
@@ -1511,35 +1513,35 @@ export const teardownHeapProfiler = (() => {
  * instead parent process manually drops guard when process gets signal to exit.
  */
 export const teardownTraceSubscriber = (() => {
-  let flushed = false
+  let flushed = false;
   return (): void => {
     if (!flushed) {
-      flushed = true
+      flushed = true;
       try {
-        let bindings = loadNative()
+        let bindings = loadNative();
         if (swcTraceFlushGuard) {
-          bindings.teardownTraceSubscriber(swcTraceFlushGuard)
+          bindings.teardownTraceSubscriber(swcTraceFlushGuard);
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings
       }
     }
-  }
-})()
+  };
+})();
 
 export const teardownCrashReporter = (() => {
-  let flushed = false
+  let flushed = false;
   return (): void => {
     if (!flushed) {
-      flushed = true
+      flushed = true;
       try {
-        let bindings = loadNative()
+        let bindings = loadNative();
         if (swcCrashReporterFlushGuard) {
-          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
+          bindings.teardownCrashReporter(swcCrashReporterFlushGuard);
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings
       }
     }
-  }
-})()
+  };
+})();

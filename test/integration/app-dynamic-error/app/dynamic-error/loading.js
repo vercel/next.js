@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>loading...</p>
+  return <p>loading...</p>;
 }

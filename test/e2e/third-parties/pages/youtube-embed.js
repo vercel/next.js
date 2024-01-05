@@ -1,4 +1,4 @@
-import { YouTubeEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from "@next/third-parties/google";
 
 const Page = () => {
   return (
@@ -6,7 +6,7 @@ const Page = () => {
       <h1>Youtube Embed</h1>
       <YouTubeEmbed videoid="ogfYd705cRs" height={400} />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

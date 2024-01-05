@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import Image from 'next/legacy/image'
+import { useState } from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -13,15 +13,15 @@ const Page = () => {
       <ImageWithMessage id="2" src="/nonexistent-img.png" layout="fill" />
       <div id="footer" />
     </div>
-  )
-}
+  );
+};
 
 function ImageWithMessage({ id, ...props }) {
-  const [msg, setMsg] = useState('no error occured')
+  const [msg, setMsg] = useState("no error occured");
   const style =
-    props.layout === 'fill'
-      ? { position: 'relative', width: '64px', height: '64px' }
-      : {}
+    props.layout === "fill"
+      ? { position: "relative", width: "64px", height: "64px" }
+      : {};
 
   return (
     <>
@@ -29,8 +29,8 @@ function ImageWithMessage({ id, ...props }) {
         <Image
           id={`img${id}`}
           onError={(e) => {
-            const msg = `error occured while loading ${e.target.id}`
-            setMsg(msg)
+            const msg = `error occured while loading ${e.target.id}`;
+            setMsg(msg);
           }}
           {...props}
         />
@@ -38,7 +38,7 @@ function ImageWithMessage({ id, ...props }) {
       <p id={`msg${id}`}>{msg}</p>
       <hr />
     </>
-  )
+  );
 }
 
-export default Page
+export default Page;

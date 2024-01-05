@@ -1,3 +1,3 @@
 export function Two() {
-  return 'two'
+  return "two";
 }

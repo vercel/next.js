@@ -1,33 +1,36 @@
-import findUp from 'next/dist/compiled/find-up'
+import findUp from "next/dist/compiled/find-up";
 
-const EVENT_PLUGIN_PRESENT = 'NEXT_PACKAGE_DETECTED'
+const EVENT_PLUGIN_PRESENT = "NEXT_PACKAGE_DETECTED";
 type NextPluginsEvent = {
-  eventName: string
+  eventName: string;
   payload: {
-    packageName: string
-    packageVersion: string
-  }
-}
+    packageName: string;
+    packageVersion: string;
+  };
+};
 
 export async function eventNextPlugins(
   dir: string
 ): Promise<Array<NextPluginsEvent>> {
   try {
-    const packageJsonPath = await findUp('package.json', { cwd: dir })
+    const packageJsonPath = await findUp("package.json", { cwd: dir });
     if (!packageJsonPath) {
-      return []
+      return [];
     }
 
-    const { dependencies = {}, devDependencies = {} } = require(packageJsonPath)
+    const {
+      dependencies = {},
+      devDependencies = {},
+    } = require(packageJsonPath);
 
-    const deps = { ...devDependencies, ...dependencies }
+    const deps = { ...devDependencies, ...dependencies };
 
     return Object.keys(deps).reduce(
       (events: NextPluginsEvent[], plugin: string): NextPluginsEvent[] => {
-        const version = deps[plugin]
+        const version = deps[plugin];
         // Don't add deps without a version set
         if (!version) {
-          return events
+          return events;
         }
 
         events.push({
@@ -36,13 +39,13 @@ export async function eventNextPlugins(
             packageName: plugin,
             packageVersion: version,
           },
-        })
+        });
 
-        return events
+        return events;
       },
       []
-    )
+    );
   } catch (_) {
-    return []
+    return [];
   }
 }

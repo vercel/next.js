@@ -4,5 +4,5 @@ export default function Layout({ children, modal }) {
       {children}
       {modal}
     </div>
-  )
+  );
 }

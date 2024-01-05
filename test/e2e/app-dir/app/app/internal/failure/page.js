@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div id="failure">Failure</div>
+  return <div id="failure">Failure</div>;
 }

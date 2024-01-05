@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import Script from 'next/script'
+import Link from "next/link";
+import Script from "next/script";
 
 const Page = () => {
   return (
@@ -10,7 +10,7 @@ const Page = () => {
         <Link href="/">Index</Link>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

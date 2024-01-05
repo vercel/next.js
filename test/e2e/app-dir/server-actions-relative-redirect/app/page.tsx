@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import { startTransition } from 'react'
-import { absoluteRedirect, relativeRedirect } from './actions'
+import { startTransition } from "react";
+import { absoluteRedirect, relativeRedirect } from "./actions";
 
 export default function Page() {
   return (
@@ -11,8 +11,8 @@ export default function Page() {
         onClick={async () => {
           // @ts-expect-error Async Transitions
           startTransition(async () => {
-            await relativeRedirect()
-          })
+            await relativeRedirect();
+          });
         }}
         id="relative-redirect"
       >
@@ -22,13 +22,13 @@ export default function Page() {
         onClick={async () => {
           // @ts-expect-error Async Transitions
           startTransition(async () => {
-            await absoluteRedirect()
-          })
+            await absoluteRedirect();
+          });
         }}
         id="absolute-redirect"
       >
         absolute redirect
       </button>
     </>
-  )
+  );
 }

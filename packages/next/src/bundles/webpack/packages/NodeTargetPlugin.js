@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').NodeTargetPlugin
+module.exports = require("./webpack.js").NodeTargetPlugin;

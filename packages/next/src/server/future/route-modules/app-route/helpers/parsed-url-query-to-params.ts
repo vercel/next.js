@@ -1,4 +1,4 @@
-import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrlQuery } from "querystring";
 
 /**
  * Converts the query into params.
@@ -9,12 +9,12 @@ import type { ParsedUrlQuery } from 'querystring'
 export function parsedUrlQueryToParams(
   query: ParsedUrlQuery
 ): Record<string, string | string[]> {
-  const params: Record<string, string | string[]> = {}
+  const params: Record<string, string | string[]> = {};
 
   for (const [key, value] of Object.entries(query)) {
-    if (typeof value === 'undefined') continue
-    params[key] = value
+    if (typeof value === "undefined") continue;
+    params[key] = value;
   }
 
-  return params
+  return params;
 }

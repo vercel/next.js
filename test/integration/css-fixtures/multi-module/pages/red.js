@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { redText } from './red.module.css'
+import Link from "next/link";
+import { redText } from "./red.module.css";
 
 export default function Red() {
   return (
@@ -16,5 +16,5 @@ export default function Red() {
         None
       </Link>
     </>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import React from 'react'
+import React from "react";
 
 class Error extends React.Component {
   static async getInitialProps({ req, res, err }) {
-    if (!req.url.startsWith('/404') && !req.url.startsWith('/500')) {
-      await Promise.reject(new Error('an error in error'))
+    if (!req.url.startsWith("/404") && !req.url.startsWith("/500")) {
+      await Promise.reject(new Error("an error in error"));
     }
-    const statusCode = res ? res.statusCode : err ? err.statusCode : null
-    return { statusCode }
+    const statusCode = res ? res.statusCode : err ? err.statusCode : null;
+    return { statusCode };
   }
 
   render() {
@@ -14,10 +14,10 @@ class Error extends React.Component {
       <p>
         {this.props.statusCode
           ? `An error ${this.props.statusCode} occurred on server`
-          : 'An error occurred on client'}
+          : "An error occurred on client"}
       </p>
-    )
+    );
   }
 }
 
-export default Error
+export default Error;

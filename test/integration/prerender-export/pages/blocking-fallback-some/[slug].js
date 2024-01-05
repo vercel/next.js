@@ -1,31 +1,31 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getStaticPaths() {
   return {
-    paths: [{ params: { slug: 'a' } }, { params: { slug: 'b' } }],
+    paths: [{ params: { slug: "a" } }, { params: { slug: "b" } }],
     fallback: false,
-  }
+  };
 }
 
 export async function getStaticProps({ params }) {
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   return {
     props: {
       params,
-      hello: 'world',
+      hello: "world",
       post: params.slug,
       random: Math.random(),
-      time: (await import('perf_hooks')).performance.now(),
+      time: (await import("perf_hooks")).performance.now(),
     },
-  }
+  };
 }
 
 export default ({ post, time, params }) => {
   if (useRouter().isFallback) {
-    return <p>hi fallback</p>
+    return <p>hi fallback</p>;
   }
 
   return (
@@ -38,5 +38,5 @@ export default ({ post, time, params }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

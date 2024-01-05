@@ -1,10 +1,10 @@
-import { notFound } from 'next/navigation'
+import { notFound } from "next/navigation";
 
-export const dynamicParams = true
+export const dynamicParams = true;
 
 export default function Page({ params }) {
-  if (params.author === 'shu') {
-    notFound()
+  if (params.author === "shu") {
+    notFound();
   }
 
   return (
@@ -13,42 +13,42 @@ export default function Page({ params }) {
       <p id="params">{JSON.stringify(params)}</p>
       <p id="date">{Date.now()}</p>
     </>
-  )
+  );
 }
 
 export function generateStaticParams({ params }) {
   console.log(
-    '/blog/[author]/[slug] generateStaticParams',
+    "/blog/[author]/[slug] generateStaticParams",
     JSON.stringify(params)
-  )
+  );
 
   switch (params.author) {
-    case 'tim': {
+    case "tim": {
       return [
         {
-          slug: 'first-post',
+          slug: "first-post",
         },
-      ]
+      ];
     }
-    case 'seb': {
+    case "seb": {
       return [
         {
-          slug: 'second-post',
+          slug: "second-post",
         },
-      ]
+      ];
     }
-    case 'styfle': {
+    case "styfle": {
       return [
         {
-          slug: 'first-post',
+          slug: "first-post",
         },
         {
-          slug: 'second-post',
+          slug: "second-post",
         },
-      ]
+      ];
     }
     default: {
-      throw new Error(`unexpected author param received ${params.author}`)
+      throw new Error(`unexpected author param received ${params.author}`);
     }
   }
 }

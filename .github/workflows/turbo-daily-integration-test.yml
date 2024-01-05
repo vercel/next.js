@@ -4,13 +4,13 @@ name: Daily Next.js integration test with turbopack
 
 on:
   schedule:
-    - cron: '0 8 * * *'
+    - cron: "0 8 * * *"
   workflow_dispatch:
     inputs:
       version:
         description: Next.js version, sha, branch to test
         type: string
-        default: 'canary'
+        default: "canary"
 
 jobs:
   # Trigger actual next.js integration tests.
@@ -21,7 +21,7 @@ jobs:
     uses: ./.github/workflows/nextjs-integration-test.yml
     secrets: inherit
     with:
-      diff_base: 'none'
+      diff_base: "none"
       version: ${{ inputs.version || 'canary' }}
 
   # Upload test results to KV, but only for scheduled runs.

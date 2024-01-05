@@ -1,3 +1,3 @@
 module.exports = {
-  basePath: '/dashboard',
-}
+  basePath: "/dashboard",
+};

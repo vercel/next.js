@@ -1,11 +1,11 @@
-import React from 'react'
-import Image from 'next/image'
-import testTall from '../public/tall.png'
-import svg from '../public/test.svg'
-import avif from '../public/test.avif'
-import { ImageCard } from '../components/image-card'
-import { DynamicSrcImage } from '../components/image-dynamic-src'
-import { ImageWithLoader } from '../components/image-with-loader'
+import React from "react";
+import Image from "next/image";
+import testTall from "../public/tall.png";
+import svg from "../public/test.svg";
+import avif from "../public/test.avif";
+import { ImageCard } from "../components/image-card";
+import { DynamicSrcImage } from "../components/image-dynamic-src";
+import { ImageWithLoader } from "../components/image-with-loader";
 
 const Page = () => {
   return (
@@ -105,7 +105,7 @@ const Page = () => {
       />
       <p id="stubtext">This is valid usage of the Image component</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

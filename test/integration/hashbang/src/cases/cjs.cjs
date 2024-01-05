@@ -1,3 +1,3 @@
 #!/usr/env node
 
-module.exports = 789
+module.exports = 789;

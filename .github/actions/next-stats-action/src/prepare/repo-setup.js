@@ -1,54 +1,54 @@
-const path = require('path')
-const fs = require('fs')
-const { existsSync } = require('fs')
-const exec = require('../util/exec')
-const logger = require('../util/logger')
-const execa = require('execa')
+const path = require("path");
+const fs = require("fs");
+const { existsSync } = require("fs");
+const exec = require("../util/exec");
+const logger = require("../util/logger");
+const execa = require("execa");
 
 module.exports = (actionInfo) => {
   return {
-    async cloneRepo(repoPath = '', dest = '', branch = '', depth = '20') {
-      await fs.promises.rm(dest, { recursive: true, force: true })
+    async cloneRepo(repoPath = "", dest = "", branch = "", depth = "20") {
+      await fs.promises.rm(dest, { recursive: true, force: true });
       await exec(
         `git clone ${actionInfo.gitRoot}${repoPath} --single-branch --branch ${branch} --depth=${depth} ${dest}`
-      )
+      );
     },
-    async getLastStable(repoDir = '') {
-      const { stdout } = await exec(`cd ${repoDir} && git describe`)
-      const tag = stdout.trim()
+    async getLastStable(repoDir = "") {
+      const { stdout } = await exec(`cd ${repoDir} && git describe`);
+      const tag = stdout.trim();
 
-      if (!tag || !tag.startsWith('v')) {
-        throw new Error(`Failed to get tag info: "${stdout}"`)
+      if (!tag || !tag.startsWith("v")) {
+        throw new Error(`Failed to get tag info: "${stdout}"`);
       }
-      const [major, minor, patch] = tag.split('-canary')[0].split('.')
+      const [major, minor, patch] = tag.split("-canary")[0].split(".");
       if (!major || !minor || !patch) {
         throw new Error(
           `Failed to split tag into major/minor/patch: "${stdout}"`
-        )
+        );
       }
       // last stable tag will always be 1 patch less than canary
-      return `${major}.${minor}.${Number(patch) - 1}`
+      return `${major}.${minor}.${Number(patch) - 1}`;
     },
-    async getCommitId(repoDir = '') {
-      const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)
-      return stdout.trim()
+    async getCommitId(repoDir = "") {
+      const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`);
+      return stdout.trim();
     },
-    async resetToRef(ref = '', repoDir = '') {
-      await exec(`cd ${repoDir} && git reset --hard ${ref}`)
+    async resetToRef(ref = "", repoDir = "") {
+      await exec(`cd ${repoDir} && git reset --hard ${ref}`);
     },
-    async mergeBranch(ref = '', origRepoDir = '', destRepoDir = '') {
-      await exec(`cd ${destRepoDir} && git remote add upstream ${origRepoDir}`)
-      await exec(`cd ${destRepoDir} && git fetch upstream`)
+    async mergeBranch(ref = "", origRepoDir = "", destRepoDir = "") {
+      await exec(`cd ${destRepoDir} && git remote add upstream ${origRepoDir}`);
+      await exec(`cd ${destRepoDir} && git fetch upstream`);
 
       try {
-        await exec(`cd ${destRepoDir} && git merge upstream/${ref}`)
-        logger('Auto merge of main branch successful')
+        await exec(`cd ${destRepoDir} && git merge upstream/${ref}`);
+        logger("Auto merge of main branch successful");
       } catch (err) {
-        logger.error('Failed to auto merge main branch:', err)
+        logger.error("Failed to auto merge main branch:", err);
 
-        if (err.stdout && err.stdout.includes('CONFLICT')) {
-          await exec(`cd ${destRepoDir} && git merge --abort`)
-          logger('aborted auto merge')
+        if (err.stdout && err.stdout.includes("CONFLICT")) {
+          await exec(`cd ${destRepoDir} && git merge --abort`);
+          logger("aborted auto merge");
         }
       }
     },
@@ -59,47 +59,47 @@ module.exports = (actionInfo) => {
      */
     async linkPackages({ repoDir, nextSwcVersion }) {
       /** @type {Map<string, string>} */
-      const pkgPaths = new Map()
+      const pkgPaths = new Map();
       /** @type {Map<string, { packageJsonPath: string, packagePath: string, packageJson: any, packedPackageTarPath: string }>} */
-      const pkgDatas = new Map()
+      const pkgDatas = new Map();
 
-      let packageFolders
+      let packageFolders;
 
       try {
         packageFolders = await fs.promises.readdir(
-          path.join(repoDir, 'packages')
-        )
+          path.join(repoDir, "packages")
+        );
       } catch (err) {
-        if (err.code === 'ENOENT') {
-          require('console').log('no packages to link')
-          return pkgPaths
+        if (err.code === "ENOENT") {
+          require("console").log("no packages to link");
+          return pkgPaths;
         }
-        throw err
+        throw err;
       }
 
       for (const packageFolder of packageFolders) {
-        const packagePath = path.join(repoDir, 'packages', packageFolder)
+        const packagePath = path.join(repoDir, "packages", packageFolder);
         const packedPackageTarPath = path.join(
           packagePath,
           `${packageFolder}-packed.tgz`
-        )
-        const packageJsonPath = path.join(packagePath, 'package.json')
+        );
+        const packageJsonPath = path.join(packagePath, "package.json");
 
         if (!existsSync(packageJsonPath)) {
-          require('console').log(`Skipping ${packageFolder}, no package.json`)
-          continue
+          require("console").log(`Skipping ${packageFolder}, no package.json`);
+          continue;
         }
 
-        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath))
-        const { name: packageName } = packageJson
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonPath));
+        const { name: packageName } = packageJson;
 
         pkgDatas.set(packageName, {
           packageJsonPath,
           packagePath,
           packageJson,
           packedPackageTarPath,
-        })
-        pkgPaths.set(packageName, packedPackageTarPath)
+        });
+        pkgPaths.set(packageName, packedPackageTarPath);
       }
 
       for (const [
@@ -115,47 +115,47 @@ module.exports = (actionInfo) => {
             !packageJson.dependencies ||
             !packageJson.dependencies[packageName]
           )
-            continue
+            continue;
           // Edit the pkgData of the current item to point to the packed tgz
-          packageJson.dependencies[packageName] = packedPackageTarPath
+          packageJson.dependencies[packageName] = packedPackageTarPath;
         }
 
         // make sure native binaries are included in local linking
-        if (packageName === '@next/swc') {
-          packageJson.files ||= []
+        if (packageName === "@next/swc") {
+          packageJson.files ||= [];
 
-          packageJson.files.push('native')
+          packageJson.files.push("native");
 
           try {
             const swcBinariesDirContents = (
-              await fs.promises.readdir(path.join(packagePath, 'native'))
-            ).filter((file) => file !== '.gitignore' && file !== 'index.d.ts')
+              await fs.promises.readdir(path.join(packagePath, "native"))
+            ).filter((file) => file !== ".gitignore" && file !== "index.d.ts");
 
-            require('console').log(
-              'using swc binaries: ',
-              swcBinariesDirContents.join(', ')
-            )
+            require("console").log(
+              "using swc binaries: ",
+              swcBinariesDirContents.join(", ")
+            );
           } catch (err) {
-            if (err.code === 'ENOENT') {
-              require('console').log('swc binaries dir is missing!')
+            if (err.code === "ENOENT") {
+              require("console").log("swc binaries dir is missing!");
             }
-            throw err
+            throw err;
           }
-        } else if (packageName === 'next') {
-          const nextSwcPkg = pkgDatas.get('@next/swc')
+        } else if (packageName === "next") {
+          const nextSwcPkg = pkgDatas.get("@next/swc");
 
-          console.log('using swc dep', {
+          console.log("using swc dep", {
             nextSwcVersion,
             nextSwcPkg,
-          })
+          });
           if (nextSwcVersion) {
             Object.assign(packageJson.dependencies, {
-              '@next/swc-linux-x64-gnu': nextSwcVersion,
-            })
+              "@next/swc-linux-x64-gnu": nextSwcVersion,
+            });
           } else {
             if (nextSwcPkg) {
-              packageJson.dependencies['@next/swc'] =
-                nextSwcPkg.packedPackageTarPath
+              packageJson.dependencies["@next/swc"] =
+                nextSwcPkg.packedPackageTarPath;
             }
           }
         }
@@ -163,8 +163,8 @@ module.exports = (actionInfo) => {
         await fs.promises.writeFile(
           packageJsonPath,
           JSON.stringify(packageJson, null, 2),
-          'utf8'
-        )
+          "utf8"
+        );
       }
 
       // wait to pack packages until after dependency paths have been updated
@@ -176,9 +176,9 @@ module.exports = (actionInfo) => {
             { packagePath: pkgPath, packedPackageTarPath: packedPkgPath },
           ]) => {
             /** @type {null | () => Promise<void>} */
-            let cleanup = null
+            let cleanup = null;
 
-            if (packageName === '@next/swc') {
+            if (packageName === "@next/swc") {
               // next-swc uses a gitignore to prevent the committing of native builds but it doesn't
               // use files in package.json because it publishes to individual packages based on architecture.
               // When we used yarn to pack these packages the gitignore was ignored so the native builds were packed
@@ -187,34 +187,34 @@ module.exports = (actionInfo) => {
 
               const nativeGitignorePath = path.join(
                 pkgPath,
-                'native/.gitignore'
-              )
+                "native/.gitignore"
+              );
               const renamedGitignorePath = path.join(
                 pkgPath,
-                'disabled-native-gitignore'
-              )
+                "disabled-native-gitignore"
+              );
 
               await fs.promises.rename(
                 nativeGitignorePath,
                 renamedGitignorePath
-              )
+              );
               cleanup = async () => {
                 await fs.promises.rename(
                   renamedGitignorePath,
                   nativeGitignorePath
-                )
-              }
+                );
+              };
             }
 
-            const { stdout } = await execa('pnpm', ['pack'], {
+            const { stdout } = await execa("pnpm", ["pack"], {
               cwd: pkgPath,
               env: {
                 ...process.env,
-                COREPACK_ENABLE_STRICT: '0',
+                COREPACK_ENABLE_STRICT: "0",
               },
-            })
+            });
 
-            const packedFileName = stdout.trim()
+            const packedFileName = stdout.trim();
 
             await Promise.all([
               fs.promises.rename(
@@ -222,12 +222,12 @@ module.exports = (actionInfo) => {
                 packedPkgPath
               ),
               cleanup?.(),
-            ])
+            ]);
           }
         )
-      )
+      );
 
-      return pkgPaths
+      return pkgPaths;
     },
-  }
-}
+  };
+};

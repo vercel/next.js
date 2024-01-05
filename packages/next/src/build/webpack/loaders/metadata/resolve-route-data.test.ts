@@ -1,22 +1,22 @@
-import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
-import { resolveRobots, resolveSitemap } from './resolve-route-data'
+import type { MetadataRoute } from "../../../../lib/metadata/types/metadata-interface";
+import { resolveRobots, resolveSitemap } from "./resolve-route-data";
 
-describe('resolveRouteData', () => {
-  describe('resolveRobots', () => {
-    it('should resolve robots.txt', () => {
+describe("resolveRouteData", () => {
+  describe("resolveRobots", () => {
+    it("should resolve robots.txt", () => {
       const data = {
-        host: 'https://example.com',
-        sitemap: 'https://example.com/sitemap.xml',
+        host: "https://example.com",
+        sitemap: "https://example.com/sitemap.xml",
         rules: [
           {
-            userAgent: 'Googlebot',
-            allow: '/',
-            disallow: '/admin',
+            userAgent: "Googlebot",
+            allow: "/",
+            disallow: "/admin",
             crawlDelay: 2,
           },
         ],
-      }
-      const content = resolveRobots(data)
+      };
+      const content = resolveRobots(data);
       expect(content).toMatchInlineSnapshot(`
         "User-Agent: Googlebot
         Allow: /
@@ -26,33 +26,33 @@ describe('resolveRouteData', () => {
         Host: https://example.com
         Sitemap: https://example.com/sitemap.xml
         "
-      `)
-    })
+      `);
+    });
 
-    it('should error with ts when specify both wildcard userAgent and specific userAgent', () => {
+    it("should error with ts when specify both wildcard userAgent and specific userAgent", () => {
       const data1: MetadataRoute.Robots = {
         rules: [
           // @ts-expect-error userAgent is required for Array<Robots>
           {
-            allow: '/',
+            allow: "/",
           },
           {
-            userAgent: 'Googlebot',
-            allow: ['/bot', '/bot2'],
+            userAgent: "Googlebot",
+            allow: ["/bot", "/bot2"],
           },
         ],
-      }
+      };
 
       const data2: MetadataRoute.Robots = {
         rules: {
           // Can skip userAgent for single Robots
-          allow: '/',
+          allow: "/",
         },
-      }
+      };
 
       const data3: MetadataRoute.Robots = {
-        rules: { allow: '/' },
-      }
+        rules: { allow: "/" },
+      };
 
       expect(resolveRobots(data1)).toMatchInlineSnapshot(`
         "User-Agent: *
@@ -63,26 +63,26 @@ describe('resolveRouteData', () => {
         Allow: /bot2
 
         "
-      `)
+      `);
 
-      resolveRobots(data2)
+      resolveRobots(data2);
       expect(resolveRobots(data3)).toMatchInlineSnapshot(`
         "User-Agent: *
         Allow: /
 
         "
-      `)
-    })
-  })
+      `);
+    });
+  });
 
-  describe('resolveSitemap', () => {
-    it('should resolve sitemap.xml', () => {
+  describe("resolveSitemap", () => {
+    it("should resolve sitemap.xml", () => {
       expect(
         resolveSitemap([
           {
-            url: 'https://example.com',
-            lastModified: '2021-01-01',
-            changeFrequency: 'weekly',
+            url: "https://example.com",
+            lastModified: "2021-01-01",
+            changeFrequency: "weekly",
             priority: 0.5,
           },
         ])
@@ -97,7 +97,7 @@ describe('resolveRouteData', () => {
         </url>
         </urlset>
         "
-      `)
-    })
-  })
-})
+      `);
+    });
+  });
+});

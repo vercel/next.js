@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useStore } from '../lib/store'
+import { useStore } from "../lib/store";
 
 const useCounter = () => {
   return useStore((store) => ({
@@ -8,11 +8,11 @@ const useCounter = () => {
     increment: store.increment,
     decrement: store.decrement,
     reset: store.reset,
-  }))
-}
+  }));
+};
 
 const Counter = () => {
-  const { count, increment, decrement, reset } = useCounter()
+  const { count, increment, decrement, reset } = useCounter();
   return (
     <div>
       <h1>
@@ -22,7 +22,7 @@ const Counter = () => {
       <button onClick={decrement}>-1</button>
       <button onClick={reset}>Reset</button>
     </div>
-  )
-}
+  );
+};
 
-export default Counter
+export default Counter;

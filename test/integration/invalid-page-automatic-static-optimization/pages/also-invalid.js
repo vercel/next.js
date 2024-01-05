@@ -1,1 +1,1 @@
-export default 'just a string'
+export default "just a string";

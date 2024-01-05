@@ -1,5 +1,5 @@
-import React from 'react'
-import api from '@lib/api'
+import React from "react";
+import api from "@lib/api";
 export default function ResolveOrder(): JSX.Element {
-  return <div>{api()}</div>
+  return <div>{api()}</div>;
 }

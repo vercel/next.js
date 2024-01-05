@@ -1,4 +1,4 @@
-import { parsePath } from './parse-path'
+import { parsePath } from "./parse-path";
 
 /**
  * Similarly to `addPathPrefix`, this function adds a suffix at the end on the
@@ -6,10 +6,10 @@ import { parsePath } from './parse-path'
  * with a slash.
  */
 export function addPathSuffix(path: string, suffix?: string) {
-  if (!path.startsWith('/') || !suffix) {
-    return path
+  if (!path.startsWith("/") || !suffix) {
+    return path;
   }
 
-  const { pathname, query, hash } = parsePath(path)
-  return `${pathname}${suffix}${query}${hash}`
+  const { pathname, query, hash } = parsePath(path);
+  return `${pathname}${suffix}${query}${hash}`;
 }

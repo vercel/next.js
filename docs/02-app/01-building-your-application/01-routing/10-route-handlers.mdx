@@ -25,12 +25,12 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 export async function GET(request) {}
 ```
 
@@ -53,29 +53,29 @@ Route Handlers are cached by default when using the `GET` method with the `Respo
 
 ```ts filename="app/items/route.ts" switcher
 export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
+  const res = await fetch("https://data.mongodb-api.com/...", {
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY,
     },
-  })
-  const data = await res.json()
+  });
+  const data = await res.json();
 
-  return Response.json({ data })
+  return Response.json({ data });
 }
 ```
 
 ```js filename="app/items/route.js" switcher
 export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
+  const res = await fetch("https://data.mongodb-api.com/...", {
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY,
     },
-  })
-  const data = await res.json()
+  });
+  const data = await res.json();
 
-  return Response.json({ data })
+  return Response.json({ data });
 }
 ```
 
@@ -94,33 +94,33 @@ For example:
 
 ```ts filename="app/products/api/route.ts" switcher
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
   const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY!,
     },
-  })
-  const product = await res.json()
+  });
+  const product = await res.json();
 
-  return Response.json({ product })
+  return Response.json({ product });
 }
 ```
 
 ```js filename="app/products/api/route.js" switcher
 export async function GET(request) {
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get("id");
   const res = await fetch(`https://data.mongodb-api.com/product/${id}`, {
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY,
     },
-  })
-  const product = await res.json()
+  });
+  const product = await res.json();
 
-  return Response.json({ product })
+  return Response.json({ product });
 }
 ```
 
@@ -128,35 +128,35 @@ Similarly, the `POST` method will cause the Route Handler to be evaluated dynami
 
 ```ts filename="app/items/route.ts" switcher
 export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
+  const res = await fetch("https://data.mongodb-api.com/...", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY!,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY!,
     },
     body: JSON.stringify({ time: new Date().toISOString() }),
-  })
+  });
 
-  const data = await res.json()
+  const data = await res.json();
 
-  return Response.json(data)
+  return Response.json(data);
 }
 ```
 
 ```js filename="app/items/route.js" switcher
 export async function POST() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    method: 'POST',
+  const res = await fetch("https://data.mongodb-api.com/...", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
+      "Content-Type": "application/json",
+      "API-Key": process.env.DATA_API_KEY,
     },
     body: JSON.stringify({ time: new Date().toISOString() }),
-  })
+  });
 
-  const data = await res.json()
+  const data = await res.json();
 
-  return Response.json(data)
+  return Response.json(data);
 }
 ```
 
@@ -179,7 +179,7 @@ Each `route.js` or `page.js` file takes over all HTTP verbs for that route.
 
 ```jsx filename="app/page.js"
 export default function Page() {
-  return <h1>Hello, Next.js!</h1>
+  return <h1>Hello, Next.js!</h1>;
 }
 
 // ❌ Conflict
@@ -197,30 +197,30 @@ You can [revalidate cached data](/docs/app/building-your-application/data-fetchi
 
 ```ts filename="app/items/route.ts" switcher
 export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
+  const res = await fetch("https://data.mongodb-api.com/...", {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
+  });
+  const data = await res.json();
 
-  return Response.json(data)
+  return Response.json(data);
 }
 ```
 
 ```js filename="app/items/route.js" switcher
 export async function GET() {
-  const res = await fetch('https://data.mongodb-api.com/...', {
+  const res = await fetch("https://data.mongodb-api.com/...", {
     next: { revalidate: 60 }, // Revalidate every 60 seconds
-  })
-  const data = await res.json()
+  });
+  const data = await res.json();
 
-  return Response.json(data)
+  return Response.json(data);
 }
 ```
 
 Alternatively, you can use the [`revalidate` segment config option](/docs/app/api-reference/file-conventions/route-segment-config#revalidate):
 
 ```ts
-export const revalidate = 60
+export const revalidate = 60;
 ```
 
 ### Dynamic Functions
@@ -234,46 +234,46 @@ You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/c
 Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
 
 ```ts filename="app/api/route.ts" switcher
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export async function GET(request: Request) {
-  const cookieStore = cookies()
-  const token = cookieStore.get('token')
+  const cookieStore = cookies();
+  const token = cookieStore.get("token");
 
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
-    headers: { 'Set-Cookie': `token=${token.value}` },
-  })
+    headers: { "Set-Cookie": `token=${token.value}` },
+  });
 }
 ```
 
 ```js filename="app/api/route.js" switcher
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export async function GET(request) {
-  const cookieStore = cookies()
-  const token = cookieStore.get('token')
+  const cookieStore = cookies();
+  const token = cookieStore.get("token");
 
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
-    headers: { 'Set-Cookie': `token=${token}` },
-  })
+    headers: { "Set-Cookie": `token=${token}` },
+  });
 }
 ```
 
 You can also use the underlying Web APIs to read cookies from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
-import { type NextRequest } from 'next/server'
+import { type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const token = request.cookies.get('token')
+  const token = request.cookies.get("token");
 }
 ```
 
 ```js filename="app/api/route.js" switcher
 export async function GET(request) {
-  const token = request.cookies.get('token')
+  const token = request.cookies.get("token");
 }
 ```
 
@@ -284,64 +284,64 @@ You can read headers with [`headers`](/docs/app/api-reference/functions/headers)
 This `headers` instance is read-only. To set headers, you need to return a new `Response` with new `headers`.
 
 ```ts filename="app/api/route.ts" switcher
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export async function GET(request: Request) {
-  const headersList = headers()
-  const referer = headersList.get('referer')
+  const headersList = headers();
+  const referer = headersList.get("referer");
 
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
     headers: { referer: referer },
-  })
+  });
 }
 ```
 
 ```js filename="app/api/route.js" switcher
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export async function GET(request) {
-  const headersList = headers()
-  const referer = headersList.get('referer')
+  const headersList = headers();
+  const referer = headersList.get("referer");
 
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
     headers: { referer: referer },
-  })
+  });
 }
 ```
 
 You can also use the underlying Web APIs to read headers from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
-import { type NextRequest } from 'next/server'
+import { type NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const requestHeaders = new Headers(request.headers)
+  const requestHeaders = new Headers(request.headers);
 }
 ```
 
 ```js filename="app/api/route.js" switcher
 export async function GET(request) {
-  const requestHeaders = new Headers(request.headers)
+  const requestHeaders = new Headers(request.headers);
 }
 ```
 
 ### Redirects
 
 ```ts filename="app/api/route.ts" switcher
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 export async function GET(request: Request) {
-  redirect('https://nextjs.org/')
+  redirect("https://nextjs.org/");
 }
 ```
 
 ```js filename="app/api/route.js" switcher
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 export async function GET(request) {
-  redirect('https://nextjs.org/')
+  redirect("https://nextjs.org/");
 }
 ```
 
@@ -356,13 +356,13 @@ export async function GET(
   request: Request,
   { params }: { params: { slug: string } }
 ) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = params.slug; // 'a', 'b', or 'c'
 }
 ```
 
 ```js filename="app/items/[slug]/route.js" switcher
 export async function GET(request, { params }) {
-  const slug = params.slug // 'a', 'b', or 'c'
+  const slug = params.slug; // 'a', 'b', or 'c'
 }
 ```
 
@@ -377,19 +377,19 @@ export async function GET(request, { params }) {
 The request object passed to the Route Handler is a `NextRequest` instance, which has [some additional convenience methods](/docs/app/api-reference/functions/next-request#nexturl), including for more easily handling query parameters.
 
 ```ts filename="app/api/search/route.ts" switcher
-import { type NextRequest } from 'next/server'
+import { type NextRequest } from "next/server";
 
 export function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('query')
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get("query");
   // query is "hello" for /api/search?query=hello
 }
 ```
 
 ```js filename="app/api/search/route.js" switcher
 export function GET(request) {
-  const searchParams = request.nextUrl.searchParams
-  const query = searchParams.get('query')
+  const searchParams = request.nextUrl.searchParams;
+  const query = searchParams.get("query");
   // query is "hello" for /api/search?query=hello
 }
 ```
@@ -399,50 +399,50 @@ export function GET(request) {
 Streaming is commonly used in combination with Large Language Models (LLMs), such as OpenAI, for AI-generated content. Learn more about the [AI SDK](https://sdk.vercel.ai/docs).
 
 ```ts filename="app/api/chat/route.ts" switcher
-import OpenAI from 'openai'
-import { OpenAIStream, StreamingTextResponse } from 'ai'
+import OpenAI from "openai";
+import { OpenAIStream, StreamingTextResponse } from "ai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-})
+});
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  const { messages } = await req.json();
   const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
+    model: "gpt-3.5-turbo",
     stream: true,
     messages,
-  })
+  });
 
-  const stream = OpenAIStream(response)
+  const stream = OpenAIStream(response);
 
-  return new StreamingTextResponse(stream)
+  return new StreamingTextResponse(stream);
 }
 ```
 
 ```js filename="app/api/chat/route.js" switcher
-import OpenAI from 'openai'
-import { OpenAIStream, StreamingTextResponse } from 'ai'
+import OpenAI from "openai";
+import { OpenAIStream, StreamingTextResponse } from "ai";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-})
+});
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
 export async function POST(req) {
-  const { messages } = await req.json()
+  const { messages } = await req.json();
   const response = await openai.chat.completions.create({
-    model: 'gpt-3.5-turbo',
+    model: "gpt-3.5-turbo",
     stream: true,
     messages,
-  })
+  });
 
-  const stream = OpenAIStream(response)
+  const stream = OpenAIStream(response);
 
-  return new StreamingTextResponse(stream)
+  return new StreamingTextResponse(stream);
 }
 ```
 
@@ -453,38 +453,38 @@ These abstractions use the Web APIs to create a stream. You can also use the und
 function iteratorToStream(iterator: any) {
   return new ReadableStream({
     async pull(controller) {
-      const { value, done } = await iterator.next()
+      const { value, done } = await iterator.next();
 
       if (done) {
-        controller.close()
+        controller.close();
       } else {
-        controller.enqueue(value)
+        controller.enqueue(value);
       }
     },
-  })
+  });
 }
 
 function sleep(time: number) {
   return new Promise((resolve) => {
-    setTimeout(resolve, time)
-  })
+    setTimeout(resolve, time);
+  });
 }
 
-const encoder = new TextEncoder()
+const encoder = new TextEncoder();
 
 async function* makeIterator() {
-  yield encoder.encode('<p>One</p>')
-  await sleep(200)
-  yield encoder.encode('<p>Two</p>')
-  await sleep(200)
-  yield encoder.encode('<p>Three</p>')
+  yield encoder.encode("<p>One</p>");
+  await sleep(200);
+  yield encoder.encode("<p>Two</p>");
+  await sleep(200);
+  yield encoder.encode("<p>Three</p>");
 }
 
 export async function GET() {
-  const iterator = makeIterator()
-  const stream = iteratorToStream(iterator)
+  const iterator = makeIterator();
+  const stream = iteratorToStream(iterator);
 
-  return new Response(stream)
+  return new Response(stream);
 }
 ```
 
@@ -493,38 +493,38 @@ export async function GET() {
 function iteratorToStream(iterator) {
   return new ReadableStream({
     async pull(controller) {
-      const { value, done } = await iterator.next()
+      const { value, done } = await iterator.next();
 
       if (done) {
-        controller.close()
+        controller.close();
       } else {
-        controller.enqueue(value)
+        controller.enqueue(value);
       }
     },
-  })
+  });
 }
 
 function sleep(time) {
   return new Promise((resolve) => {
-    setTimeout(resolve, time)
-  })
+    setTimeout(resolve, time);
+  });
 }
 
-const encoder = new TextEncoder()
+const encoder = new TextEncoder();
 
 async function* makeIterator() {
-  yield encoder.encode('<p>One</p>')
-  await sleep(200)
-  yield encoder.encode('<p>Two</p>')
-  await sleep(200)
-  yield encoder.encode('<p>Three</p>')
+  yield encoder.encode("<p>One</p>");
+  await sleep(200);
+  yield encoder.encode("<p>Two</p>");
+  await sleep(200);
+  yield encoder.encode("<p>Three</p>");
 }
 
 export async function GET() {
-  const iterator = makeIterator()
-  const stream = iteratorToStream(iterator)
+  const iterator = makeIterator();
+  const stream = iteratorToStream(iterator);
 
-  return new Response(stream)
+  return new Response(stream);
 }
 ```
 
@@ -534,15 +534,15 @@ You can read the `Request` body using the standard Web API methods:
 
 ```ts filename="app/items/route.ts" switcher
 export async function POST(request: Request) {
-  const res = await request.json()
-  return Response.json({ res })
+  const res = await request.json();
+  return Response.json({ res });
 }
 ```
 
 ```js filename="app/items/route.js" switcher
 export async function POST(request) {
-  const res = await request.json()
-  return Response.json({ res })
+  const res = await request.json();
+  return Response.json({ res });
 }
 ```
 
@@ -552,19 +552,19 @@ You can read the `FormData` using the `request.formData()` function:
 
 ```ts filename="app/items/route.ts" switcher
 export async function POST(request: Request) {
-  const formData = await request.formData()
-  const name = formData.get('name')
-  const email = formData.get('email')
-  return Response.json({ name, email })
+  const formData = await request.formData();
+  const name = formData.get("name");
+  const email = formData.get("email");
+  return Response.json({ name, email });
 }
 ```
 
 ```js filename="app/items/route.js" switcher
 export async function POST(request) {
-  const formData = await request.formData()
-  const name = formData.get('name')
-  const email = formData.get('email')
-  return Response.json({ name, email })
+  const formData = await request.formData();
+  const name = formData.get("name");
+  const email = formData.get("email");
+  return Response.json({ name, email });
 }
 ```
 
@@ -575,32 +575,32 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers on a `Response` using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 
 export async function GET(request: Request) {
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
-  })
+  });
 }
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 
 export async function GET(request) {
-  return new Response('Hello, Next.js!', {
+  return new Response("Hello, Next.js!", {
     status: 200,
     headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
     },
-  })
+  });
 }
 ```
 
@@ -611,7 +611,7 @@ Route Handlers have an isomorphic Web API to support both Edge and Node.js runti
 You can use the `runtime` segment config option to specify the runtime:
 
 ```ts
-export const runtime = 'edge' // 'nodejs' is the default
+export const runtime = "edge"; // 'nodejs' is the default
 ```
 
 ### Non-UI Responses
@@ -619,7 +619,7 @@ export const runtime = 'edge' // 'nodejs' is the default
 You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 
 export async function GET() {
   return new Response(
@@ -635,15 +635,15 @@ export async function GET() {
 </rss>`,
     {
       headers: {
-        'Content-Type': 'text/xml',
+        "Content-Type": "text/xml",
       },
     }
-  )
+  );
 }
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to auto
+export const dynamic = "force-dynamic"; // defaults to auto
 
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
@@ -655,7 +655,7 @@ export async function GET() {
   <description>The React Framework for the Web</description>
 </channel>
 
-</rss>`)
+</rss>`);
 }
 ```
 
@@ -664,21 +664,21 @@ export async function GET() {
 Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as pages and layouts.
 
 ```ts filename="app/items/route.ts" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const dynamic = "auto";
+export const dynamicParams = true;
+export const revalidate = false;
+export const fetchCache = "auto";
+export const runtime = "nodejs";
+export const preferredRegion = "auto";
 ```
 
 ```js filename="app/items/route.js" switcher
-export const dynamic = 'auto'
-export const dynamicParams = true
-export const revalidate = false
-export const fetchCache = 'auto'
-export const runtime = 'nodejs'
-export const preferredRegion = 'auto'
+export const dynamic = "auto";
+export const dynamicParams = true;
+export const revalidate = false;
+export const fetchCache = "auto";
+export const runtime = "nodejs";
+export const preferredRegion = "auto";
 ```
 
 See the [API reference](/docs/app/api-reference/file-conventions/route-segment-config) for more details.

@@ -1,65 +1,65 @@
-'use client'
+"use client";
 
-import React from 'react'
-import { usePathname } from './navigation'
+import React from "react";
+import { usePathname } from "./navigation";
 
 const styles = {
   error: {
     // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
     fontFamily:
       'system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji"',
-    height: '100vh',
-    textAlign: 'center',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+    height: "100vh",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
   },
   text: {
-    fontSize: '14px',
+    fontSize: "14px",
     fontWeight: 400,
-    lineHeight: '28px',
-    margin: '0 8px',
+    lineHeight: "28px",
+    margin: "0 8px",
   },
-} as const
+} as const;
 
 export type ErrorComponent = React.ComponentType<{
-  error: Error
-  reset: () => void
-}>
+  error: Error;
+  reset: () => void;
+}>;
 
 export interface ErrorBoundaryProps {
-  children?: React.ReactNode
-  errorComponent: ErrorComponent
-  errorStyles?: React.ReactNode | undefined
-  errorScripts?: React.ReactNode | undefined
+  children?: React.ReactNode;
+  errorComponent: ErrorComponent;
+  errorStyles?: React.ReactNode | undefined;
+  errorScripts?: React.ReactNode | undefined;
 }
 
 interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
-  pathname: string
+  pathname: string;
 }
 
 interface ErrorBoundaryHandlerState {
-  error: Error | null
-  previousPathname: string
+  error: Error | null;
+  previousPathname: string;
 }
 
 // if we are revalidating we want to re-throw the error so the
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  if (typeof (fetch as any).__nextGetStaticStore === 'function') {
+  if (typeof (fetch as any).__nextGetStaticStore === "function") {
     const store:
       | undefined
-      | import('./static-generation-async-storage.external').StaticGenerationStore =
-      (fetch as any).__nextGetStaticStore()?.getStore()
+      | import("./static-generation-async-storage.external").StaticGenerationStore =
+      (fetch as any).__nextGetStaticStore()?.getStore();
 
     if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
-      throw error
+      console.error(error);
+      throw error;
     }
   }
-  return null
+  return null;
 }
 
 export class ErrorBoundaryHandler extends React.Component<
@@ -67,12 +67,12 @@ export class ErrorBoundaryHandler extends React.Component<
   ErrorBoundaryHandlerState
 > {
   constructor(props: ErrorBoundaryHandlerProps) {
-    super(props)
-    this.state = { error: null, previousPathname: this.props.pathname }
+    super(props);
+    this.state = { error: null, previousPathname: this.props.pathname };
   }
 
   static getDerivedStateFromError(error: Error) {
-    return { error }
+    return { error };
   }
 
   static getDerivedStateFromProps(
@@ -89,17 +89,17 @@ export class ErrorBoundaryHandler extends React.Component<
       return {
         error: null,
         previousPathname: props.pathname,
-      }
+      };
     }
     return {
       error: state.error,
       previousPathname: props.pathname,
-    }
+    };
   }
 
   reset = () => {
-    this.setState({ error: null })
-  }
+    this.setState({ error: null });
+  };
 
   render() {
     if (this.state.error) {
@@ -113,15 +113,15 @@ export class ErrorBoundaryHandler extends React.Component<
             reset={this.reset}
           />
         </>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
 export function GlobalError({ error }: { error: any }) {
-  const digest: string | undefined = error?.digest
+  const digest: string | undefined = error?.digest;
   return (
     <html id="__next_error__">
       <head></head>
@@ -131,9 +131,9 @@ export function GlobalError({ error }: { error: any }) {
           <div>
             <h2 style={styles.text}>
               {`Application error: a ${
-                digest ? 'server' : 'client'
+                digest ? "server" : "client"
               }-side exception has occurred (see the ${
-                digest ? 'server logs' : 'browser console'
+                digest ? "server logs" : "browser console"
               } for more information).`}
             </h2>
             {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
@@ -141,12 +141,12 @@ export function GlobalError({ error }: { error: any }) {
         </div>
       </body>
     </html>
-  )
+  );
 }
 
 // Exported so that the import signature in the loaders can be identical to user
 // supplied custom global error signatures.
-export default GlobalError
+export default GlobalError;
 
 /**
  * Handles errors through `getDerivedStateFromError`.
@@ -163,7 +163,7 @@ export function ErrorBoundary({
   errorScripts,
   children,
 }: ErrorBoundaryProps & { children: React.ReactNode }): JSX.Element {
-  const pathname = usePathname()
+  const pathname = usePathname();
   if (errorComponent) {
     return (
       <ErrorBoundaryHandler
@@ -174,8 +174,8 @@ export function ErrorBoundary({
       >
         {children}
       </ErrorBoundaryHandler>
-    )
+    );
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

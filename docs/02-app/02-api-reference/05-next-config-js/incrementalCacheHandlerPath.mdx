@@ -8,33 +8,33 @@ In Next.js, the [default cache handler](/docs/app/building-your-application/data
 ```js filename="next.config.js"
 module.exports = {
   experimental: {
-    incrementalCacheHandlerPath: require.resolve('./cache-handler.js'),
+    incrementalCacheHandlerPath: require.resolve("./cache-handler.js"),
   },
-}
+};
 ```
 
 Here's an example of a custom cache handler:
 
 ```js filename="cache-handler.js"
-const cache = new Map()
+const cache = new Map();
 
 module.exports = class CacheHandler {
   constructor(options) {
-    this.options = options
-    this.cache = {}
+    this.options = options;
+    this.cache = {};
   }
 
   async get(key) {
-    return cache.get(key)
+    return cache.get(key);
   }
 
   async set(key, data) {
     cache.set(key, {
       value: data,
       lastModified: Date.now(),
-    })
+    });
   }
-}
+};
 ```
 
 ## API Reference

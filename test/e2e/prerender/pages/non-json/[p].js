@@ -1,21 +1,21 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export async function getStaticProps() {
   return {
     props: { time: new Date() },
-  }
+  };
 }
 
 export async function getStaticPaths() {
-  return { paths: [], fallback: true }
+  return { paths: [], fallback: true };
 }
 
 const Page = ({ time }) => {
-  const { isFallback } = useRouter()
+  const { isFallback } = useRouter();
 
-  if (isFallback) return null
+  if (isFallback) return null;
 
-  return <p>hello {time.toString()}</p>
-}
+  return <p>hello {time.toString()}</p>;
+};
 
-export default Page
+export default Page;

@@ -1,7 +1,7 @@
-import { graphql } from 'relay-runtime'
+import { graphql } from "relay-runtime";
 
 export default graphql`
   query pagesQuery {
     greeting
   }
-`
+`;

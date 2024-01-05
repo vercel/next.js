@@ -1,20 +1,20 @@
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from "next/og";
 
-export const alt = 'Open Graph'
+export const alt = "Open Graph";
 
 export async function generateImageMetadata() {
   return [
     {
-      contentType: 'image/png',
+      contentType: "image/png",
       size: { width: 1200, height: 600 },
       id: 100,
     },
     {
-      contentType: 'image/png',
+      contentType: "image/png",
       size: { width: 1200, height: 600 },
       id: 101,
     },
-  ]
+  ];
 }
 
 export default function og() {
@@ -22,17 +22,17 @@ export default function og() {
     (
       <div
         style={{
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
           fontSize: 128,
-          background: 'lavender',
+          background: "lavender",
         }}
       >
         Open Graph
       </div>
     )
-  )
+  );
 }

@@ -1,4 +1,4 @@
 export default (req, res) => {
-  res.write('')
-  res.end()
-}
+  res.write("");
+  res.end();
+};

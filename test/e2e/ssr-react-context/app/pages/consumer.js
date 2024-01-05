@@ -1,6 +1,6 @@
-import React from 'react'
+import React from "react";
 
-const NumberContext = React.createContext(0)
+const NumberContext = React.createContext(0);
 
 export default function page() {
   return (
@@ -9,9 +9,9 @@ export default function page() {
         {(value) => <p>Value: {value}</p>}
       </NumberContext.Consumer>
     </NumberContext.Provider>
-  )
+  );
 }
 
 export async function getServerSideProps() {
-  return { props: {} }
+  return { props: {} };
 }

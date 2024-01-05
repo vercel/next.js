@@ -1,7 +1,7 @@
-import { findDOMNode } from 'react-dom'
+import { findDOMNode } from "react-dom";
 
-console.log({ findDOMNode })
+console.log({ findDOMNode });
 
 export default function Page() {
-  return null
+  return null;
 }

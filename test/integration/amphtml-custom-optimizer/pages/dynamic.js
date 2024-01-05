@@ -1,6 +1,6 @@
 export const config = {
   amp: true,
-}
+};
 
 const Dynamic = (props) => (
   <amp-img
@@ -9,12 +9,12 @@ const Dynamic = (props) => (
     layout="responsive"
     src={props.src}
   ></amp-img>
-)
+);
 
 Dynamic.getInitialProps = () => {
   return {
-    src: 'https://amp.dev/static/samples/img/story_dog2_portrait.jpg',
-  }
-}
+    src: "https://amp.dev/static/samples/img/story_dog2_portrait.jpg",
+  };
+};
 
-export default Dynamic
+export default Dynamic;

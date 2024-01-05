@@ -1,3 +1,3 @@
 export function Button2(props) {
-  return <button {...props}>third button</button>
+  return <button {...props}>third button</button>;
 }

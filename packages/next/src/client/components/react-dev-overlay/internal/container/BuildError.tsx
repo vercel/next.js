@@ -1,23 +1,23 @@
-import * as React from 'react'
-import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import * as React from "react";
+import type { VersionInfo } from "../../../../../server/dev/parse-version-info";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogHeader,
-} from '../components/Dialog'
-import { Overlay } from '../components/Overlay'
-import { Terminal } from '../components/Terminal'
-import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
-import { noop as css } from '../helpers/noop-template'
+} from "../components/Dialog";
+import { Overlay } from "../components/Overlay";
+import { Terminal } from "../components/Terminal";
+import { VersionStalenessInfo } from "../components/VersionStalenessInfo";
+import { noop as css } from "../helpers/noop-template";
 
-export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
+export type BuildErrorProps = { message: string; versionInfo?: VersionInfo };
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
   versionInfo,
 }) {
-  const noop = React.useCallback(() => {}, [])
+  const noop = React.useCallback(() => {}, []);
   return (
     <Overlay fixed>
       <Dialog
@@ -45,8 +45,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
         </DialogContent>
       </Dialog>
     </Overlay>
-  )
-}
+  );
+};
 
 export const styles = css`
   .nextjs-container-build-error-header {
@@ -69,4 +69,4 @@ export const styles = css`
   .nextjs-container-build-error-body small {
     color: #757575;
   }
-`
+`;

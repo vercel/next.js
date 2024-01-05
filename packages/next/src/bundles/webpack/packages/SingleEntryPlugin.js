@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').SingleEntryPlugin
+module.exports = require("./webpack.js").SingleEntryPlugin;

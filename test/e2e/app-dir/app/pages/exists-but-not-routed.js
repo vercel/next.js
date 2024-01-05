@@ -1,9 +1,9 @@
 export async function getServerSideProps() {
   return {
     props: {
-      message: 'Hello World!',
+      message: "Hello World!",
     },
-  }
+  };
 }
 
 export default function Page({ message }) {
@@ -11,5 +11,5 @@ export default function Page({ message }) {
     <>
       <p>hello from exists but not routed {message}</p>
     </>
-  )
+  );
 }

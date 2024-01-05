@@ -1,6 +1,6 @@
-import type { RenderOpts } from './types'
-import type { AppPageModule } from '../future/route-modules/app-page/module'
-import type { createErrorHandler } from './create-error-handler'
+import type { RenderOpts } from "./types";
+import type { AppPageModule } from "../future/route-modules/app-page/module";
+import type { createErrorHandler } from "./create-error-handler";
 
 /**
  * Create a component that renders the Flight stream.
@@ -9,14 +9,14 @@ import type { createErrorHandler } from './create-error-handler'
 export function createReactServerRenderer(
   children: React.ReactNode,
   ComponentMod: AppPageModule,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
+  clientReferenceManifest: NonNullable<RenderOpts["clientReferenceManifest"]>,
   onError: ReturnType<typeof createErrorHandler>,
   onPostpone: (reason: unknown) => void
 ): () => ReadableStream<Uint8Array> {
-  let flightStream: ReadableStream<Uint8Array>
+  let flightStream: ReadableStream<Uint8Array>;
   return function renderToReactServerStream() {
     if (flightStream) {
-      return flightStream
+      return flightStream;
     } else {
       flightStream = ComponentMod.renderToReadableStream(
         children,
@@ -25,8 +25,8 @@ export function createReactServerRenderer(
           onError,
           onPostpone,
         }
-      )
-      return flightStream
+      );
+      return flightStream;
     }
-  }
+  };
 }

@@ -1,9 +1,9 @@
-import * as React from 'react'
+import * as React from "react";
 
 export type DialogContentProps = {
-  children?: React.ReactNode
-  className?: string
-}
+  children?: React.ReactNode;
+  className?: string;
+};
 
 const DialogContent: React.FC<DialogContentProps> = function DialogContent({
   children,
@@ -13,7 +13,7 @@ const DialogContent: React.FC<DialogContentProps> = function DialogContent({
     <div data-nextjs-dialog-content className={className}>
       {children}
     </div>
-  )
-}
+  );
+};
 
-export { DialogContent }
+export { DialogContent };

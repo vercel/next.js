@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
-  if (router.isFallback) return 'Loading...'
+  if (router.isFallback) return "Loading...";
 
   return (
     <>
@@ -20,19 +20,19 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ params, locale, locales }) => {
   // ensure getStaticProps isn't called without params
   if (!params || !params.slug) {
-    throw new Error(`missing params ${JSON.stringify(params)}`)
+    throw new Error(`missing params ${JSON.stringify(params)}`);
   }
 
-  if (locale === 'en' || locale === 'nl') {
+  if (locale === "en" || locale === "nl") {
     return {
       notFound: true,
-    }
+    };
   }
 
   return {
@@ -41,15 +41,15 @@ export const getStaticProps = ({ params, locale, locales }) => {
       locale,
       locales,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     // the default locale will be used since one isn't defined here
-    paths: ['first', 'second'].map((slug) => ({
+    paths: ["first", "second"].map((slug) => ({
       params: { slug },
     })),
     fallback: true,
-  }
-}
+  };
+};

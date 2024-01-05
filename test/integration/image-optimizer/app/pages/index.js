@@ -1,20 +1,20 @@
-import Image from 'next/image'
+import Image from "next/image";
 
-import img1 from '../public/animated2.png'
-import img2 from '../public/äöüščří.png'
-import img3 from '../public/test.avif'
-import img4 from '../public/test.jpg'
-import img5 from '../public/test.webp'
-import img6 from '../public/animated.gif'
-import img7 from '../public/grayscale.png'
-import img8 from '../public/test.bmp'
-import img9 from '../public/test.png'
-import img11 from '../public/animated.png'
-import img12 from '../public/mountains.jpg'
-import img13 from '../public/test.gif'
-import img14 from '../public/test.svg'
-import img15 from '../public/animated.webp'
-import img17 from '../public/test.ico'
+import img1 from "../public/animated2.png";
+import img2 from "../public/äöüščří.png";
+import img3 from "../public/test.avif";
+import img4 from "../public/test.jpg";
+import img5 from "../public/test.webp";
+import img6 from "../public/animated.gif";
+import img7 from "../public/grayscale.png";
+import img8 from "../public/test.bmp";
+import img9 from "../public/test.png";
+import img11 from "../public/animated.png";
+import img12 from "../public/mountains.jpg";
+import img13 from "../public/test.gif";
+import img14 from "../public/test.svg";
+import img15 from "../public/animated.webp";
+import img17 from "../public/test.ico";
 
 export default function Home() {
   return (
@@ -36,5 +36,5 @@ export default function Home() {
       <Image src={img15} />
       <Image src={img17} />
     </>
-  )
+  );
 }

@@ -1,11 +1,11 @@
-import Anser from 'next/dist/compiled/anser'
-import * as React from 'react'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { getFrameSource } from '../../helpers/stack-frame'
-import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import Anser from "next/dist/compiled/anser";
+import * as React from "react";
+import type { StackFrame } from "next/dist/compiled/stacktrace-parser";
+import stripAnsi from "next/dist/compiled/strip-ansi";
+import { getFrameSource } from "../../helpers/stack-frame";
+import { useOpenInEditor } from "../../helpers/use-open-in-editor";
 
-export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
+export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string };
 
 export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   stackFrame,
@@ -13,7 +13,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
 }) {
   // Strip leading spaces out of the code frame:
   const formattedFrame = React.useMemo<string>(() => {
-    const lines = codeFrame.split(/\r?\n/g)
+    const lines = codeFrame.split(/\r?\n/g);
     const prefixLength = lines
       .map((line) =>
         /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line)) === null
@@ -22,34 +22,34 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       )
       .filter(Boolean)
       .map((v) => v!.pop()!)
-      .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
+      .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN);
 
     if (prefixLength > 1) {
-      const p = ' '.repeat(prefixLength)
+      const p = " ".repeat(prefixLength);
       return lines
         .map((line, a) =>
-          ~(a = line.indexOf('|'))
-            ? line.substring(0, a) + line.substring(a).replace(p, '')
+          ~(a = line.indexOf("|"))
+            ? line.substring(0, a) + line.substring(a).replace(p, "")
             : line
         )
-        .join('\n')
+        .join("\n");
     }
-    return lines.join('\n')
-  }, [codeFrame])
+    return lines.join("\n");
+  }, [codeFrame]);
 
   const decoded = React.useMemo(() => {
     return Anser.ansiToJson(formattedFrame, {
       json: true,
       use_classes: true,
       remove_empty: true,
-    })
-  }, [formattedFrame])
+    });
+  }, [formattedFrame]);
 
   const open = useOpenInEditor({
     file: stackFrame.file,
     lineNumber: stackFrame.lineNumber,
     column: stackFrame.column,
-  })
+  });
 
   // TODO: make the caret absolute
   return (
@@ -85,10 +85,10 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
             key={`frame-${index}`}
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
+              ...(entry.decoration === "bold"
                 ? { fontWeight: 800 }
-                : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
+                : entry.decoration === "italic"
+                ? { fontStyle: "italic" }
                 : undefined),
             }}
           >
@@ -97,5 +97,5 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
         ))}
       </pre>
     </div>
-  )
-}
+  );
+};

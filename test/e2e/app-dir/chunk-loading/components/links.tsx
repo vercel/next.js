@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export function Links() {
   return (
@@ -16,5 +16,5 @@ export function Links() {
         <Link href="/">Home</Link>
       </li>
     </ul>
-  )
+  );
 }

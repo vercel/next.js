@@ -1,113 +1,113 @@
-import fs from 'fs'
-import path from 'path'
-import execa from 'execa'
-import globby from 'globby'
-import cheerio from 'cheerio'
-import { install } from '../lib/install'
-import runJscodeshift from '../lib/run-jscodeshift'
-import htmlToReactAttributes from '../lib/html-to-react-attributes'
-import { indexContext } from '../lib/cra-to-next/index-to-component'
-import { globalCssContext } from '../lib/cra-to-next/global-css-transform'
+import fs from "fs";
+import path from "path";
+import execa from "execa";
+import globby from "globby";
+import cheerio from "cheerio";
+import { install } from "../lib/install";
+import runJscodeshift from "../lib/run-jscodeshift";
+import htmlToReactAttributes from "../lib/html-to-react-attributes";
+import { indexContext } from "../lib/cra-to-next/index-to-component";
+import { globalCssContext } from "../lib/cra-to-next/global-css-transform";
 
-const feedbackMessage = `Please share any feedback on the migration here: https://github.com/vercel/next.js/discussions/25858`
+const feedbackMessage = `Please share any feedback on the migration here: https://github.com/vercel/next.js/discussions/25858`;
 
 // log error and exit without new stacktrace
 function fatalMessage(...logs) {
-  console.error(...logs, `\n${feedbackMessage}`)
-  process.exit(1)
+  console.error(...logs, `\n${feedbackMessage}`);
+  process.exit(1);
 }
 
-const craTransformsPath = path.join('../lib/cra-to-next')
+const craTransformsPath = path.join("../lib/cra-to-next");
 
 const globalCssTransformPath = require.resolve(
-  path.join(craTransformsPath, 'global-css-transform.js')
-)
+  path.join(craTransformsPath, "global-css-transform.js")
+);
 const indexTransformPath = require.resolve(
-  path.join(craTransformsPath, 'index-to-component.js')
-)
+  path.join(craTransformsPath, "index-to-component.js")
+);
 
 class CraTransform {
-  private appDir: string
-  private pagesDir: string
-  private isVite: boolean
-  private isCra: boolean
-  private isDryRun: boolean
-  private indexPage: string
-  private installClient: string
-  private shouldLogInfo: boolean
-  private packageJsonPath: string
-  private shouldUseTypeScript: boolean
-  private packageJsonData: { [key: string]: any }
-  private jscodeShiftFlags: { [key: string]: boolean }
+  private appDir: string;
+  private pagesDir: string;
+  private isVite: boolean;
+  private isCra: boolean;
+  private isDryRun: boolean;
+  private indexPage: string;
+  private installClient: string;
+  private shouldLogInfo: boolean;
+  private packageJsonPath: string;
+  private shouldUseTypeScript: boolean;
+  private packageJsonData: { [key: string]: any };
+  private jscodeShiftFlags: { [key: string]: boolean };
 
   constructor(files: string[], flags: { [key: string]: boolean }) {
-    this.isDryRun = flags.dry
-    this.jscodeShiftFlags = flags
-    this.appDir = this.validateAppDir(files)
-    this.packageJsonPath = path.join(this.appDir, 'package.json')
-    this.packageJsonData = this.loadPackageJson()
-    this.shouldLogInfo = flags.print || flags.dry
-    this.pagesDir = this.getPagesDir()
-    this.installClient = this.checkForYarn() ? 'yarn' : 'npm'
+    this.isDryRun = flags.dry;
+    this.jscodeShiftFlags = flags;
+    this.appDir = this.validateAppDir(files);
+    this.packageJsonPath = path.join(this.appDir, "package.json");
+    this.packageJsonData = this.loadPackageJson();
+    this.shouldLogInfo = flags.print || flags.dry;
+    this.pagesDir = this.getPagesDir();
+    this.installClient = this.checkForYarn() ? "yarn" : "npm";
 
-    const { dependencies, devDependencies } = this.packageJsonData
-    const hasDep = (dep) => dependencies?.[dep] || devDependencies?.[dep]
+    const { dependencies, devDependencies } = this.packageJsonData;
+    const hasDep = (dep) => dependencies?.[dep] || devDependencies?.[dep];
 
-    this.isCra = hasDep('react-scripts')
-    this.isVite = !this.isCra && hasDep('vite')
+    this.isCra = hasDep("react-scripts");
+    this.isVite = !this.isCra && hasDep("vite");
 
     if (!this.isCra && !this.isVite) {
       fatalMessage(
         `Error: react-scripts was not detected, is this a CRA project?`
-      )
+      );
     }
 
     this.shouldUseTypeScript =
-      fs.existsSync(path.join(this.appDir, 'tsconfig.json')) ||
-      globby.sync('src/**/*.{ts,tsx}', {
-        cwd: path.join(this.appDir, 'src'),
-      }).length > 0
+      fs.existsSync(path.join(this.appDir, "tsconfig.json")) ||
+      globby.sync("src/**/*.{ts,tsx}", {
+        cwd: path.join(this.appDir, "src"),
+      }).length > 0;
 
     this.indexPage = globby.sync(
-      [`${this.isCra ? 'index' : 'main'}.{js,jsx,ts,tsx}`],
+      [`${this.isCra ? "index" : "main"}.{js,jsx,ts,tsx}`],
       {
-        cwd: path.join(this.appDir, 'src'),
+        cwd: path.join(this.appDir, "src"),
       }
-    )[0]
+    )[0];
 
     if (!this.indexPage) {
-      fatalMessage('Error: unable to find `src/index`')
+      fatalMessage("Error: unable to find `src/index`");
     }
   }
 
   public async transform() {
-    console.log('Transforming CRA project at:', this.appDir)
+    console.log("Transforming CRA project at:", this.appDir);
 
     // convert src/index.js to a react component to render
     // inside of Next.js instead of the custom render root
     const indexTransformRes = await runJscodeshift(
       indexTransformPath,
       { ...this.jscodeShiftFlags, silent: true, verbose: 0 },
-      [path.join(this.appDir, 'src', this.indexPage)]
-    )
+      [path.join(this.appDir, "src", this.indexPage)]
+    );
 
     if (indexTransformRes.error > 0) {
       fatalMessage(
         `Error: failed to apply transforms for src/${this.indexPage}, please check for syntax errors to continue`
-      )
+      );
     }
 
     if (indexContext.multipleRenderRoots) {
       fatalMessage(
         `Error: multiple ReactDOM.render roots in src/${this.indexPage}, migrate additional render roots to use portals instead to continue.\n` +
           `See here for more info: https://react.dev/reference/react-dom/createPortal`
-      )
+      );
     }
 
     if (indexContext.nestedRender) {
       fatalMessage(
         `Error: nested ReactDOM.render found in src/${this.indexPage}, please migrate this to a top-level render (no wrapping functions) to continue`
-      )
+      );
     }
 
     // comment out global style imports and collect them
@@ -116,18 +116,18 @@ class CraTransform {
       globalCssTransformPath,
       { ...this.jscodeShiftFlags },
       [this.appDir]
-    )
+    );
 
     if (globalCssRes.error > 0) {
       fatalMessage(
         `Error: failed to apply transforms for src/${this.indexPage}, please check for syntax errors to continue`
-      )
+      );
     }
 
     if (!this.isDryRun) {
-      await fs.promises.mkdir(path.join(this.appDir, this.pagesDir))
+      await fs.promises.mkdir(path.join(this.appDir, this.pagesDir));
     }
-    this.logCreate(this.pagesDir)
+    this.logCreate(this.pagesDir);
 
     if (globalCssContext.reactSvgImports.size > 0) {
       // This de-opts webpack 5 since svg/webpack doesn't support webpack 5 yet,
@@ -136,116 +136,116 @@ class CraTransform {
         `Error: import {ReactComponent} from './logo.svg' is not supported, please use normal SVG imports to continue.\n` +
           `React SVG imports found in:\n${[
             ...globalCssContext.reactSvgImports,
-          ].join('\n')}`
-      )
+          ].join("\n")}`
+      );
     }
-    await this.updatePackageJson()
-    await this.createNextConfig()
-    await this.updateGitIgnore()
-    await this.createPages()
+    await this.updatePackageJson();
+    await this.createNextConfig();
+    await this.updateGitIgnore();
+    await this.createPages();
   }
 
   private checkForYarn() {
     try {
-      const userAgent = process.env.npm_config_user_agent
+      const userAgent = process.env.npm_config_user_agent;
       if (userAgent) {
-        return Boolean(userAgent && userAgent.startsWith('yarn'))
+        return Boolean(userAgent && userAgent.startsWith("yarn"));
       }
-      execa.sync('yarnpkg', ['--version'], { stdio: 'ignore' })
-      return true
+      execa.sync("yarnpkg", ["--version"], { stdio: "ignore" });
+      return true;
     } catch (e) {
-      console.log('error', e)
-      return false
+      console.log("error", e);
+      return false;
     }
   }
 
   private logCreate(...args: any[]) {
     if (this.shouldLogInfo) {
-      console.log('Created:', ...args)
+      console.log("Created:", ...args);
     }
   }
 
   private logModify(...args: any[]) {
     if (this.shouldLogInfo) {
-      console.log('Modified:', ...args)
+      console.log("Modified:", ...args);
     }
   }
 
   private logInfo(...args: any[]) {
     if (this.shouldLogInfo) {
-      console.log(...args)
+      console.log(...args);
     }
   }
 
   private async createPages() {
     // load public/index.html and add tags to _document
     const htmlContent = await fs.promises.readFile(
-      path.join(this.appDir, `${this.isCra ? 'public/' : ''}index.html`),
-      'utf8'
-    )
-    const $ = cheerio.load(htmlContent)
+      path.join(this.appDir, `${this.isCra ? "public/" : ""}index.html`),
+      "utf8"
+    );
+    const $ = cheerio.load(htmlContent);
     // note: title tag and meta[viewport] needs to be placed in _app
     // not _document
-    const titleTag = $('title')[0]
-    const metaViewport = $('meta[name="viewport"]')[0]
-    const headTags = $('head').children()
-    const bodyTags = $('body').children()
+    const titleTag = $("title")[0];
+    const metaViewport = $('meta[name="viewport"]')[0];
+    const headTags = $("head").children();
+    const bodyTags = $("body").children();
 
-    const pageExt = this.shouldUseTypeScript ? 'tsx' : 'js'
-    const appPage = path.join(this.pagesDir, `_app.${pageExt}`)
-    const documentPage = path.join(this.pagesDir, `_document.${pageExt}`)
-    const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`)
+    const pageExt = this.shouldUseTypeScript ? "tsx" : "js";
+    const appPage = path.join(this.pagesDir, `_app.${pageExt}`);
+    const documentPage = path.join(this.pagesDir, `_document.${pageExt}`);
+    const catchAllPage = path.join(this.pagesDir, `[[...slug]].${pageExt}`);
 
     const gatherTextChildren = (children: CheerioElement[]) => {
       return children
         .map((child) => {
-          if (child.type === 'text') {
-            return child.data
+          if (child.type === "text") {
+            return child.data;
           }
-          return ''
+          return "";
         })
-        .join('')
-    }
+        .join("");
+    };
 
-    const serializeAttrs = (attrs: CheerioElement['attribs']) => {
+    const serializeAttrs = (attrs: CheerioElement["attribs"]) => {
       const attrStr = Object.keys(attrs || {})
         .map((name) => {
-          const reactName = htmlToReactAttributes[name] || name
-          const value = attrs[name]
+          const reactName = htmlToReactAttributes[name] || name;
+          const value = attrs[name];
 
           // allow process.env access to work dynamically still
           if (value.match(/%([a-zA-Z0-9_]{0,})%/)) {
             return `${reactName}={\`${value.replace(
               /%([a-zA-Z0-9_]{0,})%/g,
               (subStr) => {
-                return `\${process.env.${subStr.slice(1, -1)}}`
+                return `\${process.env.${subStr.slice(1, -1)}}`;
               }
-            )}\`}`
+            )}\`}`;
           }
-          return `${reactName}="${value}"`
+          return `${reactName}="${value}"`;
         })
-        .join(' ')
+        .join(" ");
 
-      return attrStr.length > 0 ? ` ${attrStr}` : ''
-    }
-    const serializedHeadTags: string[] = []
-    const serializedBodyTags: string[] = []
+      return attrStr.length > 0 ? ` ${attrStr}` : "";
+    };
+    const serializedHeadTags: string[] = [];
+    const serializedBodyTags: string[] = [];
 
     headTags.map((_index, element) => {
       if (
-        element.tagName === 'title' ||
-        (element.tagName === 'meta' && element.attribs.name === 'viewport')
+        element.tagName === "title" ||
+        (element.tagName === "meta" && element.attribs.name === "viewport")
       ) {
-        return element
+        return element;
       }
-      let hasChildren = element.children.length > 0
-      let serializedAttrs = serializeAttrs(element.attribs)
+      let hasChildren = element.children.length > 0;
+      let serializedAttrs = serializeAttrs(element.attribs);
 
-      if (element.tagName === 'script' || element.tagName === 'style') {
-        hasChildren = false
+      if (element.tagName === "script" || element.tagName === "style") {
+        hasChildren = false;
         serializedAttrs += ` dangerouslySetInnerHTML={{ __html: \`${gatherTextChildren(
           element.children
-        ).replace(/`/g, '\\`')}\` }}`
+        ).replace(/`/g, "\\`")}\` }}`;
       }
 
       serializedHeadTags.push(
@@ -254,23 +254,23 @@ class CraTransform {
               element.children
             )}</${element.tagName}>`
           : `<${element.tagName}${serializedAttrs} />`
-      )
+      );
 
-      return element
-    })
+      return element;
+    });
 
     bodyTags.map((_index, element) => {
-      if (element.tagName === 'div' && element.attribs.id === 'root') {
-        return element
+      if (element.tagName === "div" && element.attribs.id === "root") {
+        return element;
       }
-      let hasChildren = element.children.length > 0
-      let serializedAttrs = serializeAttrs(element.attribs)
+      let hasChildren = element.children.length > 0;
+      let serializedAttrs = serializeAttrs(element.attribs);
 
-      if (element.tagName === 'script' || element.tagName === 'style') {
-        hasChildren = false
+      if (element.tagName === "script" || element.tagName === "style") {
+        hasChildren = false;
         serializedAttrs += ` dangerouslySetInnerHTML={{ __html: \`${gatherTextChildren(
           element.children
-        ).replace(/`/g, '\\`')}\` }}`
+        ).replace(/`/g, "\\`")}\` }}`;
       }
 
       serializedHeadTags.push(
@@ -279,34 +279,34 @@ class CraTransform {
               element.children
             )}</${element.tagName}>`
           : `<${element.tagName}${serializedAttrs} />`
-      )
+      );
 
-      return element
-    })
+      return element;
+    });
 
     if (!this.isDryRun) {
       await fs.promises.writeFile(
         path.join(this.appDir, appPage),
         `${
           globalCssContext.cssImports.size === 0
-            ? ''
+            ? ""
             : [...globalCssContext.cssImports]
                 .map((file) => {
                   if (!this.isCra) {
-                    file = file.startsWith('/') ? file.slice(1) : file
+                    file = file.startsWith("/") ? file.slice(1) : file;
                   }
 
                   return `import '${
-                    file.startsWith('/')
+                    file.startsWith("/")
                       ? path.relative(
                           path.join(this.appDir, this.pagesDir),
                           file
                         )
                       : file
-                  }'`
+                  }'`;
                 })
-                .join('\n') + '\n'
-        }${titleTag ? `import Head from 'next/head'` : ''}
+                .join("\n") + "\n"
+        }${titleTag ? `import Head from 'next/head'` : ""}
 
 export default function MyApp({ Component, pageProps}) {
   ${
@@ -319,19 +319,19 @@ export default function MyApp({ Component, pageProps}) {
             ? `<title${serializeAttrs(titleTag.attribs)}>${gatherTextChildren(
                 titleTag.children
               )}</title>`
-            : ''
+            : ""
         }
-        ${metaViewport ? `<meta${serializeAttrs(metaViewport.attribs)} />` : ''}
+        ${metaViewport ? `<meta${serializeAttrs(metaViewport.attribs)} />` : ""}
       </Head>
       
       <Component {...pageProps} />
     </>
   )`
-      : 'return <Component {...pageProps} />'
+      : "return <Component {...pageProps} />"
   }
 }
 `
-      )
+      );
 
       await fs.promises.writeFile(
         path.join(this.appDir, documentPage),
@@ -340,15 +340,15 @@ export default function MyApp({ Component, pageProps}) {
 class MyDocument extends Document {
   render() {
     return (
-      <Html${serializeAttrs($('html').attr())}>
+      <Html${serializeAttrs($("html").attr())}>
         <Head>
-          ${serializedHeadTags.join('\n          ')}
+          ${serializedHeadTags.join("\n          ")}
         </Head>
         
-        <body${serializeAttrs($('body').attr())}>
+        <body${serializeAttrs($("body").attr())}>
           <Main />
           <NextScript />
-          ${serializedBodyTags.join('\n          ')}
+          ${serializedBodyTags.join("\n          ")}
         </body>
       </Html>
     )
@@ -357,12 +357,12 @@ class MyDocument extends Document {
 
 export default MyDocument      
 `
-      )
+      );
 
       const relativeIndexPath = path.relative(
         path.join(this.appDir, this.pagesDir),
-        path.join(this.appDir, 'src', this.isCra ? '' : 'main')
-      )
+        path.join(this.appDir, "src", this.isCra ? "" : "main")
+      );
 
       // TODO: should we default to ssr: true below and recommend they
       // set it to false if they encounter errors or prefer the more safe
@@ -385,42 +385,42 @@ export default function Page(props) {
   return <NextIndexWrapper {...props} />
 }
 `
-      )
+      );
     }
-    this.logCreate(appPage)
-    this.logCreate(documentPage)
-    this.logCreate(catchAllPage)
+    this.logCreate(appPage);
+    this.logCreate(documentPage);
+    this.logCreate(catchAllPage);
   }
 
   private async updatePackageJson() {
     // rename react-scripts -> next and react-scripts test -> jest
     // add needed dependencies for webpack compatibility
     const newDependencies: Array<{
-      name: string
-      version: string
+      name: string;
+      version: string;
     }> = [
       // TODO: do we want to install jest automatically?
       {
-        name: 'next',
-        version: 'latest',
+        name: "next",
+        version: "latest",
       },
-    ]
-    const packageName = this.isCra ? 'react-scripts' : 'vite'
+    ];
+    const packageName = this.isCra ? "react-scripts" : "vite";
     const packagesToRemove = {
       [packageName]: undefined,
-    }
-    const neededDependencies: string[] = []
-    const { devDependencies, dependencies, scripts } = this.packageJsonData
+    };
+    const neededDependencies: string[] = [];
+    const { devDependencies, dependencies, scripts } = this.packageJsonData;
 
     for (const dep of newDependencies) {
       if (!devDependencies?.[dep.name] && !dependencies?.[dep.name]) {
-        neededDependencies.push(`${dep.name}@${dep.version}`)
+        neededDependencies.push(`${dep.name}@${dep.version}`);
       }
     }
 
     this.logInfo(
-      `Installing ${neededDependencies.join(' ')} with ${this.installClient}`
-    )
+      `Installing ${neededDependencies.join(" ")} with ${this.installClient}`
+    );
 
     if (!this.isDryRun) {
       await fs.promises.writeFile(
@@ -429,29 +429,29 @@ export default function Page(props) {
           {
             ...this.packageJsonData,
             scripts: Object.keys(scripts).reduce((prev, cur) => {
-              const command = scripts[cur]
-              prev[cur] = command
+              const command = scripts[cur];
+              prev[cur] = command;
 
               if (command === packageName) {
-                prev[cur] = 'next dev'
+                prev[cur] = "next dev";
               }
 
               if (command.includes(`${packageName} `)) {
                 prev[cur] = command.replace(
                   `${packageName} `,
-                  command.includes(`${packageName} test`) ? 'jest ' : 'next '
-                )
+                  command.includes(`${packageName} test`) ? "jest " : "next "
+                );
               }
-              if (cur === 'eject') {
-                prev[cur] = undefined
+              if (cur === "eject") {
+                prev[cur] = undefined;
               }
               // TODO: do we want to map start -> next start instead of CRA's
               // default of mapping starting to dev mode?
-              if (cur === 'start') {
-                prev[cur] = prev[cur].replace('next start', 'next dev')
-                prev['start-production'] = 'next start'
+              if (cur === "start") {
+                prev[cur] = prev[cur].replace("next start", "next dev");
+                prev["start-production"] = "next start";
               }
-              return prev
+              return prev;
             }, {} as { [key: string]: string }),
             dependencies: {
               ...dependencies,
@@ -465,48 +465,48 @@ export default function Page(props) {
           null,
           2
         )
-      )
+      );
 
       await install(this.appDir, neededDependencies, {
-        useYarn: this.installClient === 'yarn',
+        useYarn: this.installClient === "yarn",
         // do we want to detect offline as well? they might not
         // have next in the local cache already
         isOnline: true,
-      })
+      });
     }
   }
 
   private async updateGitIgnore() {
     // add Next.js specific items to .gitignore e.g. '.next'
-    const gitignorePath = path.join(this.appDir, '.gitignore')
-    let ignoreContent = await fs.promises.readFile(gitignorePath, 'utf8')
+    const gitignorePath = path.join(this.appDir, ".gitignore");
+    let ignoreContent = await fs.promises.readFile(gitignorePath, "utf8");
     const nextIgnores = (
       await fs.promises.readFile(
-        path.join(path.dirname(globalCssTransformPath), 'gitignore'),
-        'utf8'
+        path.join(path.dirname(globalCssTransformPath), "gitignore"),
+        "utf8"
       )
-    ).split('\n')
+    ).split("\n");
 
     if (!this.isDryRun) {
       for (const ignore of nextIgnores) {
         if (!ignoreContent.includes(ignore)) {
-          ignoreContent += `\n${ignore}`
+          ignoreContent += `\n${ignore}`;
         }
       }
 
-      await fs.promises.writeFile(gitignorePath, ignoreContent)
+      await fs.promises.writeFile(gitignorePath, ignoreContent);
     }
-    this.logModify('.gitignore')
+    this.logModify(".gitignore");
   }
 
   private async createNextConfig() {
     if (!this.isDryRun) {
-      const { proxy, homepage } = this.packageJsonData
-      const homepagePath = new URL(homepage || '/', 'http://example.com')
-        .pathname
+      const { proxy, homepage } = this.packageJsonData;
+      const homepagePath = new URL(homepage || "/", "http://example.com")
+        .pathname;
 
       await fs.promises.writeFile(
-        path.join(this.appDir, 'next.config.js'),
+        path.join(this.appDir, "next.config.js"),
         `module.exports = {${
           proxy
             ? `
@@ -520,10 +520,10 @@ export default function Page(props) {
       ]
     }
   },`
-            : ''
+            : ""
         }
   env: {
-    PUBLIC_URL: '${homepagePath === '/' ? '' : homepagePath || ''}'
+    PUBLIC_URL: '${homepagePath === "/" ? "" : homepagePath || ""}'
   },
   experimental: {
     craCompat: true,
@@ -535,57 +535,57 @@ export default function Page(props) {
   }  
 }
 `
-      )
+      );
     }
-    this.logCreate('next.config.js')
+    this.logCreate("next.config.js");
   }
 
   private getPagesDir() {
     // prefer src/pages as CRA uses the src dir by default
     // and attempt falling back to top-level pages dir
-    let pagesDir = 'src/pages'
+    let pagesDir = "src/pages";
 
     if (fs.existsSync(path.join(this.appDir, pagesDir))) {
-      pagesDir = 'pages'
+      pagesDir = "pages";
     }
 
     if (fs.existsSync(path.join(this.appDir, pagesDir))) {
       fatalMessage(
         `Error: a "./pages" directory already exists, please rename to continue`
-      )
+      );
     }
-    return pagesDir
+    return pagesDir;
   }
 
   private loadPackageJson() {
-    let packageJsonData
+    let packageJsonData;
 
     try {
       packageJsonData = JSON.parse(
-        fs.readFileSync(this.packageJsonPath, 'utf8')
-      )
+        fs.readFileSync(this.packageJsonPath, "utf8")
+      );
     } catch (err) {
       fatalMessage(
         `Error: failed to load package.json from ${this.packageJsonPath}, ensure provided directory is root of CRA project`
-      )
+      );
     }
 
-    return packageJsonData
+    return packageJsonData;
   }
 
   private validateAppDir(files: string[]) {
     if (files.length > 1) {
       fatalMessage(
         `Error: only one directory should be provided for the cra-to-next transform, received ${files.join(
-          ', '
+          ", "
         )}`
-      )
+      );
     }
-    const appDir = path.join(process.cwd(), files[0])
-    let isValidDirectory = false
+    const appDir = path.join(process.cwd(), files[0]);
+    let isValidDirectory = false;
 
     try {
-      isValidDirectory = fs.lstatSync(appDir).isDirectory()
+      isValidDirectory = fs.lstatSync(appDir).isDirectory();
     } catch (err) {
       // not a valid directory
     }
@@ -593,19 +593,19 @@ export default function Page(props) {
     if (!isValidDirectory) {
       fatalMessage(
         `Error: invalid directory provided for the cra-to-next transform, received ${appDir}`
-      )
+      );
     }
-    return appDir
+    return appDir;
   }
 }
 
 export default async function transformer(files, flags) {
   try {
-    const craTransform = new CraTransform(files, flags)
-    await craTransform.transform()
+    const craTransform = new CraTransform(files, flags);
+    await craTransform.transform();
 
-    console.log(`CRA to Next.js migration complete`, `\n${feedbackMessage}`)
+    console.log(`CRA to Next.js migration complete`, `\n${feedbackMessage}`);
   } catch (err) {
-    fatalMessage(`Error: failed to complete transform`, err)
+    fatalMessage(`Error: failed to complete transform`, err);
   }
 }

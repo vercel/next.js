@@ -7,9 +7,9 @@ import {
   recordTraceEvents,
   Span,
   SpanStatus,
-} from './trace'
-import { setGlobal } from './shared'
-import type { SpanId, TraceEvent, TraceState } from './types'
+} from "./trace";
+import { setGlobal } from "./shared";
+import type { SpanId, TraceEvent, TraceState } from "./types";
 
 export {
   trace,
@@ -21,5 +21,5 @@ export {
   Span,
   setGlobal,
   SpanStatus,
-}
-export type { SpanId, TraceEvent, TraceState }
+};
+export type { SpanId, TraceEvent, TraceState };

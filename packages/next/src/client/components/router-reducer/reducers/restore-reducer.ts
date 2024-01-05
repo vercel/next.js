@@ -1,17 +1,17 @@
-import { createHrefFromUrl } from '../create-href-from-url'
+import { createHrefFromUrl } from "../create-href-from-url";
 import type {
   ReadonlyReducerState,
   ReducerState,
   RestoreAction,
-} from '../router-reducer-types'
-import { extractPathFromFlightRouterState } from '../compute-changed-path'
+} from "../router-reducer-types";
+import { extractPathFromFlightRouterState } from "../compute-changed-path";
 
 export function restoreReducer(
   state: ReadonlyReducerState,
   action: RestoreAction
 ): ReducerState {
-  const { url, tree } = action
-  const href = createHrefFromUrl(url)
+  const { url, tree } = action;
+  const href = createHrefFromUrl(url);
 
   return {
     buildId: state.buildId,
@@ -29,5 +29,5 @@ export function restoreReducer(
     // Restore provided tree
     tree: tree,
     nextUrl: extractPathFromFlightRouterState(tree) ?? url.pathname,
-  }
+  };
 }

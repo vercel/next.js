@@ -1,7 +1,7 @@
-import { Inter } from 'next/font/google'
+import { Inter } from "next/font/google";
 
-console.log(Inter)
+console.log(Inter);
 
 export default function Page() {
-  return <p>Hello world</p>
+  return <p>Hello world</p>;
 }

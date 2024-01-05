@@ -1,7 +1,7 @@
-import Head from 'next/head'
-export const config = { amp: true }
+import Head from "next/head";
+export const config = { amp: true };
 
-const date = new Date().toJSON()
+const date = new Date().toJSON();
 
 export default () => (
   <>
@@ -18,4 +18,4 @@ export default () => (
       {date}
     </amp-timeago>
   </>
-)
+);

@@ -8,17 +8,17 @@ The `generateStaticParams` function can be used in combination with [dynamic rou
 ```jsx filename="app/blog/[slug]/page.js"
 // Return a list of `params` to populate the [slug] dynamic segment
 export async function generateStaticParams() {
-  const posts = await fetch('https://.../posts').then((res) => res.json())
+  const posts = await fetch("https://.../posts").then((res) => res.json());
 
   return posts.map((post) => ({
     slug: post.slug,
-  }))
+  }));
 }
 
 // Multiple versions of this page will be statically generated
 // using the `params` returned by `generateStaticParams`
 export default function Page({ params }) {
-  const { slug } = params
+  const { slug } = params;
   // ...
 }
 ```
@@ -56,7 +56,7 @@ The `params` object contains the populated `params` from the parent `generateSta
 
 ```tsx filename="app/product/[id]/page.tsx" switcher
 export function generateStaticParams() {
-  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+  return [{ id: "1" }, { id: "2" }, { id: "3" }];
 }
 
 // Three versions of this page will be statically generated
@@ -65,14 +65,14 @@ export function generateStaticParams() {
 // - /product/2
 // - /product/3
 export default function Page({ params }: { params: { id: string } }) {
-  const { id } = params
+  const { id } = params;
   // ...
 }
 ```
 
 ```jsx filename="app/product/[id]/page.js" switcher
 export function generateStaticParams() {
-  return [{ id: '1' }, { id: '2' }, { id: '3' }]
+  return [{ id: "1" }, { id: "2" }, { id: "3" }];
 }
 
 // Three versions of this page will be statically generated
@@ -81,7 +81,7 @@ export function generateStaticParams() {
 // - /product/2
 // - /product/3
 export default function Page({ params }) {
-  const { id } = params
+  const { id } = params;
   // ...
 }
 ```
@@ -91,10 +91,10 @@ export default function Page({ params }) {
 ```tsx filename="app/products/[category]/[product]/page.tsx" switcher
 export function generateStaticParams() {
   return [
-    { category: 'a', product: '1' },
-    { category: 'b', product: '2' },
-    { category: 'c', product: '3' },
-  ]
+    { category: "a", product: "1" },
+    { category: "b", product: "2" },
+    { category: "c", product: "3" },
+  ];
 }
 
 // Three versions of this page will be statically generated
@@ -105,9 +105,9 @@ export function generateStaticParams() {
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: { category: string; product: string };
 }) {
-  const { category, product } = params
+  const { category, product } = params;
   // ...
 }
 ```
@@ -115,10 +115,10 @@ export default function Page({
 ```jsx filename="app/products/[category]/[product]/page.js" switcher
 export function generateStaticParams() {
   return [
-    { category: 'a', product: '1' },
-    { category: 'b', product: '2' },
-    { category: 'c', product: '3' },
-  ]
+    { category: "a", product: "1" },
+    { category: "b", product: "2" },
+    { category: "c", product: "3" },
+  ];
 }
 
 // Three versions of this page will be statically generated
@@ -127,7 +127,7 @@ export function generateStaticParams() {
 // - /products/b/2
 // - /products/c/3
 export default function Page({ params }) {
-  const { category, product } = params
+  const { category, product } = params;
   // ...
 }
 ```
@@ -136,7 +136,7 @@ export default function Page({ params }) {
 
 ```tsx filename="app/product/[...slug]/page.tsx" switcher
 export function generateStaticParams() {
-  return [{ slug: ['a', '1'] }, { slug: ['b', '2'] }, { slug: ['c', '3'] }]
+  return [{ slug: ["a", "1"] }, { slug: ["b", "2"] }, { slug: ["c", "3"] }];
 }
 
 // Three versions of this page will be statically generated
@@ -145,14 +145,14 @@ export function generateStaticParams() {
 // - /product/b/2
 // - /product/c/3
 export default function Page({ params }: { params: { slug: string[] } }) {
-  const { slug } = params
+  const { slug } = params;
   // ...
 }
 ```
 
 ```jsx filename="app/product/[...slug]/page.js" switcher
 export function generateStaticParams() {
-  return [{ slug: ['a', '1'] }, { slug: ['b', '2'] }, { slug: ['c', '3'] }]
+  return [{ slug: ["a", "1"] }, { slug: ["b", "2"] }, { slug: ["c", "3"] }];
 }
 
 // Three versions of this page will be statically generated
@@ -161,7 +161,7 @@ export function generateStaticParams() {
 // - /product/b/2
 // - /product/c/3
 export default function Page({ params }) {
-  const { slug } = params
+  const { slug } = params;
   // ...
 }
 ```
@@ -184,18 +184,20 @@ Generate multiple dynamic segments from the child route segment.
 ```tsx filename="app/products/[category]/[product]/page.tsx" switcher
 // Generate segments for both [category] and [product]
 export async function generateStaticParams() {
-  const products = await fetch('https://.../products').then((res) => res.json())
+  const products = await fetch("https://.../products").then((res) =>
+    res.json()
+  );
 
   return products.map((product) => ({
     category: product.category.slug,
     product: product.id,
-  }))
+  }));
 }
 
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: { category: string; product: string };
 }) {
   // ...
 }
@@ -204,12 +206,14 @@ export default function Page({
 ```jsx filename="app/products/[category]/[product]/page.js" switcher
 // Generate segments for both [category] and [product]
 export async function generateStaticParams() {
-  const products = await fetch('https://.../products').then((res) => res.json())
+  const products = await fetch("https://.../products").then((res) =>
+    res.json()
+  );
 
   return products.map((product) => ({
     category: product.category.slug,
     product: product.id,
-  }))
+  }));
 }
 
 export default function Page({ params }) {
@@ -224,11 +228,13 @@ Generate the parent segments first and use the result to generate the child segm
 ```tsx filename="app/products/[category]/layout.tsx" switcher
 // Generate segments for [category]
 export async function generateStaticParams() {
-  const products = await fetch('https://.../products').then((res) => res.json())
+  const products = await fetch("https://.../products").then((res) =>
+    res.json()
+  );
 
   return products.map((product) => ({
     category: product.category.slug,
-  }))
+  }));
 }
 
 export default function Layout({ params }: { params: { category: string } }) {
@@ -239,11 +245,13 @@ export default function Layout({ params }: { params: { category: string } }) {
 ```jsx filename="app/products/[category]/layout.js" switcher
 // Generate segments for [category]
 export async function generateStaticParams() {
-  const products = await fetch('https://.../products').then((res) => res.json())
+  const products = await fetch("https://.../products").then((res) =>
+    res.json()
+  );
 
   return products.map((product) => ({
     category: product.category.slug,
-  }))
+  }));
 }
 
 export default function Layout({ params }) {
@@ -261,21 +269,21 @@ The child `generateStaticParams` function can use the `params` returned from the
 export async function generateStaticParams({
   params: { category },
 }: {
-  params: { category: string }
+  params: { category: string };
 }) {
   const products = await fetch(
     `https://.../products?category=${category}`
-  ).then((res) => res.json())
+  ).then((res) => res.json());
 
   return products.map((product) => ({
     product: product.id,
-  }))
+  }));
 }
 
 export default function Page({
   params,
 }: {
-  params: { category: string; product: string }
+  params: { category: string; product: string };
 }) {
   // ...
 }
@@ -287,11 +295,11 @@ export default function Page({
 export async function generateStaticParams({ params: { category } }) {
   const products = await fetch(
     `https://.../products?category=${category}`
-  ).then((res) => res.json())
+  ).then((res) => res.json());
 
   return products.map((product) => ({
     product: product.id,
-  }))
+  }));
 }
 
 export default function Page({ params }) {
@@ -307,15 +315,15 @@ You can generate a subset of params for a route by returning an array of objects
 
 ```jsx filename="app/blog/[slug]/page.js"
 // All posts besides the top 10 will be a 404
-export const dynamicParams = false
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  const posts = await fetch('https://.../posts').then((res) => res.json())
-  const topPosts = posts.slice(0, 10)
+  const posts = await fetch("https://.../posts").then((res) => res.json());
+  const topPosts = posts.slice(0, 10);
 
   return topPosts.map((post) => ({
     slug: post.slug,
-  }))
+  }));
 }
 ```
 

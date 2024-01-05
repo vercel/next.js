@@ -1,22 +1,22 @@
-import rule from '@next/eslint-plugin-next/dist/rules/next-script-for-ga'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/next-script-for-ga";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
+});
 
 const ERROR_MSG =
-  'Prefer `next/script` component when using the inline script for Google Analytics. See: https://nextjs.org/docs/messages/next-script-for-ga'
+  "Prefer `next/script` component when using the inline script for Google Analytics. See: https://nextjs.org/docs/messages/next-script-for-ga";
 
-const ruleTester = new RuleTester()
+const ruleTester = new RuleTester();
 
-ruleTester.run('sync-scripts', rule, {
+ruleTester.run("sync-scripts", rule, {
   valid: [
     `import Script from 'next/script'
 
@@ -119,7 +119,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message: ERROR_MSG,
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -148,7 +148,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message: ERROR_MSG,
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -177,7 +177,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message: ERROR_MSG,
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -203,7 +203,7 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message: ERROR_MSG,
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -233,9 +233,9 @@ ruleTester.run('sync-scripts', rule, {
       errors: [
         {
           message: ERROR_MSG,
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

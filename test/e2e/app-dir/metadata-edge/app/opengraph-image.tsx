@@ -1,3 +1,3 @@
-export const alt = 'Open Graph'
+export const alt = "Open Graph";
 
-export { default } from './og'
+export { default } from "./og";

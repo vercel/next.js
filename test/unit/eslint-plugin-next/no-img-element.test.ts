@@ -1,18 +1,18 @@
-import * as rule from '@next/eslint-plugin-next/dist/rules/no-img-element'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import * as rule from "@next/eslint-plugin-next/dist/rules/no-img-element";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-img-element', rule, {
+ruleTester.run("no-img-element", rule, {
   valid: [
     `import { Image } from 'next/image';
 
@@ -81,8 +81,8 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element',
-          type: 'JSXOpeningElement',
+            "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -103,10 +103,10 @@ ruleTester.run('no-img-element', rule, {
       errors: [
         {
           message:
-            'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element',
-          type: 'JSXOpeningElement',
+            "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

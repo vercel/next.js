@@ -1,1 +1,1 @@
-export { default } from 'next/error'
+export { default } from "next/error";

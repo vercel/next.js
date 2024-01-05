@@ -1,5 +1,5 @@
 .first {
-  background-image: url('/vercel.svg');
+  background-image: url("/vercel.svg");
 }
 
 .first:nth-child(1) {
@@ -15,7 +15,7 @@
 } */
 
 .first:nth-child(4) {
-  background-image: url('../public/vercel.svg');
+  background-image: url("../public/vercel.svg");
 }
 
 .first:nth-child(5) {
@@ -23,9 +23,9 @@
 }
 
 .another {
-  background-image: url('https://vercel.com/vercel.svg');
+  background-image: url("https://vercel.com/vercel.svg");
 }
 
 .another:nth-child(1) {
-  background-image: url('https://vercel.com/vercel.svg');
+  background-image: url("https://vercel.com/vercel.svg");
 }

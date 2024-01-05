@@ -1,2 +1,2 @@
-export default () => new Response('ok')
-export const config = { runtime: 'edge' }
+export default () => new Response("ok");
+export const config = { runtime: "edge" };

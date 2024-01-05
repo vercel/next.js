@@ -1,8 +1,8 @@
-import React from 'react'
-import { interopDefault } from './interop-default'
-import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
-import type { AppRenderContext } from './app-render'
-import { getAssetQueryString } from './get-asset-query-string'
+import React from "react";
+import { interopDefault } from "./interop-default";
+import { getLinkAndScriptTags } from "./get-css-inlined-link-tags";
+import type { AppRenderContext } from "./app-render";
+import { getAssetQueryString } from "./get-asset-query-string";
 
 export async function createComponentStylesAndScripts({
   filePath,
@@ -11,18 +11,18 @@ export async function createComponentStylesAndScripts({
   injectedJS,
   ctx,
 }: {
-  filePath: string
-  getComponent: () => any
-  injectedCSS: Set<string>
-  injectedJS: Set<string>
-  ctx: AppRenderContext
+  filePath: string;
+  getComponent: () => any;
+  injectedCSS: Set<string>;
+  injectedJS: Set<string>;
+  ctx: AppRenderContext;
 }): Promise<[any, React.ReactNode, React.ReactNode]> {
   const { styles: cssHrefs, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,
     injectedCSS,
     injectedJS
-  )
+  );
 
   const styles = cssHrefs
     ? cssHrefs.map((href, index) => {
@@ -35,7 +35,7 @@ export async function createComponentStylesAndScripts({
         const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
           ctx,
           true
-        )}`
+        )}`;
 
         // `Precedence` is an opt-in signal for React to handle resource
         // loading and deduplication, etc. It's also used as the key to sort
@@ -44,7 +44,7 @@ export async function createComponentStylesAndScripts({
         // for different stylesheets, so their order will be kept.
         // https://github.com/facebook/react/pull/25060
         const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+          process.env.NODE_ENV === "development" ? "next_" + href : "next";
 
         return (
           <link
@@ -55,17 +55,17 @@ export async function createComponentStylesAndScripts({
             crossOrigin={ctx.renderOpts.crossOrigin}
             key={index}
           />
-        )
+        );
       })
-    : null
+    : null;
 
   const scripts = jsHrefs
     ? jsHrefs.map((href) => (
         <script src={`${ctx.assetPrefix}/_next/${href}`} async={true} />
       ))
-    : null
+    : null;
 
-  const Comp = interopDefault(await getComponent())
+  const Comp = interopDefault(await getComponent());
 
-  return [Comp, styles, scripts]
+  return [Comp, styles, scripts];
 }

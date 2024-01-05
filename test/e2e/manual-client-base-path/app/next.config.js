@@ -1,6 +1,6 @@
 module.exports = {
-  basePath: '/docs-proxy',
+  basePath: "/docs-proxy",
   experimental: {
     manualClientBasePath: true,
   },
-}
+};

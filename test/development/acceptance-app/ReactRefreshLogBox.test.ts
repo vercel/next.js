@@ -1,25 +1,25 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
-import path from 'path'
-import { outdent } from 'outdent'
+import { sandbox } from "development-sandbox";
+import { FileRef, nextTestSetup } from "e2e-utils";
+import { check, describeVariants as describe } from "next-test-utils";
+import path from "path";
+import { outdent } from "outdent";
 
-describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
+describe.each(["default", "turbo"])("ReactRefreshLogBox app %s", () => {
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    files: new FileRef(path.join(__dirname, "fixtures", "default-template")),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: "latest",
+      "react-dom": "latest",
     },
     skipStart: true,
-  })
+  });
 
-  test('should strip whitespace correctly with newline', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("should strip whitespace correctly with newline", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default function Page() {
           return (
@@ -36,23 +36,23 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    await session.evaluate(() => document.querySelector('a').click())
+    );
+    await session.evaluate(() => document.querySelector("a").click());
 
-    await session.waitForAndOpenRuntimeError()
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    await session.waitForAndOpenRuntimeError();
+    expect(await session.getRedboxSource()).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137807
-  test('module init error not shown', async () => {
+  test("module init error not shown", async () => {
     // Start here:
-    const { session, cleanup } = await sandbox(next)
+    const { session, cleanup } = await sandbox(next);
 
     // We start here.
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import * as React from 'react';
         class ClassDefault extends React.Component {
@@ -62,15 +62,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
         export default ClassDefault;
       `
-    )
+    );
 
     expect(
-      await session.evaluate(() => document.querySelector('h1').textContent)
-    ).toBe('Default Export')
+      await session.evaluate(() => document.querySelector("h1").textContent)
+    ).toBe("Default Export");
 
     // Add a throw in module init phase:
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         // top offset for snapshot
         import * as React from 'react';
@@ -82,32 +82,32 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
         export default ClassDefault;
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+    expect(await session.hasRedbox(true)).toBe(true);
+    if (process.platform === "win32") {
+      expect(await session.getRedboxSource()).toMatchSnapshot();
     } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(await session.getRedboxSource()).toMatchSnapshot();
     }
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554152127
-  test('boundaries', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("boundaries", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.write(
-      'FunctionDefault.js',
+      "FunctionDefault.js",
       outdent`
         export default function FunctionDefault() {
           return <h2>hello</h2>
         }
       `
-    )
+    );
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import FunctionDefault from './FunctionDefault.js'
         import * as React from 'react'
@@ -138,58 +138,58 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
         export default App;
       `
-    )
+    );
 
     expect(
-      await session.evaluate(() => document.querySelector('h2').textContent)
-    ).toBe('hello')
+      await session.evaluate(() => document.querySelector("h2").textContent)
+    ).toBe("hello");
 
     await session.write(
-      'FunctionDefault.js',
+      "FunctionDefault.js",
       `export default function FunctionDefault() { throw new Error('no'); }`
-    )
+    );
 
-    await session.waitForAndOpenRuntimeError()
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    await session.waitForAndOpenRuntimeError();
+    expect(await session.getRedboxSource()).toMatchSnapshot();
     expect(
-      await session.evaluate(() => document.querySelector('h2').textContent)
-    ).toBe('error')
+      await session.evaluate(() => document.querySelector("h2").textContent)
+    ).toBe("error");
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   // TODO: investigate why this fails when running outside of the Next.js
   // monorepo e.g. fails when using yarn create next-app
   // https://github.com/vercel/next.js/pull/23203
-  test.skip('internal package errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test.skip("internal package errors", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     // Make a react build-time error.
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default function FunctionNamed() {
           return <div>{{}}</div>
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     // We internally only check the script path, not including the line number
     // and error message because the error comes from an external library.
     // This test ensures that the errored script path is correctly resolved.
     expect(await session.getRedboxSource()).toContain(
       `../../../../packages/next/dist/pages/_document.js`
-    )
+    );
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('unterminated JSX', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("unterminated JSX", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           return (
@@ -199,12 +199,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           return (
@@ -214,11 +214,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    const source = await session.getRedboxSource()
+    const source = await session.getRedboxSource();
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
       next.normalizeSnapshot(`
         "./index.js
@@ -247,26 +247,26 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ./index.js
         ./app/page.js"
       `)
-    )
+    );
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   // Module trace is only available with webpack 5
-  test('conversion to class component (1)', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("conversion to class component (1)", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.write(
-      'Child.js',
+      "Child.js",
       outdent`
         export default function ClickCount() {
           return <p>hello</p>
         }
       `
-    )
+    );
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import Child from './Child';
 
@@ -278,15 +278,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false);
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('hello')
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("hello");
 
     await session.patch(
-      'Child.js',
+      "Child.js",
       outdent`
         import { Component } from 'react';
         export default class ClickCount extends Component {
@@ -295,13 +295,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           }
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxSource()).toMatchSnapshot();
 
     await session.patch(
-      'Child.js',
+      "Child.js",
       outdent`
         import { Component } from 'react';
         export default class ClickCount extends Component {
@@ -310,22 +310,22 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           }
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false);
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('hello new')
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("hello new");
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('css syntax errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("css syntax errors", async () => {
+    const { session, cleanup } = await sandbox(next);
 
-    await session.write('index.module.css', `.button {}`)
+    await session.write("index.module.css", `.button {}`);
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import './index.module.css';
         export default () => {
@@ -336,34 +336,34 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox(false)).toBe(false);
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
-    expect(await session.hasRedbox(true)).toBe(true)
-    const source = await session.getRedboxSource()
-    expect(source).toMatch('./index.module.css:1:1')
-    expect(source).toMatch('Syntax error: ')
-    expect(source).toMatch('Unclosed block')
-    expect(source).toMatch('> 1 | .button {')
-    expect(source).toMatch('    | ^')
+    await session.patch("index.module.css", `.button {`);
+    expect(await session.hasRedbox(true)).toBe(true);
+    const source = await session.getRedboxSource();
+    expect(source).toMatch("./index.module.css:1:1");
+    expect(source).toMatch("Syntax error: ");
+    expect(source).toMatch("Unclosed block");
+    expect(source).toMatch("> 1 | .button {");
+    expect(source).toMatch("    | ^");
 
     // Not local error
-    await session.patch('index.module.css', `button {}`)
-    expect(await session.hasRedbox(true)).toBe(true)
-    const source2 = await session.getRedboxSource()
-    expect(source2).toMatchSnapshot()
+    await session.patch("index.module.css", `button {}`);
+    expect(await session.hasRedbox(true)).toBe(true);
+    const source2 = await session.getRedboxSource();
+    expect(source2).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('logbox: anchors links in error messages', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("logbox: anchors links in error messages", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback } from 'react'
 
@@ -378,37 +378,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.evaluate(() => document.querySelector("button").click());
+    await session.waitForAndOpenRuntimeError();
 
-    const header = await session.getRedboxDescription()
-    expect(header).toMatchSnapshot()
+    const header = await session.getRedboxDescription();
+    expect(header).toMatchSnapshot();
     expect(
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+            .querySelector("body > nextjs-portal")
+            .shadowRoot.querySelectorAll("#nextjs__container_errors_desc a")
             .length
       )
-    ).toBe(1)
+    ).toBe(1);
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
+                "#nextjs__container_errors_desc a:nth-of-type(1)"
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toMatchSnapshot();
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback } from 'react'
 
@@ -423,37 +423,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.evaluate(() => document.querySelector("button").click());
+    await session.waitForAndOpenRuntimeError();
 
-    const header2 = await session.getRedboxDescription()
-    expect(header2).toMatchSnapshot()
+    const header2 = await session.getRedboxDescription();
+    expect(header2).toMatchSnapshot();
     expect(
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+            .querySelector("body > nextjs-portal")
+            .shadowRoot.querySelectorAll("#nextjs__container_errors_desc a")
             .length
       )
-    ).toBe(1)
+    ).toBe(1);
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
+                "#nextjs__container_errors_desc a:nth-of-type(1)"
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toMatchSnapshot();
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback } from 'react'
 
@@ -468,37 +468,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.evaluate(() => document.querySelector("button").click());
+    await session.waitForAndOpenRuntimeError();
 
-    const header3 = await session.getRedboxDescription()
-    expect(header3).toMatchSnapshot()
+    const header3 = await session.getRedboxDescription();
+    expect(header3).toMatchSnapshot();
     expect(
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+            .querySelector("body > nextjs-portal")
+            .shadowRoot.querySelectorAll("#nextjs__container_errors_desc a")
             .length
       )
-    ).toBe(1)
+    ).toBe(1);
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
+                "#nextjs__container_errors_desc a:nth-of-type(1)"
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toMatchSnapshot();
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback } from 'react'
 
@@ -513,58 +513,58 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    await session.evaluate(() => document.querySelector('button').click())
-    await session.waitForAndOpenRuntimeError()
+    await session.evaluate(() => document.querySelector("button").click());
+    await session.waitForAndOpenRuntimeError();
 
-    const header4 = await session.getRedboxDescription()
+    const header4 = await session.getRedboxDescription();
     expect(header4).toMatchInlineSnapshot(
       `"Error: multiple http://nextjs.org links http://example.com"`
-    )
+    );
     expect(
       await session.evaluate(
         () =>
           document
-            .querySelector('body > nextjs-portal')
-            .shadowRoot.querySelectorAll('#nextjs__container_errors_desc a')
+            .querySelector("body > nextjs-portal")
+            .shadowRoot.querySelectorAll("#nextjs__container_errors_desc a")
             .length
       )
-    ).toBe(2)
+    ).toBe(2);
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(1)'
+                "#nextjs__container_errors_desc a:nth-of-type(1)"
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toMatchSnapshot();
     expect(
       await session.evaluate(
         () =>
           (
             document
-              .querySelector('body > nextjs-portal')
+              .querySelector("body > nextjs-portal")
               .shadowRoot.querySelector(
-                '#nextjs__container_errors_desc a:nth-of-type(2)'
+                "#nextjs__container_errors_desc a:nth-of-type(2)"
               ) as any
           ).href
       )
-    ).toMatchSnapshot()
+    ).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   // TODO-APP: Catch errors that happen before useEffect
-  test.skip('non-Error errors are handled properly', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test.skip("non-Error errors are handled properly", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           throw {'a': 1, 'b': 'x'};
@@ -573,16 +573,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: {"a":1,"b":"x"}"`
-    )
+    );
 
     // fix previous error
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           return (
@@ -590,10 +590,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         class Hello {}
 
@@ -604,15 +604,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toContain(
       `Error: class Hello {`
-    )
+    );
 
     // fix previous error
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           return (
@@ -620,10 +620,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           throw "string error"
@@ -632,15 +632,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: string error"`
-    )
+    );
 
     // fix previous error
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           return (
@@ -648,10 +648,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           throw null
@@ -660,20 +660,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
-    )
+    );
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Should not show __webpack_exports__ when exporting anonymous arrow function', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("Should not show __webpack_exports__ when exporting anonymous arrow function", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         export default () => {
           if (typeof window !== 'undefined') {
@@ -683,16 +683,16 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           return null
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxSource()).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Unhandled errors and rejections opens up in the minimized state', async () => {
-    const { session, browser, cleanup } = await sandbox(next)
+  test("Unhandled errors and rejections opens up in the minimized state", async () => {
+    const { session, browser, cleanup } = await sandbox(next);
 
     const file = outdent`
       export default function Index() {
@@ -724,53 +724,53 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           </>
         )
       }
-    `
+    `;
 
-    await session.patch('index.js', file)
+    await session.patch("index.js", file);
 
     // Unhandled error and rejection in setTimeout
     expect(
-      await browser.waitForElementByCss('.nextjs-toast-errors').text()
-    ).toBe('2 errors')
+      await browser.waitForElementByCss(".nextjs-toast-errors").text()
+    ).toBe("2 errors");
 
     // Unhandled error in event handler
-    await browser.elementById('unhandled-error').click()
+    await browser.elementById("unhandled-error").click();
     await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      () => browser.elementByCss(".nextjs-toast-errors").text(),
       /3 errors/
-    )
+    );
 
     // Unhandled rejection in event handler
-    await browser.elementById('unhandled-rejection').click()
+    await browser.elementById("unhandled-rejection").click();
     await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
+      () => browser.elementByCss(".nextjs-toast-errors").text(),
       /4 errors/
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     // Add Component error
     await session.patch(
-      'index.js',
+      "index.js",
       file.replace(
-        '//',
+        "//",
         "if (typeof window !== 'undefined') throw new Error('Component error')"
       )
-    )
+    );
 
     // Render error should "win" and show up in fullscreen
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test.each(['server', 'client'])(
-    'Call stack count is correct for %s error',
+  test.each(["server", "client"])(
+    "Call stack count is correct for %s error",
     async (pageType) => {
       const fixture =
-        pageType === 'server'
+        pageType === "server"
           ? new Map([
               [
-                'app/page.js',
+                "app/page.js",
                 outdent`
                   export default function Page() {
                     throw new Error('Server error')
@@ -780,7 +780,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
             ])
           : new Map([
               [
-                'app/page.js',
+                "app/page.js",
                 outdent`
                   'use client'
                   export default function Page() {
@@ -791,35 +791,35 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
                   }
                 `,
               ],
-            ])
+            ]);
 
-      const { session, browser, cleanup } = await sandbox(next, fixture)
+      const { session, browser, cleanup } = await sandbox(next, fixture);
 
       const getCallStackCount = async () =>
-        (await browser.elementsByCss('[data-nextjs-call-stack-frame]')).length
+        (await browser.elementsByCss("[data-nextjs-call-stack-frame]")).length;
 
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.hasRedbox(true)).toBe(true);
 
       // Open full Call Stack
       await browser
-        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-        .click()
+        .elementByCss("[data-nextjs-data-runtime-error-collapsed-action]")
+        .click();
 
       // Expect more than the default amount of frames
       // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-      expect(await getCallStackCount()).toBeGreaterThan(9)
+      expect(await getCallStackCount()).toBeGreaterThan(9);
 
-      await cleanup()
+      await cleanup();
     }
-  )
+  );
 
-  test('Server component errors should open up in fullscreen', async () => {
+  test("Server component errors should open up in fullscreen", async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
         // Start with error
         [
-          'app/page.js',
+          "app/page.js",
           outdent`
             export default function Page() {
               throw new Error('Server component error')
@@ -828,48 +828,48 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           `,
         ],
       ])
-    )
-    expect(await session.hasRedbox(true)).toBe(true)
+    );
+    expect(await session.hasRedbox(true)).toBe(true);
 
     // Remove error
     await session.patch(
-      'app/page.js',
+      "app/page.js",
       outdent`
         export default function Page() {
           return <p id="text">Hello world</p>
         }
       `
-    )
-    expect(await browser.waitForElementByCss('#text').text()).toBe(
-      'Hello world'
-    )
-    expect(await session.hasRedbox(false)).toBe(false)
+    );
+    expect(await browser.waitForElementByCss("#text").text()).toBe(
+      "Hello world"
+    );
+    expect(await session.hasRedbox(false)).toBe(false);
 
     // Re-add error
     await session.patch(
-      'app/page.js',
+      "app/page.js",
       outdent`
         export default function Page() {
           throw new Error('Server component error!')
           return <p id="text">Hello world</p>
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test('Import trace when module not found in layout', async () => {
+  test("Import trace when module not found in layout", async () => {
     const { session, cleanup } = await sandbox(
       next,
 
-      new Map([['app/module.js', `import "non-existing-module"`]])
-    )
+      new Map([["app/module.js", `import "non-existing-module"`]])
+    );
 
     await session.patch(
-      'app/layout.js',
+      "app/layout.js",
       outdent`
         import "./module"
 
@@ -882,25 +882,25 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxSource()).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   test("Can't resolve @import in CSS file", async () => {
     const { session, cleanup } = await sandbox(
       next,
       new Map([
-        ['app/styles1.css', '@import "./styles2.css"'],
-        ['app/styles2.css', '@import "./boom.css"'],
+        ["app/styles1.css", '@import "./styles2.css"'],
+        ["app/styles2.css", '@import "./boom.css"'],
       ])
-    )
+    );
 
     await session.patch(
-      'app/layout.js',
+      "app/layout.js",
       outdent`
         import "./styles1.css"
 
@@ -913,28 +913,28 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
           )
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    expect(await session.hasRedbox(true)).toBe(true);
+    expect(await session.getRedboxSource()).toMatchSnapshot();
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
-  test.each([['server'], ['client']])(
-    '%s component can recover from error thrown in the module',
+  test.each([["server"], ["client"]])(
+    "%s component can recover from error thrown in the module",
     async (type: string) => {
-      const { session, cleanup } = await sandbox(next, undefined, '/' + type)
+      const { session, cleanup } = await sandbox(next, undefined, "/" + type);
 
-      await next.patchFile('index.js', "throw new Error('module error')")
-      expect(await session.hasRedbox(true)).toBe(true)
+      await next.patchFile("index.js", "throw new Error('module error')");
+      expect(await session.hasRedbox(true)).toBe(true);
       await next.patchFile(
-        'index.js',
-        'export default function Page() {return <p>hello world</p>}'
-      )
-      expect(await session.hasRedbox(false)).toBe(false)
+        "index.js",
+        "export default function Page() {return <p>hello world</p>}"
+      );
+      expect(await session.hasRedbox(false)).toBe(false);
 
-      await cleanup()
+      await cleanup();
     }
-  )
-})
+  );
+});

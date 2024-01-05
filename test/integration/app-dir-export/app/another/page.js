@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Another() {
   return (
@@ -22,5 +22,5 @@ export default function Another() {
         </li>
       </ul>
     </main>
-  )
+  );
 }

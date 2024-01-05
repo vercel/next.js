@@ -1,5 +1,5 @@
-import { nanoid } from 'nanoid'
-import Link from './link.js'
+import { nanoid } from "nanoid";
+import Link from "./link.js";
 
 export default function Page() {
   return (
@@ -13,5 +13,5 @@ export default function Page() {
         Headers
       </Link>
     </>
-  )
+  );
 }

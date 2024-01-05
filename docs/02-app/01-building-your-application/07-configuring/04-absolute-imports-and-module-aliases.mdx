@@ -18,10 +18,10 @@ These options allow you to alias project directories to absolute paths, making i
 
 ```tsx
 // before
-import { Button } from '../../../components/button'
+import { Button } from "../../../components/button";
 
 // after
-import { Button } from '@/components/button'
+import { Button } from "@/components/button";
 ```
 
 > **Good to know**: `create-next-app` will prompt to configure these options for you.
@@ -42,18 +42,18 @@ An example of this configuration:
 
 ```tsx filename="components/button.tsx" switcher
 export default function Button() {
-  return <button>Click me</button>
+  return <button>Click me</button>;
 }
 ```
 
 ```jsx filename="components/button.js" switcher
 export default function Button() {
-  return <button>Click me</button>
+  return <button>Click me</button>;
 }
 ```
 
 ```tsx filename="app/page.tsx" switcher
-import Button from 'components/button'
+import Button from "components/button";
 
 export default function HomePage() {
   return (
@@ -61,12 +61,12 @@ export default function HomePage() {
       <h1>Hello World</h1>
       <Button />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Button from 'components/button'
+import Button from "components/button";
 
 export default function HomePage() {
   return (
@@ -74,7 +74,7 @@ export default function HomePage() {
       <h1>Hello World</h1>
       <Button />
     </>
-  )
+  );
 }
 ```
 
@@ -97,18 +97,18 @@ For example, the following configuration maps `@/components/*` to `components/*`
 
 ```tsx filename="components/button.tsx" switcher
 export default function Button() {
-  return <button>Click me</button>
+  return <button>Click me</button>;
 }
 ```
 
 ```jsx filename="components/button.js" switcher
 export default function Button() {
-  return <button>Click me</button>
+  return <button>Click me</button>;
 }
 ```
 
 ```tsx filename="app/page.tsx" switcher
-import Button from '@/components/button'
+import Button from "@/components/button";
 
 export default function HomePage() {
   return (
@@ -116,12 +116,12 @@ export default function HomePage() {
       <h1>Hello World</h1>
       <Button />
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Button from '@/components/button'
+import Button from "@/components/button";
 
 export default function HomePage() {
   return (
@@ -129,7 +129,7 @@ export default function HomePage() {
       <h1>Hello World</h1>
       <Button />
     </>
-  )
+  );
 }
 ```
 
@@ -150,9 +150,9 @@ Each of the `"paths"` are relative to the `baseUrl` location. For example:
 
 ```jsx
 // pages/index.js
-import Button from '@/components/button'
-import '@/styles/styles.css'
-import Helper from 'utils/helper'
+import Button from "@/components/button";
+import "@/styles/styles.css";
+import Helper from "utils/helper";
 
 export default function HomePage() {
   return (
@@ -160,6 +160,6 @@ export default function HomePage() {
       <h1>Hello World</h1>
       <Button />
     </Helper>
-  )
+  );
 }
 ```

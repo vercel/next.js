@@ -1,10 +1,10 @@
-import { useReducer } from 'react'
-import { Links } from '../../components/links'
+import { useReducer } from "react";
+import { Links } from "../../components/links";
 
-import { DynamicShared } from '../../components/DynamicShared'
+import { DynamicShared } from "../../components/DynamicShared";
 
 export default function About() {
-  let [shouldload, load] = useReducer(() => true, false)
+  let [shouldload, load] = useReducer(() => true, false);
   return (
     <>
       <div>About</div>
@@ -15,5 +15,5 @@ export default function About() {
       )}
       <Links />
     </>
-  )
+  );
 }

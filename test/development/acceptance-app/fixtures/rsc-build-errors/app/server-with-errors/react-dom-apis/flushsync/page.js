@@ -1,7 +1,7 @@
-import { flushSync } from 'react-dom'
+import { flushSync } from "react-dom";
 
-console.log({ flushSync })
+console.log({ flushSync });
 
 export default function Page() {
-  return null
+  return null;
 }

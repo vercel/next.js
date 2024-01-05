@@ -1,9 +1,9 @@
-import React from 'react'
+import React from "react";
 
 export default function Page() {
-  return <>hello index</>
+  return <>hello index</>;
 }
 
 export const metadata = {
-  title: 'index page',
-}
+  title: "index page",
+};

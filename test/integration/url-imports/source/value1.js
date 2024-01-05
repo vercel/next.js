@@ -1,1 +1,1 @@
-export default 42 // 1
+export default 42; // 1

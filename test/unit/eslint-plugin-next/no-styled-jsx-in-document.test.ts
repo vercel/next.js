@@ -1,21 +1,21 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-styled-jsx-in-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-styled-jsx-in-document";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-styled-jsx-in-document', rule, {
+ruleTester.run("no-styled-jsx-in-document", rule, {
   valid: [
     {
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         export class MyDocument extends Document {
@@ -38,7 +38,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
         }`,
     },
     {
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
 
         export class MyDocument extends Document {
@@ -67,7 +67,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
         }`,
     },
     {
-      filename: 'pages/index.js',
+      filename: "pages/index.js",
       code: `
           export default function Page() {
             return (
@@ -87,7 +87,7 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
 
   invalid: [
     {
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
       code: `
             import Document, { Html, Head, Main, NextScript } from 'next/document'
 
@@ -121,4 +121,4 @@ ruleTester.run('no-styled-jsx-in-document', rule, {
       ],
     },
   ],
-})
+});

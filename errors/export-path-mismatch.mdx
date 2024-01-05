@@ -15,12 +15,12 @@ Change your `exportPathMap` function in `next.config.js` to have a path that mat
 module.exports = {
   exportPathMap: function () {
     return {
-      '/': { page: '/' },
+      "/": { page: "/" },
       // '/blog/nextjs': { page: '/blog/[post]/comment/[id]' },        // wrong
-      '/blog/nextjs/comment/1': { page: '/blog/[post]/comment/[id]' }, // correct
-    }
+      "/blog/nextjs/comment/1": { page: "/blog/[post]/comment/[id]" }, // correct
+    };
   },
-}
+};
 ```
 
 ## Useful Links

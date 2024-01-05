@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { usePathname } from 'next/navigation'
+import { usePathname } from "next/navigation";
 
 export default function Page() {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <>
@@ -11,5 +11,5 @@ export default function Page() {
         hello from {pathname}
       </h1>
     </>
-  )
+  );
 }

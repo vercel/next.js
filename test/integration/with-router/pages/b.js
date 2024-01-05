@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 class PageB extends React.Component {
   render() {
@@ -6,8 +6,8 @@ class PageB extends React.Component {
       <div id="page-b">
         <p>Page B!</p>
       </div>
-    )
+    );
   }
 }
 
-export default PageB
+export default PageB;

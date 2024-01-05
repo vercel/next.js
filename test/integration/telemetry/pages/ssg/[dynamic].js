@@ -1,9 +1,9 @@
-export default () => 'Hello World'
+export default () => "Hello World";
 
 export function getStaticProps() {
-  return { props: {} }
+  return { props: {} };
 }
 
 export function getStaticPaths() {
-  return { paths: [], fallback: true }
+  return { paths: [], fallback: true };
 }

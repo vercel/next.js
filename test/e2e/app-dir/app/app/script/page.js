@@ -1,6 +1,6 @@
-import Script from 'next/script'
+import Script from "next/script";
 
-import Client from './client'
+import Client from "./client";
 
 export default function Page() {
   return (
@@ -11,12 +11,12 @@ export default function Page() {
       <Script
         strategy="afterInteractive"
         src="/test3.js"
-        stylesheets={['/style3.css']}
+        stylesheets={["/style3.css"]}
       />
       <Script
         strategy="beforeInteractive"
         src="/test1.js"
-        stylesheets={['/style1a.css', '/style1b.css']}
+        stylesheets={["/style1a.css", "/style1b.css"]}
       />
       <Script strategy="beforeInteractive" id="1.5">{`
         ;(window._script_order = window._script_order || []).push(1.5)
@@ -50,5 +50,5 @@ export default function Page() {
         data-extra-prop="script-without-src"
       />
     </div>
-  )
+  );
 }

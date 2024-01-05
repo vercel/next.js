@@ -1,1 +1,1 @@
-export default () => <div>Blog - CPE</div>
+export default () => <div>Blog - CPE</div>;

@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginSyntaxDynamicImport()
+module.exports = require("./bundle").pluginSyntaxDynamicImport();

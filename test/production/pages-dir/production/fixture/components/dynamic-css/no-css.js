@@ -1,1 +1,1 @@
-export default () => <p>Without CSS</p>
+export default () => <p>Without CSS</p>;

@@ -1,15 +1,15 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-export const revalidate = 0
+export const revalidate = 0;
 
 async function getData() {
-  await new Promise((resolve) => setTimeout(resolve, 3000))
+  await new Promise((resolve) => setTimeout(resolve, 3000));
   return {
-    message: 'Welcome to the dashboard',
-  }
+    message: "Welcome to the dashboard",
+  };
 }
 export default async function DashboardPage(props) {
-  const { message } = await getData()
+  const { message } = await getData();
 
   return (
     <>
@@ -18,5 +18,5 @@ export default async function DashboardPage(props) {
         To Static Page
       </Link>
     </>
-  )
+  );
 }

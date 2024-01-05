@@ -8,34 +8,34 @@ The `useRouter` hook allows you to programmatically change routes inside [Client
 > **Recommendation:** Use the [`<Link>` component](/docs/app/building-your-application/routing/linking-and-navigating#link-component) for navigation unless you have a specific requirement for using `useRouter`.
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
-    <button type="button" onClick={() => router.push('/dashboard')}>
+    <button type="button" onClick={() => router.push("/dashboard")}>
       Dashboard
     </button>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
-    <button type="button" onClick={() => router.push('/dashboard')}>
+    <button type="button" onClick={() => router.push("/dashboard")}>
       Dashboard
     </button>
-  )
+  );
 }
 ```
 
@@ -69,31 +69,31 @@ export default function Page() {
 You can listen for page changes by composing other Client Component hooks like `usePathname` and `useSearchParams`.
 
 ```jsx filename="app/components/navigation-events.js"
-'use client'
+"use client";
 
-import { useEffect } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { useEffect } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
 
 export function NavigationEvents() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const url = `${pathname}?${searchParams}`
-    console.log(url)
+    const url = `${pathname}?${searchParams}`;
+    console.log(url);
     // You can now use the current URL
     // ...
-  }, [pathname, searchParams])
+  }, [pathname, searchParams]);
 
-  return null
+  return null;
 }
 ```
 
 Which can be imported into a layout.
 
 ```jsx filename="app/layout.js" highlight={2,10-12}
-import { Suspense } from 'react'
-import { NavigationEvents } from './components/navigation-events'
+import { Suspense } from "react";
+import { NavigationEvents } from "./components/navigation-events";
 
 export default function Layout({ children }) {
   return (
@@ -106,7 +106,7 @@ export default function Layout({ children }) {
         </Suspense>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -117,40 +117,40 @@ export default function Layout({ children }) {
 By default, Next.js will scroll to the top of the page when navigating to a new route. You can disable this behavior by passing `scroll: false` to `router.push()` or `router.replace()`.
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <button
       type="button"
-      onClick={() => router.push('/dashboard', { scroll: false })}
+      onClick={() => router.push("/dashboard", { scroll: false })}
     >
       Dashboard
     </button>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/example-client-component.jsx" switcher
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <button
       type="button"
-      onClick={() => router.push('/dashboard', { scroll: false })}
+      onClick={() => router.push("/dashboard", { scroll: false })}
     >
       Dashboard
     </button>
-  )
+  );
 }
 ```
 

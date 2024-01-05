@@ -14,7 +14,7 @@ There are multiple ways to include styles using Next.js' built-in CSS support, i
 
 ```css filename="styles.css"
 /* Root stylesheet */
-@import 'extra.css';
+@import "extra.css";
 
 body {
   /* ... */
@@ -24,7 +24,7 @@ body {
 Another option is to use CSS Modules to import the CSS file scoped specifically to the component.
 
 ```jsx filename="pages/index.js"
-import styles from './extra.module.css'
+import styles from "./extra.module.css";
 
 export class Home {
   render() {
@@ -34,7 +34,7 @@ export class Home {
           Open
         </button>
       </div>
-    )
+    );
   }
 }
 ```

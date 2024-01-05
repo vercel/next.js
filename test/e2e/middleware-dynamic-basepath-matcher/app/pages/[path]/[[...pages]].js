@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const Index = ({ value }) => {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <section>
@@ -14,22 +14,22 @@ const Index = ({ value }) => {
         Link to another page
       </Link>
     </section>
-  )
-}
+  );
+};
 
 export async function getStaticPaths() {
   return {
-    paths: [{ params: { path: 'another-page', pages: null } }],
+    paths: [{ params: { path: "another-page", pages: null } }],
     fallback: true,
-  }
+  };
 }
 
 export async function getStaticProps() {
   return {
     props: {
-      value: 'Hello',
+      value: "Hello",
     },
-  }
+  };
 }
 
-export default Index
+export default Index;

@@ -2,9 +2,9 @@
 const config = {
   experimental: {
     outputFileTracingExcludes: {
-      '*': ['anyvaluewillcauseit'],
+      "*": ["anyvaluewillcauseit"],
     },
   },
-}
+};
 
-module.exports = config
+module.exports = config;

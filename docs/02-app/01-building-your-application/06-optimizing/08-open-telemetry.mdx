@@ -50,18 +50,18 @@ Next, create a custom [`instrumentation.ts`](/docs/pages/building-your-applicati
 </PagesOnly>
 
 ```ts filename="your-project/instrumentation.ts" switcher
-import { registerOTel } from '@vercel/otel'
+import { registerOTel } from "@vercel/otel";
 
 export function register() {
-  registerOTel('next-app')
+  registerOTel("next-app");
 }
 ```
 
 ```js filename="your-project/instrumentation.js" switcher
-import { registerOTel } from '@vercel/otel'
+import { registerOTel } from "@vercel/otel";
 
 export function register() {
-  registerOTel('next-app')
+  registerOTel("next-app");
 }
 ```
 
@@ -100,50 +100,50 @@ OpenTelemetry APIs are not compatible with edge runtime, so you need to make sur
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./instrumentation.node.ts')
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./instrumentation.node.ts");
   }
 }
 ```
 
 ```js filename="instrumentation.js" switcher
 export async function register() {
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    await import('./instrumentation.node.js')
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    await import("./instrumentation.node.js");
   }
 }
 ```
 
 ```ts filename="instrumentation.node.ts" switcher
-import { NodeSDK } from '@opentelemetry/sdk-node'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { NodeSDK } from "@opentelemetry/sdk-node";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { Resource } from "@opentelemetry/resources";
+import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
+import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SemanticResourceAttributes.SERVICE_NAME]: "next-app",
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
-})
-sdk.start()
+});
+sdk.start();
 ```
 
 ```js filename="instrumentation.node.js" switcher
-import { NodeSDK } from '@opentelemetry/sdk-node'
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { Resource } from '@opentelemetry/resources'
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions'
-import { SimpleSpanProcessor } from '@opentelemetry/sdk-trace-node'
+import { NodeSDK } from "@opentelemetry/sdk-node";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { Resource } from "@opentelemetry/resources";
+import { SemanticResourceAttributes } from "@opentelemetry/semantic-conventions";
+import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
 
 const sdk = new NodeSDK({
   resource: new Resource({
-    [SemanticResourceAttributes.SERVICE_NAME]: 'next-app',
+    [SemanticResourceAttributes.SERVICE_NAME]: "next-app",
   }),
   spanProcessor: new SimpleSpanProcessor(new OTLPTraceExporter()),
-})
-sdk.start()
+});
+sdk.start();
 ```
 
 Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend.
@@ -197,18 +197,18 @@ npm install @opentelemetry/api
 The following example demonstrates a function that fetches GitHub stars and adds a custom `fetchGithubStars` span to track the fetch request's result:
 
 ```ts
-import { trace } from '@opentelemetry/api'
+import { trace } from "@opentelemetry/api";
 
 export async function fetchGithubStars() {
   return await trace
-    .getTracer('nextjs-example')
-    .startActiveSpan('fetchGithubStars', async (span) => {
+    .getTracer("nextjs-example")
+    .startActiveSpan("fetchGithubStars", async (span) => {
       try {
-        return await getValue()
+        return await getValue();
       } finally {
-        span.end()
+        span.end();
       }
-    })
+    });
 }
 ```
 

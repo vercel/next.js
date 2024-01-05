@@ -1,7 +1,7 @@
-import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
-import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import type { LocaleRouteMatch } from '../route-matches/locale-route-match'
-import { RouteMatcher } from './route-matcher'
+import type { LocaleAnalysisResult } from "../helpers/i18n-provider";
+import type { LocaleRouteDefinition } from "../route-definitions/locale-route-definition";
+import type { LocaleRouteMatch } from "../route-matches/locale-route-match";
+import { RouteMatcher } from "./route-matcher";
 
 export type LocaleMatcherMatchOptions = {
   /**
@@ -9,8 +9,8 @@ export type LocaleMatcherMatchOptions = {
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n?: LocaleAnalysisResult
-}
+  i18n?: LocaleAnalysisResult;
+};
 
 export class LocaleRouteMatcher<
   D extends LocaleRouteDefinition = LocaleRouteDefinition
@@ -21,7 +21,7 @@ export class LocaleRouteMatcher<
    * so it must contain the pathname part as well.
    */
   public get identity(): string {
-    return `${this.definition.pathname}?__nextLocale=${this.definition.i18n?.locale}`
+    return `${this.definition.pathname}?__nextLocale=${this.definition.i18n?.locale}`;
   }
 
   /**
@@ -38,8 +38,8 @@ export class LocaleRouteMatcher<
   ): LocaleRouteMatch<D> | null {
     // This is like the parent `match` method but instead this injects the
     // additional `options` into the
-    const result = this.test(pathname, options)
-    if (!result) return null
+    const result = this.test(pathname, options);
+    if (!result) return null;
 
     return {
       definition: this.definition,
@@ -48,7 +48,7 @@ export class LocaleRouteMatcher<
         // If the options have a detected locale, then use that, otherwise use
         // the route's locale.
         options?.i18n?.detectedLocale ?? this.definition.i18n?.locale,
-    }
+    };
   }
 
   /**
@@ -70,16 +70,16 @@ export class LocaleRouteMatcher<
         options.i18n.detectedLocale &&
         this.definition.i18n.locale !== options.i18n.detectedLocale
       ) {
-        return null
+        return null;
       }
 
       // Perform regular matching against the locale stripped pathname now, the
       // locale information matches!
-      return super.test(options.i18n.pathname)
+      return super.test(options.i18n.pathname);
     }
 
     // If we don't have locale information, then we can just perform regular
     // matching.
-    return super.test(pathname)
+    return super.test(pathname);
   }
 }

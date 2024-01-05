@@ -1,5 +1,5 @@
 function foo(module) {
-  module.exports = 'this is just normal assignment of scope variable'
+  module.exports = "this is just normal assignment of scope variable";
 }
 
-export const value = 'mixed-syntax-esm'
+export const value = "mixed-syntax-esm";

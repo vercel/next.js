@@ -1,19 +1,19 @@
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from "next/cache";
 
 export default async function Page() {
   const data1 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a',
+    "https://next-data-api-endpoint.vercel.app/api/random?a",
     {
-      next: { tags: ['thankyounext'] },
+      next: { tags: ["thankyounext"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const data2 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?b',
+    "https://next-data-api-endpoint.vercel.app/api/random?b",
     {
-      next: { tags: ['justputit'] },
+      next: { tags: ["justputit"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   return (
     <>
@@ -28,14 +28,14 @@ export default async function Page() {
         <button
           id="revalidate"
           formAction={async () => {
-            'use server'
-            revalidateTag('thankyounext')
-            revalidateTag('justputit')
+            "use server";
+            revalidateTag("thankyounext");
+            revalidateTag("justputit");
           }}
         >
           revalidate thankyounext
         </button>
       </form>
     </>
-  )
+  );
 }

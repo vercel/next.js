@@ -1,16 +1,16 @@
-import type { FontLoader } from '../../../../../font'
+import type { FontLoader } from "../../../../../font";
 
-import path from 'path'
-import { bold, cyan } from '../../../../lib/picocolors'
-import loaderUtils from 'next/dist/compiled/loader-utils3'
-import postcssNextFontPlugin from './postcss-next-font'
-import { promisify } from 'util'
+import path from "path";
+import { bold, cyan } from "../../../../lib/picocolors";
+import loaderUtils from "next/dist/compiled/loader-utils3";
+import postcssNextFontPlugin from "./postcss-next-font";
+import { promisify } from "util";
 
 export default async function nextFontLoader(this: any) {
   const nextFontLoaderSpan =
-    this.currentTraceSpan.traceChild('next-font-loader')
+    this.currentTraceSpan.traceChild("next-font-loader");
   return nextFontLoaderSpan.traceAsyncFn(async () => {
-    const callback = this.async()
+    const callback = this.async();
 
     /**
      * The next-swc plugin next-transform-font turns font function calls into CSS imports.
@@ -27,16 +27,16 @@ export default async function nextFontLoader(this: any) {
       import: functionName,
       arguments: data,
       variableName,
-    } = JSON.parse(this.resourceQuery.slice(1))
+    } = JSON.parse(this.resourceQuery.slice(1));
 
     // Throw error if @next/font is used in _document.js
     if (/pages[\\/]_document\./.test(relativeFilePathFromRoot)) {
       const err = new Error(
-        `${bold('Cannot')} be used within ${cyan('pages/_document.js')}.`
-      )
-      err.name = 'NextFontError'
-      callback(err)
-      return
+        `${bold("Cannot")} be used within ${cyan("pages/_document.js")}.`
+      );
+      err.name = "NextFontError";
+      callback(err);
+      return;
     }
 
     const {
@@ -45,15 +45,15 @@ export default async function nextFontLoader(this: any) {
       assetPrefix,
       fontLoaderPath,
       postcss: getPostcss,
-    } = this.getOptions()
+    } = this.getOptions();
 
     if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
       const err = new Error(
-        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
-      )
-      err.name = 'NextFontError'
-      callback(err)
-      return
+        "assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)"
+      );
+      err.name = "NextFontError";
+      callback(err);
+      return;
     }
 
     /**
@@ -72,29 +72,29 @@ export default async function nextFontLoader(this: any) {
       preload: boolean,
       isUsingSizeAdjust?: boolean
     ) => {
-      const opts = { context: this.rootContext, content }
+      const opts = { context: this.rootContext, content };
       const interpolatedName = loaderUtils.interpolateName(
         this,
-        `static/media/[hash]${isUsingSizeAdjust ? '-s' : ''}${
-          preload ? '.p' : ''
+        `static/media/[hash]${isUsingSizeAdjust ? "-s" : ""}${
+          preload ? ".p" : ""
         }.${ext}`,
         opts
-      )
-      const outputPath = `${assetPrefix}/_next/${interpolatedName}`
+      );
+      const outputPath = `${assetPrefix}/_next/${interpolatedName}`;
       // Only the client emits the font file
       if (!isServer) {
-        this.emitFile(interpolatedName, content, null)
+        this.emitFile(interpolatedName, content, null);
       }
       // But both the server and client must get the resulting path
-      return outputPath
-    }
+      return outputPath;
+    };
 
     try {
       // Import the font loader function from either next/font/local or next/font/google
       // The font loader function emits font files and returns @font-faces and fallback font metrics
-      const fontLoader: FontLoader = require(fontLoaderPath).default
+      const fontLoader: FontLoader = require(fontLoaderPath).default;
       let { css, fallbackFonts, adjustFontFallback, weight, style, variable } =
-        await nextFontLoaderSpan.traceChild('font-loader').traceAsyncFn(() =>
+        await nextFontLoaderSpan.traceChild("font-loader").traceAsyncFn(() =>
           fontLoader({
             functionName,
             variableName,
@@ -105,30 +105,30 @@ export default async function nextFontLoader(this: any) {
                 path.dirname(
                   path.join(this.rootContext, relativeFilePathFromRoot)
                 ),
-                src.startsWith('.') ? src : `./${src}`
+                src.startsWith(".") ? src : `./${src}`
               ),
             isDev,
             isServer,
             loaderContext: this,
           })
-        )
+        );
 
-      const { postcss } = await getPostcss()
+      const { postcss } = await getPostcss();
 
       // Exports will be exported as is from css-loader instead of a CSS module export
-      const exports: { name: any; value: any }[] = []
+      const exports: { name: any; value: any }[] = [];
 
       // Generate a hash from the CSS content. Used to generate classnames and font families
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
-        'sha1',
-        'hex',
+        "sha1",
+        "hex",
         6
-      )
+      );
 
       // Add CSS classes, exports and make the font-family locally scoped by turning it unguessable
       const result = await nextFontLoaderSpan
-        .traceChild('postcss')
+        .traceChild("postcss")
         .traceAsyncFn(() =>
           postcss(
             postcssNextFontPlugin({
@@ -143,22 +143,22 @@ export default async function nextFontLoader(this: any) {
           ).process(css, {
             from: undefined,
           })
-        )
+        );
 
       const ast = {
-        type: 'postcss',
+        type: "postcss",
         version: result.processor.version,
         root: result.root,
-      }
+      };
 
       // Return the resulting CSS and send the postcss ast, font exports and the hash to the css-loader in the meta argument.
       callback(null, result.css, null, {
         exports,
         ast,
         fontFamilyHash,
-      })
+      });
     } catch (err: any) {
-      callback(err)
+      callback(err);
     }
-  })
+  });
 }

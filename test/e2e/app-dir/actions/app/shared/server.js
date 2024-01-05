@@ -1,7 +1,7 @@
-import { inc, get } from './action'
+import { inc, get } from "./action";
 
 export async function Server() {
-  const x = await get()
+  const x = await get();
   return (
     <>
       <h2 id="value">Value = {x}</h2>
@@ -11,5 +11,5 @@ export async function Server() {
         </button>
       </form>
     </>
-  )
+  );
 }

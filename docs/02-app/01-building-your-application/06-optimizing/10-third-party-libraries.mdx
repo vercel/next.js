@@ -39,24 +39,24 @@ To load Google Tag Manager for all routes, include the component directly in you
 pass in your GTM container ID:
 
 ```tsx filename="app/layout.tsx" switcher
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
       <GoogleTagManager gtmId="GTM-XYZ" />
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export default function RootLayout({ children }) {
   return (
@@ -64,7 +64,7 @@ export default function RootLayout({ children }) {
       <body>{children}</body>
       <GoogleTagManager gtmId="GTM-XYZ" />
     </html>
-  )
+  );
 }
 ```
 
@@ -76,7 +76,7 @@ To load Google Tag Manager for all routes, include the component directly in you
 pass in your GTM container ID:
 
 ```jsx filename="pages/_app.js"
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -84,7 +84,7 @@ export default function MyApp({ Component, pageProps }) {
       <Component {...pageProps} />
       <GoogleTagManager gtmId="GTM-XYZ" />
     </>
-  )
+  );
 }
 ```
 
@@ -95,10 +95,10 @@ To load Google Tag Manager for a single route, include the component in your pag
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export default function Page() {
-  return <GoogleTagManager gtmId="GTM-XYZ" />
+  return <GoogleTagManager gtmId="GTM-XYZ" />;
 }
 ```
 
@@ -107,10 +107,10 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { GoogleTagManager } from '@next/third-parties/google'
+import { GoogleTagManager } from "@next/third-parties/google";
 
 export default function Page() {
-  return <GoogleTagManager gtmId="GTM-XYZ" />
+  return <GoogleTagManager gtmId="GTM-XYZ" />;
 }
 ```
 
@@ -125,20 +125,20 @@ included in either a parent layout, page, or component, or directly in the same 
 <AppOnly>
 
 ```jsx filename="app/page.js"
-'use client'
+"use client";
 
-import { sendGTMEvent } from '@next/third-parties/google'
+import { sendGTMEvent } from "@next/third-parties/google";
 
 export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent({ event: "buttonClicked", value: "xyz" })}
       >
         Send Event
       </button>
     </div>
-  )
+  );
 }
 ```
 
@@ -147,18 +147,18 @@ export function EventButton() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { sendGTMEvent } from '@next/third-parties/google'
+import { sendGTMEvent } from "@next/third-parties/google";
 
 export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGTMEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGTMEvent({ event: "buttonClicked", value: "xyz" })}
       >
         Send Event
       </button>
     </div>
-  )
+  );
 }
 ```
 
@@ -199,24 +199,24 @@ To load Google Analytics for all routes, include the component directly in your 
 in your measurement ID:
 
 ```tsx filename="app/layout.tsx" switcher
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
       <body>{children}</body>
       <GoogleAnalytics gaId="G-XYZ" />
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export default function RootLayout({ children }) {
   return (
@@ -224,7 +224,7 @@ export default function RootLayout({ children }) {
       <body>{children}</body>
       <GoogleAnalytics gaId="G-XYZ" />
     </html>
-  )
+  );
 }
 ```
 
@@ -236,7 +236,7 @@ To load Google Analytics for all routes, include the component directly in your 
 pass in your measurement ID:
 
 ```jsx filename="pages/_app.js"
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export default function MyApp({ Component, pageProps }) {
   return (
@@ -244,7 +244,7 @@ export default function MyApp({ Component, pageProps }) {
       <Component {...pageProps} />
       <GoogleAnalytics gaId="G-XYZ" />
     </>
-  )
+  );
 }
 ```
 
@@ -255,10 +255,10 @@ To load Google Analytics for a single route, include the component in your page 
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export default function Page() {
-  return <GoogleAnalytics gaId="G-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />;
 }
 ```
 
@@ -267,10 +267,10 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { GoogleAnalytics } from '@next/third-parties/google'
+import { GoogleAnalytics } from "@next/third-parties/google";
 
 export default function Page() {
-  return <GoogleAnalytics gaId="G-XYZ" />
+  return <GoogleAnalytics gaId="G-XYZ" />;
 }
 ```
 
@@ -285,20 +285,20 @@ included in either a parent layout, page, or component, or directly in the same 
 <AppOnly>
 
 ```jsx filename="app/page.js"
-'use client'
+"use client";
 
-import { sendGAEvent } from '@next/third-parties/google'
+import { sendGAEvent } from "@next/third-parties/google";
 
 export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent({ event: "buttonClicked", value: "xyz" })}
       >
         Send Event
       </button>
     </div>
-  )
+  );
 }
 ```
 
@@ -307,18 +307,18 @@ export function EventButton() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { sendGAEvent } from '@next/third-parties/google'
+import { sendGAEvent } from "@next/third-parties/google";
 
 export function EventButton() {
   return (
     <div>
       <button
-        onClick={() => sendGAEvent({ event: 'buttonClicked', value: 'xyz' })}
+        onClick={() => sendGAEvent({ event: "buttonClicked", value: "xyz" })}
       >
         Send Event
       </button>
     </div>
-  )
+  );
 }
 ```
 
@@ -361,7 +361,7 @@ default, it uses the `loading` attribute to lazy-load the embed below the fold.
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { GoogleMapsEmbed } from "@next/third-parties/google";
 
 export default function Page() {
   return (
@@ -372,7 +372,7 @@ export default function Page() {
       mode="place"
       q="Brooklyn+Bridge,New+York,NY"
     />
-  )
+  );
 }
 ```
 
@@ -381,7 +381,7 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { GoogleMapsEmbed } from '@next/third-parties/google'
+import { GoogleMapsEmbed } from "@next/third-parties/google";
 
 export default function Page() {
   return (
@@ -392,7 +392,7 @@ export default function Page() {
       mode="place"
       q="Brooklyn+Bridge,New+York,NY"
     />
-  )
+  );
 }
 ```
 
@@ -428,10 +428,12 @@ hood.
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import { YouTubeEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from "@next/third-parties/google";
 
 export default function Page() {
-  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
+  return (
+    <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
+  );
 }
 ```
 
@@ -440,10 +442,12 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import { YouTubeEmbed } from '@next/third-parties/google'
+import { YouTubeEmbed } from "@next/third-parties/google";
 
 export default function Page() {
-  return <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
+  return (
+    <YouTubeEmbed videoid="ogfYd705cRs" height={400} params="controls=0" />
+  );
 }
 ```
 

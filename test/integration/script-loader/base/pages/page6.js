@@ -1,4 +1,4 @@
-import Script from 'next/script'
+import Script from "next/script";
 
 const Page = () => {
   return (
@@ -10,7 +10,7 @@ const Page = () => {
       ></Script>
       <div>page6</div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

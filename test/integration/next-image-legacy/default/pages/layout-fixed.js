@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   return (
@@ -35,7 +35,7 @@ const Page = () => {
       ></Image>
       <p>Layout Fixed</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

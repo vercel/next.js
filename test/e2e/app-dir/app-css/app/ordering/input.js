@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import './input.css'
+import "./input.css";
 
 export default function InputText() {
-  return <input />
+  return <input />;
 }

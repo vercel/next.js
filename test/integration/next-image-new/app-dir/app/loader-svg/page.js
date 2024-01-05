@@ -1,6 +1,6 @@
-'use client'
-import React from 'react'
-import Image from 'next/image'
+"use client";
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -17,7 +17,7 @@ const Page = () => {
       <Image id="without-loader" src="/test.svg" width={100} height={100} />
       <footer>footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

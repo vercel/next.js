@@ -1,48 +1,48 @@
-import { readFileSync } from 'fs'
-import * as path from 'path'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { readFileSync } from "fs";
+import * as path from "path";
+import type { webpack } from "next/dist/compiled/webpack/webpack";
 
-import { getBabelError } from './parseBabel'
-import { getCssError } from './parseCss'
-import { getScssError } from './parseScss'
-import { getNotFoundError, getImageError } from './parseNotFoundError'
-import type { SimpleWebpackError } from './simpleWebpackError'
-import isError from '../../../../lib/is-error'
-import { getRscError } from './parseRSC'
-import { getNextFontError } from './parseNextFontError'
-import { getNextAppLoaderError } from './parseNextAppLoaderError'
-import { getNextInvalidImportError } from './parseNextInvalidImportError'
+import { getBabelError } from "./parseBabel";
+import { getCssError } from "./parseCss";
+import { getScssError } from "./parseScss";
+import { getNotFoundError, getImageError } from "./parseNotFoundError";
+import type { SimpleWebpackError } from "./simpleWebpackError";
+import isError from "../../../../lib/is-error";
+import { getRscError } from "./parseRSC";
+import { getNextFontError } from "./parseNextFontError";
+import { getNextAppLoaderError } from "./parseNextAppLoaderError";
+import { getNextInvalidImportError } from "./parseNextInvalidImportError";
 
 function getFileData(
   compilation: webpack.Compilation,
   m: any
 ): [string, string | null] {
-  let resolved: string
-  let ctx: string | null = compilation.compiler?.context ?? null
-  if (ctx !== null && typeof m.resource === 'string') {
-    const res = path.relative(ctx, m.resource).replace(/\\/g, path.posix.sep)
-    resolved = res.startsWith('.') ? res : `.${path.posix.sep}${res}`
+  let resolved: string;
+  let ctx: string | null = compilation.compiler?.context ?? null;
+  if (ctx !== null && typeof m.resource === "string") {
+    const res = path.relative(ctx, m.resource).replace(/\\/g, path.posix.sep);
+    resolved = res.startsWith(".") ? res : `.${path.posix.sep}${res}`;
   } else {
-    const requestShortener = compilation.requestShortener
-    if (typeof m?.readableIdentifier === 'function') {
-      resolved = m.readableIdentifier(requestShortener)
+    const requestShortener = compilation.requestShortener;
+    if (typeof m?.readableIdentifier === "function") {
+      resolved = m.readableIdentifier(requestShortener);
     } else {
-      resolved = m.request ?? m.userRequest
+      resolved = m.request ?? m.userRequest;
     }
   }
 
   if (resolved) {
-    let content: string | null = null
+    let content: string | null = null;
     try {
       content = readFileSync(
         ctx ? path.resolve(ctx, resolved) : resolved,
-        'utf8'
-      )
+        "utf8"
+      );
     } catch {}
-    return [resolved, content]
+    return [resolved, content];
   }
 
-  return ['<unknown>', null]
+  return ["<unknown>", null];
 }
 
 export async function getModuleBuildError(
@@ -52,47 +52,50 @@ export async function getModuleBuildError(
 ): Promise<SimpleWebpackError | false> {
   if (
     !(
-      typeof input === 'object' &&
-      (input?.name === 'ModuleBuildError' ||
-        input?.name === 'ModuleNotFoundError') &&
+      typeof input === "object" &&
+      (input?.name === "ModuleBuildError" ||
+        input?.name === "ModuleNotFoundError") &&
       Boolean(input.module) &&
       isError(input.error)
     )
   ) {
-    return false
+    return false;
   }
 
-  const err: Error = input.error
-  const [sourceFilename, sourceContent] = getFileData(compilation, input.module)
+  const err: Error = input.error;
+  const [sourceFilename, sourceContent] = getFileData(
+    compilation,
+    input.module
+  );
 
   const notFoundError = await getNotFoundError(
     compilation,
     input,
     sourceFilename,
     input.module
-  )
+  );
   if (notFoundError !== false) {
-    return notFoundError
+    return notFoundError;
   }
 
-  const imageError = await getImageError(compilation, input, err)
+  const imageError = await getImageError(compilation, input, err);
   if (imageError !== false) {
-    return imageError
+    return imageError;
   }
 
-  const babel = getBabelError(sourceFilename, err)
+  const babel = getBabelError(sourceFilename, err);
   if (babel !== false) {
-    return babel
+    return babel;
   }
 
-  const css = getCssError(sourceFilename, err)
+  const css = getCssError(sourceFilename, err);
   if (css !== false) {
-    return css
+    return css;
   }
 
-  const scss = getScssError(sourceFilename, sourceContent, err)
+  const scss = getScssError(sourceFilename, sourceContent, err);
   if (scss !== false) {
-    return scss
+    return scss;
   }
 
   const rsc = getRscError(
@@ -101,19 +104,19 @@ export async function getModuleBuildError(
     input.module,
     compilation,
     compiler
-  )
+  );
   if (rsc !== false) {
-    return rsc
+    return rsc;
   }
 
-  const nextFont = getNextFontError(err, input.module)
+  const nextFont = getNextFontError(err, input.module);
   if (nextFont !== false) {
-    return nextFont
+    return nextFont;
   }
 
-  const nextAppLoader = getNextAppLoaderError(err, input.module, compiler)
+  const nextAppLoader = getNextAppLoaderError(err, input.module, compiler);
   if (nextAppLoader !== false) {
-    return nextAppLoader
+    return nextAppLoader;
   }
 
   const invalidImportError = getNextInvalidImportError(
@@ -121,10 +124,10 @@ export async function getModuleBuildError(
     input.module,
     compilation,
     compiler
-  )
+  );
   if (invalidImportError !== false) {
-    return invalidImportError
+    return invalidImportError;
   }
 
-  return false
+  return false;
 }

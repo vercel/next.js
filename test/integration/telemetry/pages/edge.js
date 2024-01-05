@@ -1,10 +1,10 @@
-import Image from 'next/image'
-import LegacyImage from 'next/legacy/image'
-import profilePic from '../public/small.jpg'
+import Image from "next/image";
+import LegacyImage from "next/legacy/image";
+import profilePic from "../public/small.jpg";
 
 export const config = {
-  runtime: 'experimental-edge',
-}
+  runtime: "experimental-edge",
+};
 
 function About() {
   return (
@@ -13,11 +13,11 @@ function About() {
       <Image src={profilePic} alt="Picture of the author" />
       <p>Welcome to my homepage!</p>
     </>
-  )
+  );
 }
 
-export default About
+export default About;
 
 export function AboutFutureImage() {
-  return <LegacyImage src={profilePic} alt="Picture of the author" />
+  return <LegacyImage src={profilePic} alt="Picture of the author" />;
 }

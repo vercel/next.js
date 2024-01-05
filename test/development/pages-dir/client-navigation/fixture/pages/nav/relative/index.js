@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Relative() {
   return (
@@ -8,5 +8,5 @@ export default function Relative() {
         To relative 1
       </Link>
     </div>
-  )
+  );
 }

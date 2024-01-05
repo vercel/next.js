@@ -1,17 +1,17 @@
 import type {
   ResolvedMetadata,
   ResolvedViewport,
-} from './types/metadata-interface'
+} from "./types/metadata-interface";
 
 export function createDefaultViewport(): ResolvedViewport {
   return {
     // name=viewport
-    width: 'device-width',
+    width: "device-width",
     initialScale: 1,
     // visual metadata
     themeColor: null,
     colorScheme: null,
-  }
+  };
 }
 
 export function createDefaultMetadata(): ResolvedMetadata {
@@ -55,5 +55,5 @@ export function createDefaultMetadata(): ResolvedMetadata {
     category: null,
     classification: null,
     other: {},
-  }
+  };
 }

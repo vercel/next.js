@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Page = () => (
   <div>
@@ -47,6 +47,6 @@ const Page = () => (
       View test with hash
     </Link>
   </div>
-)
+);
 
-export default Page
+export default Page;

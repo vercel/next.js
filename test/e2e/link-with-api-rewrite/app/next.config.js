@@ -5,13 +5,13 @@ const nextConfig = {
     return {
       beforeFiles: [
         {
-          source: '/:path(.*)',
-          has: [{ type: 'query', key: 'json', value: 'true' }],
-          destination: '/api/json?from=/:path',
+          source: "/:path(.*)",
+          has: [{ type: "query", key: "json", value: "true" }],
+          destination: "/api/json?from=/:path",
         },
       ],
-    }
+    };
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

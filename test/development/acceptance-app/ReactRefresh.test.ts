@@ -1,23 +1,23 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
-import path from 'path'
-import { outdent } from 'outdent'
+import { sandbox } from "development-sandbox";
+import { FileRef, nextTestSetup } from "e2e-utils";
+import path from "path";
+import { outdent } from "outdent";
 
-describe('ReactRefresh app', () => {
+describe("ReactRefresh app", () => {
   const { next } = nextTestSetup({
-    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    files: new FileRef(path.join(__dirname, "fixtures", "default-template")),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: "latest",
+      "react-dom": "latest",
     },
     skipStart: true,
-  })
+  });
 
-  test('can edit a component without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("can edit a component without losing state", async () => {
+    const { session, cleanup } = await sandbox(next);
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback, useState } from 'react'
         export default function Index() {
@@ -31,13 +31,13 @@ describe('ReactRefresh app', () => {
           )
         }
       `
-    )
-    await session.evaluate(() => document.querySelector('button').click())
+    );
+    await session.evaluate(() => document.querySelector("button").click());
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('1')
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("1");
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import { useCallback, useState } from 'react'
         export default function Index() {
@@ -51,22 +51,22 @@ describe('ReactRefresh app', () => {
           )
         }
       `
-    )
+    );
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 1')
-    await session.evaluate(() => document.querySelector('button').click())
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Count: 1");
+    await session.evaluate(() => document.querySelector("button").click());
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Count: 2')
-    await cleanup()
-  })
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Count: 2");
+    await cleanup();
+  });
 
-  test('cyclic dependencies', async () => {
-    const { session, cleanup } = await sandbox(next)
+  test("cyclic dependencies", async () => {
+    const { session, cleanup } = await sandbox(next);
 
     await session.write(
-      'NudgeOverview.js',
+      "NudgeOverview.js",
       outdent`
         import * as React from 'react';
 
@@ -79,10 +79,10 @@ describe('ReactRefresh app', () => {
 
         export default NudgeOverview;
       `
-    )
+    );
 
     await session.write(
-      'SurveyOverview.js',
+      "SurveyOverview.js",
       outdent`
         const SurveyOverview = () => {
           return 100;
@@ -90,10 +90,10 @@ describe('ReactRefresh app', () => {
 
         export default SurveyOverview;
       `
-    )
+    );
 
     await session.write(
-      'Milestones.js',
+      "Milestones.js",
       outdent`
         import React from 'react';
 
@@ -106,10 +106,10 @@ describe('ReactRefresh app', () => {
 
         export default Milestones;
       `
-    )
+    );
 
     await session.write(
-      'DashboardPage.js',
+      "DashboardPage.js",
       outdent`
         import React from 'react';
 
@@ -131,10 +131,10 @@ describe('ReactRefresh app', () => {
 
         export default DashboardPage;
       `
-    )
+    );
 
     await session.write(
-      'routes.js',
+      "routes.js",
       outdent`
         import DashboardPage from './DashboardPage';
 
@@ -145,10 +145,10 @@ describe('ReactRefresh app', () => {
 
         export default DashboardPage;
       `
-    )
+    );
 
     await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import * as React from 'react';
 
@@ -160,14 +160,14 @@ describe('ReactRefresh app', () => {
 
         export default HeroApp;
       `
-    )
+    );
 
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello. 100')
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Hello. 100");
 
     let didFullRefresh = !(await session.patch(
-      'SurveyOverview.js',
+      "SurveyOverview.js",
       outdent`
         const SurveyOverview = () => {
           return 200;
@@ -175,15 +175,15 @@ describe('ReactRefresh app', () => {
 
         export default SurveyOverview;
       `
-    ))
+    ));
 
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello. 200')
-    expect(didFullRefresh).toBe(false)
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Hello. 200");
+    expect(didFullRefresh).toBe(false);
 
     didFullRefresh = !(await session.patch(
-      'index.js',
+      "index.js",
       outdent`
         import * as React from 'react';
 
@@ -195,15 +195,15 @@ describe('ReactRefresh app', () => {
 
         export default HeroApp;
       `
-    ))
+    ));
 
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello: 200')
-    expect(didFullRefresh).toBe(false)
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Hello: 200");
+    expect(didFullRefresh).toBe(false);
 
     didFullRefresh = !(await session.patch(
-      'SurveyOverview.js',
+      "SurveyOverview.js",
       outdent`
         const SurveyOverview = () => {
           return 300;
@@ -211,13 +211,13 @@ describe('ReactRefresh app', () => {
 
         export default SurveyOverview;
       `
-    ))
+    ));
 
     expect(
-      await session.evaluate(() => document.querySelector('p').textContent)
-    ).toBe('Hello: 300')
-    expect(didFullRefresh).toBe(false)
+      await session.evaluate(() => document.querySelector("p").textContent)
+    ).toBe("Hello: 300");
+    expect(didFullRefresh).toBe(false);
 
-    await cleanup()
-  })
-})
+    await cleanup();
+  });
+});

@@ -1,5 +1,5 @@
 export default function Page() {
-  const randomColor = Math.floor(Math.random() * 16777215).toString(16)
+  const randomColor = Math.floor(Math.random() * 16777215).toString(16);
   return (
     <div
       id="page"
@@ -8,5 +8,5 @@ export default function Page() {
         flexGrow: 1,
       }}
     />
-  )
+  );
 }

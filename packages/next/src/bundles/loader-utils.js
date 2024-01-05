@@ -1,8 +1,8 @@
 /* eslint-disable import/no-extraneous-dependencies */
-const loaderUtils = require('loader-utils')
+const loaderUtils = require("loader-utils");
 
 loaderUtils.getOptions = function (context) {
-  return context.getOptions()
-}
+  return context.getOptions();
+};
 
-module.exports = loaderUtils
+module.exports = loaderUtils;

@@ -1,6 +1,6 @@
-import getConfig from 'next/config'
+import getConfig from "next/config";
 
-const { serverRuntimeConfig, publicRuntimeConfig } = getConfig()
+const { serverRuntimeConfig, publicRuntimeConfig } = getConfig();
 
 const Layout = ({ children }) => {
   return (
@@ -9,7 +9,7 @@ const Layout = ({ children }) => {
       <p id="public-runtime-config">{JSON.stringify(publicRuntimeConfig)}</p>
       <div>{children}</div>
     </div>
-  )
-}
+  );
+};
 
-export default Layout
+export default Layout;

@@ -1,27 +1,27 @@
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from "next/dist/compiled/webpack/webpack";
 import {
   APP_BUILD_MANIFEST,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
   SYSTEM_ENTRYPOINTS,
-} from '../../../shared/lib/constants'
-import { getEntrypointFiles } from './build-manifest-plugin'
-import getAppRouteFromEntrypoint from '../../../server/get-app-route-from-entrypoint'
+} from "../../../shared/lib/constants";
+import { getEntrypointFiles } from "./build-manifest-plugin";
+import getAppRouteFromEntrypoint from "../../../server/get-app-route-from-entrypoint";
 
 type Options = {
-  dev: boolean
-}
+  dev: boolean;
+};
 
 export type AppBuildManifest = {
-  pages: Record<string, string[]>
-}
+  pages: Record<string, string[]>;
+};
 
-const PLUGIN_NAME = 'AppBuildManifestPlugin'
+const PLUGIN_NAME = "AppBuildManifestPlugin";
 
 export class AppBuildManifestPlugin {
-  private readonly dev: boolean
+  private readonly dev: boolean;
 
   constructor(options: Options) {
-    this.dev = options.dev
+    this.dev = options.dev;
   }
 
   public apply(compiler: any) {
@@ -31,13 +31,13 @@ export class AppBuildManifestPlugin {
         compilation.dependencyFactories.set(
           webpack.dependencies.ModuleDependency,
           normalModuleFactory
-        )
+        );
         compilation.dependencyTemplates.set(
           webpack.dependencies.ModuleDependency,
           new webpack.dependencies.NullDependency.Template()
-        )
+        );
       }
-    )
+    );
 
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
@@ -46,41 +46,41 @@ export class AppBuildManifestPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => this.createAsset(assets, compilation)
-      )
-    })
+      );
+    });
   }
 
   private createAsset(assets: any, compilation: webpack.Compilation) {
     const manifest: AppBuildManifest = {
       pages: {},
-    }
+    };
 
     const mainFiles = new Set(
       getEntrypointFiles(
         compilation.entrypoints.get(CLIENT_STATIC_FILES_RUNTIME_MAIN_APP)
       )
-    )
+    );
 
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
-        continue
+        continue;
       }
 
       if (SYSTEM_ENTRYPOINTS.has(entrypoint.name)) {
-        continue
+        continue;
       }
 
-      const pagePath = getAppRouteFromEntrypoint(entrypoint.name)
+      const pagePath = getAppRouteFromEntrypoint(entrypoint.name);
       if (!pagePath) {
-        continue
+        continue;
       }
 
-      const filesForPage = getEntrypointFiles(entrypoint)
-      manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])]
+      const filesForPage = getEntrypointFiles(entrypoint);
+      manifest.pages[pagePath] = [...new Set([...mainFiles, ...filesForPage])];
     }
 
-    const json = JSON.stringify(manifest, null, 2)
+    const json = JSON.stringify(manifest, null, 2);
 
-    assets[APP_BUILD_MANIFEST] = new sources.RawSource(json)
+    assets[APP_BUILD_MANIFEST] = new sources.RawSource(json);
   }
 }

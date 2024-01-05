@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { getDualOptoutValue } from './actions'
+import { useState } from "react";
+import { getDualOptoutValue } from "./actions";
 
 export default function Page() {
-  const [optoutDisplayValue, setOptoutDisplayValue] = useState('')
+  const [optoutDisplayValue, setOptoutDisplayValue] = useState("");
   return (
     <div id="dual-pkg-outout">
       <p>{optoutDisplayValue}</p>
       <button
         onClick={async () => {
-          setOptoutDisplayValue(await getDualOptoutValue())
+          setOptoutDisplayValue(await getDualOptoutValue());
         }}
       >
         dual-pkg-optout
       </button>
     </div>
-  )
+  );
 }

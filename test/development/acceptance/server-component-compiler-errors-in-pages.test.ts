@@ -1,13 +1,13 @@
 /* eslint-env jest */
-import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
-import { sandbox } from 'development-sandbox'
-import { outdent } from 'outdent'
+import { nextTestSetup } from "e2e-utils";
+import { check } from "next-test-utils";
+import { sandbox } from "development-sandbox";
+import { outdent } from "outdent";
 
 const initialFiles = new Map([
-  ['app/_.js', ''], // app dir need to exists, otherwise the SWC RSC checks will not run
+  ["app/_.js", ""], // app dir need to exists, otherwise the SWC RSC checks will not run
   [
-    'pages/index.js',
+    "pages/index.js",
     outdent`
       import Comp from '../components/Comp'
 
@@ -15,30 +15,30 @@ const initialFiles = new Map([
     `,
   ],
   [
-    'components/Comp.js',
+    "components/Comp.js",
     outdent`
       export default function Comp() {
         return <p>Hello world</p>
       }
     `,
   ],
-])
+]);
 
-describe('Error Overlay for server components compiler errors in pages', () => {
+describe("Error Overlay for server components compiler errors in pages", () => {
   const { next } = nextTestSetup({
     files: {},
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: "latest",
+      "react-dom": "latest",
     },
     skipStart: true,
-  })
+  });
 
   test("importing 'next/headers' in pages", async () => {
-    const { session, cleanup } = await sandbox(next, initialFiles)
+    const { session, cleanup } = await sandbox(next, initialFiles);
 
     await session.patch(
-      'components/Comp.js',
+      "components/Comp.js",
       outdent`
         import { cookies } from 'next/headers'
 
@@ -46,13 +46,13 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           return <p>hello world</p>
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
-    )
+    );
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
@@ -74,16 +74,16 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           ./components/Comp.js
           ./pages/index.js"
       `)
-    )
+    );
 
-    await cleanup()
-  })
+    await cleanup();
+  });
 
   test("importing 'server-only' in pages", async () => {
-    const { session, cleanup } = await sandbox(next, initialFiles)
+    const { session, cleanup } = await sandbox(next, initialFiles);
 
     await next.patchFile(
-      'components/Comp.js',
+      "components/Comp.js",
       outdent`
         import 'server-only' 
 
@@ -91,13 +91,13 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           return 'hello world'
         }
       `
-    )
+    );
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox(true)).toBe(true);
     await check(
       () => session.getRedboxSource(),
       /That only works in a Server Component/
-    )
+    );
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
@@ -119,8 +119,8 @@ describe('Error Overlay for server components compiler errors in pages', () => {
           ./components/Comp.js
           ./pages/index.js"
       `)
-    )
+    );
 
-    await cleanup()
-  })
-})
+    await cleanup();
+  });
+});

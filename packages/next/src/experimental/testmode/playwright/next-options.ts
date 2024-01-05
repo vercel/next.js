@@ -1,3 +1,3 @@
 export interface NextOptions {
-  fetchLoopback?: boolean
+  fetchLoopback?: boolean;
 }

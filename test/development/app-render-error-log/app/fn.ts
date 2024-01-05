@@ -1,7 +1,7 @@
 function fn2() {
-  throw new Error('boom')
+  throw new Error("boom");
 }
 
 export function fn1() {
-  fn2()
+  fn2();
 }

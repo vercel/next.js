@@ -1,12 +1,12 @@
 export default function page() {
-  return 'typing'
+  return "typing";
 }
 
 export async function generateStaticParams({
   params,
 }: {
-  params: { slug: 'a' | 'b' }
+  params: { slug: "a" | "b" };
 }) {
-  console.log(params)
-  return []
+  console.log(params);
+  return [];
 }

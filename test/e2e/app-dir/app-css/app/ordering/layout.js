@@ -1,5 +1,5 @@
-import './index.css'
-import InputText from './layout-input'
+import "./index.css";
+import InputText from "./layout-input";
 
 export default function Layout({ children }) {
   return (
@@ -7,5 +7,5 @@ export default function Layout({ children }) {
       {children}
       <InputText />
     </div>
-  )
+  );
 }

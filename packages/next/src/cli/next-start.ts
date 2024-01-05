@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-import '../server/lib/cpu-profile'
-import { startServer } from '../server/lib/start-server'
-import { getPort, printAndExit } from '../server/lib/utils'
-import { getProjectDir } from '../lib/get-project-dir'
-import type { CliCommand } from '../lib/commands'
+import "../server/lib/cpu-profile";
+import { startServer } from "../server/lib/start-server";
+import { getPort, printAndExit } from "../server/lib/utils";
+import { getProjectDir } from "../lib/get-project-dir";
+import type { CliCommand } from "../lib/commands";
 import {
   getReservedPortExplanation,
   isPortIsReserved,
-} from '../lib/helpers/get-reserved-port'
+} from "../lib/helpers/get-reserved-port";
 
 const nextStart: CliCommand = async (args) => {
-  if (args['--help']) {
+  if (args["--help"]) {
     console.log(`
       Description
         Starts the application in production mode.
@@ -27,23 +27,23 @@ const nextStart: CliCommand = async (args) => {
         --hostname, -H      Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
         --help, -h          Displays this message
-    `)
-    process.exit(0)
+    `);
+    process.exit(0);
   }
 
-  const dir = getProjectDir(args._[0])
-  const host = args['--hostname']
-  const port = getPort(args)
+  const dir = getProjectDir(args._[0]);
+  const host = args["--hostname"];
+  const port = getPort(args);
 
   if (isPortIsReserved(port)) {
-    printAndExit(getReservedPortExplanation(port), 1)
+    printAndExit(getReservedPortExplanation(port), 1);
   }
 
-  const isExperimentalTestProxy = args['--experimental-test-proxy']
+  const isExperimentalTestProxy = args["--experimental-test-proxy"];
 
-  const keepAliveTimeoutArg: number | undefined = args['--keepAliveTimeout']
+  const keepAliveTimeoutArg: number | undefined = args["--keepAliveTimeout"];
   if (
-    typeof keepAliveTimeoutArg !== 'undefined' &&
+    typeof keepAliveTimeoutArg !== "undefined" &&
     (Number.isNaN(keepAliveTimeoutArg) ||
       !Number.isFinite(keepAliveTimeoutArg) ||
       keepAliveTimeoutArg < 0)
@@ -51,12 +51,12 @@ const nextStart: CliCommand = async (args) => {
     printAndExit(
       `Invalid --keepAliveTimeout, expected a non negative number but received "${keepAliveTimeoutArg}"`,
       1
-    )
+    );
   }
 
   const keepAliveTimeout = keepAliveTimeoutArg
     ? Math.ceil(keepAliveTimeoutArg)
-    : undefined
+    : undefined;
 
   await startServer({
     dir,
@@ -65,7 +65,7 @@ const nextStart: CliCommand = async (args) => {
     hostname: host,
     port,
     keepAliveTimeout,
-  })
-}
+  });
+};
 
-export { nextStart }
+export { nextStart };

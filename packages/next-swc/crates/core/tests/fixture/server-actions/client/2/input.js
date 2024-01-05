@@ -1,11 +1,11 @@
 // app/send.ts
-'use server'
+"use server";
 
-import 'db'
+import "db";
 
-console.log('side effect')
+console.log("side effect");
 
 const foo = async () => {
-  console.log('function body')
-}
-export { foo }
+  console.log("function body");
+};
+export { foo };

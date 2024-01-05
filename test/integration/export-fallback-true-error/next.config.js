@@ -1,8 +1,8 @@
 module.exports = {
-  output: 'export',
+  output: "export",
   exportPathMap() {
     return {
-      '/first': { page: '/[slug]' },
-    }
+      "/first": { page: "/[slug]" },
+    };
   },
-}
+};

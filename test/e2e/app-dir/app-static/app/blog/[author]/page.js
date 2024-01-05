@@ -1,11 +1,11 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-export const dynamicParams = false
+export const dynamicParams = false;
 
 export default async function Page({ params }) {
-  await fetch('https://example.vercel.sh', {
+  await fetch("https://example.vercel.sh", {
     next: { revalidate: 10 },
-  })
+  });
   return (
     <>
       <p id="page">/blog/[author]</p>
@@ -42,5 +42,5 @@ export default async function Page({ params }) {
       </Link>
       <br />
     </>
-  )
+  );
 }

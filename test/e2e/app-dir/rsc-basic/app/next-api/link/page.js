@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import Nav from '../../../components/nav'
+import Link from "next/link";
+import Nav from "../../../components/nav";
 
 export default function LinkPage({ searchParams }) {
-  const queryId = searchParams.id || '0'
-  const id = parseInt(queryId)
+  const queryId = searchParams.id || "0";
+  const id = parseInt(queryId);
   return (
     <>
       <h3 id="query">query:{id}</h3>
@@ -14,5 +14,5 @@ export default function LinkPage({ searchParams }) {
       </div>
       <Nav />
     </>
-  )
+  );
 }

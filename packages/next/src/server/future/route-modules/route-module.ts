@@ -1,4 +1,4 @@
-import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteDefinition } from "../route-definitions/route-definition";
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -9,8 +9,8 @@ export interface RouteModuleOptions<
   D extends RouteDefinition = RouteDefinition,
   U = unknown
 > {
-  readonly definition: Readonly<D>
-  readonly userland: Readonly<U>
+  readonly definition: Readonly<D>;
+  readonly userland: Readonly<U>;
 }
 
 /**
@@ -21,7 +21,7 @@ export interface RouteModuleHandleContext {
    * Any matched parameters for the request. This is only defined for dynamic
    * routes.
    */
-  params: Record<string, string | string[] | undefined> | undefined
+  params: Record<string, string | string[] | undefined> | undefined;
 }
 
 /**
@@ -37,20 +37,20 @@ export abstract class RouteModule<
    * code. This is marked as readonly to ensure that the module is not mutated
    * because the module (when compiled) only provides getters.
    */
-  public readonly userland: Readonly<U>
+  public readonly userland: Readonly<U>;
 
   /**
    * The definition of the route.
    */
-  public readonly definition: Readonly<D>
+  public readonly definition: Readonly<D>;
 
   /**
    * The shared modules that are exposed and required for the route module.
    */
-  public static readonly sharedModules: any
+  public static readonly sharedModules: any;
 
   constructor({ userland, definition }: RouteModuleOptions<D, U>) {
-    this.userland = userland
-    this.definition = definition
+    this.userland = userland;
+    this.definition = definition;
   }
 }

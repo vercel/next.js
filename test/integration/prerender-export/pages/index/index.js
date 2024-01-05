@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getStaticProps() {
   return {
-    props: { world: 'nested index' },
-  }
+    props: { world: "nested index" },
+  };
 }
 
 export default ({ world }) => {
@@ -14,5 +14,5 @@ export default ({ world }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

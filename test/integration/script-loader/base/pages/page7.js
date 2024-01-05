@@ -1,4 +1,4 @@
-import Script from 'next/script'
+import Script from "next/script";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
       >{`console.log('beforeInteractive inline script run')`}</Script>
       <div>page7</div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

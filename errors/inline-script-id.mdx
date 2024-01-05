@@ -13,7 +13,7 @@ title: Inline script id
 Add an `id` attribute to the `next/script` component.
 
 ```jsx filename="pages/_app.js"
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function App({ Component, pageProps }) {
   return (
@@ -21,7 +21,7 @@ export default function App({ Component, pageProps }) {
       <Script id="my-script">{`console.log('Hello world!');`}</Script>
       <Component {...pageProps} />
     </>
-  )
+  );
 }
 ```
 

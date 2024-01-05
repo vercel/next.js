@@ -1,25 +1,29 @@
-import type { NextConfig } from './config'
-import { VALID_LOADERS } from '../shared/lib/image-config'
+import type { NextConfig } from "./config";
+import { VALID_LOADERS } from "../shared/lib/image-config";
 
-import { z } from 'next/dist/compiled/zod'
-import type zod from 'next/dist/compiled/zod'
+import { z } from "next/dist/compiled/zod";
+import type zod from "next/dist/compiled/zod";
 
-import type { SizeLimit } from '../../types'
-import type { ExportPathMap, TurboLoaderItem, TurboRule } from './config-shared'
+import type { SizeLimit } from "../../types";
+import type {
+  ExportPathMap,
+  TurboLoaderItem,
+  TurboRule,
+} from "./config-shared";
 import type {
   Header,
   Rewrite,
   RouteHas,
   Redirect,
-} from '../lib/load-custom-routes'
+} from "../lib/load-custom-routes";
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
-  if (typeof val === 'number' || typeof val === 'string') {
-    return true
+  if (typeof val === "number" || typeof val === "string") {
+    return true;
   }
-  return false
-})
+  return false;
+});
 
 const zExportMap: zod.ZodType<ExportPathMap> = z.record(
   z.string(),
@@ -31,20 +35,20 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppPrefetch: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
   })
-)
+);
 
 const zRouteHas: zod.ZodType<RouteHas> = z.union([
   z.object({
-    type: z.enum(['header', 'query', 'cookie']),
+    type: z.enum(["header", "query", "cookie"]),
     key: z.string(),
     value: z.string().optional(),
   }),
   z.object({
-    type: z.literal('host'),
+    type: z.literal("host"),
     key: z.undefined().optional(),
     value: z.string(),
   }),
-])
+]);
 
 const zRewrite: zod.ZodType<Rewrite> = z.object({
   source: z.string(),
@@ -54,7 +58,7 @@ const zRewrite: zod.ZodType<Rewrite> = z.object({
   has: z.array(zRouteHas).optional(),
   missing: z.array(zRouteHas).optional(),
   internal: z.boolean().optional(),
-})
+});
 
 const zRedirect: zod.ZodType<Redirect> = z
   .object({
@@ -77,7 +81,7 @@ const zRedirect: zod.ZodType<Redirect> = z
         permanent: z.never().optional(),
       }),
     ])
-  )
+  );
 
 const zHeader: zod.ZodType<Header> = z.object({
   source: z.string(),
@@ -88,7 +92,7 @@ const zHeader: zod.ZodType<Header> = z.object({
   missing: z.array(zRouteHas).optional(),
 
   internal: z.boolean().optional(),
-})
+});
 
 const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
   z.string(),
@@ -97,7 +101,7 @@ const zTurboLoaderItem: zod.ZodType<TurboLoaderItem> = z.union([
     // Any JSON value can be used as turbo loader options, so use z.any() here
     options: z.record(z.string(), z.any()),
   }),
-])
+]);
 
 const zTurboRule: zod.ZodType<TurboRule> = z.union([
   z.array(zTurboLoaderItem),
@@ -105,7 +109,7 @@ const zTurboRule: zod.ZodType<TurboRule> = z.union([
     loaders: z.array(zTurboLoaderItem),
     as: z.string(),
   }),
-])
+]);
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -127,9 +131,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               sourceMap: z.boolean().optional(),
               autoLabel: z
                 .union([
-                  z.literal('always'),
-                  z.literal('dev-only'),
-                  z.literal('never'),
+                  z.literal("always"),
+                  z.literal("dev-only"),
+                  z.literal("never"),
                 ])
                 .optional(),
               labelFormat: z.string().min(1).optional(),
@@ -164,7 +168,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .object({
             src: z.string(),
             artifactDirectory: z.string().optional(),
-            language: z.enum(['javascript', 'typescript', 'flow']).optional(),
+            language: z.enum(["javascript", "typescript", "flow"]).optional(),
             eagerEsModules: z.boolean().optional(),
           })
           .optional(),
@@ -198,8 +202,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     crossOrigin: z
       .union([
         z.literal(false),
-        z.literal('anonymous'),
-        z.literal('use-credentials'),
+        z.literal("anonymous"),
+        z.literal("use-credentials"),
       ])
       .optional(),
     devIndicators: z
@@ -207,10 +211,10 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         buildActivity: z.boolean().optional(),
         buildActivityPosition: z
           .union([
-            z.literal('bottom-left'),
-            z.literal('bottom-right'),
-            z.literal('top-left'),
-            z.literal('top-right'),
+            z.literal("bottom-left"),
+            z.literal("bottom-right"),
+            z.literal("top-left"),
+            z.literal("top-right"),
           ])
           .optional(),
       })
@@ -251,7 +255,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         deploymentId: z.string().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
-        esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
+        esmExternals: z.union([z.boolean(), z.literal("loose")]).optional(),
         serverActions: z
           .object({
             bodySizeLimit: zSizeLimit.optional(),
@@ -272,7 +276,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         isrMemoryCacheSize: z.number().optional(),
         largePageDataBytes: z.number().optional(),
         manualClientBasePath: z.boolean().optional(),
-        middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
+        middlewarePrefetch: z.enum(["strict", "flexible"]).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -292,7 +296,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         scrollRestoration: z.boolean().optional(),
         sri: z
           .object({
-            algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
+            algorithm: z.enum(["sha256", "sha384", "sha512"]).optional(),
           })
           .optional(),
         strictNextHead: z.boolean().optional(),
@@ -308,12 +312,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         webVitalsAttribution: z
           .array(
             z.union([
-              z.literal('CLS'),
-              z.literal('FCP'),
-              z.literal('FID'),
-              z.literal('INP'),
-              z.literal('LCP'),
-              z.literal('TTFB'),
+              z.literal("CLS"),
+              z.literal("FCP"),
+              z.literal("FID"),
+              z.literal("INP"),
+              z.literal("LCP"),
+              z.literal("TTFB"),
             ])
           )
           .optional(),
@@ -346,14 +350,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .object({
             logLevel: z
               .enum([
-                'bug',
-                'fatal',
-                'error',
-                'warning',
-                'hint',
-                'note',
-                'suggestions',
-                'info',
+                "bug",
+                "fatal",
+                "error",
+                "warning",
+                "hint",
+                "note",
+                "suggestions",
+                "info",
               ])
               .optional(),
             logAll: z.boolean().optional(),
@@ -431,14 +435,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               hostname: z.string(),
               pathname: z.string().optional(),
               port: z.string().max(5).optional(),
-              protocol: z.enum(['http', 'https']).optional(),
+              protocol: z.enum(["http", "https"]).optional(),
             })
           )
           .max(50)
           .optional(),
         unoptimized: z.boolean().optional(),
         contentSecurityPolicy: z.string().optional(),
-        contentDispositionType: z.enum(['inline', 'attachment']).optional(),
+        contentDispositionType: z.enum(["inline", "attachment"]).optional(),
         dangerouslyAllowSVG: z.boolean().optional(),
         deviceSizes: z
           .array(z.number().int().gte(1).lte(10000))
@@ -447,7 +451,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         disableStaticImages: z.boolean().optional(),
         domains: z.array(z.string()).max(50).optional(),
         formats: z
-          .array(z.enum(['image/avif', 'image/webp']))
+          .array(z.enum(["image/avif", "image/webp"]))
           .max(4)
           .optional(),
         imageSizes: z
@@ -487,7 +491,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     optimizeFonts: z.boolean().optional(),
-    output: z.enum(['standalone', 'export']).optional(),
+    output: z.enum(["standalone", "export"]).optional(),
     outputFileTracing: z.boolean().optional(),
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
@@ -536,4 +540,4 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     // The webpack config type is unknown, use z.any() here
     webpack: z.any().nullable().optional(),
   })
-)
+);

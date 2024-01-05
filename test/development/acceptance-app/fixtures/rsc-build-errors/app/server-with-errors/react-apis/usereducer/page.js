@@ -1,7 +1,7 @@
-import { useReducer } from 'react'
+import { useReducer } from "react";
 
-console.log({ useReducer })
+console.log({ useReducer });
 
 export default function Page() {
-  return null
+  return null;
 }

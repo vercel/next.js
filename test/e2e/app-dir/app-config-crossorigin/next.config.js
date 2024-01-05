@@ -3,7 +3,7 @@ module.exports = {
    * The "assetPrefix" here doesn't needs to be real as we doesn't load the page in the browser in this test,
    * we only care about if all assets prefixed with the "assetPrefix" are having correct "crossOrigin".
    */
-  assetPrefix: 'https://example.vercel.sh',
+  assetPrefix: "https://example.vercel.sh",
 
   /**
    * According to HTML5 Spec (https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes),
@@ -12,5 +12,5 @@ module.exports = {
    *
    * So we use "use-credentials" here for easier testing.
    */
-  crossOrigin: 'use-credentials',
-}
+  crossOrigin: "use-credentials",
+};

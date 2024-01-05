@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const Test = ({ page, href }: { page: string; href?: string }) => {
-  const router = useRouter()
-  href ??= `/${page}-before`
+  const router = useRouter();
+  href ??= `/${page}-before`;
 
   return (
     <>
@@ -16,8 +16,8 @@ const Test = ({ page, href }: { page: string; href?: string }) => {
         Button to /{page}-before
       </button>
     </>
-  )
-}
+  );
+};
 
 export default function Page() {
   return (
@@ -31,5 +31,5 @@ export default function Page() {
         href="/config-redirect-catchall-before/thing"
       />
     </>
-  )
+  );
 }

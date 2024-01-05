@@ -1,12 +1,12 @@
-import { foo } from 'external-package'
-import { bar } from 'opted-out-external-package'
+import { foo } from "external-package";
+import { bar } from "opted-out-external-package";
 export async function getServerSideProps() {
   return {
     props: {
       foo,
       bar,
     },
-  }
+  };
 }
 
 export default function Index({ foo }) {
@@ -15,5 +15,5 @@ export default function Index({ foo }) {
       {foo}
       {bar}
     </div>
-  )
+  );
 }

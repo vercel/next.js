@@ -7,5 +7,5 @@ export function Comp2() {
         }
       `}</style>
     </div>
-  )
+  );
 }

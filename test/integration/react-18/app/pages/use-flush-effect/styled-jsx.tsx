@@ -1,11 +1,11 @@
 // use tsx to cover typescript usage of next/dynamic + suspense: true
 
-import React from 'react'
-import dynamic from 'next/dynamic'
+import React from "react";
+import dynamic from "next/dynamic";
 
-const Red = dynamic(() => import('../../components/red'), {
+const Red = dynamic(() => import("../../components/red"), {
   suspense: true,
-})
+});
 
 function Blue() {
   return (
@@ -17,7 +17,7 @@ function Blue() {
         }
       `}</style>
     </div>
-  )
+  );
 }
 
 export default function StyledJsx() {
@@ -28,5 +28,5 @@ export default function StyledJsx() {
         <Red />
       </React.Suspense>
     </>
-  )
+  );
 }

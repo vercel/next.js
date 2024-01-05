@@ -84,9 +84,9 @@ const nextConfig = {
   experimental: {
     typedRoutes: true,
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 ```
 
 Next.js will generate a link definition in `.next/types` that contains information about all existing routes in your application, which TypeScript can then use to provide feedback in your editor about invalid links.
@@ -110,15 +110,15 @@ import Link from 'next/link'
 To accept `href` in a custom component wrapping `next/link`, use a generic:
 
 ```tsx
-import type { Route } from 'next'
-import Link from 'next/link'
+import type { Route } from "next";
+import Link from "next/link";
 
 function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
     </Link>
-  )
+  );
 }
 ```
 
@@ -139,16 +139,16 @@ We're able to type the response data as you would expect with normal TypeScript.
 
 ```tsx filename="app/page.tsx"
 async function getData() {
-  const res = await fetch('https://api.example.com/...')
+  const res = await fetch("https://api.example.com/...");
   // The return value is *not* serialized
   // You can return Date, Map, Set, etc.
-  return res.json()
+  return res.json();
 }
 
 export default async function Page() {
-  const name = await getData()
+  const name = await getData();
 
-  return '...'
+  return "...";
 }
 ```
 
@@ -175,19 +175,19 @@ Further, there is less code to be serialized, as un-rendered data does not cross
 For [`getStaticProps`](/docs/pages/api-reference/functions/get-static-props), [`getStaticPaths`](/docs/pages/api-reference/functions/get-static-paths), and [`getServerSideProps`](/docs/pages/api-reference/functions/get-server-side-props), you can use the `GetStaticProps`, `GetStaticPaths`, and `GetServerSideProps` types respectively:
 
 ```tsx filename="pages/blog/[slug].tsx"
-import { GetStaticProps, GetStaticPaths, GetServerSideProps } from 'next'
+import { GetStaticProps, GetStaticPaths, GetServerSideProps } from "next";
 
 export const getStaticProps = (async (context) => {
   // ...
-}) satisfies GetStaticProps
+}) satisfies GetStaticProps;
 
 export const getStaticPaths = (async () => {
   // ...
-}) satisfies GetStaticPaths
+}) satisfies GetStaticPaths;
 
 export const getServerSideProps = (async (context) => {
   // ...
-}) satisfies GetServerSideProps
+}) satisfies GetServerSideProps;
 ```
 
 > **Good to know:** `satisfies` was added to TypeScript in [4.9](https://www.typescriptlang.org/docs/handbook/release-notes/typescript-4-9.html). We recommend upgrading to the latest version of TypeScript.
@@ -197,27 +197,27 @@ export const getServerSideProps = (async (context) => {
 The following is an example of how to use the built-in types for API routes:
 
 ```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ name: "John Doe" });
 }
 ```
 
 You can also type the response data:
 
 ```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 type Data = {
-  name: string
-}
+  name: string;
+};
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<Data>
 ) {
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ name: "John Doe" });
 }
 ```
 
@@ -226,10 +226,10 @@ export default function handler(
 If you have a [custom `App`](/docs/pages/building-your-application/routing/custom-app), you can use the built-in type `AppProps` and change file name to `./pages/_app.tsx` like so:
 
 ```ts
-import type { AppProps } from 'next/app'
+import type { AppProps } from "next/app";
 
 export default function MyApp({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 
@@ -263,9 +263,9 @@ The `next.config.js` file must be a JavaScript file as it does not get parsed by
  **/
 const nextConfig = {
   /* config options here */
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 ```
 
 ## Incremental type checking
@@ -291,7 +291,7 @@ module.exports = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-}
+};
 ```
 
 ## Version Changes

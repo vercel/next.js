@@ -1,23 +1,23 @@
-import { computeChangedPath } from './compute-changed-path'
+import { computeChangedPath } from "./compute-changed-path";
 
-describe('computeChangedPath', () => {
-  it('should return the correct path', () => {
+describe("computeChangedPath", () => {
+  it("should return the correct path", () => {
     expect(
       computeChangedPath(
         [
-          '',
+          "",
           {
             children: [
-              '(marketing)',
+              "(marketing)",
               {
-                children: ['__PAGE__', {}],
+                children: ["__PAGE__", {}],
                 modal: [
-                  '(...)stats',
+                  "(...)stats",
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ["key", "github", "d"],
                       {
-                        children: ['__PAGE__', {}],
+                        children: ["__PAGE__", {}],
                       },
                     ],
                   },
@@ -30,19 +30,19 @@ describe('computeChangedPath', () => {
           true,
         ],
         [
-          '',
+          "",
           {
             children: [
-              '(marketing)',
+              "(marketing)",
               {
-                children: ['__PAGE__', {}],
+                children: ["__PAGE__", {}],
                 modal: [
-                  '(...)stats',
+                  "(...)stats",
                   {
                     children: [
-                      ['key', 'github', 'd'],
+                      ["key", "github", "d"],
                       {
-                        children: ['__PAGE__', {}],
+                        children: ["__PAGE__", {}],
                       },
                     ],
                   },
@@ -55,6 +55,6 @@ describe('computeChangedPath', () => {
           true,
         ]
       )
-    ).toBe('/')
-  })
-})
+    ).toBe("/");
+  });
+});

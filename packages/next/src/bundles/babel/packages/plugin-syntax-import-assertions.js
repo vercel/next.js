@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginSyntaxImportAssertions()
+module.exports = require("./bundle").pluginSyntaxImportAssertions();

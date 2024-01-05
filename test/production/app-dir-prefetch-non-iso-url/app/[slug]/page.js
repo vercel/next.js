@@ -4,9 +4,9 @@ export default function Slug(props) {
       <p id="page">/[slug]</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }
 
 export function generateStaticParams() {
-  return [{ slug: 'iso-url' }, { slug: 'кириллица' }]
+  return [{ slug: "iso-url" }, { slug: "кириллица" }];
 }

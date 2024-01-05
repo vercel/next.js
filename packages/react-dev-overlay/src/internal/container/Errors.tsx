@@ -1,58 +1,58 @@
-import * as React from 'react'
-import type { UnhandledError, UnhandledRejection } from '../bus'
-import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
+import * as React from "react";
+import type { UnhandledError, UnhandledRejection } from "../bus";
+import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from "../bus";
 import {
   Dialog,
   DialogBody,
   DialogContent,
   DialogHeader,
-} from '../components/Dialog'
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
-import { Overlay } from '../components/Overlay'
-import { Toast } from '../components/Toast'
-import type { ReadyRuntimeError } from '../helpers/getErrorByType'
-import { getErrorByType } from '../helpers/getErrorByType'
-import { getErrorSource } from '../helpers/nodeStackFrames'
-import { noop as css } from '../helpers/noop-template'
-import { CloseIcon } from '../icons/CloseIcon'
-import { RuntimeError } from './RuntimeError'
+} from "../components/Dialog";
+import { LeftRightDialogHeader } from "../components/LeftRightDialogHeader";
+import { Overlay } from "../components/Overlay";
+import { Toast } from "../components/Toast";
+import type { ReadyRuntimeError } from "../helpers/getErrorByType";
+import { getErrorByType } from "../helpers/getErrorByType";
+import { getErrorSource } from "../helpers/nodeStackFrames";
+import { noop as css } from "../helpers/noop-template";
+import { CloseIcon } from "../icons/CloseIcon";
+import { RuntimeError } from "./RuntimeError";
 
 export type SupportedErrorEvent = {
-  id: number
-  event: UnhandledError | UnhandledRejection
-}
-export type ErrorsProps = { errors: SupportedErrorEvent[] }
+  id: number;
+  event: UnhandledError | UnhandledRejection;
+};
+export type ErrorsProps = { errors: SupportedErrorEvent[] };
 
-type ReadyErrorEvent = ReadyRuntimeError
+type ReadyErrorEvent = ReadyRuntimeError;
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev
+  const { event } = ev;
   switch (event.type) {
     case TYPE_UNHANDLED_ERROR:
     case TYPE_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
+      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`;
     }
     default: {
     }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event
-  return ''
+  const _: never = event;
+  return "";
 }
 
 const HotlinkedText: React.FC<{
-  text: string
+  text: string;
 }> = function HotlinkedText(props) {
-  const { text } = props
+  const { text } = props;
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i;
   return (
     <>
       {linkRegex.test(text)
-        ? text.split(' ').map((word, index, array) => {
+        ? text.split(" ").map((word, index, array) => {
             if (linkRegex.test(word)) {
-              const link = linkRegex.exec(word)
+              const link = linkRegex.exec(word);
               return (
                 <React.Fragment key={`link-${index}`}>
                   {link && (
@@ -60,65 +60,65 @@ const HotlinkedText: React.FC<{
                       {word}
                     </a>
                   )}
-                  {index === array.length - 1 ? '' : ' '}
+                  {index === array.length - 1 ? "" : " "}
                 </React.Fragment>
-              )
+              );
             }
             return index === array.length - 1 ? (
               <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
             ) : (
               <React.Fragment key={`text-${index}`}>{word} </React.Fragment>
-            )
+            );
           })
         : text}
     </>
-  )
-}
+  );
+};
 
 export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
-  )
+  );
 
   const [readyErrors, nextError] = React.useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
-    let ready: ReadyErrorEvent[] = []
-    let next: SupportedErrorEvent | null = null
+    let ready: ReadyErrorEvent[] = [];
+    let next: SupportedErrorEvent | null = null;
 
     // Ensure errors are displayed in the order they occurred in:
     for (let idx = 0; idx < errors.length; ++idx) {
-      const e = errors[idx]
-      const { id } = e
+      const e = errors[idx];
+      const { id } = e;
       if (id in lookups) {
-        ready.push(lookups[id])
-        continue
+        ready.push(lookups[id]);
+        continue;
       }
 
       // Check for duplicate errors
       if (idx > 0) {
-        const prev = errors[idx - 1]
+        const prev = errors[idx - 1];
         if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue
+          continue;
         }
       }
 
-      next = e
-      break
+      next = e;
+      break;
     }
 
-    return [ready, next]
-  }, [errors, lookups])
+    return [ready, next];
+  }, [errors, lookups]);
 
   const isLoading = React.useMemo<boolean>(() => {
-    return readyErrors.length < 1 && Boolean(errors.length)
-  }, [errors.length, readyErrors.length])
+    return readyErrors.length < 1 && Boolean(errors.length);
+  }, [errors.length, readyErrors.length]);
 
   React.useEffect(() => {
     if (nextError == null) {
-      return
+      return;
     }
-    let mounted = true
+    let mounted = true;
 
     getErrorByType(nextError).then(
       (resolved) => {
@@ -126,84 +126,84 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
         if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+          setLookups((m) => ({ ...m, [resolved.id]: resolved }));
         }
       },
       () => {
         // TODO: handle this, though an edge case
       }
-    )
+    );
 
     return () => {
-      mounted = false
-    }
-  }, [nextError])
+      mounted = false;
+    };
+  }, [nextError]);
 
   const [displayState, setDisplayState] = React.useState<
-    'minimized' | 'fullscreen' | 'hidden'
-  >('fullscreen')
-  const [activeIdx, setActiveIndex] = React.useState<number>(0)
+    "minimized" | "fullscreen" | "hidden"
+  >("fullscreen");
+  const [activeIdx, setActiveIndex] = React.useState<number>(0);
   const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setActiveIndex((v) => Math.max(0, v - 1))
-  }, [])
+    e?.preventDefault();
+    setActiveIndex((v) => Math.max(0, v - 1));
+  }, []);
   const next = React.useCallback(
     (e?: MouseEvent | TouchEvent) => {
-      e?.preventDefault()
+      e?.preventDefault();
       setActiveIndex((v) =>
         Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      )
+      );
     },
     [readyErrors.length]
-  )
+  );
 
   const activeError = React.useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
     [activeIdx, readyErrors]
-  )
+  );
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but lets handle it.
   React.useEffect(() => {
     if (errors.length < 1) {
-      setLookups({})
-      setDisplayState('hidden')
-      setActiveIndex(0)
+      setLookups({});
+      setDisplayState("hidden");
+      setActiveIndex(0);
     }
-  }, [errors.length])
+  }, [errors.length]);
 
   const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('minimized')
-  }, [])
+    e?.preventDefault();
+    setDisplayState("minimized");
+  }, []);
   const hide = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('hidden')
-  }, [])
+    e?.preventDefault();
+    setDisplayState("hidden");
+  }, []);
   const fullscreen = React.useCallback(
     (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e?.preventDefault()
-      setDisplayState('fullscreen')
+      e?.preventDefault();
+      setDisplayState("fullscreen");
     },
     []
-  )
+  );
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.
   if (errors.length < 1 || activeError == null) {
-    return null
+    return null;
   }
 
   if (isLoading) {
     // TODO: better loading state
-    return <Overlay />
+    return <Overlay />;
   }
 
-  if (displayState === 'hidden') {
-    return null
+  if (displayState === "hidden") {
+    return null;
   }
 
-  if (displayState === 'minimized') {
+  if (displayState === "minimized") {
     return (
       <Toast className="nextjs-toast-errors-parent" onClick={fullscreen}>
         <div className="nextjs-toast-errors">
@@ -223,15 +223,15 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <span>
-            {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
+            {readyErrors.length} error{readyErrors.length > 1 ? "s" : ""}
           </span>
           <button
             data-nextjs-toast-errors-hide-button
             className="nextjs-toast-errors-hide-button"
             type="button"
             onClick={(e) => {
-              e.stopPropagation()
-              hide()
+              e.stopPropagation();
+              hide();
             }}
             aria-label="Hide Errors"
           >
@@ -239,12 +239,12 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
           </button>
         </div>
       </Toast>
-    )
+    );
   }
 
-  const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(activeError.error) || ''
-  )
+  const isServerError = ["server", "edge-server"].includes(
+    getErrorSource(activeError.error) || ""
+  );
 
   return (
     <Overlay>
@@ -262,16 +262,16 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
               close={isServerError ? undefined : minimize}
             >
               <small>
-                <span>{activeIdx + 1}</span> of{' '}
+                <span>{activeIdx + 1}</span> of{" "}
                 <span>{readyErrors.length}</span> unhandled error
-                {readyErrors.length < 2 ? '' : 's'}
+                {readyErrors.length < 2 ? "" : "s"}
               </small>
             </LeftRightDialogHeader>
             <h1 id="nextjs__container_errors_label">
-              {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
+              {isServerError ? "Server Error" : "Unhandled Runtime Error"}
             </h1>
             <p id="nextjs__container_errors_desc">
-              {activeError.error.name}:{' '}
+              {activeError.error.name}:{" "}
               <HotlinkedText text={activeError.error.message} />
             </p>
             {isServerError ? (
@@ -289,8 +289,8 @@ export const Errors: React.FC<ErrorsProps> = function Errors({ errors }) {
         </DialogContent>
       </Dialog>
     </Overlay>
-  )
-}
+  );
+};
 
 export const styles = css`
   .nextjs-container-errors-header > h1 {
@@ -361,4 +361,4 @@ export const styles = css`
   .nextjs-toast-errors-hide-button:hover {
     opacity: 1;
   }
-`
+`;

@@ -3,7 +3,7 @@ export default function Account({ slug }) {
     <p id="dynamic" className="title">
       Welcome to a /dynamic/[slug]: {slug}
     </p>
-  )
+  );
 }
 
 export function getServerSideProps({ params }) {
@@ -11,5 +11,5 @@ export function getServerSideProps({ params }) {
     props: {
       slug: params.slug,
     },
-  }
+  };
 }

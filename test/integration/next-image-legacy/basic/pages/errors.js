@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Errors = () => {
   return (
@@ -13,7 +13,7 @@ const Errors = () => {
         height={400}
       ></Image>
     </div>
-  )
-}
+  );
+};
 
-export default Errors
+export default Errors;

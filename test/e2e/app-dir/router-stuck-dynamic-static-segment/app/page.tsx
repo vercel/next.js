@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 /** Add your relevant code here for the issue to reproduce */
 export default function Home() {
@@ -19,16 +19,16 @@ export default function Home() {
       </ol>
       <p>
         Reloading and pressing the "Go to another page" link and then going to
-        the blog post does work however, suggesting the issue is navigating from{' '}
-        <code>/blog</code> to <code>/blog/a-post</code> (<code>/[slug]</code>{' '}
+        the blog post does work however, suggesting the issue is navigating from{" "}
+        <code>/blog</code> to <code>/blog/a-post</code> (<code>/[slug]</code>{" "}
         where slug is blog and <code>/blog/[slug]</code> where slug is a-post)
       </p>
-      <Link href="/blog" style={{ display: 'block' }} id="to-blog">
+      <Link href="/blog" style={{ display: "block" }} id="to-blog">
         Go to blog
       </Link>
-      <Link href="/another-page" style={{ display: 'block' }}>
+      <Link href="/another-page" style={{ display: "block" }}>
         Go to another page
       </Link>
     </div>
-  )
+  );
 }

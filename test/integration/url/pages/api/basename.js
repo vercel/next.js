@@ -1,7 +1,7 @@
-import path from 'path'
+import path from "path";
 
-const img = new URL('../../public/vercel.png', import.meta.url)
+const img = new URL("../../public/vercel.png", import.meta.url);
 
 export default (req, res) => {
-  res.json({ basename: path.posix.basename(img.pathname) })
-}
+  res.json({ basename: path.posix.basename(img.pathname) });
+};

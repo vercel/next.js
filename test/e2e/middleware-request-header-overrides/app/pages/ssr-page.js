@@ -3,7 +3,7 @@ export default function SSRPage({ headers }) {
     <>
       <p id="headers">{JSON.stringify(headers)}</p>
     </>
-  )
+  );
 }
 
 export const getServerSideProps = (ctx) => {
@@ -11,5 +11,5 @@ export const getServerSideProps = (ctx) => {
     props: {
       headers: ctx.req.headers,
     },
-  }
-}
+  };
+};

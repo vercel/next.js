@@ -1,4 +1,4 @@
-import Image from 'next/legacy/image'
+import Image from "next/legacy/image";
 
 const LoaderExample = () => {
   return (
@@ -11,13 +11,13 @@ const LoaderExample = () => {
         height={400}
         loader={({ config, src, width }) => {
           if (config) {
-            return 'https://example.vercel.sh/error-unexpected-config'
+            return "https://example.vercel.sh/error-unexpected-config";
           }
-          return `https://example.vercel.sh/success/${src}?width=${width}`
+          return `https://example.vercel.sh/success/${src}?width=${width}`;
         }}
       />
     </div>
-  )
-}
+  );
+};
 
-export default LoaderExample
+export default LoaderExample;

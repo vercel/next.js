@@ -1,23 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from "react";
 
-const foo = (query) => query
+const foo = (query) => query;
 
-export const FOO = foo('query')
+export const FOO = foo("query");
 
 const MyPage = () => {
-  const [isMounted, setMounted] = useState(false)
+  const [isMounted, setMounted] = useState(false);
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
   if (isMounted) {
-    return <p>client loaded</p>
+    return <p>client loaded</p>;
   }
-  return <p>server</p>
-}
+  return <p>server</p>;
+};
 
 const getServerSideProps = async () => {
-  return { props: {} }
-}
+  return { props: {} };
+};
 
-export default MyPage
-export { getServerSideProps }
+export default MyPage;
+export { getServerSideProps };

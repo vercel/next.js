@@ -1,3 +1,3 @@
-const parent = require('../next.config')
+const parent = require("../next.config");
 
-module.exports = { ...parent }
+module.exports = { ...parent };

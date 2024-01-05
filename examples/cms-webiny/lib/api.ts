@@ -5,27 +5,27 @@ async function fetchAPI(
 ) {
   const url = preview
     ? `${process.env.NEXT_PUBLIC_WEBINY_PREVIEW_API_URL}`
-    : `${process.env.NEXT_PUBLIC_WEBINY_API_UR}`
+    : `${process.env.NEXT_PUBLIC_WEBINY_API_UR}`;
 
   const res = await fetch(url, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       Authorization: `Bearer ${process.env.WEBINY_API_SECRET}`,
     },
     body: JSON.stringify({
       query,
       variables,
     }),
-  })
+  });
 
-  const json = await res.json()
+  const json = await res.json();
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
 
-  return json.data
+  return json.data;
 }
 
 export async function getAllPostsWithSlug() {
@@ -41,8 +41,8 @@ export async function getAllPostsWithSlug() {
     `,
     {},
     false
-  )
-  return data?.listPosts.data
+  );
+  return data?.listPosts.data;
 }
 
 export async function getAllPostsForHome(preview) {
@@ -67,8 +67,8 @@ export async function getAllPostsForHome(preview) {
     `,
     {},
     preview
-  )
-  return data.listPosts.data
+  );
+  return data.listPosts.data;
 }
 
 export async function getPostBySlug(slug, preview) {
@@ -115,6 +115,6 @@ export async function getPostBySlug(slug, preview) {
       },
     },
     preview
-  )
-  return data
+  );
+  return data;
 }

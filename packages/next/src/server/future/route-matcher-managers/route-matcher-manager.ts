@@ -1,24 +1,24 @@
-import type { RouteMatch } from '../route-matches/route-match'
-import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import type { LocaleAnalysisResult } from '../helpers/i18n-provider'
+import type { RouteMatch } from "../route-matches/route-match";
+import type { RouteMatcherProvider } from "../route-matcher-providers/route-matcher-provider";
+import type { LocaleAnalysisResult } from "../helpers/i18n-provider";
 
 export type MatchOptions = {
-  skipDynamic?: boolean
+  skipDynamic?: boolean;
 
   /**
    * If defined, this indicates to the matcher that the request should be
    * treated as locale-aware. If this is undefined, it means that this
    * application was not configured for additional locales.
    */
-  i18n?: LocaleAnalysisResult | undefined
-}
+  i18n?: LocaleAnalysisResult | undefined;
+};
 
 export interface RouteMatcherManager {
   /**
    * Returns a promise that resolves when the matcher manager has finished
    * reloading.
    */
-  waitTillReady(): Promise<void>
+  waitTillReady(): Promise<void>;
 
   /**
    * Pushes in a new matcher for this manager to manage. After all the
@@ -26,13 +26,13 @@ export interface RouteMatcherManager {
    *
    * @param provider the provider for this manager to also manage
    */
-  push(provider: RouteMatcherProvider): void
+  push(provider: RouteMatcherProvider): void;
 
   /**
    * Reloads the matchers from the providers. This should be done after all the
    * providers have been added or the underlying providers should be refreshed.
    */
-  reload(): Promise<void>
+  reload(): Promise<void>;
 
   /**
    * Tests the underlying matchers to find a match. It does not return the
@@ -41,7 +41,7 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to test for matches
    * @param options the options for the testing
    */
-  test(pathname: string, options: MatchOptions): Promise<boolean>
+  test(pathname: string, options: MatchOptions): Promise<boolean>;
 
   /**
    * Returns the first match for a given request.
@@ -49,7 +49,7 @@ export interface RouteMatcherManager {
    * @param pathname the pathname to match against
    * @param options the options for the matching
    */
-  match(pathname: string, options: MatchOptions): Promise<RouteMatch | null>
+  match(pathname: string, options: MatchOptions): Promise<RouteMatch | null>;
 
   /**
    * Returns a generator for each match for a given request. This should be
@@ -62,5 +62,5 @@ export interface RouteMatcherManager {
   matchAll(
     pathname: string,
     options: MatchOptions
-  ): AsyncGenerator<RouteMatch, null, undefined>
+  ): AsyncGenerator<RouteMatch, null, undefined>;
 }

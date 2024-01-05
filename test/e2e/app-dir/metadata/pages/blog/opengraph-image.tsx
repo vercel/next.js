@@ -1,3 +1,3 @@
 export default function page() {
-  return <>pages-opengraph-image-page</>
+  return <>pages-opengraph-image-page</>;
 }

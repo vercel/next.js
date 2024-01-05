@@ -1,41 +1,41 @@
-import { Writable } from 'stream'
-import path from 'path'
-import crypto from 'crypto'
-import { Buffer } from 'buffer'
-import vm from 'vm'
-import { useEffect, useState } from 'react'
+import { Writable } from "stream";
+import path from "path";
+import crypto from "crypto";
+import { Buffer } from "buffer";
+import vm from "vm";
+import { useEffect, useState } from "react";
 
 export default function NodeBrowserPolyfillPage() {
-  const [state, setState] = useState({})
+  const [state, setState] = useState({});
   useEffect(() => {
-    let closedStream = false
+    let closedStream = false;
 
     const writable = new Writable({
       write(_chunk, _encoding, callback) {
-        callback()
+        callback();
       },
-    })
+    });
 
-    writable.on('finish', () => {
-      closedStream = true
-    })
+    writable.on("finish", () => {
+      closedStream = true;
+    });
 
-    writable.end()
+    writable.end();
 
     setState({
-      path: path.join('/hello/world', 'test.txt'),
-      hash: crypto.createHash('sha256').update('hello world').digest('hex'),
-      buffer: Buffer.from('hello world').toString('utf8'),
-      vm: vm.runInNewContext('a + 5', { a: 100 }),
+      path: path.join("/hello/world", "test.txt"),
+      hash: crypto.createHash("sha256").update("hello world").digest("hex"),
+      buffer: Buffer.from("hello world").toString("utf8"),
+      vm: vm.runInNewContext("a + 5", { a: 100 }),
       stream: closedStream,
-    })
-  }, [])
+    });
+  }, []);
 
   useEffect(() => {
     if (state.vm) {
-      window.didRender = true
+      window.didRender = true;
     }
-  }, [state])
+  }, [state]);
 
   return (
     <>
@@ -44,5 +44,5 @@ export default function NodeBrowserPolyfillPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(state) }}
       ></div>
     </>
-  )
+  );
 }

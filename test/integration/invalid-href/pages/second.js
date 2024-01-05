@@ -1,18 +1,18 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
-const invalidLink = 'https://vercel.com/solutions/nextjs'
+const invalidLink = "https://vercel.com/solutions/nextjs";
 
 export default function Page() {
-  const { query, ...router } = useRouter()
-  const { method } = query
+  const { query, ...router } = useRouter();
+  const { method } = query;
 
   return method ? (
     <a
       id="click-me"
       onClick={(e) => {
-        e.preventDefault()
-        router[method](invalidLink)
+        e.preventDefault();
+        router[method](invalidLink);
       }}
     >
       invalid link :o
@@ -23,5 +23,5 @@ export default function Page() {
     <Link href={invalidLink} id="click-me">
       invalid link :o
     </Link>
-  )
+  );
 }

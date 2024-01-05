@@ -1,73 +1,75 @@
 /* eslint-env jest */
-import os from 'os'
-import path from 'path'
-import { Span } from 'next/dist/trace'
-import loader from 'next/dist/build/babel/loader'
+import os from "os";
+import path from "path";
+import { Span } from "next/dist/trace";
+import loader from "next/dist/build/babel/loader";
 
-const dir = path.resolve(os.tmpdir())
+const dir = path.resolve(os.tmpdir());
 
 const babel = async (code: string, queryOpts = {} as any) => {
-  const { isServer = false, resourcePath = `index.js` } = queryOpts
+  const { isServer = false, resourcePath = `index.js` } = queryOpts;
 
-  let isAsync = false
+  let isAsync = false;
 
   const options = {
     // loader opts
     cwd: dir,
     isServer,
-    distDir: path.resolve(dir, '.next'),
+    distDir: path.resolve(dir, ".next"),
     pagesDir:
-      'pagesDir' in queryOpts ? queryOpts.pagesDir : path.resolve(dir, 'pages'),
+      "pagesDir" in queryOpts ? queryOpts.pagesDir : path.resolve(dir, "pages"),
     cache: false,
     development: true,
     hasReactRefresh: !isServer,
-  }
+  };
   return new Promise<string>((resolve, reject) => {
     function callback(err, content) {
       if (err) {
-        reject(err)
+        reject(err);
       } else {
-        resolve(content.replace(/\n/g, ''))
+        resolve(content.replace(/\n/g, ""));
       }
     }
 
     const res = loader.bind({
       resourcePath,
       async() {
-        isAsync = true
-        return callback
+        isAsync = true;
+        return callback;
       },
       callback,
       emitWarning() {},
       query: options,
       getOptions: function () {
-        return options
+        return options;
       },
-      currentTraceSpan: new Span({ name: 'test' }),
-    })(code, null)
+      currentTraceSpan: new Span({ name: "test" }),
+    })(code, null);
 
     if (!isAsync) {
-      resolve(res)
+      resolve(res);
     }
-  })
-}
+  });
+};
 
-describe('next-babel-loader', () => {
-  describe('replace constants', () => {
-    it('should replace NODE_ENV on client (dev)', async () => {
+describe("next-babel-loader", () => {
+  describe("replace constants", () => {
+    it("should replace NODE_ENV on client (dev)", async () => {
       const code = await babel(`process.env.NODE_ENV`, {
         isServer: false,
-      })
-      expect(code).toMatchInlineSnapshot(`""development";"`)
-    })
+      });
+      expect(code).toMatchInlineSnapshot(`""development";"`);
+    });
 
-    it('should replace NODE_ENV in statement (dev)', async () => {
-      const code = await babel(`if (process.env.NODE_ENV === 'development') {}`)
-      expect(code).toMatchInlineSnapshot(`"if (true) {}"`)
-    })
+    it("should replace NODE_ENV in statement (dev)", async () => {
+      const code = await babel(
+        `if (process.env.NODE_ENV === 'development') {}`
+      );
+      expect(code).toMatchInlineSnapshot(`"if (true) {}"`);
+    });
 
-    it('should support 9.4 regression', async () => {
-      const pageFile = path.resolve(dir, 'pages', 'index.js')
+    it("should support 9.4 regression", async () => {
+      const pageFile = path.resolve(dir, "pages", "index.js");
       const output = await babel(
         `
           import React from "react";
@@ -104,11 +106,11 @@ describe('next-babel-loader', () => {
           }
         `,
         { resourcePath: pageFile, isServer: false }
-      )
+      );
 
       expect(output).toContain(
         `var __jsx = React.createElement;import React from "react";export var __N_SSG = true;export default function Home(_ref) {  var greeting = _ref.greeting;  return __jsx("h1", {    __self: this,    __source: {      fileName: _jsxFileName,      lineNumber: 8,      columnNumber: 20    }  }, greeting);}_c = Home;var _c;$RefreshReg$(_c, "Home");`
-      )
-    })
-  })
-})
+      );
+    });
+  });
+});

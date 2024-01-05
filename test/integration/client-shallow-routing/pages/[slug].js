@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page(props) {
   return (
@@ -16,7 +16,7 @@ export default function Page(props) {
         to /another non-shallow
       </Link>
     </>
-  )
+  );
 }
 
 export const getServerSideProps = ({ params }) => {
@@ -25,5 +25,5 @@ export const getServerSideProps = ({ params }) => {
       params,
       random: Math.random(),
     },
-  }
-}
+  };
+};

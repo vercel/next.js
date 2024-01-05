@@ -19,7 +19,7 @@ If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api
 The `redirect` function accepts two arguments:
 
 ```js
-redirect(path, type)
+redirect(path, type);
 ```
 
 | Parameter | Type                                                          | Description                                                 |
@@ -44,18 +44,18 @@ Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates
 > **Good to know**: If you need to programmatically redirect the user after a certain event in a Client Component, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
 
 ```jsx filename="app/team/[id]/page.js"
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 async function fetchTeam(id) {
-  const res = await fetch('https://...')
-  if (!res.ok) return undefined
-  return res.json()
+  const res = await fetch("https://...");
+  if (!res.ok) return undefined;
+  return res.json();
 }
 
 export default async function Profile({ params }) {
-  const team = await fetchTeam(params.id)
+  const team = await fetchTeam(params.id);
   if (!team) {
-    redirect('/login')
+    redirect("/login");
   }
 
   // ...
@@ -69,9 +69,9 @@ export default async function Profile({ params }) {
 `redirect` can be used in a Client Component through a Server Action. If you need to use an event handler to redirect the user, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
 
 ```tsx filename="app/client-redirect.tsx" switcher
-'use client'
+"use client";
 
-import { navigate } from './actions'
+import { navigate } from "./actions";
 
 export function ClientRedirect() {
   return (
@@ -79,14 +79,14 @@ export function ClientRedirect() {
       <input type="text" name="id" />
       <button>Submit</button>
     </form>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/client-redirect.jsx" switcher
-'use client'
+"use client";
 
-import { navigate } from './actions'
+import { navigate } from "./actions";
 
 export function ClientRedirect() {
   return (
@@ -94,27 +94,27 @@ export function ClientRedirect() {
       <input type="text" name="id" />
       <button>Submit</button>
     </form>
-  )
+  );
 }
 ```
 
 ```ts filename="app/actions.ts" switcher
-'use server'
+"use server";
 
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 export async function navigate(data: FormData) {
-  redirect(`/posts/${data.get('id')}`)
+  redirect(`/posts/${data.get("id")}`);
 }
 ```
 
 ```js filename="app/actions.js" switcher
-'use server'
+"use server";
 
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 export async function navigate(data) {
-  redirect(`/posts/${data.get('id')}`)
+  redirect(`/posts/${data.get("id")}`);
 }
 ```
 

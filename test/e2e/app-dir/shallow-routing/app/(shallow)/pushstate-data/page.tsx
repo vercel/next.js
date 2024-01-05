@@ -1,12 +1,12 @@
-'use client'
-import { useEffect, useState } from 'react'
+"use client";
+import { useEffect, useState } from "react";
 
 export default function Page() {
-  const [data, setData] = useState(null)
-  const [updated, setUpdated] = useState(false)
+  const [data, setData] = useState(null);
+  const [updated, setUpdated] = useState(false);
   useEffect(() => {
-    setData(window.history.state.myData)
-  }, [])
+    setData(window.history.state.myData);
+  }, []);
   return (
     <>
       <h1 id="pushstate-data">PushState Data</h1>
@@ -14,7 +14,7 @@ export default function Page() {
       <pre id="my-data">{JSON.stringify(data)}</pre>
       <button
         onClick={() => {
-          setData(window.history.state.myData)
+          setData(window.history.state.myData);
         }}
         id="get-latest"
       >
@@ -22,13 +22,13 @@ export default function Page() {
       </button>
       <button
         onClick={() => {
-          window.history.pushState({ myData: { foo: 'bar' } }, '')
-          setUpdated(true)
+          window.history.pushState({ myData: { foo: "bar" } }, "");
+          setUpdated(true);
         }}
         id="push-state"
       >
         Push state
       </button>
     </>
-  )
+  );
 }

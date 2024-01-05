@@ -1,8 +1,8 @@
 /* eslint-disable-next-line */
-import Router from 'next/router'
+import Router from "next/router";
 
 function routerDirect(props) {
-  return <div>I import the router directly</div>
+  return <div>I import the router directly</div>;
 }
 
 // we add getServerSideProps to prevent static optimization
@@ -10,7 +10,7 @@ function routerDirect(props) {
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
-export default routerDirect
+export default routerDirect;

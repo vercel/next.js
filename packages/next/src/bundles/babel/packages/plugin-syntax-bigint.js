@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginSyntaxBigint()
+module.exports = require("./bundle").pluginSyntaxBigint();

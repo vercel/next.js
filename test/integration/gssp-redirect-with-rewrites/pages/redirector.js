@@ -3,7 +3,7 @@ export default function Redirector() {
     <main>
       <h1>Hello world</h1>
     </main>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => {
@@ -12,5 +12,5 @@ export const getServerSideProps = ({ query }) => {
       destination: `${query.redirect}?message=${query.message}`,
       permanent: false,
     },
-  }
-}
+  };
+};

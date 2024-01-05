@@ -1,5 +1,5 @@
 // TODO-APP: remove after fixing filtering static flight data
-export const revalidate = 0
+export const revalidate = 0;
 
 export default function Root({ one, two }) {
   return (
@@ -12,5 +12,5 @@ export default function Root({ one, two }) {
         {two}
       </body>
     </html>
-  )
+  );
 }

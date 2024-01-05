@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import { useSearchParams, notFound } from 'next/navigation'
+import { useSearchParams, notFound } from "next/navigation";
 
 export default function NotFoundTrigger() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  if (searchParams.get('root-not-found')) {
-    notFound()
+  if (searchParams.get("root-not-found")) {
+    notFound();
   }
-  return null
+  return null;
 }

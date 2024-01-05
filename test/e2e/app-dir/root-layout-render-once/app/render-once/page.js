@@ -1,3 +1,3 @@
 export default function page() {
-  return 'render-once'
+  return "render-once";
 }

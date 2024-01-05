@@ -2,26 +2,26 @@ import {
   //   unstable_cache,
   revalidatePath,
   revalidateTag,
-} from 'next/cache'
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
+} from "next/cache";
+import { redirect } from "next/navigation";
+import Link from "next/link";
 
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default async function Page() {
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?page',
+    "https://next-data-api-endpoint.vercel.app/api/random?page",
     {
-      next: { revalidate: 3600, tags: ['thankyounext'] },
+      next: { revalidate: 3600, tags: ["thankyounext"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const data2 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a=b',
+    "https://next-data-api-endpoint.vercel.app/api/random?a=b",
     {
-      next: { revalidate: 3600, tags: ['thankyounext', 'justputit'] },
+      next: { revalidate: 3600, tags: ["thankyounext", "justputit"] },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   // TODO: make this work + add test
   //   const cachedData = await unstable_cache(
@@ -45,10 +45,10 @@ export default async function Page() {
     <>
       <p>/revalidate</p>
       <p>
-        {' '}
+        {" "}
         revalidate (tags: thankyounext): <span id="thankyounext">
           {data}
-        </span>{' '}
+        </span>{" "}
         <span>
           <Link href="/revalidate-2" id="another">
             /revalidate-2
@@ -56,21 +56,21 @@ export default async function Page() {
         </span>
       </p>
       <p>
-        revalidate (tags: thankyounext, justputit):{' '}
+        revalidate (tags: thankyounext, justputit):{" "}
         <span id="justputit">{data2}</span>
       </p>
       <p>
-        random cookie:{' '}
+        random cookie:{" "}
         <span id="random-cookie">
-          {JSON.stringify(cookies().get('random'))}
+          {JSON.stringify(cookies().get("random"))}
         </span>
       </p>
       <form>
         <button
           id="set-cookie"
           formAction={async () => {
-            'use server'
-            cookies().set('random', `${Math.random()}`)
+            "use server";
+            cookies().set("random", `${Math.random()}`);
           }}
         >
           set cookie
@@ -81,8 +81,8 @@ export default async function Page() {
         <button
           id="revalidate-thankyounext"
           formAction={async () => {
-            'use server'
-            revalidateTag('thankyounext')
+            "use server";
+            revalidateTag("thankyounext");
           }}
         >
           revalidate thankyounext
@@ -92,8 +92,8 @@ export default async function Page() {
         <button
           id="revalidate-justputit"
           formAction={async () => {
-            'use server'
-            revalidateTag('justputit')
+            "use server";
+            revalidateTag("justputit");
           }}
         >
           revalidate justputit
@@ -103,8 +103,8 @@ export default async function Page() {
         <button
           id="revalidate-path"
           formAction={async () => {
-            'use server'
-            revalidatePath('/revalidate')
+            "use server";
+            revalidatePath("/revalidate");
           }}
         >
           revalidate path
@@ -114,9 +114,9 @@ export default async function Page() {
         <button
           id="revalidate-path-redirect"
           formAction={async () => {
-            'use server'
-            revalidateTag('justputit')
-            redirect('/revalidate')
+            "use server";
+            revalidateTag("justputit");
+            redirect("/revalidate");
           }}
         >
           revalidate justputit + redirect
@@ -126,13 +126,13 @@ export default async function Page() {
         <button
           id="redirect"
           formAction={async () => {
-            'use server'
-            redirect('/revalidate')
+            "use server";
+            redirect("/revalidate");
           }}
         >
           redirect
         </button>
       </form>
     </>
-  )
+  );
 }

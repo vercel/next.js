@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export function getServerSideProps({ params }) {
-  return { props: { slug: params.slug, now: Date.now() } }
+  return { props: { slug: params.slug, now: Date.now() } };
 }
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <p id="slug">{props.slug}</p>
@@ -14,5 +14,5 @@ export default function Page(props) {
         {props.now}
       </Link>
     </>
-  )
+  );
 }

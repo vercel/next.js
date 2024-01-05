@@ -1,18 +1,18 @@
-import Anser from 'next/dist/compiled/anser'
-import * as React from 'react'
-import { HotlinkedText } from '../hot-linked-text'
-import { EditorLink } from './EditorLink'
+import Anser from "next/dist/compiled/anser";
+import * as React from "react";
+import { HotlinkedText } from "../hot-linked-text";
+import { EditorLink } from "./EditorLink";
 
-export type TerminalProps = { content: string }
+export type TerminalProps = { content: string };
 
 function getFile(lines: string[]) {
-  const contentFileName = lines.shift()
-  if (!contentFileName) return null
-  const [fileName, line, column] = contentFileName.split(':', 3)
+  const contentFileName = lines.shift();
+  if (!contentFileName) return null;
+  const [fileName, line, column] = contentFileName.split(":", 3);
 
-  const parsedLine = Number(line)
-  const parsedColumn = Number(column)
-  const hasLocation = !Number.isNaN(parsedLine) && !Number.isNaN(parsedColumn)
+  const parsedLine = Number(line);
+  const parsedColumn = Number(column);
+  const hasLocation = !Number.isNaN(parsedLine) && !Number.isNaN(parsedColumn);
 
   return {
     fileName: hasLocation ? fileName : contentFileName,
@@ -22,7 +22,7 @@ function getFile(lines: string[]) {
           column: parsedColumn,
         }
       : undefined,
-  }
+  };
 }
 
 function getImportTraceFiles(lines: string[]) {
@@ -31,27 +31,27 @@ function getImportTraceFiles(lines: string[]) {
     lines.some((line) => /Import trace for requested module:/.test(line))
   ) {
     // Grab the lines at the end containing the files
-    const files = []
+    const files = [];
     while (
       /.+\..+/.test(lines[lines.length - 1]) &&
-      !lines[lines.length - 1].includes(':')
+      !lines[lines.length - 1].includes(":")
     ) {
-      const file = lines.pop()!.trim()
-      files.unshift(file)
+      const file = lines.pop()!.trim();
+      files.unshift(file);
     }
 
-    return files
+    return files;
   }
 
-  return []
+  return [];
 }
 
 function getEditorLinks(content: string) {
-  const lines = content.split('\n')
-  const file = getFile(lines)
-  const importTraceFiles = getImportTraceFiles(lines)
+  const lines = content.split("\n");
+  const file = getFile(lines);
+  const importTraceFiles = getImportTraceFiles(lines);
 
-  return { file, source: lines.join('\n'), importTraceFiles }
+  return { file, source: lines.join("\n"), importTraceFiles };
 }
 
 export const Terminal: React.FC<TerminalProps> = function Terminal({
@@ -60,15 +60,15 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   const { file, source, importTraceFiles } = React.useMemo(
     () => getEditorLinks(content),
     [content]
-  )
+  );
 
   const decoded = React.useMemo(() => {
     return Anser.ansiToJson(source, {
       json: true,
       use_classes: true,
       remove_empty: true,
-    })
-  }, [source])
+    });
+  }, [source]);
 
   return (
     <div data-nextjs-terminal>
@@ -86,10 +86,10 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             key={`terminal-entry-${index}`}
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
+              ...(entry.decoration === "bold"
                 ? { fontWeight: 800 }
-                : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
+                : entry.decoration === "italic"
+                ? { fontStyle: "italic" }
                 : undefined),
             }}
           >
@@ -105,5 +105,5 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
         ))}
       </pre>
     </div>
-  )
-}
+  );
+};

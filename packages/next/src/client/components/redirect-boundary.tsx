@@ -1,17 +1,17 @@
-'use client'
-import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import { useRouter } from './navigation'
+"use client";
+import React, { useEffect } from "react";
+import type { AppRouterInstance } from "../../shared/lib/app-router-context.shared-runtime";
+import { useRouter } from "./navigation";
 import {
   RedirectType,
   getRedirectTypeFromError,
   getURLFromRedirectError,
   isRedirectError,
-} from './redirect'
+} from "./redirect";
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
-  children: React.ReactNode
+  router: AppRouterInstance;
+  children: React.ReactNode;
 }
 
 function HandleRedirect({
@@ -19,24 +19,24 @@ function HandleRedirect({
   reset,
   redirectType,
 }: {
-  redirect: string
-  redirectType: RedirectType
-  reset: () => void
+  redirect: string;
+  redirectType: RedirectType;
+  reset: () => void;
 }) {
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
-        router.push(redirect, {})
+        router.push(redirect, {});
       } else {
-        router.replace(redirect, {})
+        router.replace(redirect, {});
       }
-      reset()
-    })
-  }, [redirect, redirectType, reset, router])
+      reset();
+    });
+  }, [redirect, redirectType, reset, router]);
 
-  return null
+  return null;
 }
 
 export class RedirectErrorBoundary extends React.Component<
@@ -44,22 +44,22 @@ export class RedirectErrorBoundary extends React.Component<
   { redirect: string | null; redirectType: RedirectType | null }
 > {
   constructor(props: RedirectBoundaryProps) {
-    super(props)
-    this.state = { redirect: null, redirectType: null }
+    super(props);
+    this.state = { redirect: null, redirectType: null };
   }
 
   static getDerivedStateFromError(error: any) {
     if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      const redirectType = getRedirectTypeFromError(error)
-      return { redirect: url, redirectType }
+      const url = getURLFromRedirectError(error);
+      const redirectType = getRedirectTypeFromError(error);
+      return { redirect: url, redirectType };
     }
     // Re-throw if error is not for redirect
-    throw error
+    throw error;
   }
 
   render() {
-    const { redirect, redirectType } = this.state
+    const { redirect, redirectType } = this.state;
     if (redirect !== null && redirectType !== null) {
       return (
         <HandleRedirect
@@ -67,16 +67,16 @@ export class RedirectErrorBoundary extends React.Component<
           redirectType={redirectType}
           reset={() => this.setState({ redirect: null })}
         />
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Shallow({ message }) {
-  const { pathname, query } = useRouter()
+  const { pathname, query } = useRouter();
   return (
     <div>
       <ul>
@@ -29,15 +29,15 @@ export default function Shallow({ message }) {
         </li>
       </ul>
     </div>
-  )
+  );
 }
 
-let i = 0
+let i = 0;
 
 export const getServerSideProps = () => {
   return {
     props: {
       message: `Random: ${++i}${Math.random()}`,
     },
-  }
-}
+  };
+};

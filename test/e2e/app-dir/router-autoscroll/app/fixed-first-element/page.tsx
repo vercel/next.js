@@ -1,7 +1,7 @@
 export default function FixedFirstElementPage() {
   return (
     <>
-      <nav style={{ position: 'fixed' }}>Fixed nav bar</nav>
+      <nav style={{ position: "fixed" }}>Fixed nav bar</nav>
       <div id="content-that-is-visible" style={{ paddingTop: 40 }}>
         Content which is not hidden.
       </div>
@@ -12,5 +12,5 @@ export default function FixedFirstElementPage() {
         ))
       }
     </>
-  )
+  );
 }

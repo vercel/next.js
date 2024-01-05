@@ -1,73 +1,73 @@
-import connect from './error-overlay/hot-dev-client'
-import { sendMessage } from './error-overlay/websocket'
+import connect from "./error-overlay/hot-dev-client";
+import { sendMessage } from "./error-overlay/websocket";
 
-let reloading = false
+let reloading = false;
 
-export default (mode: 'webpack' | 'turbopack') => {
-  const devClient = connect(mode)
+export default (mode: "webpack" | "turbopack") => {
+  const devClient = connect(mode);
 
   devClient.subscribeToHmrEvent((obj: any) => {
-    if (reloading) return
+    if (reloading) return;
     // if we're on an error/404 page, we can't reliably tell if the newly added/removed page
     // matches the current path. In that case, assume any added/removed entries should trigger a reload of the current page
     const isOnErrorPage =
-      window.next.router.pathname === '/404' ||
-      window.next.router.pathname === '/_error'
+      window.next.router.pathname === "/404" ||
+      window.next.router.pathname === "/_error";
 
     switch (obj.action) {
-      case 'reloadPage': {
+      case "reloadPage": {
         sendMessage(
           JSON.stringify({
-            event: 'client-reload-page',
+            event: "client-reload-page",
             clientId: window.__nextDevClientId,
           })
-        )
-        reloading = true
-        return window.location.reload()
+        );
+        reloading = true;
+        return window.location.reload();
       }
-      case 'removedPage': {
-        const [page] = obj.data
+      case "removedPage": {
+        const [page] = obj.data;
         if (page === window.next.router.pathname || isOnErrorPage) {
           sendMessage(
             JSON.stringify({
-              event: 'client-removed-page',
+              event: "client-removed-page",
               clientId: window.__nextDevClientId,
               page,
             })
-          )
-          return window.location.reload()
+          );
+          return window.location.reload();
         }
-        return
+        return;
       }
-      case 'addedPage': {
-        const [page] = obj.data
+      case "addedPage": {
+        const [page] = obj.data;
         if (
           (page === window.next.router.pathname &&
-            typeof window.next.router.components[page] === 'undefined') ||
+            typeof window.next.router.components[page] === "undefined") ||
           isOnErrorPage
         ) {
           sendMessage(
             JSON.stringify({
-              event: 'client-added-page',
+              event: "client-added-page",
               clientId: window.__nextDevClientId,
               page,
             })
-          )
-          return window.location.reload()
+          );
+          return window.location.reload();
         }
-        return
+        return;
       }
-      case 'serverError':
-      case 'devPagesManifestUpdate':
-      case 'building':
-      case 'finishBuilding': {
-        return
+      case "serverError":
+      case "devPagesManifestUpdate":
+      case "building":
+      case "finishBuilding": {
+        return;
       }
       default: {
-        throw new Error('Unexpected action ' + obj.action)
+        throw new Error("Unexpected action " + obj.action);
       }
     }
-  })
+  });
 
-  return devClient
-}
+  return devClient;
+};

@@ -4,4 +4,4 @@ module.exports = {
     typedRoutes: true,
     webpackBuildWorker: true,
   },
-}
+};

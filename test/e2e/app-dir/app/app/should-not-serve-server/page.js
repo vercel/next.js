@@ -3,5 +3,5 @@ export default function ShouldNotServeServerDotJs(props) {
     <>
       <p>hello from app/should-not-serve-server</p>
     </>
-  )
+  );
 }

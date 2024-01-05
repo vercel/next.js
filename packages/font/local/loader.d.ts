@@ -1,1 +1,1 @@
-export { default } from '../dist/local/loader'
+export { default } from "../dist/local/loader";

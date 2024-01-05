@@ -1,5 +1,5 @@
 const Error = () => {
-  return <p id="error-p">Error Rendered</p>
-}
+  return <p id="error-p">Error Rendered</p>;
+};
 
-export default Error
+export default Error;

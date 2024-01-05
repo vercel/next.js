@@ -1,128 +1,128 @@
-import { createNext } from 'e2e-utils'
-import { findPort } from 'next-test-utils'
-import http from 'http'
+import { createNext } from "e2e-utils";
+import { findPort } from "next-test-utils";
+import http from "http";
 
-describe('ppr-navigations', () => {
+describe("ppr-navigations", () => {
   if ((global as any).isNextDev) {
-    test('prefetching is disabled in dev', () => {})
-    return
+    test("prefetching is disabled in dev", () => {});
+    return;
   }
 
-  let server
-  let next
+  let server;
+  let next;
   afterEach(async () => {
-    await next?.destroy()
-    server?.close()
-  })
+    await next?.destroy();
+    server?.close();
+  });
 
-  test('when PPR is enabled, loading.tsx boundaries do not cause a partial prefetch', async () => {
-    const TestLog = createTestLog()
-    let pendingRequests = new Map()
+  test("when PPR is enabled, loading.tsx boundaries do not cause a partial prefetch", async () => {
+    const TestLog = createTestLog();
+    let pendingRequests = new Map();
     server = createTestDataServer(async (key, res) => {
-      TestLog.log('REQUEST: ' + key)
+      TestLog.log("REQUEST: " + key);
       if (pendingRequests.has(key)) {
-        throw new Error('Request already pending for ' + key)
+        throw new Error("Request already pending for " + key);
       }
-      pendingRequests.set(key, res)
-    })
-    const port = await findPort()
-    server.listen(port)
+      pendingRequests.set(key, res);
+    });
+    const port = await findPort();
+    server.listen(port);
     next = await createNext({
-      files: __dirname + '/loading-tsx-no-partial-rendering',
+      files: __dirname + "/loading-tsx-no-partial-rendering",
       env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
-    })
+    });
 
     // There should have been no data requests during build
-    TestLog.assert([])
+    TestLog.assert([]);
 
-    const browser = await next.browser('/start')
+    const browser = await next.browser("/start");
 
     // Use a text input to set the target URL.
-    const input = await browser.elementByCss('input')
-    await input.fill('/yay')
+    const input = await browser.elementByCss("input");
+    await input.fill("/yay");
 
     // This causes a <Link> to appear. (We create the Link after initial render
     // so we can control when the prefetch happens.)
-    const link = await browser.elementByCss('a')
-    expect(await link.getAttribute('href')).toBe('/yay')
+    const link = await browser.elementByCss("a");
+    expect(await link.getAttribute("href")).toBe("/yay");
 
     // The <Link> triggers a prefetch. Even though this route has a loading.tsx
     // boundary, we're still able to prefetch the static data in the page.
     // Without PPR, we would have stopped prefetching at the loading.tsx
     // boundary. (The dynamic data is not fetched until navigation.)
-    await TestLog.waitFor(['REQUEST: yay [static]'])
+    await TestLog.waitFor(["REQUEST: yay [static]"]);
 
     // Navigate. This will trigger the dynamic fetch.
-    await link.click()
+    await link.click();
 
     // TODO: Even though the prefetch request hasn't resolved yet, we should
     // have already started fetching the dynamic data. Currently, the dynamic
     // is fetched lazily during rendering, creating a waterfall. The plan is to
     // remove this waterfall by initiating the fetch directly inside the
     // router navigation handler, not during render.
-    TestLog.assert([])
+    TestLog.assert([]);
 
     // Finish loading the static data
-    pendingRequests.get('yay [static]').resolve()
+    pendingRequests.get("yay [static]").resolve();
 
     // The static UI appears
-    await browser.elementById('static')
-    const container = await browser.elementById('container')
+    await browser.elementById("static");
+    const container = await browser.elementById("container");
     expect(await container.innerHTML()).toEqual(
       'Loading dynamic...<div id="static">yay [static]</div>'
-    )
+    );
 
     // The dynamic data is fetched
-    TestLog.assert(['REQUEST: yay [dynamic]'])
+    TestLog.assert(["REQUEST: yay [dynamic]"]);
 
     // Finish loading and render the full UI
-    pendingRequests.get('yay [dynamic]').resolve()
-    await browser.elementById('dynamic')
+    pendingRequests.get("yay [dynamic]").resolve();
+    await browser.elementById("dynamic");
     expect(await container.innerHTML()).toEqual(
       '<div id="dynamic">yay [dynamic]</div><div id="static">yay [static]</div>'
-    )
+    );
 
     // Now we'll demonstrate that even though loading.tsx wasn't activated
     // during initial render, it still acts as a regular Suspense boundary.
     // Trigger a "bad" Suspense fallback by intentionally suspending without
     // startTransition.
-    await browser.elementById('trigger-bad-suspense-fallback').click()
-    const loading = await browser.elementById('loading-tsx')
-    expect(await loading.innerHTML()).toEqual('Loading [inner loading.tsx]...')
-  })
+    await browser.elementById("trigger-bad-suspense-fallback").click();
+    const loading = await browser.elementById("loading-tsx");
+    expect(await loading.innerHTML()).toEqual("Loading [inner loading.tsx]...");
+  });
 
   // This is a regression test where a condition that checked whether a cached
   // route entry was stale accidentally caused the router to treat prefetched
   // data as if it were complete data that didn't contain dynamic holes. This
   // prevented the dynamic data from ever streaming in.
   test(
-    'works if a prefetched route entry has become stale (too much ' +
-      'time has elapsed since it was prefetched)',
+    "works if a prefetched route entry has become stale (too much " +
+      "time has elapsed since it was prefetched)",
     async () => {
-      const TestLog = createTestLog()
-      let autoresolveRequests = true
-      let pendingRequests = new Map()
+      const TestLog = createTestLog();
+      let autoresolveRequests = true;
+      let pendingRequests = new Map();
       server = createTestDataServer(async (key, res) => {
-        TestLog.log('REQUEST: ' + key)
+        TestLog.log("REQUEST: " + key);
         if (autoresolveRequests) {
-          res.resolve()
-          return
+          res.resolve();
+          return;
         }
         if (pendingRequests.has(key)) {
-          throw new Error('Request already pending for ' + key)
+          throw new Error("Request already pending for " + key);
         }
-        pendingRequests.set(key, res)
-      })
-      const port = await findPort()
-      server.listen(port)
+        pendingRequests.set(key, res);
+      });
+      const port = await findPort();
+      server.listen(port);
       next = await createNext({
-        files: __dirname + '/stale-prefetch-entry',
+        files: __dirname + "/stale-prefetch-entry",
         env: { TEST_DATA_SERVICE_URL: `http://localhost:${port}` },
-      })
-      TestLog.assert(['REQUEST: Some data [static]'])
-      autoresolveRequests = false
+      });
+      TestLog.assert(["REQUEST: Some data [static]"]);
+      autoresolveRequests = false;
 
-      const browser = await next.browser('/', {
+      const browser = await next.browser("/", {
         // Override Date.now so we can simulate time passing to expire a
         // prefetch entry.
         async beforePageLoad(page) {
@@ -140,64 +140,64 @@ describe('ppr-navigations', () => {
                 return __FAKE_NOW__
               }
             }
-          `)
+          `);
         },
-      })
+      });
 
-      const startTime = await browser.eval(() => Date.now())
+      const startTime = await browser.eval(() => Date.now());
 
       // Explicitly hover over the link to trigger a prefetch.
-      const link = await browser.elementByCss('a[href="/some-page"]')
-      await link.hover()
+      const link = await browser.elementByCss('a[href="/some-page"]');
+      await link.hover();
 
       // Increment time by 3 minutes. This is longer than the default expiration
       // interval for prefetch entries.
-      await browser.eval(`__FAKE_NOW__ = 60 * 1000 * 3`)
-      const endTime = await browser.eval(() => Date.now())
+      await browser.eval(`__FAKE_NOW__ = 60 * 1000 * 3`);
+      const endTime = await browser.eval(() => Date.now());
       // Sanity check.
-      expect(endTime - startTime).toBe(60 * 1000 * 3)
+      expect(endTime - startTime).toBe(60 * 1000 * 3);
 
       // Navigate. The prefetch entry will be stale.
-      await link.click()
+      await link.click();
 
       // The static UI appears immediately because it was prerendered at
       // build time.
-      const staticContainer = await browser.elementById('static')
-      expect(await staticContainer.innerText()).toBe('Some data [static]')
+      const staticContainer = await browser.elementById("static");
+      expect(await staticContainer.innerText()).toBe("Some data [static]");
 
       // The dynamic data is fetched on navigation. (In the regression case that
       // this test simulates, the dynamic data was never requested, and the page
       // got stuck in a loading state.)
-      await TestLog.waitFor(['REQUEST: Some data [dynamic]'])
-      pendingRequests.get('Some data [dynamic]').resolve()
+      await TestLog.waitFor(["REQUEST: Some data [dynamic]"]);
+      pendingRequests.get("Some data [dynamic]").resolve();
 
       // Now the dynamic data appears.
-      const dynamicContainer = await browser.elementById('dynamic')
-      expect(await dynamicContainer.innerText()).toBe('Some data [dynamic]')
+      const dynamicContainer = await browser.elementById("dynamic");
+      expect(await dynamicContainer.innerText()).toBe("Some data [dynamic]");
     }
-  )
+  );
 
   test(
-    'updates page data during a nav even if no shared layouts have changed ' +
-      '(e.g. updating a search param on the current page)',
+    "updates page data during a nav even if no shared layouts have changed " +
+      "(e.g. updating a search param on the current page)",
     async () => {
       next = await createNext({
-        files: __dirname + '/search-params',
-      })
-      const browser = await next.browser('/')
+        files: __dirname + "/search-params",
+      });
+      const browser = await next.browser("/");
 
       // Click a link that updates the current page's search params.
-      const link = await browser.elementByCss('a')
-      await link.click()
+      const link = await browser.elementByCss("a");
+      await link.click();
 
       // Confirm that the page re-rendered with the new search params.
-      const searchParamsContainer = await browser.elementById('search-params')
+      const searchParamsContainer = await browser.elementById("search-params");
       expect(await searchParamsContainer.innerText()).toBe(
         'Search params: {"blazing":"good"}'
-      )
+      );
     }
-  )
-})
+  );
+});
 
 // NOTE: I've intentionally not yet moved these helpers into a separate
 // module, to avoid early abstraction. I will if/when we start using them for
@@ -205,16 +205,16 @@ describe('ppr-navigations', () => {
 // codebase, so I'm reasonably confident in them.
 
 type TestDataResponse = {
-  _res: http.ServerResponse
-  resolve: (value?: string) => any
-  reject: (value: any) => any
-}
+  _res: http.ServerResponse;
+  resolve: (value?: string) => any;
+  reject: (value: any) => any;
+};
 
 type TestDataServer = {
-  _server: http.Server
-  listen: (port: number) => void
-  close: () => void
-}
+  _server: http.Server;
+  listen: (port: number) => void;
+  close: () => void;
+};
 
 // Creates a lightweight HTTP server for use in e2e testing. This simulates the
 // data service that would be used in a real Next.js application, whether it's
@@ -238,45 +238,45 @@ function createTestDataServer(
   onRequest: (key: string, response: TestDataResponse) => any
 ): TestDataServer {
   const httpServer = http.createServer(async (req, res) => {
-    const searchParams = new URL(req.url, 'http://n').searchParams
-    const key = searchParams.get('key')
+    const searchParams = new URL(req.url, "http://n").searchParams;
+    const key = searchParams.get("key");
 
-    if (typeof key !== 'string') {
-      res.statusCode = 400
-      const msg = 'Missing key parameter'
-      res.end(msg)
-      return
+    if (typeof key !== "string") {
+      res.statusCode = 400;
+      const msg = "Missing key parameter";
+      res.end(msg);
+      return;
     }
 
     const response: TestDataResponse = {
       _res: res,
       resolve(value?: string) {
-        res.end(value === undefined ? key : value)
+        res.end(value === undefined ? key : value);
       },
       reject(error: Error, status?: number) {
-        res.statusCode = status ?? 500
-        res.end(error.message ?? `Failed to fetch data for "${key}"`)
+        res.statusCode = status ?? 500;
+        res.end(error.message ?? `Failed to fetch data for "${key}"`);
       },
-    }
+    };
 
     try {
-      const result = await onRequest(key, response)
-      if (typeof result === 'string') {
-        response.resolve(result)
+      const result = await onRequest(key, response);
+      if (typeof result === "string") {
+        response.resolve(result);
       }
     } catch (error) {
-      response.reject(error)
+      response.reject(error);
     }
-  })
+  });
   return {
     _server: httpServer,
     listen(port: number) {
-      httpServer.listen(port)
+      httpServer.listen(port);
     },
     close() {
-      httpServer.close()
+      httpServer.close();
     },
-  }
+  };
 }
 
 // Creates an event log. You can write to this during testing and then assert
@@ -290,45 +290,45 @@ function createTestDataServer(
 //
 // Based on the Scheduler.log pattern used in the React repo.
 function createTestLog() {
-  let events = []
+  let events = [];
 
   // Represents a pending waitFor call.
   let pendingExpectation: null | {
-    resolve: () => void
-    reject: (error: Error) => void
-    expectedEvents: Array<any>
-    error: Error
-  } = null
+    resolve: () => void;
+    reject: (error: Error) => void;
+    expectedEvents: Array<any>;
+    error: Error;
+  } = null;
 
   function log(value: any) {
     // Add to the event log.
-    events.push(value)
+    events.push(value);
 
     // Check if we've reached the end of the expected log. If there's a
     // pending waitFor, and we've reached the last of the expected events, this
     // will resolve the promise.
-    pingExpectation()
+    pingExpectation();
   }
 
   function assert(expectedEvents: any[]) {
     if (pendingExpectation !== null) {
-      const error = new Error('Cannot assert while a waitFor() is pending.')
-      Error.captureStackTrace(error, assert)
-      throw error
+      const error = new Error("Cannot assert while a waitFor() is pending.");
+      Error.captureStackTrace(error, assert);
+      throw error;
     }
 
-    const actualEvents = events
-    events = []
+    const actualEvents = events;
+    events = [];
 
     if (!areLogsEqual(expectedEvents, actualEvents)) {
       // Capture the stack trace of `assert` so that Jest will report the
       // error as originating from the `assert` call instead of here.
       const error = new Error(
-        'Expected sequence of events did not occur.\n\n' +
+        "Expected sequence of events did not occur.\n\n" +
           createDiff(expectedEvents, actualEvents)
-      )
-      Error.captureStackTrace(error, assert)
-      throw error
+      );
+      Error.captureStackTrace(error, assert);
+      throw error;
     }
   }
 
@@ -339,54 +339,54 @@ function createTestLog() {
     // Capture the stack trace of `waitFor` so that if an inner assertion fails,
     // Jest will report the error as originating from the `waitFor` call instead
     // of inside this module's implementation.
-    const error = new Error()
-    Error.captureStackTrace(error, waitFor)
+    const error = new Error();
+    Error.captureStackTrace(error, waitFor);
 
     if (pendingExpectation !== null) {
-      error.message = 'A previous waitFor() is still pending.'
-      throw error
+      error.message = "A previous waitFor() is still pending.";
+      throw error;
     }
 
-    let resolve
-    let reject
+    let resolve;
+    let reject;
     const promise = new Promise<void>((res, rej) => {
-      resolve = res
-      reject = rej
-    })
+      resolve = res;
+      reject = rej;
+    });
 
     const thisExpectation = {
       resolve,
       reject,
       expectedEvents,
       error,
-    }
-    pendingExpectation = thisExpectation
+    };
+    pendingExpectation = thisExpectation;
 
     setTimeout(() => {
       if (pendingExpectation === thisExpectation) {
-        error.message = `waitFor timed out after ${timeout}ms`
-        reject(error)
+        error.message = `waitFor timed out after ${timeout}ms`;
+        reject(error);
       }
-    }, timeout)
+    }, timeout);
 
-    pingExpectation()
+    pingExpectation();
 
-    return promise
+    return promise;
   }
 
   function pingExpectation() {
     if (pendingExpectation !== null) {
-      const expectedEvents = pendingExpectation.expectedEvents
+      const expectedEvents = pendingExpectation.expectedEvents;
       if (events.length < expectedEvents.length) {
-        return
+        return;
       }
 
       if (areLogsEqual(expectedEvents, events)) {
         // We've reached the end of the expected log. Resolve the promise and
         // reset the log.
-        events = []
-        pendingExpectation.resolve()
-        pendingExpectation = null
+        events = [];
+        pendingExpectation.resolve();
+        pendingExpectation = null;
       } else {
         // The log does not match what was expected by the test. Reject the
         // promise and reset the log.
@@ -394,14 +394,14 @@ function createTestLog() {
         // Use the error object that we captured at the start of the `waitFor`
         // call. Jest will show that the error originated from `waitFor` call
         // instead of inside this internal function.
-        const error = pendingExpectation.error
+        const error = pendingExpectation.error;
         error.message =
-          'Expected sequence of events did not occur.\n\n' +
-          createDiff(expectedEvents, events)
+          "Expected sequence of events did not occur.\n\n" +
+          createDiff(expectedEvents, events);
 
-        events = []
-        pendingExpectation.reject(error)
-        pendingExpectation = null
+        events = [];
+        pendingExpectation.reject(error);
+        pendingExpectation = null;
       }
     }
   }
@@ -412,24 +412,24 @@ function createTestLog() {
     return `
 Expected: ${JSON.stringify(expected)}
 Actual:   ${JSON.stringify(actual)}
-`
+`;
   }
 
   function areLogsEqual(a, b) {
     if (a.length !== b.length) {
-      return false
+      return false;
     }
     for (let i = 0; i < a.length; i++) {
       if (a[i] !== b[i]) {
-        return false
+        return false;
       }
     }
-    return true
+    return true;
   }
 
   return {
     log,
     waitFor,
     assert,
-  }
+  };
 }

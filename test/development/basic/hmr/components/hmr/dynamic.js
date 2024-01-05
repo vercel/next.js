@@ -8,5 +8,5 @@ export default () => {
         }
       `}</style>
     </div>
-  )
-}
+  );
+};

@@ -1,4 +1,4 @@
-export const runtime = 'edge'
+export const runtime = "edge";
 
 export default function Page({ params }) {
   return (
@@ -6,5 +6,5 @@ export default function Page({ params }) {
       <p>catch-all edge page</p>
       <p id="params">{JSON.stringify(params)}</p>
     </>
-  )
+  );
 }

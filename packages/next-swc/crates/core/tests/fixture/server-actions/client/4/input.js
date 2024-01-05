@@ -1,4 +1,4 @@
-'use server'
+"use server";
 
 async function foo() {}
-export { foo as bar }
+export { foo as bar };

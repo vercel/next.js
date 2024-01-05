@@ -1,129 +1,129 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
-import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
-import { addMessageListener } from './error-overlay/websocket'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from "../../server/dev/hot-reloader-types";
+import type { HMR_ACTION_TYPES } from "../../server/dev/hot-reloader-types";
+import { addMessageListener } from "./error-overlay/websocket";
 
-type VerticalPosition = 'top' | 'bottom'
-type HorizonalPosition = 'left' | 'right'
+type VerticalPosition = "top" | "bottom";
+type HorizonalPosition = "left" | "right";
 
 export interface ShowHideHandler {
-  show: () => void
-  hide: () => void
+  show: () => void;
+  hide: () => void;
 }
 
 export default function initializeBuildWatcher(
   toggleCallback: (handlers: ShowHideHandler) => void,
-  position = 'bottom-right'
+  position = "bottom-right"
 ) {
-  const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
+  const shadowHost = document.createElement("div");
+  const [verticalProperty, horizontalProperty] = position.split("-", 2) as [
     VerticalPosition,
     HorizonalPosition
-  ]
-  shadowHost.id = '__next-build-watcher'
+  ];
+  shadowHost.id = "__next-build-watcher";
   // Make sure container is fixed and on a high zIndex so it shows
-  shadowHost.style.position = 'fixed'
+  shadowHost.style.position = "fixed";
   // Ensure container's position to be top or bottom (default)
-  shadowHost.style[verticalProperty] = '10px'
+  shadowHost.style[verticalProperty] = "10px";
   // Ensure container's position to be left or right (default)
-  shadowHost.style[horizontalProperty] = '20px'
-  shadowHost.style.width = '0'
-  shadowHost.style.height = '0'
-  shadowHost.style.zIndex = '99999'
-  document.body.appendChild(shadowHost)
+  shadowHost.style[horizontalProperty] = "20px";
+  shadowHost.style.width = "0";
+  shadowHost.style.height = "0";
+  shadowHost.style.zIndex = "99999";
+  document.body.appendChild(shadowHost);
 
-  let shadowRoot
-  let prefix = ''
+  let shadowRoot;
+  let prefix = "";
 
   if (shadowHost.attachShadow) {
-    shadowRoot = shadowHost.attachShadow({ mode: 'open' })
+    shadowRoot = shadowHost.attachShadow({ mode: "open" });
   } else {
     // If attachShadow is undefined then the browser does not support
     // the Shadow DOM, we need to prefix all the names so there
     // will be no conflicts
-    shadowRoot = shadowHost
-    prefix = '__next-build-watcher-'
+    shadowRoot = shadowHost;
+    prefix = "__next-build-watcher-";
   }
 
   // Container
-  const container = createContainer(prefix)
-  shadowRoot.appendChild(container)
+  const container = createContainer(prefix);
+  shadowRoot.appendChild(container);
 
   // CSS
-  const css = createCss(prefix, { horizontalProperty, verticalProperty })
-  shadowRoot.appendChild(css)
+  const css = createCss(prefix, { horizontalProperty, verticalProperty });
+  shadowRoot.appendChild(css);
 
   // State
-  let isVisible = false
-  let isBuilding = false
-  let timeoutId: null | ReturnType<typeof setTimeout> = null
+  let isVisible = false;
+  let isBuilding = false;
+  let timeoutId: null | ReturnType<typeof setTimeout> = null;
 
   // Handle events
 
   addMessageListener((obj) => {
     try {
-      handleMessage(obj)
+      handleMessage(obj);
     } catch {}
-  })
+  });
 
   function show() {
-    timeoutId && clearTimeout(timeoutId)
-    isVisible = true
-    isBuilding = true
-    updateContainer()
+    timeoutId && clearTimeout(timeoutId);
+    isVisible = true;
+    isBuilding = true;
+    updateContainer();
   }
 
   function hide() {
-    isBuilding = false
+    isBuilding = false;
     // Wait for the fade out transition to complete
     timeoutId = setTimeout(() => {
-      isVisible = false
-      updateContainer()
-    }, 100)
-    updateContainer()
+      isVisible = false;
+      updateContainer();
+    }, 100);
+    updateContainer();
   }
 
   function handleMessage(obj: HMR_ACTION_TYPES) {
-    if (!('action' in obj)) {
-      return
+    if (!("action" in obj)) {
+      return;
     }
 
     // eslint-disable-next-line default-case
     switch (obj.action) {
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
-        show()
-        break
+        show();
+        break;
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
       case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
       case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING:
-        hide()
-        break
+        hide();
+        break;
     }
   }
 
   toggleCallback({
     show,
     hide,
-  })
+  });
 
   function updateContainer() {
     if (isBuilding) {
-      container.classList.add(`${prefix}building`)
+      container.classList.add(`${prefix}building`);
     } else {
-      container.classList.remove(`${prefix}building`)
+      container.classList.remove(`${prefix}building`);
     }
 
     if (isVisible) {
-      container.classList.add(`${prefix}visible`)
+      container.classList.add(`${prefix}visible`);
     } else {
-      container.classList.remove(`${prefix}visible`)
+      container.classList.remove(`${prefix}visible`);
     }
   }
 }
 
 function createContainer(prefix: string) {
-  const container = document.createElement('div')
-  container.id = `${prefix}container`
+  const container = document.createElement("div");
+  container.id = `${prefix}container`;
   container.innerHTML = `
     <div id="${prefix}icon-wrapper">
       <svg viewBox="0 0 226 200">
@@ -144,9 +144,9 @@ function createContainer(prefix: string) {
         </g>
       </svg>
     </div>
-  `
+  `;
 
-  return container
+  return container;
 }
 
 function createCss(
@@ -156,7 +156,7 @@ function createCss(
     verticalProperty,
   }: { horizontalProperty: string; verticalProperty: string }
 ) {
-  const css = document.createElement('style')
+  const css = document.createElement("style");
   css.textContent = `
     #${prefix}container {
       position: absolute;
@@ -226,7 +226,7 @@ function createCss(
         stroke-dasharray: 659 226;
       }
     }
-  `
+  `;
 
-  return css
+  return css;
 }

@@ -1,5 +1,5 @@
-import 'server-only'
+import "server-only";
 
 export default function Page() {
-  return 'app/server/page.js'
+  return "app/server/page.js";
 }

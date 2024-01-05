@@ -1,7 +1,7 @@
-const Page = ({ query }) => <div>{`Query is: ${query}`}</div>
+const Page = ({ query }) => <div>{`Query is: ${query}`}</div>;
 
 Page.getInitialProps = ({ query }) => {
-  return { query: JSON.stringify(query) }
-}
+  return { query: JSON.stringify(query) };
+};
 
-export default Page
+export default Page;

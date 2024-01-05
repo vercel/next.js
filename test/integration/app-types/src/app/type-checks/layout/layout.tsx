@@ -1,7 +1,7 @@
-import type { PropsWithChildren } from 'react'
+import type { PropsWithChildren } from "react";
 
-type LayoutProps = PropsWithChildren<{}>
+type LayoutProps = PropsWithChildren<{}>;
 
 export default function Layout(props: LayoutProps) {
-  return <div>{props.children}</div>
+  return <div>{props.children}</div>;
 }

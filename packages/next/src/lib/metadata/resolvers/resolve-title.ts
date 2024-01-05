@@ -1,40 +1,40 @@
-import type { Metadata } from '../types/metadata-interface'
-import type { AbsoluteTemplateString } from '../types/metadata-types'
+import type { Metadata } from "../types/metadata-interface";
+import type { AbsoluteTemplateString } from "../types/metadata-types";
 
 function resolveTitleTemplate(
   template: string | null | undefined,
   title: string
 ) {
-  return template ? template.replace(/%s/g, title) : title
+  return template ? template.replace(/%s/g, title) : title;
 }
 
 export function resolveTitle(
-  title: Metadata['title'],
+  title: Metadata["title"],
   stashedTemplate: string | null | undefined
 ): AbsoluteTemplateString {
-  let resolved
+  let resolved;
   const template =
-    typeof title !== 'string' && title && 'template' in title
+    typeof title !== "string" && title && "template" in title
       ? title.template
-      : null
+      : null;
 
-  if (typeof title === 'string') {
-    resolved = resolveTitleTemplate(stashedTemplate, title)
+  if (typeof title === "string") {
+    resolved = resolveTitleTemplate(stashedTemplate, title);
   } else if (title) {
-    if ('default' in title) {
-      resolved = resolveTitleTemplate(stashedTemplate, title.default)
+    if ("default" in title) {
+      resolved = resolveTitleTemplate(stashedTemplate, title.default);
     }
-    if ('absolute' in title && title.absolute) {
-      resolved = title.absolute
+    if ("absolute" in title && title.absolute) {
+      resolved = title.absolute;
     }
   }
 
-  if (title && typeof title !== 'string') {
+  if (title && typeof title !== "string") {
     return {
       template,
-      absolute: resolved || '',
-    }
+      absolute: resolved || "",
+    };
   } else {
-    return { absolute: resolved || title || '', template }
+    return { absolute: resolved || title || "", template };
   }
 }

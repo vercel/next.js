@@ -1,14 +1,14 @@
-'use server'
+"use server";
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath } from "next/cache";
 
-let x = 0
+let x = 0;
 
 export async function inc() {
-  ++x
-  revalidatePath('/shared')
+  ++x;
+  revalidatePath("/shared");
 }
 
 export async function get() {
-  return x
+  return x;
 }

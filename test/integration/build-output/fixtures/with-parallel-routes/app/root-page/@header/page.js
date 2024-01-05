@@ -1,3 +1,3 @@
 export default function Header() {
-  return null
+  return null;
 }

@@ -12,14 +12,14 @@ module.exports = {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
         {
-          source: '/rewritten-use-search-params',
-          destination: '/hooks/use-search-params/static-bailout',
+          source: "/rewritten-use-search-params",
+          destination: "/hooks/use-search-params/static-bailout",
         },
         {
-          source: '/rewritten-use-pathname',
-          destination: '/hooks/use-pathname/slug',
+          source: "/rewritten-use-pathname",
+          destination: "/hooks/use-pathname/slug",
         },
       ],
-    }
+    };
   },
-}
+};

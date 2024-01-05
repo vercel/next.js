@@ -10,4 +10,4 @@
 // Based on https://github.com/reactjs/react-codemod/blob/dd8671c9a470a2c342b221ec903c574cf31e9f57/bin/react-codemod.js
 // next-codemod optional-name-of-transform optional/path/to/src [...options]
 
-require('./cli').run()
+require("./cli").run();

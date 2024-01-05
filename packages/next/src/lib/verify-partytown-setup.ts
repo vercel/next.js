@@ -1,16 +1,16 @@
-import { promises } from 'fs'
-import { bold, cyan, red } from './picocolors'
+import { promises } from "fs";
+import { bold, cyan, red } from "./picocolors";
 
-import path from 'path'
-import { hasNecessaryDependencies } from './has-necessary-dependencies'
-import type { NecessaryDependencies } from './has-necessary-dependencies'
-import { fileExists, FileType } from './file-exists'
-import { FatalError } from './fatal-error'
-import * as Log from '../build/output/log'
-import { getPkgManager } from './helpers/get-pkg-manager'
+import path from "path";
+import { hasNecessaryDependencies } from "./has-necessary-dependencies";
+import type { NecessaryDependencies } from "./has-necessary-dependencies";
+import { fileExists, FileType } from "./file-exists";
+import { FatalError } from "./fatal-error";
+import * as Log from "../build/output/log";
+import { getPkgManager } from "./helpers/get-pkg-manager";
 
 async function missingDependencyError(dir: string) {
-  const packageManager = getPkgManager(dir)
+  const packageManager = getPkgManager(dir);
 
   throw new FatalError(
     bold(
@@ -18,47 +18,47 @@ async function missingDependencyError(dir: string) {
         "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
       )
     ) +
-      '\n\n' +
+      "\n\n" +
       bold(`Please install Partytown by running:`) +
-      '\n\n' +
+      "\n\n" +
       `\t${bold(
         cyan(
-          (packageManager === 'yarn'
-            ? 'yarn add --dev'
-            : packageManager === 'pnpm'
-            ? 'pnpm install --save-dev'
-            : 'npm install --save-dev') + ' @builder.io/partytown'
+          (packageManager === "yarn"
+            ? "yarn add --dev"
+            : packageManager === "pnpm"
+            ? "pnpm install --save-dev"
+            : "npm install --save-dev") + " @builder.io/partytown"
         )
       )}` +
-      '\n\n' +
+      "\n\n" +
       bold(
         `If you are not trying to use Partytown, please disable the experimental ${cyan(
           '"nextScriptWorkers"'
         )} flag in next.config.js.`
       ) +
-      '\n'
-  )
+      "\n"
+  );
 }
 
 async function copyPartytownStaticFiles(
   deps: NecessaryDependencies,
   staticDir: string
 ) {
-  const partytownLibDir = path.join(staticDir, '~partytown')
+  const partytownLibDir = path.join(staticDir, "~partytown");
   const hasPartytownLibDir = await fileExists(
     partytownLibDir,
     FileType.Directory
-  )
+  );
 
   if (hasPartytownLibDir) {
-    await promises.rm(partytownLibDir, { recursive: true, force: true })
+    await promises.rm(partytownLibDir, { recursive: true, force: true });
   }
 
   const { copyLibFiles } = await Promise.resolve(
-    require(path.join(deps.resolved.get('@builder.io/partytown')!, '../utils'))
-  )
+    require(path.join(deps.resolved.get("@builder.io/partytown")!, "../utils"))
+  );
 
-  await copyLibFiles(partytownLibDir)
+  await copyLibFiles(partytownLibDir);
 }
 
 export async function verifyPartytownSetup(
@@ -70,32 +70,32 @@ export async function verifyPartytownSetup(
       dir,
       [
         {
-          file: '@builder.io/partytown',
-          pkg: '@builder.io/partytown',
+          file: "@builder.io/partytown",
+          pkg: "@builder.io/partytown",
           exportsRestrict: false,
         },
       ]
-    )
+    );
 
     if (partytownDeps.missing?.length > 0) {
-      await missingDependencyError(dir)
+      await missingDependencyError(dir);
     } else {
       try {
-        await copyPartytownStaticFiles(partytownDeps, targetDir)
+        await copyPartytownStaticFiles(partytownDeps, targetDir);
       } catch (err) {
         Log.warn(
           `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
-            cyan('@builder.io/partytown')
+            cyan("@builder.io/partytown")
           )} is installed as a dependency.`
-        )
+        );
       }
     }
   } catch (err) {
     // Don't show a stack trace when there is an error due to missing dependencies
     if (err instanceof FatalError) {
-      console.error(err.message)
-      process.exit(1)
+      console.error(err.message);
+      process.exit(1);
     }
-    throw err
+    throw err;
   }
 }

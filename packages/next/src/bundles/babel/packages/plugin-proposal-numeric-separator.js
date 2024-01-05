@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginProposalNumericSeparator()
+module.exports = require("./bundle").pluginProposalNumericSeparator();

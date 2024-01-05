@@ -1,14 +1,14 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { useEffect, useState } from 'react'
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 
 export default function Page(props) {
-  const router = useRouter()
-  const [mounted, setMounted] = useState(false)
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   return (
     <>
@@ -37,14 +37,14 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export function getServerSideProps() {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
       now: Date.now(),
     },
-  }
+  };
 }

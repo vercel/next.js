@@ -8,5 +8,5 @@ export default function Page() {
         should demonstrate optimal chunk loading characteristics with no errors
       </p>
     </div>
-  )
+  );
 }

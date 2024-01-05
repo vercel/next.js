@@ -1,3 +1,3 @@
 export default function Layout({ named }) {
-  return <div>{named}</div>
+  return <div>{named}</div>;
 }

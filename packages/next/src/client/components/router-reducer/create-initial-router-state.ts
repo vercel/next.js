@@ -1,23 +1,23 @@
-import type { ReactNode } from 'react'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { ReactNode } from "react";
+import type { CacheNode } from "../../../shared/lib/app-router-context.shared-runtime";
 import type {
   FlightRouterState,
   CacheNodeSeedData,
-} from '../../../server/app-render/types'
+} from "../../../server/app-render/types";
 
-import { createHrefFromUrl } from './create-href-from-url'
-import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import { extractPathFromFlightRouterState } from './compute-changed-path'
+import { createHrefFromUrl } from "./create-href-from-url";
+import { fillLazyItemsTillLeafWithHead } from "./fill-lazy-items-till-leaf-with-head";
+import { extractPathFromFlightRouterState } from "./compute-changed-path";
 
 export interface InitialRouterStateParameters {
-  buildId: string
-  initialTree: FlightRouterState
-  initialCanonicalUrl: string
-  initialSeedData: CacheNodeSeedData
-  initialParallelRoutes: CacheNode['parallelRoutes']
-  isServer: boolean
-  location: Location | null
-  initialHead: ReactNode
+  buildId: string;
+  initialTree: FlightRouterState;
+  initialCanonicalUrl: string;
+  initialSeedData: CacheNodeSeedData;
+  initialParallelRoutes: CacheNode["parallelRoutes"];
+  isServer: boolean;
+  location: Location | null;
+  initialHead: ReactNode;
 }
 
 export function createInitialRouterState({
@@ -30,7 +30,7 @@ export function createInitialRouterState({
   location,
   initialHead,
 }: InitialRouterStateParameters) {
-  const rsc = initialSeedData[2]
+  const rsc = initialSeedData[2];
 
   const cache: CacheNode = {
     lazyData: null,
@@ -38,7 +38,7 @@ export function createInitialRouterState({
     prefetchRsc: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
-  }
+  };
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
@@ -48,7 +48,7 @@ export function createInitialRouterState({
       initialTree,
       initialSeedData,
       initialHead
-    )
+    );
   }
 
   return {
@@ -80,5 +80,5 @@ export function createInitialRouterState({
       // the || operator is intentional, the pathname can be an empty string
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
-  }
+  };
 }

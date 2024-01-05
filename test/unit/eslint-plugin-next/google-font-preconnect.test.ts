@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/google-font-preconnect'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/google-font-preconnect";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2020,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('google-font-preconnect', rule, {
+ruleTester.run("google-font-preconnect", rule, {
   valid: [
     `export const Test = () => (
         <div>
@@ -43,7 +43,7 @@ ruleTester.run('google-font-preconnect', rule, {
         {
           message:
             '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -59,9 +59,9 @@ ruleTester.run('google-font-preconnect', rule, {
         {
           message:
             '`rel="preconnect"` is missing from Google Font. See: https://nextjs.org/docs/messages/google-font-preconnect',
-          type: 'JSXOpeningElement',
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

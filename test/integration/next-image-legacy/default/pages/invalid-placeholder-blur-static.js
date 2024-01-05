@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import testBMP from '../public/test.bmp'
+import React from "react";
+import Image from "next/legacy/image";
+import testBMP from "../public/test.bmp";
 
 const Page = () => {
   return (
@@ -11,7 +11,7 @@ const Page = () => {
         placeholder="blur"
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

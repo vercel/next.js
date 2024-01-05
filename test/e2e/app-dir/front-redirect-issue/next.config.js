@@ -5,12 +5,12 @@ const nextConfig = {
       fallback: [
         {
           // This rewrites all other paths to the appDir to check if they're teamSlugs. Otherwise it will 404.
-          source: '/:path*',
-          destination: '/api/app-redirect/:path*',
+          source: "/:path*",
+          destination: "/api/app-redirect/:path*",
         },
       ],
-    }
+    };
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

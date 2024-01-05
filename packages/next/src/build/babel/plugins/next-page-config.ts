@@ -1,21 +1,21 @@
-import { types as BabelTypes } from 'next/dist/compiled/babel/core'
+import { types as BabelTypes } from "next/dist/compiled/babel/core";
 import type {
   PluginObj,
   PluginPass,
   Visitor,
   NodePath,
-} from 'next/dist/compiled/babel/core'
-import type { PageConfig } from 'next/types'
-import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
+} from "next/dist/compiled/babel/core";
+import type { PageConfig } from "next/types";
+import { STRING_LITERAL_DROP_BUNDLE } from "../../../shared/lib/constants";
 
-const CONFIG_KEY = 'config'
+const CONFIG_KEY = "config";
 
 // replace program path with just a variable with the drop identifier
 function replaceBundle(path: any, t: typeof BabelTypes): void {
   path.parentPath.replaceWith(
     t.program(
       [
-        t.variableDeclaration('const', [
+        t.variableDeclaration("const", [
           t.variableDeclarator(
             t.identifier(STRING_LITERAL_DROP_BUNDLE),
             t.stringLiteral(`${STRING_LITERAL_DROP_BUNDLE} ${Date.now()}`)
@@ -24,24 +24,24 @@ function replaceBundle(path: any, t: typeof BabelTypes): void {
       ],
       []
     )
-  )
+  );
 }
 
 function errorMessage(state: any, details: string): string {
   const pageName =
-    (state.filename || '').split(state.cwd || '').pop() || 'unknown'
-  return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`
+    (state.filename || "").split(state.cwd || "").pop() || "unknown";
+  return `Invalid page config export found. ${details} in file ${pageName}. See: https://nextjs.org/docs/messages/invalid-page-config`;
 }
 
 interface ConfigState extends PluginPass {
-  bundleDropped?: boolean
+  bundleDropped?: boolean;
 }
 
 // config to parsing pageConfig for client bundles
 export default function nextPageConfig({
   types: t,
 }: {
-  types: typeof BabelTypes
+  types: typeof BabelTypes;
 }): PluginObj {
   return {
     visitor: {
@@ -57,7 +57,7 @@ export default function nextPageConfig({
                       (t.isIdentifier(specifier.exported)
                         ? specifier.exported.name
                         : specifier.exported.value) === CONFIG_KEY
-                    )
+                    );
                   }) &&
                   BabelTypes.isStringLiteral(
                     (exportPath.node as BabelTypes.ExportNamedDeclaration)
@@ -67,9 +67,9 @@ export default function nextPageConfig({
                   throw new Error(
                     errorMessage(
                       exportState,
-                      'Expected object but got export from'
+                      "Expected object but got export from"
                     )
-                  )
+                  );
                 }
               },
               ExportNamedDeclaration(
@@ -81,10 +81,10 @@ export default function nextPageConfig({
                   (!exportPath.node.declaration &&
                     exportPath.node.specifiers.length === 0)
                 ) {
-                  return
+                  return;
                 }
 
-                const config: PageConfig = {}
+                const config: PageConfig = {};
                 const declarations: BabelTypes.VariableDeclarator[] = [
                   ...((
                     exportPath.node
@@ -92,7 +92,7 @@ export default function nextPageConfig({
                   )?.declarations || []),
                   exportPath.scope.getBinding(CONFIG_KEY)?.path
                     .node as BabelTypes.VariableDeclarator,
-                ].filter(Boolean)
+                ].filter(Boolean);
 
                 for (const specifier of exportPath.node.specifiers) {
                   if (
@@ -107,7 +107,7 @@ export default function nextPageConfig({
                           exportState,
                           `Expected object but got import`
                         )
-                      )
+                      );
                       // import hello from 'world'
                       // export { hello as config }
                     } else if (
@@ -127,7 +127,7 @@ export default function nextPageConfig({
                             exportState,
                             `Expected object but got import`
                           )
-                        )
+                        );
                       }
                     }
                   }
@@ -139,22 +139,22 @@ export default function nextPageConfig({
                       name: CONFIG_KEY,
                     })
                   ) {
-                    continue
+                    continue;
                   }
 
-                  let { init } = declaration
+                  let { init } = declaration;
                   if (BabelTypes.isTSAsExpression(init)) {
-                    init = init.expression
+                    init = init.expression;
                   }
 
                   if (!BabelTypes.isObjectExpression(init)) {
-                    const got = init ? init.type : 'undefined'
+                    const got = init ? init.type : "undefined";
                     throw new Error(
                       errorMessage(
                         exportState,
                         `Expected object but got ${got}`
                       )
-                    )
+                    );
                   }
 
                   for (const prop of init.properties) {
@@ -164,17 +164,17 @@ export default function nextPageConfig({
                           exportState,
                           `Property spread is not allowed`
                         )
-                      )
+                      );
                     }
-                    const { name } = prop.key as BabelTypes.Identifier
-                    if (BabelTypes.isIdentifier(prop.key, { name: 'amp' })) {
+                    const { name } = prop.key as BabelTypes.Identifier;
+                    if (BabelTypes.isIdentifier(prop.key, { name: "amp" })) {
                       if (!BabelTypes.isObjectProperty(prop)) {
                         throw new Error(
                           errorMessage(
                             exportState,
                             `Invalid property "${name}"`
                           )
-                        )
+                        );
                       }
                       if (
                         !BabelTypes.isBooleanLiteral(prop.value) &&
@@ -185,9 +185,9 @@ export default function nextPageConfig({
                             exportState,
                             `Invalid value for "${name}"`
                           )
-                        )
+                        );
                       }
-                      config.amp = prop.value.value as PageConfig['amp']
+                      config.amp = prop.value.value as PageConfig["amp"];
                     }
                   }
                 }
@@ -196,17 +196,17 @@ export default function nextPageConfig({
                   if (!exportState.file?.opts?.caller.isDev) {
                     // don't replace bundle in development so HMR can track
                     // dependencies and trigger reload when they are changed
-                    replaceBundle(exportPath, t)
+                    replaceBundle(exportPath, t);
                   }
-                  exportState.bundleDropped = true
-                  return
+                  exportState.bundleDropped = true;
+                  return;
                 }
               },
             },
             state
-          )
+          );
         },
       },
     } as Visitor<ConfigState>,
-  }
+  };
 }

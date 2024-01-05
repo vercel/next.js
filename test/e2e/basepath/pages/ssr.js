@@ -1,11 +1,11 @@
 function SSRPage({ test }) {
-  return <h1>{test}</h1>
+  return <h1>{test}</h1>;
 }
 
 SSRPage.getInitialProps = () => {
   return {
-    test: 'hello',
-  }
-}
+    test: "hello",
+  };
+};
 
-export default SSRPage
+export default SSRPage;

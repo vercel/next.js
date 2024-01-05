@@ -1,1 +1,1 @@
-export const World = () => <div>World</div>
+export const World = () => <div>World</div>;

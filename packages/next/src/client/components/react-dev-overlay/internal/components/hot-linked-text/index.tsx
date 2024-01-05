@@ -1,14 +1,14 @@
-import React from 'react'
-import { getWordsAndWhitespaces } from './get-words-and-whitespaces'
+import React from "react";
+import { getWordsAndWhitespaces } from "./get-words-and-whitespaces";
 
-const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
+const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i;
 
 export const HotlinkedText: React.FC<{
-  text: string
+  text: string;
 }> = function HotlinkedText(props) {
-  const { text } = props
+  const { text } = props;
 
-  const wordsAndWhitespaces = getWordsAndWhitespaces(text)
+  const wordsAndWhitespaces = getWordsAndWhitespaces(text);
 
   return (
     <>
@@ -19,11 +19,13 @@ export const HotlinkedText: React.FC<{
                 <React.Fragment key={`link-${index}`}>
                   <a href={word}>{word}</a>
                 </React.Fragment>
-              )
+              );
             }
-            return <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            return (
+              <React.Fragment key={`text-${index}`}>{word}</React.Fragment>
+            );
           })
         : text}
     </>
-  )
-}
+  );
+};

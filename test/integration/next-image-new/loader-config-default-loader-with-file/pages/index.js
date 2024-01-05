@@ -1,8 +1,8 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 function loader({ src, width, quality }) {
-  return `${src}?wid=${width}&qual=${quality || 35}`
+  return `${src}?wid=${width}&qual=${quality || 35}`;
 }
 
 const Page = () => {
@@ -18,7 +18,7 @@ const Page = () => {
         priority
       />
       <p>Scroll down...</p>
-      <div style={{ height: '100vh' }} />
+      <div style={{ height: "100vh" }} />
       <h2>Loader Prop</h2>
       <Image
         id="img2"
@@ -29,7 +29,7 @@ const Page = () => {
         loader={loader}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

@@ -1,11 +1,11 @@
 export default function Gsp() {
-  return <p id="gsp">getStaticProps</p>
+  return <p id="gsp">getStaticProps</p>;
 }
 
 export const getStaticProps = () => {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
     },
-  }
-}
+  };
+};

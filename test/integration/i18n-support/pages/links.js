@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
-  const { nextLocale } = router.query
+  const router = useRouter();
+  const { nextLocale } = router.query;
 
   return (
     <>
@@ -56,12 +56,12 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 // make SSR page so we have query values immediately
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};

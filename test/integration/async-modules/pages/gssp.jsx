@@ -1,9 +1,9 @@
-const gsspValue = await Promise.resolve(42)
+const gsspValue = await Promise.resolve(42);
 
 export async function getServerSideProps() {
   return {
     props: { gsspValue },
-  }
+  };
 }
 
 export default function Index({ gsspValue }) {
@@ -11,5 +11,5 @@ export default function Index({ gsspValue }) {
     <main>
       <div id="gssp-value">{gsspValue}</div>
     </main>
-  )
+  );
 }

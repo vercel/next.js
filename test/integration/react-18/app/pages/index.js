@@ -1,11 +1,11 @@
-import ReactDOM from 'react-dom'
-import Image from 'next/image'
+import ReactDOM from "react-dom";
+import Image from "next/image";
 
 export default function Index() {
-  if (typeof window !== 'undefined') {
-    window.didHydrate = true
+  if (typeof window !== "undefined") {
+    window.didHydrate = true;
   }
-  console.log('__render__')
+  console.log("__render__");
   return (
     <div>
       <p id="react-dom-version">{ReactDOM.version}</p>
@@ -17,9 +17,9 @@ export default function Index() {
         height={400}
       />
     </div>
-  )
+  );
 }
 
 export const config = {
   // runtime: 'experimental-edge'
-}
+};

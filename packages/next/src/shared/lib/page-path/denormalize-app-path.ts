@@ -1,8 +1,8 @@
 export function denormalizeAppPagePath(page: string): string {
   // `/` is normalized to `/index`
-  if (page === '/index') {
-    return '/'
+  if (page === "/index") {
+    return "/";
   }
 
-  return page
+  return page;
 }

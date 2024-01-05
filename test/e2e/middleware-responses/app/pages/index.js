@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Home({ message }) {
   return (
@@ -40,9 +40,9 @@ export default function Home({ message }) {
       <Link href="/bad-status">404</Link>
       <div />
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => ({
-  props: { message: query.message || 'World' },
-})
+  props: { message: query.message || "World" },
+});

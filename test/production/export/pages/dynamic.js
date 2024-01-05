@@ -1,22 +1,22 @@
 /* global location */
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export default class DynamicPage extends React.Component {
   static getInitialProps({ query }) {
-    return { text: query.text }
+    return { text: query.text };
   }
 
-  state = {}
+  state = {};
 
   componentDidMount() {
-    const [, hash] = location.href.split('#')
-    this.setState({ hash })
+    const [, hash] = location.href.split("#");
+    this.setState({ hash });
   }
 
   render() {
-    const { text } = this.props
-    const { hash } = this.state
+    const { text } = this.props;
+    const { hash } = this.state;
 
     return (
       <div id="dynamic-page">
@@ -26,6 +26,6 @@ export default class DynamicPage extends React.Component {
         <p>{text}</p>
         <div id="hash">Hash: {hash}</div>
       </div>
-    )
+    );
   }
 }

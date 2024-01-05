@@ -10,19 +10,19 @@ The `notFound` function allows you to render the [`not-found file`](/docs/app/ap
 Invoking the `notFound()` function throws a `NEXT_NOT_FOUND` error and terminates rendering of the route segment in which it was thrown. Specifying a [**not-found** file](/docs/app/api-reference/file-conventions/not-found) allows you to gracefully handle such errors by rendering a Not Found UI within the segment.
 
 ```jsx filename="app/user/[id]/page.js"
-import { notFound } from 'next/navigation'
+import { notFound } from "next/navigation";
 
 async function fetchUser(id) {
-  const res = await fetch('https://...')
-  if (!res.ok) return undefined
-  return res.json()
+  const res = await fetch("https://...");
+  if (!res.ok) return undefined;
+  return res.json();
 }
 
 export default async function Profile({ params }) {
-  const user = await fetchUser(params.id)
+  const user = await fetchUser(params.id);
 
   if (!user) {
-    notFound()
+    notFound();
   }
 
   // ...

@@ -1,12 +1,12 @@
-import { useCases, notUsingEval, usingEval } from '../../lib/utils'
+import { useCases, notUsingEval, usingEval } from "../../lib/utils";
 import {
   usingWebAssemblyCompile,
   usingWebAssemblyInstantiate,
   usingWebAssemblyInstantiateWithBuffer,
-} from '../../lib/wasm'
+} from "../../lib/wasm";
 
 export default async function handler(request) {
-  const useCase = request.nextUrl.searchParams.get('case')
+  const useCase = request.nextUrl.searchParams.get("case");
 
   return Response.json(
     useCase === useCases.eval
@@ -20,7 +20,7 @@ export default async function handler(request) {
       : useCase === useCases.wasmBufferInstanciate
       ? await usingWebAssemblyInstantiateWithBuffer(9)
       : { ok: true }
-  )
+  );
 }
 
-export const config = { runtime: 'edge' }
+export const config = { runtime: "edge" };

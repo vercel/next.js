@@ -1,4 +1,4 @@
-import { openSans, sourceCodePro, abel } from '../fonts'
+import { openSans, sourceCodePro, abel } from "../fonts";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -9,7 +9,7 @@ function MyApp({ Component, pageProps }) {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

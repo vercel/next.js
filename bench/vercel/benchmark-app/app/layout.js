@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 export default function Root({ children }) {
   return (
@@ -6,5 +6,5 @@ export default function Root({ children }) {
       <head></head>
       <body>{children}</body>
     </html>
-  )
+  );
 }

@@ -1,3 +1,3 @@
 module.exports = {
   trailingSlash: true,
-}
+};

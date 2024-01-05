@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function News() {
-  const { asPath, pathname, query } = useRouter()
+  const { asPath, pathname, query } = useRouter();
 
   return (
     <div>
@@ -12,11 +12,11 @@ export default function News() {
       <p id="query">{JSON.stringify(query)}</p>
       <Link href="/">&larr; Back home</Link>
     </div>
-  )
+  );
 }
 
 export async function getServerSideProps() {
   return {
     props: {},
-  }
+  };
 }

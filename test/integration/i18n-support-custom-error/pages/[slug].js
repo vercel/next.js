@@ -1,21 +1,21 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 const SlugPage = (props) => {
-  const router = useRouter()
+  const router = useRouter();
 
   return router.isFallback ? null : (
     <>
       <div>{props.title}</div>
       <div id="props">{JSON.stringify(props)}</div>
     </>
-  )
-}
+  );
+};
 
 export const getStaticProps = async ({ locale, params }) => {
-  if (params.slug === 'my-custom-gone-path') {
+  if (params.slug === "my-custom-gone-path") {
     return {
       notFound: true,
-    }
+    };
   }
   return {
     props: {
@@ -23,11 +23,11 @@ export const getStaticProps = async ({ locale, params }) => {
       params,
       title: params.slug,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = async ({ locales }) => {
-  const mySlugs = ['my-custom-path-1', 'my-custom-path-2']
+  const mySlugs = ["my-custom-path-1", "my-custom-path-2"];
 
   return {
     paths: locales.reduce(
@@ -37,8 +37,8 @@ export const getStaticPaths = async ({ locales }) => {
       ],
       []
     ),
-    fallback: 'blocking',
-  }
-}
+    fallback: "blocking",
+  };
+};
 
-export default SlugPage
+export default SlugPage;

@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 export default function Page({ params, searchParams }) {
   return (
@@ -9,5 +9,5 @@ export default function Page({ params, searchParams }) {
     >
       hello from /param-and-query/{params.slug}?slug={searchParams.slug}
     </h1>
-  )
+  );
 }

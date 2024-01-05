@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import Router from 'next/router'
+import Link from "next/link";
+import Router from "next/router";
 
 function routeToAbout(e) {
-  e.preventDefault()
-  Router.push('/about')
+  e.preventDefault();
+  Router.push("/about");
 }
 
 export default () => (
@@ -65,4 +65,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+);

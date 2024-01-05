@@ -3,15 +3,15 @@ export default function Page() {
     <div>
       <div
         style={{
-          position: 'fixed',
+          position: "fixed",
           top: 0,
           left: 0,
-          width: '100%',
-          height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
+          width: "100%",
+          height: "100%",
+          backgroundColor: "rgba(0, 0, 0, 0.5)",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
           zIndex: 1000,
         }}
         id="modal"
@@ -19,5 +19,5 @@ export default function Page() {
         MODAL
       </div>
     </div>
-  )
+  );
 }

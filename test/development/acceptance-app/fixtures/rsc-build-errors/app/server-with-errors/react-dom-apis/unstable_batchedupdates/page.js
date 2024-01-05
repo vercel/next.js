@@ -1,7 +1,7 @@
-import { unstable_batchedUpdates } from 'react-dom'
+import { unstable_batchedUpdates } from "react-dom";
 
-console.log({ unstable_batchedUpdates })
+console.log({ unstable_batchedUpdates });
 
 export default function Page() {
-  return null
+  return null;
 }

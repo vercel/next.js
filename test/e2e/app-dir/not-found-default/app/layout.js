@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import { notFound } from 'next/navigation'
-import NotFoundTrigger from './not-found-trigger'
+import React, { useState } from "react";
+import { notFound } from "next/navigation";
+import NotFoundTrigger from "./not-found-trigger";
 
 export default function Root({ children }) {
-  const [clicked, setClicked] = useState(false)
+  const [clicked, setClicked] = useState(false);
   if (clicked) {
-    notFound()
+    notFound();
   }
 
   return (
@@ -20,7 +20,7 @@ export default function Root({ children }) {
         {children}
       </body>
     </html>
-  )
+  );
 }
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";

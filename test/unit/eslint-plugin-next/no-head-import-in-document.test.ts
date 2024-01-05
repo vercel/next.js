@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-head-import-in-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-head-import-in-document";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-head-import-in-document', rule, {
+ruleTester.run("no-head-import-in-document", rule, {
   valid: [
     {
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
@@ -34,7 +34,7 @@ ruleTester.run('no-head-import-in-document', rule, {
 
       export default MyDocument
     `,
-      filename: 'pages/_document.tsx',
+      filename: "pages/_document.tsx",
     },
     {
       code: `import Head from "next/head";
@@ -48,7 +48,7 @@ ruleTester.run('no-head-import-in-document', rule, {
         );
       }
     `,
-      filename: 'pages/index.tsx',
+      filename: "pages/index.tsx",
     },
   ],
   invalid: [
@@ -73,12 +73,12 @@ ruleTester.run('no-head-import-in-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
       errors: [
         {
           message:
-            '`next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document',
-          type: 'ImportDeclaration',
+            "`next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document",
+          type: "ImportDeclaration",
         },
       ],
     },
@@ -103,12 +103,12 @@ ruleTester.run('no-head-import-in-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.page.tsx',
+      filename: "pages/_document.page.tsx",
       errors: [
         {
           message:
-            '`next/head` should not be imported in `pages/_document.page.tsx`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document',
-          type: 'ImportDeclaration',
+            "`next/head` should not be imported in `pages/_document.page.tsx`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document",
+          type: "ImportDeclaration",
         },
       ],
     },
@@ -133,12 +133,12 @@ ruleTester.run('no-head-import-in-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document/index.js',
+      filename: "pages/_document/index.js",
       errors: [
         {
           message:
-            '`next/head` should not be imported in `pages/_document/index.js`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document',
-          type: 'ImportDeclaration',
+            "`next/head` should not be imported in `pages/_document/index.js`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document",
+          type: "ImportDeclaration",
         },
       ],
     },
@@ -163,14 +163,14 @@ ruleTester.run('no-head-import-in-document', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document/index.tsx',
+      filename: "pages/_document/index.tsx",
       errors: [
         {
           message:
-            '`next/head` should not be imported in `pages/_document/index.tsx`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document',
-          type: 'ImportDeclaration',
+            "`next/head` should not be imported in `pages/_document/index.tsx`. Use `<Head />` from `next/document` instead. See: https://nextjs.org/docs/messages/no-head-import-in-document",
+          type: "ImportDeclaration",
         },
       ],
     },
   ],
-})
+});

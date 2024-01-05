@@ -1,44 +1,44 @@
-import { redirect, notFound } from 'next/navigation'
+import { redirect, notFound } from "next/navigation";
 
 async function action(formData) {
-  'use server'
+  "use server";
   redirect(
-    '/header?name=' +
-      formData.get('name') +
-      '&constructor=' +
+    "/header?name=" +
+      formData.get("name") +
+      "&constructor=" +
       formData.constructor.name +
-      '&hidden-info=' +
-      formData.get('hidden-info')
-  )
+      "&hidden-info=" +
+      formData.get("hidden-info")
+  );
 }
 
 async function nowhere() {
-  'use server'
-  notFound()
+  "use server";
+  notFound();
 }
 
 async function here() {
-  'use server'
+  "use server";
   // nothing
 }
 
 async function file(formData) {
-  'use server'
-  const file = formData.get('file')
-  console.log('File name:', file.name, 'size:', file.size)
+  "use server";
+  const file = formData.get("file");
+  console.log("File name:", file.name, "size:", file.size);
 }
 
 export default function Form() {
-  const b = 1
+  const b = 1;
   async function add(a, formData) {
-    'use server'
+    "use server";
     // Bind variable, closure variable, and argument.
-    redirect('/header?result=' + (a + b + Number(formData.get('n'))))
+    redirect("/header?result=" + (a + b + Number(formData.get("n"))));
   }
 
   async function add3(a, b, c) {
-    'use server'
-    redirect('/header?result=' + (a + b + c))
+    "use server";
+    redirect("/header?result=" + (a + b + c));
   }
 
   return (
@@ -85,5 +85,5 @@ export default function Form() {
         </button>
       </form>
     </>
-  )
+  );
 }

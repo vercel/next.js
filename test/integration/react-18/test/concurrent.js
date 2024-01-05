@@ -1,38 +1,38 @@
 /* eslint-env jest */
 
-import webdriver from 'next-webdriver'
-import { check, renderViaHTTP } from 'next-test-utils'
+import webdriver from "next-webdriver";
+import { check, renderViaHTTP } from "next-test-utils";
 
 export default (context, _render) => {
   async function withBrowser(path, cb) {
-    let browser
+    let browser;
     try {
-      browser = await webdriver(context.appPort, path)
-      await cb(browser)
+      browser = await webdriver(context.appPort, path);
+      await cb(browser);
     } finally {
       if (browser) {
-        await browser.close()
+        await browser.close();
       }
     }
   }
 
-  it('flushes styled-jsx styles as the page renders', async () => {
+  it("flushes styled-jsx styles as the page renders", async () => {
     const html = await renderViaHTTP(
       context.appPort,
-      '/use-flush-effect/styled-jsx'
-    )
-    const stylesOccurrence = html.match(/color:(\s)*blue/g) || []
-    expect(stylesOccurrence.length).toBe(1)
+      "/use-flush-effect/styled-jsx"
+    );
+    const stylesOccurrence = html.match(/color:(\s)*blue/g) || [];
+    expect(stylesOccurrence.length).toBe(1);
 
-    await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
+    await withBrowser("/use-flush-effect/styled-jsx", async (browser) => {
       await check(
-        () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
+        () => browser.waitForElementByCss("#__jsx-900f996af369fc74").text(),
         /blue/
-      )
+      );
       await check(
-        () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),
+        () => browser.waitForElementByCss("#__jsx-8b0811664c4e575e").text(),
         /red/
-      )
-    })
-  })
-}
+      );
+    });
+  });
+};

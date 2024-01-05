@@ -1,52 +1,52 @@
-import React from 'react'
-import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
-import type { FlightData } from '../../../../server/app-render/types'
-import type { FlightRouterState } from '../../../../server/app-render/types'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
+import React from "react";
+import type { fetchServerResponse as fetchServerResponseType } from "../fetch-server-response";
+import type { FlightData } from "../../../../server/app-render/types";
+import type { FlightRouterState } from "../../../../server/app-render/types";
+import type { CacheNode } from "../../../../shared/lib/app-router-context.shared-runtime";
+import { createInitialRouterState } from "../create-initial-router-state";
 import {
   ACTION_NAVIGATE,
   ACTION_PREFETCH,
   PrefetchKind,
-} from '../router-reducer-types'
-import type { NavigateAction, PrefetchAction } from '../router-reducer-types'
-import { navigateReducer } from './navigate-reducer'
-import { prefetchReducer } from './prefetch-reducer'
-import { handleMutable } from '../handle-mutable'
+} from "../router-reducer-types";
+import type { NavigateAction, PrefetchAction } from "../router-reducer-types";
+import { navigateReducer } from "./navigate-reducer";
+import { prefetchReducer } from "./prefetch-reducer";
+import { handleMutable } from "../handle-mutable";
 
-const buildId = 'development'
+const buildId = "development";
 
 const flightData: FlightData = [
   [
-    'children',
-    'linking',
-    'children',
-    'about',
+    "children",
+    "linking",
+    "children",
+    "about",
     [
-      'about',
+      "about",
       {
-        children: ['__PAGE__', {}],
+        children: ["__PAGE__", {}],
       },
     ],
-    ['about', {}, <h1>About Page!</h1>],
+    ["about", {}, <h1>About Page!</h1>],
     <>
       <title>About page!</title>
     </>,
   ],
-]
+];
 
 const demographicsFlightData: FlightData = [
   [
     [
-      '',
+      "",
       {
         children: [
-          'parallel-tab-bar',
+          "parallel-tab-bar",
           {
             audience: [
-              'demographics',
+              "demographics",
               {
-                children: ['__PAGE__', {}],
+                children: ["__PAGE__", {}],
               },
             ],
           },
@@ -57,7 +57,7 @@ const demographicsFlightData: FlightData = [
       true,
     ],
     [
-      '',
+      "",
       {},
       <html>
         <head></head>
@@ -68,76 +68,76 @@ const demographicsFlightData: FlightData = [
       <title>Demographics Head</title>
     </>,
   ],
-]
+];
 
-jest.mock('../fetch-server-response', () => {
+jest.mock("../fetch-server-response", () => {
   return {
     fetchServerResponse: (
       url: URL
     ): ReturnType<typeof fetchServerResponseType> => {
-      if (url.pathname === '/linking' && url.hash === '#hash') {
-        return Promise.resolve(['', undefined])
+      if (url.pathname === "/linking" && url.hash === "#hash") {
+        return Promise.resolve(["", undefined]);
       }
-      if (url.pathname === '/linking/about') {
-        return Promise.resolve([flightData, undefined])
-      }
-
-      if (url.pathname === '/parallel-tab-bar/demographics') {
-        return Promise.resolve([demographicsFlightData, undefined])
+      if (url.pathname === "/linking/about") {
+        return Promise.resolve([flightData, undefined]);
       }
 
-      throw new Error('unknown url in mock')
+      if (url.pathname === "/parallel-tab-bar/demographics") {
+        return Promise.resolve([demographicsFlightData, undefined]);
+      }
+
+      throw new Error("unknown url in mock");
     },
-  }
-})
+  };
+});
 
 const getInitialRouterStateTree = (): FlightRouterState => [
-  '',
+  "",
   {
     children: [
-      'linking',
+      "linking",
       {
-        children: ['__PAGE__', {}],
+        children: ["__PAGE__", {}],
       },
     ],
   },
   undefined,
   undefined,
   true,
-]
+];
 
-describe('navigateReducer', () => {
+describe("navigateReducer", () => {
   beforeAll(() => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2023-07-26'))
-  })
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2023-07-26"));
+  });
 
   afterAll(() => {
-    jest.useRealTimers()
-  })
+    jest.useRealTimers();
+  });
 
-  it('should apply navigation', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -155,28 +155,28 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -306,31 +306,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation when called twice (concurrent)', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation when called twice (concurrent)", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -348,29 +348,29 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -500,31 +500,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation for external url (push)', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation for external url (push)", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -542,32 +542,32 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
 
-    const url = new URL('https://example.vercel.sh', 'https://localhost')
-    const isExternalUrl = url.origin !== 'localhost'
+    const url = new URL("https://example.vercel.sh", "https://localhost");
+    const isExternalUrl = url.origin !== "localhost";
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
       url,
       isExternalUrl,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -637,31 +637,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation for external url (replace)', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation for external url (replace)", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -679,32 +679,32 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
 
-    const url = new URL('https://example.vercel.sh', 'https://localhost')
-    const isExternalUrl = url.origin !== 'localhost'
+    const url = new URL("https://example.vercel.sh", "https://localhost");
+    const isExternalUrl = url.origin !== "localhost";
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
       url,
       isExternalUrl,
-      locationSearch: '',
-      navigateType: 'replace',
+      locationSearch: "",
+      navigateType: "replace",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -774,31 +774,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation for scroll', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation for scroll", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -816,29 +816,29 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking#hash', 'https://localhost') as any,
-    })
+      location: new URL("/linking#hash", "https://localhost") as any,
+    });
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking#hash', 'https://localhost'),
+      url: new URL("/linking#hash", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: false, // should not scroll
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -932,31 +932,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation with prefetched data', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation with prefetched data", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -974,55 +974,55 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
-    const url = new URL('/linking/about', 'https://localhost')
+    const url = new URL("/linking/about", "https://localhost");
     const prefetchAction: PrefetchAction = {
       type: ACTION_PREFETCH,
       url,
       kind: PrefetchKind.AUTO,
-    }
+    };
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
 
-    await prefetchReducer(state, prefetchAction)
+    await prefetchReducer(state, prefetchAction);
 
-    await state.prefetchCache.get(url.pathname + url.search)?.data
+    await state.prefetchCache.get(url.pathname + url.search)?.data;
 
-    await prefetchReducer(state, prefetchAction)
-    await state.prefetchCache.get(url.pathname + url.search)?.data
+    await prefetchReducer(state, prefetchAction);
+    await state.prefetchCache.get(url.pathname + url.search)?.data;
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       isExternalUrl: false,
-      navigateType: 'push',
-      locationSearch: '',
+      navigateType: "push",
+      locationSearch: "",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     const prom = Promise.resolve([
       [
         [
-          'children',
-          'linking',
-          'children',
-          'about',
+          "children",
+          "linking",
+          "children",
+          "about",
           [
-            'about',
+            "about",
             {
-              children: ['__PAGE__', {}],
+              children: ["__PAGE__", {}],
             },
           ],
           <h1>About Page!</h1>,
@@ -1032,8 +1032,8 @@ describe('navigateReducer', () => {
         ],
       ],
       undefined,
-    ] as any)
-    await prom
+    ] as any);
+    await prom;
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -1163,47 +1163,47 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply parallel routes navigation (concurrent)', async () => {
+  it("should apply parallel routes navigation (concurrent)", async () => {
     const initialTree: FlightRouterState = [
-      '',
+      "",
       {
         children: [
-          'parallel-tab-bar',
+          "parallel-tab-bar",
           {
-            audience: ['__PAGE__', {}],
-            views: ['__PAGE__', {}],
-            children: ['__PAGE__', {}],
+            audience: ["__PAGE__", {}],
+            views: ["__PAGE__", {}],
+            children: ["__PAGE__", {}],
           },
         ],
       },
       null,
       null,
       true,
-    ]
+    ];
 
-    const initialCanonicalUrl = '/parallel-tab-bar'
+    const initialCanonicalUrl = "/parallel-tab-bar";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'parallel-tab-bar',
+            "parallel-tab-bar",
             {
               parallelRoutes: new Map([
                 [
-                  'audience',
+                  "audience",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Audience Page</>,
@@ -1214,10 +1214,10 @@ describe('navigateReducer', () => {
                   ]),
                 ],
                 [
-                  'views',
+                  "views",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Views Page</>,
@@ -1228,10 +1228,10 @@ describe('navigateReducer', () => {
                   ]),
                 ],
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Children Page</>,
@@ -1249,29 +1249,29 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/parallel-tab-bar', 'https://localhost') as any,
-    })
+      location: new URL("/parallel-tab-bar", "https://localhost") as any,
+    });
 
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/parallel-tab-bar/demographics', 'https://localhost'),
+      url: new URL("/parallel-tab-bar/demographics", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -1433,31 +1433,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation for hash fragments within the same tree', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation for hash fragments within the same tree", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -1475,29 +1475,29 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking#hash', 'https://localhost') as any,
-    })
+      location: new URL("/linking#hash", "https://localhost") as any,
+    });
 
     const mutable = {
-      canonicalUrl: '/linking#hash',
+      canonicalUrl: "/linking#hash",
       previousTree: initialTree,
-      hashFragment: '#hash',
+      hashFragment: "#hash",
       pendingPush: true,
       shouldScroll: true,
       preserveCustomHistoryState: false,
-    }
+    };
 
-    const newState = handleMutable(state, mutable)
+    const newState = handleMutable(state, mutable);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -1567,31 +1567,31 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
+    `);
+  });
 
-  it('should apply navigation for hash fragments within a different tree', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply navigation for hash fragments within a different tree", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '__PAGE__',
+                      "__PAGE__",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -1609,28 +1609,28 @@ describe('navigateReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
     const action: NavigateAction = {
       type: ACTION_NAVIGATE,
-      url: new URL('/linking/about#hash', 'https://localhost'),
+      url: new URL("/linking/about#hash", "https://localhost"),
       isExternalUrl: false,
-      locationSearch: '',
-      navigateType: 'push',
+      locationSearch: "",
+      navigateType: "push",
       shouldScroll: true,
-    }
+    };
 
-    const newState = await navigateReducer(state, action)
+    const newState = await navigateReducer(state, action);
 
     expect(newState).toMatchInlineSnapshot(`
       {
@@ -1760,6 +1760,6 @@ describe('navigateReducer', () => {
           true,
         ],
       }
-    `)
-  })
-})
+    `);
+  });
+});

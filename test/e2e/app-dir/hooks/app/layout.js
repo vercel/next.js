@@ -1,6 +1,6 @@
-import React from 'react'
+import React from "react";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default function Layout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function Layout({ children }) {
       <head></head>
       <body>{children}</body>
     </html>
-  )
+  );
 }

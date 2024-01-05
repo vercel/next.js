@@ -1,3 +1,3 @@
-'use sevrer'
+"use sevrer";
 
 export async function foo() {}

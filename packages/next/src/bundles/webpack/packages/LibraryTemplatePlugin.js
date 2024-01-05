@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').LibraryTemplatePlugin
+module.exports = require("./webpack.js").LibraryTemplatePlugin;

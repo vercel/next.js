@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 const Page = () => {
   return (
@@ -13,7 +13,7 @@ const Page = () => {
       ></Image>
       <p id="stubtext">This is the index page</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

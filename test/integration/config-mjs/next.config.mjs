@@ -5,12 +5,12 @@ export default {
   },
   poweredByHeader: false,
   serverRuntimeConfig: {
-    mySecret: 'secret',
+    mySecret: "secret",
   },
   publicRuntimeConfig: {
-    staticFolder: '/static',
+    staticFolder: "/static",
   },
   env: {
-    customVar: 'hello',
+    customVar: "hello",
   },
-}
+};

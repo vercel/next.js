@@ -1,15 +1,15 @@
 export function getSourceMapUrl(fileContents: string): string | null {
-  const regex = /\/\/[#@] ?sourceMappingURL=([^\s'"]+)\s*$/gm
-  let match = null
+  const regex = /\/\/[#@] ?sourceMappingURL=([^\s'"]+)\s*$/gm;
+  let match = null;
   for (;;) {
-    let next = regex.exec(fileContents)
+    let next = regex.exec(fileContents);
     if (next == null) {
-      break
+      break;
     }
-    match = next
+    match = next;
   }
   if (!(match && match[1])) {
-    return null
+    return null;
   }
-  return match[1].toString()
+  return match[1].toString();
 }

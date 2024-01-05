@@ -1,5 +1,5 @@
-import * as React from 'react'
-import { noop as css } from '../helpers/noop-template'
+import * as React from "react";
+import { noop as css } from "../helpers/noop-template";
 
 export function Base() {
   return (
@@ -29,7 +29,7 @@ export function Base() {
           --color-accents-2: #222222;
           --color-accents-3: #404040;
 
-          --font-stack-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono',
+          --font-stack-monospace: "SFMono-Regular", Consolas, "Liberation Mono",
             Menlo, Courier, monospace;
 
           --color-ansi-selection: rgba(95, 126, 151, 0.48);
@@ -84,5 +84,5 @@ export function Base() {
         }
       `}
     </style>
-  )
+  );
 }

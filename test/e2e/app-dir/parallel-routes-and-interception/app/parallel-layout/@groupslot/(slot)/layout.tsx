@@ -4,5 +4,5 @@ export default function Layout({ children }) {
       <h1>Parallel group slot Layout</h1>
       {children}
     </div>
-  )
+  );
 }

@@ -1,3 +1,3 @@
 exports.Cjs = function Cjs() {
-  return 'cjs-shared'
-}
+  return "cjs-shared";
+};

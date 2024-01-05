@@ -1,7 +1,7 @@
-import Anser from 'anser'
-import * as React from 'react'
+import Anser from "anser";
+import * as React from "react";
 
-export type TerminalProps = { content: string }
+export type TerminalProps = { content: string };
 
 export const Terminal: React.FC<TerminalProps> = function Terminal({
   content,
@@ -11,8 +11,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
       json: true,
       use_classes: true,
       remove_empty: true,
-    })
-  }, [content])
+    });
+  }, [content]);
 
   return (
     <div data-nextjs-terminal>
@@ -22,10 +22,10 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             key={`terminal-entry-${index}`}
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
+              ...(entry.decoration === "bold"
                 ? { fontWeight: 800 }
-                : entry.decoration === 'italic'
-                ? { fontStyle: 'italic' }
+                : entry.decoration === "italic"
+                ? { fontStyle: "italic" }
                 : undefined),
             }}
           >
@@ -34,5 +34,5 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
         ))}
       </pre>
     </div>
-  )
-}
+  );
+};

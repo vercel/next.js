@@ -1,18 +1,18 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { useEffect } from 'react'
-import { useState } from 'react'
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { useState } from "react";
 
 export default function Page(props) {
-  const router = useRouter()
-  const parsedAs = new URL(router.asPath, 'http://n')
-  const [asPath, setAsPath] = useState(parsedAs.pathname)
+  const router = useRouter();
+  const parsedAs = new URL(router.asPath, "http://n");
+  const [asPath, setAsPath] = useState(parsedAs.pathname);
 
   useEffect(() => {
     if (router.isReady && router.asPath && asPath !== router.asPath) {
-      setAsPath(router.asPath)
+      setAsPath(router.asPath);
     }
-  }, [router.asPath, router.isReady, asPath])
+  }, [router.asPath, router.isReady, asPath]);
 
   return (
     <>
@@ -65,7 +65,7 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ locale, locales, defaultLocale }) => {
@@ -75,5 +75,5 @@ export const getStaticProps = ({ locale, locales, defaultLocale }) => {
       locales,
       defaultLocale,
     },
-  }
-}
+  };
+};

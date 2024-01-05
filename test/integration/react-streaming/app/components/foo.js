@@ -1,5 +1,5 @@
 export default function foo() {
-  return 'foo'
+  return "foo";
 }
 
-export const config = 'this is not page config'
+export const config = "this is not page config";

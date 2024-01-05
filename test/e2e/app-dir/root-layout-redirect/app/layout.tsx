@@ -1,11 +1,11 @@
-'use client'
-import React, { useState } from 'react'
-import { redirect } from 'next/navigation'
+"use client";
+import React, { useState } from "react";
+import { redirect } from "next/navigation";
 
 export default function Root({ children }: { children: React.ReactNode }) {
-  const [clicked, setClicked] = useState(false)
+  const [clicked, setClicked] = useState(false);
   if (clicked) {
-    redirect('/result')
+    redirect("/result");
   }
 
   return (
@@ -17,5 +17,5 @@ export default function Root({ children }: { children: React.ReactNode }) {
         {children}
       </body>
     </html>
-  )
+  );
 }

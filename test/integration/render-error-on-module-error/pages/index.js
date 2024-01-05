@@ -1,9 +1,9 @@
-if (typeof window !== 'undefined') {
-  throw new Error('fail module evaluation')
+if (typeof window !== "undefined") {
+  throw new Error("fail module evaluation");
 }
 
-const Index = () => 'hi'
+const Index = () => "hi";
 
-Index.getInitialProps = () => ({})
+Index.getInitialProps = () => ({});
 
-export default Index
+export default Index;

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 function AudienceNav() {
   return (
@@ -19,7 +19,7 @@ function AudienceNav() {
         </Link>
       </li>
     </ul>
-  )
+  );
 }
 
 function ViewsNav() {
@@ -41,7 +41,7 @@ function ViewsNav() {
         </Link>
       </li>
     </ul>
-  )
+  );
 }
 export default function Layout({ children, audience, views }) {
   return (
@@ -57,5 +57,5 @@ export default function Layout({ children, audience, views }) {
       <ViewsNav />
       {views}
     </>
-  )
+  );
 }

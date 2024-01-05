@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginSyntaxJsx()
+module.exports = require("./bundle").pluginSyntaxJsx();

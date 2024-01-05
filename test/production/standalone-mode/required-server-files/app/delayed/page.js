@@ -1,30 +1,30 @@
-import { Suspense } from 'react'
-import { cookies } from 'next/headers'
+import { Suspense } from "react";
+import { cookies } from "next/headers";
 
 export default function Page() {
   return (
     <>
       <p>delayed page</p>
 
-      <Suspense fallback={'loading 1...'}>
+      <Suspense fallback={"loading 1..."}>
         <Time />
       </Suspense>
 
-      <Suspense fallback={'loading 2...'}>
+      <Suspense fallback={"loading 2..."}>
         <Random />
       </Suspense>
     </>
-  )
+  );
 }
 
 async function Time() {
-  cookies()
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  return <p id="time">{Date.now()}</p>
+  cookies();
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  return <p id="time">{Date.now()}</p>;
 }
 
 async function Random() {
-  cookies()
-  await new Promise((resolve) => setTimeout(resolve, 4000))
-  return <p id="random">{Math.random()}</p>
+  cookies();
+  await new Promise((resolve) => setTimeout(resolve, 4000));
+  return <p id="random">{Math.random()}</p>;
 }

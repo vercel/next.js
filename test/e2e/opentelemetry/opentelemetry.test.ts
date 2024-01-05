@@ -1,96 +1,96 @@
-import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { createNextDescribe } from "e2e-utils";
+import { check } from "next-test-utils";
 
-import { SavedSpan, traceFile } from './constants'
+import { SavedSpan, traceFile } from "./constants";
 
 const EXTERNAL = {
-  traceId: 'ee75cd9e534ff5e9ed78b4a0c706f0f2',
-  spanId: '0f6a325411bdc432',
-} as const
+  traceId: "ee75cd9e534ff5e9ed78b4a0c706f0f2",
+  spanId: "0f6a325411bdc432",
+} as const;
 
 createNextDescribe(
-  'opentelemetry',
+  "opentelemetry",
   {
     files: __dirname,
     skipDeployment: true,
-    dependencies: require('./package.json').dependencies,
+    dependencies: require("./package.json").dependencies,
   },
   ({ next, isNextDev }) => {
     const getTraces = async (): Promise<SavedSpan[]> => {
-      const traces = await next.readFile(traceFile)
+      const traces = await next.readFile(traceFile);
       return traces
-        .split('\n')
+        .split("\n")
         .filter((val) => {
-          if (val.includes('127.0.0.1')) {
-            return false
+          if (val.includes("127.0.0.1")) {
+            return false;
           }
-          return !!val
+          return !!val;
         })
-        .map((line) => JSON.parse(line))
-    }
+        .map((line) => JSON.parse(line));
+    };
 
     /**
      * Sanitize (modifies) span to make it ready for snapshot testing.
      */
     const sanitizeSpan = (span: SavedSpan) => {
-      delete span.duration
-      delete span.id
-      delete span.links
-      delete span.events
-      delete span.timestamp
+      delete span.duration;
+      delete span.id;
+      delete span.links;
+      delete span.events;
+      delete span.timestamp;
       span.traceId =
-        span.traceId === EXTERNAL.traceId ? span.traceId : '[trace-id]'
+        span.traceId === EXTERNAL.traceId ? span.traceId : "[trace-id]";
       span.parentId =
         span.parentId === undefined || span.parentId === EXTERNAL.spanId
           ? span.parentId
-          : '[parent-id]'
-      return span
-    }
+          : "[parent-id]";
+      return span;
+    };
     const sanitizeSpans = (spans: SavedSpan[]) => {
       return spans
         .sort((a, b) =>
-          (a.attributes?.['next.span_name'] ?? '').localeCompare(
-            b.attributes?.['next.span_name'] ?? ''
+          (a.attributes?.["next.span_name"] ?? "").localeCompare(
+            b.attributes?.["next.span_name"] ?? ""
           )
         )
         .sort((a, b) =>
-          (a.attributes?.['next.span_type'] ?? '').localeCompare(
-            b.attributes?.['next.span_type'] ?? ''
+          (a.attributes?.["next.span_type"] ?? "").localeCompare(
+            b.attributes?.["next.span_type"] ?? ""
           )
         )
-        .map(sanitizeSpan)
-    }
+        .map(sanitizeSpan);
+    };
 
     const getSanitizedTraces = async (numberOfRootTraces: number) => {
-      let traces
+      let traces;
       await check(async () => {
-        traces = sanitizeSpans(await getTraces())
+        traces = sanitizeSpans(await getTraces());
 
-        const rootSpans = traces.filter((span) => !span.parentId)
-        return String(rootSpans.length)
-      }, String(numberOfRootTraces))
-      return traces
-    }
+        const rootSpans = traces.filter((span) => !span.parentId);
+        return String(rootSpans.length);
+      }, String(numberOfRootTraces));
+      return traces;
+    };
 
     const cleanTraces = async () => {
-      await next.patchFile(traceFile, '')
-    }
+      await next.patchFile(traceFile, "");
+    };
 
     afterEach(async () => {
-      await cleanTraces()
-    })
+      await cleanTraces();
+    });
 
     for (const env of [
       {
-        name: 'root context',
+        name: "root context",
         fetchInit: undefined,
         span: {
-          traceId: '[trace-id]',
+          traceId: "[trace-id]",
           rootParentId: undefined,
         },
       },
       {
-        name: 'incoming context propagation',
+        name: "incoming context propagation",
         fetchInit: {
           headers: {
             traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
@@ -103,17 +103,17 @@ createNextDescribe(
       },
     ]) {
       // turbopack does not support experimental.instrumentationHook
-      ;(process.env.TURBOPACK ? describe.skip : describe)(env.name, () => {
-        describe('app router', () => {
-          it('should handle RSC with fetch', async () => {
-            await next.fetch('/app/param/rsc-fetch', env.fetchInit)
+      (process.env.TURBOPACK ? describe.skip : describe)(env.name, () => {
+        describe("app router", () => {
+          it("should handle RSC with fetch", async () => {
+            await next.fetch("/app/param/rsc-fetch", env.fetchInit);
 
             await check(async () => {
               const numberOfRootTraces =
-                env.span.rootParentId === undefined ? 1 : 0
-              const traces = await getSanitizedTraces(numberOfRootTraces)
+                env.span.rootParentId === undefined ? 1 : 0;
+              const traces = await getSanitizedTraces(numberOfRootTraces);
               if (traces.length < 5) {
-                return `not enough traces, expected 5, but got ${traces.length}`
+                return `not enough traces, expected 5, but got ${traces.length}`;
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -198,20 +198,20 @@ createNextDescribe(
                     "traceId": "${env.span.traceId}",
                   },
                 ]
-              `)
-              return 'success'
-            }, 'success')
-          })
+              `);
+              return "success";
+            }, "success");
+          });
 
-          it('should handle route handlers in app router', async () => {
-            await next.fetch('/api/app/param/data', env.fetchInit)
+          it("should handle route handlers in app router", async () => {
+            await next.fetch("/api/app/param/data", env.fetchInit);
 
             await check(async () => {
               const numberOfRootTraces =
-                env.span.rootParentId === undefined ? 1 : 0
-              const traces = await getSanitizedTraces(numberOfRootTraces)
+                env.span.rootParentId === undefined ? 1 : 0;
+              const traces = await getSanitizedTraces(numberOfRootTraces);
               if (traces.length < 2) {
-                return `not enough traces, expected 2, but got ${traces.length}`
+                return `not enough traces, expected 2, but got ${traces.length}`;
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -252,22 +252,22 @@ createNextDescribe(
                     "traceId": "${env.span.traceId}",
                   },
                 ]
-              `)
-              return 'success'
-            }, 'success')
-          })
-        })
+              `);
+              return "success";
+            }, "success");
+          });
+        });
 
-        describe('pages', () => {
-          it('should handle getServerSideProps', async () => {
-            await next.fetch('/pages/param/getServerSideProps', env.fetchInit)
+        describe("pages", () => {
+          it("should handle getServerSideProps", async () => {
+            await next.fetch("/pages/param/getServerSideProps", env.fetchInit);
 
             await check(async () => {
               const numberOfRootTraces =
-                env.span.rootParentId === undefined ? 1 : 0
-              const traces = await getSanitizedTraces(numberOfRootTraces)
+                env.span.rootParentId === undefined ? 1 : 0;
+              const traces = await getSanitizedTraces(numberOfRootTraces);
               if (traces.length < 3) {
-                return `not enough traces, expected 3, but got ${traces.length}`
+                return `not enough traces, expected 3, but got ${traces.length}`;
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -322,21 +322,21 @@ createNextDescribe(
                     "traceId": "${env.span.traceId}",
                   },
                 ]
-              `)
-              return 'success'
-            }, 'success')
-          })
+              `);
+              return "success";
+            }, "success");
+          });
 
           it("should handle getStaticProps when fallback: 'blocking'", async () => {
-            const v = env.span.rootParentId ? '2' : ''
-            await next.fetch(`/pages/param/getStaticProps${v}`, env.fetchInit)
+            const v = env.span.rootParentId ? "2" : "";
+            await next.fetch(`/pages/param/getStaticProps${v}`, env.fetchInit);
 
             await check(async () => {
               const numberOfRootTraces =
-                env.span.rootParentId === undefined ? 1 : 0
-              const traces = await getSanitizedTraces(numberOfRootTraces)
+                env.span.rootParentId === undefined ? 1 : 0;
+              const traces = await getSanitizedTraces(numberOfRootTraces);
               if (traces.length < 3) {
-                return `not enough traces, expected 3, but got ${traces.length}`
+                return `not enough traces, expected 3, but got ${traces.length}`;
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -391,20 +391,20 @@ createNextDescribe(
                     "traceId": "${env.span.traceId}",
                   },
                 ]
-              `)
-              return 'success'
-            }, 'success')
-          })
+              `);
+              return "success";
+            }, "success");
+          });
 
-          it('should handle api routes in pages', async () => {
-            await next.fetch('/api/pages/param/basic', env.fetchInit)
+          it("should handle api routes in pages", async () => {
+            await next.fetch("/api/pages/param/basic", env.fetchInit);
 
             await check(async () => {
               const numberOfRootTraces =
-                env.span.rootParentId === undefined ? 1 : 0
-              const traces = await getSanitizedTraces(numberOfRootTraces)
+                env.span.rootParentId === undefined ? 1 : 0;
+              const traces = await getSanitizedTraces(numberOfRootTraces);
               if (traces.length < 2) {
-                return `not enough traces, expected 2, but got ${traces.length}`
+                return `not enough traces, expected 2, but got ${traces.length}`;
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -444,12 +444,12 @@ createNextDescribe(
                     "traceId": "${env.span.traceId}",
                   },
                 ]
-              `)
-              return 'success'
-            }, 'success')
-          })
-        })
-      })
+              `);
+              return "success";
+            }, "success");
+          });
+        });
+      });
     }
   }
-)
+);

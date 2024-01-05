@@ -15,14 +15,14 @@ For the best performance, we recommend using `next/script`. Using `next/script` 
 The **Script component**, [`next/script`](/docs/pages/api-reference/components/script), allows you to optimally load third-party scripts anywhere in your Next.js application. It is an extension of the HTML `<script>` element and enables you to choose between multiple loading strategies to fit your use case.
 
 ```jsx filename="pages/dashboard.js"
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Dashboard() {
   return (
     <>
       <Script src="https://example.com/script.js" />
     </>
-  )
+  );
 }
 ```
 

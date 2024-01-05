@@ -21,16 +21,16 @@ One advantage of this pattern is it allows pages to be served from a global CDN 
 Let's look at an example for a profile page. This will initially render a loading skeleton. Once the request for a user has finished, it will show the user's name:
 
 ```jsx filename="pages/profile.js"
-import useUser from '../lib/useUser'
-import Layout from '../components/Layout'
+import useUser from "../lib/useUser";
+import Layout from "../components/Layout";
 
 const Profile = () => {
   // Fetch the user client-side
-  const { user } = useUser({ redirectTo: '/login' })
+  const { user } = useUser({ redirectTo: "/login" });
 
   // Server-render loading state
   if (!user || user.isLoggedIn === false) {
-    return <Layout>Loading...</Layout>
+    return <Layout>Loading...</Layout>;
   }
 
   // Once the user request finishes, show the user
@@ -39,10 +39,10 @@ const Profile = () => {
       <h1>Your Profile</h1>
       <pre>{JSON.stringify(user, null, 2)}</pre>
     </Layout>
-  )
-}
+  );
+};
 
-export default Profile
+export default Profile;
 ```
 
 You can view this [example in action](https://iron-session-example.vercel.app/). Check out the [`with-iron-session`](https://github.com/vercel/next.js/tree/canary/examples/with-iron-session) example to see how it works.
@@ -55,32 +55,32 @@ If you export an `async` function called [`getServerSideProps`](/docs/pages/buil
 export async function getServerSideProps(context) {
   return {
     props: {}, // Will be passed to the page component as props
-  }
+  };
 }
 ```
 
 Let's transform the profile example to use [server-side rendering](/docs/pages/building-your-application/rendering/server-side-rendering). If there's a session, return `user` as a prop to the `Profile` component in the page. Notice there is not a loading skeleton in [this example](https://iron-session-example.vercel.app/).
 
 ```jsx filename="pages/profile.js"
-import withSession from '../lib/session'
-import Layout from '../components/Layout'
+import withSession from "../lib/session";
+import Layout from "../components/Layout";
 
 export const getServerSideProps = withSession(async function ({ req, res }) {
-  const { user } = req.session
+  const { user } = req.session;
 
   if (!user) {
     return {
       redirect: {
-        destination: '/login',
+        destination: "/login",
         permanent: false,
       },
-    }
+    };
   }
 
   return {
     props: { user },
-  }
-})
+  };
+});
 
 const Profile = ({ user }) => {
   // Show the user. No loading state is required
@@ -89,10 +89,10 @@ const Profile = ({ user }) => {
       <h1>Your Profile</h1>
       <pre>{JSON.stringify(user, null, 2)}</pre>
     </Layout>
-  )
-}
+  );
+};
 
-export default Profile
+export default Profile;
 ```
 
 An advantage of this pattern is preventing a flash of unauthenticated content before redirecting. It's important to note fetching user data in `getServerSideProps` will block rendering until the request to your authentication provider resolves. To prevent creating a bottleneck and increasing your TTFB ([Time to First Byte](https://web.dev/time-to-first-byte/)), you should ensure your authentication lookup is fast. Otherwise, consider [static generation](#authenticating-statically-generated-pages).

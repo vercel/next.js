@@ -1,5 +1,5 @@
-import React from 'react'
-import styles from '../styles/index.module.css'
+import React from "react";
+import styles from "../styles/index.module.css";
 
 export default function Page() {
   return (
@@ -9,5 +9,5 @@ export default function Page() {
       </p>
       <p id="react-version">{React.version}</p>
     </>
-  )
+  );
 }

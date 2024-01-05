@@ -42,29 +42,29 @@ For smaller applications, you can create a `sitemap.xml` file and place it in th
 You can use the `sitemap.(js|ts)` file convention to programmatically **generate** a sitemap by exporting a default function that returns an array of URLs. If using TypeScript, a [`Sitemap`](#returns) type is available.
 
 ```ts filename="app/sitemap.ts" switcher
-import { MetadataRoute } from 'next'
+import { MetadataRoute } from "next";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: 'https://acme.com',
+      url: "https://acme.com",
       lastModified: new Date(),
-      changeFrequency: 'yearly',
+      changeFrequency: "yearly",
       priority: 1,
     },
     {
-      url: 'https://acme.com/about',
+      url: "https://acme.com/about",
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: 'https://acme.com/blog',
+      url: "https://acme.com/blog",
       lastModified: new Date(),
-      changeFrequency: 'weekly',
+      changeFrequency: "weekly",
       priority: 0.5,
     },
-  ]
+  ];
 }
 ```
 
@@ -72,24 +72,24 @@ export default function sitemap(): MetadataRoute.Sitemap {
 export default function sitemap() {
   return [
     {
-      url: 'https://acme.com',
+      url: "https://acme.com",
       lastModified: new Date(),
-      changeFrequency: 'yearly',
+      changeFrequency: "yearly",
       priority: 1,
     },
     {
-      url: 'https://acme.com/about',
+      url: "https://acme.com/about",
       lastModified: new Date(),
-      changeFrequency: 'monthly',
+      changeFrequency: "monthly",
       priority: 0.8,
     },
     {
-      url: 'https://acme.com/blog',
+      url: "https://acme.com/blog",
       lastModified: new Date(),
-      changeFrequency: 'weekly',
+      changeFrequency: "weekly",
       priority: 0.5,
     },
-  ]
+  ];
 }
 ```
 
@@ -130,28 +130,28 @@ There are two ways you can create multiple sitemaps:
 For example, to split a sitemap using `generateSitemaps`, return an array of objects with the sitemap `id`. Then, use the `id` to generate the unique sitemaps.
 
 ```ts filename="app/product/sitemap.ts" switcher
-import { BASE_URL } from '@/app/lib/constants'
+import { BASE_URL } from "@/app/lib/constants";
 
 export async function generateSitemaps() {
   // Fetch the total number of products and calculate the number of sitemaps needed
-  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }]
+  return [{ id: 0 }, { id: 1 }, { id: 2 }, { id: 3 }];
 }
 
 export default async function sitemap({
   id,
 }: {
-  id: number
+  id: number;
 }): Promise<MetadataRoute.Sitemap> {
   // Google's limit is 50,000 URLs per sitemap
-  const start = id * 50000
-  const end = start + 50000
+  const start = id * 50000;
+  const end = start + 50000;
   const products = await getProducts(
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
-  )
+  );
   return products.map((product) => ({
     url: `${BASE_URL}/product/${id}`,
     lastModified: product.date,
-  }))
+  }));
 }
 ```
 
@@ -189,18 +189,18 @@ The default function exported from `sitemap.(xml|ts|js)` should return an array 
 
 ```tsx
 type Sitemap = Array<{
-  url: string
-  lastModified?: string | Date
+  url: string;
+  lastModified?: string | Date;
   changeFrequency?:
-    | 'always'
-    | 'hourly'
-    | 'daily'
-    | 'weekly'
-    | 'monthly'
-    | 'yearly'
-    | 'never'
-  priority?: number
-}>
+    | "always"
+    | "hourly"
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "yearly"
+    | "never";
+  priority?: number;
+}>;
 ```
 
 ## Version History

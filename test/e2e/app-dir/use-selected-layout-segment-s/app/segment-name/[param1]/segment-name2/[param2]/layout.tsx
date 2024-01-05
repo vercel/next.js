@@ -1,4 +1,4 @@
-import RenderValues from '../../../../render-values'
+import RenderValues from "../../../../render-values";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -6,5 +6,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <RenderValues prefix="before-catchall" />
       {children}
     </>
-  )
+  );
 }

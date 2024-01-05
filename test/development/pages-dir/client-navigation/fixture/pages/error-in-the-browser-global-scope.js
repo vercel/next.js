@@ -1,5 +1,5 @@
-if (typeof window !== 'undefined') {
-  throw new Error('An Expected error occurred')
+if (typeof window !== "undefined") {
+  throw new Error("An Expected error occurred");
 }
 
-export default () => <div />
+export default () => <div />;

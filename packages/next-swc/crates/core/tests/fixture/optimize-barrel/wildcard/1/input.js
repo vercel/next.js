@@ -1,3 +1,3 @@
-export const a = 1
-export { b }
-export * from 'c'
+export const a = 1;
+export { b };
+export * from "c";

@@ -1,38 +1,38 @@
-const http = require('http')
-const port = process.env.PORT || 3000
+const http = require("http");
+const port = process.env.PORT || 3000;
 
 const server = new http.Server(async (req, res) => {
-  if (req.url === '/usernames') {
+  if (req.url === "/usernames") {
     return res.end(
       JSON.stringify({
-        usernames: ['a', 'b'],
+        usernames: ["a", "b"],
       })
-    )
+    );
   }
 
-  if (req.url === '/usernames/a') {
+  if (req.url === "/usernames/a") {
     return res.end(
       JSON.stringify({
-        from: 'a',
+        from: "a",
       })
-    )
+    );
   }
 
-  if (req.url === '/usernames/b') {
+  if (req.url === "/usernames/b") {
     return res.end(
       JSON.stringify({
-        from: 'b',
+        from: "b",
       })
-    )
+    );
   }
 
-  res.end(JSON.stringify({ foo: 'bar' }))
-})
+  res.end(JSON.stringify({ foo: "bar" }));
+});
 
 server.listen(port, (err) => {
   if (err) {
-    throw err
+    throw err;
   }
 
-  console.log(`> Ready on http://localhost:${port}`)
-})
+  console.log(`> Ready on http://localhost:${port}`);
+});

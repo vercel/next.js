@@ -14,23 +14,23 @@ Example conflicting paths:
 
 ```jsx filename="pages/hello/world.js"
 export default function Hello() {
-  return 'hello world!'
+  return "hello world!";
 }
 ```
 
 ```jsx filename="pages/[...catchAll].js"
-export const getStaticProps = () => ({ props: {} })
+export const getStaticProps = () => ({ props: {} });
 
 export const getStaticPaths = () => ({
   paths: [
-    '/hello/world', // <-- this conflicts with the /hello/world.js page, remove to resolve error
-    '/another',
+    "/hello/world", // <-- this conflicts with the /hello/world.js page, remove to resolve error
+    "/another",
   ],
   fallback: false,
-})
+});
 
 export default function CatchAllPage() {
-  return 'Catch-all page'
+  return "Catch-all page";
 }
 ```
 
@@ -38,29 +38,29 @@ Example conflicting paths:
 
 ```jsx filename="pages/blog/[slug].js"
 export const getStaticPaths = () => ({
-  paths: ['/blog/conflicting', '/blog/another'],
+  paths: ["/blog/conflicting", "/blog/another"],
   fallback: false,
-})
+});
 
 export default function Blog() {
-  return 'Blog!'
+  return "Blog!";
 }
 ```
 
 ```jsx filename="pages/[...catchAll].js"
-export const getStaticProps = () => ({ props: {} })
+export const getStaticProps = () => ({ props: {} });
 
 export const getStaticPaths = () => ({
   paths: [
     // this conflicts with the /blog/conflicting path above, remove to resolve error
-    '/blog/conflicting',
-    '/another',
+    "/blog/conflicting",
+    "/another",
   ],
   fallback: false,
-})
+});
 
 export default function CatchAll() {
-  return 'Catch-all page'
+  return "Catch-all page";
 }
 ```
 

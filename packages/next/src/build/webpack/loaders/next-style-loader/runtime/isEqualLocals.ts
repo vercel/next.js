@@ -1,33 +1,33 @@
 function isEqualLocals(a: any, b: any, isNamedExport: any) {
   if ((!a && b) || (a && !b)) {
-    return false
+    return false;
   }
 
-  let p
+  let p;
 
   for (p in a) {
-    if (isNamedExport && p === 'default') {
+    if (isNamedExport && p === "default") {
       // eslint-disable-next-line no-continue
-      continue
+      continue;
     }
 
     if (a[p] !== b[p]) {
-      return false
+      return false;
     }
   }
 
   for (p in b) {
-    if (isNamedExport && p === 'default') {
+    if (isNamedExport && p === "default") {
       // eslint-disable-next-line no-continue
-      continue
+      continue;
     }
 
     if (!a[p]) {
-      return false
+      return false;
     }
   }
 
-  return true
+  return true;
 }
 
-module.exports = isEqualLocals
+module.exports = isEqualLocals;

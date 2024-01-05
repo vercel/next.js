@@ -1,8 +1,8 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
   // eslint-disable-next-line
-  const router = useRouter()
+  const router = useRouter();
 
   // console.log(router.isReady)
 
@@ -11,5 +11,5 @@ export default function Page(props) {
       <p id="invalid">invalid page</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

@@ -1,24 +1,24 @@
 /* eslint-env jest */
-import { transform } from 'next/dist/build/swc'
-import path from 'path'
-import fsp from 'fs/promises'
+import { transform } from "next/dist/build/swc";
+import path from "path";
+import fsp from "fs/promises";
 
 const swc = async (code) => {
-  let output = await transform(code)
-  return output.code
-}
+  let output = await transform(code);
+  return output.code;
+};
 
-const trim = (s) => s.join('\n').trim().replace(/^\s+/gm, '')
+const trim = (s) => s.join("\n").trim().replace(/^\s+/gm, "");
 
-describe('next/swc', () => {
-  describe('hook_optimizer', () => {
-    it('should leave alone array destructuring of hooks', async () => {
+describe("next/swc", () => {
+  describe("hook_optimizer", () => {
+    it("should leave alone array destructuring of hooks", async () => {
       const output = await swc(
         trim`
         import { useState } from 'react';
         const [count, setCount] = useState(0);
       `
-      )
+      );
 
       expect(output).toMatchInlineSnapshot(`
         "function _array_like_to_array(arr, len) {
@@ -70,16 +70,16 @@ describe('next/swc', () => {
         import { useState } from "react";
         var _useState = _sliced_to_array(useState(0), 2), count = _useState[0], setCount = _useState[1];
         "
-      `)
-    })
+      `);
+    });
 
-    it('should leave alone array spread of hooks', async () => {
+    it("should leave alone array spread of hooks", async () => {
       const output = await swc(
         trim`
         import { useState } from 'react';
         const [...copy] = useState(0);
       `
-      )
+      );
 
       expect(output).toMatchInlineSnapshot(`
         "function _array_like_to_array(arr, len) {
@@ -110,21 +110,21 @@ describe('next/swc', () => {
         import { useState } from "react";
         var _useState = _to_array(useState(0)), copy = _useState.slice(0);
         "
-      `)
-    })
-  })
+      `);
+    });
+  });
 
-  describe('private env replacement', () => {
-    it('__NEXT_REQUIRED_NODE_VERSION is replaced', async () => {
-      const pkgDir = path.dirname(require.resolve('next/package.json'))
+  describe("private env replacement", () => {
+    it("__NEXT_REQUIRED_NODE_VERSION is replaced", async () => {
+      const pkgDir = path.dirname(require.resolve("next/package.json"));
       const nextEntryContent = await fsp.readFile(
-        path.join(pkgDir, 'dist/bin/next'),
-        'utf8'
-      )
-      expect(nextEntryContent).not.toContain('__NEXT_REQUIRED_NODE_VERSION')
+        path.join(pkgDir, "dist/bin/next"),
+        "utf8"
+      );
+      expect(nextEntryContent).not.toContain("__NEXT_REQUIRED_NODE_VERSION");
       expect(nextEntryContent).toMatch(
         /For Next.js, Node.js version >= v\$\{"\d+\.\d+\.\d*"\}/
-      )
-    })
-  })
-})
+      );
+    });
+  });
+});

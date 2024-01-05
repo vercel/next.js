@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
 import {
   useSelectedLayoutSegment,
   useSelectedLayoutSegments,
-} from 'next/navigation'
+} from "next/navigation";
 
 export default function RenderValues({ prefix }: { prefix: string }) {
   return (
@@ -15,5 +15,5 @@ export default function RenderValues({ prefix }: { prefix: string }) {
         {JSON.stringify(useSelectedLayoutSegment())}
       </div>
     </div>
-  )
+  );
 }

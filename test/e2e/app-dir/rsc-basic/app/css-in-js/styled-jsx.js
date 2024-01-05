@@ -1,12 +1,12 @@
-'use client'
+"use client";
 
-import css from 'styled-jsx/css'
+import css from "styled-jsx/css";
 
 const buttonStyles = css`
   button {
     color: hotpink;
   }
-`
+`;
 
 export default function Comp() {
   return (
@@ -27,5 +27,5 @@ export default function Comp() {
         <button>click</button>
       </div>
     </div>
-  )
+  );
 }

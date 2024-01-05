@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import Image from 'next/legacy/image'
+import { useState } from "react";
+import Image from "next/legacy/image";
 
 const Page = () => {
   // Hoisted state to count each image load callback
-  const [idToCount, setIdToCount] = useState({})
-  const [clicked, setClicked] = useState(false)
+  const [idToCount, setIdToCount] = useState({});
+  const [clicked, setClicked] = useState(false);
 
   return (
     <div>
@@ -25,7 +25,7 @@ const Page = () => {
 
       <ImageWithMessage
         id="2"
-        src={require('../public/test.png')}
+        src={require("../public/test.png")}
         placeholder="blur"
         layout="fixed"
         idToCount={idToCount}
@@ -53,8 +53,8 @@ const Page = () => {
 
       <ImageWithMessage
         id="8"
-        src={clicked ? '/foo/test-rect.jpg' : '/wide.png'}
-        layout={clicked ? 'fixed' : 'intrinsic'}
+        src={clicked ? "/foo/test-rect.jpg" : "/wide.png"}
+        layout={clicked ? "fixed" : "intrinsic"}
         width="500"
         height="500"
         idToCount={idToCount}
@@ -66,28 +66,28 @@ const Page = () => {
       </button>
       <div id="footer" />
     </div>
-  )
-}
+  );
+};
 
 function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
-  const [msg, setMsg] = useState('[LOADING]')
+  const [msg, setMsg] = useState("[LOADING]");
   const style =
-    props.layout === 'fill'
-      ? { position: 'relative', width: '64px', height: '64px' }
-      : {}
+    props.layout === "fill"
+      ? { position: "relative", width: "64px", height: "64px" }
+      : {};
   return (
     <>
       <div className="wrap" style={style}>
         <Image
           id={`img${id}`}
           onLoad={(e) => {
-            let count = idToCount[id] || 0
-            count++
-            idToCount[id] = count
-            setIdToCount(idToCount)
-            const msg = `loaded ${count} ${e.target.id} with native onLoad`
-            setMsg(msg)
-            console.log(msg)
+            let count = idToCount[id] || 0;
+            count++;
+            idToCount[id] = count;
+            setIdToCount(idToCount);
+            const msg = `loaded ${count} ${e.target.id} with native onLoad`;
+            setMsg(msg);
+            console.log(msg);
           }}
           {...props}
         />
@@ -95,7 +95,7 @@ function ImageWithMessage({ id, idToCount, setIdToCount, ...props }) {
       <p id={`msg${id}`}>{msg}</p>
       <hr />
     </>
-  )
+  );
 }
 
-export default Page
+export default Page;

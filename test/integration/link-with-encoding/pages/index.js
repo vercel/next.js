@@ -1,10 +1,10 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Home = () => (
   <div>
     <Link
       href="/single/[slug]"
-      as={encodeURI('/single/hello world ')}
+      as={encodeURI("/single/hello world ")}
       id="single-spaces"
     >
       Single: Spaces
@@ -12,7 +12,7 @@ const Home = () => (
     <br />
     <Link
       href="/single/[slug]"
-      as={encodeURI('/single/hello%world')}
+      as={encodeURI("/single/hello%world")}
       id="single-percent"
     >
       Single: Percent
@@ -20,7 +20,7 @@ const Home = () => (
     <br />
     <Link
       href="/single/[slug]"
-      as={`/single/hello${encodeURIComponent('/')}world`}
+      as={`/single/hello${encodeURIComponent("/")}world`}
       id="single-slash"
     >
       Single: Forward Slash
@@ -36,7 +36,7 @@ const Home = () => (
     <br />
     <Link
       href="/single/[slug]"
-      as={`/single/hello${encodeURIComponent(':')}world`}
+      as={`/single/hello${encodeURIComponent(":")}world`}
       id="single-colon"
     >
       Single: :
@@ -46,6 +46,6 @@ const Home = () => (
       Url query param
     </Link>
   </div>
-)
+);
 
-export default Home
+export default Home;

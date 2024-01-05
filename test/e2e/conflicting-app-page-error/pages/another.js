@@ -1,3 +1,3 @@
 export default function Page(props) {
-  return <p>{'another - pages'}</p>
+  return <p>{"another - pages"}</p>;
 }

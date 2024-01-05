@@ -3,5 +3,5 @@ export default function Account() {
     <p id="new-home-title" className="title">
       Welcome to a new page
     </p>
-  )
+  );
 }

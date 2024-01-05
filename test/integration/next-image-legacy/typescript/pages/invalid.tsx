@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const Invalid = () => {
   return (
@@ -46,7 +46,7 @@ const Invalid = () => {
       />
       <p id="stubtext">This is the invalid usage</p>
     </div>
-  )
-}
+  );
+};
 
-export default Invalid
+export default Invalid;

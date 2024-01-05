@@ -1,5 +1,5 @@
 module.exports = {
-  src: './pages',
-  schema: './schema.graphql',
-  language: 'typescript',
-}
+  src: "./pages",
+  schema: "./schema.graphql",
+  language: "typescript",
+};

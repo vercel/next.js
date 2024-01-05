@@ -1,1 +1,1 @@
-module.exports = require('./bundle').generator()
+module.exports = require("./bundle").generator();

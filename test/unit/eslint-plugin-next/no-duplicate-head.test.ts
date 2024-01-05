@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-duplicate-head'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-duplicate-head";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-duplicate-head', rule, {
+ruleTester.run("no-duplicate-head", rule, {
   valid: [
     {
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
@@ -33,7 +33,7 @@ ruleTester.run('no-duplicate-head', rule, {
 
       export default MyDocument
     `,
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
     },
     {
       code: `import Document, { Html, Head, Main, NextScript } from 'next/document'
@@ -56,7 +56,7 @@ ruleTester.run('no-duplicate-head', rule, {
 
       export default MyDocument
     `,
-      filename: 'pages/_document.tsx',
+      filename: "pages/_document.tsx",
     },
   ],
   invalid: [
@@ -79,17 +79,17 @@ ruleTester.run('no-duplicate-head', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.js',
+      filename: "pages/_document.js",
       errors: [
         {
           message:
-            'Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head',
-          type: 'JSXElement',
+            "Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head",
+          type: "JSXElement",
         },
         {
           message:
-            'Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head',
-          type: 'JSXElement',
+            "Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head",
+          type: "JSXElement",
         },
       ],
     },
@@ -127,14 +127,14 @@ ruleTester.run('no-duplicate-head', rule, {
 
       export default MyDocument
       `,
-      filename: 'pages/_document.page.tsx',
+      filename: "pages/_document.page.tsx",
       errors: [
         {
           message:
-            'Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head',
-          type: 'JSXElement',
+            "Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head",
+          type: "JSXElement",
         },
       ],
     },
   ],
-})
+});

@@ -1,7 +1,7 @@
-import Head from 'next/head'
-import { useAmp } from 'next/amp'
+import Head from "next/head";
+import { useAmp } from "next/amp";
 
-export const config = { amp: 'hybrid' }
+export const config = { amp: "hybrid" };
 
 export default () => (
   <>
@@ -12,4 +12,4 @@ export default () => (
 
     <p>Hello world</p>
   </>
-)
+);

@@ -1,16 +1,16 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const Page = () => {
-  const router = useRouter()
-  const { query } = router
+  const router = useRouter();
+  const { query } = router;
   return (
     <>
       <Link href="#only-hash" id="dynamic-route-only-hash">
         Dynamic route only hash
       </Link>
       <br />
-      <Link href={{ hash: 'only-hash-obj' }} id="dynamic-route-only-hash-obj">
+      <Link href={{ hash: "only-hash-obj" }} id="dynamic-route-only-hash-obj">
         Dynamic route only hash object
       </Link>
       <br />
@@ -26,14 +26,14 @@ const Page = () => {
       </Link>
       <br />
       <Link
-        href={{ query: { name: 'post-4' } }}
+        href={{ query: { name: "post-4" } }}
         id="dynamic-route-only-query-obj"
       >
         Dynamic route only query object
       </Link>
       <br />
       <Link
-        href={{ query: { name: 'post-5', another: 'value' } }}
+        href={{ query: { name: "post-5", another: "value" } }}
         id="dynamic-route-only-query-obj-extra"
       >
         Dynamic route only query object extra
@@ -51,7 +51,7 @@ const Page = () => {
       </Link>
       <br />
       <Link
-        href={{ query: { name: 'post-4' }, hash: 'hash-too' }}
+        href={{ query: { name: "post-4" }, hash: "hash-too" }}
         id="dynamic-route-query-hash-obj"
       >
         Dynamic route query and hash object
@@ -59,8 +59,8 @@ const Page = () => {
       <br />
       <Link
         href={{
-          query: { name: 'post-5', another: 'value' },
-          hash: 'hash-again',
+          query: { name: "post-5", another: "value" },
+          hash: "hash-again",
         }}
         id="dynamic-route-query-obj-extra-hash"
       >
@@ -70,9 +70,9 @@ const Page = () => {
       <p id="asdf">This is {query.name}</p>
       <p id="query">{JSON.stringify(query)}</p>
     </>
-  )
-}
+  );
+};
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default Page
+export default Page;

@@ -6,4 +6,4 @@ module.exports = {
   experimental: {
     strictNextHead: true,
   },
-}
+};

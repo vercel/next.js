@@ -1,9 +1,9 @@
-import 'e2e-utils'
+import "e2e-utils";
 
-process.env.NEXT_EXPERIMENTAL_COMPILE = '1'
+process.env.NEXT_EXPERIMENTAL_COMPILE = "1";
 
 if ((global as any).isNextStart) {
-  require('./index.test')
+  require("./index.test");
 } else {
-  it('should skip', () => {})
+  it("should skip", () => {});
 }

@@ -1,14 +1,14 @@
-import type { NextConfigComplete } from '../server/config-shared'
-import type { Telemetry } from '../telemetry/storage'
-import type { Span } from '../trace'
+import type { NextConfigComplete } from "../server/config-shared";
+import type { Telemetry } from "../telemetry/storage";
+import type { Span } from "../trace";
 
-import path from 'path'
-import * as Log from './output/log'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { verifyAndLint } from '../lib/verifyAndLint'
-import createSpinner from './spinner'
-import { eventTypeCheckCompleted } from '../telemetry/events'
-import isError from '../lib/is-error'
+import path from "path";
+import * as Log from "./output/log";
+import { Worker as JestWorker } from "next/dist/compiled/jest-worker";
+import { verifyAndLint } from "../lib/verifyAndLint";
+import createSpinner from "./spinner";
+import { eventTypeCheckCompleted } from "../telemetry/events";
+import isError from "../lib/is-error";
 
 /**
  * typescript will be loaded in "next/lib/verify-typescript-setup" and
@@ -31,18 +31,18 @@ function verifyTypeScriptSetup(
   hasPagesDir: boolean
 ) {
   const typeCheckWorker = new JestWorker(
-    require.resolve('../lib/verify-typescript-setup'),
+    require.resolve("../lib/verify-typescript-setup"),
     {
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }
   ) as JestWorker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
-  }
+    verifyTypeScriptSetup: typeof import("../lib/verify-typescript-setup").verifyTypeScriptSetup;
+  };
 
-  typeCheckWorker.getStdout().pipe(process.stdout)
-  typeCheckWorker.getStderr().pipe(process.stderr)
+  typeCheckWorker.getStdout().pipe(process.stdout);
+  typeCheckWorker.getStderr().pipe(process.stderr);
 
   return typeCheckWorker
     .verifyTypeScriptSetup({
@@ -57,14 +57,14 @@ function verifyTypeScriptSetup(
       hasPagesDir,
     })
     .then((result) => {
-      typeCheckWorker.end()
-      return result
+      typeCheckWorker.end();
+      return result;
     })
     .catch(() => {
       // The error is already logged in the worker, we simply exit the main thread to prevent the
       // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
-      process.exit(1)
-    })
+      process.exit(1);
+    });
 }
 
 export async function startTypeChecking({
@@ -79,41 +79,41 @@ export async function startTypeChecking({
   telemetry,
   appDir,
 }: {
-  cacheDir: string
-  config: NextConfigComplete
-  dir: string
-  ignoreESLint: boolean
-  nextBuildSpan: Span
-  pagesDir?: string
-  runLint: boolean
-  shouldLint: boolean
-  telemetry: Telemetry
-  appDir?: string
+  cacheDir: string;
+  config: NextConfigComplete;
+  dir: string;
+  ignoreESLint: boolean;
+  nextBuildSpan: Span;
+  pagesDir?: string;
+  runLint: boolean;
+  shouldLint: boolean;
+  telemetry: Telemetry;
+  appDir?: string;
 }) {
-  const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+  const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors);
 
-  const eslintCacheDir = path.join(cacheDir, 'eslint/')
+  const eslintCacheDir = path.join(cacheDir, "eslint/");
 
   if (ignoreTypeScriptErrors) {
-    Log.info('Skipping validation of types')
+    Log.info("Skipping validation of types");
   }
   if (runLint && ignoreESLint) {
     // only print log when build require lint while ignoreESLint is enabled
-    Log.info('Skipping linting')
+    Log.info("Skipping linting");
   }
 
-  let typeCheckingAndLintingSpinnerPrefixText: string | undefined
+  let typeCheckingAndLintingSpinnerPrefixText: string | undefined;
   let typeCheckingAndLintingSpinner:
     | ReturnType<typeof createSpinner>
-    | undefined
+    | undefined;
 
   if (!ignoreTypeScriptErrors && shouldLint) {
     typeCheckingAndLintingSpinnerPrefixText =
-      'Linting and checking validity of types'
+      "Linting and checking validity of types";
   } else if (!ignoreTypeScriptErrors) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Checking validity of types'
+    typeCheckingAndLintingSpinnerPrefixText = "Checking validity of types";
   } else if (shouldLint) {
-    typeCheckingAndLintingSpinnerPrefixText = 'Linting'
+    typeCheckingAndLintingSpinnerPrefixText = "Linting";
   }
 
   // we will not create a spinner if both ignoreTypeScriptErrors and ignoreESLint are
@@ -121,14 +121,14 @@ export async function startTypeChecking({
   if (typeCheckingAndLintingSpinnerPrefixText) {
     typeCheckingAndLintingSpinner = createSpinner(
       typeCheckingAndLintingSpinnerPrefixText
-    )
+    );
   }
 
-  const typeCheckStart = process.hrtime()
+  const typeCheckStart = process.hrtime();
 
   try {
     const [[verifyResult, typeCheckEnd]] = await Promise.all([
-      nextBuildSpan.traceChild('verify-typescript-setup').traceAsyncFn(() =>
+      nextBuildSpan.traceChild("verify-typescript-setup").traceAsyncFn(() =>
         verifyTypeScriptSetup(
           dir,
           config.distDir,
@@ -141,22 +141,22 @@ export async function startTypeChecking({
           !!appDir,
           !!pagesDir
         ).then((resolved) => {
-          const checkEnd = process.hrtime(typeCheckStart)
-          return [resolved, checkEnd] as const
+          const checkEnd = process.hrtime(typeCheckStart);
+          return [resolved, checkEnd] as const;
         })
       ),
       shouldLint &&
-        nextBuildSpan.traceChild('verify-and-lint').traceAsyncFn(async () => {
+        nextBuildSpan.traceChild("verify-and-lint").traceAsyncFn(async () => {
           await verifyAndLint(
             dir,
             eslintCacheDir,
             config.eslint?.dirs,
             config.experimental.workerThreads,
             telemetry
-          )
+          );
         }),
-    ])
-    typeCheckingAndLintingSpinner?.stopAndPersist()
+    ]);
+    typeCheckingAndLintingSpinner?.stopAndPersist();
 
     if (!ignoreTypeScriptErrors && verifyResult) {
       telemetry.record(
@@ -167,15 +167,15 @@ export async function startTypeChecking({
           totalFilesCount: verifyResult.result?.totalFilesCount,
           incremental: verifyResult.result?.incremental,
         })
-      )
+      );
     }
   } catch (err) {
     // prevent showing jest-worker internal error as it
     // isn't helpful for users and clutters output
-    if (isError(err) && err.message === 'Call retries were exceeded') {
-      await telemetry.flush()
-      process.exit(1)
+    if (isError(err) && err.message === "Call retries were exceeded") {
+      await telemetry.flush();
+      process.exit(1);
     }
-    throw err
+    throw err;
   }
 }

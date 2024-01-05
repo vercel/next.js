@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import './global.scss'
-import './global.sass'
-import sass from './styles.module.sass'
-import scss from './styles.module.scss'
+import "./global.scss";
+import "./global.sass";
+import sass from "./styles.module.sass";
+import scss from "./styles.module.scss";
 
 export default function Page() {
   return (
@@ -15,5 +15,5 @@ export default function Page() {
         scss client page
       </div>
     </>
-  )
+  );
 }

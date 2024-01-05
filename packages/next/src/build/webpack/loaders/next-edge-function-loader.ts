@@ -1,15 +1,15 @@
-import type webpack from 'webpack'
-import { getModuleBuildInfo } from './get-module-build-info'
-import { stringifyRequest } from '../stringify-request'
-import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type webpack from "webpack";
+import { getModuleBuildInfo } from "./get-module-build-info";
+import { stringifyRequest } from "../stringify-request";
+import type { MiddlewareConfig } from "../../analysis/get-page-static-info";
 
 export type EdgeFunctionLoaderOptions = {
-  absolutePagePath: string
-  page: string
-  rootDir: string
-  preferredRegion: string | string[] | undefined
-  middlewareConfig: string
-}
+  absolutePagePath: string;
+  page: string;
+  rootDir: string;
+  preferredRegion: string | string[] | undefined;
+  middlewareConfig: string;
+};
 
 const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoaderOptions> =
   function nextEdgeFunctionLoader(this) {
@@ -19,22 +19,22 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
       rootDir,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
-    }: EdgeFunctionLoaderOptions = this.getOptions()
-    const stringifiedPagePath = stringifyRequest(this, absolutePagePath)
-    const buildInfo = getModuleBuildInfo(this._module as any)
+    }: EdgeFunctionLoaderOptions = this.getOptions();
+    const stringifiedPagePath = stringifyRequest(this, absolutePagePath);
+    const buildInfo = getModuleBuildInfo(this._module as any);
     const middlewareConfig: MiddlewareConfig = JSON.parse(
-      Buffer.from(middlewareConfigBase64, 'base64').toString()
-    )
+      Buffer.from(middlewareConfigBase64, "base64").toString()
+    );
     buildInfo.route = {
-      page: page || '/',
+      page: page || "/",
       absolutePagePath,
       preferredRegion,
       middlewareConfig,
-    }
+    };
     buildInfo.nextEdgeApiFunction = {
-      page: page || '/',
-    }
-    buildInfo.rootDir = rootDir
+      page: page || "/",
+    };
+    buildInfo.rootDir = rootDir;
 
     return `
         import 'next/dist/esm/server/web/globals'
@@ -55,7 +55,7 @@ const nextEdgeFunctionLoader: webpack.LoaderDefinitionFunction<EdgeFunctionLoade
               handler,
           })
         }
-    `
-  }
+    `;
+  };
 
-export default nextEdgeFunctionLoader
+export default nextEdgeFunctionLoader;

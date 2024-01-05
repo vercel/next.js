@@ -1,5 +1,5 @@
-import { Open_Sans } from 'next/font/google'
-const openSans = Open_Sans({ subsets: ['latin'] })
+import { Open_Sans } from "next/font/google";
+const openSans = Open_Sans({ subsets: ["latin"] });
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <p>Hello world 1</p>
       <p className={openSans.className}>Hello world 2</p>
     </>
-  )
+  );
 }

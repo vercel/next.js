@@ -1,8 +1,8 @@
-import { withRouter } from 'next/router'
+import { withRouter } from "next/router";
 
 const Page = ({ router: { query } }) => (
   <>
-    <p id={'q' + query.id}>{query.id}</p>
+    <p id={"q" + query.id}>{query.id}</p>
     <a id="first" href="/query?id=1">
       Go to ?id=1
     </a>
@@ -10,8 +10,8 @@ const Page = ({ router: { query } }) => (
       Go to ?id=2
     </a>
   </>
-)
+);
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default withRouter(Page)
+export default withRouter(Page);

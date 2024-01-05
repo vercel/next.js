@@ -1,1 +1,1 @@
-export default () => '(pages/page.js)'
+export default () => "(pages/page.js)";

@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 export default function GlobalError({ error }) {
   return (
@@ -10,5 +10,5 @@ export default function GlobalError({ error }) {
         {error?.digest && <p id="digest">{error?.digest}</p>}
       </body>
     </html>
-  )
+  );
 }

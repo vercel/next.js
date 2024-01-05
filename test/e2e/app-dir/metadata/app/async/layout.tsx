@@ -1,11 +1,11 @@
 export default function layout({ children }) {
-  return children
+  return children;
 }
 
 export async function generateMetadata() {
   return {
-    keywords: 'parent',
-  }
+    keywords: "parent",
+  };
 }
 
-export const revalidate = 0
+export const revalidate = 0;

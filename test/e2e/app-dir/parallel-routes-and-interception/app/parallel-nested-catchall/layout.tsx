@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Layout({ children, slot }) {
   return (
@@ -20,5 +20,5 @@ export default function Layout({ children, slot }) {
         <Link href="/parallel-nested-catchall/foo/123">catchall foo id</Link>
       </div>
     </div>
-  )
+  );
 }

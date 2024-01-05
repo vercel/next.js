@@ -1,44 +1,44 @@
-import type { RefreshRuntimeGlobals } from '../runtime'
+import type { RefreshRuntimeGlobals } from "../runtime";
 
-declare const self: Window & RefreshRuntimeGlobals
+declare const self: Window & RefreshRuntimeGlobals;
 
-type Dictionary = { [key: string]: unknown }
+type Dictionary = { [key: string]: unknown };
 declare const __webpack_module__: {
-  id: string
-  exports: unknown
+  id: string;
+  exports: unknown;
   hot: {
-    accept: () => void
-    dispose: (onDispose: (data: Dictionary) => void) => void
-    invalidate: () => void
-    data?: Dictionary
-  }
-}
+    accept: () => void;
+    dispose: (onDispose: (data: Dictionary) => void) => void;
+    invalidate: () => void;
+    data?: Dictionary;
+  };
+};
 
 // This function gets unwrapped into global scope, which is why we don't invert
 // if-blocks. Also, you cannot use `return`.
 export default function () {
   // Wrapped in an IIFE to avoid polluting the global scope
-  ;(function () {
+  (function () {
     // Legacy CSS implementations will `eval` browser code in a Node.js context
     // to extract CSS. For backwards compatibility, we need to check we're in a
     // browser context before continuing.
     if (
-      typeof self !== 'undefined' &&
+      typeof self !== "undefined" &&
       // AMP / No-JS mode does not inject these helpers:
-      '$RefreshHelpers$' in self
+      "$RefreshHelpers$" in self
     ) {
       // @ts-ignore __webpack_module__ is global
-      var currentExports = __webpack_module__.exports
+      var currentExports = __webpack_module__.exports;
       // @ts-ignore __webpack_module__ is global
       var prevSignature: unknown[] | null =
-        __webpack_module__.hot.data?.prevSignature ?? null
+        __webpack_module__.hot.data?.prevSignature ?? null;
 
       // This cannot happen in MainTemplate because the exports mismatch between
       // templating and execution.
       self.$RefreshHelpers$.registerExportsForReactRefresh(
         currentExports,
         __webpack_module__.id
-      )
+      );
 
       // A module can be accepted automatically based on its exports, e.g. when
       // it is a Refresh Boundary.
@@ -47,12 +47,12 @@ export default function () {
         // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)
         __webpack_module__.hot.dispose(function (data) {
           data.prevSignature =
-            self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
-        })
+            self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports);
+        });
         // Unconditionally accept an update to this module, we'll check if it's
         // still a Refresh Boundary later.
         // @ts-ignore importMeta is replaced in the loader
-        global.importMeta.webpackHot.accept()
+        global.importMeta.webpackHot.accept();
 
         // This field is set when the previous version of this module was a
         // Refresh Boundary, letting us know we need to check for invalidation or
@@ -71,9 +71,9 @@ export default function () {
               self.$RefreshHelpers$.getRefreshBoundarySignature(currentExports)
             )
           ) {
-            __webpack_module__.hot.invalidate()
+            __webpack_module__.hot.invalidate();
           } else {
-            self.$RefreshHelpers$.scheduleUpdate()
+            self.$RefreshHelpers$.scheduleUpdate();
           }
         }
       } else {
@@ -81,11 +81,11 @@ export default function () {
         // new exports made it ineligible for being a boundary.
         // We only care about the case when we were _previously_ a boundary,
         // because we already accepted this update (accidental side effect).
-        var isNoLongerABoundary = prevSignature !== null
+        var isNoLongerABoundary = prevSignature !== null;
         if (isNoLongerABoundary) {
-          __webpack_module__.hot.invalidate()
+          __webpack_module__.hot.invalidate();
         }
       }
     }
-  })()
+  })();
 }

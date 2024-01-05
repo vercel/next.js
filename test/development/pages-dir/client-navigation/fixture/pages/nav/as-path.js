@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default class extends React.Component {
   static getInitialProps({ asPath, req }) {
-    return { asPath }
+    return { asPath };
   }
 
   render() {
-    return <div className="as-path-content">{this.props.asPath}</div>
+    return <div className="as-path-content">{this.props.asPath}</div>;
   }
 }

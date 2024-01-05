@@ -1,1 +1,1 @@
-import * as googleFonts from '@next/font/google'
+import * as googleFonts from "@next/font/google";

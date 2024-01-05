@@ -5,5 +5,5 @@ export default function FeedLayout({ params, feed, modal }) {
       {feed}
       {modal}
     </>
-  )
+  );
 }

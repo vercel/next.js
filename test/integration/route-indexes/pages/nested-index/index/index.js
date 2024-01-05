@@ -1,1 +1,1 @@
-export default () => 'hello from nested index'
+export default () => "hello from nested index";

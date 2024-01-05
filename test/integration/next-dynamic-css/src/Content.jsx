@@ -1,5 +1,5 @@
-import styles from './Content.module.css'
-import Content2 from './Component2'
+import styles from "./Content.module.css";
+import Content2 from "./Component2";
 
 export default function Content() {
   return (
@@ -25,5 +25,5 @@ export default function Content() {
       </div>
       <Content2 />
     </div>
-  )
+  );
 }

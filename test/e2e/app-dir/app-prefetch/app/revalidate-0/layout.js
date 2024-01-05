@@ -1,13 +1,13 @@
-import React from 'react'
+import React from "react";
 
-export const revalidate = 0
+export const revalidate = 0;
 
 export default async function Layout({ children }) {
-  console.log('re-fetching in layout')
+  console.log("re-fetching in layout");
   const data = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random'
-  )
-  const randomNumber = await data.text()
+    "https://next-data-api-endpoint.vercel.app/api/random"
+  );
+  const randomNumber = await data.text();
 
   return (
     <div>
@@ -15,5 +15,5 @@ export default async function Layout({ children }) {
 
       {children}
     </div>
-  )
+  );
 }

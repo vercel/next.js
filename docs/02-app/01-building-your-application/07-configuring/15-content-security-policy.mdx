@@ -37,10 +37,10 @@ Every time a page is viewed, a fresh nonce should be generated. This means that 
 For example:
 
 ```ts filename="middleware.ts" switcher
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
 export function middleware(request: NextRequest) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
@@ -53,39 +53,39 @@ export function middleware(request: NextRequest) {
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;
-`
+`;
   // Replace newline characters and spaces
   const contentSecurityPolicyHeaderValue = cspHeader
-    .replace(/\s{2,}/g, ' ')
-    .trim()
+    .replace(/\s{2,}/g, " ")
+    .trim();
 
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-nonce', nonce)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
 
   requestHeaders.set(
-    'Content-Security-Policy',
+    "Content-Security-Policy",
     contentSecurityPolicyHeaderValue
-  )
+  );
 
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
-  })
+  });
   response.headers.set(
-    'Content-Security-Policy',
+    "Content-Security-Policy",
     contentSecurityPolicyHeaderValue
-  )
+  );
 
-  return response
+  return response;
 }
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export function middleware(request) {
-  const nonce = Buffer.from(crypto.randomUUID()).toString('base64')
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'strict-dynamic';
@@ -98,30 +98,30 @@ export function middleware(request) {
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;
-`
+`;
   // Replace newline characters and spaces
   const contentSecurityPolicyHeaderValue = cspHeader
-    .replace(/\s{2,}/g, ' ')
-    .trim()
+    .replace(/\s{2,}/g, " ")
+    .trim();
 
-  const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-nonce', nonce)
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
   requestHeaders.set(
-    'Content-Security-Policy',
+    "Content-Security-Policy",
     contentSecurityPolicyHeaderValue
-  )
+  );
 
   const response = NextResponse.next({
     request: {
       headers: requestHeaders,
     },
-  })
+  });
   response.headers.set(
-    'Content-Security-Policy',
+    "Content-Security-Policy",
     contentSecurityPolicyHeaderValue
-  )
+  );
 
-  return response
+  return response;
 }
 ```
 
@@ -140,14 +140,14 @@ export const config = {
      * - favicon.ico (favicon file)
      */
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
   ],
-}
+};
 ```
 
 ```js filename="middleware.js" switcher
@@ -161,14 +161,14 @@ export const config = {
      * - favicon.ico (favicon file)
      */
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
+      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
       missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
       ],
     },
   ],
-}
+};
 ```
 
 ### Reading the nonce
@@ -176,11 +176,11 @@ export const config = {
 You can now read the nonce from a [Server Component](/docs/app/building-your-application/rendering/server-components) using [`headers`](/docs/app/api-reference/functions/headers):
 
 ```tsx filename="app/page.tsx" switcher
-import { headers } from 'next/headers'
-import Script from 'next/script'
+import { headers } from "next/headers";
+import Script from "next/script";
 
 export default function Page() {
-  const nonce = headers().get('x-nonce')
+  const nonce = headers().get("x-nonce");
 
   return (
     <Script
@@ -188,16 +188,16 @@ export default function Page() {
       strategy="afterInteractive"
       nonce={nonce}
     />
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.jsx" switcher
-import { headers } from 'next/headers'
-import Script from 'next/script'
+import { headers } from "next/headers";
+import Script from "next/script";
 
 export default function Page() {
-  const nonce = headers().get('x-nonce')
+  const nonce = headers().get("x-nonce");
 
   return (
     <Script
@@ -205,7 +205,7 @@ export default function Page() {
       strategy="afterInteractive"
       nonce={nonce}
     />
-  )
+  );
 }
 ```
 
@@ -226,23 +226,23 @@ const cspHeader = `
     frame-ancestors 'none';
     block-all-mixed-content;
     upgrade-insecure-requests;
-`
+`;
 
 module.exports = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'Content-Security-Policy',
-            value: cspHeader.replace(/\n/g, ''),
+            key: "Content-Security-Policy",
+            value: cspHeader.replace(/\n/g, ""),
           },
         ],
       },
-    ]
+    ];
   },
-}
+};
 ```
 
 ## Version History

@@ -1,5 +1,5 @@
-export const dynamicParams = false
+export const dynamicParams = false;
 
 export default function Page({ params }) {
-  return <p>Static page</p>
+  return <p>Static page</p>;
 }

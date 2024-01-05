@@ -1,7 +1,7 @@
 export default function Layout(props: {
-  children: React.ReactNode
-  foo: React.ReactNode
-  bar: React.ReactNode
+  children: React.ReactNode;
+  foo: React.ReactNode;
+  bar: React.ReactNode;
 }) {
   return (
     <html>
@@ -11,5 +11,5 @@ export default function Layout(props: {
         {props.bar}
       </body>
     </html>
-  )
+  );
 }

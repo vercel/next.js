@@ -7,5 +7,5 @@ export default function Page() {
       <p id="page">/force-static</p>
       <p id="now">{Date.now()}</p>
     </>
-  )
+  );
 }

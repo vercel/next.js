@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   [data-nextjs-dialog] {
@@ -53,7 +53,7 @@ const styles = css`
 
   [data-nextjs-dialog-banner]::after {
     z-index: 2;
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     right: 0;
@@ -86,6 +86,6 @@ const styles = css`
     position: relative;
     flex: 1 1 auto;
   }
-`
+`;
 
-export { styles }
+export { styles };

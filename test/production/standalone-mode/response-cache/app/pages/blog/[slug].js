@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -11,22 +11,22 @@ export default function Page(props) {
       <p id="pathname">{router.pathname}</p>
       <p id="query">{JSON.stringify(router.query)}</p>
     </>
-  )
+  );
 }
 
 export function getStaticProps({ params }) {
-  console.log('getStaticProps /blog/[slug]', params)
+  console.log("getStaticProps /blog/[slug]", params);
   return {
     props: {
       params,
       now: Date.now(),
     },
-  }
+  };
 }
 
 export function getStaticPaths() {
   return {
-    paths: ['/blog/first'],
-    fallback: 'blocking',
-  }
+    paths: ["/blog/first"],
+    fallback: "blocking",
+  };
 }

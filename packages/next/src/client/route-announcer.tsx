@@ -1,29 +1,29 @@
-import React from 'react'
-import { useRouter } from './router'
+import React from "react";
+import { useRouter } from "./router";
 
 const nextjsRouteAnnouncerStyles: React.CSSProperties = {
   border: 0,
-  clip: 'rect(0 0 0 0)',
-  height: '1px',
-  margin: '-1px',
-  overflow: 'hidden',
+  clip: "rect(0 0 0 0)",
+  height: "1px",
+  margin: "-1px",
+  overflow: "hidden",
   padding: 0,
-  position: 'absolute',
+  position: "absolute",
   top: 0,
-  width: '1px',
+  width: "1px",
 
   // https://medium.com/@jessebeach/beware-smushed-off-screen-accessible-text-5952a4c2cbfe
-  whiteSpace: 'nowrap',
-  wordWrap: 'normal',
-}
+  whiteSpace: "nowrap",
+  wordWrap: "normal",
+};
 
 export const RouteAnnouncer = () => {
-  const { asPath } = useRouter()
-  const [routeAnnouncement, setRouteAnnouncement] = React.useState('')
+  const { asPath } = useRouter();
+  const [routeAnnouncement, setRouteAnnouncement] = React.useState("");
 
   // Only announce the path change, but not for the first load because screen
   // reader will do that automatically.
-  const previouslyLoadedPath = React.useRef(asPath)
+  const previouslyLoadedPath = React.useRef(asPath);
 
   // Every time the path changes, announce the new page’s title following this
   // priority: first the document title (from head), otherwise the first h1, or
@@ -34,21 +34,21 @@ export const RouteAnnouncer = () => {
   React.useEffect(
     () => {
       // If the path hasn't change, we do nothing.
-      if (previouslyLoadedPath.current === asPath) return
-      previouslyLoadedPath.current = asPath
+      if (previouslyLoadedPath.current === asPath) return;
+      previouslyLoadedPath.current = asPath;
 
       if (document.title) {
-        setRouteAnnouncement(document.title)
+        setRouteAnnouncement(document.title);
       } else {
-        const pageHeader = document.querySelector('h1')
-        const content = pageHeader?.innerText ?? pageHeader?.textContent
+        const pageHeader = document.querySelector("h1");
+        const content = pageHeader?.innerText ?? pageHeader?.textContent;
 
-        setRouteAnnouncement(content || asPath)
+        setRouteAnnouncement(content || asPath);
       }
     },
     // TODO: switch to pathname + query object of dynamic route requirements
     [asPath]
-  )
+  );
 
   return (
     <p
@@ -59,7 +59,7 @@ export const RouteAnnouncer = () => {
     >
       {routeAnnouncement}
     </p>
-  )
-}
+  );
+};
 
-export default RouteAnnouncer
+export default RouteAnnouncer;

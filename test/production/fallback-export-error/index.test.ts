@@ -1,41 +1,41 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { join } from 'path'
+import { createNext, FileRef } from "e2e-utils";
+import { NextInstance } from "test/lib/next-modes/base";
+import { join } from "path";
 
-describe('fallback export error', () => {
-  let next: NextInstance
+describe("fallback export error", () => {
+  let next: NextInstance;
 
   beforeAll(async () => {
     next = await createNext({
       files: {
-        pages: new FileRef(join(__dirname, 'pages')),
+        pages: new FileRef(join(__dirname, "pages")),
       },
       nextConfig: {
-        output: 'export',
+        output: "export",
       },
       skipStart: true,
-    })
-  })
-  afterAll(() => next.destroy())
+    });
+  });
+  afterAll(() => next.destroy());
 
-  it('should have built', async () => {
-    const result = await next.build()
-    expect(result.exitCode).toBe(0)
-  })
+  it("should have built", async () => {
+    const result = await next.build();
+    expect(result.exitCode).toBe(0);
+  });
 
-  it('should not error with default exportPathMap', async () => {
-    const result = await next.build()
-    console.log(result.cliOutput)
+  it("should not error with default exportPathMap", async () => {
+    const result = await next.build();
+    console.log(result.cliOutput);
 
-    expect(result.exitCode).toBe(0)
+    expect(result.exitCode).toBe(0);
     expect(result.cliOutput).not.toContain(
-      'Found pages with `fallback` enabled'
-    )
-  })
+      "Found pages with `fallback` enabled"
+    );
+  });
 
-  it('should not error with valid exportPathMap', async () => {
+  it("should not error with valid exportPathMap", async () => {
     await next.patchFile(
-      'next.config.js',
+      "next.config.js",
       `
       module.exports = {
         output: 'export',
@@ -46,25 +46,25 @@ describe('fallback export error', () => {
         }
       }
     `
-    )
+    );
 
     try {
-      const result = await next.build()
-      console.log(result.cliOutput)
+      const result = await next.build();
+      console.log(result.cliOutput);
 
-      expect(result.exitCode).toBe(0)
+      expect(result.exitCode).toBe(0);
       expect(result.cliOutput).not.toContain(
-        'Found pages with `fallback` enabled'
-      )
+        "Found pages with `fallback` enabled"
+      );
     } finally {
-      await next.deleteFile('next.config.js')
+      await next.deleteFile("next.config.js");
     }
-  })
+  });
 
-  it('should error with invalid exportPathMap', async () => {
-    await next.stop()
+  it("should error with invalid exportPathMap", async () => {
+    await next.stop();
     await next.patchFile(
-      'next.config.js',
+      "next.config.js",
       `
       module.exports = {
         output: 'export',
@@ -76,16 +76,16 @@ describe('fallback export error', () => {
         }
       }
     `
-    )
+    );
 
     try {
-      const result = await next.build()
-      console.log(result.cliOutput)
+      const result = await next.build();
+      console.log(result.cliOutput);
 
-      expect(result.exitCode).toBe(1)
-      expect(result.cliOutput).toContain('Found pages with `fallback` enabled')
+      expect(result.exitCode).toBe(1);
+      expect(result.cliOutput).toContain("Found pages with `fallback` enabled");
     } finally {
-      await next.deleteFile('next.config.js')
+      await next.deleteFile("next.config.js");
     }
-  })
-})
+  });
+});

@@ -16,11 +16,11 @@ Make sure to return an array that contains the routes.
 module.exports = {
   async rewrites() {
     return {
-      source: '/feedback',
-      destination: '/feedback/general',
-    }
+      source: "/feedback",
+      destination: "/feedback/general",
+    };
   },
-}
+};
 ```
 
 **After**
@@ -30,10 +30,10 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/feedback',
-        destination: '/feedback/general',
+        source: "/feedback",
+        destination: "/feedback/general",
       },
-    ]
+    ];
   },
-}
+};
 ```

@@ -1,69 +1,69 @@
-import { SERVER_DIRECTORY } from '../../../shared/lib/constants'
-import type { AppRouteRouteDefinition } from '../route-definitions/app-route-route-definition'
-import { RouteKind } from '../route-kind'
-import { AppRouteRouteMatcherProvider } from './app-route-route-matcher-provider'
-import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import { SERVER_DIRECTORY } from "../../../shared/lib/constants";
+import type { AppRouteRouteDefinition } from "../route-definitions/app-route-route-definition";
+import { RouteKind } from "../route-kind";
+import { AppRouteRouteMatcherProvider } from "./app-route-route-matcher-provider";
+import type { ManifestLoader } from "./helpers/manifest-loaders/manifest-loader";
 
-describe('AppRouteRouteMatcherProvider', () => {
-  it('returns no routes with an empty manifest', async () => {
-    const loader: ManifestLoader = { load: jest.fn(() => ({})) }
-    const provider = new AppRouteRouteMatcherProvider('<root>', loader)
-    expect(await provider.matchers()).toEqual([])
-  })
+describe("AppRouteRouteMatcherProvider", () => {
+  it("returns no routes with an empty manifest", async () => {
+    const loader: ManifestLoader = { load: jest.fn(() => ({})) };
+    const provider = new AppRouteRouteMatcherProvider("<root>", loader);
+    expect(await provider.matchers()).toEqual([]);
+  });
 
-  describe('manifest matching', () => {
+  describe("manifest matching", () => {
     it.each<{
-      manifest: Record<string, string>
-      route: AppRouteRouteDefinition
+      manifest: Record<string, string>;
+      route: AppRouteRouteDefinition;
     }>([
       {
         manifest: {
-          '/route': 'app/route.js',
+          "/route": "app/route.js",
         },
         route: {
           kind: RouteKind.APP_ROUTE,
-          pathname: '/',
+          pathname: "/",
           filename: `<root>/${SERVER_DIRECTORY}/app/route.js`,
-          page: '/route',
-          bundlePath: 'app/route',
+          page: "/route",
+          bundlePath: "app/route",
         },
       },
       {
-        manifest: { '/users/[id]/route': 'app/users/[id]/route.js' },
+        manifest: { "/users/[id]/route": "app/users/[id]/route.js" },
         route: {
           kind: RouteKind.APP_ROUTE,
-          pathname: '/users/[id]',
+          pathname: "/users/[id]",
           filename: `<root>/${SERVER_DIRECTORY}/app/users/[id]/route.js`,
-          page: '/users/[id]/route',
-          bundlePath: 'app/users/[id]/route',
+          page: "/users/[id]/route",
+          bundlePath: "app/users/[id]/route",
         },
       },
       {
-        manifest: { '/users/route': 'app/users/route.js' },
+        manifest: { "/users/route": "app/users/route.js" },
         route: {
           kind: RouteKind.APP_ROUTE,
-          pathname: '/users',
+          pathname: "/users",
           filename: `<root>/${SERVER_DIRECTORY}/app/users/route.js`,
-          page: '/users/route',
-          bundlePath: 'app/users/route',
+          page: "/users/route",
+          bundlePath: "app/users/route",
         },
       },
     ])(
-      'returns the correct routes for $route.pathname',
+      "returns the correct routes for $route.pathname",
       async ({ manifest, route }) => {
         const loader: ManifestLoader = {
           load: jest.fn(() => ({
-            '/dashboard/users/[id]/page': 'app/dashboard/users/[id]/page.js',
-            '/dashboard/users/page': 'app/dashboard/users/page.js',
+            "/dashboard/users/[id]/page": "app/dashboard/users/[id]/page.js",
+            "/dashboard/users/page": "app/dashboard/users/page.js",
             ...manifest,
           })),
-        }
-        const provider = new AppRouteRouteMatcherProvider('<root>', loader)
-        const matchers = await provider.matchers()
+        };
+        const provider = new AppRouteRouteMatcherProvider("<root>", loader);
+        const matchers = await provider.matchers();
 
-        expect(matchers).toHaveLength(1)
-        expect(matchers[0].definition).toEqual(route)
+        expect(matchers).toHaveLength(1);
+        expect(matchers[0].definition).toEqual(route);
       }
-    )
-  })
-})
+    );
+  });
+});

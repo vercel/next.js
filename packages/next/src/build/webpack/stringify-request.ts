@@ -1,4 +1,4 @@
-import type webpack from 'webpack'
+import type webpack from "webpack";
 
 export function stringifyRequest(
   loaderContext: webpack.LoaderContext<any>,
@@ -9,5 +9,5 @@ export function stringifyRequest(
       loaderContext.context || loaderContext.rootContext,
       request
     )
-  )
+  );
 }

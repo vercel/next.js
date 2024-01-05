@@ -1,6 +1,6 @@
-import * as React from 'react'
-import { Main, NextScript, Head, Html } from 'next/document'
-import Script from 'next/script'
+import * as React from "react";
+import { Main, NextScript, Head, Html } from "next/document";
+import Script from "next/script";
 
 export default function Document() {
   return (
@@ -33,5 +33,5 @@ export default function Document() {
         <div id="text" />
       </body>
     </Html>
-  )
+  );
 }

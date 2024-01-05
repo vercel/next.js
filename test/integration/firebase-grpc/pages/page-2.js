@@ -1,2 +1,2 @@
-import 'firebase/firestore'
-export default () => <div>Firebase</div>
+import "firebase/firestore";
+export default () => <div>Firebase</div>;

@@ -5,5 +5,5 @@ export default function Page() {
       connect to the on demand entries handler. see on-demand-entry-handler.ts
       and on-demand-entries-utils.js
     </>
-  )
+  );
 }

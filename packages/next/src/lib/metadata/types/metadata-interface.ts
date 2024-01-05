@@ -1,7 +1,7 @@
 import type {
   AlternateURLs,
   ResolvedAlternateURLs,
-} from './alternative-urls-types'
+} from "./alternative-urls-types";
 import type {
   AppleWebApp,
   AppLinks,
@@ -10,7 +10,7 @@ import type {
   ResolvedAppleWebApp,
   ResolvedAppLinks,
   ViewportLayout,
-} from './extra-types'
+} from "./extra-types";
 import type {
   DeprecatedMetadataFields,
   AbsoluteTemplateString,
@@ -27,10 +27,10 @@ import type {
   TemplateString,
   Verification,
   ThemeColorDescriptor,
-} from './metadata-types'
-import type { Manifest as ManifestFile } from './manifest-types'
-import type { OpenGraph, ResolvedOpenGraph } from './opengraph-types'
-import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
+} from "./metadata-types";
+import type { Manifest as ManifestFile } from "./manifest-types";
+import type { OpenGraph, ResolvedOpenGraph } from "./opengraph-types";
+import type { ResolvedTwitterMetadata, Twitter } from "./twitter-types";
 
 /**
  * Metadata interface to describe all the metadata fields that can be set in a document.
@@ -40,7 +40,7 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
    */
-  metadataBase?: null | URL
+  metadataBase?: null | URL;
 
   /**
    * The document title.
@@ -56,7 +56,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <title>My Blog</title>
    * ```
    */
-  title?: null | string | TemplateString
+  title?: null | string | TemplateString;
 
   /**
    * The document description, and optionally the OpenGraph and twitter descriptions.
@@ -66,7 +66,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="description" content="My Blog Description" />
    * ```
    */
-  description?: null | string
+  description?: null | string;
 
   // Standard metadata names
   // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name
@@ -79,7 +79,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="application-name" content="My Blog" />
    * ```
    */
-  applicationName?: null | string
+  applicationName?: null | string;
 
   /**
    * The authors of the document.
@@ -91,7 +91,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="author" href="https://nextjs.org" />
    * ```
    */
-  authors?: null | Author | Array<Author>
+  authors?: null | Author | Array<Author>;
 
   /**
    * The generator used for the document.
@@ -102,7 +102,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="generator" content="Next.js" />
    * ```
    */
-  generator?: null | string
+  generator?: null | string;
 
   /**
    * The keywords for the document. If an array is provided, it will be flattened into a single tag with comma separation.
@@ -115,7 +115,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="keywords" content="react, server components" />
    * ```
    */
-  keywords?: null | string | Array<string>
+  keywords?: null | string | Array<string>;
 
   /**
    * The referrer setting for the document.
@@ -125,7 +125,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="referrer" content="origin" />
    * ```
    */
-  referrer?: null | ReferrerEnum
+  referrer?: null | ReferrerEnum;
 
   /**
    * The theme color for the document.
@@ -147,7 +147,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[];
 
   /**
    * The color scheme for the document.
@@ -159,7 +159,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="color-scheme" content="dark" />
    * ```
    */
-  colorScheme?: null | ColorSchemeEnum
+  colorScheme?: null | ColorSchemeEnum;
 
   /**
    * The viewport setting for the document.
@@ -172,7 +172,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="viewport" content="width=device-width, initial-scale=1" />
    * ```
    */
-  viewport?: null | string | ViewportLayout
+  viewport?: null | string | ViewportLayout;
 
   /**
    * The creator of the document.
@@ -182,7 +182,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="creator" content="Next.js Team" />
    * ```
    */
-  creator?: null | string
+  creator?: null | string;
 
   /**
    * The publisher of the document.
@@ -193,7 +193,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="publisher" content="Vercel" />
    * ```
    */
-  publisher?: null | string
+  publisher?: null | string;
 
   // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name#other_metadata_names
 
@@ -210,7 +210,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="robots" content="noindex, nofollow" />
    * ```
    */
-  robots?: null | string | Robots
+  robots?: null | string | Robots;
 
   /**
    * The canonical and alternate URLs for the document.
@@ -240,7 +240,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="alternate" href="https://example.com/blog/js.rss" type="application/rss+xml" title="js title" />
    * ```
    */
-  alternates?: null | AlternateURLs
+  alternates?: null | AlternateURLs;
 
   /**
    * The icons for the document. Defaults to rel="icon".
@@ -260,7 +260,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
    * ```
    */
-  icons?: null | IconURL | Array<Icon> | Icons
+  icons?: null | IconURL | Array<Icon> | Icons;
 
   /**
    * A web application manifest, as defined in the Web Application Manifest specification.
@@ -273,7 +273,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    *
    */
-  manifest?: null | string | URL
+  manifest?: null | string | URL;
 
   /**
    * The Open Graph metadata for the document.
@@ -300,7 +300,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta property="og:image" content="https://example.com/og.png" />
    * ```
    */
-  openGraph?: null | OpenGraph
+  openGraph?: null | OpenGraph;
 
   /**
    * The Twitter metadata for the document.
@@ -317,7 +317,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    *
    */
-  twitter?: null | Twitter
+  twitter?: null | Twitter;
 
   /**
    * The common verification tokens for the document.
@@ -329,7 +329,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="me" content="@me" />
    * ```
    */
-  verification?: Verification
+  verification?: Verification;
 
   /**
    * The Apple web app metadata for the document.
@@ -344,7 +344,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    *
    */
-  appleWebApp?: null | boolean | AppleWebApp
+  appleWebApp?: null | boolean | AppleWebApp;
 
   /**
    * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
@@ -356,7 +356,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * ```
    *
    */
-  formatDetection?: null | FormatDetection
+  formatDetection?: null | FormatDetection;
 
   /**
    * The metadata for the iTunes App.
@@ -368,7 +368,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
    * ```
    */
-  itunes?: null | ItunesApp
+  itunes?: null | ItunesApp;
 
   /**
    * A brief description of what this web-page is about. Not recommended, superseded by description.
@@ -381,7 +381,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="abstract" content="My Website Description" />
    * ```
    */
-  abstract?: null | string
+  abstract?: null | string;
 
   /**
    * The Facebook AppLinks metadata for the document.
@@ -395,7 +395,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta property="al:android:url" content="https://example.com" />
    * ```
    */
-  appLinks?: null | AppLinks
+  appLinks?: null | AppLinks;
 
   /**
    * The archives link rel property.
@@ -405,7 +405,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="archives" href="https://example.com/archives" />
    * ```
    */
-  archives?: null | string | Array<string>
+  archives?: null | string | Array<string>;
 
   /**
    * The assets link rel property.
@@ -415,7 +415,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="assets" href="https://example.com/assets" />
    * ```
    */
-  assets?: null | string | Array<string>
+  assets?: null | string | Array<string>;
 
   /**
    * The bookmarks link rel property.
@@ -425,7 +425,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <link rel="bookmarks" href="https://example.com/bookmarks" />
    * ```
    */
-  bookmarks?: null | string | Array<string> // This is technically against HTML spec but is used in wild
+  bookmarks?: null | string | Array<string>; // This is technically against HTML spec but is used in wild
 
   // meta name properties
 
@@ -437,7 +437,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="category" content="My Category" />
    * ```
    */
-  category?: null | string
+  category?: null | string;
 
   /**
    * The classification meta name property.
@@ -447,147 +447,147 @@ interface Metadata extends DeprecatedMetadataFields {
    * <meta name="classification" content="My Classification" />
    * ```
    */
-  classification?: null | string
+  classification?: null | string;
 
   /**
    * Arbitrary name/value pairs for the document.
    */
   other?: {
-    [name: string]: string | number | Array<string | number>
-  } & DeprecatedMetadataFields
+    [name: string]: string | number | Array<string | number>;
+  } & DeprecatedMetadataFields;
 }
 
 interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
-  metadataBase: null | URL
+  metadataBase: null | URL;
 
   // The Document title and template if defined
-  title: null | AbsoluteTemplateString
+  title: null | AbsoluteTemplateString;
 
   // The Document description, and optionally the opengraph and twitter descriptions
-  description: null | string
+  description: null | string;
 
   // Standard metadata names
   // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name
-  applicationName: null | string
-  authors: null | Array<Author>
-  generator: null | string
+  applicationName: null | string;
+  authors: null | Array<Author>;
+  generator: null | string;
   // if you provide an array it will be flattened into a single tag with comma separation
-  keywords: null | Array<string>
-  referrer: null | ReferrerEnum
+  keywords: null | Array<string>;
+  referrer: null | ReferrerEnum;
   /**
    * @deprecated
    */
-  themeColor: null | ThemeColorDescriptor[]
+  themeColor: null | ThemeColorDescriptor[];
   /**
    * @deprecated
    */
-  colorScheme: null | ColorSchemeEnum
+  colorScheme: null | ColorSchemeEnum;
   /**
    * @deprecated
    */
-  viewport: null | string
-  creator: null | string
-  publisher: null | string
+  viewport: null | string;
+  creator: null | string;
+  publisher: null | string;
 
   // https://developer.mozilla.org/docs/Web/HTML/Element/meta/name#other_metadata_names
-  robots: null | ResolvedRobots
+  robots: null | ResolvedRobots;
 
   // The canonical and alternate URLs for this location
-  alternates: null | ResolvedAlternateURLs
+  alternates: null | ResolvedAlternateURLs;
 
   // Defaults to rel="icon" but the Icons type can be used
   // to get more specific about rel types
-  icons: null | ResolvedIcons
+  icons: null | ResolvedIcons;
 
-  openGraph: null | ResolvedOpenGraph
+  openGraph: null | ResolvedOpenGraph;
 
-  manifest: null | string | URL
+  manifest: null | string | URL;
 
-  twitter: null | ResolvedTwitterMetadata
+  twitter: null | ResolvedTwitterMetadata;
 
   // common verification tokens
-  verification: null | ResolvedVerification
+  verification: null | ResolvedVerification;
 
   // Apple web app metadata
   // https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
-  appleWebApp: null | ResolvedAppleWebApp
+  appleWebApp: null | ResolvedAppleWebApp;
 
   // Should devices try to interpret various formats and make actionable links
   // out of them? The canonical example is telephone numbers on mobile that can
   // be clicked to dial
-  formatDetection: null | FormatDetection
+  formatDetection: null | FormatDetection;
 
   // meta name="apple-itunes-app"
-  itunes: null | ItunesApp
+  itunes: null | ItunesApp;
 
   // meta name="abstract"
   // A brief description of what this web-page is about.
   // Not recommended, superceded by description.
   // https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
-  abstract: null | string
+  abstract: null | string;
 
   // Facebook AppLinks
-  appLinks: null | ResolvedAppLinks
+  appLinks: null | ResolvedAppLinks;
 
   // link rel properties
-  archives: null | Array<string>
-  assets: null | Array<string>
-  bookmarks: null | Array<string> // This is technically against HTML spec but is used in wild
+  archives: null | Array<string>;
+  assets: null | Array<string>;
+  bookmarks: null | Array<string>; // This is technically against HTML spec but is used in wild
 
   // meta name properties
-  category: null | string
-  classification: null | string
+  category: null | string;
+  classification: null | string;
 
   // Arbitrary name/value pairs
   other:
     | null
     | ({
-        [name: string]: string | number | Array<string | number>
-      } & DeprecatedMetadataFields)
+        [name: string]: string | number | Array<string | number>;
+      } & DeprecatedMetadataFields);
 }
 
 type RobotsFile = {
   // Apply rules for all
   rules:
     | {
-        userAgent?: string | string[]
-        allow?: string | string[]
-        disallow?: string | string[]
-        crawlDelay?: number
+        userAgent?: string | string[];
+        allow?: string | string[];
+        disallow?: string | string[];
+        crawlDelay?: number;
       }
     // Apply rules for specific user agents
     | Array<{
-        userAgent: string | string[]
-        allow?: string | string[]
-        disallow?: string | string[]
-        crawlDelay?: number
-      }>
-  sitemap?: string | string[]
-  host?: string
-}
+        userAgent: string | string[];
+        allow?: string | string[];
+        disallow?: string | string[];
+        crawlDelay?: number;
+      }>;
+  sitemap?: string | string[];
+  host?: string;
+};
 
 type SitemapFile = Array<{
-  url: string
-  lastModified?: string | Date
+  url: string;
+  lastModified?: string | Date;
   changeFrequency?:
-    | 'always'
-    | 'hourly'
-    | 'daily'
-    | 'weekly'
-    | 'monthly'
-    | 'yearly'
-    | 'never'
-  priority?: number
-}>
+    | "always"
+    | "hourly"
+    | "daily"
+    | "weekly"
+    | "monthly"
+    | "yearly"
+    | "never";
+  priority?: number;
+}>;
 
-type ResolvingMetadata = Promise<ResolvedMetadata>
+type ResolvingMetadata = Promise<ResolvedMetadata>;
 declare namespace MetadataRoute {
   // eslint-disable-next-line @typescript-eslint/no-shadow
-  export type Robots = RobotsFile
-  export type Sitemap = SitemapFile
-  export type Manifest = ManifestFile
+  export type Robots = RobotsFile;
+  export type Sitemap = SitemapFile;
+  export type Manifest = ManifestFile;
 }
 
 interface Viewport extends ViewportLayout {
@@ -610,7 +610,7 @@ interface Viewport extends ViewportLayout {
    * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
-  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[]
+  themeColor?: null | string | ThemeColorDescriptor | ThemeColorDescriptor[];
 
   /**
    * The color scheme for the document.
@@ -621,14 +621,14 @@ interface Viewport extends ViewportLayout {
    * <meta name="color-scheme" content="dark" />
    * ```
    */
-  colorScheme?: null | ColorSchemeEnum
+  colorScheme?: null | ColorSchemeEnum;
 }
 
-type ResolvingViewport = Promise<Viewport>
+type ResolvingViewport = Promise<Viewport>;
 
 interface ResolvedViewport extends ViewportLayout {
-  themeColor: null | ThemeColorDescriptor[]
-  colorScheme: null | ColorSchemeEnum
+  themeColor: null | ThemeColorDescriptor[];
+  colorScheme: null | ColorSchemeEnum;
 }
 
 export type {
@@ -639,4 +639,4 @@ export type {
   Viewport,
   ResolvingViewport,
   ResolvedViewport,
-}
+};

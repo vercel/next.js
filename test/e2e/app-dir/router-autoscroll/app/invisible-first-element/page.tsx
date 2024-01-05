@@ -1,7 +1,7 @@
 export default function InvisibleFirstElementPage() {
   return (
     <>
-      <div style={{ display: 'none' }}>Content that is hidden.</div>
+      <div style={{ display: "none" }}>Content that is hidden.</div>
       <div id="content-that-is-visible">Content which is not hidden.</div>
       {
         // Repeat 500 elements
@@ -10,5 +10,5 @@ export default function InvisibleFirstElementPage() {
         ))
       }
     </>
-  )
+  );
 }

@@ -1,1 +1,1 @@
-module.exports = require('./dist/shared/lib/image-external')
+module.exports = require("./dist/shared/lib/image-external");

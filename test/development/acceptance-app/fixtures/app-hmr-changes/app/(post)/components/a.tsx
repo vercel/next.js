@@ -1,6 +1,6 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-export function A({ children, className = '', href, ...props }) {
+export function A({ children, className = "", href, ...props }) {
   return (
     <Link
       href={href}
@@ -9,5 +9,5 @@ export function A({ children, className = '', href, ...props }) {
     >
       {children}
     </Link>
-  )
+  );
 }

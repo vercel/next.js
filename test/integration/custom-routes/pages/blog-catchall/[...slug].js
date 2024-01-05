@@ -3,16 +3,16 @@ export const getStaticProps = ({ params }) => {
     props: {
       params,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     paths: [],
-    fallback: 'blocking',
-  }
-}
+    fallback: "blocking",
+  };
+};
 
 export default function Page(props) {
-  return <p id="props">{JSON.stringify(props)}</p>
+  return <p id="props">{JSON.stringify(props)}</p>;
 }

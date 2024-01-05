@@ -1,7 +1,7 @@
-import Script from 'next/script'
-import dynamic from 'next/dynamic'
+import Script from "next/script";
+import dynamic from "next/dynamic";
 
-const DynamicComponent = dynamic(() => import('./about'))
+const DynamicComponent = dynamic(() => import("./about"));
 
 export default function Home() {
   return (
@@ -9,5 +9,5 @@ export default function Home() {
       <Script src="https://www.google-analytics.com/analytics.js" />
       <DynamicComponent />
     </>
-  )
+  );
 }

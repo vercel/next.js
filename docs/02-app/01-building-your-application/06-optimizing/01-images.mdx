@@ -32,7 +32,7 @@ The Next.js Image component extends the HTML `<img>` element with features for a
 ## Usage
 
 ```js
-import Image from 'next/image'
+import Image from "next/image";
 ```
 
 You can then define the `src` for your image (either local or remote).
@@ -46,8 +46,8 @@ Next.js will [automatically determine](#image-sizing) the `width` and `height` o
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
-import profilePic from './me.png'
+import Image from "next/image";
+import profilePic from "./me.png";
 
 export default function Page() {
   return (
@@ -59,7 +59,7 @@ export default function Page() {
       // blurDataURL="data:..." automatically provided
       // placeholder="blur" // Optional blur-up while loading
     />
-  )
+  );
 }
 ```
 
@@ -68,8 +68,8 @@ export default function Page() {
 <PagesOnly>
 
 ```jsx filename="pages/index.js"
-import Image from 'next/image'
-import profilePic from '../public/me.png'
+import Image from "next/image";
+import profilePic from "../public/me.png";
 
 export default function Page() {
   return (
@@ -81,7 +81,7 @@ export default function Page() {
       // blurDataURL="data:..." automatically provided
       // placeholder="blur" // Optional blur-up while loading
     />
-  )
+  );
 }
 ```
 
@@ -98,7 +98,7 @@ Since Next.js does not have access to remote files during the build process, you
 The `width` and `height` attributes are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in. The `width` and `height` do _not_ determine the rendered size of the image file. Learn more about [Image Sizing](#image-sizing).
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -108,7 +108,7 @@ export default function Page() {
       width={500}
       height={500}
     />
-  )
+  );
 }
 ```
 
@@ -119,14 +119,14 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 's3.amazonaws.com',
-        port: '',
-        pathname: '/my-bucket/**',
+        protocol: "https",
+        hostname: "s3.amazonaws.com",
+        port: "",
+        pathname: "/my-bucket/**",
       },
     ],
   },
-}
+};
 ```
 
 Learn more about [`remotePatterns`](/docs/app/api-reference/components/image#remotepatterns) configuration. If you want to use relative URLs for the image `src`, use a [`loader`](/docs/app/api-reference/components/image#loader).
@@ -160,7 +160,7 @@ Once you've identified the LCP image, you can add the property like this:
 <PagesOnly>
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -175,7 +175,7 @@ export default function Home() {
       />
       <p>Welcome to my homepage!</p>
     </>
-  )
+  );
 }
 ```
 
@@ -184,11 +184,11 @@ export default function Home() {
 <AppOnly>
 
 ```jsx filename="app/page.js"
-import Image from 'next/image'
-import profilePic from '../public/me.png'
+import Image from "next/image";
+import profilePic from "../public/me.png";
 
 export default function Page() {
-  return <Image src={profilePic} alt="Picture of the author" priority />
+  return <Image src={profilePic} alt="Picture of the author" priority />;
 }
 ```
 
@@ -250,12 +250,12 @@ Styling the Image component is similar to styling a normal `<img>` element, but 
 />
 
 ```jsx
-import Image from 'next/image'
-import mountains from '../public/mountains.jpg'
+import Image from "next/image";
+import mountains from "../public/mountains.jpg";
 
 export default function Responsive() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: "flex", flexDirection: "column" }}>
       <Image
         alt="Mountains"
         // Importing an image will
@@ -264,12 +264,12 @@ export default function Responsive() {
         sizes="100vw"
         // Make the image display full width
         style={{
-          width: '100%',
-          height: 'auto',
+          width: "100%",
+          height: "auto",
         }}
       />
     </div>
-  )
+  );
 }
 ```
 
@@ -284,32 +284,32 @@ export default function Responsive() {
 />
 
 ```jsx
-import Image from 'next/image'
-import mountains from '../public/mountains.jpg'
+import Image from "next/image";
+import mountains from "../public/mountains.jpg";
 
 export default function Fill() {
   return (
     <div
       style={{
-        display: 'grid',
-        gridGap: '8px',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(400px, auto))',
+        display: "grid",
+        gridGap: "8px",
+        gridTemplateColumns: "repeat(auto-fit, minmax(400px, auto))",
       }}
     >
-      <div style={{ position: 'relative', height: '400px' }}>
+      <div style={{ position: "relative", height: "400px" }}>
         <Image
           alt="Mountains"
           src={mountains}
           fill
           sizes="(min-width: 808px) 50vw, 100vw"
           style={{
-            objectFit: 'cover', // cover, contain, none
+            objectFit: "cover", // cover, contain, none
           }}
         />
       </div>
       {/* And more images in the grid... */}
     </div>
-  )
+  );
 }
 ```
 
@@ -324,8 +324,8 @@ export default function Fill() {
 />
 
 ```jsx
-import Image from 'next/image'
-import mountains from '../public/mountains.jpg'
+import Image from "next/image";
+import mountains from "../public/mountains.jpg";
 
 export default function Background() {
   return (
@@ -337,10 +337,10 @@ export default function Background() {
       fill
       sizes="100vw"
       style={{
-        objectFit: 'cover',
+        objectFit: "cover",
       }}
     />
-  )
+  );
 }
 ```
 

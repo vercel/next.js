@@ -15,61 +15,61 @@ export default class NodeAttributes {
   attributes: Record<
     string,
     | {
-        hasValue?: false
+        hasValue?: false;
       }
     | {
-        hasValue: true
-        value: any
+        hasValue: true;
+        value: any;
       }
-  >
+  >;
 
   constructor(ASTnode) {
-    this.attributes = {}
+    this.attributes = {};
     ASTnode.attributes.forEach((attribute) => {
-      if (!attribute.type || attribute.type !== 'JSXAttribute') {
-        return
+      if (!attribute.type || attribute.type !== "JSXAttribute") {
+        return;
       }
 
       if (!!attribute.value) {
         // hasValue
         const value =
-          typeof attribute.value.value === 'string'
+          typeof attribute.value.value === "string"
             ? attribute.value.value
-            : typeof attribute.value.expression.value !== 'undefined'
+            : typeof attribute.value.expression.value !== "undefined"
             ? attribute.value.expression.value
-            : attribute.value.expression.properties
+            : attribute.value.expression.properties;
 
         this.attributes[attribute.name.name] = {
           hasValue: true,
           value,
-        }
+        };
       } else {
         this.attributes[attribute.name.name] = {
           hasValue: false,
-        }
+        };
       }
-    })
+    });
   }
   hasAny() {
-    return !!Object.keys(this.attributes).length
+    return !!Object.keys(this.attributes).length;
   }
   has(attrName: string) {
-    return !!this.attributes[attrName]
+    return !!this.attributes[attrName];
   }
   hasValue(attrName: string) {
-    return !!this.attributes[attrName].hasValue
+    return !!this.attributes[attrName].hasValue;
   }
   value(attrName: string) {
-    const attr = this.attributes[attrName]
+    const attr = this.attributes[attrName];
 
     if (!attr) {
-      return true
+      return true;
     }
 
     if (attr.hasValue) {
-      return attr.value
+      return attr.value;
     }
 
-    return undefined
+    return undefined;
   }
 }

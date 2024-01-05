@@ -1,11 +1,11 @@
 // app/send.ts
-'use server'
+"use server";
 
 async function foo() {}
-export { foo }
+export { foo };
 
 async function bar() {}
-export { bar as baz }
+export { bar as baz };
 
 async function qux() {}
-export { qux as default }
+export { qux as default };

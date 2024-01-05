@@ -1,5 +1,5 @@
-import '../styles/global.scss'
+import "../styles/global.scss";
 
 export default function Home() {
-  return <div className="red-text">This text should be red.</div>
+  return <div className="red-text">This text should be red.</div>;
 }

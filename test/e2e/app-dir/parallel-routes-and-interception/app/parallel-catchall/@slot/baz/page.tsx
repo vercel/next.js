@@ -1,3 +1,3 @@
 export default function Baz() {
-  return 'baz slot'
+  return "baz slot";
 }

@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>@foo slot</div>
+  return <div>@foo slot</div>;
 }

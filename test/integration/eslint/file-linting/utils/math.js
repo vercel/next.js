@@ -5,6 +5,6 @@ export default class Test {
         <h1>Hello title</h1>
         /* Badly formatted comment */
       </div>
-    )
+    );
   }
 }

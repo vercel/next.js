@@ -1,12 +1,12 @@
 export default function Nodejs() {
-  return 'nodejs'
+  return "nodejs";
 }
 
 export function getServerSideProps() {
-  return { props: {} }
+  return { props: {} };
 }
 
 export const config = {
   amp: false,
-  runtime: 'nodejs',
-}
+  runtime: "nodejs",
+};

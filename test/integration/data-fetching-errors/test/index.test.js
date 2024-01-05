@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
+import fs from "fs-extra";
 import {
   findPort,
   killApp,
@@ -9,40 +9,40 @@ import {
   renderViaHTTP,
   nextStart,
   check,
-} from 'next-test-utils'
-import { join } from 'path'
+} from "next-test-utils";
+import { join } from "path";
 import {
   GSP_NO_RETURNED_VALUE,
   GSSP_NO_RETURNED_VALUE,
-} from '../../../../packages/next/dist/lib/constants'
-import { PHASE_PRODUCTION_BUILD } from '../../../../packages/next/dist/shared/lib/constants'
+} from "../../../../packages/next/dist/lib/constants";
+import { PHASE_PRODUCTION_BUILD } from "../../../../packages/next/dist/shared/lib/constants";
 
-const appDir = join(__dirname, '..')
-const indexPage = join(appDir, 'pages/index.js')
-let app
-let appPort
-let origIndexPage = ''
+const appDir = join(__dirname, "..");
+const indexPage = join(appDir, "pages/index.js");
+let app;
+let appPort;
+let origIndexPage = "";
 
 const runTests = (isDev = false) => {
   const getStderr = async () => {
     if (isDev) {
-      let stderr = ''
-      appPort = await findPort()
+      let stderr = "";
+      appPort = await findPort();
       app = await launchApp(appDir, appPort, {
         onStderr(msg) {
-          stderr += msg || ''
+          stderr += msg || "";
         },
-      })
-      await renderViaHTTP(appPort, '/')
-      await killApp(app)
-      return stderr
+      });
+      await renderViaHTTP(appPort, "/");
+      await killApp(app);
+      return stderr;
     } else {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      return stderr
+      const { stderr } = await nextBuild(appDir, undefined, { stderr: true });
+      return stderr;
     }
-  }
+  };
 
-  it('should show error for getStaticProps as component member', async () => {
+  it("should show error for getStaticProps as component member", async () => {
     await fs.writeFile(
       indexPage,
       `
@@ -50,13 +50,13 @@ const runTests = (isDev = false) => {
       Page.getStaticProps = () => ({ props: { hello: 'world' }})
       export default Page
     `
-    )
+    );
     expect(await getStderr()).toContain(
       `getStaticProps can not be attached to a page's component and must be exported from the page`
-    )
-  })
+    );
+  });
 
-  it('should show error for getServerSideProps as component member', async () => {
+  it("should show error for getServerSideProps as component member", async () => {
     await fs.writeFile(
       indexPage,
       `
@@ -74,13 +74,13 @@ const runTests = (isDev = false) => {
         }
       }
     `
-    )
+    );
     expect(await getStderr()).toContain(
       `getServerSideProps can not be attached to a page's component and must be exported from the page`
-    )
-  })
+    );
+  });
 
-  it('should show error for getStaticPaths as component member', async () => {
+  it("should show error for getStaticPaths as component member", async () => {
     await fs.writeFile(
       indexPage,
       `
@@ -88,13 +88,13 @@ const runTests = (isDev = false) => {
       Page.getStaticPaths = () => ({ paths: [], fallback: true })
       export default Page
     `
-    )
+    );
     expect(await getStderr()).toContain(
       `getStaticPaths can not be attached to a page's component and must be exported from the page`
-    )
-  })
+    );
+  });
 
-  it('should show error for undefined getStaticProps', async () => {
+  it("should show error for undefined getStaticProps", async () => {
     await fs.writeFile(
       indexPage,
       `
@@ -103,12 +103,12 @@ const runTests = (isDev = false) => {
           return <div />;
         }
       `
-    )
-    expect(await getStderr()).toContain(GSP_NO_RETURNED_VALUE)
-  })
+    );
+    expect(await getStderr()).toContain(GSP_NO_RETURNED_VALUE);
+  });
 
   if (isDev) {
-    it('should show error for undefined getServerSideProps', async () => {
+    it("should show error for undefined getServerSideProps", async () => {
       await fs.writeFile(
         indexPage,
         `
@@ -117,25 +117,25 @@ const runTests = (isDev = false) => {
             return <div />;
           }
         `
-      )
-      expect(await getStderr()).toContain(GSSP_NO_RETURNED_VALUE)
-    })
+      );
+      expect(await getStderr()).toContain(GSSP_NO_RETURNED_VALUE);
+    });
   }
-}
+};
 
-describe('GS(S)P Page Errors', () => {
+describe("GS(S)P Page Errors", () => {
   beforeAll(async () => {
-    origIndexPage = await fs.readFile(indexPage, 'utf8')
-  })
-  afterAll(() => fs.writeFile(indexPage, origIndexPage))
+    origIndexPage = await fs.readFile(indexPage, "utf8");
+  });
+  afterAll(() => fs.writeFile(indexPage, origIndexPage));
 
-  describe('dev mode', () => {
-    runTests(true)
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    runTests()
+  describe("dev mode", () => {
+    runTests(true);
+  });
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
+    runTests();
 
-    it('Error stack printed to stderr', async () => {
+    it("Error stack printed to stderr", async () => {
       try {
         await fs.writeFile(
           indexPage,
@@ -151,27 +151,27 @@ describe('GS(S)P Page Errors', () => {
               throw new Error("Oops")
             }
             `
-        )
+        );
 
-        await nextBuild(appDir)
+        await nextBuild(appDir);
 
-        appPort = await findPort()
+        appPort = await findPort();
 
-        let stderr = ''
+        let stderr = "";
         app = await nextStart(appDir, appPort, {
           onStderr: (msg) => {
-            stderr += msg || ''
+            stderr += msg || "";
           },
-        })
+        });
         await check(async () => {
-          await renderViaHTTP(appPort, '/')
-          return stderr
-        }, /error: oops/i)
+          await renderViaHTTP(appPort, "/");
+          return stderr;
+        }, /error: oops/i);
 
-        expect(stderr).toContain('Error: Oops')
+        expect(stderr).toContain("Error: Oops");
       } finally {
-        await killApp(app)
+        await killApp(app);
       }
-    })
-  })
-})
+    });
+  });
+});

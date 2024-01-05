@@ -1,3 +1,3 @@
 export default (req, res) => {
-  throw new Error('User error')
-}
+  throw new Error("User error");
+};

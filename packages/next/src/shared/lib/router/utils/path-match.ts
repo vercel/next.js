@@ -1,34 +1,34 @@
-import type { Key } from 'next/dist/compiled/path-to-regexp'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import { regexpToFunction } from 'next/dist/compiled/path-to-regexp'
+import type { Key } from "next/dist/compiled/path-to-regexp";
+import { pathToRegexp } from "next/dist/compiled/path-to-regexp";
+import { regexpToFunction } from "next/dist/compiled/path-to-regexp";
 
 interface Options {
   /**
    * A transformer function that will be applied to the regexp generated
    * from the provided path and path-to-regexp.
    */
-  regexModifier?: (regex: string) => string
+  regexModifier?: (regex: string) => string;
   /**
    * When true the function will remove all unnamed parameters
    * from the matched parameters.
    */
-  removeUnnamedParams?: boolean
+  removeUnnamedParams?: boolean;
   /**
    * When true the regexp won't allow an optional trailing delimiter
    * to match.
    */
-  strict?: boolean
+  strict?: boolean;
 
   /**
    * When true the matcher will be case-sensitive, defaults to false
    */
-  sensitive?: boolean
+  sensitive?: boolean;
 }
 
 export type PatchMatcher = (
   pathname?: string | null,
   params?: Record<string, any>
-) => Record<string, any> | false
+) => Record<string, any> | false;
 
 /**
  * Generates a path matcher function for a given path and options based on
@@ -36,20 +36,20 @@ export type PatchMatcher = (
  * and delimited by `/`.
  */
 export function getPathMatch(path: string, options?: Options): PatchMatcher {
-  const keys: Key[] = []
+  const keys: Key[] = [];
   const regexp = pathToRegexp(path, keys, {
-    delimiter: '/',
+    delimiter: "/",
     sensitive:
-      typeof options?.sensitive === 'boolean' ? options.sensitive : false,
+      typeof options?.sensitive === "boolean" ? options.sensitive : false,
     strict: options?.strict,
-  })
+  });
 
   const matcher = regexpToFunction<Record<string, any>>(
     options?.regexModifier
       ? new RegExp(options.regexModifier(regexp.source), regexp.flags)
       : regexp,
     keys
-  )
+  );
 
   /**
    * A matcher function that will check if a given pathname matches the path
@@ -59,12 +59,12 @@ export function getPathMatch(path: string, options?: Options): PatchMatcher {
    */
   return (pathname, params) => {
     // If no pathname is provided it's not a match.
-    if (typeof pathname !== 'string') return false
+    if (typeof pathname !== "string") return false;
 
-    const match = matcher(pathname)
+    const match = matcher(pathname);
 
     // If the path did not match `false` will be returned.
-    if (!match) return false
+    if (!match) return false;
 
     /**
      * If unnamed params are not allowed they must be removed from
@@ -73,12 +73,12 @@ export function getPathMatch(path: string, options?: Options): PatchMatcher {
      */
     if (options?.removeUnnamedParams) {
       for (const key of keys) {
-        if (typeof key.name === 'number') {
-          delete match.params[key.name]
+        if (typeof key.name === "number") {
+          delete match.params[key.name];
         }
       }
     }
 
-    return { ...params, ...match.params }
-  }
+    return { ...params, ...match.params };
+  };
 }

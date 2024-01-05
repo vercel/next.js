@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>automatic static page</p>
+  return <p>automatic static page</p>;
 }

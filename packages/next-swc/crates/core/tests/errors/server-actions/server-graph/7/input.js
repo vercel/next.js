@@ -1,3 +1,3 @@
 const foo = () => {
-  'use server'
-}
+  "use server";
+};

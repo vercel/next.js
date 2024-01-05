@@ -4,5 +4,5 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <h1> intercepted layout</h1>
       {children}
     </>
-  )
+  );
 }

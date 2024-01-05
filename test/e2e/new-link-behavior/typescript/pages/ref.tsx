@@ -1,14 +1,14 @@
-import { useRef, useEffect, useState } from 'react'
-import Link from 'next/link'
+import { useRef, useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function Page() {
-  const ref = useRef<HTMLAnchorElement>()
-  const [anchorText, setAnchorText] = useState(null)
+  const ref = useRef<HTMLAnchorElement>();
+  const [anchorText, setAnchorText] = useState(null);
 
   useEffect(() => {
-    const anchorElement = ref.current
-    setAnchorText(anchorElement?.textContent)
-  }, [])
+    const anchorElement = ref.current;
+    setAnchorText(anchorElement?.textContent);
+  }, []);
 
   return (
     <>
@@ -17,5 +17,5 @@ export default function Page() {
         About
       </Link>
     </>
-  )
+  );
 }

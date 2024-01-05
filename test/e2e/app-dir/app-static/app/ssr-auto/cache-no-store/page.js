@@ -1,16 +1,16 @@
-import { cache, use } from 'react'
+import { cache, use } from "react";
 
 export default function Page() {
   const getData = cache(() =>
-    fetch('https://example.vercel.sh', {
-      cache: 'no-store',
+    fetch("https://example.vercel.sh", {
+      cache: "no-store",
     })
       .then((res) => res.text())
       .then((text) => new Promise((res) => setTimeout(() => res(text), 1000)))
-  )
+  );
 
-  const dataPromise = getData()
-  const data = use(dataPromise)
+  const dataPromise = getData();
+  const data = use(dataPromise);
 
   return (
     <>
@@ -18,5 +18,5 @@ export default function Page() {
       <div id="example-dat">{data}</div>
       <p id="date">{Date.now()}</p>
     </>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import { InferGetServerSidePropsType, GetServerSidePropsContext } from 'next'
+import { InferGetServerSidePropsType, GetServerSidePropsContext } from "next";
 
 type Post = {
-  author: string
-  content: string
-}
+  author: string;
+  content: string;
+};
 
 export const getServerSideProps = async (
   ctx: GetServerSidePropsContext<{ post: string }>
 ) => {
-  const res = await fetch(`https://.../posts/`)
-  const posts: Post[] = await res.json()
+  const res = await fetch(`https://.../posts/`);
+  const posts: Post[] = await res.json();
   return {
     props: {
       posts,
     },
-  }
-}
+  };
+};
 
 function Blog({
   posts,
@@ -26,7 +26,7 @@ function Blog({
         <div key={post.author}>{post.author}</div>
       ))}
     </>
-  )
+  );
 }
 
-export default Blog
+export default Blog;

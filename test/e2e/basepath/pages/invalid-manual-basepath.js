@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const Page = () => (
   <>
@@ -7,6 +7,6 @@ const Page = () => (
       <h1>Hello World</h1>
     </Link>
   </>
-)
+);
 
-export default Page
+export default Page;

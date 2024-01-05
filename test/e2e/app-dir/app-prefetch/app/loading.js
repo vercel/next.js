@@ -1,3 +1,3 @@
 export default function GlobalLoading() {
-  return <>Loading...</>
+  return <>Loading...</>;
 }

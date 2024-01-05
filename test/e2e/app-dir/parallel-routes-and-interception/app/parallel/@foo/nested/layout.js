@@ -12,5 +12,5 @@ export default function Parallel({ a, b, children }) {
         {children}
       </div>
     </div>
-  )
+  );
 }

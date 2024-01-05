@@ -1,6 +1,6 @@
-import { useContext } from 'react'
-import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
-import type { NextRouter } from '../router'
+import { useContext } from "react";
+import { RouterContext } from "../../shared/lib/router-context.shared-runtime";
+import type { NextRouter } from "../router";
 
 /**
  * useRouter from `next/compat/router` is designed to assist developers
@@ -13,5 +13,5 @@ import type { NextRouter } from '../router'
  * @returns The `NextRouter` instance if it's available, otherwise `null`.
  */
 export function useRouter(): NextRouter | null {
-  return useContext(RouterContext)
+  return useContext(RouterContext);
 }

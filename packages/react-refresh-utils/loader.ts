@@ -1,19 +1,19 @@
-import type { LoaderDefinition } from 'webpack'
-import RefreshModuleRuntime from './internal/ReactRefreshModule.runtime'
+import type { LoaderDefinition } from "webpack";
+import RefreshModuleRuntime from "./internal/ReactRefreshModule.runtime";
 
-let refreshModuleRuntime = RefreshModuleRuntime.toString()
+let refreshModuleRuntime = RefreshModuleRuntime.toString();
 refreshModuleRuntime = refreshModuleRuntime
   .slice(
-    refreshModuleRuntime.indexOf('{') + 1,
-    refreshModuleRuntime.lastIndexOf('}')
+    refreshModuleRuntime.indexOf("{") + 1,
+    refreshModuleRuntime.lastIndexOf("}")
   )
   // Given that the import above executes the module we need to make sure it does not crash on `import.meta` not being allowed.
-  .replace('global.importMeta', 'import.meta')
+  .replace("global.importMeta", "import.meta");
 
 let commonJsrefreshModuleRuntime = refreshModuleRuntime.replace(
-  'import.meta.webpackHot',
-  'module.hot'
-)
+  "import.meta.webpackHot",
+  "module.hot"
+);
 
 const ReactRefreshLoader: LoaderDefinition = function ReactRefreshLoader(
   source,
@@ -23,12 +23,12 @@ const ReactRefreshLoader: LoaderDefinition = function ReactRefreshLoader(
     null,
     `${source}\n\n;${
       // Account for commonjs not supporting `import.meta
-      this.resourcePath.endsWith('.cjs')
+      this.resourcePath.endsWith(".cjs")
         ? commonJsrefreshModuleRuntime
         : refreshModuleRuntime
     }`,
     inputSourceMap
-  )
-}
+  );
+};
 
-export default ReactRefreshLoader
+export default ReactRefreshLoader;

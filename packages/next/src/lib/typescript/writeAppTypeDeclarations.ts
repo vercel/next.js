@@ -1,6 +1,6 @@
-import os from 'os'
-import path from 'path'
-import { promises as fs } from 'fs'
+import os from "os";
+import path from "path";
+import { promises as fs } from "fs";
 
 export async function writeAppTypeDeclarations({
   baseDir,
@@ -8,28 +8,31 @@ export async function writeAppTypeDeclarations({
   hasPagesDir,
   isAppDirEnabled,
 }: {
-  baseDir: string
-  imageImportsEnabled: boolean
-  hasPagesDir: boolean
-  isAppDirEnabled: boolean
+  baseDir: string;
+  imageImportsEnabled: boolean;
+  hasPagesDir: boolean;
+  isAppDirEnabled: boolean;
 }): Promise<void> {
   // Reference `next` types
-  const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
+  const appTypeDeclarations = path.join(baseDir, "next-env.d.ts");
 
   // Defaults EOL to system default
-  let eol = os.EOL
-  let currentContent: string | undefined
+  let eol = os.EOL;
+  let currentContent: string | undefined;
 
   try {
-    currentContent = await fs.readFile(appTypeDeclarations, 'utf8')
+    currentContent = await fs.readFile(appTypeDeclarations, "utf8");
     // If file already exists then preserve its line ending
-    const lf = currentContent.indexOf('\n', /* skip first so we can lf - 1 */ 1)
+    const lf = currentContent.indexOf(
+      "\n",
+      /* skip first so we can lf - 1 */ 1
+    );
 
     if (lf !== -1) {
-      if (currentContent[lf - 1] === '\r') {
-        eol = '\r\n'
+      if (currentContent[lf - 1] === "\r") {
+        eol = "\r\n";
       } else {
-        eol = '\n'
+        eol = "\n";
       }
     }
   } catch {}
@@ -43,30 +46,30 @@ export async function writeAppTypeDeclarations({
   const directives: string[] = [
     // Include the core Next.js typings.
     '/// <reference types="next" />',
-  ]
+  ];
 
   if (imageImportsEnabled) {
-    directives.push('/// <reference types="next/image-types/global" />')
+    directives.push('/// <reference types="next/image-types/global" />');
   }
 
   if (isAppDirEnabled && hasPagesDir) {
     directives.push(
       '/// <reference types="next/navigation-types/compat/navigation" />'
-    )
+    );
   }
 
   // Push the notice in.
   directives.push(
-    '',
-    '// NOTE: This file should not be edited',
-    '// see https://nextjs.org/docs/basic-features/typescript for more information.'
-  )
+    "",
+    "// NOTE: This file should not be edited",
+    "// see https://nextjs.org/docs/basic-features/typescript for more information."
+  );
 
-  const content = directives.join(eol) + eol
+  const content = directives.join(eol) + eol;
 
   // Avoids an un-necessary write on read-only fs
   if (currentContent === content) {
-    return
+    return;
   }
-  await fs.writeFile(appTypeDeclarations, content)
+  await fs.writeFile(appTypeDeclarations, content);
 }

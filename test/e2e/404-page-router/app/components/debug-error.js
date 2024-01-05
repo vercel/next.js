@@ -1,25 +1,25 @@
-import { useRouter } from 'next/router'
-import { useEffect, useState } from 'react'
-import Debug from './debug'
+import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import Debug from "./debug";
 
 function transform(router) {
   return {
     pathname: router.pathname,
     asPath: router.asPath,
     query: Object.entries(router.query)
-      .map(([key, value]) => [key, value].join('='))
-      .join('&'),
-    isReady: router.isReady ? 'true' : 'false',
-  }
+      .map(([key, value]) => [key, value].join("="))
+      .join("&"),
+    isReady: router.isReady ? "true" : "false",
+  };
 }
 
 export default function DebugError({ children }) {
-  const router = useRouter()
-  const [debug, setDebug] = useState({})
+  const router = useRouter();
+  const [debug, setDebug] = useState({});
 
   useEffect(() => {
-    setDebug(transform(router))
-  }, [router])
+    setDebug(transform(router));
+  }, [router]);
 
   return (
     <>
@@ -31,5 +31,5 @@ export default function DebugError({ children }) {
       </dl>
       {children}
     </>
-  )
+  );
 }

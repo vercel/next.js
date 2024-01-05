@@ -3,19 +3,19 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../../../server/app-render/types'
+} from "../../../server/app-render/types";
 import type {
   CacheNode,
   ChildSegmentMap,
   ReadyCacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from "../../../shared/lib/app-router-context.shared-runtime";
 import {
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
-} from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
-import { createRouterCacheKey } from './create-router-cache-key'
-import type { FetchServerResponseResult } from './fetch-server-response'
+} from "../../../shared/lib/segment";
+import { matchSegment } from "../match-segments";
+import { createRouterCacheKey } from "./create-router-cache-key";
+import type { FetchServerResponseResult } from "./fetch-server-response";
 
 // This is yet another tree type that is used to track pending promises that
 // need to be fulfilled once the dynamic data is received. The terminal nodes of
@@ -25,13 +25,13 @@ import type { FetchServerResponseResult } from './fetch-server-response'
 // the navigation response is received.
 type Task = {
   // The router state that corresponds to the tree that this Task represents.
-  route: FlightRouterState
+  route: FlightRouterState;
   // This is usually non-null. It represents a brand new Cache Node tree whose
   // data is still pending. If it's null, it means there's no pending data but
   // the client patched the router state.
-  node: CacheNode | null
-  children: Map<string, Task> | null
-}
+  node: CacheNode | null;
+  children: Map<string, Task> | null;
+};
 
 // Creates a new Cache Node tree (i.e. copy-on-write) that represents the
 // optimistic result of a navigation, using both the current Cache Node tree and
@@ -71,11 +71,11 @@ export function updateCacheNodeOnNavigation(
   isPrefetchStale: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
-  const oldRouterStateChildren = oldRouterState[1]
-  const newRouterStateChildren = newRouterState[1]
-  const prefetchDataChildren = prefetchData[1]
+  const oldRouterStateChildren = oldRouterState[1];
+  const newRouterStateChildren = newRouterState[1];
+  const prefetchDataChildren = prefetchData[1];
 
-  const oldParallelRoutes = oldCacheNode.parallelRoutes
+  const oldParallelRoutes = oldCacheNode.parallelRoutes;
 
   // Clone the current set of segment children, even if they aren't active in
   // the new tree.
@@ -88,7 +88,7 @@ export function updateCacheNodeOnNavigation(
   // leak. We should figure out a better model for the lifetime of inactive
   // segments, so we can maintain instant back/forward navigations without
   // leaking memory indefinitely.
-  const prefetchParallelRoutes = new Map(oldParallelRoutes)
+  const prefetchParallelRoutes = new Map(oldParallelRoutes);
 
   // As we diff the trees, we may sometimes modify (copy-on-write, not mutate)
   // the Route Tree that was returned by the server — for example, in the case
@@ -96,30 +96,30 @@ export function updateCacheNodeOnNavigation(
   // avoid mutating the original tree, we clone the router state children along
   // the return path.
   let patchedRouterStateChildren: {
-    [parallelRouteKey: string]: FlightRouterState
-  } = {}
-  let taskChildren = null
+    [parallelRouteKey: string]: FlightRouterState;
+  } = {};
+  let taskChildren = null;
   for (let parallelRouteKey in newRouterStateChildren) {
     const newRouterStateChild: FlightRouterState =
-      newRouterStateChildren[parallelRouteKey]
+      newRouterStateChildren[parallelRouteKey];
     const oldRouterStateChild: FlightRouterState | void =
-      oldRouterStateChildren[parallelRouteKey]
-    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
+      oldRouterStateChildren[parallelRouteKey];
+    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey);
     const prefetchDataChild: CacheNodeSeedData | void | null =
-      prefetchDataChildren[parallelRouteKey]
+      prefetchDataChildren[parallelRouteKey];
 
-    const newSegmentChild = newRouterStateChild[0]
-    const newSegmentKeyChild = createRouterCacheKey(newSegmentChild)
+    const newSegmentChild = newRouterStateChild[0];
+    const newSegmentKeyChild = createRouterCacheKey(newSegmentChild);
 
     const oldSegmentChild =
-      oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
+      oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined;
 
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
-        : undefined
+        : undefined;
 
-    let taskChild: Task | null
+    let taskChild: Task | null;
     if (newSegmentChild === PAGE_SEGMENT_KEY) {
       // This is a leaf segment — a page, not a shared layout. We always apply
       // its data.
@@ -128,7 +128,7 @@ export function updateCacheNodeOnNavigation(
         prefetchDataChild !== undefined ? prefetchDataChild : null,
         prefetchHead,
         isPrefetchStale
-      )
+      );
     } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
       // This is another kind of leaf segment — a default route.
       //
@@ -141,7 +141,7 @@ export function updateCacheNodeOnNavigation(
         // Reuse the existing Router State for this segment. We spawn a "task"
         // just to keep track of the updated router state; unlike most, it's
         // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
+        taskChild = spawnReusedTask(oldRouterStateChild);
       } else {
         // There's no currently active segment. Switch to the "create" path.
         taskChild = spawnPendingTask(
@@ -149,7 +149,7 @@ export function updateCacheNodeOnNavigation(
           prefetchDataChild !== undefined ? prefetchDataChild : null,
           prefetchHead,
           isPrefetchStale
-        )
+        );
       }
     } else if (
       oldSegmentChild !== undefined &&
@@ -169,14 +169,14 @@ export function updateCacheNodeOnNavigation(
             prefetchDataChild,
             prefetchHead,
             isPrefetchStale
-          )
+          );
         } else {
           // The server didn't send any prefetch data for this segment. This
           // shouldn't happen because the Route Tree and the Seed Data tree
           // should always be the same shape, but until we unify those types
           // it's still possible. For now we're going to deopt and trigger a
           // lazy fetch during render.
-          taskChild = spawnTaskForMissingData(newRouterStateChild)
+          taskChild = spawnTaskForMissingData(newRouterStateChild);
         }
       } else {
         // Either there's no existing Cache Node for this segment, or this
@@ -187,7 +187,7 @@ export function updateCacheNodeOnNavigation(
           prefetchDataChild !== undefined ? prefetchDataChild : null,
           prefetchHead,
           isPrefetchStale
-        )
+        );
       }
     } else {
       // This is a new tree. Switch to the "create" path.
@@ -196,35 +196,35 @@ export function updateCacheNodeOnNavigation(
         prefetchDataChild !== undefined ? prefetchDataChild : null,
         prefetchHead,
         isPrefetchStale
-      )
+      );
     }
 
     if (taskChild !== null) {
       // Something changed in the child tree. Keep track of the child task.
       if (taskChildren === null) {
-        taskChildren = new Map()
+        taskChildren = new Map();
       }
-      taskChildren.set(parallelRouteKey, taskChild)
-      const newCacheNodeChild = taskChild.node
+      taskChildren.set(parallelRouteKey, taskChild);
+      const newCacheNodeChild = taskChild.node;
       if (newCacheNodeChild !== null) {
-        const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild)
-        newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild)
-        prefetchParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+        const newSegmentMapChild: ChildSegmentMap = new Map(oldSegmentMapChild);
+        newSegmentMapChild.set(newSegmentKeyChild, newCacheNodeChild);
+        prefetchParallelRoutes.set(parallelRouteKey, newSegmentMapChild);
       }
 
       // The child tree's route state may be different from the prefetched
       // route sent by the server. We need to clone it as we traverse back up
       // the tree.
-      patchedRouterStateChildren[parallelRouteKey] = taskChild.route
+      patchedRouterStateChildren[parallelRouteKey] = taskChild.route;
     } else {
       // The child didn't change. We can use the prefetched router state.
-      patchedRouterStateChildren[parallelRouteKey] = newRouterStateChild
+      patchedRouterStateChildren[parallelRouteKey] = newRouterStateChild;
     }
   }
 
   if (taskChildren === null) {
     // No new tasks were spawned.
-    return null
+    return null;
   }
 
   const newCacheNode: ReadyCacheNode = {
@@ -242,7 +242,7 @@ export function updateCacheNodeOnNavigation(
 
     // Everything is cloned except for the children, which we computed above.
     parallelRoutes: prefetchParallelRoutes,
-  }
+  };
 
   return {
     // Return a cloned copy of the router state with updated children.
@@ -252,27 +252,27 @@ export function updateCacheNodeOnNavigation(
     ),
     node: newCacheNode,
     children: taskChildren,
-  }
+  };
 }
 
 function patchRouterStateWithNewChildren(
   baseRouterState: FlightRouterState,
   newChildren: { [parallelRouteKey: string]: FlightRouterState }
 ): FlightRouterState {
-  const clone: FlightRouterState = [baseRouterState[0], newChildren]
+  const clone: FlightRouterState = [baseRouterState[0], newChildren];
   // Based on equivalent logic in apply-router-state-patch-to-tree, but should
   // confirm whether we need to copy all of these fields. Not sure the server
   // ever sends, e.g. the refetch marker.
   if (2 in baseRouterState) {
-    clone[2] = baseRouterState[2]
+    clone[2] = baseRouterState[2];
   }
   if (3 in baseRouterState) {
-    clone[3] = baseRouterState[3]
+    clone[3] = baseRouterState[3];
   }
   if (4 in baseRouterState) {
-    clone[4] = baseRouterState[4]
+    clone[4] = baseRouterState[4];
   }
-  return clone
+  return clone;
 }
 
 function spawnPendingTask(
@@ -287,12 +287,12 @@ function spawnPendingTask(
     prefetchData,
     prefetchHead,
     isPrefetchStale
-  )
+  );
   return {
     route: routerState,
     node: pendingCacheNode,
     children: null,
-  }
+  };
 }
 
 function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
@@ -302,7 +302,7 @@ function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
     route: reusedRouterState,
     node: null,
     children: null,
-  }
+  };
 }
 
 function spawnTaskForMissingData(routerState: FlightRouterState): Task {
@@ -314,12 +314,12 @@ function spawnTaskForMissingData(routerState: FlightRouterState): Task {
     null,
     null,
     false
-  )
+  );
   return {
     route: routerState,
     node: pendingCacheNode,
     children: null,
-  }
+  };
 }
 
 // Writes a dynamic server response into the tree created by
@@ -343,18 +343,18 @@ export function listenForDynamicRequest(
 ) {
   responsePromise.then(
     (response: FetchServerResponseResult) => {
-      const flightData = response[0]
+      const flightData = response[0];
       for (const flightDataPath of flightData) {
-        const segmentPath = flightDataPath.slice(0, -3)
-        const serverRouterState = flightDataPath[flightDataPath.length - 3]
-        const dynamicData = flightDataPath[flightDataPath.length - 2]
-        const dynamicHead = flightDataPath[flightDataPath.length - 1]
+        const segmentPath = flightDataPath.slice(0, -3);
+        const serverRouterState = flightDataPath[flightDataPath.length - 3];
+        const dynamicData = flightDataPath[flightDataPath.length - 2];
+        const dynamicHead = flightDataPath[flightDataPath.length - 1];
 
-        if (typeof segmentPath === 'string') {
+        if (typeof segmentPath === "string") {
           // Happens when navigating to page in `pages` from `app`. We shouldn't
           // get here because should have already handled this during
           // the prefetch.
-          continue
+          continue;
         }
 
         writeDynamicDataIntoPendingTask(
@@ -363,19 +363,19 @@ export function listenForDynamicRequest(
           serverRouterState,
           dynamicData,
           dynamicHead
-        )
+        );
       }
 
       // Now that we've exhausted all the data we received from the server, if
       // there are any remaining pending tasks in the tree, abort them now.
       // If there's any missing data, it will trigger a lazy fetch.
-      abortTask(task, null)
+      abortTask(task, null);
     },
     (error: any) => {
       // This will trigger an error during render
-      abortTask(task, error)
+      abortTask(task, error);
     }
-  )
+  );
 }
 
 function writeDynamicDataIntoPendingTask(
@@ -395,19 +395,19 @@ function writeDynamicDataIntoPendingTask(
   //   [string, Segment, string, Segment, string, Segment, ...]
   //
   // Iterate through the path and finish any tasks that match this payload.
-  let task = rootTask
+  let task = rootTask;
   for (let i = 0; i < segmentPath.length; i += 2) {
-    const parallelRouteKey: string = segmentPath[i]
-    const segment: Segment = segmentPath[i + 1]
-    const taskChildren = task.children
+    const parallelRouteKey: string = segmentPath[i];
+    const segment: Segment = segmentPath[i + 1];
+    const taskChildren = task.children;
     if (taskChildren !== null) {
-      const taskChild = taskChildren.get(parallelRouteKey)
+      const taskChild = taskChildren.get(parallelRouteKey);
       if (taskChild !== undefined) {
-        const taskSegment = taskChild.route[0]
+        const taskSegment = taskChild.route[0];
         if (matchSegment(segment, taskSegment)) {
           // Found a match for this task. Keep traversing down the task tree.
-          task = taskChild
-          continue
+          task = taskChild;
+          continue;
         }
       }
     }
@@ -415,7 +415,7 @@ function writeDynamicDataIntoPendingTask(
     // abort the task, though, because a different FlightDataPath may be able to
     // fulfill it (see loop in listenForDynamicRequest). We only abort tasks
     // once we've run out of data.
-    return
+    return;
   }
 
   finishTaskUsingDynamicDataPayload(
@@ -423,7 +423,7 @@ function writeDynamicDataIntoPendingTask(
     serverRouterState,
     dynamicData,
     dynamicHead
-  )
+  );
 }
 
 function finishTaskUsingDynamicDataPayload(
@@ -434,8 +434,8 @@ function finishTaskUsingDynamicDataPayload(
 ) {
   // dynamicData may represent a larger subtree than the task. Before we can
   // finish the task, we need to line them up.
-  const taskChildren = task.children
-  const taskNode = task.node
+  const taskChildren = task.children;
+  const taskNode = task.node;
   if (taskChildren === null) {
     // We've reached the leaf node of the pending task. The server data tree
     // lines up the pending Cache Node tree. We can now switch to the
@@ -447,26 +447,26 @@ function finishTaskUsingDynamicDataPayload(
         serverRouterState,
         dynamicData,
         dynamicHead
-      )
+      );
       // Null this out to indicate that the task is complete.
-      task.node = null
+      task.node = null;
     }
-    return
+    return;
   }
   // The server returned more data than we need to finish the task. Skip over
   // the extra segments until we reach the leaf task node.
-  const serverChildren = serverRouterState[1]
-  const dynamicDataChildren = dynamicData[1]
+  const serverChildren = serverRouterState[1];
+  const dynamicDataChildren = dynamicData[1];
 
   for (const parallelRouteKey in serverRouterState) {
     const serverRouterStateChild: FlightRouterState =
-      serverChildren[parallelRouteKey]
+      serverChildren[parallelRouteKey];
     const dynamicDataChild: CacheNodeSeedData | null | void =
-      dynamicDataChildren[parallelRouteKey]
+      dynamicDataChildren[parallelRouteKey];
 
-    const taskChild = taskChildren.get(parallelRouteKey)
+    const taskChild = taskChildren.get(parallelRouteKey);
     if (taskChild !== undefined) {
-      const taskSegment = taskChild.route[0]
+      const taskSegment = taskChild.route[0];
       if (
         matchSegment(serverRouterStateChild[0], taskSegment) &&
         dynamicDataChild !== null &&
@@ -478,7 +478,7 @@ function finishTaskUsingDynamicDataPayload(
           serverRouterStateChild,
           dynamicDataChild,
           dynamicHead
-        )
+        );
       }
     }
     // We didn't find a child task that matches the server data. We won't abort
@@ -494,38 +494,38 @@ function createPendingCacheNode(
   prefetchHead: React.ReactNode,
   isPrefetchStale: boolean
 ): ReadyCacheNode {
-  const routerStateChildren = routerState[1]
-  const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
+  const routerStateChildren = routerState[1];
+  const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null;
 
-  const parallelRoutes = new Map()
+  const parallelRoutes = new Map();
   for (let parallelRouteKey in routerStateChildren) {
     const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
+      routerStateChildren[parallelRouteKey];
     const prefetchDataChild: CacheNodeSeedData | null | void =
       prefetchDataChildren !== null
         ? prefetchDataChildren[parallelRouteKey]
-        : null
+        : null;
 
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
+    const segmentChild = routerStateChild[0];
+    const segmentKeyChild = createRouterCacheKey(segmentChild);
 
     const newCacheNodeChild = createPendingCacheNode(
       routerStateChild,
       prefetchDataChild === undefined ? null : prefetchDataChild,
       prefetchHead,
       isPrefetchStale
-    )
+    );
 
-    const newSegmentMapChild: ChildSegmentMap = new Map()
-    newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
-    parallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+    const newSegmentMapChild: ChildSegmentMap = new Map();
+    newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild);
+    parallelRoutes.set(parallelRouteKey, newSegmentMapChild);
   }
 
   // The head is assigned to every leaf segment delivered by the server. Based
   // on corresponding logic in fill-lazy-items-till-leaf-with-head.ts
-  const isLeafSegment = parallelRoutes.size === 0
+  const isLeafSegment = parallelRoutes.size === 0;
 
-  const maybePrefetchRsc = prefetchData !== null ? prefetchData[2] : null
+  const maybePrefetchRsc = prefetchData !== null ? prefetchData[2] : null;
 
   return {
     lazyData: null,
@@ -545,7 +545,7 @@ function createPendingCacheNode(
     // response is received from the server.
     rsc: createDeferredRsc(),
     head: isLeafSegment ? createDeferredRsc() : null,
-  }
+  };
 }
 
 function finishPendingCacheNode(
@@ -565,30 +565,30 @@ function finishPendingCacheNode(
   // We must resolve every promise in the tree, or else it will suspend
   // indefinitely. If we did not receive data for a segment, we will resolve its
   // data promise to `null` to trigger a lazy fetch during render.
-  const taskStateChildren = taskState[1]
-  const serverStateChildren = serverState[1]
-  const dataChildren = dynamicData[1]
+  const taskStateChildren = taskState[1];
+  const serverStateChildren = serverState[1];
+  const dataChildren = dynamicData[1];
 
   // The router state that we traverse the tree with (taskState) is the same one
   // that we used to construct the pending Cache Node tree. That way we're sure
   // to resolve all the pending promises.
-  const parallelRoutes = cacheNode.parallelRoutes
+  const parallelRoutes = cacheNode.parallelRoutes;
   for (let parallelRouteKey in taskStateChildren) {
     const taskStateChild: FlightRouterState =
-      taskStateChildren[parallelRouteKey]
+      taskStateChildren[parallelRouteKey];
     const serverStateChild: FlightRouterState | void =
-      serverStateChildren[parallelRouteKey]
+      serverStateChildren[parallelRouteKey];
     const dataChild: CacheNodeSeedData | null | void =
-      dataChildren[parallelRouteKey]
+      dataChildren[parallelRouteKey];
 
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
-    const taskSegmentChild = taskStateChild[0]
-    const taskSegmentKeyChild = createRouterCacheKey(taskSegmentChild)
+    const segmentMapChild = parallelRoutes.get(parallelRouteKey);
+    const taskSegmentChild = taskStateChild[0];
+    const taskSegmentKeyChild = createRouterCacheKey(taskSegmentChild);
 
     const cacheNodeChild =
       segmentMapChild !== undefined
         ? segmentMapChild.get(taskSegmentKeyChild)
-        : undefined
+        : undefined;
 
     if (cacheNodeChild !== undefined) {
       if (
@@ -603,18 +603,18 @@ function finishPendingCacheNode(
             serverStateChild,
             dataChild,
             dynamicHead
-          )
+          );
         } else {
           // The server never returned data for this segment. Trigger a lazy
           // fetch during render. This shouldn't happen because the Route Tree
           // and the Seed Data tree sent by the server should always be the same
           // shape when part of the same server response.
-          abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
+          abortPendingCacheNode(taskStateChild, cacheNodeChild, null);
         }
       } else {
         // The server never returned data for this segment. Trigger a lazy
         // fetch during render.
-        abortPendingCacheNode(taskStateChild, cacheNodeChild, null)
+        abortPendingCacheNode(taskStateChild, cacheNodeChild, null);
       }
     } else {
       // The server response matches what was expected to receive, but there's
@@ -626,17 +626,17 @@ function finishPendingCacheNode(
 
   // Use the dynamic data from the server to fulfill the deferred RSC promise
   // on the Cache Node.
-  const rsc = cacheNode.rsc
-  const dynamicSegmentData = dynamicData[2]
+  const rsc = cacheNode.rsc;
+  const dynamicSegmentData = dynamicData[2];
   if (rsc === null) {
     // This is a lazy cache node. We can overwrite it. This is only safe
     // because we know that the LayoutRouter suspends if `rsc` is `null`.
-    cacheNode.rsc = dynamicSegmentData
+    cacheNode.rsc = dynamicSegmentData;
   } else if (isDeferredRsc(rsc)) {
     // This is a deferred RSC promise. We can fulfill it with the data we just
     // received from the server. If it was already resolved by a different
     // navigation, then this does nothing because we can't overwrite data.
-    rsc.resolve(dynamicSegmentData)
+    rsc.resolve(dynamicSegmentData);
   } else {
     // This is not a deferred RSC promise, nor is it empty, so it must have
     // been populated by a different navigation. We must not overwrite it.
@@ -645,35 +645,35 @@ function finishPendingCacheNode(
   // Check if this is a leaf segment. If so, it will have a `head` property with
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
-  const head = cacheNode.head
+  const head = cacheNode.head;
   if (isDeferredRsc(head)) {
-    head.resolve(dynamicHead)
+    head.resolve(dynamicHead);
   }
 }
 
 export function abortTask(task: Task, error: any): void {
-  const cacheNode = task.node
+  const cacheNode = task.node;
   if (cacheNode === null) {
     // This indicates the task is already complete.
-    return
+    return;
   }
 
-  const taskChildren = task.children
+  const taskChildren = task.children;
   if (taskChildren === null) {
     // Reached the leaf task node. This is the root of a pending cache
     // node tree.
-    abortPendingCacheNode(task.route, cacheNode, error)
+    abortPendingCacheNode(task.route, cacheNode, error);
   } else {
     // This is an intermediate task node. Keep traversing until we reach a
     // task node with no children. That will be the root of the cache node tree
     // that needs to be resolved.
     for (const taskChild of taskChildren.values()) {
-      abortTask(taskChild, error)
+      abortTask(taskChild, error);
     }
   }
 
   // Null this out to indicate that the task is complete.
-  task.node = null
+  task.node = null;
 }
 
 function abortPendingCacheNode(
@@ -685,35 +685,35 @@ function abortPendingCacheNode(
   // to trigger a lazy fetch during render.
   //
   // Or, if an error object is provided, it will error instead.
-  const routerStateChildren = routerState[1]
-  const parallelRoutes = cacheNode.parallelRoutes
+  const routerStateChildren = routerState[1];
+  const parallelRoutes = cacheNode.parallelRoutes;
   for (let parallelRouteKey in routerStateChildren) {
     const routerStateChild: FlightRouterState =
-      routerStateChildren[parallelRouteKey]
-    const segmentMapChild = parallelRoutes.get(parallelRouteKey)
+      routerStateChildren[parallelRouteKey];
+    const segmentMapChild = parallelRoutes.get(parallelRouteKey);
     if (segmentMapChild === undefined) {
       // This shouldn't happen because we're traversing the same tree that was
       // used to construct the cache nodes in the first place.
-      continue
+      continue;
     }
-    const segmentChild = routerStateChild[0]
-    const segmentKeyChild = createRouterCacheKey(segmentChild)
-    const cacheNodeChild = segmentMapChild.get(segmentKeyChild)
+    const segmentChild = routerStateChild[0];
+    const segmentKeyChild = createRouterCacheKey(segmentChild);
+    const cacheNodeChild = segmentMapChild.get(segmentKeyChild);
     if (cacheNodeChild !== undefined) {
-      abortPendingCacheNode(routerStateChild, cacheNodeChild, error)
+      abortPendingCacheNode(routerStateChild, cacheNodeChild, error);
     } else {
       // This shouldn't happen because we're traversing the same tree that was
       // used to construct the cache nodes in the first place.
     }
   }
-  const rsc = cacheNode.rsc
+  const rsc = cacheNode.rsc;
   if (isDeferredRsc(rsc)) {
     if (error === null) {
       // This will trigger a lazy fetch during render.
-      rsc.resolve(null)
+      rsc.resolve(null);
     } else {
       // This will trigger an error during rendering.
-      rsc.reject(error)
+      rsc.reject(error);
     }
   }
 
@@ -721,74 +721,74 @@ function abortPendingCacheNode(
   // a pending promise that needs to be resolved. If an error was provided, we
   // will not resolve it with an error, since this is rendered at the root of
   // the app. We want the segment to error, not the entire app.
-  const head = cacheNode.head
+  const head = cacheNode.head;
   if (isDeferredRsc(head)) {
-    head.resolve(null)
+    head.resolve(null);
   }
 }
 
-const DEFERRED = Symbol()
+const DEFERRED = Symbol();
 
 type PendingDeferredRsc = Promise<React.ReactNode> & {
-  status: 'pending'
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
-  tag: Symbol
-}
+  status: "pending";
+  resolve: (value: React.ReactNode) => void;
+  reject: (error: any) => void;
+  tag: Symbol;
+};
 
 type FulfilledDeferredRsc = Promise<React.ReactNode> & {
-  status: 'fulfilled'
-  value: React.ReactNode
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
-  tag: Symbol
-}
+  status: "fulfilled";
+  value: React.ReactNode;
+  resolve: (value: React.ReactNode) => void;
+  reject: (error: any) => void;
+  tag: Symbol;
+};
 
 type RejectedDeferredRsc = Promise<React.ReactNode> & {
-  status: 'rejected'
-  reason: any
-  resolve: (value: React.ReactNode) => void
-  reject: (error: any) => void
-  tag: Symbol
-}
+  status: "rejected";
+  reason: any;
+  resolve: (value: React.ReactNode) => void;
+  reject: (error: any) => void;
+  tag: Symbol;
+};
 
 type DeferredRsc =
   | PendingDeferredRsc
   | FulfilledDeferredRsc
-  | RejectedDeferredRsc
+  | RejectedDeferredRsc;
 
 // This type exists to distinguish a DeferredRsc from a Flight promise. It's a
 // compromise to avoid adding an extra field on every Cache Node, which would be
 // awkward because the pre-PPR parts of codebase would need to account for it,
 // too. We can remove it once type Cache Node type is more settled.
 function isDeferredRsc(value: any): value is DeferredRsc {
-  return value && value.tag === DEFERRED
+  return value && value.tag === DEFERRED;
 }
 
 function createDeferredRsc(): PendingDeferredRsc {
-  let resolve: any
-  let reject: any
+  let resolve: any;
+  let reject: any;
   const pendingRsc = new Promise<React.ReactNode>((res, rej) => {
-    resolve = res
-    reject = rej
-  }) as PendingDeferredRsc
-  pendingRsc.status = 'pending'
+    resolve = res;
+    reject = rej;
+  }) as PendingDeferredRsc;
+  pendingRsc.status = "pending";
   pendingRsc.resolve = (value: React.ReactNode) => {
-    if (pendingRsc.status === 'pending') {
-      const fulfilledRsc: FulfilledDeferredRsc = pendingRsc as any
-      fulfilledRsc.status = 'fulfilled'
-      fulfilledRsc.value = value
-      resolve(value)
+    if (pendingRsc.status === "pending") {
+      const fulfilledRsc: FulfilledDeferredRsc = pendingRsc as any;
+      fulfilledRsc.status = "fulfilled";
+      fulfilledRsc.value = value;
+      resolve(value);
     }
-  }
+  };
   pendingRsc.reject = (error: any) => {
-    if (pendingRsc.status === 'pending') {
-      const rejectedRsc: RejectedDeferredRsc = pendingRsc as any
-      rejectedRsc.status = 'rejected'
-      rejectedRsc.reason = error
-      reject(error)
+    if (pendingRsc.status === "pending") {
+      const rejectedRsc: RejectedDeferredRsc = pendingRsc as any;
+      rejectedRsc.status = "rejected";
+      rejectedRsc.reason = error;
+      reject(error);
     }
-  }
-  pendingRsc.tag = DEFERRED
-  return pendingRsc
+  };
+  pendingRsc.tag = DEFERRED;
+  return pendingRsc;
 }

@@ -3,5 +3,5 @@ export default function Layout({ children }) {
     <html lang="en">
       <body>{children}</body>
     </html>
-  )
+  );
 }

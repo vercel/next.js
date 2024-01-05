@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  return new NextResponse('hello app route')
+  return new NextResponse("hello app route");
 }

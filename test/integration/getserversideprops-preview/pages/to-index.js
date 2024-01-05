@@ -1,7 +1,7 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export function getServerSideProps() {
-  return { props: {} }
+  return { props: {} };
 }
 
 export default function () {
@@ -11,5 +11,5 @@ export default function () {
         To Index
       </Link>
     </main>
-  )
+  );
 }

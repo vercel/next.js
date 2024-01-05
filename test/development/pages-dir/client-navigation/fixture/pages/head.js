@@ -1,5 +1,5 @@
-import React from 'react'
-import Head from 'next/head'
+import React from "react";
+import Head from "next/head";
 
 export default () => (
   <div>
@@ -121,23 +121,23 @@ export default () => (
       <script src="/test-defer.js" defer="yas"></script>
 
       {/* such style can be used for alternate links on _app vs individual pages */}
-      {['pl', 'en'].map((language) => (
+      {["pl", "en"].map((language) => (
         <link
           rel="alternate"
           key={language}
           hrefLang={language}
-          href={'/first/' + language}
+          href={"/first/" + language}
         />
       ))}
-      {['pl', 'en'].map((language) => (
+      {["pl", "en"].map((language) => (
         <link
           rel="alternate"
           key={language}
           hrefLang={language}
-          href={'/last/' + language}
+          href={"/last/" + language}
         />
       ))}
     </Head>
     <h1>I can have meta tags</h1>
   </div>
-)
+);

@@ -3,5 +3,5 @@ export default function SharedComponentRoute() {
     <>
       <p>hello from app/shared-component-route</p>
     </>
-  )
+  );
 }

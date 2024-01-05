@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div id="empty-hash-link-page">
@@ -6,4 +6,4 @@ export default () => (
       Empty Hash link
     </Link>
   </div>
-)
+);

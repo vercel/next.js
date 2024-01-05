@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect } from "react";
 
-console.log({ useEffect })
+console.log({ useEffect });
 
 export default function Page() {
-  return null
+  return null;
 }

@@ -6,4 +6,4 @@ export {
   decodeAction,
   decodeFormState,
   // eslint-disable-next-line import/no-extraneous-dependencies
-} from 'react-server-dom-webpack/server.node'
+} from "react-server-dom-webpack/server.node";

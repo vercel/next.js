@@ -3,5 +3,5 @@ export default function GlobalStyle() {
     <div>
       <h1 id="red">This should be in red</h1>
     </div>
-  )
+  );
 }

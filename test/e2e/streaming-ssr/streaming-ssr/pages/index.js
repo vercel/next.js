@@ -8,7 +8,7 @@ export default function Page() {
       `}</style>
       <p>index</p>
     </div>
-  )
+  );
 }
 
-export const config = { runtime: 'experimental-edge' }
+export const config = { runtime: "experimental-edge" };

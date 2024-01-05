@@ -1,5 +1,5 @@
-import React from 'react'
-import Head from 'next/head'
+import React from "react";
+import Head from "next/head";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
       </Head>
       <div>Hi!</div>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

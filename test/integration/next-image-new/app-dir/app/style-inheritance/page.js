@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/image'
-import style from '../../style.module.css'
+import React from "react";
+import Image from "next/image";
+import style from "../../style.module.css";
 
 const Page = () => {
   return (
@@ -16,7 +16,7 @@ const Page = () => {
         height={200}
         src="/test.jpg"
         fill
-        style={{ objectFit: 'cover' }}
+        style={{ objectFit: "cover" }}
       />
 
       <Image
@@ -29,7 +29,7 @@ const Page = () => {
 
       <footer>Footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

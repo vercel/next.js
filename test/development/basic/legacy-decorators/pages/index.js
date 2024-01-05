@@ -1,20 +1,20 @@
-import React from 'react'
-import { makeAutoObservable } from 'mobx'
-import { observer } from 'mobx-react'
+import React from "react";
+import { makeAutoObservable } from "mobx";
+import { observer } from "mobx-react";
 
 class Counter {
-  count = 0
+  count = 0;
 
   constructor() {
-    makeAutoObservable(this)
+    makeAutoObservable(this);
   }
 
   increase() {
-    this.count += 1
+    this.count += 1;
   }
 }
 
-const myCounter = new Counter()
+const myCounter = new Counter();
 
 @observer
 class CounterView extends React.Component {
@@ -26,10 +26,10 @@ class CounterView extends React.Component {
           Increase
         </button>
       </>
-    )
+    );
   }
 }
 
 export default function Home() {
-  return <CounterView counter={myCounter} />
+  return <CounterView counter={myCounter} />;
 }

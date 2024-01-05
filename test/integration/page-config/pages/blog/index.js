@@ -1,4 +1,4 @@
 // eslint-disable-next-line
-import data from '../../lib/data'
+import data from "../../lib/data";
 
-export default () => <p>hello</p>
+export default () => <p>hello</p>;

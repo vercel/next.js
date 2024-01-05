@@ -22,28 +22,28 @@ In Next.js, there are two ways you can implement client-side rendering:
 Here's an example of using `useEffect()` inside a Next.js page:
 
 ```jsx filename="pages/index.js"
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 
 export function Page() {
-  const [data, setData] = useState(null)
+  const [data, setData] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
-      const response = await fetch('https://api.example.com/data')
+      const response = await fetch("https://api.example.com/data");
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const result = await response.json()
-      setData(result)
-    }
+      const result = await response.json();
+      setData(result);
+    };
 
     fetchData().catch((e) => {
       // handle the error as needed
-      console.error('An error occurred while fetching the data: ', e)
-    })
-  }, [])
+      console.error("An error occurred while fetching the data: ", e);
+    });
+  }, []);
 
-  return <p>{data ? `Your data: ${data}` : 'Loading...'}</p>
+  return <p>{data ? `Your data: ${data}` : "Loading..."}</p>;
 }
 ```
 
@@ -52,18 +52,18 @@ In the example above, the component starts by rendering `Loading...`. Then, once
 Although fetching data in a `useEffect` is a pattern you may see in older React Applications, we recommend using a data-fetching library for better performance, caching, optimistic updates, and more. Here's a minimum example using [SWR](https://swr.vercel.app/) to fetch data on the client:
 
 ```jsx filename="pages/index.js"
-import useSWR from 'swr'
+import useSWR from "swr";
 
 export function Page() {
   const { data, error, isLoading } = useSWR(
-    'https://api.example.com/data',
+    "https://api.example.com/data",
     fetcher
-  )
+  );
 
-  if (error) return <p>Failed to load.</p>
-  if (isLoading) return <p>Loading...</p>
+  if (error) return <p>Failed to load.</p>;
+  if (isLoading) return <p>Loading...</p>;
 
-  return <p>Your Data: {data}</p>
+  return <p>Your Data: {data}</p>;
 }
 ```
 

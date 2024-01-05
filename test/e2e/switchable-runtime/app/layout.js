@@ -1,4 +1,4 @@
-export const revalidate = 0
+export const revalidate = 0;
 
 export default function Root({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function Root({ children }) {
       </head>
       <body>{children}</body>
     </html>
-  )
+  );
 }

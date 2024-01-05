@@ -1,16 +1,16 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 const links = [
-  { href: '/' },
-  { href: '/no-suspense' },
-  { href: '/suspense/node' },
-  { href: '/suspense/edge' },
-  { href: '/suspense/node/nested/1' },
-  { href: '/loading/nested/1' },
-  { href: '/loading/nested/2' },
-  { href: '/loading/nested/3' },
-]
+  { href: "/" },
+  { href: "/no-suspense" },
+  { href: "/suspense/node" },
+  { href: "/suspense/edge" },
+  { href: "/suspense/node/nested/1" },
+  { href: "/loading/nested/1" },
+  { href: "/loading/nested/2" },
+  { href: "/loading/nested/3" },
+];
 
 export default function Root({ children }) {
   return (
@@ -26,7 +26,7 @@ export default function Root({ children }) {
           <ul>
             {links.map(({ href }) => (
               <li key={href}>
-                {href} - <Link href={href}>link</Link> -{' '}
+                {href} - <Link href={href}>link</Link> -{" "}
                 <a href={href}>anchor</a>
               </li>
             ))}
@@ -34,5 +34,5 @@ export default function Root({ children }) {
         </main>
       </body>
     </html>
-  )
+  );
 }

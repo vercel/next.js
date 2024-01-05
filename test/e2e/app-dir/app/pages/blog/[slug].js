@@ -3,5 +3,5 @@ export default function Page(props) {
     <>
       <p>hello from pages/blog/[slug]</p>
     </>
-  )
+  );
 }

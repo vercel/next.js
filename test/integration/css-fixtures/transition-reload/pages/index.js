@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import css from './index.module.css'
+import Link from "next/link";
+import css from "./index.module.css";
 
 export default function Home() {
   return (
@@ -12,5 +12,5 @@ export default function Home() {
         Black
       </h1>
     </main>
-  )
+  );
 }

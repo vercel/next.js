@@ -1,22 +1,22 @@
-let mutatedRes
+let mutatedRes;
 
 export async function getServerSideProps(context) {
-  mutatedRes = context.res
+  mutatedRes = context.res;
   return {
     props: (async function () {
       return {
-        text: 'res',
-      }
+        text: "res",
+      };
     })(),
-  }
+  };
 }
 
 export default ({ text }) => {
-  mutatedRes.setHeader('test-header', 'this is a test header')
+  mutatedRes.setHeader("test-header", "this is a test header");
 
   return (
     <>
       <div>hello {text}</div>
     </>
-  )
-}
+  );
+};

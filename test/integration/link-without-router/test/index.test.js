@@ -1,54 +1,54 @@
 /**
  * @jest-environment jsdom
  */
-import React from 'react'
-import { render, unmountComponentAtNode } from 'react-dom'
-import { act } from 'react-dom/test-utils'
+import React from "react";
+import { render, unmountComponentAtNode } from "react-dom";
+import { act } from "react-dom/test-utils";
 
-import Hello from '../components/hello'
+import Hello from "../components/hello";
 
-describe('Link without a router', () => {
-  let container = null
+describe("Link without a router", () => {
+  let container = null;
 
   beforeEach(() => {
-    container = document.createElement('div')
-    document.body.appendChild(container)
-  })
+    container = document.createElement("div");
+    document.body.appendChild(container);
+  });
 
   afterEach(() => {
-    unmountComponentAtNode(container)
-    container.remove()
-    container = null
-  })
+    unmountComponentAtNode(container);
+    container.remove();
+    container = null;
+  });
 
-  describe('dev mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
-
-      act(() => {
-        render(<Hello />, container)
-      })
+  describe("dev mode", () => {
+    it("should not throw when rendered", () => {
+      jest.useFakeTimers();
 
       act(() => {
-        jest.runAllTimers()
-      })
-
-      expect(container.textContent).toBe('Click me')
-    })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should not throw when rendered', () => {
-      jest.useFakeTimers()
+        render(<Hello />, container);
+      });
 
       act(() => {
-        render(<Hello />, container)
-      })
+        jest.runAllTimers();
+      });
+
+      expect(container.textContent).toBe("Click me");
+    });
+  });
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
+    it("should not throw when rendered", () => {
+      jest.useFakeTimers();
 
       act(() => {
-        jest.runAllTimers()
-      })
+        render(<Hello />, container);
+      });
 
-      expect(container.textContent).toBe('Click me')
-    })
-  })
-})
+      act(() => {
+        jest.runAllTimers();
+      });
+
+      expect(container.textContent).toBe("Click me");
+    });
+  });
+});

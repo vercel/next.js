@@ -1,5 +1,5 @@
-import styles1 from './index.module.css'
-import styles2 from './index2.module.css'
+import styles1 from "./index.module.css";
+import styles2 from "./index2.module.css";
 
 export default function Home() {
   return (
@@ -14,5 +14,5 @@ export default function Home() {
         This text should be blue.
       </div>
     </>
-  )
+  );
 }

@@ -1,16 +1,16 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export async function getStaticProps({ params: { slug } }) {
   return {
     props: { slug },
-  }
+  };
 }
 
 export async function getStaticPaths() {
   return {
-    paths: [{ params: { slug: '[first]' } }, '/dynamic/[second]'],
+    paths: [{ params: { slug: "[first]" } }, "/dynamic/[second]"],
     fallback: false,
-  }
+  };
 }
 
 export default ({ slug }) => {
@@ -18,10 +18,10 @@ export default ({ slug }) => {
   // render fallback version and error)
   return (
     <>
-      <p id="param">Hi {slug}!</p>{' '}
+      <p id="param">Hi {slug}!</p>{" "}
       <Link href="/" id="home">
         to home
       </Link>
     </>
-  )
-}
+  );
+};

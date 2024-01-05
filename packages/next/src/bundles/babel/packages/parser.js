@@ -1,1 +1,1 @@
-module.exports = require('./bundle').parser()
+module.exports = require("./bundle").parser();

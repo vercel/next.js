@@ -1,11 +1,11 @@
-import type { FileReader } from './file-reader'
-import type { RecursiveReadDirOptions } from '../../../../../../lib/recursive-readdir'
-import { recursiveReadDir } from '../../../../../../lib/recursive-readdir'
+import type { FileReader } from "./file-reader";
+import type { RecursiveReadDirOptions } from "../../../../../../lib/recursive-readdir";
+import { recursiveReadDir } from "../../../../../../lib/recursive-readdir";
 
 export type DefaultFileReaderOptions = Pick<
   RecursiveReadDirOptions,
-  'pathnameFilter' | 'ignoreFilter' | 'ignorePartFilter'
->
+  "pathnameFilter" | "ignoreFilter" | "ignorePartFilter"
+>;
 
 /**
  * Reads all the files in the directory and its subdirectories following any
@@ -16,7 +16,7 @@ export class DefaultFileReader implements FileReader {
    * Filter to ignore files with absolute pathnames. If undefined, no files are
    * ignored.
    */
-  private readonly options: Readonly<DefaultFileReaderOptions>
+  private readonly options: Readonly<DefaultFileReaderOptions>;
 
   /**
    * Creates a new file reader.
@@ -26,7 +26,7 @@ export class DefaultFileReader implements FileReader {
    * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
    */
   constructor(options: Readonly<DefaultFileReaderOptions>) {
-    this.options = options
+    this.options = options;
   }
 
   /**
@@ -49,6 +49,6 @@ export class DefaultFileReader implements FileReader {
       // We want absolute pathnames because we're going to be comparing them
       // with other absolute pathnames.
       relativePathnames: false,
-    })
+    });
   }
 }

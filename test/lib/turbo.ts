@@ -1,4 +1,4 @@
-let loggedTurbopack = false
+let loggedTurbopack = false;
 
 /**
  * Utility function to determine if a given test case needs to run with --turbo.
@@ -11,24 +11,24 @@ let loggedTurbopack = false
  */
 export function shouldRunTurboDevTest(): boolean {
   if (!!process.env.TEST_WASM) {
-    return false
+    return false;
   }
 
-  const shouldRunTurboDev = !!process.env.TURBOPACK
+  const shouldRunTurboDev = !!process.env.TURBOPACK;
   if (shouldRunTurboDev && !loggedTurbopack) {
-    require('console').log(
+    require("console").log(
       `Running tests with turbopack because environment variable TURBOPACK is set`
-    )
-    loggedTurbopack = true
+    );
+    loggedTurbopack = true;
   }
 
-  return shouldRunTurboDev
+  return shouldRunTurboDev;
 }
 
 export function getTurbopackFlag(): string {
   if (!!process.env.TURBOPACK) {
-    return '--turbo'
+    return "--turbo";
   } else {
-    throw Error(`Cannot get the flag for running turbopack`)
+    throw Error(`Cannot get the flag for running turbopack`);
   }
 }

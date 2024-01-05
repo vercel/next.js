@@ -1,3 +1,3 @@
-export default () => <p id="gsp-notfound-page">GSP notFound: true</p>
+export default () => <p id="gsp-notfound-page">GSP notFound: true</p>;
 
-export const getStaticProps = () => ({ notFound: true })
+export const getStaticProps = () => ({ notFound: true });

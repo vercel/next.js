@@ -20,7 +20,7 @@ jobs:
         uses: SimenB/github-actions-cpu-cores@v1
         id: cpu-cores
 
-      - name: 'Setup Rust toolchain'
+      - name: "Setup Rust toolchain"
         uses: dtolnay/rust-toolchain@stable
 
       - name: Display runner information

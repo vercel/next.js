@@ -1,51 +1,51 @@
-export const fetchCache = 'default-cache'
+export const fetchCache = "default-cache";
 
 export default async function Page() {
   const dataNoCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?no-cache',
+    "https://next-data-api-endpoint.vercel.app/api/random?no-cache",
     {
-      cache: 'no-cache',
+      cache: "no-cache",
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataForceCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?force-cache',
+    "https://next-data-api-endpoint.vercel.app/api/random?force-cache",
     {
-      cache: 'force-cache',
+      cache: "force-cache",
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataRevalidate0 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?revalidate-0',
+    "https://next-data-api-endpoint.vercel.app/api/random?revalidate-0",
     {
       next: {
         revalidate: 0,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataRevalidateCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?revalidate-3',
+    "https://next-data-api-endpoint.vercel.app/api/random?revalidate-3",
     {
       next: {
         revalidate: 3,
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataRevalidateAndFetchCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?revalidate-3-force-cache',
+    "https://next-data-api-endpoint.vercel.app/api/random?revalidate-3-force-cache",
     {
       next: {
         revalidate: 3,
       },
-      cache: 'force-cache',
+      cache: "force-cache",
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const dataAutoCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?auto-cache'
-  ).then((res) => res.text())
+    "https://next-data-api-endpoint.vercel.app/api/random?auto-cache"
+  ).then((res) => res.text());
 
   return (
     <>
@@ -59,5 +59,5 @@ export default async function Page() {
       </p>
       <p id="data-auto-cache">"auto cache" {dataAutoCache}</p>
     </>
-  )
+  );
 }

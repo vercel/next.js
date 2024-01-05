@@ -3,10 +3,10 @@ module.exports = {
     return {
       fallback: [
         {
-          source: '/:path*',
-          destination: '/another',
+          source: "/:path*",
+          destination: "/another",
         },
       ],
-    }
+    };
   },
-}
+};

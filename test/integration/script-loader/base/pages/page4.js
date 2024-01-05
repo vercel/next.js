@@ -1,9 +1,9 @@
 /* global _ */
-import Script from 'next/script'
-import Link from 'next/link'
+import Script from "next/script";
+import Link from "next/link";
 
 const url =
-  'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js'
+  "https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js";
 
 const Page = () => {
   return (
@@ -14,10 +14,10 @@ const Page = () => {
         src={url}
         id="script1"
         onLoad={() => {
-          document.getElementById('onload-div-1').textContent += _.repeat(
-            'a',
+          document.getElementById("onload-div-1").textContent += _.repeat(
+            "a",
             3
-          )
+          );
         }}
       ></Script>
       <Script
@@ -25,10 +25,10 @@ const Page = () => {
         id="script2"
         onLoad={() => {
           // eslint-disable-next-line no-undef
-          document.getElementById('onload-div-1').textContent += _.repeat(
-            'b',
+          document.getElementById("onload-div-1").textContent += _.repeat(
+            "b",
             3
-          )
+          );
         }}
       ></Script>
       <Script
@@ -36,14 +36,14 @@ const Page = () => {
         id="script3"
         onLoad={() => {
           // eslint-disable-next-line no-undef
-          document.getElementById('onload-div-1').textContent += _.repeat(
-            'c',
+          document.getElementById("onload-div-1").textContent += _.repeat(
+            "c",
             3
-          )
+          );
         }}
       ></Script>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

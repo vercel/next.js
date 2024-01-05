@@ -1,11 +1,11 @@
-import React from 'react'
-import { World } from 'components/world'
+import React from "react";
+import { World } from "components/world";
 
 // prevent static generation for trace test
 export function getServerSideProps() {
   return {
     props: {},
-  }
+  };
 }
 
 export default function HelloPage() {
@@ -13,5 +13,5 @@ export default function HelloPage() {
     <div>
       <World />
     </div>
-  )
+  );
 }

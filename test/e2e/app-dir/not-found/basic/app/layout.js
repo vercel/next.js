@@ -12,5 +12,5 @@ export default function Layout({ children }) {
         </footer>
       </body>
     </html>
-  )
+  );
 }

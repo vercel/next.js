@@ -1,8 +1,8 @@
-import { useRouter } from 'next/router'
-import Link from 'next/link'
+import { useRouter } from "next/router";
+import Link from "next/link";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -37,5 +37,5 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }

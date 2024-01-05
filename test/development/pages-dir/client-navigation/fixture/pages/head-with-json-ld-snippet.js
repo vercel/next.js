@@ -1,5 +1,5 @@
-import React from 'react'
-import Head from 'next/head'
+import React from "react";
+import Head from "next/head";
 
 export default () => (
   <div>
@@ -9,4 +9,4 @@ export default () => (
     </Head>
     <h1>I can have meta tags</h1>
   </div>
-)
+);

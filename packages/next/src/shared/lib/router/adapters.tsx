@@ -1,15 +1,15 @@
 import type {
   AppRouterInstance,
   NavigateOptions,
-} from '../app-router-context.shared-runtime'
-import type { Params } from './utils/route-matcher'
-import type { NextRouter } from './router'
+} from "../app-router-context.shared-runtime";
+import type { Params } from "./utils/route-matcher";
+import type { NextRouter } from "./router";
 
-import React, { useMemo, useRef } from 'react'
-import { PathnameContext } from '../hooks-client-context.shared-runtime'
-import { isDynamicRoute } from './utils'
-import { asPathToSearchParams } from './utils/as-path-to-search-params'
-import { getRouteRegex } from './utils/route-regex'
+import React, { useMemo, useRef } from "react";
+import { PathnameContext } from "../hooks-client-context.shared-runtime";
+import { isDynamicRoute } from "./utils";
+import { asPathToSearchParams } from "./utils/as-path-to-search-params";
+import { getRouteRegex } from "./utils/route-regex";
 
 /**
  * adaptForAppRouterInstance implements the AppRouterInstance with a NextRouter.
@@ -22,24 +22,24 @@ export function adaptForAppRouterInstance(
 ): AppRouterInstance {
   return {
     back(): void {
-      router.back()
+      router.back();
     },
     forward(): void {
-      router.forward()
+      router.forward();
     },
     refresh(): void {
-      router.reload()
+      router.reload();
     },
     push(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.push(href, undefined, { scroll })
+      void router.push(href, undefined, { scroll });
     },
     replace(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.replace(href, undefined, { scroll })
+      void router.replace(href, undefined, { scroll });
     },
     prefetch(href: string): void {
-      void router.prefetch(href)
+      void router.prefetch(href);
     },
-  }
+  };
 }
 
 /**
@@ -49,28 +49,28 @@ export function adaptForAppRouterInstance(
  * @returns the search params in the URLSearchParams format
  */
 export function adaptForSearchParams(
-  router: Pick<NextRouter, 'isReady' | 'query' | 'asPath'>
+  router: Pick<NextRouter, "isReady" | "query" | "asPath">
 ): URLSearchParams {
   if (!router.isReady || !router.query) {
-    return new URLSearchParams()
+    return new URLSearchParams();
   }
 
-  return asPathToSearchParams(router.asPath)
+  return asPathToSearchParams(router.asPath);
 }
 
 export function adaptForPathParams(
-  router: Pick<NextRouter, 'isReady' | 'pathname' | 'query' | 'asPath'>
+  router: Pick<NextRouter, "isReady" | "pathname" | "query" | "asPath">
 ): Params | null {
   if (!router.isReady || !router.query) {
-    return null
+    return null;
   }
-  const pathParams: Params = {}
-  const routeRegex = getRouteRegex(router.pathname)
-  const keys = Object.keys(routeRegex.groups)
+  const pathParams: Params = {};
+  const routeRegex = getRouteRegex(router.pathname);
+  const keys = Object.keys(routeRegex.groups);
   for (const key of keys) {
-    pathParams[key] = router.query[key]!
+    pathParams[key] = router.query[key]!;
   }
-  return pathParams
+  return pathParams;
 }
 
 export function PathnameContextProviderAdapter({
@@ -78,17 +78,17 @@ export function PathnameContextProviderAdapter({
   router,
   ...props
 }: React.PropsWithChildren<{
-  router: Pick<NextRouter, 'pathname' | 'asPath' | 'isReady' | 'isFallback'>
-  isAutoExport: boolean
+  router: Pick<NextRouter, "pathname" | "asPath" | "isReady" | "isFallback">;
+  isAutoExport: boolean;
 }>) {
-  const ref = useRef(props.isAutoExport)
+  const ref = useRef(props.isAutoExport);
   const value = useMemo(() => {
     // isAutoExport is only ever `true` on the first render from the server,
     // so reset it to `false` after we read it for the first time as `true`. If
     // we don't use the value, then we don't need it.
-    const isAutoExport = ref.current
+    const isAutoExport = ref.current;
     if (isAutoExport) {
-      ref.current = false
+      ref.current = false;
     }
 
     // When the route is a dynamic route, we need to do more processing to
@@ -99,7 +99,7 @@ export function PathnameContextProviderAdapter({
       // at:
       // https://nextjs.org/docs/api-reference/data-fetching/get-static-paths#fallback-pages
       if (router.isFallback) {
-        return null
+        return null;
       }
 
       // When `isAutoExport` is true, meaning this is a page page has been
@@ -108,7 +108,7 @@ export function PathnameContextProviderAdapter({
       // optimization at:
       // https://nextjs.org/docs/advanced-features/automatic-static-optimization
       if (isAutoExport && !router.isReady) {
-        return null
+        return null;
       }
     }
 
@@ -116,20 +116,20 @@ export function PathnameContextProviderAdapter({
     // any query strings), so it should have that stripped. Read more about the
     // `asPath` option over at:
     // https://nextjs.org/docs/api-reference/next/router#router-object
-    let url: URL
+    let url: URL;
     try {
-      url = new URL(router.asPath, 'http://f')
+      url = new URL(router.asPath, "http://f");
     } catch (_) {
       // fallback to / for invalid asPath values e.g. //
-      return '/'
+      return "/";
     }
 
-    return url.pathname
-  }, [router.asPath, router.isFallback, router.isReady, router.pathname])
+    return url.pathname;
+  }, [router.asPath, router.isFallback, router.isReady, router.pathname]);
 
   return (
     <PathnameContext.Provider value={value}>
       {children}
     </PathnameContext.Provider>
-  )
+  );
 }

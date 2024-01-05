@@ -1,6 +1,6 @@
-import React from 'react'
-import { Acme as a } from 'cool-fonts'
+import React from "react";
+import { Acme as a } from "cool-fonts";
 
 const acme1 = a({
-  variant: '400',
-})
+  variant: "400",
+});

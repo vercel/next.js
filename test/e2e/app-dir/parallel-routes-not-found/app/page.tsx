@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div id="children-slot">@children rendered</div>
+  return <div id="children-slot">@children rendered</div>;
 }

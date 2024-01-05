@@ -1,6 +1,6 @@
-import Image from 'next/image'
-import img from '../public/test.jpg'
-import { WindowScroller, List as VirtualizedList } from 'react-virtualized'
+import Image from "next/image";
+import img from "../public/test.jpg";
+import { WindowScroller, List as VirtualizedList } from "react-virtualized";
 
 export default function Home() {
   return (
@@ -23,12 +23,12 @@ export default function Home() {
                   <Image src={img} placeholder="blur" className="thumbnail" />
                   <Image src={img} className="large" />
                 </div>
-              )
+              );
             }}
             overscanRowCount={0}
           />
         )}
       </WindowScroller>
     </div>
-  )
+  );
 }

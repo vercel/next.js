@@ -1,5 +1,5 @@
-'use client'
+"use client";
 
 export function Hello() {
-  return <p id="client-component">Hello World</p>
+  return <p id="client-component">Hello World</p>;
 }

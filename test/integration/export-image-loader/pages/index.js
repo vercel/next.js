@@ -1,10 +1,10 @@
-import Image from 'next/image'
+import Image from "next/image";
 
-const loader = undefined
+const loader = undefined;
 
 export default () => (
   <div>
     <p>Should succeed during export</p>
     <Image alt="icon" src="/i.png" width="10" height="10" loader={loader} />
   </div>
-)
+);

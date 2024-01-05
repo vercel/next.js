@@ -1,12 +1,12 @@
 export async function getStaticProps() {
   return {
     props: {
-      world: 'world',
+      world: "world",
       time: new Date().getTime(),
       other: Math.random(),
     },
     revalidate: 1,
-  }
+  };
 }
 
 const Page = ({ world, time, other }) => {
@@ -16,7 +16,7 @@ const Page = ({ world, time, other }) => {
       <span>time: {time}</span>
       <span>other: {other}</span>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

@@ -1,11 +1,11 @@
 function Page({ message }) {
-  return <div>{message}</div>
+  return <div>{message}</div>;
 }
 
 Page.getInitialProps = async ({ req }) => {
   return {
-    message: 'Hello World!!!',
-  }
-}
+    message: "Hello World!!!",
+  };
+};
 
-export default Page
+export default Page;

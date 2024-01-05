@@ -1,1 +1,1 @@
-export { default } from 'styled-jsx/style'
+export { default } from "styled-jsx/style";

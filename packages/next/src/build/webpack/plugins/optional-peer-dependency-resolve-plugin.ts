@@ -1,20 +1,20 @@
-import type { Resolver } from 'webpack'
+import type { Resolver } from "webpack";
 
-const pluginSymbol = Symbol('OptionalPeerDependencyResolverPlugin')
+const pluginSymbol = Symbol("OptionalPeerDependencyResolverPlugin");
 
 export class OptionalPeerDependencyResolverPlugin {
   apply(resolver: Resolver) {
-    const target = resolver.ensureHook('raw-module')
+    const target = resolver.ensureHook("raw-module");
     target.tapAsync(
-      'OptionalPeerDependencyResolverPlugin',
+      "OptionalPeerDependencyResolverPlugin",
       (request, resolveContext, callback) => {
         // if we've already recursed into this plugin, we want to skip it
         if ((request as any)[pluginSymbol]) {
-          return callback()
+          return callback();
         }
 
         // popping the stack to prevent the recursion check
-        resolveContext.stack?.delete(Array.from(resolveContext.stack).pop()!)
+        resolveContext.stack?.delete(Array.from(resolveContext.stack).pop()!);
 
         resolver.doResolve(
           target,
@@ -30,24 +30,24 @@ export class OptionalPeerDependencyResolverPlugin {
               request.request
             ) {
               const peerDependenciesMeta = request.descriptionFileData
-                .peerDependenciesMeta as Record<string, { optional?: boolean }>
+                .peerDependenciesMeta as Record<string, { optional?: boolean }>;
 
               const isOptional =
                 peerDependenciesMeta &&
                 peerDependenciesMeta[request.request] &&
-                peerDependenciesMeta[request.request].optional
+                peerDependenciesMeta[request.request].optional;
 
               if (isOptional) {
                 return callback(null, {
                   path: false,
-                })
+                });
               }
             }
 
-            return callback(err, result)
+            return callback(err, result);
           }
-        )
+        );
       }
-    )
+    );
   }
 }

@@ -1,6 +1,6 @@
-'use client'
-import Image from 'next/image'
-import testPng from '../../images/test.png'
+"use client";
+import Image from "next/image";
+import testPng from "../../images/test.png";
 
 export default function ClientLayout({ children }) {
   return (
@@ -9,5 +9,5 @@ export default function ClientLayout({ children }) {
       <Image id="app-client-layout" src={testPng} quality={55} />
       {children}
     </>
-  )
+  );
 }

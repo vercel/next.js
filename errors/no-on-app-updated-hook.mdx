@@ -1,5 +1,5 @@
 ---
-title: '`Router.onAppUpdated` has been removed'
+title: "`Router.onAppUpdated` has been removed"
 ---
 
 Due to [this bug fix](https://github.com/vercel/next.js/pull/3849), we had to remove the `Router.onAppUpdated` hook. But the default functionality of this feature is still in effect.
@@ -10,8 +10,8 @@ Although there are many things you can do in this hook, it's often used to navig
 
 ```js filename="example.js"
 Router.onAppUpdated = function (nextRoute) {
-  location.href = nextRoute
-}
+  location.href = nextRoute;
+};
 ```
 
 In this hook, you can't wait for a network request or a promise to get resolved. And you can't block the page navigation. So, the things you can do is limited.
@@ -23,7 +23,7 @@ This is code for that:
 ```js filename="example.js"
 window.onbeforeunload = function (e) {
   // Get the application state (usually from a store like Redux)
-  const appState = {}
-  localStorage.setItem('app-state', JSON.stringify(appState))
-}
+  const appState = {};
+  localStorage.setItem("app-state", JSON.stringify(appState));
+};
 ```

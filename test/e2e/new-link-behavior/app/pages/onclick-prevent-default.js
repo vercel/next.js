@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 export default function Page() {
   return (
     <>
@@ -6,12 +6,12 @@ export default function Page() {
       <Link
         href="/"
         onClick={(e) => {
-          e.preventDefault()
-          console.log('link to home clicked but prevented')
+          e.preventDefault();
+          console.log("link to home clicked but prevented");
         }}
       >
         Home
       </Link>
     </>
-  )
+  );
 }

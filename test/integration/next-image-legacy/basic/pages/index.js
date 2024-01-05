@@ -1,7 +1,7 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import Link from 'next/link'
-import Head from 'next/head'
+import React from "react";
+import Image from "next/legacy/image";
+import Link from "next/link";
+import Head from "next/head";
 
 const Page = () => {
   return (
@@ -125,7 +125,7 @@ const Page = () => {
       </Head>
       <p id="stubtext">This is the index page</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

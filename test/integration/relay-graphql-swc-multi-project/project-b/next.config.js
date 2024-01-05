@@ -1,12 +1,12 @@
-const relay = require('../relay.config')
+const relay = require("../relay.config");
 
 module.exports = {
   compiler: {
     relay: {
-      src: './pages',
-      artifactDirectory: './__generated__',
-      language: relay.projects['project-b'].language,
+      src: "./pages",
+      artifactDirectory: "./__generated__",
+      language: relay.projects["project-b"].language,
     },
     externalDir: true,
   },
-}
+};

@@ -1,18 +1,18 @@
-import type { Font } from 'fontkit'
-import type { AdjustFontFallback } from 'next/font'
+import type { Font } from "fontkit";
+import type { AdjustFontFallback } from "next/font";
 
 // The font metadata of the fallback fonts, retrieved with fontkit on system font files
 // The average width is calculated with the calcAverageWidth function below
 const DEFAULT_SANS_SERIF_FONT = {
-  name: 'Arial',
+  name: "Arial",
   azAvgWidth: 934.5116279069767,
   unitsPerEm: 2048,
-}
+};
 const DEFAULT_SERIF_FONT = {
-  name: 'Times New Roman',
+  name: "Times New Roman",
   azAvgWidth: 854.3953488372093,
   unitsPerEm: 2048,
-}
+};
 
 /**
  * Calculate the average character width of a font file.
@@ -31,28 +31,28 @@ function calcAverageWidth(font: Font): number | undefined {
      * The used characters were decided through trial and error with letter frequency and word length tables as a guideline.
      * E.g. https://en.wikipedia.org/wiki/Letter_frequency
      */
-    const avgCharacters = 'aaabcdeeeefghiijklmnnoopqrrssttuvwxyz      '
+    const avgCharacters = "aaabcdeeeefghiijklmnnoopqrrssttuvwxyz      ";
     // Check if the font file has all the characters we need to calculate the average width
     const hasAllChars = font
       .glyphsForString(avgCharacters)
       .flatMap((glyph) => glyph.codePoints)
-      .every((codePoint) => font.hasGlyphForCodePoint(codePoint))
+      .every((codePoint) => font.hasGlyphForCodePoint(codePoint));
 
-    if (!hasAllChars) return undefined
+    if (!hasAllChars) return undefined;
 
     const widths = font
       .glyphsForString(avgCharacters)
-      .map((glyph) => glyph.advanceWidth)
-    const totalWidth = widths.reduce((sum, width) => sum + width, 0)
-    return totalWidth / widths.length
+      .map((glyph) => glyph.advanceWidth);
+    const totalWidth = widths.reduce((sum, width) => sum + width, 0);
+    return totalWidth / widths.length;
   } catch {
     // Could not calculate average width from the font file, skip size-adjust
-    return undefined
+    return undefined;
   }
 }
 
 function formatOverrideValue(val: number) {
-  return Math.abs(val * 100).toFixed(2) + '%'
+  return Math.abs(val * 100).toFixed(2) + "%";
 }
 
 /**
@@ -72,18 +72,19 @@ function formatOverrideValue(val: number) {
  */
 export function getFallbackMetricsFromFontFile(
   font: Font,
-  category = 'serif'
+  category = "serif"
 ): AdjustFontFallback {
   const fallbackFont =
-    category === 'serif' ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT
+    category === "serif" ? DEFAULT_SERIF_FONT : DEFAULT_SANS_SERIF_FONT;
 
-  const azAvgWidth = calcAverageWidth(font)
-  const { ascent, descent, lineGap, unitsPerEm } = font
+  const azAvgWidth = calcAverageWidth(font);
+  const { ascent, descent, lineGap, unitsPerEm } = font;
 
-  const fallbackFontAvgWidth = fallbackFont.azAvgWidth / fallbackFont.unitsPerEm
+  const fallbackFontAvgWidth =
+    fallbackFont.azAvgWidth / fallbackFont.unitsPerEm;
   let sizeAdjust = azAvgWidth
     ? azAvgWidth / unitsPerEm / fallbackFontAvgWidth
-    : 1
+    : 1;
 
   return {
     ascentOverride: formatOverrideValue(ascent / (unitsPerEm * sizeAdjust)),
@@ -91,5 +92,5 @@ export function getFallbackMetricsFromFontFile(
     lineGapOverride: formatOverrideValue(lineGap / (unitsPerEm * sizeAdjust)),
     fallbackFont: fallbackFont.name,
     sizeAdjust: formatOverrideValue(sizeAdjust),
-  }
+  };
 }

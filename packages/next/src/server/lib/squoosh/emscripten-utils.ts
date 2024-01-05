@@ -1,16 +1,16 @@
-import { fileURLToPath } from 'url'
+import { fileURLToPath } from "url";
 
 export function pathify(path: string): string {
-  if (path.startsWith('file://')) {
-    path = fileURLToPath(path)
+  if (path.startsWith("file://")) {
+    path = fileURLToPath(path);
   }
-  return path
+  return path;
 }
 
 export function instantiateEmscriptenWasm<T extends EmscriptenWasm.Module>(
   factory: EmscriptenWasm.ModuleFactory<T>,
   path: string,
-  workerJS: string = ''
+  workerJS: string = ""
 ): Promise<T> {
   return factory({
     locateFile(requestPath) {
@@ -18,9 +18,9 @@ export function instantiateEmscriptenWasm<T extends EmscriptenWasm.Module>(
       // file names of the worker file and the wasm binary.
       // These will have changed in the bundling process and
       // we need to inject them here.
-      if (requestPath.endsWith('.wasm')) return pathify(path)
-      if (requestPath.endsWith('.worker.js')) return pathify(workerJS)
-      return requestPath
+      if (requestPath.endsWith(".wasm")) return pathify(path);
+      if (requestPath.endsWith(".worker.js")) return pathify(workerJS);
+      return requestPath;
     },
-  })
+  });
 }

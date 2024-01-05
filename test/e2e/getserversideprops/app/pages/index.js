@@ -1,13 +1,13 @@
-import Link from 'next/link'
-import ReactDOM from 'react-dom/server'
-import { RouterContext } from 'next/dist/shared/lib/router-context.shared-runtime'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import ReactDOM from "react-dom/server";
+import { RouterContext } from "next/dist/shared/lib/router-context.shared-runtime";
+import { useRouter } from "next/router";
 
 function RouterComp(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (!router) {
-    throw new Error('router is missing!')
+    throw new Error("router is missing!");
   }
 
   return (
@@ -15,7 +15,7 @@ function RouterComp(props) {
       <p>props {JSON.stringify(props)}</p>
       <p>router: {JSON.stringify(router)}</p>
     </>
-  )
+  );
 }
 
 export async function getServerSideProps({ req, query, preview }) {
@@ -26,29 +26,29 @@ export async function getServerSideProps({ req, query, preview }) {
       <RouterContext.Provider
         value={{
           query,
-          pathname: '/',
+          pathname: "/",
           asPath: req.url,
           isPreview: preview,
         }}
       >
         <p>hello world</p>
-        <RouterComp hello={'world'} />
+        <RouterComp hello={"world"} />
       </RouterContext.Provider>
     )
-  )
+  );
   return {
     props: {
       url: req.url,
-      world: 'world',
+      world: "world",
       time: new Date().getTime(),
     },
-  }
+  };
 }
 
 const Page = ({ world, time, url }) => {
-  if (typeof window === 'undefined') {
-    if (url.startsWith('/_next/data/')) {
-      throw new Error('invalid render for data request')
+  if (typeof window === "undefined") {
+    if (url.startsWith("/_next/data/")) {
+      throw new Error("invalid render for data request");
     }
   }
 
@@ -94,7 +94,7 @@ const Page = ({ world, time, url }) => {
         to something?another=thing
       </Link>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

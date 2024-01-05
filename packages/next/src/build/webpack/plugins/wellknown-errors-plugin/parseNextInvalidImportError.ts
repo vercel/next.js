@@ -1,6 +1,6 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { formatModuleTrace, getModuleTrace } from './getModuleTrace'
-import { SimpleWebpackError } from './simpleWebpackError'
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import { formatModuleTrace, getModuleTrace } from "./getModuleTrace";
+import { SimpleWebpackError } from "./simpleWebpackError";
 
 export function getNextInvalidImportError(
   err: Error,
@@ -11,24 +11,24 @@ export function getNextInvalidImportError(
   try {
     if (
       !module.loaders.find((loader: any) =>
-        loader.loader.includes('next-invalid-import-error-loader.js')
+        loader.loader.includes("next-invalid-import-error-loader.js")
       )
     ) {
-      return false
+      return false;
     }
 
-    const { moduleTrace } = getModuleTrace(module, compilation, compiler)
+    const { moduleTrace } = getModuleTrace(module, compilation, compiler);
     const { formattedModuleTrace, lastInternalFileName, invalidImportMessage } =
-      formatModuleTrace(compiler, moduleTrace)
+      formatModuleTrace(compiler, moduleTrace);
 
     return new SimpleWebpackError(
       lastInternalFileName,
       err.message +
         invalidImportMessage +
-        '\n\nImport trace for requested module:\n' +
+        "\n\nImport trace for requested module:\n" +
         formattedModuleTrace
-    )
+    );
   } catch {
-    return false
+    return false;
   }
 }

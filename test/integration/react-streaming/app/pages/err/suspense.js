@@ -1,10 +1,10 @@
-import { Suspense } from 'react'
+import { Suspense } from "react";
 
-let did = false
+let did = false;
 function MyError() {
-  if (!did && typeof window === 'undefined') {
-    did = true
-    throw new Error('oops')
+  if (!did && typeof window === "undefined") {
+    did = true;
+    throw new Error("oops");
   }
 }
 
@@ -16,9 +16,9 @@ export default function page() {
         <MyError />
       </Suspense>
     </>
-  )
+  );
 }
 
 export const config = {
-  runtime: 'experimental-edge',
-}
+  runtime: "experimental-edge",
+};

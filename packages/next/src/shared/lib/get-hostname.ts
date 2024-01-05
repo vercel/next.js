@@ -1,4 +1,4 @@
-import type { OutgoingHttpHeaders } from 'http'
+import type { OutgoingHttpHeaders } from "http";
 
 /**
  * Takes an object with a hostname property (like a parsed URL) and some
@@ -12,12 +12,12 @@ export function getHostname(
 ): string | undefined {
   // Get the hostname from the headers if it exists, otherwise use the parsed
   // hostname.
-  let hostname: string
+  let hostname: string;
   if (headers?.host && !Array.isArray(headers.host)) {
-    hostname = headers.host.toString().split(':', 1)[0]
+    hostname = headers.host.toString().split(":", 1)[0];
   } else if (parsed.hostname) {
-    hostname = parsed.hostname
-  } else return
+    hostname = parsed.hostname;
+  } else return;
 
-  return hostname.toLowerCase()
+  return hostname.toLowerCase();
 }

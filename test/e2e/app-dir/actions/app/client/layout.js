@@ -1,9 +1,9 @@
 async function noopAction() {
-  'use server'
+  "use server";
 }
 
-console.log(!!noopAction())
+console.log(!!noopAction());
 
 export default function Layout({ children }) {
-  return children
+  return children;
 }

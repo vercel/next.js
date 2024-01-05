@@ -1,21 +1,21 @@
-import { generateActionId } from './utils'
+import { generateActionId } from "./utils";
 
 export type NextFlightActionEntryLoaderOptions = {
-  actions: string
-}
+  actions: string;
+};
 
 function nextFlightActionEntryLoader(this: any) {
-  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
+  const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions();
 
-  const actionList = JSON.parse(actions) as [string, string[]][]
+  const actionList = JSON.parse(actions) as [string, string[]][];
   const individualActions = actionList
     .map(([path, names]) => {
       return names.map((name) => {
-        const id = generateActionId(path, name)
-        return [id, path, name] as [string, string, string]
-      })
+        const id = generateActionId(path, name);
+        return [id, path, name] as [string, string, string];
+      });
     })
-    .flat()
+    .flat();
 
   return `
 const actions = {
@@ -23,9 +23,9 @@ ${individualActions
   .map(([id, path, name]) => {
     return `'${id}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
       path
-    )}).then(mod => mod[${JSON.stringify(name)}]),`
+    )}).then(mod => mod[${JSON.stringify(name)}]),`;
   })
-  .join('\n')}
+  .join("\n")}
 }
 
 async function endpoint(id, ...args) {
@@ -37,11 +37,11 @@ async function endpoint(id, ...args) {
 module.exports = {
 ${individualActions
   .map(([id]) => {
-    return `  '${id}': endpoint.bind(null, '${id}'),`
+    return `  '${id}': endpoint.bind(null, '${id}'),`;
   })
-  .join('\n')}
+  .join("\n")}
 }
-`
+`;
 }
 
-export default nextFlightActionEntryLoader
+export default nextFlightActionEntryLoader;

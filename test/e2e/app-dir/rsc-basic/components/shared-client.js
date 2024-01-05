@@ -1,5 +1,5 @@
-'use client'
+"use client";
 
-import Shared from './shared'
+import Shared from "./shared";
 
-export default Shared
+export default Shared;

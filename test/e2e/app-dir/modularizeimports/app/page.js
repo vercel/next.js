@@ -1,4 +1,4 @@
-import { Cart, Search } from 'design-system/icons'
+import { Cart, Search } from "design-system/icons";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <Cart />
       <Search />
     </>
-  )
+  );
 }

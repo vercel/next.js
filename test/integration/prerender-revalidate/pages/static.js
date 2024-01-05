@@ -1,10 +1,10 @@
 export async function getStaticProps() {
   return {
     props: {
-      world: 'world',
+      world: "world",
     },
     revalidate: 10,
-  }
+  };
 }
 
 const Page = ({ world }) => {
@@ -12,7 +12,7 @@ const Page = ({ world }) => {
     <div>
       <p>hello {world}</p>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

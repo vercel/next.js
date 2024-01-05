@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import Link from 'next/link'
+import Head from "next/head";
+import Link from "next/link";
 
 export default () => {
   return (
@@ -18,5 +18,5 @@ export default () => {
         to /another
       </Link>
     </div>
-  )
-}
+  );
+};

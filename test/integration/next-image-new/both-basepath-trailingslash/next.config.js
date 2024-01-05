@@ -1,7 +1,7 @@
 module.exports = {
-  basePath: '/prefix',
+  basePath: "/prefix",
   trailingSlash: true,
   images: {
     deviceSizes: [640, 828],
   },
-}
+};

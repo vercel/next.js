@@ -1,9 +1,9 @@
 export default function Page() {
-  return 'page'
+  return "page";
 }
 
 export function generateViewport() {
   return {
-    themeColor: '#000',
-  }
+    themeColor: "#000",
+  };
 }

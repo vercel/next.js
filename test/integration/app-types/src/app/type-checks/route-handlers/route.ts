@@ -1,8 +1,8 @@
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from "next/server";
 
-export const revalidate = -1
+export const revalidate = -1;
 export async function generateStaticParams(s: string) {
-  return false
+  return false;
 }
 
 export function bar() {}

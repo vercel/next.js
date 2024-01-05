@@ -19,15 +19,15 @@ It’s recommended to use the user’s language preferences in the browser to se
 For example, using the following libraries, you can look at an incoming `Request` to determine which locale to select, based on the `Headers`, locales you plan to support, and the default locale.
 
 ```js filename="middleware.js"
-import { match } from '@formatjs/intl-localematcher'
-import Negotiator from 'negotiator'
+import { match } from "@formatjs/intl-localematcher";
+import Negotiator from "negotiator";
 
-let headers = { 'accept-language': 'en-US,en;q=0.5' }
-let languages = new Negotiator({ headers }).languages()
-let locales = ['en-US', 'nl-NL', 'nl']
-let defaultLocale = 'en-US'
+let headers = { "accept-language": "en-US,en;q=0.5" };
+let languages = new Negotiator({ headers }).languages();
+let locales = ["en-US", "nl-NL", "nl"];
+let defaultLocale = "en-US";
 
-match(languages, locales, defaultLocale) // -> 'en-US'
+match(languages, locales, defaultLocale); // -> 'en-US'
 ```
 
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/building-your-application/routing/middleware).
@@ -103,24 +103,24 @@ Let’s assume we want to support both English and Dutch content inside our appl
 We can then create a `getDictionary` function to load the translations for the requested locale:
 
 ```jsx filename="app/[lang]/dictionaries.js"
-import 'server-only'
+import "server-only";
 
 const dictionaries = {
-  en: () => import('./dictionaries/en.json').then((module) => module.default),
-  nl: () => import('./dictionaries/nl.json').then((module) => module.default),
-}
+  en: () => import("./dictionaries/en.json").then((module) => module.default),
+  nl: () => import("./dictionaries/nl.json").then((module) => module.default),
+};
 
-export const getDictionary = async (locale) => dictionaries[locale]()
+export const getDictionary = async (locale) => dictionaries[locale]();
 ```
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
 ```jsx filename="app/[lang]/page.js"
-import { getDictionary } from './dictionaries'
+import { getDictionary } from "./dictionaries";
 
 export default async function Page({ params: { lang } }) {
-  const dict = await getDictionary(lang) // en
-  return <button>{dict.products.cart}</button> // Add to Cart
+  const dict = await getDictionary(lang); // en
+  return <button>{dict.products.cart}</button>; // Add to Cart
 }
 ```
 
@@ -132,7 +132,7 @@ To generate static routes for a given set of locales, we can use `generateStatic
 
 ```jsx filename="app/[lang]/layout.js"
 export async function generateStaticParams() {
-  return [{ lang: 'en-US' }, { lang: 'de' }]
+  return [{ lang: "en-US" }, { lang: "de" }];
 }
 
 export default function Root({ children, params }) {
@@ -140,7 +140,7 @@ export default function Root({ children, params }) {
     <html lang={params.lang}>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 ```
 

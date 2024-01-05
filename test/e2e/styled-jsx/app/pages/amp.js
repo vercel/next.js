@@ -1,6 +1,6 @@
-import { Button } from 'my-comps/button'
+import { Button } from "my-comps/button";
 
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default function page() {
   return (
@@ -8,5 +8,5 @@ export default function page() {
       <p>Hello world</p>
       <Button>Click me</Button>
     </>
-  )
+  );
 }

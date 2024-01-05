@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 export default function Page() {
   return (
@@ -15,5 +15,5 @@ export default function Page() {
         blurDataURL="/test.jpg"
       />
     </div>
-  )
+  );
 }

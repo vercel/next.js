@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default () => (
   <div>
@@ -6,4 +6,4 @@ export default () => (
       I'm not pre-fetched..
     </Link>
   </div>
-)
+);

@@ -1,5 +1,5 @@
-import Script from 'next/script'
-import Link from 'next/link'
+import Script from "next/script";
+import Link from "next/link";
 
 const Page = () => {
   return (
@@ -16,7 +16,7 @@ const Page = () => {
         <Link href="/page5">Page5</Link>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

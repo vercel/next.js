@@ -1,1 +1,1 @@
-export default () => <p>made it to dashboard</p>
+export default () => <p>made it to dashboard</p>;

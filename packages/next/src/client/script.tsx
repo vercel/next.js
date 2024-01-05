@@ -1,39 +1,39 @@
-'use client'
+"use client";
 
-import ReactDOM from 'react-dom'
-import React, { useEffect, useContext, useRef } from 'react'
-import type { ScriptHTMLAttributes } from 'react'
-import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { DOMAttributeNames } from './head-manager'
-import { requestIdleCallback } from './request-idle-callback'
+import ReactDOM from "react-dom";
+import React, { useEffect, useContext, useRef } from "react";
+import type { ScriptHTMLAttributes } from "react";
+import { HeadManagerContext } from "../shared/lib/head-manager-context.shared-runtime";
+import { DOMAttributeNames } from "./head-manager";
+import { requestIdleCallback } from "./request-idle-callback";
 
-const ScriptCache = new Map()
-const LoadCache = new Set()
+const ScriptCache = new Map();
+const LoadCache = new Set();
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
-  strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker'
-  id?: string
-  onLoad?: (e: any) => void
-  onReady?: () => void | null
-  onError?: (e: any) => void
-  children?: React.ReactNode
-  stylesheets?: string[]
+  strategy?: "afterInteractive" | "lazyOnload" | "beforeInteractive" | "worker";
+  id?: string;
+  onLoad?: (e: any) => void;
+  onReady?: () => void | null;
+  onError?: (e: any) => void;
+  children?: React.ReactNode;
+  stylesheets?: string[];
 }
 
 /**
  * @deprecated Use `ScriptProps` instead.
  */
-export type Props = ScriptProps
+export type Props = ScriptProps;
 
 const ignoreProps = [
-  'onLoad',
-  'onReady',
-  'dangerouslySetInnerHTML',
-  'children',
-  'onError',
-  'strategy',
-  'stylesheets',
-]
+  "onLoad",
+  "onReady",
+  "dangerouslySetInnerHTML",
+  "children",
+  "onError",
+  "strategy",
+  "stylesheets",
+];
 
 const insertStylesheets = (stylesheets: string[]) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
@@ -44,29 +44,29 @@ const insertStylesheets = (stylesheets: string[]) => {
   // ReactDOM.preinit handles dedup and ensures the styles are loaded only once
   if (ReactDOM.preinit) {
     stylesheets.forEach((stylesheet: string) => {
-      ReactDOM.preinit(stylesheet, { as: 'style' })
-    })
+      ReactDOM.preinit(stylesheet, { as: "style" });
+    });
 
-    return
+    return;
   }
 
   // Case 2: Styles for afterInteractive/lazyOnload with pages injected via handleClientScriptLoad
   //
   // We use this function to load styles when appdir is not detected
   // TODO: Use React float APIs to load styles once available for pages dir
-  if (typeof window !== 'undefined') {
-    let head = document.head
+  if (typeof window !== "undefined") {
+    let head = document.head;
     stylesheets.forEach((stylesheet: string) => {
-      let link = document.createElement('link')
+      let link = document.createElement("link");
 
-      link.type = 'text/css'
-      link.rel = 'stylesheet'
-      link.href = stylesheet
+      link.type = "text/css";
+      link.rel = "stylesheet";
+      link.href = stylesheet;
 
-      head.appendChild(link)
-    })
+      head.appendChild(link);
+    });
   }
-}
+};
 
 const loadScript = (props: ScriptProps): void => {
   const {
@@ -75,120 +75,120 @@ const loadScript = (props: ScriptProps): void => {
     onLoad = () => {},
     onReady = null,
     dangerouslySetInnerHTML,
-    children = '',
-    strategy = 'afterInteractive',
+    children = "",
+    strategy = "afterInteractive",
     onError,
     stylesheets,
-  } = props
+  } = props;
 
-  const cacheKey = id || src
+  const cacheKey = id || src;
 
   // Script has already loaded
   if (cacheKey && LoadCache.has(cacheKey)) {
-    return
+    return;
   }
 
   // Contents of this script are already loading/loaded
   if (ScriptCache.has(src)) {
-    LoadCache.add(cacheKey)
+    LoadCache.add(cacheKey);
     // It is possible that multiple `next/script` components all have same "src", but has different "onLoad"
     // This is to make sure the same remote script will only load once, but "onLoad" are executed in order
-    ScriptCache.get(src).then(onLoad, onError)
-    return
+    ScriptCache.get(src).then(onLoad, onError);
+    return;
   }
 
   /** Execute after the script first loaded */
   const afterLoad = () => {
     // Run onReady for the first time after load event
     if (onReady) {
-      onReady()
+      onReady();
     }
     // add cacheKey to LoadCache when load successfully
-    LoadCache.add(cacheKey)
-  }
+    LoadCache.add(cacheKey);
+  };
 
-  const el = document.createElement('script')
+  const el = document.createElement("script");
 
   const loadPromise = new Promise<void>((resolve, reject) => {
-    el.addEventListener('load', function (e) {
-      resolve()
+    el.addEventListener("load", function (e) {
+      resolve();
       if (onLoad) {
-        onLoad.call(this, e)
+        onLoad.call(this, e);
       }
-      afterLoad()
-    })
-    el.addEventListener('error', function (e) {
-      reject(e)
-    })
+      afterLoad();
+    });
+    el.addEventListener("error", function (e) {
+      reject(e);
+    });
   }).catch(function (e) {
     if (onError) {
-      onError(e)
+      onError(e);
     }
-  })
+  });
 
   if (dangerouslySetInnerHTML) {
     // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
-    el.innerHTML = (dangerouslySetInnerHTML.__html as string) || ''
+    el.innerHTML = (dangerouslySetInnerHTML.__html as string) || "";
 
-    afterLoad()
+    afterLoad();
   } else if (children) {
     el.textContent =
-      typeof children === 'string'
+      typeof children === "string"
         ? children
         : Array.isArray(children)
-        ? children.join('')
-        : ''
+        ? children.join("")
+        : "";
 
-    afterLoad()
+    afterLoad();
   } else if (src) {
-    el.src = src
+    el.src = src;
     // do not add cacheKey into LoadCache for remote script here
     // cacheKey will be added to LoadCache when it is actually loaded (see loadPromise above)
 
-    ScriptCache.set(src, loadPromise)
+    ScriptCache.set(src, loadPromise);
   }
 
   for (const [k, value] of Object.entries(props)) {
     if (value === undefined || ignoreProps.includes(k)) {
-      continue
+      continue;
     }
 
-    const attr = DOMAttributeNames[k] || k.toLowerCase()
-    el.setAttribute(attr, value)
+    const attr = DOMAttributeNames[k] || k.toLowerCase();
+    el.setAttribute(attr, value);
   }
 
-  if (strategy === 'worker') {
-    el.setAttribute('type', 'text/partytown')
+  if (strategy === "worker") {
+    el.setAttribute("type", "text/partytown");
   }
 
-  el.setAttribute('data-nscript', strategy)
+  el.setAttribute("data-nscript", strategy);
 
   // Load styles associated with this script
   if (stylesheets) {
-    insertStylesheets(stylesheets)
+    insertStylesheets(stylesheets);
   }
 
-  document.body.appendChild(el)
-}
+  document.body.appendChild(el);
+};
 
 export function handleClientScriptLoad(props: ScriptProps) {
-  const { strategy = 'afterInteractive' } = props
-  if (strategy === 'lazyOnload') {
-    window.addEventListener('load', () => {
-      requestIdleCallback(() => loadScript(props))
-    })
+  const { strategy = "afterInteractive" } = props;
+  if (strategy === "lazyOnload") {
+    window.addEventListener("load", () => {
+      requestIdleCallback(() => loadScript(props));
+    });
   } else {
-    loadScript(props)
+    loadScript(props);
   }
 }
 
 function loadLazyScript(props: ScriptProps) {
-  if (document.readyState === 'complete') {
-    requestIdleCallback(() => loadScript(props))
+  if (document.readyState === "complete") {
+    requestIdleCallback(() => loadScript(props));
   } else {
-    window.addEventListener('load', () => {
-      requestIdleCallback(() => loadScript(props))
-    })
+    window.addEventListener("load", () => {
+      requestIdleCallback(() => loadScript(props));
+    });
   }
 }
 
@@ -196,33 +196,33 @@ function addBeforeInteractiveToCache() {
   const scripts = [
     ...document.querySelectorAll('[data-nscript="beforeInteractive"]'),
     ...document.querySelectorAll('[data-nscript="beforePageRender"]'),
-  ]
+  ];
   scripts.forEach((script) => {
-    const cacheKey = script.id || script.getAttribute('src')
-    LoadCache.add(cacheKey)
-  })
+    const cacheKey = script.id || script.getAttribute("src");
+    LoadCache.add(cacheKey);
+  });
 }
 
 export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
-  scriptLoaderItems.forEach(handleClientScriptLoad)
-  addBeforeInteractiveToCache()
+  scriptLoaderItems.forEach(handleClientScriptLoad);
+  addBeforeInteractiveToCache();
 }
 
 function Script(props: ScriptProps): JSX.Element | null {
   const {
     id,
-    src = '',
+    src = "",
     onLoad = () => {},
     onReady = null,
-    strategy = 'afterInteractive',
+    strategy = "afterInteractive",
     onError,
     stylesheets,
     ...restProps
-  } = props
+  } = props;
 
   // Context is available only during SSR
   const { updateScripts, scripts, getIsSsr, appDir, nonce } =
-    useContext(HeadManagerContext)
+    useContext(HeadManagerContext);
 
   /**
    * - First mount:
@@ -250,35 +250,35 @@ function Script(props: ScriptProps): JSX.Element | null {
    *   7. The useEffect for loadScript executes again
    *   8. hasLoadScriptEffectCalled.current is true, so entire effect is skipped
    */
-  const hasOnReadyEffectCalled = useRef(false)
+  const hasOnReadyEffectCalled = useRef(false);
 
   useEffect(() => {
-    const cacheKey = id || src
+    const cacheKey = id || src;
     if (!hasOnReadyEffectCalled.current) {
       // Run onReady if script has loaded before but component is re-mounted
       if (onReady && cacheKey && LoadCache.has(cacheKey)) {
-        onReady()
+        onReady();
       }
 
-      hasOnReadyEffectCalled.current = true
+      hasOnReadyEffectCalled.current = true;
     }
-  }, [onReady, id, src])
+  }, [onReady, id, src]);
 
-  const hasLoadScriptEffectCalled = useRef(false)
+  const hasLoadScriptEffectCalled = useRef(false);
 
   useEffect(() => {
     if (!hasLoadScriptEffectCalled.current) {
-      if (strategy === 'afterInteractive') {
-        loadScript(props)
-      } else if (strategy === 'lazyOnload') {
-        loadLazyScript(props)
+      if (strategy === "afterInteractive") {
+        loadScript(props);
+      } else if (strategy === "lazyOnload") {
+        loadLazyScript(props);
       }
 
-      hasLoadScriptEffectCalled.current = true
+      hasLoadScriptEffectCalled.current = true;
     }
-  }, [props, strategy])
+  }, [props, strategy]);
 
-  if (strategy === 'beforeInteractive' || strategy === 'worker') {
+  if (strategy === "beforeInteractive" || strategy === "worker") {
     if (updateScripts) {
       scripts[strategy] = (scripts[strategy] || []).concat([
         {
@@ -289,13 +289,13 @@ function Script(props: ScriptProps): JSX.Element | null {
           onError,
           ...restProps,
         },
-      ])
-      updateScripts(scripts)
+      ]);
+      updateScripts(scripts);
     } else if (getIsSsr && getIsSsr()) {
       // Script has already loaded during SSR
-      LoadCache.add(id || src)
+      LoadCache.add(id || src);
     } else if (getIsSsr && !getIsSsr()) {
-      loadScript(props)
+      loadScript(props);
     }
   }
 
@@ -312,20 +312,20 @@ function Script(props: ScriptProps): JSX.Element | null {
     // Case 4: Styles for afterInteractive/lazyOnload with pages dir - handled in insertStylesheets function
     if (stylesheets) {
       stylesheets.forEach((styleSrc) => {
-        ReactDOM.preinit(styleSrc, { as: 'style' })
-      })
+        ReactDOM.preinit(styleSrc, { as: "style" });
+      });
     }
 
     // Before interactive scripts need to be loaded by Next.js' runtime instead
     // of native <script> tags, because they no longer have `defer`.
-    if (strategy === 'beforeInteractive') {
+    if (strategy === "beforeInteractive") {
       if (!src) {
         // For inlined scripts, we put the content in `children`.
         if (restProps.dangerouslySetInnerHTML) {
           // Casting since lib.dom.d.ts doesn't have TrustedHTML yet.
           restProps.children = restProps.dangerouslySetInnerHTML
-            .__html as string
-          delete restProps.dangerouslySetInnerHTML
+            .__html as string;
+          delete restProps.dangerouslySetInnerHTML;
         }
 
         return (
@@ -338,15 +338,15 @@ function Script(props: ScriptProps): JSX.Element | null {
               ])})`,
             }}
           />
-        )
+        );
       } else {
         // @ts-ignore
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity }
-            : { as: 'script' }
-        )
+            ? { as: "script", integrity: restProps.integrity }
+            : { as: "script" }
+        );
         return (
           <script
             nonce={nonce}
@@ -357,24 +357,24 @@ function Script(props: ScriptProps): JSX.Element | null {
               ])})`,
             }}
           />
-        )
+        );
       }
-    } else if (strategy === 'afterInteractive') {
+    } else if (strategy === "afterInteractive") {
       if (src) {
         // @ts-ignore
         ReactDOM.preload(
           src,
           restProps.integrity
-            ? { as: 'script', integrity: restProps.integrity }
-            : { as: 'script' }
-        )
+            ? { as: "script", integrity: restProps.integrity }
+            : { as: "script" }
+        );
       }
     }
   }
 
-  return null
+  return null;
 }
 
-Object.defineProperty(Script, '__nextScript', { value: true })
+Object.defineProperty(Script, "__nextScript", { value: true });
 
-export default Script
+export default Script;

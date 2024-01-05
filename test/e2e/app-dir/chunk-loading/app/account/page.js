@@ -1,6 +1,6 @@
-import { ClientShared, ClientDynamicShared } from './ClientShared'
+import { ClientShared, ClientDynamicShared } from "./ClientShared";
 
-import styles from './styles.module.css'
+import styles from "./styles.module.css";
 
 export default function AccountPage() {
   return (
@@ -17,5 +17,5 @@ export default function AccountPage() {
         <ClientDynamicShared />
       </section>
     </main>
-  )
+  );
 }

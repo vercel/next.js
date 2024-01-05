@@ -1,14 +1,14 @@
-console.log('hello from babel!')
+console.log("hello from babel!");
 
 module.exports = {
   presets: [
     [
-      'next/babel',
+      "next/babel",
       {
-        'styled-jsx': {
-          plugins: [require.resolve('styled-jsx-plugin-postcss')],
+        "styled-jsx": {
+          plugins: [require.resolve("styled-jsx-plugin-postcss")],
         },
       },
     ],
   ],
-}
+};

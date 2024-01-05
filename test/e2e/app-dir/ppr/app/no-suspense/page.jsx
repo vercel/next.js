@@ -1,1 +1,1 @@
-export { NonSuspensePage as default } from '../../components/page'
+export { NonSuspensePage as default } from "../../components/page";

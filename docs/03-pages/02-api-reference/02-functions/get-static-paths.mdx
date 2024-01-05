@@ -10,38 +10,38 @@ import type {
   InferGetStaticPropsType,
   GetStaticProps,
   GetStaticPaths,
-} from 'next'
+} from "next";
 
 type Repo = {
-  name: string
-  stargazers_count: number
-}
+  name: string;
+  stargazers_count: number;
+};
 
 export const getStaticPaths = (async () => {
   return {
     paths: [
       {
         params: {
-          name: 'next.js',
+          name: "next.js",
         },
       }, // See the "paths" section below
     ],
     fallback: true, // false or "blocking"
-  }
-}) satisfies GetStaticPaths
+  };
+}) satisfies GetStaticPaths;
 
 export const getStaticProps = (async (context) => {
-  const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
-  return { props: { repo } }
+  const res = await fetch("https://api.github.com/repos/vercel/next.js");
+  const repo = await res.json();
+  return { props: { repo } };
 }) satisfies GetStaticProps<{
-  repo: Repo
-}>
+  repo: Repo;
+}>;
 
 export default function Page({
   repo,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  return repo.stargazers_count
+  return repo.stargazers_count;
 }
 ```
 
@@ -51,22 +51,22 @@ export async function getStaticPaths() {
     paths: [
       {
         params: {
-          name: 'next.js',
+          name: "next.js",
         },
       }, // See the "paths" section below
     ],
     fallback: true, // false or "blocking"
-  }
+  };
 }
 
 export async function getStaticProps() {
-  const res = await fetch('https://api.github.com/repos/vercel/next.js')
-  const repo = await res.json()
-  return { props: { repo } }
+  const res = await fetch("https://api.github.com/repos/vercel/next.js");
+  const repo = await res.json();
+  return { props: { repo } };
 }
 
 export default function Page({ repo }) {
-  return repo.stargazers_count
+  return repo.stargazers_count;
 }
 ```
 
@@ -120,31 +120,31 @@ function Post({ post }) {
 // This function gets called at build time
 export async function getStaticPaths() {
   // Call an external API endpoint to get posts
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const res = await fetch("https://.../posts");
+  const posts = await res.json();
 
   // Get the paths we want to pre-render based on posts
   const paths = posts.map((post) => ({
     params: { id: post.id },
-  }))
+  }));
 
   // We'll pre-render only these paths at build time.
   // { fallback: false } means other routes should 404.
-  return { paths, fallback: false }
+  return { paths, fallback: false };
 }
 
 // This also gets called at build time
 export async function getStaticProps({ params }) {
   // params contains the post `id`.
   // If the route is like /posts/1, then params.id is 1
-  const res = await fetch(`https://.../posts/${params.id}`)
-  const post = await res.json()
+  const res = await fetch(`https://.../posts/${params.id}`);
+  const post = await res.json();
 
   // Pass post data to the page via props
-  return { props: { post } }
+  return { props: { post } };
 }
 
-export default Post
+export default Post;
 ```
 
 ### `fallback: true`
@@ -204,15 +204,15 @@ In the “fallback” version of a page:
 The following example showcases using `isFallback`:
 
 ```jsx filename="pages/posts/[id].js"
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 function Post({ post }) {
-  const router = useRouter()
+  const router = useRouter();
 
   // If the page is not yet generated, this will be displayed
   // initially until getStaticProps() finishes running
   if (router.isFallback) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
 
   // Render post...
@@ -222,19 +222,19 @@ function Post({ post }) {
 export async function getStaticPaths() {
   return {
     // Only `/posts/1` and `/posts/2` are generated at build time
-    paths: [{ params: { id: '1' } }, { params: { id: '2' } }],
+    paths: [{ params: { id: "1" } }, { params: { id: "2" } }],
     // Enable statically generating additional pages
     // For example: `/posts/3`
     fallback: true,
-  }
+  };
 }
 
 // This also gets called at build time
 export async function getStaticProps({ params }) {
   // params contains the post `id`.
   // If the route is like /posts/1, then params.id is 1
-  const res = await fetch(`https://.../posts/${params.id}`)
-  const post = await res.json()
+  const res = await fetch(`https://.../posts/${params.id}`);
+  const post = await res.json();
 
   // Pass post data to the page via props
   return {
@@ -242,10 +242,10 @@ export async function getStaticProps({ params }) {
     // Re-generate the post at most once per second
     // if a request comes in
     revalidate: 1,
-  }
+  };
 }
 
-export default Post
+export default Post;
 ```
 
 ## Version History

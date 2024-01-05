@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function ErrorBoundary({ error, reset }) {
   return (
@@ -10,5 +10,5 @@ export default function ErrorBoundary({ error, reset }) {
         Try again
       </button>
     </>
-  )
+  );
 }

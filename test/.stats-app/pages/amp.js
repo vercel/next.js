@@ -1,9 +1,9 @@
-import { useAmp } from 'next/amp'
+import { useAmp } from "next/amp";
 
 export const config = {
-  amp: 'hybrid',
-}
+  amp: "hybrid",
+};
 
 export default function Amp(props) {
-  return useAmp() ? 'AMP mode' : 'normal mode'
+  return useAmp() ? "AMP mode" : "normal mode";
 }

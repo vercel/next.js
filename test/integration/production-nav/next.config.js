@@ -3,9 +3,9 @@ module.exports = {
     // add a rewrite so the code isn't dead-code eliminated
     return [
       {
-        source: '/some-rewrite',
-        destination: '/',
+        source: "/some-rewrite",
+        destination: "/",
       },
-    ]
+    ];
   },
-}
+};

@@ -1,10 +1,10 @@
-import { lazy, Suspense } from 'react'
-import dynamic from 'next/dynamic'
+import { lazy, Suspense } from "react";
+import dynamic from "next/dynamic";
 
-const Foo = lazy(() => import('../components/foo'))
-const Bar = dynamic(() => import('../components/bar'), {
+const Foo = lazy(() => import("../components/foo"));
+const Bar = dynamic(() => import("../components/bar"), {
   suspense: true,
-})
+});
 
 export default function Page() {
   return (
@@ -14,5 +14,5 @@ export default function Page() {
         <Bar />
       </Suspense>
     </div>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-const http = require('http')
-const httpProxy = require('next/dist/compiled/http-proxy')
+const http = require("http");
+const httpProxy = require("next/dist/compiled/http-proxy");
 
-const PROXY_PORT = process.env.PROXY_PORT
-const SERVER_PORT = process.env.SERVER_PORT
+const PROXY_PORT = process.env.PROXY_PORT;
+const SERVER_PORT = process.env.SERVER_PORT;
 
 httpProxy
-  .createProxyServer({ target: 'http://localhost:' + SERVER_PORT })
-  .listen(PROXY_PORT)
+  .createProxyServer({ target: "http://localhost:" + SERVER_PORT })
+  .listen(PROXY_PORT);
 
 const cssResponse = `
 /* cyrillic-ext */
@@ -54,21 +54,21 @@ const cssResponse = `
   src: url(https://fonts.gstatic.com/s/oswald/v49/TK3iWkUHHAIjg752GT8Gl-1PKw.woff2) format('woff2');
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
-`
+`;
 
-const requestedUrls = []
+const requestedUrls = [];
 http
   .createServer(function (req, res) {
-    if (req.url === '/requests') {
-      res.writeHead(200, { 'Content-Type': 'application/json' })
-      res.write(JSON.stringify(requestedUrls))
-      res.end()
-      return
+    if (req.url === "/requests") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.write(JSON.stringify(requestedUrls));
+      res.end();
+      return;
     }
 
-    requestedUrls.push(req.url)
-    res.writeHead(200, { 'Content-Type': 'text/css' })
-    res.write(cssResponse)
-    res.end()
+    requestedUrls.push(req.url);
+    res.writeHead(200, { "Content-Type": "text/css" });
+    res.write(cssResponse);
+    res.end();
   })
-  .listen(SERVER_PORT)
+  .listen(SERVER_PORT);

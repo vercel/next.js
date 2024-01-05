@@ -1,48 +1,48 @@
-import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { createNextDescribe } from "e2e-utils";
+import { check } from "next-test-utils";
 
 createNextDescribe(
-  'app dir - search params keys',
+  "app dir - search params keys",
   {
     files: __dirname,
   },
   ({ next }) => {
-    it('should keep the React router instance the same when changing the search params', async () => {
-      const browser = await next.browser('/')
+    it("should keep the React router instance the same when changing the search params", async () => {
+      const browser = await next.browser("/");
 
-      const searchParams = browser.waitForElementByCss('#search-params').text()
-      await browser.elementByCss('#increment').click()
-      await browser.elementByCss('#increment').click()
+      const searchParams = browser.waitForElementByCss("#search-params").text();
+      await browser.elementByCss("#increment").click();
+      await browser.elementByCss("#increment").click();
 
-      await browser.elementByCss('#push').click()
-
-      await check(async () => {
-        const newSearchParams = await browser
-          .waitForElementByCss('#search-params')
-          .text()
-
-        const count = await browser.waitForElementByCss('#count').text()
-
-        return newSearchParams !== searchParams && count === '2'
-          ? 'success'
-          : 'retry'
-      }, 'success')
-
-      await browser.elementByCss('#increment').click()
-      await browser.elementByCss('#increment').click()
-
-      await browser.elementByCss('#replace').click()
+      await browser.elementByCss("#push").click();
 
       await check(async () => {
         const newSearchParams = await browser
-          .waitForElementByCss('#search-params')
-          .text()
-        const count = await browser.waitForElementByCss('#count').text()
+          .waitForElementByCss("#search-params")
+          .text();
 
-        return newSearchParams !== searchParams && count === '4'
-          ? 'success'
-          : 'retry'
-      }, 'success')
-    })
+        const count = await browser.waitForElementByCss("#count").text();
+
+        return newSearchParams !== searchParams && count === "2"
+          ? "success"
+          : "retry";
+      }, "success");
+
+      await browser.elementByCss("#increment").click();
+      await browser.elementByCss("#increment").click();
+
+      await browser.elementByCss("#replace").click();
+
+      await check(async () => {
+        const newSearchParams = await browser
+          .waitForElementByCss("#search-params")
+          .text();
+        const count = await browser.waitForElementByCss("#count").text();
+
+        return newSearchParams !== searchParams && count === "4"
+          ? "success"
+          : "retry";
+      }, "success");
+    });
   }
-)
+);

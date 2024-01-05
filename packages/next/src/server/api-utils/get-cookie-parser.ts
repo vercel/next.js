@@ -1,4 +1,4 @@
-import type { NextApiRequestCookies } from '.'
+import type { NextApiRequestCookies } from ".";
 
 /**
  * Parse cookies from the `headers` of request
@@ -6,16 +6,16 @@ import type { NextApiRequestCookies } from '.'
  */
 
 export function getCookieParser(headers: {
-  [key: string]: string | string[] | null | undefined
+  [key: string]: string | string[] | null | undefined;
 }): () => NextApiRequestCookies {
   return function parseCookie(): NextApiRequestCookies {
-    const { cookie } = headers
+    const { cookie } = headers;
 
     if (!cookie) {
-      return {}
+      return {};
     }
 
-    const { parse: parseCookieFn } = require('next/dist/compiled/cookie')
-    return parseCookieFn(Array.isArray(cookie) ? cookie.join('; ') : cookie)
-  }
+    const { parse: parseCookieFn } = require("next/dist/compiled/cookie");
+    return parseCookieFn(Array.isArray(cookie) ? cookie.join("; ") : cookie);
+  };
 }

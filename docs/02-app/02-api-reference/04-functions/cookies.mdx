@@ -17,12 +17,12 @@ The `cookies` function allows you to read the HTTP incoming request cookies from
 A method that takes a cookie name and returns an object with name and value. If a cookie with `name` isn't found, it returns `undefined`. If multiple cookies match, it will only return the first match.
 
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default function Page() {
-  const cookieStore = cookies()
-  const theme = cookieStore.get('theme')
-  return '...'
+  const cookieStore = cookies();
+  const theme = cookieStore.get("theme");
+  return "...";
 }
 ```
 
@@ -31,16 +31,16 @@ export default function Page() {
 A method that is similar to `get`, but returns a list of all the cookies with a matching `name`. If `name` is unspecified, it returns all the available cookies.
 
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default function Page() {
-  const cookieStore = cookies()
+  const cookieStore = cookies();
   return cookieStore.getAll().map((cookie) => (
     <div key={cookie.name}>
       <p>Name: {cookie.name}</p>
       <p>Value: {cookie.value}</p>
     </div>
-  ))
+  ));
 }
 ```
 
@@ -49,12 +49,12 @@ export default function Page() {
 A method that takes a cookie name and returns a `boolean` based on if the cookie exists (`true`) or not (`false`).
 
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default function Page() {
-  const cookiesList = cookies()
-  const hasCookie = cookiesList.has('theme')
-  return '...'
+  const cookiesList = cookies();
+  const hasCookie = cookiesList.has("theme");
+  return "...";
 }
 ```
 
@@ -65,21 +65,21 @@ A method that takes a cookie name, value, and options and sets the outgoing requ
 > **Good to know**: HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```js filename="app/actions.js"
-'use server'
+"use server";
 
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 async function create(data) {
-  cookies().set('name', 'lee')
+  cookies().set("name", "lee");
   // or
-  cookies().set('name', 'lee', { secure: true })
+  cookies().set("name", "lee", { secure: true });
   // or
   cookies().set({
-    name: 'name',
-    value: 'lee',
+    name: "name",
+    value: "lee",
     httpOnly: true,
-    path: '/',
-  })
+    path: "/",
+  });
 }
 ```
 

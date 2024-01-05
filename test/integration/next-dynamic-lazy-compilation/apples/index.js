@@ -1,1 +1,1 @@
-export default 'foobar'
+export default "foobar";

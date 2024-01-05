@@ -1,22 +1,22 @@
-import path from 'path'
-import * as Log from '../build/output/log'
-import { promises as fs } from 'fs'
-import { bold } from './picocolors'
-import { APP_DIR_ALIAS } from './constants'
-import type { PageExtensions } from '../build/page-extensions-type'
+import path from "path";
+import * as Log from "../build/output/log";
+import { promises as fs } from "fs";
+import { bold } from "./picocolors";
+import { APP_DIR_ALIAS } from "./constants";
+import type { PageExtensions } from "../build/page-extensions-type";
 
 const globOrig =
-  require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
+  require("next/dist/compiled/glob") as typeof import("next/dist/compiled/glob");
 const glob = (cwd: string, pattern: string): Promise<string[]> => {
   return new Promise((resolve, reject) => {
     globOrig(pattern, { cwd }, (err, files) => {
       if (err) {
-        return reject(err)
+        return reject(err);
       }
-      resolve(files)
-    })
-  })
-}
+      resolve(files);
+    });
+  });
+};
 
 function getRootLayout(isTs: boolean) {
   if (isTs) {
@@ -36,7 +36,7 @@ export default function RootLayout({
     </html>
   )
 }
-`
+`;
   }
 
   return `export const metadata = {
@@ -51,7 +51,7 @@ export default function RootLayout({ children }) {
     </html>
   )
 }
-`
+`;
 }
 
 export async function verifyRootLayout({
@@ -61,85 +61,85 @@ export async function verifyRootLayout({
   pagePath,
   pageExtensions,
 }: {
-  dir: string
-  appDir: string
-  tsconfigPath: string
-  pagePath: string
-  pageExtensions: PageExtensions
+  dir: string;
+  appDir: string;
+  tsconfigPath: string;
+  pagePath: string;
+  pageExtensions: PageExtensions;
 }): Promise<[boolean, string | undefined]> {
-  let rootLayoutPath: string | undefined
+  let rootLayoutPath: string | undefined;
   try {
     const layoutFiles = await glob(
       appDir,
-      `**/layout.{${pageExtensions.join(',')}}`
-    )
-    const isFileUnderAppDir = pagePath.startsWith(`${APP_DIR_ALIAS}/`)
-    const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, '')
-    const pagePathSegments = normalizedPagePath.split('/')
+      `**/layout.{${pageExtensions.join(",")}}`
+    );
+    const isFileUnderAppDir = pagePath.startsWith(`${APP_DIR_ALIAS}/`);
+    const normalizedPagePath = pagePath.replace(`${APP_DIR_ALIAS}/`, "");
+    const pagePathSegments = normalizedPagePath.split("/");
 
     // Find an available dir to place the layout file in, the layout file can't affect any other layout.
     // Place the layout as close to app/ as possible.
-    let availableDir: string | undefined
+    let availableDir: string | undefined;
 
     if (isFileUnderAppDir) {
       if (layoutFiles.length === 0) {
         // If there's no other layout file we can place the layout file in the app dir.
         // However, if the page is within a route group directly under app (e.g. app/(routegroup)/page.js)
         // prefer creating the root layout in that route group.
-        const firstSegmentValue = pagePathSegments[0]
-        availableDir = firstSegmentValue.startsWith('(')
+        const firstSegmentValue = pagePathSegments[0];
+        availableDir = firstSegmentValue.startsWith("(")
           ? firstSegmentValue
-          : ''
+          : "";
       } else {
-        pagePathSegments.pop() // remove the page from segments
+        pagePathSegments.pop(); // remove the page from segments
 
-        let currentSegments: string[] = []
+        let currentSegments: string[] = [];
         for (const segment of pagePathSegments) {
-          currentSegments.push(segment)
+          currentSegments.push(segment);
           // Find the dir closest to app/ where a layout can be created without affecting other layouts.
           if (
             !layoutFiles.some((file) =>
-              file.startsWith(currentSegments.join('/'))
+              file.startsWith(currentSegments.join("/"))
             )
           ) {
-            availableDir = currentSegments.join('/')
-            break
+            availableDir = currentSegments.join("/");
+            break;
           }
         }
       }
     } else {
-      availableDir = ''
+      availableDir = "";
     }
 
-    if (typeof availableDir === 'string') {
-      const resolvedTsConfigPath = path.join(dir, tsconfigPath)
+    if (typeof availableDir === "string") {
+      const resolvedTsConfigPath = path.join(dir, tsconfigPath);
       const hasTsConfig = await fs.access(resolvedTsConfigPath).then(
         () => true,
         () => false
-      )
+      );
 
       rootLayoutPath = path.join(
         appDir,
         availableDir,
-        `layout.${hasTsConfig ? 'tsx' : 'js'}`
-      )
-      await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig))
+        `layout.${hasTsConfig ? "tsx" : "js"}`
+      );
+      await fs.writeFile(rootLayoutPath, getRootLayout(hasTsConfig));
 
       Log.warn(
         `Your page ${bold(
           `app/${normalizedPagePath}`
         )} did not have a root layout. We created ${bold(
-          `app${rootLayoutPath.replace(appDir, '')}`
+          `app${rootLayoutPath.replace(appDir, "")}`
         )} for you.`
-      )
+      );
 
       // Created root layout
-      return [true, rootLayoutPath]
+      return [true, rootLayoutPath];
     }
   } catch (e) {
-    console.error(e)
+    console.error(e);
   }
 
   // Didn't create root layout
-  return [false, rootLayoutPath]
+  return [false, rootLayoutPath];
 }

@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -6,16 +6,16 @@
 const { createFromFetch } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client.edge')
+      require("react-server-dom-webpack/client.edge")
     : // eslint-disable-next-line import/no-extraneous-dependencies
-      require('react-server-dom-webpack/client')
-) as typeof import('react-server-dom-webpack/client')
+      require("react-server-dom-webpack/client")
+) as typeof import("react-server-dom-webpack/client");
 
 import type {
   FlightRouterState,
   FlightData,
   NextFlightResponse,
-} from '../../../server/app-render/types'
+} from "../../../server/app-render/types";
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
@@ -24,20 +24,20 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
-} from '../app-router-headers'
-import { urlToUrlWithoutFlightMarker } from '../app-router'
-import { callServer } from '../../app-call-server'
-import { PrefetchKind } from './router-reducer-types'
-import { hexHash } from '../../../shared/lib/hash'
+} from "../app-router-headers";
+import { urlToUrlWithoutFlightMarker } from "../app-router";
+import { callServer } from "../../app-call-server";
+import { PrefetchKind } from "./router-reducer-types";
+import { hexHash } from "../../../shared/lib/hash";
 
 export type FetchServerResponseResult = [
   flightData: FlightData,
   canonicalUrlOverride: URL | undefined,
   postponed?: boolean
-]
+];
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
-  return [urlToUrlWithoutFlightMarker(url).toString(), undefined]
+  return [urlToUrlWithoutFlightMarker(url).toString(), undefined];
 }
 
 /**
@@ -51,18 +51,18 @@ export async function fetchServerResponse(
   prefetchKind?: PrefetchKind
 ): Promise<FetchServerResponseResult> {
   const headers: {
-    [RSC_HEADER]: '1'
-    [NEXT_ROUTER_STATE_TREE]: string
-    [NEXT_URL]?: string
-    [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+    [RSC_HEADER]: "1";
+    [NEXT_ROUTER_STATE_TREE]: string;
+    [NEXT_URL]?: string;
+    [NEXT_ROUTER_PREFETCH_HEADER]?: "1";
   } = {
     // Enable flight response
-    [RSC_HEADER]: '1',
+    [RSC_HEADER]: "1",
     // Provide the current router state
     [NEXT_ROUTER_STATE_TREE]: encodeURIComponent(
       JSON.stringify(flightRouterState)
     ),
-  }
+  };
 
   /**
    * Three cases:
@@ -71,53 +71,53 @@ export async function fetchServerResponse(
    * - `prefetchKind` is `auto` - if the page is dynamic, prefetch the page data partially, if static prefetch the page data fully
    */
   if (prefetchKind === PrefetchKind.AUTO) {
-    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = "1";
   }
 
   if (nextUrl) {
-    headers[NEXT_URL] = nextUrl
+    headers[NEXT_URL] = nextUrl;
   }
 
   const uniqueCacheQuery = hexHash(
     [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
+      headers[NEXT_ROUTER_PREFETCH_HEADER] || "0",
       headers[NEXT_ROUTER_STATE_TREE],
       headers[NEXT_URL],
-    ].join(',')
-  )
+    ].join(",")
+  );
 
   try {
-    let fetchUrl = new URL(url)
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        if (fetchUrl.pathname.endsWith('/')) {
-          fetchUrl.pathname += 'index.txt'
+    let fetchUrl = new URL(url);
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.__NEXT_CONFIG_OUTPUT === "export") {
+        if (fetchUrl.pathname.endsWith("/")) {
+          fetchUrl.pathname += "index.txt";
         } else {
-          fetchUrl.pathname += '.txt'
+          fetchUrl.pathname += ".txt";
         }
       }
     }
 
     // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
-    fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+    fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery);
 
     const res = await fetch(fetchUrl, {
       // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
-      credentials: 'same-origin',
+      credentials: "same-origin",
       headers,
-    })
+    });
 
-    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
-    const canonicalUrl = res.redirected ? responseUrl : undefined
+    const responseUrl = urlToUrlWithoutFlightMarker(res.url);
+    const canonicalUrl = res.redirected ? responseUrl : undefined;
 
-    const contentType = res.headers.get('content-type') || ''
-    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
+    const contentType = res.headers.get("content-type") || "";
+    const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER);
+    let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER;
 
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.__NEXT_CONFIG_OUTPUT === "export") {
         if (!isFlightResponse) {
-          isFlightResponse = contentType.startsWith('text/plain')
+          isFlightResponse = contentType.startsWith("text/plain");
         }
       }
     }
@@ -127,10 +127,10 @@ export async function fetchServerResponse(
     if (!isFlightResponse || !res.ok) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
-        responseUrl.hash = url.hash
+        responseUrl.hash = url.hash;
       }
 
-      return doMpaNavigation(responseUrl.toString())
+      return doMpaNavigation(responseUrl.toString());
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
@@ -139,21 +139,21 @@ export async function fetchServerResponse(
       {
         callServer,
       }
-    )
+    );
 
     if (currentBuildId !== buildId) {
-      return doMpaNavigation(res.url)
+      return doMpaNavigation(res.url);
     }
 
-    return [flightData, canonicalUrl, postponed]
+    return [flightData, canonicalUrl, postponed];
   } catch (err) {
     console.error(
       `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
       err
-    )
+    );
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
-    return [url.toString(), undefined]
+    return [url.toString(), undefined];
   }
 }

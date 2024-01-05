@@ -1,7 +1,7 @@
 export async function getServerSideProps(ctx) {
-  let toLocale = ctx.params.locale
-  if (toLocale === 'from-ctx') {
-    toLocale = ctx.locale
+  let toLocale = ctx.params.locale;
+  if (toLocale === "from-ctx") {
+    toLocale = ctx.locale;
   }
 
   return {
@@ -9,9 +9,9 @@ export async function getServerSideProps(ctx) {
       destination: `/${toLocale}/home`,
       permanent: false,
     },
-  }
+  };
 }
 
 export default function Component() {
-  return 'gssp-redirect'
+  return "gssp-redirect";
 }

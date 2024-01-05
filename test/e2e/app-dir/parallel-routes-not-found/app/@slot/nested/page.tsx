@@ -1,3 +1,3 @@
 export default function Page() {
-  return '@slot/nested'
+  return "@slot/nested";
 }

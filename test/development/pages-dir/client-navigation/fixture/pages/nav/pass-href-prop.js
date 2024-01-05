@@ -1,16 +1,16 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const UnexpectedNestedA = () => {
   const UnexpectedWrapper = (props) => {
-    const { href, id } = props
-    const safeProps = { href, id }
-    return <a {...safeProps}>{props.children}</a>
-  }
+    const { href, id } = props;
+    const safeProps = { href, id };
+    return <a {...safeProps}>{props.children}</a>;
+  };
 
-  return UnexpectedWrapper
-}
+  return UnexpectedWrapper;
+};
 
-const FakeA = UnexpectedNestedA()
+const FakeA = UnexpectedNestedA();
 
 export default () => (
   <div className="nav-pass-href-prop">
@@ -24,4 +24,4 @@ export default () => (
 
     <p>This is the passHref prop page.</p>
   </div>
-)
+);

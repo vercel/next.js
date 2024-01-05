@@ -1,11 +1,11 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 const Page = () => {
-  const router = useRouter()
-  const { query } = router
-  return <p id="asdf">Show comments for {query.name} here</p>
-}
+  const router = useRouter();
+  const { query } = router;
+  return <p id="asdf">Show comments for {query.name} here</p>;
+};
 
-Page.getInitialProps = () => ({})
+Page.getInitialProps = () => ({});
 
-export default Page
+export default Page;

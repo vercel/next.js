@@ -1,30 +1,30 @@
-import curry from 'next/dist/compiled/lodash.curry'
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { loader, plugin } from '../../helpers'
-import { pipe } from '../../utils'
-import type { ConfigurationContext, ConfigurationFn } from '../../utils'
-import { getCssModuleLoader, getGlobalCssLoader } from './loaders'
-import { getNextFontLoader } from './loaders/next-font'
+import curry from "next/dist/compiled/lodash.curry";
+import type { webpack } from "next/dist/compiled/webpack/webpack";
+import { loader, plugin } from "../../helpers";
+import { pipe } from "../../utils";
+import type { ConfigurationContext, ConfigurationFn } from "../../utils";
+import { getCssModuleLoader, getGlobalCssLoader } from "./loaders";
+import { getNextFontLoader } from "./loaders/next-font";
 import {
   getCustomDocumentError,
   getGlobalImportError,
   getGlobalModuleImportError,
   getLocalModuleImportError,
-} from './messages'
-import { getPostCssPlugins } from './plugins'
-import { nonNullable } from '../../../../../lib/non-nullable'
-import { WEBPACK_LAYERS } from '../../../../../lib/constants'
+} from "./messages";
+import { getPostCssPlugins } from "./plugins";
+import { nonNullable } from "../../../../../lib/non-nullable";
+import { WEBPACK_LAYERS } from "../../../../../lib/constants";
 
 // RegExps for all Style Sheet variants
-export const regexLikeCss = /\.(css|scss|sass)$/
+export const regexLikeCss = /\.(css|scss|sass)$/;
 
 // RegExps for Style Sheets
-const regexCssGlobal = /(?<!\.module)\.css$/
-const regexCssModules = /\.module\.css$/
+const regexCssGlobal = /(?<!\.module)\.css$/;
+const regexCssModules = /\.module\.css$/;
 
 // RegExps for Syntactically Awesome Style Sheets
-const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/
-const regexSassModules = /\.module\.(scss|sass)$/
+const regexSassGlobal = /(?<!\.module)\.(scss|sass)$/;
+const regexSassModules = /\.module\.(scss|sass)$/;
 
 const APP_LAYER_RULE = {
   or: [
@@ -32,7 +32,7 @@ const APP_LAYER_RULE = {
     WEBPACK_LAYERS.serverSideRendering,
     WEBPACK_LAYERS.appPagesBrowser,
   ],
-}
+};
 
 const PAGES_LAYER_RULE = {
   not: [
@@ -40,20 +40,20 @@ const PAGES_LAYER_RULE = {
     WEBPACK_LAYERS.serverSideRendering,
     WEBPACK_LAYERS.appPagesBrowser,
   ],
-}
+};
 
 /**
  * Mark a rule as removable if built-in CSS support is disabled
  */
 function markRemovable(r: webpack.RuleSetRule): webpack.RuleSetRule {
-  Object.defineProperty(r, Symbol.for('__next_css_remove'), {
+  Object.defineProperty(r, Symbol.for("__next_css_remove"), {
     enumerable: false,
     value: true,
-  })
-  return r
+  });
+  return r;
 }
 
-let postcssInstancePromise: Promise<any>
+let postcssInstancePromise: Promise<any>;
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
@@ -61,34 +61,34 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postcss = require('postcss')
+      const postcss = require("postcss");
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
         function creator(...args: any) {
-          let transformer = initializer(...args)
-          transformer.postcssPlugin = name
+          let transformer = initializer(...args);
+          transformer.postcssPlugin = name;
           // transformer.postcssVersion = new Processor().version
-          return transformer
+          return transformer;
         }
 
-        let cache: any
-        Object.defineProperty(creator, 'postcss', {
+        let cache: any;
+        Object.defineProperty(creator, "postcss", {
           get() {
-            if (!cache) cache = creator()
-            return cache
+            if (!cache) cache = creator();
+            return cache;
           },
-        })
+        });
 
         creator.process = function (
           css: any,
           processOpts: any,
           pluginOpts: any
         ) {
-          return postcss([creator(pluginOpts)]).process(css, processOpts)
-        }
+          return postcss([creator(pluginOpts)]).process(css, processOpts);
+        };
 
-        return creator
-      }
+        return creator;
+      };
 
       // @ts-ignore backwards compat
       postcss.vendor = {
@@ -100,13 +100,13 @@ export async function lazyPostCSS(
          * postcss.vendor.prefix('tab-size')      //=> ''
          */
         prefix: function prefix(prop: string): string {
-          const match = prop.match(/^(-\w+-)/)
+          const match = prop.match(/^(-\w+-)/);
 
           if (match) {
-            return match[0]
+            return match[0];
           }
 
-          return ''
+          return "";
         },
 
         /**
@@ -121,24 +121,24 @@ export async function lazyPostCSS(
            */
           prop: string
         ): string {
-          return prop.replace(/^-\w+-/, '')
+          return prop.replace(/^-\w+-/, "");
         },
-      }
+      };
 
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
         disablePostcssPresetEnv
-      )
+      );
 
       return {
         postcss,
         postcssWithPlugins: postcss(postCssPlugins),
-      }
-    })()
+      };
+    })();
   }
 
-  return postcssInstancePromise
+  return postcssInstancePromise;
 }
 
 export const css = curry(async function css(
@@ -149,20 +149,20 @@ export const css = curry(async function css(
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
     ...sassOptions
-  } = ctx.sassOptions
+  } = ctx.sassOptions;
 
   const lazyPostCSSInitializer = () =>
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
       ctx.experimental.disablePostcssPresetEnv
-    )
+    );
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
     // First, process files with `sass-loader`: this inlines content, and
     // compiles away the proprietary syntax.
     {
-      loader: require.resolve('next/dist/compiled/sass-loader'),
+      loader: require.resolve("next/dist/compiled/sass-loader"),
       options: {
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
@@ -187,7 +187,7 @@ export const css = curry(async function css(
     // To fix this, we use `resolve-url-loader` to rewrite the CSS
     // imports to real file paths.
     {
-      loader: require.resolve('../../../loaders/resolve-url-loader/index'),
+      loader: require.resolve("../../../loaders/resolve-url-loader/index"),
       options: {
         postcss: lazyPostCSSInitializer,
         // Source maps are not required here, but we may as well emit
@@ -195,23 +195,23 @@ export const css = curry(async function css(
         sourceMap: true,
       },
     },
-  ]
+  ];
 
-  const fns: ConfigurationFn[] = []
+  const fns: ConfigurationFn[] = [];
 
   const googleLoader = require.resolve(
-    'next/dist/compiled/@next/font/google/loader'
-  )
+    "next/dist/compiled/@next/font/google/loader"
+  );
   const localLoader = require.resolve(
-    'next/dist/compiled/@next/font/local/loader'
-  )
+    "next/dist/compiled/@next/font/local/loader"
+  );
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
-    [require.resolve('next/font/google/target.css'), googleLoader],
-    [require.resolve('next/font/local/target.css'), localLoader],
+    [require.resolve("next/font/google/target.css"), googleLoader],
+    [require.resolve("next/font/local/target.css"), localLoader],
     // TODO: remove this in the next major version
     [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
     [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
-  ]
+  ];
 
   nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
     // Matches the resolved font loaders noop files to run next-font-loader
@@ -225,8 +225,8 @@ export const css = curry(async function css(
           }),
         ],
       })
-    )
-  })
+    );
+  });
 
   // CSS cannot be imported in _document. This comes before everything because
   // global CSS nor CSS modules work in said file.
@@ -239,7 +239,7 @@ export const css = curry(async function css(
           // find the real file name (if present).
           issuer: /pages[\\/]_document\./,
           use: {
-            loader: 'error-loader',
+            loader: "error-loader",
             options: {
               reason: getCustomDocumentError(),
             },
@@ -247,10 +247,10 @@ export const css = curry(async function css(
         }),
       ],
     })
-  )
+  );
 
   const shouldIncludeExternalCSSImports =
-    !!ctx.experimental.craCompat || !!ctx.transpilePackages
+    !!ctx.experimental.craCompat || !!ctx.transpilePackages;
 
   // CSS modules & SASS modules support. They are allowed to be imported in anywhere.
   fns.push(
@@ -269,7 +269,7 @@ export const css = curry(async function css(
               use: [
                 {
                   loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
+                    "../../../loaders/next-flight-css-loader"
                   ),
                   options: {
                     cssModules: true,
@@ -309,7 +309,7 @@ export const css = curry(async function css(
               use: [
                 {
                   loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
+                    "../../../loaders/next-flight-css-loader"
                   ),
                   options: {
                     cssModules: true,
@@ -341,7 +341,7 @@ export const css = curry(async function css(
         markRemovable({
           test: [regexCssModules, regexSassModules],
           use: {
-            loader: 'error-loader',
+            loader: "error-loader",
             options: {
               reason: getLocalModuleImportError(),
             },
@@ -349,7 +349,7 @@ export const css = curry(async function css(
         }),
       ],
     })
-  )
+  );
 
   // Global CSS and SASS support.
   if (ctx.isServer) {
@@ -363,7 +363,7 @@ export const css = curry(async function css(
                 issuerLayer: APP_LAYER_RULE,
                 use: {
                   loader: require.resolve(
-                    '../../../loaders/next-flight-css-loader'
+                    "../../../loaders/next-flight-css-loader"
                   ),
                   options: {
                     cssModules: false,
@@ -375,11 +375,11 @@ export const css = curry(async function css(
             // CSS imports have side effects, even on the server side.
             sideEffects: true,
             test: [regexCssGlobal, regexSassGlobal],
-            use: require.resolve('next/dist/compiled/ignore-loader'),
+            use: require.resolve("next/dist/compiled/ignore-loader"),
           }),
         ].filter(nonNullable),
       })
-    )
+    );
   } else {
     // External CSS files are allowed to be loaded when any of the following is true:
     // - hasAppDir: all CSS files are allowed
@@ -399,7 +399,7 @@ export const css = curry(async function css(
               ],
             },
           ],
-        }
+        };
     const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
       ? undefined
       : shouldIncludeExternalCSSImports
@@ -407,7 +407,7 @@ export const css = curry(async function css(
       : {
           and: [ctx.rootDirectory],
           not: [/node_modules/],
-        }
+        };
 
     fns.push(
       loader({
@@ -421,7 +421,7 @@ export const css = curry(async function css(
                   use: [
                     {
                       loader: require.resolve(
-                        '../../../loaders/next-flight-css-loader'
+                        "../../../loaders/next-flight-css-loader"
                       ),
                       options: {
                         cssModules: false,
@@ -440,7 +440,7 @@ export const css = curry(async function css(
                   use: [
                     {
                       loader: require.resolve(
-                        '../../../loaders/next-flight-css-loader'
+                        "../../../loaders/next-flight-css-loader"
                       ),
                       options: {
                         cssModules: false,
@@ -480,7 +480,7 @@ export const css = curry(async function css(
           }),
         ].filter(nonNullable),
       })
-    )
+    );
 
     if (ctx.customAppFile) {
       fns.push(
@@ -511,7 +511,7 @@ export const css = curry(async function css(
             }),
           ],
         })
-      )
+      );
     }
   }
 
@@ -524,7 +524,7 @@ export const css = curry(async function css(
             test: [regexCssGlobal, regexSassGlobal],
             issuer: { and: [/node_modules/] },
             use: {
-              loader: 'error-loader',
+              loader: "error-loader",
               options: {
                 reason: getGlobalModuleImportError(),
               },
@@ -532,7 +532,7 @@ export const css = curry(async function css(
           }),
         ],
       })
-    )
+    );
   }
 
   // Throw an error for Global CSS used outside of our custom <App> file
@@ -550,7 +550,7 @@ export const css = curry(async function css(
               }
             : undefined,
           use: {
-            loader: 'error-loader',
+            loader: "error-loader",
             options: {
               reason: getGlobalImportError(),
             },
@@ -558,7 +558,7 @@ export const css = curry(async function css(
         }),
       ],
     })
-  )
+  );
 
   if (ctx.isClient) {
     // Automatically transform references to files (i.e. url()) into URLs
@@ -578,28 +578,28 @@ export const css = curry(async function css(
             ],
             // `asset/resource` always emits a URL reference, where `asset`
             // might inline the asset as a data URI
-            type: 'asset/resource',
+            type: "asset/resource",
           }),
         ],
       })
-    )
+    );
   }
 
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
   if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
     const MiniCssExtractPlugin =
-      require('../../../plugins/mini-css-extract-plugin').default
+      require("../../../plugins/mini-css-extract-plugin").default;
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat
         new MiniCssExtractPlugin({
           filename: ctx.isProduction
-            ? 'static/css/[contenthash].css'
-            : 'static/css/[name].css',
+            ? "static/css/[contenthash].css"
+            : "static/css/[name].css",
           chunkFilename: ctx.isProduction
-            ? 'static/css/[contenthash].css'
-            : 'static/css/[name].css',
+            ? "static/css/[contenthash].css"
+            : "static/css/[name].css",
           // Next.js guarantees that CSS order "doesn't matter", due to imposed
           // restrictions:
           // 1. Global CSS can only be defined in a single entrypoint (_app)
@@ -614,9 +614,9 @@ export const css = curry(async function css(
           ignoreOrder: true,
         })
       )
-    )
+    );
   }
 
-  const fn = pipe(...fns)
-  return fn(config)
-})
+  const fn = pipe(...fns);
+  return fn(config);
+});

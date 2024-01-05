@@ -1,1 +1,1 @@
-module.exports = require('./bundle').coreLibPluginPass()
+module.exports = require("./bundle").coreLibPluginPass();

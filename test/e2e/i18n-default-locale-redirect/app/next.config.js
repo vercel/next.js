@@ -1,7 +1,7 @@
 module.exports = {
   i18n: {
-    locales: ['en', 'nl'],
-    defaultLocale: 'en',
+    locales: ["en", "nl"],
+    defaultLocale: "en",
   },
   experimental: {
     clientRouterFilter: true,
@@ -10,10 +10,10 @@ module.exports = {
   redirects() {
     return [
       {
-        source: '/to-new',
-        destination: '/new',
+        source: "/to-new",
+        destination: "/new",
         permanent: false,
       },
-    ]
+    ];
   },
-}
+};

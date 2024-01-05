@@ -1,4 +1,4 @@
-import { Caption } from './caption'
+import { Caption } from "./caption";
 
 export const Snippet = ({ children, scroll = true, caption = null }) => (
   <div className="my-6">
@@ -11,8 +11,8 @@ export const Snippet = ({ children, scroll = true, caption = null }) => (
 
       ${
         scroll
-          ? 'overflow-scroll'
-          : 'whitespace-pre-wrap break-all overflow-hidden'
+          ? "overflow-scroll"
+          : "whitespace-pre-wrap break-all overflow-hidden"
       }
     `}
     >
@@ -21,4 +21,4 @@ export const Snippet = ({ children, scroll = true, caption = null }) => (
 
     {caption != null ? <Caption>{caption}</Caption> : null}
   </div>
-)
+);

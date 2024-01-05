@@ -4,5 +4,5 @@ export interface FileReader {
    *
    * @param dir directory to read recursively from
    */
-  read(dir: string): Promise<ReadonlyArray<string>> | ReadonlyArray<string>
+  read(dir: string): Promise<ReadonlyArray<string>> | ReadonlyArray<string>;
 }

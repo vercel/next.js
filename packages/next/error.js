@@ -1,1 +1,1 @@
-module.exports = require('./dist/pages/_error')
+module.exports = require("./dist/pages/_error");

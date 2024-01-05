@@ -1,7 +1,7 @@
-import { useRef } from 'react'
+import { useRef } from "react";
 
-console.log({ useRef })
+console.log({ useRef });
 
 export default function Page() {
-  return null
+  return null;
 }

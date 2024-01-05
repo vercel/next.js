@@ -1,3 +1,3 @@
 export default (req, res) => {
-  res.redirect(null)
-}
+  res.redirect(null);
+};

@@ -1,1 +1,1 @@
-module.exports = require('./bundle').types()
+module.exports = require("./bundle").types();

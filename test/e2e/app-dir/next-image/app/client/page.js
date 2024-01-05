@@ -1,7 +1,7 @@
-'use client'
-import Comp from './Comp'
-import Image from 'next/image'
-import testPng from '../../images/test.png'
+"use client";
+import Comp from "./Comp";
+import Image from "next/image";
+import testPng from "../../images/test.png";
 
 export default function ClientPage() {
   return (
@@ -10,5 +10,5 @@ export default function ClientPage() {
       <Image id="app-client-page" src={testPng} quality={60} />
       <Comp />
     </>
-  )
+  );
 }

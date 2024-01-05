@@ -1,17 +1,17 @@
-import App from 'next/app'
-import { setConfig } from '../lib/config'
+import App from "next/app";
+import { setConfig } from "../lib/config";
 
-setConfig({ hello: 'world' })
+setConfig({ hello: "world" });
 
 function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 
 MyApp.getInitialProps = async (appContext) => {
   // calls page's `getInitialProps` and fills `appProps.pageProps`
-  const appProps = await App.getInitialProps(appContext)
+  const appProps = await App.getInitialProps(appContext);
 
-  return { ...appProps }
-}
+  return { ...appProps };
+};
 
-export default MyApp
+export default MyApp;

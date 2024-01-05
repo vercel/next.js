@@ -28,8 +28,8 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ### Revalidating A Specific URL
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/post-1')
+import { revalidatePath } from "next/cache";
+revalidatePath("/blog/post-1");
 ```
 
 This will revalidate one specific URL on the next page visit.
@@ -37,10 +37,10 @@ This will revalidate one specific URL on the next page visit.
 ### Revalidating A Page Path
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/[slug]', 'page')
+import { revalidatePath } from "next/cache";
+revalidatePath("/blog/[slug]", "page");
 // or with route groups
-revalidatePath('/(main)/post/[slug]', 'page')
+revalidatePath("/(main)/post/[slug]", "page");
 ```
 
 This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
@@ -48,10 +48,10 @@ This will revalidate any URL that matches the provided `page` file on the next p
 ### Revalidating A Layout Path
 
 ```ts
-import { revalidatePath } from 'next/cache'
-revalidatePath('/blog/[slug]', 'layout')
+import { revalidatePath } from "next/cache";
+revalidatePath("/blog/[slug]", "layout");
 // or with route groups
-revalidatePath('/(main)/post/[slug]', 'layout')
+revalidatePath("/(main)/post/[slug]", "layout");
 ```
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
@@ -59,9 +59,9 @@ This will revalidate any URL that matches the provided `layout` file on the next
 ### Revalidating All Data
 
 ```ts
-import { revalidatePath } from 'next/cache'
+import { revalidatePath } from "next/cache";
 
-revalidatePath('/', 'layout')
+revalidatePath("/", "layout");
 ```
 
 This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
@@ -69,53 +69,53 @@ This will purge the Client-side Router Cache, and revalidate the Data Cache on t
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
-'use server'
+"use server";
 
-import { revalidatePath } from 'next/cache'
+import { revalidatePath } from "next/cache";
 
 export default async function submit() {
-  await submitForm()
-  revalidatePath('/')
+  await submitForm();
+  revalidatePath("/");
 }
 ```
 
 ### Route Handler
 
 ```ts filename="app/api/revalidate/route.ts" switcher
-import { revalidatePath } from 'next/cache'
-import { NextRequest } from 'next/server'
+import { revalidatePath } from "next/cache";
+import { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  const path = request.nextUrl.searchParams.get('path')
+  const path = request.nextUrl.searchParams.get("path");
 
   if (path) {
-    revalidatePath(path)
-    return Response.json({ revalidated: true, now: Date.now() })
+    revalidatePath(path);
+    return Response.json({ revalidated: true, now: Date.now() });
   }
 
   return Response.json({
     revalidated: false,
     now: Date.now(),
-    message: 'Missing path to revalidate',
-  })
+    message: "Missing path to revalidate",
+  });
 }
 ```
 
 ```js filename="app/api/revalidate/route.js" switcher
-import { revalidatePath } from 'next/cache'
+import { revalidatePath } from "next/cache";
 
 export async function GET(request) {
-  const path = request.nextUrl.searchParams.get('path')
+  const path = request.nextUrl.searchParams.get("path");
 
   if (path) {
-    revalidatePath(path)
-    return Response.json({ revalidated: true, now: Date.now() })
+    revalidatePath(path);
+    return Response.json({ revalidated: true, now: Date.now() });
   }
 
   return Response.json({
     revalidated: false,
     now: Date.now(),
-    message: 'Missing path to revalidate',
-  })
+    message: "Missing path to revalidate",
+  });
 }
 ```

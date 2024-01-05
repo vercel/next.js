@@ -1,3 +1,3 @@
 export default function page() {
-  return 'not found metadata page'
+  return "not found metadata page";
 }

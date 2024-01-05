@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').GraphHelpers
+module.exports = require("./webpack.js").GraphHelpers;

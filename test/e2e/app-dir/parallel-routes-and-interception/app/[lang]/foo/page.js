@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -8,5 +8,5 @@ export default function Page() {
       <div id="foo">FOO</div>
       <Link href="/photos">To photos</Link>
     </div>
-  )
+  );
 }

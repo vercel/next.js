@@ -1,9 +1,9 @@
-import Link from 'next/link'
-import { withRouter } from 'next/router'
+import Link from "next/link";
+import { withRouter } from "next/router";
 
 export default withRouter(({ router: { asPath, query } }) => {
   return (
-    <div id={asPath.replace('/', '').replace('/', '-')}>
+    <div id={asPath.replace("/", "").replace("/", "-")}>
       <div id="router-query">{JSON.stringify(query)}</div>
       <div>
         <Link
@@ -28,7 +28,7 @@ export default withRouter(({ router: { asPath, query } }) => {
           normal hello
         </Link>
       </div>
-      {query.something === 'hello' && (
+      {query.something === "hello" && (
         <Link
           href="/nav/as-path-pushstate?something=hello"
           as="/something/same-query"
@@ -38,5 +38,5 @@ export default withRouter(({ router: { asPath, query } }) => {
         </Link>
       )}
     </div>
-  )
-})
+  );
+});

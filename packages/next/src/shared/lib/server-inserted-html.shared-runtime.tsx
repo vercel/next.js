@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import React, { useContext } from 'react'
+import React, { useContext } from "react";
 
-export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void
+export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void;
 
 // Use `React.createContext` to avoid errors from the RSC checks because
 // it can't be imported directly in Server Components:
@@ -11,12 +11,12 @@ export type ServerInsertedHTMLHook = (callbacks: () => React.ReactNode) => void
 //
 // More info: https://github.com/vercel/next.js/pull/40686
 export const ServerInsertedHTMLContext =
-  React.createContext<ServerInsertedHTMLHook | null>(null as any)
+  React.createContext<ServerInsertedHTMLHook | null>(null as any);
 
 export function useServerInsertedHTML(callback: () => React.ReactNode): void {
-  const addInsertedServerHTMLCallback = useContext(ServerInsertedHTMLContext)
+  const addInsertedServerHTMLCallback = useContext(ServerInsertedHTMLContext);
   // Should have no effects on client where there's no flush effects provider
   if (addInsertedServerHTMLCallback) {
-    addInsertedServerHTMLCallback(callback)
+    addInsertedServerHTMLCallback(callback);
   }
 }

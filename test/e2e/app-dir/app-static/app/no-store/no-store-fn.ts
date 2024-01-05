@@ -1,8 +1,8 @@
-import { unstable_noStore } from 'next/cache'
+import { unstable_noStore } from "next/cache";
 
 export function getUncachedRandomData() {
-  unstable_noStore()
+  unstable_noStore();
   return {
     random: Math.random(),
-  }
+  };
 }

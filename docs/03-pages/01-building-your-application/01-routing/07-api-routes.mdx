@@ -23,23 +23,23 @@ Any file inside the folder `pages/api` is mapped to `/api/*` and will be treated
 For example, the following API route returns a JSON response with a status code of `200`:
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 type ResponseData = {
-  message: string
-}
+  message: string;
+};
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  res.status(200).json({ message: 'Hello from Next.js!' })
+  res.status(200).json({ message: "Hello from Next.js!" });
 }
 ```
 
 ```js filename="pages/api/hello.js" switcher
 export default function handler(req, res) {
-  res.status(200).json({ message: 'Hello from Next.js!' })
+  res.status(200).json({ message: "Hello from Next.js!" });
 }
 ```
 
@@ -66,10 +66,10 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 To handle different HTTP methods in an API route, you can use `req.method` in your request handler, like so:
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method === 'POST') {
+  if (req.method === "POST") {
     // Process a POST request
   } else {
     // Handle any other HTTP method
@@ -79,7 +79,7 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
 ```js filename="pages/api/hello.js" switcher
 export default function handler(req, res) {
-  if (req.method === 'POST') {
+  if (req.method === "POST") {
     // Process a POST request
   } else {
     // Handle any other HTTP method
@@ -103,12 +103,12 @@ Every API Route can export a `config` object to change the default configuration
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '1mb',
+      sizeLimit: "1mb",
     },
   },
   // Specifies the maximum allowed duration for this function to execute (in seconds)
   maxDuration: 5,
-}
+};
 ```
 
 `bodyParser` is automatically enabled. If you want to consume the body as a `Stream` or with [`raw-body`](https://www.npmjs.com/package/raw-body), you can set this to `false`.
@@ -120,7 +120,7 @@ export const config = {
   api: {
     bodyParser: false,
   },
-}
+};
 ```
 
 `bodyParser.sizeLimit` is the maximum size allowed for the parsed body, in any format supported by [bytes](https://github.com/visionmedia/bytes.js), like so:
@@ -129,10 +129,10 @@ export const config = {
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '500kb',
+      sizeLimit: "500kb",
     },
   },
-}
+};
 ```
 
 `externalResolver` is an explicit flag that tells the server that this route is being handled by an external resolver like _express_ or _connect_. Enabling this option disables warnings for unresolved requests.
@@ -142,7 +142,7 @@ export const config = {
   api: {
     externalResolver: true,
   },
-}
+};
 ```
 
 `responseLimit` is automatically enabled, warning when an API Routes' response body is over 4MB.
@@ -154,7 +154,7 @@ export const config = {
   api: {
     responseLimit: false,
   },
-}
+};
 ```
 
 `responseLimit` can also take the number of bytes or any string format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
@@ -163,9 +163,9 @@ This value will be the maximum response size before a warning is displayed. Defa
 ```js
 export const config = {
   api: {
-    responseLimit: '8mb',
+    responseLimit: "8mb",
   },
-}
+};
 ```
 
 ## Response Helpers
@@ -187,23 +187,23 @@ When sending a response back to the client, you can set the status code of the r
 The following example sets the status code of the response to `200` (`OK`) and returns a `message` property with the value of `Hello from Next.js!` as a JSON response:
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 type ResponseData = {
-  message: string
-}
+  message: string;
+};
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  res.status(200).json({ message: 'Hello from Next.js!' })
+  res.status(200).json({ message: "Hello from Next.js!" });
 }
 ```
 
 ```js filename="pages/api/hello.js" switcher
 export default function handler(req, res) {
-  res.status(200).json({ message: 'Hello from Next.js!' })
+  res.status(200).json({ message: "Hello from Next.js!" });
 }
 ```
 
@@ -215,17 +215,17 @@ In a real world application you might want to let the client know the status of 
 The following example sends a JSON response with the status code `200` (`OK`) and the result of the async operation. It's contained in a try catch block to handle any errors that may occur, with the appropriate status code and error message caught and sent back to the client:
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const result = await someAsyncOperation()
-    res.status(200).json({ result })
+    const result = await someAsyncOperation();
+    res.status(200).json({ result });
   } catch (err) {
-    res.status(500).json({ error: 'failed to load data' })
+    res.status(500).json({ error: "failed to load data" });
   }
 }
 ```
@@ -233,10 +233,10 @@ export default async function handler(
 ```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
   try {
-    const result = await someAsyncOperation()
-    res.status(200).json({ result })
+    const result = await someAsyncOperation();
+    res.status(200).json({ result });
   } catch (err) {
-    res.status(500).json({ error: 'failed to load data' })
+    res.status(500).json({ error: "failed to load data" });
   }
 }
 ```
@@ -248,17 +248,17 @@ Sending an HTTP response works the same way as when sending a JSON response. The
 The following example sends a HTTP response with the status code `200` (`OK`) and the result of the async operation.
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
   try {
-    const result = await someAsyncOperation()
-    res.status(200).send({ result })
+    const result = await someAsyncOperation();
+    res.status(200).send({ result });
   } catch (err) {
-    res.status(500).send({ error: 'failed to fetch data' })
+    res.status(500).send({ error: "failed to fetch data" });
   }
 }
 ```
@@ -266,10 +266,10 @@ export default async function handler(
 ```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
   try {
-    const result = await someAsyncOperation()
-    res.status(200).send({ result })
+    const result = await someAsyncOperation();
+    res.status(200).send({ result });
   } catch (err) {
-    res.status(500).send({ error: 'failed to fetch data' })
+    res.status(500).send({ error: "failed to fetch data" });
   }
 }
 ```
@@ -281,32 +281,32 @@ Taking a form as an example, you may want to redirect your client to a specified
 The following example redirects the client to the `/` path if the form is successfully submitted:
 
 ```ts filename="pages/api/hello.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { name, message } = req.body
+  const { name, message } = req.body;
 
   try {
-    await handleFormInputAsync({ name, message })
-    res.redirect(307, '/')
+    await handleFormInputAsync({ name, message });
+    res.redirect(307, "/");
   } catch (err) {
-    res.status(500).send({ error: 'Failed to fetch data' })
+    res.status(500).send({ error: "Failed to fetch data" });
   }
 }
 ```
 
 ```js filename="pages/api/hello.js" switcher
 export default async function handler(req, res) {
-  const { name, message } = req.body
+  const { name, message } = req.body;
 
   try {
-    await handleFormInputAsync({ name, message })
-    res.redirect(307, '/')
+    await handleFormInputAsync({ name, message });
+    res.redirect(307, "/");
   } catch (err) {
-    res.status(500).send({ error: 'failed to fetch data' })
+    res.status(500).send({ error: "failed to fetch data" });
   }
 }
 ```
@@ -316,17 +316,17 @@ export default async function handler(req, res) {
 You can make your API Routes more type-safe by importing the `NextApiRequest` and `NextApiResponse` types from `next`, in addition to those, you can also type your response data:
 
 ```ts
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 type ResponseData = {
-  message: string
-}
+  message: string;
+};
 
 export default function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData>
 ) {
-  res.status(200).json({ message: 'Hello from Next.js!' })
+  res.status(200).json({ message: "Hello from Next.js!" });
 }
 ```
 
@@ -337,18 +337,18 @@ export default function handler(
 API Routes support [dynamic routes](/docs/pages/building-your-application/routing/dynamic-routes), and follow the same file naming rules used for `pages/`.
 
 ```ts filename="pages/api/post/[pid].ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { pid } = req.query
-  res.end(`Post: ${pid}`)
+  const { pid } = req.query;
+  res.end(`Post: ${pid}`);
 }
 ```
 
 ```js filename="pages/api/post/[pid].js" switcher
 export default function handler(req, res) {
-  const { pid } = req.query
-  res.end(`Post: ${pid}`)
+  const { pid } = req.query;
+  res.end(`Post: ${pid}`);
 }
 ```
 
@@ -377,18 +377,18 @@ And in the case of `/api/post/a/b`, and any other matching path, new parameters 
 For example:
 
 ```ts filename="pages/api/post/[...slug].ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+import type { NextApiRequest, NextApiResponse } from "next";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  const { slug } = req.query
-  res.end(`Post: ${slug.join(', ')}`)
+  const { slug } = req.query;
+  res.end(`Post: ${slug.join(", ")}`);
 }
 ```
 
 ```js filename="pages/api/post/[...slug].js" switcher
 export default function handler(req, res) {
-  const { slug } = req.query
-  res.end(`Post: ${slug.join(', ')}`)
+  const { slug } = req.query;
+  res.end(`Post: ${slug.join(", ")}`);
 }
 ```
 

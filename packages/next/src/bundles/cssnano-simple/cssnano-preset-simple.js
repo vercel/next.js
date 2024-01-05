@@ -10,7 +10,7 @@ module.exports = function (opts = {}) {
     {},
     { cssDeclarationSorter: { exclude: true }, calc: { exclude: true } },
     opts
-  )
+  );
   // eslint-disable-next-line import/no-extraneous-dependencies
-  return require('cssnano-preset-default')(options)
-}
+  return require("cssnano-preset-default")(options);
+};

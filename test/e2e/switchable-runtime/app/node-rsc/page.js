@@ -1,5 +1,5 @@
-import Runtime from '../../utils/runtime'
-import Time from '../../utils/time'
+import Runtime from "../../utils/runtime";
+import Time from "../../utils/time";
 
 export default function Page() {
   return (
@@ -10,9 +10,9 @@ export default function Page() {
       <br />
       <Time />
     </div>
-  )
+  );
 }
 
-Page.title = 'node-rsc'
+Page.title = "node-rsc";
 
-export const runtime = 'nodejs'
+export const runtime = "nodejs";

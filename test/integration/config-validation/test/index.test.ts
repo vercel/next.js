@@ -1,14 +1,14 @@
-import path from 'path'
-import { nextBuild } from 'next-test-utils'
-import fs from 'fs-extra'
+import path from "path";
+import { nextBuild } from "next-test-utils";
+import fs from "fs-extra";
 
-const nextConfigPath = path.join(__dirname, '../next.config.js')
+const nextConfigPath = path.join(__dirname, "../next.config.js");
 
-describe('next.config.js validation', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+describe("next.config.js validation", () => {
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
     it.each([
       {
-        name: 'invalid config types',
+        name: "invalid config types",
         configContent: `
         module.exports = {
           swcMinify: 'hello',
@@ -25,7 +25,7 @@ describe('next.config.js validation', () => {
         ],
       },
       {
-        name: 'unexpected config fields',
+        name: "unexpected config fields",
         configContent: `
         module.exports = {
           nonExistent: true,
@@ -40,22 +40,22 @@ describe('next.config.js validation', () => {
         ],
       },
     ])(
-      'it should validate correctly for $name',
+      "it should validate correctly for $name",
       async ({ outputs, configContent }) => {
-        await fs.writeFile(nextConfigPath, configContent)
-        const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+        await fs.writeFile(nextConfigPath, configContent);
+        const result = await nextBuild(path.join(__dirname, "../"), undefined, {
           stderr: true,
           stdout: true,
-        })
-        await fs.remove(nextConfigPath)
+        });
+        await fs.remove(nextConfigPath);
 
         for (const output of outputs) {
-          expect(result.stdout + result.stderr).toContain(output)
+          expect(result.stdout + result.stderr).toContain(output);
         }
       }
-    )
+    );
 
-    it('should allow undefined environment variables', async () => {
+    it("should allow undefined environment variables", async () => {
       const configContent = `
         module.exports = {
           env: {
@@ -63,19 +63,19 @@ describe('next.config.js validation', () => {
             QUX: undefined
           }
         }
-      `
+      `;
 
-      await fs.writeFile(nextConfigPath, configContent)
-      const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+      await fs.writeFile(nextConfigPath, configContent);
+      const result = await nextBuild(path.join(__dirname, "../"), undefined, {
         stderr: true,
         stdout: true,
-      })
+      });
 
-      await fs.remove(nextConfigPath)
+      await fs.remove(nextConfigPath);
 
       expect(result.stdout + result.stderr).not.toContain(
         '"env.QUX" is missing'
-      )
-    })
-  })
-})
+      );
+    });
+  });
+});

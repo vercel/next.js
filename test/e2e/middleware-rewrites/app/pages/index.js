@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Home() {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <div>
       <p className="title">Home Page</p>
@@ -67,18 +67,18 @@ export default function Home() {
         href=""
         id="link-to-shallow-push"
         onClick={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           router.push(
-            '/?path=rewrite-me-without-hard-navigation&message=refreshed',
+            "/?path=rewrite-me-without-hard-navigation&message=refreshed",
             undefined,
             { shallow: true }
-          )
+          );
         }}
       >
         Do not rewrite me
       </a>
     </div>
-  )
+  );
 }
 
 export function getServerSideProps() {
@@ -86,5 +86,5 @@ export function getServerSideProps() {
     props: {
       now: Date.now(),
     },
-  }
+  };
 }

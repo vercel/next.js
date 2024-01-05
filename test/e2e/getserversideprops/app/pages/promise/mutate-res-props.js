@@ -2,13 +2,13 @@ export async function getServerSideProps(context) {
   return {
     props: (async function () {
       // Mimic some async work, like getting data from an API
-      await new Promise((resolve) => setTimeout(resolve))
-      context.res.setHeader('test-header', 'this is a test header')
+      await new Promise((resolve) => setTimeout(resolve));
+      context.res.setHeader("test-header", "this is a test header");
       return {
-        text: 'res',
-      }
+        text: "res",
+      };
     })(),
-  }
+  };
 }
 
 export default ({ text }) => {
@@ -16,5 +16,5 @@ export default ({ text }) => {
     <>
       <div>hello {text}</div>
     </>
-  )
-}
+  );
+};

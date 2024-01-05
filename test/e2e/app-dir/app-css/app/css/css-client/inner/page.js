@@ -1,5 +1,5 @@
-import Foo from './foo'
+import Foo from "./foo";
 
 export default function Page() {
-  return <Foo />
+  return <Foo />;
 }

@@ -4,20 +4,20 @@
  * This file contains utilities for  `create-next-app` testing.
  */
 
-import { ChildProcess, spawn, SpawnOptions } from 'child_process'
-import { existsSync } from 'fs'
-import { resolve } from 'path'
-import glob from 'glob'
-import Conf from 'next/dist/compiled/conf'
+import { ChildProcess, spawn, SpawnOptions } from "child_process";
+import { existsSync } from "fs";
+import { resolve } from "path";
+import glob from "glob";
+import Conf from "next/dist/compiled/conf";
 
 import {
   getProjectSetting,
   mapSrcFiles,
   projectSpecification,
-} from './specification'
-import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from './types'
+} from "./specification";
+import { CustomTemplateOptions, ProjectDeps, ProjectFiles } from "./types";
 
-const cli = require.resolve('create-next-app/dist/index.js')
+const cli = require.resolve("create-next-app/dist/index.js");
 
 /**
  * Run the built version of `create-next-app` with the given arguments.
@@ -27,31 +27,31 @@ export const createNextApp = (
   options?: SpawnOptions,
   testVersion?: string
 ) => {
-  const conf = new Conf({ projectName: 'create-next-app' })
-  conf.clear()
+  const conf = new Conf({ projectName: "create-next-app" });
+  conf.clear();
 
-  console.log(`[TEST] $ ${cli} ${args.join(' ')}`, { options })
+  console.log(`[TEST] $ ${cli} ${args.join(" ")}`, { options });
 
-  const cloneEnv = { ...process.env }
+  const cloneEnv = { ...process.env };
   // unset CI env as this skips the auto-install behavior
   // being tested
-  delete cloneEnv.CI
-  delete cloneEnv.CIRCLECI
-  delete cloneEnv.GITHUB_ACTIONS
-  delete cloneEnv.CONTINUOUS_INTEGRATION
-  delete cloneEnv.RUN_ID
-  delete cloneEnv.BUILD_NUMBER
+  delete cloneEnv.CI;
+  delete cloneEnv.CIRCLECI;
+  delete cloneEnv.GITHUB_ACTIONS;
+  delete cloneEnv.CONTINUOUS_INTEGRATION;
+  delete cloneEnv.RUN_ID;
+  delete cloneEnv.BUILD_NUMBER;
 
-  cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || 'canary'
+  cloneEnv.NEXT_PRIVATE_TEST_VERSION = testVersion || "canary";
 
-  return spawn('node', [cli].concat(args), {
+  return spawn("node", [cli].concat(args), {
     ...options,
     env: {
       ...cloneEnv,
       ...options.env,
     },
-  })
-}
+  });
+};
 
 /**
  * Return a Promise that resolves when the process exits with code 0 and rejects
@@ -60,56 +60,56 @@ export const createNextApp = (
 export const spawnExitPromise = (childProcess: ChildProcess) => {
   return new Promise((resolve, reject) => {
     childProcess
-      .on('exit', (code) => {
+      .on("exit", (code) => {
         if (code === 0) {
-          resolve(code)
+          resolve(code);
         } else {
-          reject(code)
+          reject(code);
         }
       })
-      .on('error', reject)
-  })
-}
+      .on("error", reject);
+  });
+};
 
 export const projectFilesShouldExist = ({
   cwd,
   projectName,
   files,
 }: ProjectFiles) => {
-  const projectRoot = resolve(cwd, projectName)
+  const projectRoot = resolve(cwd, projectName);
   for (const file of files) {
     try {
-      expect(existsSync(resolve(projectRoot, file))).toBe(true)
+      expect(existsSync(resolve(projectRoot, file))).toBe(true);
     } catch (err) {
-      require('console').error(
+      require("console").error(
         `missing expected file ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        glob.sync("**/*", { cwd, ignore: "**/node_modules/**" }),
         files
-      )
-      throw err
+      );
+      throw err;
     }
   }
-}
+};
 
 export const projectFilesShouldNotExist = ({
   cwd,
   projectName,
   files,
 }: ProjectFiles) => {
-  const projectRoot = resolve(cwd, projectName)
+  const projectRoot = resolve(cwd, projectName);
   for (const file of files) {
     try {
-      expect(existsSync(resolve(projectRoot, file))).toBe(false)
+      expect(existsSync(resolve(projectRoot, file))).toBe(false);
     } catch (err) {
-      require('console').error(
+      require("console").error(
         `unexpected file present ${file}`,
-        glob.sync('**/*', { cwd, ignore: '**/node_modules/**' }),
+        glob.sync("**/*", { cwd, ignore: "**/node_modules/**" }),
         files
-      )
-      throw err
+      );
+      throw err;
     }
   }
-}
+};
 
 export const projectDepsShouldBe = ({
   cwd,
@@ -117,10 +117,10 @@ export const projectDepsShouldBe = ({
   type,
   deps,
 }: ProjectDeps) => {
-  const projectRoot = resolve(cwd, projectName)
-  const pkgJson = require(resolve(projectRoot, 'package.json'))
-  expect(Object.keys(pkgJson[type] || {}).sort()).toEqual(deps.sort())
-}
+  const projectRoot = resolve(cwd, projectName);
+  const pkgJson = require(resolve(projectRoot, "package.json"));
+  expect(Object.keys(pkgJson[type] || {}).sort()).toEqual(deps.sort());
+};
 
 export const shouldBeTemplateProject = ({
   cwd,
@@ -132,50 +132,50 @@ export const shouldBeTemplateProject = ({
   projectFilesShouldExist({
     cwd,
     projectName,
-    files: getProjectSetting({ template, mode, setting: 'files', srcDir }),
-  })
+    files: getProjectSetting({ template, mode, setting: "files", srcDir }),
+  });
 
   // Tailwind templates share the same files (tailwind.config.js, postcss.config.js)
-  if (template !== 'app-tw' && template !== 'default-tw') {
+  if (template !== "app-tw" && template !== "default-tw") {
     projectFilesShouldNotExist({
       cwd,
       projectName,
       files: mapSrcFiles(
-        projectSpecification[template][mode === 'js' ? 'ts' : 'js'].files,
+        projectSpecification[template][mode === "js" ? "ts" : "js"].files,
         srcDir
       ),
-    })
+    });
   }
 
   projectDepsShouldBe({
-    type: 'dependencies',
+    type: "dependencies",
     cwd,
     projectName,
-    deps: getProjectSetting({ template, mode, setting: 'deps' }),
-  })
+    deps: getProjectSetting({ template, mode, setting: "deps" }),
+  });
 
   projectDepsShouldBe({
-    type: 'devDependencies',
+    type: "devDependencies",
     cwd,
     projectName,
-    deps: getProjectSetting({ template, mode, setting: 'devDeps' }),
-  })
-}
+    deps: getProjectSetting({ template, mode, setting: "devDeps" }),
+  });
+};
 
 export const shouldBeJavascriptProject = ({
   cwd,
   projectName,
   template,
   srcDir,
-}: Omit<CustomTemplateOptions, 'mode'>) => {
-  shouldBeTemplateProject({ cwd, projectName, template, mode: 'js', srcDir })
-}
+}: Omit<CustomTemplateOptions, "mode">) => {
+  shouldBeTemplateProject({ cwd, projectName, template, mode: "js", srcDir });
+};
 
 export const shouldBeTypescriptProject = ({
   cwd,
   projectName,
   template,
   srcDir,
-}: Omit<CustomTemplateOptions, 'mode'>) => {
-  shouldBeTemplateProject({ cwd, projectName, template, mode: 'ts', srcDir })
-}
+}: Omit<CustomTemplateOptions, "mode">) => {
+  shouldBeTemplateProject({ cwd, projectName, template, mode: "ts", srcDir });
+};

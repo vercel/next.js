@@ -1,1 +1,1 @@
-export const value = 'WRONG FILE'
+export const value = "WRONG FILE";

@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>hello from second app /blog/[slug]</p>
+  return <p>hello from second app /blog/[slug]</p>;
 }
 
 export function getServerSideProps({ params }) {
@@ -8,5 +8,5 @@ export function getServerSideProps({ params }) {
       now: Date.now(),
       params,
     },
-  }
+  };
 }

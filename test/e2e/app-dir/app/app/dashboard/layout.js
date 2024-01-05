@@ -1,5 +1,5 @@
-import './style.css'
-import './global.css'
+import "./style.css";
+import "./global.css";
 
 export default function DashboardLayout(props) {
   return (
@@ -7,7 +7,7 @@ export default function DashboardLayout(props) {
       <h1 className="green">Dashboard</h1>
       {props.children}
     </div>
-  )
+  );
 }
 
-export const preferredRegion = 'iad1'
+export const preferredRegion = "iad1";

@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 const Page = () => (
   <>
@@ -7,8 +7,8 @@ const Page = () => (
       to nav
     </Link>
   </>
-)
+);
 
-Page.getInitialProps = () => ({ hello: 'world' })
+Page.getInitialProps = () => ({ hello: "world" });
 
-export default Page
+export default Page;

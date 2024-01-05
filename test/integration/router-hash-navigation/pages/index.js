@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <div>
-      <div style={{ height: '100vh' }} />
+      <div style={{ height: "100vh" }} />
       <Link href="/" id="top-link">
         top
       </Link>
@@ -12,5 +12,5 @@ export default function Page() {
       </Link>
       <section id="section">section content</section>
     </div>
-  )
+  );
 }

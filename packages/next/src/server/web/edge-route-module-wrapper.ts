@@ -1,21 +1,21 @@
-import type { NextRequest } from './spec-extension/request'
+import type { NextRequest } from "./spec-extension/request";
 import type {
   AppRouteRouteHandlerContext,
   AppRouteRouteModule,
-} from '../future/route-modules/app-route/module'
-import type { PrerenderManifest } from '../../build'
+} from "../future/route-modules/app-route/module";
+import type { PrerenderManifest } from "../../build";
 
-import './globals'
+import "./globals";
 
-import { adapter, type AdapterOptions } from './adapter'
-import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../future/route-matchers/route-matcher'
-import type { NextFetchEvent } from './spec-extension/fetch-event'
-import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
-import { getUtils } from '../server-utils'
-import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
+import { adapter, type AdapterOptions } from "./adapter";
+import { IncrementalCache } from "../lib/incremental-cache";
+import { RouteMatcher } from "../future/route-matchers/route-matcher";
+import type { NextFetchEvent } from "./spec-extension/fetch-event";
+import { internal_getCurrentFunctionWaitUntil } from "./internal-edge-wait-until";
+import { getUtils } from "../server-utils";
+import { searchParamsToUrlQuery } from "../../shared/lib/router/utils/querystring";
 
-type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
+type WrapOptions = Partial<Pick<AdapterOptions, "page">>;
 
 /**
  * EdgeRouteModuleWrapper is a wrapper around a route module.
@@ -23,7 +23,7 @@ type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
  * Note that this class should only be used in the edge runtime.
  */
 export class EdgeRouteModuleWrapper {
-  private readonly matcher: RouteMatcher
+  private readonly matcher: RouteMatcher;
 
   /**
    * The constructor is wrapped with private to ensure that it can only be
@@ -33,7 +33,7 @@ export class EdgeRouteModuleWrapper {
    */
   private constructor(private readonly routeModule: AppRouteRouteModule) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
-    this.matcher = new RouteMatcher(routeModule.definition)
+    this.matcher = new RouteMatcher(routeModule.definition);
   }
 
   /**
@@ -50,7 +50,7 @@ export class EdgeRouteModuleWrapper {
     options: WrapOptions = {}
   ) {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(routeModule);
 
     // Return the wrapping function.
     return (opts: AdapterOptions) => {
@@ -60,8 +60,8 @@ export class EdgeRouteModuleWrapper {
         IncrementalCache,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
-      })
-    }
+      });
+    };
   }
 
   private async handler(
@@ -76,16 +76,16 @@ export class EdgeRouteModuleWrapper {
       rewrites: {},
       // only used for rewrites, so setting an arbitrary default value here
       caseSensitive: false,
-    })
+    });
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams)
-    )
+    );
 
     const prerenderManifest: PrerenderManifest | undefined =
-      typeof self.__PRERENDER_MANIFEST === 'string'
+      typeof self.__PRERENDER_MANIFEST === "string"
         ? JSON.parse(self.__PRERENDER_MANIFEST)
-        : undefined
+        : undefined;
 
     // Create the context for the handler. This contains the params from the
     // match (if any).
@@ -96,9 +96,9 @@ export class EdgeRouteModuleWrapper {
         routes: {},
         dynamicRoutes: {},
         preview: prerenderManifest?.preview || {
-          previewModeEncryptionKey: '',
-          previewModeId: 'development-id',
-          previewModeSigningKey: '',
+          previewModeEncryptionKey: "",
+          previewModeId: "development-id",
+          previewModeSigningKey: "",
         },
         notFoundRoutes: [],
       },
@@ -107,17 +107,17 @@ export class EdgeRouteModuleWrapper {
         // App Route's cannot be postponed.
         experimental: { ppr: false },
       },
-    }
+    };
 
     // Get the response from the handler.
-    const res = await this.routeModule.handle(request, context)
+    const res = await this.routeModule.handle(request, context);
 
-    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()]
+    const waitUntilPromises = [internal_getCurrentFunctionWaitUntil()];
     if (context.renderOpts.waitUntil) {
-      waitUntilPromises.push(context.renderOpts.waitUntil)
+      waitUntilPromises.push(context.renderOpts.waitUntil);
     }
-    evt.waitUntil(Promise.all(waitUntilPromises))
+    evt.waitUntil(Promise.all(waitUntilPromises));
 
-    return res
+    return res;
   }
 }

@@ -1,7 +1,7 @@
-import { useImperativeHandle } from 'react'
+import { useImperativeHandle } from "react";
 
-console.log({ useImperativeHandle })
+console.log({ useImperativeHandle });
 
 export default function Page() {
-  return null
+  return null;
 }

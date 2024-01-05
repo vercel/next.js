@@ -1,6 +1,6 @@
-import type { IncomingHttpHeaders } from 'node:http'
+import type { IncomingHttpHeaders } from "node:http";
 
-import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
+import { FLIGHT_PARAMETERS } from "../../client/components/app-router-headers";
 
 /**
  * Removes the flight headers from the request.
@@ -9,6 +9,6 @@ import { FLIGHT_PARAMETERS } from '../../client/components/app-router-headers'
  */
 export function stripFlightHeaders(headers: IncomingHttpHeaders) {
   for (const [header] of FLIGHT_PARAMETERS) {
-    delete headers[header.toLowerCase()]
+    delete headers[header.toLowerCase()];
   }
 }

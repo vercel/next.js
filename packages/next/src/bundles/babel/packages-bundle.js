@@ -1,67 +1,67 @@
 /* eslint-disable import/no-extraneous-dependencies */
 
 function eslintParser() {
-  return require('@babel/eslint-parser')
+  return require("@babel/eslint-parser");
 }
 
 function pluginProposalClassProperties() {
-  return require('@babel/plugin-proposal-class-properties')
+  return require("@babel/plugin-proposal-class-properties");
 }
 
 function pluginProposalExportNamespaceFrom() {
-  return require('@babel/plugin-proposal-export-namespace-from')
+  return require("@babel/plugin-proposal-export-namespace-from");
 }
 
 function pluginProposalNumericSeparator() {
-  return require('@babel/plugin-proposal-numeric-separator')
+  return require("@babel/plugin-proposal-numeric-separator");
 }
 
 function pluginProposalObjectRestSpread() {
-  return require('@babel/plugin-proposal-object-rest-spread')
+  return require("@babel/plugin-proposal-object-rest-spread");
 }
 
 function pluginSyntaxBigint() {
-  return require('@babel/plugin-syntax-bigint')
+  return require("@babel/plugin-syntax-bigint");
 }
 
 function pluginSyntaxDynamicImport() {
-  return require('@babel/plugin-syntax-dynamic-import')
+  return require("@babel/plugin-syntax-dynamic-import");
 }
 
 function pluginSyntaxImportAssertions() {
-  return require('@babel/plugin-syntax-import-assertions')
+  return require("@babel/plugin-syntax-import-assertions");
 }
 
 function pluginSyntaxJsx() {
-  return require('@babel/plugin-syntax-jsx')
+  return require("@babel/plugin-syntax-jsx");
 }
 
 function pluginTransformDefine() {
-  return require('babel-plugin-transform-define')
+  return require("babel-plugin-transform-define");
 }
 
 function pluginTransformModulesCommonjs() {
-  return require('@babel/plugin-transform-modules-commonjs')
+  return require("@babel/plugin-transform-modules-commonjs");
 }
 
 function pluginTransformReactRemovePropTypes() {
-  return require('babel-plugin-transform-react-remove-prop-types')
+  return require("babel-plugin-transform-react-remove-prop-types");
 }
 
 function pluginTransformRuntime() {
-  return require('@babel/plugin-transform-runtime')
+  return require("@babel/plugin-transform-runtime");
 }
 
 function presetEnv() {
-  return require('@babel/preset-env')
+  return require("@babel/preset-env");
 }
 
 function presetReact() {
-  return require('@babel/preset-react')
+  return require("@babel/preset-react");
 }
 
 function presetTypescript() {
-  return require('@babel/preset-typescript')
+  return require("@babel/preset-typescript");
 }
 
 module.exports = {
@@ -81,4 +81,4 @@ module.exports = {
   presetEnv,
   presetReact,
   presetTypescript,
-}
+};

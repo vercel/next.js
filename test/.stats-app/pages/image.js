@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import logo from './nextjs.png'
+import Image from "next/image";
+import logo from "./nextjs.png";
 
 function ImagePage(props) {
   return (
@@ -7,7 +7,7 @@ function ImagePage(props) {
       <h1>next/image example</h1>
       <Image src={logo} placeholder="blur" />
     </>
-  )
+  );
 }
 
 // we add getServerSideProps to prevent static optimization
@@ -15,7 +15,7 @@ function ImagePage(props) {
 export const getServerSideProps = () => {
   return {
     props: {},
-  }
-}
+  };
+};
 
-export default ImagePage
+export default ImagePage;

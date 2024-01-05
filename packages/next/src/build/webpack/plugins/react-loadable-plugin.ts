@@ -21,33 +21,33 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 // Implementation of this PR: https://github.com/jamiebuilds/react-loadable/pull/132
 // Modified to strip out unneeded results for Next's specific use case
 
-import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
+import { webpack, sources } from "next/dist/compiled/webpack/webpack";
 
-import path from 'path'
+import path from "path";
 
 function getModuleId(compilation: any, module: any): string | number {
-  return compilation.chunkGraph.getModuleId(module)
+  return compilation.chunkGraph.getModuleId(module);
 }
 
 function getModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  return compilation.moduleGraph.getModule(dep)
+  return compilation.moduleGraph.getModule(dep);
 }
 
 function getOriginModuleFromDependency(
   compilation: any,
   dep: any
 ): webpack.Module & { resource?: string } {
-  return compilation.moduleGraph.getParentModule(dep)
+  return compilation.moduleGraph.getParentModule(dep);
 }
 
 function getChunkGroupFromBlock(
   compilation: any,
   block: any
-): webpack.Compilation['chunkGroups'] {
-  return compilation.chunkGraph.getBlockChunkGroup(block)
+): webpack.Compilation["chunkGroups"] {
+  return compilation.chunkGraph.getBlockChunkGroup(block);
 }
 
 function buildManifest(
@@ -58,10 +58,10 @@ function buildManifest(
 ) {
   // If there's no pagesDir, output an empty manifest
   if (!pagesDir) {
-    return {}
+    return {};
   }
 
-  let manifest: { [k: string]: { id: string | number; files: string[] } } = {}
+  let manifest: { [k: string]: { id: string | number; files: string[] } } = {};
 
   // This is allowed:
   // import("./module"); <- ImportDependency
@@ -72,31 +72,31 @@ function buildManifest(
 
   // Find all dependencies blocks which contains a `import()` dependency
   const handleBlock = (block: any) => {
-    block.blocks.forEach(handleBlock)
-    const chunkGroup = getChunkGroupFromBlock(compilation, block)
+    block.blocks.forEach(handleBlock);
+    const chunkGroup = getChunkGroupFromBlock(compilation, block);
     for (const dependency of block.dependencies) {
-      if (dependency.type.startsWith('import()')) {
+      if (dependency.type.startsWith("import()")) {
         // get the referenced module
-        const module = getModuleFromDependency(compilation, dependency)
-        if (!module) return
+        const module = getModuleFromDependency(compilation, dependency);
+        if (!module) return;
 
         // get the module containing the import()
         const originModule = getOriginModuleFromDependency(
           compilation,
           dependency
-        )
-        const originRequest: string | undefined = originModule?.resource
-        if (!originRequest) return
+        );
+        const originRequest: string | undefined = originModule?.resource;
+        if (!originRequest) return;
 
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
         const key = `${path.relative(pagesDir, originRequest)} -> ${
           dependency.request
-        }`
+        }`;
 
         // Capture all files that need to be loaded.
-        const files = new Set<string>()
+        const files = new Set<string>();
 
         if (manifest[key]) {
           // In the "rare" case where multiple chunk groups
@@ -105,7 +105,7 @@ function buildManifest(
           // the files to make sure to not miss files
           // This may cause overfetching in edge cases.
           for (const file of manifest[key].files) {
-            files.add(file)
+            files.add(file);
           }
         }
 
@@ -114,15 +114,15 @@ function buildManifest(
         // the module id and no files
         if (chunkGroup) {
           for (const chunk of (chunkGroup as any)
-            .chunks as webpack.Compilation['chunks']) {
+            .chunks as webpack.Compilation["chunks"]) {
             chunk.files.forEach((file: string) => {
               if (
-                (file.endsWith('.js') || file.endsWith('.css')) &&
+                (file.endsWith(".js") || file.endsWith(".css")) &&
                 file.match(/^static\/(chunks|css)\//)
               ) {
-                files.add(file)
+                files.add(file);
               }
-            })
+            });
           }
         }
 
@@ -131,39 +131,39 @@ function buildManifest(
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
-        const id = dev ? key : getModuleId(compilation, module)
-        manifest[key] = { id, files: Array.from(files) }
+        const id = dev ? key : getModuleId(compilation, module);
+        manifest[key] = { id, files: Array.from(files) };
       }
     }
-  }
+  };
   for (const module of compilation.modules) {
-    module.blocks.forEach(handleBlock)
+    module.blocks.forEach(handleBlock);
   }
 
   manifest = Object.keys(manifest)
     .sort()
     // eslint-disable-next-line no-sequences
-    .reduce((a, c) => ((a[c] = manifest[c]), a), {} as any)
+    .reduce((a, c) => ((a[c] = manifest[c]), a), {} as any);
 
-  return manifest
+  return manifest;
 }
 
 export class ReactLoadablePlugin {
-  private filename: string
-  private pagesDir?: string
-  private runtimeAsset?: string
-  private dev: boolean
+  private filename: string;
+  private pagesDir?: string;
+  private runtimeAsset?: string;
+  private dev: boolean;
 
   constructor(opts: {
-    filename: string
-    pagesDir?: string
-    runtimeAsset?: string
-    dev: boolean
+    filename: string;
+    pagesDir?: string;
+    runtimeAsset?: string;
+    dev: boolean;
   }) {
-    this.filename = opts.filename
-    this.pagesDir = opts.pagesDir
-    this.runtimeAsset = opts.runtimeAsset
-    this.dev = opts.dev
+    this.filename = opts.filename;
+    this.pagesDir = opts.pagesDir;
+    this.runtimeAsset = opts.runtimeAsset;
+    this.dev = opts.dev;
   }
 
   createAssets(compiler: any, compilation: any, assets: any) {
@@ -172,32 +172,32 @@ export class ReactLoadablePlugin {
       compilation,
       this.pagesDir,
       this.dev
-    )
+    );
     // @ts-ignore: TODO: remove when webpack 5 is stable
     assets[this.filename] = new sources.RawSource(
       JSON.stringify(manifest, null, 2)
-    )
+    );
     if (this.runtimeAsset) {
       assets[this.runtimeAsset] = new sources.RawSource(
         `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(
           JSON.stringify(manifest)
         )}`
-      )
+      );
     }
-    return assets
+    return assets;
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.make.tap('ReactLoadableManifest', (compilation) => {
+    compiler.hooks.make.tap("ReactLoadableManifest", (compilation) => {
       compilation.hooks.processAssets.tap(
         {
-          name: 'ReactLoadableManifest',
+          name: "ReactLoadableManifest",
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
         (assets: any) => {
-          this.createAssets(compiler, compilation, assets)
+          this.createAssets(compiler, compilation, assets);
         }
-      )
-    })
+      );
+    });
   }
 }

@@ -2,23 +2,23 @@
  * Stores the Trusted Types Policy. Starts as undefined and can be set to null
  * if Trusted Types is not supported in the browser.
  */
-let policy: TrustedTypePolicy | null | undefined
+let policy: TrustedTypePolicy | null | undefined;
 
 /**
  * Getter for the Trusted Types Policy. If it is undefined, it is instantiated
  * here or set to null if Trusted Types is not supported in the browser.
  */
 function getPolicy() {
-  if (typeof policy === 'undefined' && typeof window !== 'undefined') {
+  if (typeof policy === "undefined" && typeof window !== "undefined") {
     policy =
-      window.trustedTypes?.createPolicy('nextjs', {
+      window.trustedTypes?.createPolicy("nextjs", {
         createHTML: (input) => input,
         createScript: (input) => input,
         createScriptURL: (input) => input,
-      }) || null
+      }) || null;
   }
 
-  return policy
+  return policy;
 }
 
 /**
@@ -33,5 +33,5 @@ function getPolicy() {
 export function __unsafeCreateTrustedScriptURL(
   url: string
 ): TrustedScriptURL | string {
-  return getPolicy()?.createScriptURL(url) || url
+  return getPolicy()?.createScriptURL(url) || url;
 }

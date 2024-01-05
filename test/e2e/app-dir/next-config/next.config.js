@@ -1,11 +1,11 @@
 // This should work
-console.log(require('webpack').sources.RawSource)
+console.log(require("webpack").sources.RawSource);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack(config) {
-    return config
+    return config;
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

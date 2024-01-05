@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { blueText } from './blue.module.css'
+import Link from "next/link";
+import { blueText } from "./blue.module.css";
 
 export default function Blue() {
   return (
@@ -16,5 +16,5 @@ export default function Blue() {
         None
       </Link>
     </>
-  )
+  );
 }

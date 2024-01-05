@@ -1,3 +1,3 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
-export default () => <p id="product">product: {useRouter().query.productId}</p>
+export default () => <p id="product">product: {useRouter().query.productId}</p>;

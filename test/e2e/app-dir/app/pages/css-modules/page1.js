@@ -1,6 +1,6 @@
-import Link from 'next/link'
-import classes from './page1.module.css'
-import './page1.css'
+import Link from "next/link";
+import classes from "./page1.module.css";
+import "./page1.css";
 
 export default function Page() {
   return (
@@ -10,5 +10,5 @@ export default function Page() {
         <Link href="/css-modules/page2">Page 2</Link>
       </div>
     </>
-  )
+  );
 }

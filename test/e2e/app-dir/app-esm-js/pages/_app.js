@@ -1,1 +1,1 @@
-export { default } from 'next/app.js'
+export { default } from "next/app.js";

@@ -11,11 +11,11 @@ If a dependency is using Node.js specific features, you can choose to opt-out sp
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['@acme/ui'],
+    serverComponentsExternalPackages: ["@acme/ui"],
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 ```
 
 Next.js includes a [short list of popular packages](https://github.com/vercel/next.js/blob/canary/packages/next/src/lib/server-external-packages.json) that currently are working on compatibility and automatically opt-ed out:

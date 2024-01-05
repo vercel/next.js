@@ -1,4 +1,4 @@
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from "../../helpers/noop-template";
 
 const styles = css`
   [data-nextjs-terminal] {
@@ -25,6 +25,6 @@ const styles = css`
     white-space: pre-wrap;
     word-break: break-word;
   }
-`
+`;
 
-export { styles }
+export { styles };

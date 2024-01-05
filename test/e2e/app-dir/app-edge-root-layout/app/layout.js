@@ -3,7 +3,7 @@ export default function layout({ children }) {
     <html>
       <body>{children}</body>
     </html>
-  )
+  );
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = "experimental-edge";

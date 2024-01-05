@@ -1,16 +1,16 @@
-import { use } from 'react'
+import { use } from "react";
 
 async function getData() {
-  await new Promise((resolve) => setTimeout(resolve, 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1000));
   return {
-    message: 'hello from slow page',
-  }
+    message: "hello from slow page",
+  };
 }
 
 export default function SlowPage() {
-  const data = use(getData())
+  const data = use(getData());
 
-  return <h1 id="slow-page-message">{data.message}</h1>
+  return <h1 id="slow-page-message">{data.message}</h1>;
 }
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";

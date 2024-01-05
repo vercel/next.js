@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/image'
-import img from '../public/test.jpg'
+import React from "react";
+import Image from "next/image";
+import img from "../public/test.jpg";
 
 const Page = () => {
   return (
@@ -16,7 +16,7 @@ const Page = () => {
         height={200}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

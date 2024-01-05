@@ -1,10 +1,10 @@
-'use client'
-import Link from 'next/link'
-import { useRouter } from 'next/navigation'
-import React from 'react'
+"use client";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import React from "react";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <dialog open>
@@ -17,5 +17,5 @@ export default function Page() {
       </button>
       <Link href="/">Close</Link>
     </dialog>
-  )
+  );
 }

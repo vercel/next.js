@@ -1,7 +1,7 @@
-import 'example/index.css'
+import "example/index.css";
 
 function Home() {
-  return <div className="red-text">This should be red text.</div>
+  return <div className="red-text">This should be red text.</div>;
 }
 
-export default Home
+export default Home;

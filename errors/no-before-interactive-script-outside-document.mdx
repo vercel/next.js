@@ -15,7 +15,7 @@ You cannot use the `next/script` component with the `beforeInteractive` strategy
 If you want a global script, and you are using the App Router, move the script inside `app/layout.jsx`.
 
 ```jsx filename="app/layout.jsx"
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function RootLayout({ children }) {
   return (
@@ -26,7 +26,7 @@ export default function RootLayout({ children }) {
         strategy="beforeInteractive"
       />
     </html>
-  )
+  );
 }
 ```
 
@@ -35,8 +35,8 @@ export default function RootLayout({ children }) {
 If you want a global script, and you are using the Pages Router, move the script inside `pages/_document.js`.
 
 ```jsx filename="pages/_document.js"
-import { Html, Head, Main, NextScript } from 'next/document'
-import Script from 'next/script'
+import { Html, Head, Main, NextScript } from "next/document";
+import Script from "next/script";
 
 export default function Document() {
   return (
@@ -51,7 +51,7 @@ export default function Document() {
         ></Script>
       </body>
     </Html>
-  )
+  );
 }
 ```
 

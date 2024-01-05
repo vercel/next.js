@@ -21,18 +21,18 @@ Note: if installing as a `devDependency` make sure to wrap the require in a `pro
 Create a next.config.js (and make sure you have next-bundle-analyzer set up)
 
 ```js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
-module.exports = withBundleAnalyzer({})
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
+module.exports = withBundleAnalyzer({});
 ```
 
 Or configuration as a function:
 
 ```js
 module.exports = (phase, defaultConfig) => {
-  return withBundleAnalyzer(defaultConfig)
-}
+  return withBundleAnalyzer(defaultConfig);
+};
 ```
 
 Then you can run the command below:
@@ -49,11 +49,11 @@ When enabled two HTML files (client.html and server.html) will be outputted to `
 To disable automatically opening the report in your default browser, set `openAnalyzer` to false:
 
 ```js
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
   openAnalyzer: false,
-})
-module.exports = withBundleAnalyzer({})
+});
+module.exports = withBundleAnalyzer({});
 ```
 
 ### Usage with next-compose-plugins
@@ -61,13 +61,13 @@ module.exports = withBundleAnalyzer({})
 From version 2.0.0 of next-compose-plugins you need to call bundle-analyzer in this way to work
 
 ```js
-const withPlugins = require('next-compose-plugins')
-const withBundleAnalyzer = require('@next/bundle-analyzer')({
-  enabled: process.env.ANALYZE === 'true',
-})
+const withPlugins = require("next-compose-plugins");
+const withBundleAnalyzer = require("@next/bundle-analyzer")({
+  enabled: process.env.ANALYZE === "true",
+});
 
 module.exports = withPlugins([
   [withBundleAnalyzer],
   // your other plugins here
-])
+]);
 ```

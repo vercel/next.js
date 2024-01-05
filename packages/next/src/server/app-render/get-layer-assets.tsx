@@ -1,8 +1,8 @@
-import React from 'react'
-import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
-import { getPreloadableFonts } from './get-preloadable-fonts'
-import type { AppRenderContext } from './app-render'
-import { getAssetQueryString } from './get-asset-query-string'
+import React from "react";
+import { getLinkAndScriptTags } from "./get-css-inlined-link-tags";
+import { getPreloadableFonts } from "./get-preloadable-fonts";
+import type { AppRenderContext } from "./app-render";
+import { getAssetQueryString } from "./get-asset-query-string";
 
 export function getLayerAssets({
   ctx,
@@ -11,11 +11,11 @@ export function getLayerAssets({
   injectedJS: injectedJSWithCurrentLayout,
   injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
 }: {
-  layoutOrPagePath: string | undefined
-  injectedCSS: Set<string>
-  injectedJS: Set<string>
-  injectedFontPreloadTags: Set<string>
-  ctx: AppRenderContext
+  layoutOrPagePath: string | undefined;
+  injectedCSS: Set<string>;
+  injectedJS: Set<string>;
+  injectedFontPreloadTags: Set<string>;
+  ctx: AppRenderContext;
 }): React.ReactNode {
   const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
     ? getLinkAndScriptTags(
@@ -25,7 +25,7 @@ export function getLayerAssets({
         injectedJSWithCurrentLayout,
         true
       )
-    : { styles: [], scripts: [] }
+    : { styles: [], scripts: [] };
 
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(
@@ -33,25 +33,25 @@ export function getLayerAssets({
         layoutOrPagePath,
         injectedFontPreloadTagsWithCurrentLayout
       )
-    : null
+    : null;
 
   if (preloadedFontFiles) {
     if (preloadedFontFiles.length) {
       for (let i = 0; i < preloadedFontFiles.length; i++) {
-        const fontFilename = preloadedFontFiles[i]
-        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1]
-        const type = `font/${ext}`
-        const href = `${ctx.assetPrefix}/_next/${fontFilename}`
-        ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin)
+        const fontFilename = preloadedFontFiles[i];
+        const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFilename)![1];
+        const type = `font/${ext}`;
+        const href = `${ctx.assetPrefix}/_next/${fontFilename}`;
+        ctx.componentMod.preloadFont(href, type, ctx.renderOpts.crossOrigin);
       }
     } else {
       try {
-        let url = new URL(ctx.assetPrefix)
-        ctx.componentMod.preconnect(url.origin, 'anonymous')
+        let url = new URL(ctx.assetPrefix);
+        ctx.componentMod.preconnect(url.origin, "anonymous");
       } catch (error) {
         // assetPrefix must not be a fully qualified domain name. We assume
         // we should preconnect to same origin instead
-        ctx.componentMod.preconnect('/', 'anonymous')
+        ctx.componentMod.preconnect("/", "anonymous");
       }
     }
   }
@@ -67,7 +67,7 @@ export function getLayerAssets({
         const fullHref = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
           ctx,
           true
-        )}`
+        )}`;
 
         // `Precedence` is an opt-in signal for React to handle resource
         // loading and deduplication, etc. It's also used as the key to sort
@@ -76,9 +76,9 @@ export function getLayerAssets({
         // for different stylesheets, so their order will be kept.
         // https://github.com/facebook/react/pull/25060
         const precedence =
-          process.env.NODE_ENV === 'development' ? 'next_' + href : 'next'
+          process.env.NODE_ENV === "development" ? "next_" + href : "next";
 
-        ctx.componentMod.preloadStyle(fullHref, ctx.renderOpts.crossOrigin)
+        ctx.componentMod.preloadStyle(fullHref, ctx.renderOpts.crossOrigin);
 
         return (
           <link
@@ -89,17 +89,17 @@ export function getLayerAssets({
             crossOrigin={ctx.renderOpts.crossOrigin}
             key={index}
           />
-        )
+        );
       })
-    : []
+    : [];
 
   const scripts = scriptTags
     ? scriptTags.map((href, index) => {
-        const fullSrc = `${ctx.assetPrefix}/_next/${href}`
+        const fullSrc = `${ctx.assetPrefix}/_next/${href}`;
 
-        return <script src={fullSrc} async={true} key={`script-${index}`} />
+        return <script src={fullSrc} async={true} key={`script-${index}`} />;
       })
-    : []
+    : [];
 
-  return styles.length || scripts.length ? [...styles, ...scripts] : null
+  return styles.length || scripts.length ? [...styles, ...scripts] : null;
 }

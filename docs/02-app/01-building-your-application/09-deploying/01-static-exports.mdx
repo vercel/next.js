@@ -26,7 +26,7 @@ To enable a static export, change the output mode inside `next.config.js`:
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  output: 'export',
+  output: "export",
 
   // Optional: Change links `/me` -> `/me/` and emit `/me.html` -> `/me/index.html`
   // trailingSlash: true,
@@ -36,9 +36,9 @@ const nextConfig = {
 
   // Optional: Change the output directory `out` -> `dist`
   // distDir: 'dist',
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 ```
 
 After running `next build`, Next.js will produce an `out` folder which contains the HTML/CSS/JS assets for your application.
@@ -64,10 +64,10 @@ The resulting component will be rendered into static HTML for the initial page l
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
   // This fetch will run on the server during `next build`
-  const res = await fetch('https://api.example.com/...')
-  const data = await res.json()
+  const res = await fetch("https://api.example.com/...");
+  const data = await res.json();
 
-  return <main>...</main>
+  return <main>...</main>;
 }
 ```
 
@@ -76,47 +76,47 @@ export default async function Page() {
 If you want to perform data fetching on the client, you can use a Client Component with [SWR](https://github.com/vercel/swr) to memoize requests.
 
 ```tsx filename="app/other/page.tsx" switcher
-'use client'
+"use client";
 
-import useSWR from 'swr'
+import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json())
+const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function Page() {
   const { data, error } = useSWR(
     `https://jsonplaceholder.typicode.com/posts/1`,
     fetcher
-  )
-  if (error) return 'Failed to load'
-  if (!data) return 'Loading...'
+  );
+  if (error) return "Failed to load";
+  if (!data) return "Loading...";
 
-  return data.title
+  return data.title;
 }
 ```
 
 ```jsx filename="app/other/page.js" switcher
-'use client'
+"use client";
 
-import useSWR from 'swr'
+import useSWR from "swr";
 
-const fetcher = (url) => fetch(url).then((r) => r.json())
+const fetcher = (url) => fetch(url).then((r) => r.json());
 
 export default function Page() {
   const { data, error } = useSWR(
     `https://jsonplaceholder.typicode.com/posts/1`,
     fetcher
-  )
-  if (error) return 'Failed to load'
-  if (!data) return 'Loading...'
+  );
+  if (error) return "Failed to load";
+  if (!data) return "Loading...";
 
-  return data.title
+  return data.title;
 }
 ```
 
 Since route transitions happen client-side, this behaves like a traditional SPA. For example, the following index route allows you to navigate to different posts on the client:
 
 ```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -132,12 +132,12 @@ export default function Page() {
         </li>
       </ul>
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
@@ -147,7 +147,7 @@ export default function Page() {
         <Link href="/other">Other Page</Link>
       </p>
     </>
-  )
+  );
 }
 ```
 
@@ -177,14 +177,14 @@ The majority of core Next.js features needed to build a static site are supporte
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  output: "export",
   images: {
-    loader: 'custom',
-    loaderFile: './my-loader.ts',
+    loader: "custom",
+    loaderFile: "./my-loader.ts",
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;
 ```
 
 This custom loader will define how to fetch images from a remote source. For example, the following loader will construct the URL for Cloudinary:
@@ -195,41 +195,41 @@ export default function cloudinaryLoader({
   width,
   quality,
 }: {
-  src: string
-  width: number
-  quality?: number
+  src: string;
+  width: number;
+  quality?: number;
 }) {
-  const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality || 'auto'}`]
+  const params = ["f_auto", "c_limit", `w_${width}`, `q_${quality || "auto"}`];
   return `https://res.cloudinary.com/demo/image/upload/${params.join(
-    ','
-  )}${src}`
+    ","
+  )}${src}`;
 }
 ```
 
 ```js filename="my-loader.js" switcher
 export default function cloudinaryLoader({ src, width, quality }) {
-  const params = ['f_auto', 'c_limit', `w_${width}`, `q_${quality || 'auto'}`]
+  const params = ["f_auto", "c_limit", `w_${width}`, `q_${quality || "auto"}`];
   return `https://res.cloudinary.com/demo/image/upload/${params.join(
-    ','
-  )}${src}`
+    ","
+  )}${src}`;
 }
 ```
 
 You can then use `next/image` in your application, defining relative paths to the image in Cloudinary:
 
 ```tsx filename="app/page.tsx" switcher
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
-  return <Image alt="turtles" src="/turtles.jpg" width={300} height={300} />
+  return <Image alt="turtles" src="/turtles.jpg" width={300} height={300} />;
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Page() {
-  return <Image alt="turtles" src="/turtles.jpg" width={300} height={300} />
+  return <Image alt="turtles" src="/turtles.jpg" width={300} height={300} />;
 }
 ```
 
@@ -241,13 +241,13 @@ Route Handlers will render a static response when running `next build`. Only the
 
 ```ts filename="app/data.json/route.ts" switcher
 export async function GET() {
-  return Response.json({ name: 'Lee' })
+  return Response.json({ name: "Lee" });
 }
 ```
 
 ```js filename="app/data.json/route.js" switcher
 export async function GET() {
-  return Response.json({ name: 'Lee' })
+  return Response.json({ name: "Lee" });
 }
 ```
 
@@ -297,7 +297,7 @@ Features that require a Node.js server, or dynamic logic that cannot be computed
 Attempting to use any of these features with `next dev` will result in an error, similar to setting the [`dynamic`](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) option to `error` in the root layout.
 
 ```jsx
-export const dynamic = 'error'
+export const dynamic = "error";
 ```
 
 </AppOnly>

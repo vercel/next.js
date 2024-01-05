@@ -1,5 +1,5 @@
-import { ensureLeadingSlash } from '../../page-path/ensure-leading-slash'
-import { isGroupSegment } from '../../segment'
+import { ensureLeadingSlash } from "../../page-path/ensure-leading-slash";
+import { isGroupSegment } from "../../segment";
 
 /**
  * Normalizes an app route so it represents the actual request path. Essentially
@@ -22,33 +22,33 @@ import { isGroupSegment } from '../../segment'
  */
 export function normalizeAppPath(route: string) {
   return ensureLeadingSlash(
-    route.split('/').reduce((pathname, segment, index, segments) => {
+    route.split("/").reduce((pathname, segment, index, segments) => {
       // Empty segments are ignored.
       if (!segment) {
-        return pathname
+        return pathname;
       }
 
       // Groups are ignored.
       if (isGroupSegment(segment)) {
-        return pathname
+        return pathname;
       }
 
       // Parallel segments are ignored.
-      if (segment[0] === '@') {
-        return pathname
+      if (segment[0] === "@") {
+        return pathname;
       }
 
       // The last segment (if it's a leaf) should be ignored.
       if (
-        (segment === 'page' || segment === 'route') &&
+        (segment === "page" || segment === "route") &&
         index === segments.length - 1
       ) {
-        return pathname
+        return pathname;
       }
 
-      return `${pathname}/${segment}`
-    }, '')
-  )
+      return `${pathname}/${segment}`;
+    }, "")
+  );
 }
 
 /**
@@ -59,6 +59,6 @@ export function normalizeRscURL(url: string) {
   return url.replace(
     /\.rsc($|\?)/,
     // $1 ensures `?` is preserved
-    '$1'
-  )
+    "$1"
+  );
 }

@@ -1,7 +1,7 @@
-import { useFormState } from 'react-dom'
+import { useFormState } from "react-dom";
 
-console.log({ useFormState })
+console.log({ useFormState });
 
 export default function Page() {
-  return null
+  return null;
 }

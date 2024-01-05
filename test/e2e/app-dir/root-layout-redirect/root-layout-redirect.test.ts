@@ -1,33 +1,33 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe } from "e2e-utils";
 
 createNextDescribe(
-  'root-layout-redirect',
+  "root-layout-redirect",
   {
     files: __dirname,
   },
   ({ next }) => {
-    it('should work using browser', async () => {
-      const browser = await next.browser('/')
+    it("should work using browser", async () => {
+      const browser = await next.browser("/");
 
       expect(
         await browser
-          .elementByCss('#trigger-redirect')
+          .elementByCss("#trigger-redirect")
           .click()
-          .waitForElementByCss('#result')
+          .waitForElementByCss("#result")
           .text()
-      ).toBe('Result Page')
+      ).toBe("Result Page");
 
-      const browserLogs = await browser.log('browser')
+      const browserLogs = await browser.log("browser");
 
-      let foundErrors = false
+      let foundErrors = false;
 
       browserLogs.forEach((log) => {
-        if (log.source === 'error') {
-          foundErrors = true
+        if (log.source === "error") {
+          foundErrors = true;
         }
-      })
+      });
 
-      expect(foundErrors).toBe(false)
-    })
+      expect(foundErrors).toBe(false);
+    });
   }
-)
+);

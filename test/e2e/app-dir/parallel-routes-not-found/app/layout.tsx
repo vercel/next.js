@@ -2,8 +2,8 @@ export default function Layout({
   children,
   slot,
 }: {
-  children: React.ReactNode
-  slot: React.ReactNode
+  children: React.ReactNode;
+  slot: React.ReactNode;
 }) {
   return (
     <html>
@@ -12,5 +12,5 @@ export default function Layout({
         {slot}
       </body>
     </html>
-  )
+  );
 }

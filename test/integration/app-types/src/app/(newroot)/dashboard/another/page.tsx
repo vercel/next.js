@@ -3,5 +3,5 @@ export default function Page() {
     <>
       <p>hello from newroot/dashboard/another</p>
     </>
-  )
+  );
 }

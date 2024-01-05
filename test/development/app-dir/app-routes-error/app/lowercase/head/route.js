@@ -1,1 +1,1 @@
-export { HEAD as head } from '../../../hello'
+export { HEAD as head } from "../../../hello";

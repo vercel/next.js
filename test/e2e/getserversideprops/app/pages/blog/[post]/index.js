@@ -1,16 +1,16 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ params, resolvedUrl }) {
-  if (params.post === 'post-10') {
+  if (params.post === "post-10") {
     await new Promise((resolve) => {
-      setTimeout(() => resolve(), 1000)
-    })
+      setTimeout(() => resolve(), 1000);
+    });
   }
 
-  if (params.post === 'post-100') {
-    throw new Error('such broken..')
+  if (params.post === "post-100") {
+    throw new Error("such broken..");
   }
 
   return {
@@ -18,13 +18,13 @@ export async function getServerSideProps({ params, resolvedUrl }) {
       params,
       resolvedUrl,
       post: params.post,
-      time: (await import('perf_hooks')).performance.now(),
+      time: (await import("perf_hooks")).performance.now(),
     },
-  }
+  };
 }
 
 export default ({ post, time, params, appProps, resolvedUrl }) => {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -40,5 +40,5 @@ export default ({ post, time, params, appProps, resolvedUrl }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

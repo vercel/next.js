@@ -1,8 +1,8 @@
 module.exports = {
-  output: 'export',
+  output: "export",
   exportPathMap() {
     return {
-      '/regression/jeff-is-cool': { page: '/regression/[slug]' },
-    }
+      "/regression/jeff-is-cool": { page: "/regression/[slug]" },
+    };
   },
-}
+};

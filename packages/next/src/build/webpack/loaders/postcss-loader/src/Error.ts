@@ -9,30 +9,30 @@
  * @param {Object} err CssSyntaxError
  */
 export default class PostCSSSyntaxError extends Error {
-  stack: any
+  stack: any;
   constructor(error: any) {
-    super(error)
+    super(error);
 
-    const { line, column, reason, plugin, file } = error
+    const { line, column, reason, plugin, file } = error;
 
-    this.name = 'SyntaxError'
+    this.name = "SyntaxError";
 
-    this.message = `${this.name}\n\n`
+    this.message = `${this.name}\n\n`;
 
-    if (typeof line !== 'undefined') {
-      this.message += `(${line}:${column}) `
+    if (typeof line !== "undefined") {
+      this.message += `(${line}:${column}) `;
     }
 
-    this.message += plugin ? `${plugin}: ` : ''
-    this.message += file ? `${file} ` : '<css input> '
-    this.message += reason
+    this.message += plugin ? `${plugin}: ` : "";
+    this.message += file ? `${file} ` : "<css input> ";
+    this.message += reason;
 
-    const code = error.showSourceCode()
+    const code = error.showSourceCode();
 
     if (code) {
-      this.message += `\n\n${code}\n`
+      this.message += `\n\n${code}\n`;
     }
 
-    this.stack = false
+    this.stack = false;
   }
 }

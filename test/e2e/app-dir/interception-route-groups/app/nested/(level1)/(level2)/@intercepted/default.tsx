@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>@intercepted default</div>
+  return <div>@intercepted default</div>;
 }

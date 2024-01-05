@@ -1,7 +1,7 @@
-'use server'
+"use server";
 
-const foo = async function () {}
-export default foo
+const foo = async function () {};
+export default foo;
 
-const bar = async function () {}
-export { bar }
+const bar = async function () {};
+export { bar };

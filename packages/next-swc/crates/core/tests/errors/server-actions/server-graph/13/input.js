@@ -1,8 +1,8 @@
-'use client'
-'use strict'
+"use client";
+"use strict";
 
 // This is a comment.
 
-'use server'
+"use server";
 
 export async function foo() {}

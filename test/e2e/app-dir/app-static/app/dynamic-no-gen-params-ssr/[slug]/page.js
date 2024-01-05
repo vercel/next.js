@@ -1,4 +1,4 @@
-export const revalidate = 0
+export const revalidate = 0;
 
 export default function Page({ params }) {
   return (
@@ -6,5 +6,5 @@ export default function Page({ params }) {
       <p id="page">/dynamic-no-gen-params-ssr</p>
       <p id="params">{JSON.stringify(params)}</p>
     </>
-  )
+  );
 }

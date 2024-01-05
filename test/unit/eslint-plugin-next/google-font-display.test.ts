@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/google-font-display'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/google-font-display";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2020,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('google-font-display', rule, {
+ruleTester.run("google-font-display", rule, {
   valid: [
     `import Head from "next/head";
 
@@ -97,8 +97,8 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'A font-display parameter is missing (adding `&display=optional` is recommended). See: https://nextjs.org/docs/messages/google-font-display',
-          type: 'JSXOpeningElement',
+            "A font-display parameter is missing (adding `&display=optional` is recommended). See: https://nextjs.org/docs/messages/google-font-display",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -119,8 +119,8 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Block is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
-          type: 'JSXOpeningElement',
+            "Block is not recommended. See: https://nextjs.org/docs/messages/google-font-display",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -141,8 +141,8 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Auto is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
-          type: 'JSXOpeningElement',
+            "Auto is not recommended. See: https://nextjs.org/docs/messages/google-font-display",
+          type: "JSXOpeningElement",
         },
       ],
     },
@@ -163,10 +163,10 @@ ruleTester.run('google-font-display', rule, {
       errors: [
         {
           message:
-            'Fallback is not recommended. See: https://nextjs.org/docs/messages/google-font-display',
-          type: 'JSXOpeningElement',
+            "Fallback is not recommended. See: https://nextjs.org/docs/messages/google-font-display",
+          type: "JSXOpeningElement",
         },
       ],
     },
   ],
-})
+});

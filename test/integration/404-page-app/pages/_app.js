@@ -1,7 +1,7 @@
-import App from 'next/app'
+import App from "next/app";
 
 function MyApp({ Component, pageProps, extraProp }) {
-  return <Component {...pageProps} extraProp={extraProp} />
+  return <Component {...pageProps} extraProp={extraProp} />;
 }
 
 // Only uncomment this method if you have blocking data requirements for
@@ -10,9 +10,9 @@ function MyApp({ Component, pageProps, extraProp }) {
 // be server-side rendered.
 MyApp.getInitialProps = async (appContext) => {
   // calls page's `getInitialProps` and fills `appProps.pageProps`
-  const appProps = await App.getInitialProps(appContext)
+  const appProps = await App.getInitialProps(appContext);
 
-  return { ...appProps, extraProp: 'Hi There' }
-}
+  return { ...appProps, extraProp: "Hi There" };
+};
 
-export default MyApp
+export default MyApp;

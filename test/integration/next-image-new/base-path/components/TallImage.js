@@ -1,7 +1,7 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
-import testTall from './tall.png'
+import testTall from "./tall.png";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
       <h1 id="page-header">Static Image</h1>
       <Image id="basic-static" src={testTall} placeholder="blur" />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

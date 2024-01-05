@@ -1,12 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
-export const revalidate = 1
+export const revalidate = 1;
 
 export function generateStaticParams() {
-  console.log('generateStaticParams static/[slug]')
-  return [{ slug: 'first' }, { slug: 'second' }]
+  console.log("generateStaticParams static/[slug]");
+  return [{ slug: "first" }, { slug: "second" }];
 }
 
 export const GET = (req: NextRequest, { params }) => {
-  return NextResponse.json({ params, now: Date.now() })
-}
+  return NextResponse.json({ params, now: Date.now() });
+};

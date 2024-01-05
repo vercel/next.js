@@ -1,2 +1,2 @@
-export { default } from '../shared/lib/image-external'
-export * from '../shared/lib/image-external'
+export { default } from "../shared/lib/image-external";
+export * from "../shared/lib/image-external";

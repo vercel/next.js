@@ -1,18 +1,18 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-assign-module-variable'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
+import rule from "@next/eslint-plugin-next/dist/rules/no-assign-module-variable";
+import { RuleTester } from "eslint";
+(RuleTester as any).setDefaultConfig({
   parserOptions: {
     ecmaVersion: 2018,
-    sourceType: 'module',
+    sourceType: "module",
     ecmaFeatures: {
       modules: true,
       jsx: true,
     },
   },
-})
-const ruleTester = new RuleTester()
+});
+const ruleTester = new RuleTester();
 
-ruleTester.run('no-assign-module-variable', rule, {
+ruleTester.run("no-assign-module-variable", rule, {
   valid: [
     `
       let myModule = {};
@@ -34,9 +34,9 @@ ruleTester.run('no-assign-module-variable', rule, {
       errors: [
         {
           message:
-            'Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable',
+            "Do not assign to the variable `module`. See: https://nextjs.org/docs/messages/no-assign-module-variable",
         },
       ],
     },
   ],
-})
+});

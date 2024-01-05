@@ -1,21 +1,21 @@
-import React from 'react'
-import Client from './client'
+import React from "react";
+import Client from "./client";
 
-const random = ~~(Math.random() * 10000)
+const random = ~~(Math.random() * 10000);
 
 export default function Shared() {
-  let isServerComponent
+  let isServerComponent;
   try {
-    React.useState()
-    isServerComponent = false
+    React.useState();
+    isServerComponent = false;
   } catch (e) {
-    isServerComponent = true
+    isServerComponent = true;
   }
 
   return (
     <>
-      <Client />,{' '}
-      {(isServerComponent ? 'shared:server' : 'shared:client') + ':' + random}
+      <Client />,{" "}
+      {(isServerComponent ? "shared:server" : "shared:client") + ":" + random}
     </>
-  )
+  );
 }

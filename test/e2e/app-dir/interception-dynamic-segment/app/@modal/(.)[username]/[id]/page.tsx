@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'intercepted'
+  return "intercepted";
 }

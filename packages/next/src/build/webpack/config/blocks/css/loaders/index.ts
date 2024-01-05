@@ -1,2 +1,2 @@
-export * from './global'
-export * from './modules'
+export * from "./global";
+export * from "./modules";

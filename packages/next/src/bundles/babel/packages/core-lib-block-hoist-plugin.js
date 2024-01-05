@@ -1,1 +1,1 @@
-module.exports = require('./bundle').coreLibBlockHoistPlugin()
+module.exports = require("./bundle").coreLibBlockHoistPlugin();

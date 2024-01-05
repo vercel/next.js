@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Layout({ children, slot, groupslot }) {
   return (
@@ -9,5 +9,5 @@ export default function Layout({ children, slot, groupslot }) {
       <div id="groupslot">{groupslot}</div>
       <Link href="/parallel-layout/sub/route">/sub/route</Link>
     </div>
-  )
+  );
 }

@@ -1,29 +1,29 @@
-import { isAPIRoute } from '../../../lib/is-api-route'
-import { PAGES_MANIFEST } from '../../../shared/lib/constants'
-import { RouteKind } from '../route-kind'
+import { isAPIRoute } from "../../../lib/is-api-route";
+import { PAGES_MANIFEST } from "../../../shared/lib/constants";
+import { RouteKind } from "../route-kind";
 import {
   PagesAPILocaleRouteMatcher,
   PagesAPIRouteMatcher,
-} from '../route-matchers/pages-api-route-matcher'
+} from "../route-matchers/pages-api-route-matcher";
 import type {
   Manifest,
   ManifestLoader,
-} from './helpers/manifest-loaders/manifest-loader'
-import { ManifestRouteMatcherProvider } from './manifest-route-matcher-provider'
-import type { I18NProvider } from '../helpers/i18n-provider'
-import { PagesNormalizers } from '../normalizers/built/pages'
+} from "./helpers/manifest-loaders/manifest-loader";
+import { ManifestRouteMatcherProvider } from "./manifest-route-matcher-provider";
+import type { I18NProvider } from "../helpers/i18n-provider";
+import { PagesNormalizers } from "../normalizers/built/pages";
 
 export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<PagesAPIRouteMatcher> {
-  private readonly normalizers: PagesNormalizers
+  private readonly normalizers: PagesNormalizers;
 
   constructor(
     distDir: string,
     manifestLoader: ManifestLoader,
     private readonly i18nProvider?: I18NProvider
   ) {
-    super(PAGES_MANIFEST, manifestLoader)
+    super(PAGES_MANIFEST, manifestLoader);
 
-    this.normalizers = new PagesNormalizers(distDir)
+    this.normalizers = new PagesNormalizers(distDir);
   }
 
   protected async transform(
@@ -32,14 +32,14 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
     // This matcher is only for Pages API routes.
     const pathnames = Object.keys(manifest).filter((pathname) =>
       isAPIRoute(pathname)
-    )
+    );
 
-    const matchers: Array<PagesAPIRouteMatcher> = []
+    const matchers: Array<PagesAPIRouteMatcher> = [];
 
     for (const page of pathnames) {
       if (this.i18nProvider) {
         // Match the locale on the page name, or default to the default locale.
-        const { detectedLocale, pathname } = this.i18nProvider.analyze(page)
+        const { detectedLocale, pathname } = this.i18nProvider.analyze(page);
 
         matchers.push(
           new PagesAPILocaleRouteMatcher({
@@ -52,7 +52,7 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
               locale: detectedLocale,
             },
           })
-        )
+        );
       } else {
         matchers.push(
           new PagesAPIRouteMatcher({
@@ -63,10 +63,10 @@ export class PagesAPIRouteMatcherProvider extends ManifestRouteMatcherProvider<P
             bundlePath: this.normalizers.bundlePath.normalize(page),
             filename: this.normalizers.filename.normalize(manifest[page]),
           })
-        )
+        );
       }
     }
 
-    return matchers
+    return matchers;
   }
 }

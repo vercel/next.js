@@ -8,37 +8,37 @@ export const NEXT_TS_ERRORS = {
   INVALID_CLIENT_ENTRY_PROP: 71007,
   INVALID_METADATA_EXPORT: 71008,
   INVALID_ERROR_COMPONENT: 71009,
-}
+};
 
 export const ALLOWED_EXPORTS = [
-  'config',
-  'generateStaticParams',
-  'metadata',
-  'generateMetadata',
-  'viewport',
-  'generateViewport',
-]
+  "config",
+  "generateStaticParams",
+  "metadata",
+  "generateMetadata",
+  "viewport",
+  "generateViewport",
+];
 
-export const LEGACY_CONFIG_EXPORT = 'config'
+export const LEGACY_CONFIG_EXPORT = "config";
 
 export const DISALLOWED_SERVER_REACT_APIS: string[] = [
-  'useState',
-  'useEffect',
-  'useLayoutEffect',
-  'useDeferredValue',
-  'useImperativeHandle',
-  'useInsertionEffect',
-  'useReducer',
-  'useRef',
-  'useSyncExternalStore',
-  'useTransition',
-  'Component',
-  'PureComponent',
-  'createContext',
-  'createFactory',
-  'experimental_useOptimistic',
-  'useOptimistic',
-]
+  "useState",
+  "useEffect",
+  "useLayoutEffect",
+  "useDeferredValue",
+  "useImperativeHandle",
+  "useInsertionEffect",
+  "useReducer",
+  "useRef",
+  "useSyncExternalStore",
+  "useTransition",
+  "Component",
+  "PureComponent",
+  "createContext",
+  "createFactory",
+  "experimental_useOptimistic",
+  "useOptimistic",
+];
 
-export const ALLOWED_PAGE_PROPS = ['params', 'searchParams']
-export const ALLOWED_LAYOUT_PROPS = ['params', 'children']
+export const ALLOWED_PAGE_PROPS = ["params", "searchParams"];
+export const ALLOWED_LAYOUT_PROPS = ["params", "children"];

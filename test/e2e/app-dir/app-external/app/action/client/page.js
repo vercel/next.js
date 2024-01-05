@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { action1 } from 'server-action-mod'
+import { action1 } from "server-action-mod";
 
 export default function Page() {
   return (
     <button
       id="action"
       onClick={() => {
-        action1()
+        action1();
       }}
     >
       action
     </button>
-  )
+  );
 }

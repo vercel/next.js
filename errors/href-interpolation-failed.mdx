@@ -1,5 +1,5 @@
 ---
-title: '`href` Interpolation Failed'
+title: "`href` Interpolation Failed"
 ---
 
 ## Why This Error Occurred
@@ -11,38 +11,38 @@ Note: this error will only show when the `next/link` component is clicked not wh
 **Invalid `href` interpolation**
 
 ```jsx filename="blog-link.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function BlogLink() {
   return (
     <Link
       href={{
-        pathname: '/blog/[post]/[comment]',
-        query: { post: 'post-1' },
+        pathname: "/blog/[post]/[comment]",
+        query: { post: "post-1" },
       }}
     >
       <a>Invalid link</a>
     </Link>
-  )
+  );
 }
 ```
 
 **Valid `href` interpolation**
 
 ```jsx filename="blog-link.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function BlogLink() {
   return (
     <Link
       href={{
-        pathname: '/blog/[post]/[comment]',
-        query: { post: 'post-1', comment: 'comment-1' },
+        pathname: "/blog/[post]/[comment]",
+        query: { post: "post-1", comment: "comment-1" },
       }}
     >
       <a>Valid link</a>
     </Link>
-  )
+  );
 }
 ```
 

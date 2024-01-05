@@ -1,11 +1,11 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
-let count = 0
+let count = 0;
 
 const HashChanges = ({ count }) => {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <div id="hash-changes-page">
@@ -43,14 +43,14 @@ const HashChanges = ({ count }) => {
           <div key={`item-${i}`} id={`item-${i}`}>
             {i}
           </div>
-        )
+        );
       })}
       {Array.from({ length: 500 }, (x, i) => i + 1).map((i) => {
         return (
           <div key={`item-${i}`} name={`name-item-${i}`}>
             {i}
           </div>
-        )
+        );
       })}
       <Link href="#top" id="via-top-hash">
         Via Top Hash
@@ -59,14 +59,14 @@ const HashChanges = ({ count }) => {
       <div id="pathname">PATHNAME: {router.pathname}</div>
       <div id="中文">CJK anchor</div>
     </div>
-  )
-}
+  );
+};
 
 HashChanges.getInitialProps = ({ res }) => {
-  if (res) return { count: 0 }
-  count += 1
+  if (res) return { count: 0 };
+  count += 1;
 
-  return { count }
-}
+  return { count };
+};
 
-export default HashChanges
+export default HashChanges;

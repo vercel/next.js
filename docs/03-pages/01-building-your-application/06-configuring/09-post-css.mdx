@@ -123,18 +123,18 @@ It is also possible to configure PostCSS with a `postcss.config.js` file, which 
 ```js filename="postcss.config.js"
 module.exports = {
   plugins:
-    process.env.NODE_ENV === 'production'
+    process.env.NODE_ENV === "production"
       ? [
-          'postcss-flexbugs-fixes',
+          "postcss-flexbugs-fixes",
           [
-            'postcss-preset-env',
+            "postcss-preset-env",
             {
               autoprefixer: {
-                flexbox: 'no-2009',
+                flexbox: "no-2009",
               },
               stage: 3,
               features: {
-                'custom-properties': false,
+                "custom-properties": false,
               },
             },
           ],
@@ -142,7 +142,7 @@ module.exports = {
       : [
           // No transformations in development
         ],
-}
+};
 ```
 
 > **Good to know**: Next.js also allows the file to be named `.postcssrc.js`.
@@ -154,16 +154,16 @@ Do **not use `require()`** to import the PostCSS Plugins. Plugins must be provid
 > ```js
 > module.exports = {
 >   plugins: {
->     'postcss-flexbugs-fixes': {},
->     'postcss-preset-env': {
+>     "postcss-flexbugs-fixes": {},
+>     "postcss-preset-env": {
 >       autoprefixer: {
->         flexbox: 'no-2009',
+>         flexbox: "no-2009",
 >       },
 >       stage: 3,
 >       features: {
->         'custom-properties': false,
+>         "custom-properties": false,
 >       },
 >     },
 >   },
-> }
+> };
 > ```

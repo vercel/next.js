@@ -1,6 +1,6 @@
 export const config = {
   amp: true,
-}
+};
 
 export default () => (
   <amp-twitter
@@ -9,4 +9,4 @@ export default () => (
     layout="responsive"
     data-tweetid="1159145442896166912"
   ></amp-twitter>
-)
+);

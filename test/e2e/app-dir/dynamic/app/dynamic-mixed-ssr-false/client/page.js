@@ -1,3 +1,3 @@
-'use client'
+"use client";
 
-export { default } from '../dynamic-import'
+export { default } from "../dynamic-import";

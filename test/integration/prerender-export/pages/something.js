@@ -1,16 +1,16 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getStaticProps({ params }) {
   return {
     props: {
-      world: 'world',
+      world: "world",
       params: params || {},
       time: new Date().getTime(),
       random: Math.random(),
     },
-  }
+  };
 }
 
 export default ({ world, time, params, random }) => {
@@ -29,5 +29,5 @@ export default ({ world, time, params, random }) => {
         to another
       </Link>
     </>
-  )
-}
+  );
+};

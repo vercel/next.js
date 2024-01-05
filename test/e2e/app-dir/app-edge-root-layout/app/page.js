@@ -1,3 +1,3 @@
 export default function page() {
-  return <div>hello edge</div>
+  return <div>hello edge</div>;
 }

@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from "next/dist/compiled/webpack/webpack";
 
 export function getClientStyleLoader({
   hasAppDir,
@@ -6,17 +6,17 @@ export function getClientStyleLoader({
   isDevelopment,
   assetPrefix,
 }: {
-  hasAppDir: boolean
-  isAppDir?: boolean
-  isDevelopment: boolean
-  assetPrefix: string
+  hasAppDir: boolean;
+  isAppDir?: boolean;
+  isDevelopment: boolean;
+  assetPrefix: string;
 }): webpack.RuleSetUseItem {
-  const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
+  const shouldEnableApp = typeof isAppDir === "boolean" ? isAppDir : hasAppDir;
 
   // Keep next-style-loader for development mode in `pages/`
   if (isDevelopment && !shouldEnableApp) {
     return {
-      loader: 'next-style-loader',
+      loader: "next-style-loader",
       options: {
         insert: function (element: Node) {
           // By default, style-loader injects CSS into the bottom
@@ -28,26 +28,26 @@ export function getClientStyleLoader({
           // These elements should always exist. If they do not,
           // this code should fail.
           var anchorElement = document.querySelector(
-            '#__next_css__DO_NOT_USE__'
-          )!
-          var parentNode = anchorElement.parentNode! // Normally <head>
+            "#__next_css__DO_NOT_USE__"
+          )!;
+          var parentNode = anchorElement.parentNode!; // Normally <head>
 
           // Each style tag should be placed right before our
           // anchor. By inserting before and not after, we do not
           // need to track the last inserted element.
-          parentNode.insertBefore(element, anchorElement)
+          parentNode.insertBefore(element, anchorElement);
         },
       },
-    }
+    };
   }
 
   const MiniCssExtractPlugin =
-    require('../../../../plugins/mini-css-extract-plugin').default
+    require("../../../../plugins/mini-css-extract-plugin").default;
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {
       publicPath: `${assetPrefix}/_next/`,
       esModule: false,
     },
-  }
+  };
 }

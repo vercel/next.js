@@ -1,3 +1,3 @@
 export default function ProtectedPage() {
-  return <p>Protected Pgae</p>
+  return <p>Protected Pgae</p>;
 }

@@ -1,4 +1,4 @@
-import 'my-module'
+import "my-module";
 
 // prettier-ignore
 'use server'

@@ -1,3 +1,3 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
-export { GET } from '../../../handlers/hello'
+export { GET } from "../../../handlers/hello";

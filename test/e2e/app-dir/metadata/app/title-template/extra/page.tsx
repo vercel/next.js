@@ -1,7 +1,7 @@
 export default function Page() {
-  return 'extra'
+  return "extra";
 }
 
 export const metadata = {
-  title: 'Extra Page',
-}
+  title: "Extra Page",
+};

@@ -1,14 +1,14 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export async function getStaticPaths() {
   return {
     paths: [
-      '/blog/post-1/comment-1',
-      { params: { post: 'post-2', comment: 'comment-2' } },
+      "/blog/post-1/comment-1",
+      { params: { post: "post-2", comment: "comment-2" } },
     ],
     fallback: true,
-  }
+  };
 }
 
 export async function getStaticProps({ params }) {
@@ -19,13 +19,13 @@ export async function getStaticProps({ params }) {
       time: new Date().getTime(),
     },
     revalidate: 2,
-  }
+  };
 }
 
 export default ({ post, comment, time }) => {
   // we're in a loading state
   if (!post) {
-    return <p>loading...</p>
+    return <p>loading...</p>;
   }
 
   return (
@@ -37,5 +37,5 @@ export default ({ post, comment, time }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

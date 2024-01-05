@@ -1,8 +1,8 @@
 export default ({ renderDuration }) => {
-  const target = Date.now() + (+renderDuration || 200)
+  const target = Date.now() + (+renderDuration || 200);
   while (Date.now() < target);
-  return <div>{renderDuration}</div>
-}
+  return <div>{renderDuration}</div>;
+};
 
 export function getStaticPaths() {
   return {
@@ -24,11 +24,11 @@ export function getStaticPaths() {
       },
     })),
     fallback: true,
-  }
+  };
 }
 
 export async function getStaticProps({ params }) {
-  const { renderDuration, propsDuration } = params
-  await new Promise((r) => setTimeout(r, +propsDuration))
-  return { props: { renderDuration } }
+  const { renderDuration, propsDuration } = params;
+  await new Promise((r) => setTimeout(r, +propsDuration));
+  return { props: { renderDuration } };
 }

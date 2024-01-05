@@ -1,3 +1,3 @@
 module.exports = function () {
-  return Object.assign
-}
+  return Object.assign;
+};

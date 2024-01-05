@@ -6,5 +6,5 @@ export default function Layout({ baz }) {
         {baz}
       </div>
     </div>
-  )
+  );
 }

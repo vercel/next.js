@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').BasicEvaluatedExpression
+module.exports = require("./webpack.js").BasicEvaluatedExpression;

@@ -1,3 +1,3 @@
 .root {
-  composes: colorRed from './common.module.css';
+  composes: colorRed from "./common.module.css";
 }

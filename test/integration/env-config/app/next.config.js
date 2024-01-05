@@ -1,4 +1,4 @@
-process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE = 'hello set in next.config.js'
+process.env.NEXT_PUBLIC_NEW_NEXT_CONFIG_VALUE = "hello set in next.config.js";
 
 module.exports = {
   cleanDistDir: false,
@@ -10,10 +10,10 @@ module.exports = {
   async redirects() {
     return [
       {
-        source: '/hello',
+        source: "/hello",
         permanent: false,
         destination: `/${process.env.NEXT_PUBLIC_TEST_DEST}`,
       },
-    ]
+    ];
   },
-}
+};

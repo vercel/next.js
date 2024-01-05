@@ -1,25 +1,25 @@
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
-import type RenderResult from '../../../render-result'
-import type { RenderOpts } from '../../../app-render/types'
-import type { NextParsedUrlQuery } from '../../../request-meta'
-import type { LoaderTree } from '../../../lib/app-dir-module'
+import type { IncomingMessage, ServerResponse } from "http";
+import type { AppPageRouteDefinition } from "../../route-definitions/app-page-route-definition";
+import type RenderResult from "../../../render-result";
+import type { RenderOpts } from "../../../app-render/types";
+import type { NextParsedUrlQuery } from "../../../request-meta";
+import type { LoaderTree } from "../../../lib/app-dir-module";
 
-import { renderToHTMLOrFlight } from '../../../app-render/app-render'
+import { renderToHTMLOrFlight } from "../../../app-render/app-render";
 import {
   RouteModule,
   type RouteModuleOptions,
   type RouteModuleHandleContext,
-} from '../route-module'
-import * as vendoredContexts from './vendored/contexts/entrypoints'
+} from "../route-module";
+import * as vendoredContexts from "./vendored/contexts/entrypoints";
 
-let vendoredReactRSC
-let vendoredReactSSR
+let vendoredReactRSC;
+let vendoredReactSSR;
 
 // the vendored Reacts are loaded from their original source in the edge runtime
-if (process.env.NEXT_RUNTIME !== 'edge') {
-  vendoredReactRSC = require('./vendored/rsc/entrypoints')
-  vendoredReactSSR = require('./vendored/ssr/entrypoints')
+if (process.env.NEXT_RUNTIME !== "edge") {
+  vendoredReactRSC = require("./vendored/rsc/entrypoints");
+  vendoredReactSSR = require("./vendored/ssr/entrypoints");
 }
 
 /**
@@ -27,25 +27,25 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
  * module.
  */
 export type AppPageModule =
-  typeof import('../../../../build/templates/app-page')
+  typeof import("../../../../build/templates/app-page");
 
 type AppPageUserlandModule = {
   /**
    * The tree created in next-app-loader that holds component segments and modules
    */
-  loaderTree: LoaderTree
-}
+  loaderTree: LoaderTree;
+};
 
 interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
-  page: string
-  query: NextParsedUrlQuery
-  renderOpts: RenderOpts
+  page: string;
+  query: NextParsedUrlQuery;
+  renderOpts: RenderOpts;
 }
 
 export type AppPageRouteModuleOptions = RouteModuleOptions<
   AppPageRouteDefinition,
   AppPageUserlandModule
->
+>;
 
 export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
@@ -62,16 +62,16 @@ export class AppPageRouteModule extends RouteModule<
       context.page,
       context.query,
       context.renderOpts
-    )
+    );
   }
 }
 
 const vendored = {
-  'react-rsc': vendoredReactRSC,
-  'react-ssr': vendoredReactSSR,
+  "react-rsc": vendoredReactRSC,
+  "react-ssr": vendoredReactSSR,
   contexts: vendoredContexts,
-}
+};
 
-export { renderToHTMLOrFlight, vendored }
+export { renderToHTMLOrFlight, vendored };
 
-export default AppPageRouteModule
+export default AppPageRouteModule;

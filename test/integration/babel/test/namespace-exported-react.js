@@ -1,1 +1,1 @@
-export * as React from 'react'
+export * as React from "react";

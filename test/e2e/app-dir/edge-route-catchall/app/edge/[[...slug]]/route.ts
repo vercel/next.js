@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
 type Context = {
   params: {
-    slug: string[]
-  }
-}
+    slug: string[];
+  };
+};
 
 export const GET = async (req: NextRequest, { params }: Context) => {
-  return NextResponse.json(params)
-}
+  return NextResponse.json(params);
+};

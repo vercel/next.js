@@ -3,7 +3,7 @@ function RequiredByPage() {
     <div>
       <p>RequiredByPage</p>
     </div>
-  )
+  );
 }
 
-export default RequiredByPage
+export default RequiredByPage;

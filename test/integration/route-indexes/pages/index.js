@@ -1,2 +1,2 @@
-const page = () => 'hello from index'
-export default page
+const page = () => "hello from index";
+export default page;

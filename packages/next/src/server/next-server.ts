@@ -1,34 +1,37 @@
-import './node-environment'
-import './require-hook'
-import './node-polyfill-crypto'
+import "./node-environment";
+import "./require-hook";
+import "./node-polyfill-crypto";
 
-import type { CacheFs } from '../shared/lib/utils'
+import type { CacheFs } from "../shared/lib/utils";
 import {
   DecodeError,
   PageNotFoundError,
   MiddlewareNotFoundError,
-} from '../shared/lib/utils'
-import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import type RenderResult from './render-result'
-import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
-import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
-import type { RouteMatch } from './future/route-matches/route-match'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { PagesAPIRouteModule } from './future/route-modules/pages-api/module'
-import type { UrlWithParsedQuery } from 'url'
-import type { ParsedUrlQuery } from 'querystring'
-import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate } from './lib/revalidate'
+} from "../shared/lib/utils";
+import type { MiddlewareManifest } from "../build/webpack/plugins/middleware-plugin";
+import type RenderResult from "./render-result";
+import type { FetchEventResult } from "./web/types";
+import type { PrerenderManifest } from "../build";
+import type { BaseNextRequest, BaseNextResponse } from "./base-http";
+import type { PagesManifest } from "../build/webpack/plugins/pages-manifest-plugin";
+import type {
+  NextParsedUrlQuery,
+  NextUrlWithParsedQuery,
+} from "./request-meta";
+import type { Params } from "../shared/lib/router/utils/route-matcher";
+import type { MiddlewareRouteMatch } from "../shared/lib/router/utils/middleware-route-matcher";
+import type { RouteMatch } from "./future/route-matches/route-match";
+import type { IncomingMessage, ServerResponse } from "http";
+import type { PagesAPIRouteModule } from "./future/route-modules/pages-api/module";
+import type { UrlWithParsedQuery } from "url";
+import type { ParsedUrlQuery } from "querystring";
+import type { ParsedUrl } from "../shared/lib/router/utils/parse-url";
+import type { Revalidate } from "./lib/revalidate";
 
-import fs from 'fs'
-import { join, resolve, isAbsolute } from 'path'
-import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { addRequestMeta, getRequestMeta } from './request-meta'
+import fs from "fs";
+import { join, resolve, isAbsolute } from "path";
+import { getRouteMatcher } from "../shared/lib/router/utils/route-matcher";
+import { addRequestMeta, getRequestMeta } from "./request-meta";
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -40,12 +43,12 @@ import {
   SERVER_DIRECTORY,
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
-} from '../shared/lib/constants'
-import { findDir } from '../lib/find-pages-dir'
-import { NodeNextRequest, NodeNextResponse } from './base-http/node'
-import { sendRenderResult } from './send-payload'
-import { parseUrl } from '../shared/lib/router/utils/parse-url'
-import * as Log from '../build/output/log'
+} from "../shared/lib/constants";
+import { findDir } from "../lib/find-pages-dir";
+import { NodeNextRequest, NodeNextResponse } from "./base-http/node";
+import { sendRenderResult } from "./send-payload";
+import { parseUrl } from "../shared/lib/router/utils/parse-url";
+import * as Log from "../build/output/log";
 
 import type {
   Options,
@@ -56,74 +59,74 @@ import type {
   LoadedRenderOpts,
   RouteHandler,
   NextEnabledDirectories,
-} from './base-server'
-import BaseServer, { NoFallbackError } from './base-server'
-import { getMaybePagePath, getPagePath, requireFontManifest } from './require'
-import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
-import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
-import { loadComponents } from './load-components'
-import type { LoadComponentsReturnType } from './load-components'
-import isError, { getProperError } from '../lib/is-error'
-import type { FontManifest } from './font-utils'
-import { splitCookiesString, toNodeOutgoingHttpHeaders } from './web/utils'
-import { getMiddlewareRouteMatcher } from '../shared/lib/router/utils/middleware-route-matcher'
-import { loadEnvConfig } from '@next/env'
-import { urlQueryToSearchParams } from '../shared/lib/router/utils/querystring'
-import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
-import { getCloneableBody } from './body-streams'
-import { checkIsOnDemandRevalidate } from './api-utils'
-import ResponseCache from './response-cache'
-import { IncrementalCache } from './lib/incremental-cache'
-import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+} from "./base-server";
+import BaseServer, { NoFallbackError } from "./base-server";
+import { getMaybePagePath, getPagePath, requireFontManifest } from "./require";
+import { denormalizePagePath } from "../shared/lib/page-path/denormalize-page-path";
+import { normalizePagePath } from "../shared/lib/page-path/normalize-page-path";
+import { loadComponents } from "./load-components";
+import type { LoadComponentsReturnType } from "./load-components";
+import isError, { getProperError } from "../lib/is-error";
+import type { FontManifest } from "./font-utils";
+import { splitCookiesString, toNodeOutgoingHttpHeaders } from "./web/utils";
+import { getMiddlewareRouteMatcher } from "../shared/lib/router/utils/middleware-route-matcher";
+import { loadEnvConfig } from "@next/env";
+import { urlQueryToSearchParams } from "../shared/lib/router/utils/querystring";
+import { removeTrailingSlash } from "../shared/lib/router/utils/remove-trailing-slash";
+import { getNextPathnameInfo } from "../shared/lib/router/utils/get-next-pathname-info";
+import { getCloneableBody } from "./body-streams";
+import { checkIsOnDemandRevalidate } from "./api-utils";
+import ResponseCache from "./response-cache";
+import { IncrementalCache } from "./lib/incremental-cache";
+import { normalizeAppPath } from "../shared/lib/router/utils/app-paths";
 
-import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
+import { setHttpClientAndAgentOptions } from "./setup-http-agent-env";
 
-import { isPagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
-import type { MatchOptions } from './future/route-matcher-managers/route-matcher-manager'
+import { isPagesAPIRouteMatch } from "./future/route-matches/pages-api-route-match";
+import type { PagesAPIRouteMatch } from "./future/route-matches/pages-api-route-match";
+import type { MatchOptions } from "./future/route-matcher-managers/route-matcher-manager";
 import {
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
-} from '../lib/constants'
-import { getTracer } from './lib/trace/tracer'
-import { NextNodeServerSpan } from './lib/trace/constants'
-import { nodeFs } from './lib/node-fs-methods'
-import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
-import { pipeToNodeResponse } from './pipe-readable'
-import { createRequestResponseMocks } from './lib/mock-request'
-import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import { signalFromNodeResponse } from './web/spec-extension/adapters/next-request'
-import { RouteModuleLoader } from './future/helpers/module-loader/route-module-loader'
-import { loadManifest } from './load-manifest'
-import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
-import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
-import { interopDefault } from '../lib/interop-default'
+} from "../lib/constants";
+import { getTracer } from "./lib/trace/tracer";
+import { NextNodeServerSpan } from "./lib/trace/constants";
+import { nodeFs } from "./lib/node-fs-methods";
+import { getRouteRegex } from "../shared/lib/router/utils/route-regex";
+import { invokeRequest } from "./lib/server-ipc/invoke-request";
+import { filterReqHeaders, ipcForbiddenHeaders } from "./lib/server-ipc/utils";
+import { pipeToNodeResponse } from "./pipe-readable";
+import { createRequestResponseMocks } from "./lib/mock-request";
+import { NEXT_RSC_UNION_QUERY } from "../client/components/app-router-headers";
+import { signalFromNodeResponse } from "./web/spec-extension/adapters/next-request";
+import { RouteModuleLoader } from "./future/helpers/module-loader/route-module-loader";
+import { loadManifest } from "./load-manifest";
+import { lazyRenderAppPage } from "./future/route-modules/app-page/module.render";
+import { lazyRenderPagesPage } from "./future/route-modules/pages/module.render";
+import { interopDefault } from "../lib/interop-default";
 
-export * from './base-server'
+export * from "./base-server";
 
-declare const __non_webpack_require__: NodeRequire
+declare const __non_webpack_require__: NodeRequire;
 
 // For module that can be both CJS or ESM
 const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : async (mod: string) => (await import(mod)).default
+  : async (mod: string) => (await import(mod)).default;
 
 // For module that will be compiled to CJS, e.g. instrument
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
-  : require
+  : require;
 
 function writeStdoutLine(text: string) {
-  process.stdout.write(' ' + text + '\n')
+  process.stdout.write(" " + text + "\n");
 }
 
 function formatRequestUrl(url: string, maxLength: number | undefined) {
   return maxLength !== undefined && url.length > maxLength
-    ? url.substring(0, maxLength) + '..'
-    : url
+    ? url.substring(0, maxLength) + ".."
+    : url;
 }
 
 export interface NodeRequestHandler {
@@ -131,47 +134,47 @@ export interface NodeRequestHandler {
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | BaseNextResponse,
     parsedUrl?: NextUrlWithParsedQuery | undefined
-  ): Promise<void> | void
+  ): Promise<void> | void;
 }
 
 const MiddlewareMatcherCache = new WeakMap<
-  MiddlewareManifest['middleware'][string],
+  MiddlewareManifest["middleware"][string],
   MiddlewareRouteMatch
->()
+>();
 
 function getMiddlewareMatcher(
-  info: MiddlewareManifest['middleware'][string]
+  info: MiddlewareManifest["middleware"][string]
 ): MiddlewareRouteMatch {
-  const stored = MiddlewareMatcherCache.get(info)
+  const stored = MiddlewareMatcherCache.get(info);
   if (stored) {
-    return stored
+    return stored;
   }
 
   if (!Array.isArray(info.matchers)) {
     throw new Error(
       `Invariant: invalid matchers for middleware ${JSON.stringify(info)}`
-    )
+    );
   }
 
-  const matcher = getMiddlewareRouteMatcher(info.matchers)
-  MiddlewareMatcherCache.set(info, matcher)
-  return matcher
+  const matcher = getMiddlewareRouteMatcher(info.matchers);
+  MiddlewareMatcherCache.set(info, matcher);
+  return matcher;
 }
 
 export default class NextNodeServer extends BaseServer {
-  protected middlewareManifestPath: string
-  private _serverDistDir: string | undefined
-  private imageResponseCache?: ResponseCache
-  protected renderWorkersPromises?: Promise<void>
+  protected middlewareManifestPath: string;
+  private _serverDistDir: string | undefined;
+  private imageResponseCache?: ResponseCache;
+  protected renderWorkersPromises?: Promise<void>;
   protected dynamicRoutes?: {
-    match: import('../shared/lib/router/utils/route-matcher').RouteMatchFn
-    page: string
-    re: RegExp
-  }[]
+    match: import("../shared/lib/router/utils/route-matcher").RouteMatchFn;
+    page: string;
+    re: RegExp;
+  }[];
 
   constructor(options: Options) {
     // Initialize super class
-    super(options)
+    super(options);
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -181,23 +184,23 @@ export default class NextNodeServer extends BaseServer {
     if (this.renderOpts.optimizeFonts) {
       process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
         this.renderOpts.optimizeFonts
-      )
+      );
     }
     if (this.renderOpts.optimizeCss) {
-      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
+      process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true);
     }
     if (this.renderOpts.nextScriptWorkers) {
-      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+      process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true);
     }
     process.env.NEXT_DEPLOYMENT_ID =
-      this.nextConfig.experimental.deploymentId || ''
+      this.nextConfig.experimental.deploymentId || "";
 
     if (!this.minimalMode) {
-      this.imageResponseCache = new ResponseCache(this.minimalMode)
+      this.imageResponseCache = new ResponseCache(this.minimalMode);
     }
 
-    const { appDocumentPreloading } = this.nextConfig.experimental
-    const isDefaultEnabled = typeof appDocumentPreloading === 'undefined'
+    const { appDocumentPreloading } = this.nextConfig.experimental;
+    const isDefaultEnabled = typeof appDocumentPreloading === "undefined";
 
     if (
       !options.dev &&
@@ -208,44 +211,44 @@ export default class NextNodeServer extends BaseServer {
       // needed for most requests
       loadComponents({
         distDir: this.distDir,
-        page: '/_document',
+        page: "/_document",
         isAppPath: false,
-      }).catch(() => {})
+      }).catch(() => {});
       loadComponents({
         distDir: this.distDir,
-        page: '/_app',
+        page: "/_app",
         isAppPath: false,
-      }).catch(() => {})
+      }).catch(() => {});
     }
 
     if (!options.dev) {
-      const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {}
+      const { dynamicRoutes = [] } = this.getRoutesManifest() ?? {};
       this.dynamicRoutes = dynamicRoutes.map((r) => {
         // TODO: can we just re-use the regex from the manifest?
-        const regex = getRouteRegex(r.page)
-        const match = getRouteMatcher(regex)
+        const regex = getRouteRegex(r.page);
+        const match = getRouteMatcher(regex);
 
         return {
           match,
           page: r.page,
           re: regex.re,
-        }
-      })
+        };
+      });
     }
 
     // ensure options are set when loadConfig isn't called
-    setHttpClientAndAgentOptions(this.nextConfig)
+    setHttpClientAndAgentOptions(this.nextConfig);
 
     // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
-      process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
+      process.env.NEXT_PRIVATE_TEST_PROXY = "true";
       const {
         interceptTestApis,
-      } = require('next/dist/experimental/testmode/server')
-      interceptTestApis()
+      } = require("next/dist/experimental/testmode/server");
+      interceptTestApis();
     }
 
-    this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST)
+    this.middlewareManifestPath = join(this.serverDistDir, MIDDLEWARE_MANIFEST);
   }
 
   protected async handleUpgrade(): Promise<void> {
@@ -254,7 +257,7 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected async prepareImpl() {
-    await super.prepareImpl()
+    await super.prepareImpl();
     if (
       !this.serverOptions.dev &&
       this.nextConfig.experimental.instrumentationHook
@@ -262,18 +265,18 @@ export default class NextNodeServer extends BaseServer {
       try {
         const instrumentationHook = await dynamicRequire(
           resolve(
-            this.serverOptions.dir || '.',
+            this.serverOptions.dir || ".",
             this.serverOptions.conf.distDir!,
-            'server',
+            "server",
             INSTRUMENTATION_HOOK_FILENAME
           )
-        )
+        );
 
-        await instrumentationHook.register?.()
+        await instrumentationHook.register?.();
       } catch (err: any) {
-        if (err.code !== 'MODULE_NOT_FOUND') {
-          err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-          throw err
+        if (err.code !== "MODULE_NOT_FOUND") {
+          err.message = `An error occurred while loading instrumentation hook: ${err.message}`;
+          throw err;
         }
       }
     }
@@ -284,28 +287,28 @@ export default class NextNodeServer extends BaseServer {
     forceReload,
     silent,
   }: {
-    dev: boolean
-    forceReload?: boolean
-    silent?: boolean
+    dev: boolean;
+    forceReload?: boolean;
+    silent?: boolean;
   }) {
     loadEnvConfig(
       this.dir,
       dev,
       silent ? { info: () => {}, error: () => {} } : Log,
       forceReload
-    )
+    );
   }
 
   protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
   }: {
-    requestHeaders: IncrementalCache['requestHeaders']
-    requestProtocol: 'http' | 'https'
+    requestHeaders: IncrementalCache["requestHeaders"];
+    requestProtocol: "http" | "https";
   }) {
-    const dev = !!this.renderOpts.dev
-    let CacheHandler: any
-    const { incrementalCacheHandlerPath } = this.nextConfig.experimental
+    const dev = !!this.renderOpts.dev;
+    let CacheHandler: any;
+    const { incrementalCacheHandlerPath } = this.nextConfig.experimental;
 
     if (incrementalCacheHandlerPath) {
       CacheHandler = interopDefault(
@@ -314,7 +317,7 @@ export default class NextNodeServer extends BaseServer {
             ? incrementalCacheHandlerPath
             : join(this.distDir, incrementalCacheHandlerPath)
         )
-      )
+      );
     }
 
     // incremental-cache is request specific
@@ -339,29 +342,29 @@ export default class NextNodeServer extends BaseServer {
       getPrerenderManifest: () => this.getPrerenderManifest(),
       CurCacheHandler: CacheHandler,
       experimental: this.renderOpts.experimental,
-    })
+    });
   }
 
   protected getResponseCache() {
-    return new ResponseCache(this.minimalMode)
+    return new ResponseCache(this.minimalMode);
   }
 
   protected getPublicDir(): string {
-    return join(this.dir, CLIENT_PUBLIC_FILES_PATH)
+    return join(this.dir, CLIENT_PUBLIC_FILES_PATH);
   }
 
   protected getHasStaticDir(): boolean {
-    return fs.existsSync(join(this.dir, 'static'))
+    return fs.existsSync(join(this.dir, "static"));
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
+    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST));
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
-    if (!this.enabledDirectories.app) return undefined
+    if (!this.enabledDirectories.app) return undefined;
 
-    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
+    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST));
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -370,42 +373,42 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       this.nextConfig.i18n?.locales,
       this.enabledDirectories.app
-    )
+    );
   }
 
   protected getBuildId(): string {
-    const buildIdFile = join(this.distDir, BUILD_ID_FILE)
+    const buildIdFile = join(this.distDir, BUILD_ID_FILE);
     try {
-      return fs.readFileSync(buildIdFile, 'utf8').trim()
+      return fs.readFileSync(buildIdFile, "utf8").trim();
     } catch (err: any) {
-      if (err.code === 'ENOENT') {
+      if (err.code === "ENOENT") {
         throw new Error(
           `Could not find a production build in the '${this.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
-        )
+        );
       }
 
-      throw err
+      throw err;
     }
   }
 
   protected getEnabledDirectories(dev: boolean): NextEnabledDirectories {
-    const dir = dev ? this.dir : this.serverDistDir
+    const dir = dev ? this.dir : this.serverDistDir;
 
     return {
-      app: findDir(dir, 'app') ? true : false,
-      pages: findDir(dir, 'pages') ? true : false,
-    }
+      app: findDir(dir, "app") ? true : false,
+      pages: findDir(dir, "pages") ? true : false,
+    };
   }
 
   protected sendRenderResult(
     req: NodeNextRequest,
     res: NodeNextResponse,
     options: {
-      result: RenderResult
-      type: 'html' | 'json'
-      generateEtags: boolean
-      poweredByHeader: boolean
-      revalidate: Revalidate | undefined
+      result: RenderResult;
+      type: "html" | "json";
+      generateEtags: boolean;
+      poweredByHeader: boolean;
+      revalidate: Revalidate | undefined;
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -416,7 +419,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
-    })
+    });
   }
 
   protected async runApi(
@@ -425,7 +428,7 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
-    const edgeFunctionsPages = this.getEdgeFunctionsPages()
+    const edgeFunctionsPages = this.getEdgeFunctionsPages();
 
     for (const edgeFunctionsPage of edgeFunctionsPages) {
       if (edgeFunctionsPage === match.definition.pathname) {
@@ -436,10 +439,10 @@ export default class NextNodeServer extends BaseServer {
           params: match.params,
           page: match.definition.pathname,
           appPaths: null,
-        })
+        });
 
         if (handledAsEdgeFunction) {
-          return true
+          return true;
         }
       }
     }
@@ -447,13 +450,13 @@ export default class NextNodeServer extends BaseServer {
     // The module supports minimal mode, load the minimal module.
     const module = await RouteModuleLoader.load<PagesAPIRouteModule>(
       match.definition.filename
-    )
+    );
 
-    query = { ...query, ...match.params }
+    query = { ...query, ...match.params };
 
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
-    delete query.__nextInferredLocaleFromDefault
+    delete query.__nextLocale;
+    delete query.__nextDefaultLocale;
+    delete query.__nextInferredLocaleFromDefault;
 
     await module.render(
       (req as NodeNextRequest).originalRequest,
@@ -471,9 +474,9 @@ export default class NextNodeServer extends BaseServer {
         params: match.params,
         page: match.definition.pathname,
       }
-    )
+    );
 
-    return true
+    return true;
   }
 
   protected async renderHTML(
@@ -485,7 +488,7 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<RenderResult> {
     return getTracer().trace(NextNodeServerSpan.renderHTML, async () =>
       this.renderHTMLImpl(req, res, pathname, query, renderOpts)
-    )
+    );
   }
 
   private async renderHTMLImpl(
@@ -497,14 +500,14 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<RenderResult> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'Invariant: renderHTML should not be called in minimal mode'
-      )
+        "Invariant: renderHTML should not be called in minimal mode"
+      );
       // the `else` branch is needed for tree-shaking
     } else {
       // Due to the way we pass data by mutating `renderOpts`, we can't extend the
       // object here but only updating its `nextFontManifest` field.
       // https://github.com/vercel/next.js/blob/df7cbd904c3bd85f399d1ce90680c0ecf92d2752/packages/next/server/render.tsx#L947-L952
-      renderOpts.nextFontManifest = this.nextFontManifest
+      renderOpts.nextFontManifest = this.nextFontManifest;
 
       if (this.enabledDirectories.app && renderOpts.isAppPath) {
         return lazyRenderAppPage(
@@ -513,7 +516,7 @@ export default class NextNodeServer extends BaseServer {
           pathname,
           query,
           renderOpts
-        )
+        );
       }
 
       // TODO: re-enable this once we've refactored to use implicit matches
@@ -525,22 +528,22 @@ export default class NextNodeServer extends BaseServer {
         pathname,
         query,
         renderOpts
-      )
+      );
     }
   }
 
   protected async imageOptimizer(
     req: NodeNextRequest,
     res: NodeNextResponse,
-    paramsResult: import('./image-optimizer').ImageParamsResult
+    paramsResult: import("./image-optimizer").ImageParamsResult
   ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'invariant: imageOptimizer should not be called in minimal mode'
-      )
+        "invariant: imageOptimizer should not be called in minimal mode"
+      );
     } else {
       const { imageOptimizer } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
+        require("./image-optimizer") as typeof import("./image-optimizer");
 
       return imageOptimizer(
         req.originalRequest,
@@ -552,41 +555,41 @@ export default class NextNodeServer extends BaseServer {
           if (newReq.url === req.url) {
             throw new Error(
               `Invariant attempted to optimize _next/image itself`
-            )
+            );
           }
 
           const protocol = this.serverOptions.experimentalHttpsServer
-            ? 'https'
-            : 'http'
+            ? "https"
+            : "http";
 
           const invokeRes = await invokeRequest(
-            `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
-              newReq.url || ''
+            `${protocol}://${this.fetchHostname || "localhost"}:${this.port}${
+              newReq.url || ""
             }`,
             {
-              method: newReq.method || 'GET',
+              method: newReq.method || "GET",
               headers: newReq.headers,
               signal: signalFromNodeResponse(res.originalResponse),
             }
-          )
+          );
           const filteredResHeaders = filterReqHeaders(
             toNodeOutgoingHttpHeaders(invokeRes.headers),
             ipcForbiddenHeaders
-          )
+          );
 
           for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
+            newRes.setHeader(key, filteredResHeaders[key] || "");
           }
-          newRes.statusCode = invokeRes.status || 200
+          newRes.statusCode = invokeRes.status || 200;
 
           if (invokeRes.body) {
-            await pipeToNodeResponse(invokeRes.body, newRes)
+            await pipeToNodeResponse(invokeRes.body, newRes);
           } else {
-            res.send()
+            res.send();
           }
-          return
+          return;
         }
-      )
+      );
     }
   }
 
@@ -596,22 +599,22 @@ export default class NextNodeServer extends BaseServer {
       this.distDir,
       locales,
       this.enabledDirectories.app
-    )
+    );
   }
 
   protected async renderPageComponent(
     ctx: RequestContext,
     bubbleNoFallback: boolean
   ) {
-    const edgeFunctionsPages = this.getEdgeFunctionsPages() || []
+    const edgeFunctionsPages = this.getEdgeFunctionsPages() || [];
     if (edgeFunctionsPages.length) {
-      const appPaths = this.getOriginalAppPaths(ctx.pathname)
-      const isAppPath = Array.isArray(appPaths)
+      const appPaths = this.getOriginalAppPaths(ctx.pathname);
+      const isAppPath = Array.isArray(appPaths);
 
-      let page = ctx.pathname
+      let page = ctx.pathname;
       if (isAppPath) {
         // When it's an array, we need to pass all parallel routes to the loader.
-        page = appPaths[0]
+        page = appPaths[0];
       }
 
       for (const edgeFunctionsPage of edgeFunctionsPages) {
@@ -623,13 +626,13 @@ export default class NextNodeServer extends BaseServer {
             params: ctx.renderOpts.params,
             page,
             appPaths,
-          })
-          return null
+          });
+          return null;
         }
       }
     }
 
-    return super.renderPageComponent(ctx, bubbleNoFallback)
+    return super.renderPageComponent(ctx, bubbleNoFallback);
   }
 
   protected async findPageComponents({
@@ -639,23 +642,23 @@ export default class NextNodeServer extends BaseServer {
     isAppPath,
     url,
   }: {
-    page: string
-    query: NextParsedUrlQuery
-    params: Params
-    isAppPath: boolean
+    page: string;
+    query: NextParsedUrlQuery;
+    params: Params;
+    isAppPath: boolean;
     // The following parameters are used in the development server's
     // implementation.
-    sriEnabled?: boolean
-    appPaths?: ReadonlyArray<string> | null
-    shouldEnsure: boolean
-    url?: string
+    sriEnabled?: boolean;
+    appPaths?: ReadonlyArray<string> | null;
+    shouldEnsure: boolean;
+    url?: string;
   }): Promise<FindComponentsResult | null> {
     return getTracer().trace(
       NextNodeServerSpan.findPageComponents,
       {
         spanName: `resolving page into components`,
         attributes: {
-          'next.route': isAppPath ? normalizeAppPath(page) : page,
+          "next.route": isAppPath ? normalizeAppPath(page) : page,
         },
       },
       () =>
@@ -666,7 +669,7 @@ export default class NextNodeServer extends BaseServer {
           isAppPath,
           url,
         })
-    )
+    );
   }
 
   private async findPageComponentsImpl({
@@ -676,26 +679,26 @@ export default class NextNodeServer extends BaseServer {
     isAppPath,
     url: _url,
   }: {
-    page: string
-    query: NextParsedUrlQuery
-    params: Params
-    isAppPath: boolean
-    url?: string
+    page: string;
+    query: NextParsedUrlQuery;
+    params: Params;
+    isAppPath: boolean;
+    url?: string;
   }): Promise<FindComponentsResult | null> {
-    const pagePaths: string[] = [page]
+    const pagePaths: string[] = [page];
     if (query.amp) {
       // try serving a static AMP version first
       pagePaths.unshift(
-        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + '.amp'
-      )
+        (isAppPath ? normalizeAppPath(page) : normalizePagePath(page)) + ".amp"
+      );
     }
 
     if (query.__nextLocale) {
       pagePaths.unshift(
         ...pagePaths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
+          (path) => `/${query.__nextLocale}${path === "/" ? "" : path}`
         )
-      )
+      );
     }
 
     for (const pagePath of pagePaths) {
@@ -704,16 +707,16 @@ export default class NextNodeServer extends BaseServer {
           distDir: this.distDir,
           page: pagePath,
           isAppPath,
-        })
+        });
 
         if (
           query.__nextLocale &&
-          typeof components.Component === 'string' &&
+          typeof components.Component === "string" &&
           !pagePath.startsWith(`/${query.__nextLocale}`)
         ) {
           // if loading an static HTML file the locale is required
           // to be present since all HTML files are output under their locale
-          continue
+          continue;
         }
 
         return {
@@ -731,35 +734,35 @@ export default class NextNodeServer extends BaseServer {
             // For appDir params is excluded.
             ...((isAppPath ? {} : params) || {}),
           },
-        }
+        };
       } catch (err) {
         // we should only not throw if we failed to find the page
         // in the pages-manifest
         if (!(err instanceof PageNotFoundError)) {
-          throw err
+          throw err;
         }
       }
     }
-    return null
+    return null;
   }
 
   protected getFontManifest(): FontManifest {
-    return requireFontManifest(this.distDir)
+    return requireFontManifest(this.distDir);
   }
 
   protected getNextFontManifest() {
     return loadManifest(
-      join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
-    )
+      join(this.distDir, "server", NEXT_FONT_MANIFEST + ".json")
+    );
   }
 
   protected getFallback(page: string): Promise<string> {
-    page = normalizePagePath(page)
-    const cacheFs = this.getCacheFilesystem()
+    page = normalizePagePath(page);
+    const cacheFs = this.getCacheFilesystem();
     return cacheFs.readFile(
-      join(this.serverDistDir, 'pages', `${page}.html`),
-      'utf8'
-    )
+      join(this.serverDistDir, "pages", `${page}.html`),
+      "utf8"
+    );
   }
 
   protected handleNextImageRequest: RouteHandler = async (
@@ -767,39 +770,39 @@ export default class NextNodeServer extends BaseServer {
     res,
     parsedUrl
   ) => {
-    if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
-      return false
+    if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith("/_next/image")) {
+      return false;
     }
 
     if (
       this.minimalMode ||
-      this.nextConfig.output === 'export' ||
+      this.nextConfig.output === "export" ||
       process.env.NEXT_MINIMAL
     ) {
-      res.statusCode = 400
-      res.body('Bad Request').send()
-      return true
+      res.statusCode = 400;
+      res.body("Bad Request").send();
+      return true;
       // the `else` branch is needed for tree-shaking
     } else {
       const { ImageOptimizerCache } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
+        require("./image-optimizer") as typeof import("./image-optimizer");
 
       const imageOptimizerCache = new ImageOptimizerCache({
         distDir: this.distDir,
         nextConfig: this.nextConfig,
-      })
+      });
 
       const { getHash, sendResponse, ImageError } =
-        require('./image-optimizer') as typeof import('./image-optimizer')
+        require("./image-optimizer") as typeof import("./image-optimizer");
 
       if (!this.imageResponseCache) {
-        throw new Error('invariant image optimizer cache was not initialized')
+        throw new Error("invariant image optimizer cache was not initialized");
       }
-      const imagesConfig = this.nextConfig.images
+      const imagesConfig = this.nextConfig.images;
 
-      if (imagesConfig.loader !== 'default' || imagesConfig.unoptimized) {
-        await this.render404(req, res)
-        return true
+      if (imagesConfig.loader !== "default" || imagesConfig.unoptimized) {
+        await this.render404(req, res);
+        return true;
       }
 
       const paramsResult = ImageOptimizerCache.validateParams(
@@ -807,19 +810,19 @@ export default class NextNodeServer extends BaseServer {
         parsedUrl.query,
         this.nextConfig,
         !!this.renderOpts.dev
-      )
+      );
 
-      if ('errorMessage' in paramsResult) {
-        res.statusCode = 400
-        res.body(paramsResult.errorMessage).send()
-        return true
+      if ("errorMessage" in paramsResult) {
+        res.statusCode = 400;
+        res.body(paramsResult.errorMessage).send();
+        return true;
       }
 
-      const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+      const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult);
 
       try {
         const { getExtension } =
-          require('./serve-static') as typeof import('./serve-static')
+          require("./serve-static") as typeof import("./serve-static");
         const cacheEntry = await this.imageResponseCache.get(
           cacheKey,
           async () => {
@@ -827,28 +830,28 @@ export default class NextNodeServer extends BaseServer {
               req as NodeNextRequest,
               res as NodeNextResponse,
               paramsResult
-            )
-            const etag = getHash([buffer])
+            );
+            const etag = getHash([buffer]);
 
             return {
               value: {
-                kind: 'IMAGE',
+                kind: "IMAGE",
                 buffer,
                 etag,
                 extension: getExtension(contentType) as string,
               },
               revalidate: maxAge,
-            }
+            };
           },
           {
             incrementalCache: imageOptimizerCache,
           }
-        )
+        );
 
-        if (cacheEntry?.value?.kind !== 'IMAGE') {
+        if (cacheEntry?.value?.kind !== "IMAGE") {
           throw new Error(
-            'invariant did not get entry from image response cache'
-          )
+            "invariant did not get entry from image response cache"
+          );
         }
 
         sendResponse(
@@ -858,69 +861,69 @@ export default class NextNodeServer extends BaseServer {
           cacheEntry.value.extension,
           cacheEntry.value.buffer,
           paramsResult.isStatic,
-          cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
+          cacheEntry.isMiss ? "MISS" : cacheEntry.isStale ? "STALE" : "HIT",
           imagesConfig,
           cacheEntry.revalidate || 0,
           Boolean(this.renderOpts.dev)
-        )
-        return true
+        );
+        return true;
       } catch (err) {
         if (err instanceof ImageError) {
-          res.statusCode = err.statusCode
-          res.body(err.message).send()
-          return true
+          res.statusCode = err.statusCode;
+          res.body(err.message).send();
+          return true;
         }
-        throw err
+        throw err;
       }
     }
-  }
+  };
 
   protected handleCatchallRenderRequest: RouteHandler = async (
     req,
     res,
     parsedUrl
   ) => {
-    let { pathname, query } = parsedUrl
+    let { pathname, query } = parsedUrl;
     if (!pathname) {
-      throw new Error('Invariant: pathname is undefined')
+      throw new Error("Invariant: pathname is undefined");
     }
 
     // This is a catch-all route, there should be no fallbacks so mark it as
     // such.
-    query._nextBubbleNoFallback = '1'
+    query._nextBubbleNoFallback = "1";
 
     try {
       // next.js core assumes page path without trailing slash
-      pathname = removeTrailingSlash(pathname)
+      pathname = removeTrailingSlash(pathname);
 
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromQuery(pathname, query),
-      }
-      const match = await this.matchers.match(pathname, options)
+      };
+      const match = await this.matchers.match(pathname, options);
 
       // If we don't have a match, try to render it anyways.
       if (!match) {
-        await this.render(req, res, pathname, query, parsedUrl, true)
+        await this.render(req, res, pathname, query, parsedUrl, true);
 
-        return true
+        return true;
       }
 
       // Add the match to the request so we don't have to re-run the matcher
       // for the same request.
-      addRequestMeta(req, 'match', match)
+      addRequestMeta(req, "match", match);
 
       // TODO-APP: move this to a route handler
-      const edgeFunctionsPages = this.getEdgeFunctionsPages()
+      const edgeFunctionsPages = this.getEdgeFunctionsPages();
       for (const edgeFunctionsPage of edgeFunctionsPages) {
         // If the page doesn't match the edge function page, skip it.
-        if (edgeFunctionsPage !== match.definition.page) continue
+        if (edgeFunctionsPage !== match.definition.page) continue;
 
-        if (this.nextConfig.output === 'export') {
-          await this.render404(req, res, parsedUrl)
-          return true
+        if (this.nextConfig.output === "export") {
+          await this.render404(req, res, parsedUrl);
+          return true;
         }
-        delete query._nextBubbleNoFallback
-        delete query[NEXT_RSC_UNION_QUERY]
+        delete query._nextBubbleNoFallback;
+        delete query[NEXT_RSC_UNION_QUERY];
 
         const handled = await this.runEdgeFunction({
           req,
@@ -930,74 +933,74 @@ export default class NextNodeServer extends BaseServer {
           page: match.definition.page,
           match,
           appPaths: null,
-        })
+        });
 
         // If we handled the request, we can return early.
-        if (handled) return true
+        if (handled) return true;
       }
 
       // If the route was detected as being a Pages API route, then handle
       // it.
       // TODO: move this behavior into a route handler.
       if (isPagesAPIRouteMatch(match)) {
-        if (this.nextConfig.output === 'export') {
-          await this.render404(req, res, parsedUrl)
-          return true
+        if (this.nextConfig.output === "export") {
+          await this.render404(req, res, parsedUrl);
+          return true;
         }
 
-        delete query._nextBubbleNoFallback
+        delete query._nextBubbleNoFallback;
 
-        const handled = await this.handleApiRequest(req, res, query, match)
-        if (handled) return true
+        const handled = await this.handleApiRequest(req, res, query, match);
+        if (handled) return true;
       }
 
-      await this.render(req, res, pathname, query, parsedUrl, true)
+      await this.render(req, res, pathname, query, parsedUrl, true);
 
-      return true
+      return true;
     } catch (err: any) {
       if (err instanceof NoFallbackError) {
-        throw err
+        throw err;
       }
 
       try {
         if (this.renderOpts.dev) {
           const { formatServerError } =
-            require('../lib/format-server-error') as typeof import('../lib/format-server-error')
-          formatServerError(err)
-          await this.logErrorWithOriginalStack(err)
+            require("../lib/format-server-error") as typeof import("../lib/format-server-error");
+          formatServerError(err);
+          await this.logErrorWithOriginalStack(err);
         } else {
-          this.logError(err)
+          this.logError(err);
         }
-        res.statusCode = 500
-        await this.renderError(err, req, res, pathname, query)
-        return true
+        res.statusCode = 500;
+        await this.renderError(err, req, res, pathname, query);
+        return true;
       } catch {}
 
-      throw err
+      throw err;
     }
-  }
+  };
 
   // Used in development only, overloaded in next-dev-server
   protected async logErrorWithOriginalStack(
     _err?: unknown,
-    _type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
+    _type?: "unhandledRejection" | "uncaughtException" | "warning" | "app-dir"
   ): Promise<void> {
     throw new Error(
-      'Invariant: logErrorWithOriginalStack can only be called on the development server'
-    )
+      "Invariant: logErrorWithOriginalStack can only be called on the development server"
+    );
   }
 
   // Used in development only, overloaded in next-dev-server
   protected async ensurePage(_opts: {
-    page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
-    url?: string
+    page: string;
+    clientOnly: boolean;
+    appPaths?: ReadonlyArray<string> | null;
+    match?: RouteMatch;
+    url?: string;
   }): Promise<void> {
     throw new Error(
-      'Invariant: ensurePage can only be called on the development server'
-    )
+      "Invariant: ensurePage can only be called on the development server"
+    );
   }
 
   /**
@@ -1012,18 +1015,18 @@ export default class NextNodeServer extends BaseServer {
     query: ParsedUrlQuery,
     match: PagesAPIRouteMatch
   ): Promise<boolean> {
-    return this.runApi(req, res, query, match)
+    return this.runApi(req, res, query, match);
   }
 
   protected getPrefetchRsc(pathname: string): Promise<string> {
     return this.getCacheFilesystem().readFile(
-      join(this.serverDistDir, 'app', `${pathname}${RSC_PREFETCH_SUFFIX}`),
-      'utf8'
-    )
+      join(this.serverDistDir, "app", `${pathname}${RSC_PREFETCH_SUFFIX}`),
+      "utf8"
+    );
   }
 
   protected getCacheFilesystem(): CacheFs {
-    return nodeFs
+    return nodeFs;
   }
 
   private normalizeReq(
@@ -1031,7 +1034,7 @@ export default class NextNodeServer extends BaseServer {
   ): BaseNextRequest {
     return !(req instanceof NodeNextRequest)
       ? new NodeNextRequest(req as IncomingMessage)
-      : req
+      : req;
   }
 
   private normalizeRes(
@@ -1039,18 +1042,18 @@ export default class NextNodeServer extends BaseServer {
   ): BaseNextResponse {
     return !(res instanceof NodeNextResponse)
       ? new NodeNextResponse(res as ServerResponse)
-      : res
+      : res;
   }
 
   public getRequestHandler(): NodeRequestHandler {
-    const handler = this.makeRequestHandler()
+    const handler = this.makeRequestHandler();
     if (this.serverOptions.experimentalTestProxy) {
       const {
         wrapRequestHandlerNode,
-      } = require('next/dist/experimental/testmode/server')
-      return wrapRequestHandlerNode(handler)
+      } = require("next/dist/experimental/testmode/server");
+      return wrapRequestHandlerNode(handler);
     }
-    return handler
+    return handler;
   }
 
   private makeRequestHandler(): NodeRequestHandler {
@@ -1059,28 +1062,28 @@ export default class NextNodeServer extends BaseServer {
     // cause a unhandled promise rejection. The promise rejection wil be
     // handled later on via the `await` when the request handler is called.
     this.prepare().catch((err) => {
-      console.error('Failed to prepare server', err)
-    })
+      console.error("Failed to prepare server", err);
+    });
 
-    const handler = super.getRequestHandler()
+    const handler = super.getRequestHandler();
     return (req, res, parsedUrl) => {
-      const normalizedReq = this.normalizeReq(req)
-      const normalizedRes = this.normalizeRes(res)
+      const normalizedReq = this.normalizeReq(req);
+      const normalizedRes = this.normalizeRes(res);
 
-      const loggingFetchesConfig = this.nextConfig.logging?.fetches
-      const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
+      const loggingFetchesConfig = this.nextConfig.logging?.fetches;
+      const enabledVerboseLogging = !!loggingFetchesConfig;
+      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl;
 
       if (this.renderOpts.dev) {
         const { bold, green, yellow, red, gray, white } =
-          require('../lib/picocolors') as typeof import('../lib/picocolors')
-        const _req = req as NodeNextRequest | IncomingMessage
-        const _res = res as NodeNextResponse | ServerResponse
-        const origReq = 'originalRequest' in _req ? _req.originalRequest : _req
+          require("../lib/picocolors") as typeof import("../lib/picocolors");
+        const _req = req as NodeNextRequest | IncomingMessage;
+        const _res = res as NodeNextResponse | ServerResponse;
+        const origReq = "originalRequest" in _req ? _req.originalRequest : _req;
         const origRes =
-          'originalResponse' in _res ? _res.originalResponse : _res
+          "originalResponse" in _res ? _res.originalResponse : _res;
 
-        const reqStart = Date.now()
+        const reqStart = Date.now();
 
         const reqCallback = () => {
           // if we already logged in a render worker
@@ -1088,104 +1091,104 @@ export default class NextNodeServer extends BaseServer {
           // we also don't log for middleware alone
           if (
             (normalizedReq as any).didInvokePath ||
-            origReq.headers['x-middleware-invoke']
+            origReq.headers["x-middleware-invoke"]
           ) {
-            return
+            return;
           }
-          const reqEnd = Date.now()
-          const fetchMetrics = (normalizedReq as any).fetchMetrics || []
-          const reqDuration = reqEnd - reqStart
+          const reqEnd = Date.now();
+          const fetchMetrics = (normalizedReq as any).fetchMetrics || [];
+          const reqDuration = reqEnd - reqStart;
 
           const getDurationStr = (duration: number) => {
-            let durationStr = duration.toString()
+            let durationStr = duration.toString();
 
             if (duration < 500) {
-              durationStr = green(duration + 'ms')
+              durationStr = green(duration + "ms");
             } else if (duration < 2000) {
-              durationStr = yellow(duration + 'ms')
+              durationStr = yellow(duration + "ms");
             } else {
-              durationStr = red(duration + 'ms')
+              durationStr = red(duration + "ms");
             }
-            return durationStr
-          }
+            return durationStr;
+          };
 
           if (Array.isArray(fetchMetrics) && fetchMetrics.length) {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${white(bold(req.method || 'GET'))} ${req.url} ${
+                `${white(bold(req.method || "GET"))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
-              )
+              );
             }
 
             const calcNestedLevel = (
               prevMetrics: any[],
               start: number
             ): string => {
-              let nestedLevel = 0
+              let nestedLevel = 0;
 
               for (let i = 0; i < prevMetrics.length; i++) {
-                const metric = prevMetrics[i]
-                const prevMetric = prevMetrics[i - 1]
+                const metric = prevMetrics[i];
+                const prevMetric = prevMetrics[i - 1];
 
                 if (
                   metric.end <= start &&
                   !(prevMetric && prevMetric.start < metric.end)
                 ) {
-                  nestedLevel += 1
+                  nestedLevel += 1;
                 }
               }
-              return nestedLevel === 0 ? ' ' : '  │ '.repeat(nestedLevel)
-            }
+              return nestedLevel === 0 ? " " : "  │ ".repeat(nestedLevel);
+            };
 
             for (let i = 0; i < fetchMetrics.length; i++) {
-              const metric = fetchMetrics[i]
-              let { cacheStatus, cacheReason } = metric
-              let cacheReasonStr = ''
+              const metric = fetchMetrics[i];
+              let { cacheStatus, cacheReason } = metric;
+              let cacheReasonStr = "";
 
-              const duration = metric.end - metric.start
+              const duration = metric.end - metric.start;
 
-              if (cacheStatus === 'hit') {
-                cacheStatus = green('HIT')
-              } else if (cacheStatus === 'skip') {
-                cacheStatus = yellow('SKIP')
+              if (cacheStatus === "hit") {
+                cacheStatus = green("HIT");
+              } else if (cacheStatus === "skip") {
+                cacheStatus = yellow("SKIP");
                 cacheReasonStr = gray(
                   `Cache missed reason: (${white(cacheReason)})`
-                )
+                );
               } else {
-                cacheStatus = yellow('MISS')
+                cacheStatus = yellow("MISS");
               }
-              let url = metric.url
+              let url = metric.url;
 
               if (url.length > 48) {
-                const parsed = new URL(url)
+                const parsed = new URL(url);
                 const truncatedHost = formatRequestUrl(
                   parsed.host,
                   shouldTruncateUrl ? 16 : undefined
-                )
+                );
                 const truncatedPath = formatRequestUrl(
                   parsed.pathname,
                   shouldTruncateUrl ? 24 : undefined
-                )
+                );
                 const truncatedSearch = formatRequestUrl(
                   parsed.search,
                   shouldTruncateUrl ? 16 : undefined
-                )
+                );
 
                 url =
                   parsed.protocol +
-                  '//' +
+                  "//" +
                   truncatedHost +
                   truncatedPath +
-                  truncatedSearch
+                  truncatedSearch;
               }
 
               if (enabledVerboseLogging) {
-                const newLineLeadingChar = '│'
+                const newLineLeadingChar = "│";
                 const nestedIndent = calcNestedLevel(
                   fetchMetrics.slice(0, i + 1),
                   metric.start
-                )
+                );
 
                 writeStdoutLine(
                   ` ${`${newLineLeadingChar}${nestedIndent}${white(
@@ -1193,39 +1196,39 @@ export default class NextNodeServer extends BaseServer {
                   )} ${gray(url)} ${metric.status} in ${getDurationStr(
                     duration
                   )} (cache: ${cacheStatus})`}`
-                )
+                );
                 if (cacheReasonStr) {
                   const nextNestedIndent = calcNestedLevel(
                     fetchMetrics.slice(0, i + 1),
                     metric.start
-                  )
+                  );
                   writeStdoutLine(
-                    ' ' +
+                    " " +
                       newLineLeadingChar +
                       nextNestedIndent +
-                      ' ' +
+                      " " +
                       newLineLeadingChar +
-                      '  ' +
+                      "  " +
                       cacheReasonStr
-                  )
+                  );
                 }
               }
             }
           } else {
             if (enabledVerboseLogging) {
               writeStdoutLine(
-                `${white(bold(req.method || 'GET'))} ${req.url} ${
+                `${white(bold(req.method || "GET"))} ${req.url} ${
                   res.statusCode
                 } in ${getDurationStr(reqDuration)}`
-              )
+              );
             }
           }
-          origRes.off('close', reqCallback)
-        }
-        origRes.on('close', reqCallback)
+          origRes.off("close", reqCallback);
+        };
+        origRes.on("close", reqCallback);
       }
-      return handler(normalizedReq, normalizedRes, parsedUrl)
-    }
+      return handler(normalizedReq, normalizedRes, parsedUrl);
+    };
   }
 
   public async revalidate({
@@ -1233,27 +1236,27 @@ export default class NextNodeServer extends BaseServer {
     revalidateHeaders,
     opts,
   }: {
-    urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
-    opts: { unstable_onlyGenerated?: boolean }
+    urlPath: string;
+    revalidateHeaders: { [key: string]: string | string[] };
+    opts: { unstable_onlyGenerated?: boolean };
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
       headers: revalidateHeaders,
-    })
+    });
 
-    const handler = this.getRequestHandler()
+    const handler = this.getRequestHandler();
     await handler(
       new NodeNextRequest(mocked.req),
       new NodeNextResponse(mocked.res)
-    )
-    await mocked.res.hasStreamed
+    );
+    await mocked.res.hasStreamed;
 
     if (
-      mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.getHeader("x-nextjs-cache") !== "REVALIDATED" &&
       !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
     ) {
-      throw new Error(`Invalid response ${mocked.res.statusCode}`)
+      throw new Error(`Invalid response ${mocked.res.statusCode}`);
     }
   }
 
@@ -1272,7 +1275,7 @@ export default class NextNodeServer extends BaseServer {
       query,
       parsedUrl,
       internal
-    )
+    );
   }
 
   public async renderToHTML(
@@ -1286,27 +1289,27 @@ export default class NextNodeServer extends BaseServer {
       this.normalizeRes(res),
       pathname,
       query
-    )
+    );
   }
 
   protected async renderErrorToResponseImpl(
     ctx: RequestContext,
     err: Error | null
   ) {
-    const { req, res, query } = ctx
-    const is404 = res.statusCode === 404
+    const { req, res, query } = ctx;
+    const is404 = res.statusCode === 404;
 
     if (is404 && this.enabledDirectories.app) {
       const notFoundPathname = this.renderOpts.dev
-        ? '/not-found'
-        : '/_not-found'
+        ? "/not-found"
+        : "/_not-found";
 
       if (this.renderOpts.dev) {
         await this.ensurePage({
           page: notFoundPathname,
           clientOnly: false,
           url: req.url,
-        }).catch(() => {})
+        }).catch(() => {});
       }
 
       if (this.getEdgeFunctionsPages().includes(notFoundPathname)) {
@@ -1317,11 +1320,11 @@ export default class NextNodeServer extends BaseServer {
           params: {},
           page: notFoundPathname,
           appPaths: null,
-        })
-        return null
+        });
+        return null;
       }
     }
-    return super.renderErrorToResponseImpl(ctx, err)
+    return super.renderErrorToResponseImpl(ctx, err);
   }
 
   public async renderError(
@@ -1339,7 +1342,7 @@ export default class NextNodeServer extends BaseServer {
       pathname,
       query,
       setHeaders
-    )
+    );
   }
 
   public async renderErrorToHTML(
@@ -1355,7 +1358,7 @@ export default class NextNodeServer extends BaseServer {
       this.normalizeRes(res),
       pathname,
       query
-    )
+    );
   }
 
   public async render404(
@@ -1369,36 +1372,36 @@ export default class NextNodeServer extends BaseServer {
       this.normalizeRes(res),
       parsedUrl,
       setHeaders
-    )
+    );
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-    return manifest
+    if (this.minimalMode) return null;
+    const manifest: MiddlewareManifest = require(this.middlewareManifestPath);
+    return manifest;
   }
 
   /** Returns the middleware routing item if there is one. */
   protected getMiddleware(): MiddlewareRoutingItem | undefined {
-    const manifest = this.getMiddlewareManifest()
-    const middleware = manifest?.middleware?.['/']
+    const manifest = this.getMiddlewareManifest();
+    const middleware = manifest?.middleware?.["/"];
     if (!middleware) {
-      return
+      return;
     }
 
     return {
       match: getMiddlewareMatcher(middleware),
-      page: '/',
-    }
+      page: "/",
+    };
   }
 
   protected getEdgeFunctionsPages(): string[] {
-    const manifest = this.getMiddlewareManifest()
+    const manifest = this.getMiddlewareManifest();
     if (!manifest) {
-      return []
+      return [];
     }
 
-    return Object.keys(manifest.functions)
+    return Object.keys(manifest.functions);
   }
 
   /**
@@ -1407,37 +1410,37 @@ export default class NextNodeServer extends BaseServer {
    * an error.
    */
   protected getEdgeFunctionInfo(params: {
-    page: string
+    page: string;
     /** Whether we should look for a middleware or not */
-    middleware: boolean
+    middleware: boolean;
   }): {
-    name: string
-    paths: string[]
-    wasm: { filePath: string; name: string }[]
-    assets: { filePath: string; name: string }[]
+    name: string;
+    paths: string[];
+    wasm: { filePath: string; name: string }[];
+    assets: { filePath: string; name: string }[];
   } | null {
-    const manifest = this.getMiddlewareManifest()
+    const manifest = this.getMiddlewareManifest();
     if (!manifest) {
-      return null
+      return null;
     }
 
-    let foundPage: string
+    let foundPage: string;
 
     try {
-      foundPage = denormalizePagePath(normalizePagePath(params.page))
+      foundPage = denormalizePagePath(normalizePagePath(params.page));
     } catch (err) {
-      return null
+      return null;
     }
 
     let pageInfo = params.middleware
       ? manifest.middleware[foundPage]
-      : manifest.functions[foundPage]
+      : manifest.functions[foundPage];
 
     if (!pageInfo) {
       if (!params.middleware) {
-        throw new PageNotFoundError(foundPage)
+        throw new PageNotFoundError(foundPage);
       }
-      return null
+      return null;
     }
 
     return {
@@ -1451,9 +1454,9 @@ export default class NextNodeServer extends BaseServer {
         return {
           ...binding,
           filePath: join(this.distDir, binding.filePath),
-        }
+        };
       }),
-    }
+    };
   }
 
   /**
@@ -1462,8 +1465,8 @@ export default class NextNodeServer extends BaseServer {
    * middleware manifest.
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
-    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
-    return Boolean(info && info.paths.length > 0)
+    const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true });
+    return Boolean(info && info.paths.length > 0);
   }
 
   /**
@@ -1473,9 +1476,9 @@ export default class NextNodeServer extends BaseServer {
    */
   protected async ensureMiddleware(_url?: string) {}
   protected async ensureEdgeFunction(_params: {
-    page: string
-    appPaths: string[] | null
-    url?: string
+    page: string;
+    appPaths: string[] | null;
+    url?: string;
   }) {}
 
   /**
@@ -1485,16 +1488,16 @@ export default class NextNodeServer extends BaseServer {
    * and errors with rich traces.
    */
   protected async runMiddleware(params: {
-    request: BaseNextRequest
-    response: BaseNextResponse
-    parsedUrl: ParsedUrl
-    parsed: UrlWithParsedQuery
-    onWarning?: (warning: Error) => void
+    request: BaseNextRequest;
+    response: BaseNextResponse;
+    parsedUrl: ParsedUrl;
+    parsed: UrlWithParsedQuery;
+    onWarning?: (warning: Error) => void;
   }) {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'invariant: runMiddleware should not be called in minimal mode'
-      )
+        "invariant: runMiddleware should not be called in minimal mode"
+      );
     }
 
     // Middleware is skipped for on-demand revalidate requests
@@ -1503,57 +1506,57 @@ export default class NextNodeServer extends BaseServer {
         .isOnDemandRevalidate
     ) {
       return {
-        response: new Response(null, { headers: { 'x-middleware-next': '1' } }),
-      } as FetchEventResult
+        response: new Response(null, { headers: { "x-middleware-next": "1" } }),
+      } as FetchEventResult;
     }
 
-    let url: string
+    let url: string;
 
     if (this.nextConfig.skipMiddlewareUrlNormalize) {
-      url = getRequestMeta(params.request, 'initURL')!
+      url = getRequestMeta(params.request, "initURL")!;
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
-      const query = urlQueryToSearchParams(params.parsed.query).toString()
-      const locale = params.parsed.query.__nextLocale
+      const query = urlQueryToSearchParams(params.parsed.query).toString();
+      const locale = params.parsed.query.__nextLocale;
 
-      url = `${getRequestMeta(params.request, 'initProtocol')}://${
-        this.fetchHostname || 'localhost'
-      }:${this.port}${locale ? `/${locale}` : ''}${params.parsed.pathname}${
-        query ? `?${query}` : ''
-      }`
+      url = `${getRequestMeta(params.request, "initProtocol")}://${
+        this.fetchHostname || "localhost"
+      }:${this.port}${locale ? `/${locale}` : ""}${params.parsed.pathname}${
+        query ? `?${query}` : ""
+      }`;
     }
 
-    if (!url.startsWith('http')) {
+    if (!url.startsWith("http")) {
       throw new Error(
-        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
-      )
+        "To use middleware you must provide a `hostname` and `port` to the Next.js Server"
+      );
     }
 
     const page: {
-      name?: string
-      params?: { [key: string]: string | string[] }
-    } = {}
+      name?: string;
+      params?: { [key: string]: string | string[] };
+    } = {};
 
-    const middleware = this.getMiddleware()
+    const middleware = this.getMiddleware();
     if (!middleware) {
-      return { finished: false }
+      return { finished: false };
     }
     if (!(await this.hasMiddleware(middleware.page))) {
-      return { finished: false }
+      return { finished: false };
     }
 
-    await this.ensureMiddleware(params.request.url)
+    await this.ensureMiddleware(params.request.url);
     const middlewareInfo = this.getEdgeFunctionInfo({
       page: middleware.page,
       middleware: true,
-    })
+    });
 
     if (!middlewareInfo) {
-      throw new MiddlewareNotFoundError()
+      throw new MiddlewareNotFoundError();
     }
 
-    const method = (params.request.method || 'GET').toUpperCase()
-    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+    const method = (params.request.method || "GET").toUpperCase();
+    const { run } = require("./web/sandbox") as typeof import("./web/sandbox");
 
     const result = await run({
       distDir: this.distDir,
@@ -1570,43 +1573,43 @@ export default class NextNodeServer extends BaseServer {
         },
         url: url,
         page,
-        body: getRequestMeta(params.request, 'clonableBody'),
+        body: getRequestMeta(params.request, "clonableBody"),
         signal: signalFromNodeResponse(
           (params.response as NodeNextResponse).originalResponse
         ),
       },
       useCache: true,
       onWarning: params.onWarning,
-    })
+    });
 
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
-        console.error(`Uncaught: middleware waitUntil errored`, error)
-      })
+        console.error(`Uncaught: middleware waitUntil errored`, error);
+      });
     }
 
     if (!result) {
-      this.render404(params.request, params.response, params.parsed)
-      return { finished: true }
+      this.render404(params.request, params.response, params.parsed);
+      return { finished: true };
     }
 
     for (let [key, value] of result.response.headers) {
-      if (key.toLowerCase() !== 'set-cookie') continue
+      if (key.toLowerCase() !== "set-cookie") continue;
 
       // Clear existing header.
-      result.response.headers.delete(key)
+      result.response.headers.delete(key);
 
       // Append each cookie individually.
-      const cookies = splitCookiesString(value)
+      const cookies = splitCookiesString(value);
       for (const cookie of cookies) {
-        result.response.headers.append(key, cookie)
+        result.response.headers.append(key, cookie);
       }
 
       // Add cookies to request meta.
-      addRequestMeta(params.request, 'middlewareCookie', cookies)
+      addRequestMeta(params.request, "middlewareCookie", cookies);
     }
 
-    return result
+    return result;
   }
 
   protected handleCatchallMiddlewareRequest: RouteHandler = async (
@@ -1614,115 +1617,115 @@ export default class NextNodeServer extends BaseServer {
     res: BaseNextResponse,
     parsed: NextUrlWithParsedQuery
   ) => {
-    const isMiddlewareInvoke = req.headers['x-middleware-invoke']
+    const isMiddlewareInvoke = req.headers["x-middleware-invoke"];
 
     if (!isMiddlewareInvoke) {
-      return false
+      return false;
     }
 
     const handleFinished = () => {
-      res.setHeader('x-middleware-invoke', '1')
-      res.body('').send()
-      return true
-    }
+      res.setHeader("x-middleware-invoke", "1");
+      res.body("").send();
+      return true;
+    };
 
-    const middleware = this.getMiddleware()
+    const middleware = this.getMiddleware();
     if (!middleware) {
-      return handleFinished()
+      return handleFinished();
     }
 
-    const initUrl = getRequestMeta(req, 'initURL')!
-    const parsedUrl = parseUrl(initUrl)
+    const initUrl = getRequestMeta(req, "initURL")!;
+    const parsedUrl = parseUrl(initUrl);
     const pathnameInfo = getNextPathnameInfo(parsedUrl.pathname, {
       nextConfig: this.nextConfig,
       i18nProvider: this.i18nProvider,
-    })
+    });
 
-    parsedUrl.pathname = pathnameInfo.pathname
-    const normalizedPathname = removeTrailingSlash(parsed.pathname || '')
+    parsedUrl.pathname = pathnameInfo.pathname;
+    const normalizedPathname = removeTrailingSlash(parsed.pathname || "");
     if (!middleware.match(normalizedPathname, req, parsedUrl.query)) {
-      return handleFinished()
+      return handleFinished();
     }
 
     let result: Awaited<
       ReturnType<typeof NextNodeServer.prototype.runMiddleware>
-    >
-    let bubblingResult = false
+    >;
+    let bubblingResult = false;
 
     // Strip the internal headers.
-    this.stripInternalHeaders(req)
+    this.stripInternalHeaders(req);
 
     try {
-      await this.ensureMiddleware(req.url)
+      await this.ensureMiddleware(req.url);
 
       result = await this.runMiddleware({
         request: req,
         response: res,
         parsedUrl: parsedUrl,
         parsed: parsed,
-      })
+      });
 
-      if ('response' in result) {
+      if ("response" in result) {
         if (isMiddlewareInvoke) {
-          bubblingResult = true
-          const err = new Error()
-          ;(err as any).result = result
-          ;(err as any).bubble = true
-          throw err
+          bubblingResult = true;
+          const err = new Error();
+          (err as any).result = result;
+          (err as any).bubble = true;
+          throw err;
         }
 
         for (const [key, value] of Object.entries(
           toNodeOutgoingHttpHeaders(result.response.headers)
         )) {
-          if (key !== 'content-encoding' && value !== undefined) {
-            res.setHeader(key, value as string | string[])
+          if (key !== "content-encoding" && value !== undefined) {
+            res.setHeader(key, value as string | string[]);
           }
         }
-        res.statusCode = result.response.status
+        res.statusCode = result.response.status;
 
-        const { originalResponse } = res as NodeNextResponse
+        const { originalResponse } = res as NodeNextResponse;
         if (result.response.body) {
-          await pipeToNodeResponse(result.response.body, originalResponse)
+          await pipeToNodeResponse(result.response.body, originalResponse);
         } else {
-          originalResponse.end()
+          originalResponse.end();
         }
-        return true
+        return true;
       }
     } catch (err: any) {
       if (bubblingResult) {
-        throw err
+        throw err;
       }
 
-      if (isError(err) && err.code === 'ENOENT') {
-        await this.render404(req, res, parsed)
-        return true
+      if (isError(err) && err.code === "ENOENT") {
+        await this.render404(req, res, parsed);
+        return true;
       }
 
       if (err instanceof DecodeError) {
-        res.statusCode = 400
-        await this.renderError(err, req, res, parsed.pathname || '')
-        return true
+        res.statusCode = 400;
+        await this.renderError(err, req, res, parsed.pathname || "");
+        return true;
       }
 
-      const error = getProperError(err)
-      console.error(error)
-      res.statusCode = 500
-      await this.renderError(error, req, res, parsed.pathname || '')
-      return true
+      const error = getProperError(err);
+      console.error(error);
+      res.statusCode = 500;
+      await this.renderError(error, req, res, parsed.pathname || "");
+      return true;
     }
 
-    return result.finished
-  }
+    return result.finished;
+  };
 
-  private _cachedPreviewManifest: PrerenderManifest | undefined
+  private _cachedPreviewManifest: PrerenderManifest | undefined;
   protected getPrerenderManifest(): PrerenderManifest {
     if (this._cachedPreviewManifest) {
-      return this._cachedPreviewManifest
+      return this._cachedPreviewManifest;
     }
     if (
       this.renderOpts?.dev ||
       this.serverOptions?.dev ||
-      process.env.NODE_ENV === 'development' ||
+      process.env.NODE_ENV === "development" ||
       process.env.NEXT_PHASE === PHASE_PRODUCTION_BUILD
     ) {
       this._cachedPreviewManifest = {
@@ -1731,43 +1734,43 @@ export default class NextNodeServer extends BaseServer {
         dynamicRoutes: {},
         notFoundRoutes: [],
         preview: {
-          previewModeId: require('crypto').randomBytes(16).toString('hex'),
-          previewModeSigningKey: require('crypto')
+          previewModeId: require("crypto").randomBytes(16).toString("hex"),
+          previewModeSigningKey: require("crypto")
             .randomBytes(32)
-            .toString('hex'),
-          previewModeEncryptionKey: require('crypto')
+            .toString("hex"),
+          previewModeEncryptionKey: require("crypto")
             .randomBytes(32)
-            .toString('hex'),
+            .toString("hex"),
         },
-      }
-      return this._cachedPreviewManifest
+      };
+      return this._cachedPreviewManifest;
     }
 
-    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
+    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST));
 
-    return (this._cachedPreviewManifest = manifest)
+    return (this._cachedPreviewManifest = manifest);
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST))
+      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST));
 
       let rewrites = manifest.rewrites ?? {
         beforeFiles: [],
         afterFiles: [],
         fallback: [],
-      }
+      };
 
       if (Array.isArray(rewrites)) {
         rewrites = {
           beforeFiles: [],
           afterFiles: rewrites,
           fallback: [],
-        }
+        };
       }
 
-      return { ...manifest, rewrites }
-    })
+      return { ...manifest, rewrites };
+    });
   }
 
   protected attachRequestMeta(
@@ -1776,84 +1779,84 @@ export default class NextNodeServer extends BaseServer {
     isUpgradeReq?: boolean
   ) {
     // Injected in base-server.ts
-    const protocol = req.headers['x-forwarded-proto'] as 'https' | 'http'
+    const protocol = req.headers["x-forwarded-proto"] as "https" | "http";
 
     // When there are hostname and port we build an absolute URL
     const initUrl =
       this.fetchHostname && this.port
         ? `${protocol}://${this.fetchHostname}:${this.port}${req.url}`
         : this.nextConfig.experimental.trustHostHeader
-        ? `https://${req.headers.host || 'localhost'}${req.url}`
-        : req.url
+        ? `https://${req.headers.host || "localhost"}${req.url}`
+        : req.url;
 
-    addRequestMeta(req, 'initURL', initUrl)
-    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
-    addRequestMeta(req, 'initProtocol', protocol)
+    addRequestMeta(req, "initURL", initUrl);
+    addRequestMeta(req, "initQuery", { ...parsedUrl.query });
+    addRequestMeta(req, "initProtocol", protocol);
 
     if (!isUpgradeReq) {
-      addRequestMeta(req, 'clonableBody', getCloneableBody(req.body))
+      addRequestMeta(req, "clonableBody", getCloneableBody(req.body));
     }
   }
 
   protected async runEdgeFunction(params: {
-    req: BaseNextRequest | NodeNextRequest
-    res: BaseNextResponse | NodeNextResponse
-    query: ParsedUrlQuery
-    params: Params | undefined
-    page: string
-    appPaths: string[] | null
-    match?: RouteMatch
-    onWarning?: (warning: Error) => void
+    req: BaseNextRequest | NodeNextRequest;
+    res: BaseNextResponse | NodeNextResponse;
+    query: ParsedUrlQuery;
+    params: Params | undefined;
+    page: string;
+    appPaths: string[] | null;
+    match?: RouteMatch;
+    onWarning?: (warning: Error) => void;
   }): Promise<FetchEventResult | null> {
     if (process.env.NEXT_MINIMAL) {
       throw new Error(
-        'Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable.'
-      )
+        "Middleware is not supported in minimal mode. Please remove the `NEXT_MINIMAL` environment variable."
+      );
     }
-    let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined
+    let edgeInfo: ReturnType<typeof this.getEdgeFunctionInfo> | undefined;
 
-    const { query, page, match } = params
+    const { query, page, match } = params;
 
     if (!match)
       await this.ensureEdgeFunction({
         page,
         appPaths: params.appPaths,
         url: params.req.url,
-      })
+      });
     edgeInfo = this.getEdgeFunctionInfo({
       page,
       middleware: false,
-    })
+    });
 
     if (!edgeInfo) {
-      return null
+      return null;
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isDataReq = !!query.__nextDataReq
+    const isDataReq = !!query.__nextDataReq;
     const initialUrl = new URL(
-      getRequestMeta(params.req, 'initURL') || '/',
-      'http://n'
-    )
+      getRequestMeta(params.req, "initURL") || "/",
+      "http://n"
+    );
     const queryString = urlQueryToSearchParams({
       ...Object.fromEntries(initialUrl.searchParams),
       ...query,
       ...params.params,
-    }).toString()
+    }).toString();
 
     if (isDataReq) {
-      params.req.headers['x-nextjs-data'] = '1'
+      params.req.headers["x-nextjs-data"] = "1";
     }
-    initialUrl.search = queryString
-    const url = initialUrl.toString()
+    initialUrl.search = queryString;
+    const url = initialUrl.toString();
 
-    if (!url.startsWith('http')) {
+    if (!url.startsWith("http")) {
       throw new Error(
-        'To use middleware you must provide a `hostname` and `port` to the Next.js Server'
-      )
+        "To use middleware you must provide a `hostname` and `port` to the Next.js Server"
+      );
     }
 
-    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+    const { run } = require("./web/sandbox") as typeof import("./web/sandbox");
     const result = await run({
       distDir: this.distDir,
       name: edgeInfo.name,
@@ -1872,7 +1875,7 @@ export default class NextNodeServer extends BaseServer {
           name: params.page,
           ...(params.params && { params: params.params }),
         },
-        body: getRequestMeta(params.req, 'clonableBody'),
+        body: getRequestMeta(params.req, "clonableBody"),
         signal: signalFromNodeResponse(
           (params.res as NodeNextResponse).originalResponse
         ),
@@ -1881,49 +1884,49 @@ export default class NextNodeServer extends BaseServer {
       onWarning: params.onWarning,
       incrementalCache:
         (globalThis as any).__incrementalCache ||
-        getRequestMeta(params.req, 'incrementalCache'),
-    })
+        getRequestMeta(params.req, "incrementalCache"),
+    });
 
     if (result.fetchMetrics) {
-      ;(params.req as any).fetchMetrics = result.fetchMetrics
+      (params.req as any).fetchMetrics = result.fetchMetrics;
     }
 
     if (!params.res.statusCode || params.res.statusCode < 400) {
-      params.res.statusCode = result.response.status
-      params.res.statusMessage = result.response.statusText
+      params.res.statusCode = result.response.status;
+      params.res.statusMessage = result.response.statusText;
     }
 
     // TODO: (wyattjoh) investigate improving this
 
     result.response.headers.forEach((value, key) => {
       // The append handling is special cased for `set-cookie`.
-      if (key.toLowerCase() === 'set-cookie') {
+      if (key.toLowerCase() === "set-cookie") {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
         for (const cookie of splitCookiesString(value)) {
-          params.res.appendHeader(key, cookie)
+          params.res.appendHeader(key, cookie);
         }
       } else {
-        params.res.appendHeader(key, value)
+        params.res.appendHeader(key, value);
       }
-    })
+    });
 
-    const nodeResStream = (params.res as NodeNextResponse).originalResponse
+    const nodeResStream = (params.res as NodeNextResponse).originalResponse;
     if (result.response.body) {
-      await pipeToNodeResponse(result.response.body, nodeResStream)
+      await pipeToNodeResponse(result.response.body, nodeResStream);
     } else {
-      nodeResStream.end()
+      nodeResStream.end();
     }
 
-    return result
+    return result;
   }
 
   protected get serverDistDir(): string {
     if (this._serverDistDir) {
-      return this._serverDistDir
+      return this._serverDistDir;
     }
-    const serverDistDir = join(this.distDir, SERVER_DIRECTORY)
-    this._serverDistDir = serverDistDir
-    return serverDistDir
+    const serverDistDir = join(this.distDir, SERVER_DIRECTORY);
+    this._serverDistDir = serverDistDir;
+    return serverDistDir;
   }
 
   protected async getFallbackErrorComponents(
@@ -1931,6 +1934,6 @@ export default class NextNodeServer extends BaseServer {
   ): Promise<LoadComponentsReturnType | null> {
     // Not implemented for production use cases, this is implemented on the
     // development server.
-    return null
+    return null;
   }
 }

@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
-import styles from './style.module.css'
+import styles from "./style.module.css";
 
 export default function RedText(props) {
-  return <div {...props} className={styles.text} />
+  return <div {...props} className={styles.text} />;
 }

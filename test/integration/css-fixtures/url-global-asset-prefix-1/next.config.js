@@ -1,5 +1,5 @@
-const config = require('../next.config.js')
+const config = require("../next.config.js");
 module.exports = {
   ...config,
-  assetPrefix: '/foo/',
-}
+  assetPrefix: "/foo/",
+};

@@ -1,6 +1,6 @@
-'use server'
+"use server";
 
-export const foo = async () => {}
+export const foo = async () => {};
 
-const bar = async () => {}
-export { bar }
+const bar = async () => {};
+export { bar };

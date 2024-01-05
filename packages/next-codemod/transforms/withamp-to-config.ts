@@ -1,175 +1,175 @@
 // One-time usage file. You can delete me after running the codemod!
 
 function injectAmp(j, o, desiredAmpValue) {
-  const init = o.node.init
+  const init = o.node.init;
 
   switch (init.type) {
-    case 'ObjectExpression': {
+    case "ObjectExpression": {
       const overwroteAmpKey = init.properties.some((prop) => {
         switch (prop.type) {
-          case 'Property':
-          case 'ObjectProperty':
-            if (!(prop.key.type === 'Identifier' && prop.key.name === 'amp')) {
-              return false
+          case "Property":
+          case "ObjectProperty":
+            if (!(prop.key.type === "Identifier" && prop.key.name === "amp")) {
+              return false;
             }
 
-            prop.value = desiredAmpValue
-            return true
+            prop.value = desiredAmpValue;
+            return true;
           default:
-            return false
+            return false;
         }
-      })
+      });
 
       if (!overwroteAmpKey) {
         init.properties.push(
-          j.objectProperty(j.identifier('amp'), desiredAmpValue)
-        )
+          j.objectProperty(j.identifier("amp"), desiredAmpValue)
+        );
       }
 
-      return true
+      return true;
     }
     default: {
-      return false
+      return false;
     }
   }
 }
 
 export default function transformer(file, api) {
-  const j = api.jscodeshift.withParser('tsx')
-  const root = j(file.source)
-  const done = () => root.toSource()
+  const j = api.jscodeshift.withParser("tsx");
+  const root = j(file.source);
+  const done = () => root.toSource();
 
   const imports = root.find(j.ImportDeclaration, {
-    source: { value: 'next/amp' },
-  })
+    source: { value: "next/amp" },
+  });
 
   if (imports.length < 1) {
-    return
+    return;
   }
 
-  let hadWithAmp = false
-  const ampImportNames = []
+  let hadWithAmp = false;
+  const ampImportNames = [];
 
   imports.forEach((ampImport) => {
-    const ampImportShift = j(ampImport)
+    const ampImportShift = j(ampImport);
 
     const withAmpImport = ampImportShift.find(j.ImportSpecifier, {
-      imported: { name: 'withAmp' },
-    })
+      imported: { name: "withAmp" },
+    });
 
     if (withAmpImport.length < 1) {
-      return
+      return;
     }
 
-    hadWithAmp = true
+    hadWithAmp = true;
     withAmpImport.forEach((element) => {
-      ampImportNames.push(element.value.local.name)
-      j(element).remove()
-    })
+      ampImportNames.push(element.value.local.name);
+      j(element).remove();
+    });
 
     if (ampImport.value.specifiers.length === 0) {
-      ampImportShift.remove()
+      ampImportShift.remove();
     }
-  })
+  });
 
   if (!hadWithAmp) {
-    return done()
+    return done();
   }
 
-  const defaultExportsShift = root.find(j.ExportDefaultDeclaration)
+  const defaultExportsShift = root.find(j.ExportDefaultDeclaration);
   if (defaultExportsShift.length < 1) {
-    return done()
+    return done();
   }
 
-  let desiredAmpValue = j.booleanLiteral(true)
+  let desiredAmpValue = j.booleanLiteral(true);
 
-  const defaultExport = defaultExportsShift.nodes()[0]
+  const defaultExport = defaultExportsShift.nodes()[0];
   const removedWrapper = ampImportNames.some((ampImportName) => {
     const ampWrapping = j(defaultExport).find(j.CallExpression, {
       callee: { name: ampImportName },
-    })
+    });
 
     if (ampWrapping.length < 1) {
-      return false
+      return false;
     }
 
     ampWrapping.forEach((e) => {
       if (e.value.arguments.length < 1) {
-        j(e).remove()
+        j(e).remove();
       } else {
-        const withAmpOptions = e.value.arguments[1]
-        if (withAmpOptions && withAmpOptions.type === 'ObjectExpression') {
+        const withAmpOptions = e.value.arguments[1];
+        if (withAmpOptions && withAmpOptions.type === "ObjectExpression") {
           const isHybrid = withAmpOptions.properties.some((prop) => {
-            if (!(prop.type === 'Property' || prop.type === 'ObjectProperty')) {
-              return false
+            if (!(prop.type === "Property" || prop.type === "ObjectProperty")) {
+              return false;
             }
 
-            if (!(prop.key && prop.key.name === 'hybrid')) {
-              return false
+            if (!(prop.key && prop.key.name === "hybrid")) {
+              return false;
             }
 
             return (
-              (prop.value.type === 'Literal' ||
-                prop.value.type === 'BooleanLiteral') &&
+              (prop.value.type === "Literal" ||
+                prop.value.type === "BooleanLiteral") &&
               prop.value.value === true
-            )
-          })
+            );
+          });
 
           if (isHybrid) {
-            desiredAmpValue = j.stringLiteral('hybrid')
+            desiredAmpValue = j.stringLiteral("hybrid");
           }
         }
 
-        j(e).replaceWith(e.value.arguments[0])
+        j(e).replaceWith(e.value.arguments[0]);
       }
-    })
-    return true
-  })
+    });
+    return true;
+  });
 
   if (!removedWrapper) {
-    return done()
+    return done();
   }
 
-  const namedExportsShift = root.find(j.ExportNamedDeclaration)
+  const namedExportsShift = root.find(j.ExportNamedDeclaration);
   const hadExistingConfig = namedExportsShift.some((namedExport) => {
     const configExportedObject = j(namedExport).find(j.VariableDeclarator, {
-      id: { name: 'config' },
-    })
+      id: { name: "config" },
+    });
     if (configExportedObject.length > 0) {
       return configExportedObject.some((exportedObject) =>
         injectAmp(j, exportedObject, desiredAmpValue)
-      )
+      );
     }
 
     const configReexported = j(namedExport).find(j.ExportSpecifier, {
-      local: { name: 'config' },
-    })
+      local: { name: "config" },
+    });
     if (configReexported.length > 0) {
       const configObjects = root
-        .findVariableDeclarators('config')
-        .filter((el) => el.scope.isGlobal)
+        .findVariableDeclarators("config")
+        .filter((el) => el.scope.isGlobal);
       return configObjects.some((configObject) =>
         injectAmp(j, configObject, desiredAmpValue)
-      )
+      );
     }
 
-    return false
-  })
+    return false;
+  });
 
   if (!hadExistingConfig) {
     defaultExportsShift.insertAfter(
       j.exportNamedDeclaration(
-        j.variableDeclaration('const', [
+        j.variableDeclaration("const", [
           j.variableDeclarator(
-            j.identifier('config'),
+            j.identifier("config"),
             j.objectExpression([
-              j.objectProperty(j.identifier('amp'), desiredAmpValue),
+              j.objectProperty(j.identifier("amp"), desiredAmpValue),
             ])
           ),
         ])
       )
-    )
+    );
   }
 
-  return done()
+  return done();
 }

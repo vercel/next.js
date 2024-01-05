@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import styles from './styles.module.css'
+import Link from "next/link";
+import styles from "./styles.module.css";
 
 export default function Page({ params: { num } }) {
   return (
@@ -10,7 +10,7 @@ export default function Page({ params: { num } }) {
           style={{
             height: 100,
             width: 100,
-            background: 'pink',
+            background: "pink",
             margin: 10,
           }}
         >
@@ -25,5 +25,5 @@ export default function Page({ params: { num } }) {
       ))}
       <div className={styles.square} />
     </div>
-  )
+  );
 }

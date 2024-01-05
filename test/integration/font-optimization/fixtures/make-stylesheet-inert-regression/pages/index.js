@@ -4,5 +4,5 @@ export default function Home() {
       Falsey values contained in an element contained in Head should not result
       in an error!
     </h1>
-  )
+  );
 }

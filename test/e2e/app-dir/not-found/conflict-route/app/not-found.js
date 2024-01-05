@@ -5,7 +5,7 @@ export default function NotFound() {
 
       <div id="timestamp">{Date.now()}</div>
     </>
-  )
+  );
 }
 
-NotFound.displayName = 'NotFound'
+NotFound.displayName = "NotFound";

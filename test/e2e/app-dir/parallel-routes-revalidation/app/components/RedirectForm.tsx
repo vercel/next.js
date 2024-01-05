@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 export function RedirectForm({ action }: { action: () => Promise<void> }) {
   return (
@@ -7,5 +7,5 @@ export function RedirectForm({ action }: { action: () => Promise<void> }) {
         Redirect to Home
       </button>
     </form>
-  )
+  );
 }

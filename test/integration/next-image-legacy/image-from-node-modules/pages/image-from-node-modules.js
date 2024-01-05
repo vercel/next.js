@@ -1,4 +1,4 @@
-import MyCoolImage from 'my-cool-image'
+import MyCoolImage from "my-cool-image";
 
 const Page = () => {
   return (
@@ -12,7 +12,7 @@ const Page = () => {
         src="https://i.imgur.com/CgezKMb.jpg"
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

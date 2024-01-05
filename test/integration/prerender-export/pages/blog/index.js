@@ -1,13 +1,13 @@
-import React from 'react'
-import Link from 'next/link'
+import React from "react";
+import Link from "next/link";
 
 export async function getStaticProps() {
   return {
     props: {
-      slugs: ['post-1', 'post-2'],
-      time: (await import('perf_hooks')).performance.now(),
+      slugs: ["post-1", "post-2"],
+      time: (await import("perf_hooks")).performance.now(),
     },
-  }
+  };
 }
 
 export default ({ slugs, time }) => {
@@ -19,5 +19,5 @@ export default ({ slugs, time }) => {
         to home
       </Link>
     </>
-  )
-}
+  );
+};

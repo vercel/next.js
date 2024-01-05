@@ -1,7 +1,7 @@
-import React, { Suspense } from 'react'
-import { createStreamingData } from '../../test/streaming-data'
+import React, { Suspense } from "react";
+import { createStreamingData } from "../../test/streaming-data";
 
-const Data = createStreamingData()
+const Data = createStreamingData();
 
 export default function Styled() {
   return (
@@ -17,5 +17,5 @@ export default function Styled() {
         </div>
       </Data>
     </Suspense>
-  )
+  );
 }

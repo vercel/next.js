@@ -1,11 +1,11 @@
 export async function generateMetadata() {
-  await new Promise((resolve) => setTimeout(resolve, 11000))
+  await new Promise((resolve) => setTimeout(resolve, 11000));
 
   return {
-    title: 'Test',
-  }
+    title: "Test",
+  };
 }
 
 export default function Page() {
-  return <div>Hello World</div>
+  return <div>Hello World</div>;
 }

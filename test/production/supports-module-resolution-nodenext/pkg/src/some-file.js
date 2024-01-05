@@ -1,1 +1,1 @@
-export default 'Hello, world'
+export default "Hello, world";

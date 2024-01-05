@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Dynamic(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <p id="router">
@@ -12,5 +12,5 @@ export default function Dynamic(props) {
         dynamic: true,
       })}
     </p>
-  )
+  );
 }

@@ -1,21 +1,21 @@
-import useSWR from 'swr'
-import fetcher from 'libs/fetcher'
-import Link from 'next/link'
-import styles from './Collections.module.css'
+import useSWR from "swr";
+import fetcher from "libs/fetcher";
+import Link from "next/link";
+import styles from "./Collections.module.css";
 
 interface CollectionProps {
-  id_collection?: number
+  id_collection?: number;
 }
 
 const Collections = ({ id_collection }: CollectionProps) => {
   const { data, error } = useSWR(
-    '/api/collection' + (id_collection ? `/${id_collection}` : ''),
+    "/api/collection" + (id_collection ? `/${id_collection}` : ""),
     fetcher
-  )
+  );
 
-  if (error) return <div>failed to load</div>
+  if (error) return <div>failed to load</div>;
 
-  if (!data) return <div>loading...</div>
+  if (!data) return <div>loading...</div>;
 
   return (
     <div className={styles.chips}>
@@ -33,7 +33,7 @@ const Collections = ({ id_collection }: CollectionProps) => {
           </Link>
         ) : (
           <Link
-            href={{ pathname: '/collection/[slug]', query: { id: id } }}
+            href={{ pathname: "/collection/[slug]", query: { id: id } }}
             as={`/collection/${slug}?id=${id}`}
             key={`collection_${slug}`}
             className={styles.chip}
@@ -43,7 +43,7 @@ const Collections = ({ id_collection }: CollectionProps) => {
         )
       )}
     </div>
-  )
-}
+  );
+};
 
-export default Collections
+export default Collections;

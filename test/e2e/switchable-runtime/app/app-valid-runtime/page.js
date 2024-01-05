@@ -1,5 +1,5 @@
-import Time from '../../utils/time'
-import Runtime from '../../utils/runtime'
+import Time from "../../utils/time";
+import Runtime from "../../utils/runtime";
 
 export default function Page() {
   return (
@@ -10,8 +10,8 @@ export default function Page() {
       <br />
       <Time />
     </div>
-  )
+  );
 }
 
-export const foo = 'bar',
-  runtime = 'edge'
+export const foo = "bar",
+  runtime = "edge";

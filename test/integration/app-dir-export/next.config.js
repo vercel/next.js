@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  output: "export",
   trailingSlash: true,
   generateBuildId() {
-    return 'test-build-id'
+    return "test-build-id";
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

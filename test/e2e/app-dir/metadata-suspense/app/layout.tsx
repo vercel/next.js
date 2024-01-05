@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense } from "react";
 
 export default function Layout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function Layout({ children }) {
         <Suspense fallback={<div>loading...</div>}>{children}</Suspense>
       </body>
     </html>
-  )
+  );
 }

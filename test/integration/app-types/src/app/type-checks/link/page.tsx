@@ -1,16 +1,16 @@
-import type { Route, Metadata } from 'next'
-import Link from 'next/link'
+import type { Route, Metadata } from "next";
+import Link from "next/link";
 
 export function Card<T extends string>({ href }: { href: Route<T> | URL }) {
   return (
     <Link href={href}>
       <div>My Card</div>
     </Link>
-  )
+  );
 }
 
 export default function page() {
-  const test = 'a/b'
+  const test = "a/b";
 
   const shouldFail = (
     <>
@@ -33,7 +33,7 @@ export default function page() {
       <Link href="/rewrite-param/x/page1">test</Link>
       <Link href="/redirect/v2/guides/x/page">test</Link>
     </>
-  )
+  );
 
   const shouldPass = (
     <>
@@ -52,7 +52,7 @@ export default function page() {
       <Link href="/dashboard/user/x">test</Link>
       <Link href="/dashboard/x/x">test</Link>
       <Link href={`/blog/${test}`}>test</Link>
-      <Link href={('/blog/' + test) as Route}>test</Link>
+      <Link href={("/blog/" + test) as Route}>test</Link>
       <Link href="/rewrite">test</Link>
       <Link href="/rewrite-any/x">test</Link>
       <Link href="/rewrite-one-or-more/x/y">test</Link>
@@ -61,23 +61,23 @@ export default function page() {
       <Link href="/redirect">test</Link>
       <Link href="/redirect/v1/guides/x/page">test</Link>
       <Link href="/redirect/guides/x/page">test</Link>
-      <Link href={new URL('/about')}>test</Link>
+      <Link href={new URL("/about")}>test</Link>
       <Link href="https://nextjs.org">test</Link>
       <Link href="http://nextjs.org">test</Link>
       <Link href="#id">test</Link>
       <Link href="?page=1">test</Link>
       <Link href="mailto:foo@example.com">test</Link>
     </>
-  )
+  );
 
   return (
     <>
       {shouldFail}
       {shouldPass}
     </>
-  )
+  );
 }
 
 export const metadata: Metadata = {
-  title: 'test',
-}
+  title: "test",
+};

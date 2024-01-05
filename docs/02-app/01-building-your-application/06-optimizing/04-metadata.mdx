@@ -23,21 +23,21 @@ With both these options, Next.js will automatically generate the relevant `<head
 To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a `layout.js` or static `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import type { Metadata } from 'next'
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: '...',
-  description: '...',
-}
+  title: "...",
+  description: "...",
+};
 
 export default function Page() {}
 ```
 
 ```jsx filename="layout.js | page.js" switcher
 export const metadata = {
-  title: '...',
-  description: '...',
-}
+  title: "...",
+  description: "...",
+};
 
 export default function Page() {}
 ```
@@ -49,32 +49,32 @@ For all the available options, see the [API Reference](/docs/app/api-reference/f
 You can use `generateMetadata` function to `fetch` metadata that requires dynamic values.
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
-import type { Metadata, ResolvingMetadata } from 'next'
+import type { Metadata, ResolvingMetadata } from "next";
 
 type Props = {
-  params: { id: string }
-  searchParams: { [key: string]: string | string[] | undefined }
-}
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
 
 export async function generateMetadata(
   { params, searchParams }: Props,
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = params.id
+  const id = params.id;
 
   // fetch data
-  const product = await fetch(`https://.../${id}`).then((res) => res.json())
+  const product = await fetch(`https://.../${id}`).then((res) => res.json());
 
   // optionally access and extend (rather than replace) parent metadata
-  const previousImages = (await parent).openGraph?.images || []
+  const previousImages = (await parent).openGraph?.images || [];
 
   return {
     title: product.title,
     openGraph: {
-      images: ['/some-specific-page-image.jpg', ...previousImages],
+      images: ["/some-specific-page-image.jpg", ...previousImages],
     },
-  }
+  };
 }
 
 export default function Page({ params, searchParams }: Props) {}
@@ -83,20 +83,20 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = params.id
+  const id = params.id;
 
   // fetch data
-  const product = await fetch(`https://.../${id}`).then((res) => res.json())
+  const product = await fetch(`https://.../${id}`).then((res) => res.json());
 
   // optionally access and extend (rather than replace) parent metadata
-  const previousImages = (await parent).openGraph?.images || []
+  const previousImages = (await parent).openGraph?.images || [];
 
   return {
     title: product.title,
     openGraph: {
-      images: ['/some-specific-page-image.jpg', ...previousImages],
+      images: ["/some-specific-page-image.jpg", ...previousImages],
     },
-  }
+  };
 }
 
 export default function Page({ params, searchParams }) {}
@@ -159,21 +159,21 @@ This means metadata with nested fields such as [`openGraph`](/docs/app/api-refer
 
 ```jsx filename="app/layout.js"
 export const metadata = {
-  title: 'Acme',
+  title: "Acme",
   openGraph: {
-    title: 'Acme',
-    description: 'Acme is a...',
+    title: "Acme",
+    description: "Acme is a...",
   },
-}
+};
 ```
 
 ```jsx filename="app/blog/page.js"
 export const metadata = {
-  title: 'Blog',
+  title: "Blog",
   openGraph: {
-    title: 'Blog',
+    title: "Blog",
   },
-}
+};
 
 // Output:
 // <title>Blog</title>
@@ -188,29 +188,29 @@ In the example above:
 If you'd like to share some nested fields between segments while overwriting others, you can pull them out into a separate variable:
 
 ```jsx filename="app/shared-metadata.js"
-export const openGraphImage = { images: ['http://...'] }
+export const openGraphImage = { images: ["http://..."] };
 ```
 
 ```jsx filename="app/page.js"
-import { openGraphImage } from './shared-metadata'
+import { openGraphImage } from "./shared-metadata";
 
 export const metadata = {
   openGraph: {
     ...openGraphImage,
-    title: 'Home',
+    title: "Home",
   },
-}
+};
 ```
 
 ```jsx filename="app/about/page.js"
-import { openGraphImage } from '../shared-metadata'
+import { openGraphImage } from "../shared-metadata";
 
 export const metadata = {
   openGraph: {
     ...openGraphImage,
-    title: 'About',
+    title: "About",
   },
-}
+};
 ```
 
 In the example above, the OG image is shared between `app/layout.js` and `app/about/page.js` while the titles are different.
@@ -219,18 +219,18 @@ In the example above, the OG image is shared between `app/layout.js` and `app/ab
 
 ```jsx filename="app/layout.js"
 export const metadata = {
-  title: 'Acme',
+  title: "Acme",
   openGraph: {
-    title: 'Acme',
-    description: 'Acme is a...',
+    title: "Acme",
+    description: "Acme is a...",
   },
-}
+};
 ```
 
 ```jsx filename="app/about/page.js"
 export const metadata = {
-  title: 'About',
-}
+  title: "About",
+};
 
 // Output:
 // <title>About</title>
@@ -252,9 +252,9 @@ The `ImageResponse` constructor allows you to generate dynamic images using JSX 
 To use it, you can import `ImageResponse` from `next/og`:
 
 ```jsx filename="app/about/route.js"
-import { ImageResponse } from 'next/og'
+import { ImageResponse } from "next/og";
 
-export const runtime = 'edge'
+export const runtime = "edge";
 
 export async function GET() {
   return new ImageResponse(
@@ -262,13 +262,13 @@ export async function GET() {
       <div
         style={{
           fontSize: 128,
-          background: 'white',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          textAlign: 'center',
-          alignItems: 'center',
-          justifyContent: 'center',
+          background: "white",
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          textAlign: "center",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
         Hello world!
@@ -278,7 +278,7 @@ export async function GET() {
       width: 1200,
       height: 600,
     }
-  )
+  );
 }
 ```
 
@@ -303,15 +303,15 @@ Our current recommendation for JSON-LD is to render structured data as a `<scrip
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page({ params }) {
-  const product = await getProduct(params.id)
+  const product = await getProduct(params.id);
 
   const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
+    "@context": "https://schema.org",
+    "@type": "Product",
     name: product.name,
     image: product.image,
     description: product.description,
-  }
+  };
 
   return (
     <section>
@@ -322,21 +322,21 @@ export default async function Page({ params }) {
       />
       {/* ... */}
     </section>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
-  const product = await getProduct(params.id)
+  const product = await getProduct(params.id);
 
   const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
+    "@context": "https://schema.org",
+    "@type": "Product",
     name: product.name,
     image: product.image,
     description: product.description,
-  }
+  };
 
   return (
     <section>
@@ -347,7 +347,7 @@ export default async function Page({ params }) {
       />
       {/* ... */}
     </section>
-  )
+  );
 }
 ```
 
@@ -356,13 +356,13 @@ You can validate and test your structured data with the [Rich Results Test](http
 You can type your JSON-LD with TypeScript using community packages like [`schema-dts`](https://www.npmjs.com/package/schema-dts):
 
 ```tsx
-import { Product, WithContext } from 'schema-dts'
+import { Product, WithContext } from "schema-dts";
 
 const jsonLd: WithContext<Product> = {
-  '@context': 'https://schema.org',
-  '@type': 'Product',
-  name: 'Next.js Sticker',
-  image: 'https://nextjs.org/imgs/sticker.png',
-  description: 'Dynamic at the speed of static.',
-}
+  "@context": "https://schema.org",
+  "@type": "Product",
+  name: "Next.js Sticker",
+  image: "https://nextjs.org/imgs/sticker.png",
+  description: "Dynamic at the speed of static.",
+};
 ```

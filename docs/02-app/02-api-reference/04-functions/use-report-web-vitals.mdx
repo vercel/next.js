@@ -10,14 +10,14 @@ The `useReportWebVitals` hook allows you to report [Core Web Vitals](https://web
 <PagesOnly>
 
 ```jsx filename="pages/_app.js"
-import { useReportWebVitals } from 'next/web-vitals'
+import { useReportWebVitals } from "next/web-vitals";
 
 function MyApp({ Component, pageProps }) {
   useReportWebVitals((metric) => {
-    console.log(metric)
-  })
+    console.log(metric);
+  });
 
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 
@@ -26,19 +26,19 @@ function MyApp({ Component, pageProps }) {
 <AppOnly>
 
 ```jsx filename="app/_components/web-vitals.js"
-'use client'
+"use client";
 
-import { useReportWebVitals } from 'next/web-vitals'
+import { useReportWebVitals } from "next/web-vitals";
 
 export function WebVitals() {
   useReportWebVitals((metric) => {
-    console.log(metric)
-  })
+    console.log(metric);
+  });
 }
 ```
 
 ```jsx filename="app/layout.js"
-import { WebVitals } from './_components/web-vitals'
+import { WebVitals } from "./_components/web-vitals";
 
 export default function Layout({ children }) {
   return (
@@ -48,7 +48,7 @@ export default function Layout({ children }) {
         {children}
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -85,22 +85,22 @@ You can handle all the results of these metrics using the `name` property.
 <PagesOnly>
 
 ```jsx filename="pages/_app.js"
-import { useReportWebVitals } from 'next/web-vitals'
+import { useReportWebVitals } from "next/web-vitals";
 
 function MyApp({ Component, pageProps }) {
   useReportWebVitals((metric) => {
     switch (metric.name) {
-      case 'FCP': {
+      case "FCP": {
         // handle FCP results
       }
-      case 'LCP': {
+      case "LCP": {
         // handle LCP results
       }
       // ...
     }
-  })
+  });
 
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```
 
@@ -109,42 +109,42 @@ function MyApp({ Component, pageProps }) {
 <AppOnly>
 
 ```tsx filename="app/components/web-vitals.tsx" switcher
-'use client'
+"use client";
 
-import { useReportWebVitals } from 'next/web-vitals'
+import { useReportWebVitals } from "next/web-vitals";
 
 export function WebVitals() {
   useReportWebVitals((metric) => {
     switch (metric.name) {
-      case 'FCP': {
+      case "FCP": {
         // handle FCP results
       }
-      case 'LCP': {
+      case "LCP": {
         // handle LCP results
       }
       // ...
     }
-  })
+  });
 }
 ```
 
 ```jsx filename="app/components/web-vitals.js" switcher
-'use client'
+"use client";
 
-import { useReportWebVitals } from 'next/web-vitals'
+import { useReportWebVitals } from "next/web-vitals";
 
 export function WebVitals() {
   useReportWebVitals((metric) => {
     switch (metric.name) {
-      case 'FCP': {
+      case "FCP": {
         // handle FCP results
       }
-      case 'LCP': {
+      case "LCP": {
         // handle LCP results
       }
       // ...
     }
-  })
+  });
 }
 ```
 
@@ -167,17 +167,17 @@ You can handle all the results of these metrics separately:
 ```js
 export function reportWebVitals(metric) {
   switch (metric.name) {
-    case 'Next.js-hydration':
+    case "Next.js-hydration":
       // handle hydration results
-      break
-    case 'Next.js-route-change-to-render':
+      break;
+    case "Next.js-route-change-to-render":
       // handle route-change to render results
-      break
-    case 'Next.js-render':
+      break;
+    case "Next.js-render":
       // handle render results
-      break
+      break;
     default:
-      break
+      break;
   }
 }
 ```
@@ -197,16 +197,16 @@ real user performance on your site. For example:
 
 ```js
 useReportWebVitals((metric) => {
-  const body = JSON.stringify(metric)
-  const url = 'https://example.com/analytics'
+  const body = JSON.stringify(metric);
+  const url = "https://example.com/analytics";
 
   // Use `navigator.sendBeacon()` if available, falling back to `fetch()`.
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(url, body)
+    navigator.sendBeacon(url, body);
   } else {
-    fetch(url, { body, method: 'POST', keepalive: true })
+    fetch(url, { body, method: "POST", keepalive: true });
   }
-})
+});
 ```
 
 > **Good to know**: If you use [Google Analytics](https://analytics.google.com/analytics/web/), using the

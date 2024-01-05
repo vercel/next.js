@@ -1,7 +1,7 @@
-'use client'
+"use client";
 
 export default function Page() {
-  return 'client-metadata'
+  return "client-metadata";
 }
 
 // export const metadata = { title: 'client-metadata' }

@@ -1,4 +1,4 @@
-import UseSearchParams from '../search-params'
+import UseSearchParams from "../search-params";
 
 export default function Page() {
   return (
@@ -6,5 +6,5 @@ export default function Page() {
       <p id="hooks-use-search-params" />
       <UseSearchParams />
     </>
-  )
+  );
 }

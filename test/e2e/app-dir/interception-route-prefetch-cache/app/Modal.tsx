@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation";
 
 interface ModalProps {
-  title: string
-  context: string
+  title: string;
+  context: string;
 }
 
 export function Modal({ title, context }: ModalProps) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <div>
@@ -19,9 +19,9 @@ export function Modal({ title, context }: ModalProps) {
       <div
         className="modal-overlay"
         onClick={() => {
-          router.back()
+          router.back();
         }}
       />
     </div>
-  )
+  );
 }

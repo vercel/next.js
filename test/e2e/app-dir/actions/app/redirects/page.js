@@ -22,5 +22,5 @@ export default function Home() {
         <input type="submit" value="Submit" id="submit-api-redirect-308" />
       </form>
     </main>
-  )
+  );
 }

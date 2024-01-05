@@ -1,7 +1,7 @@
-import React from 'react'
-import { render } from 'react-dom'
-import { renderToString } from 'react-dom/server'
-import { NextPage } from 'next'
+import React from "react";
+import { render } from "react-dom";
+import { renderToString } from "react-dom/server";
+import { NextPage } from "next";
 
 const Page: NextPage<{ html: string }> = ({ html }) =>
   html ? (
@@ -11,24 +11,24 @@ const Page: NextPage<{ html: string }> = ({ html }) =>
     </>
   ) : (
     <p>Hello world</p>
-  )
+  );
 
 Page.getInitialProps = async ({ AppTree }) => {
-  let html: string
+  let html: string;
 
-  const toRender = <AppTree pageProps={{}} />
+  const toRender = <AppTree pageProps={{}} />;
 
-  if (typeof window !== 'undefined') {
-    const el = document.createElement('div')
-    document.querySelector('body')?.appendChild(el)
-    render(toRender, el)
-    html = el.innerHTML
-    el.remove()
+  if (typeof window !== "undefined") {
+    const el = document.createElement("div");
+    document.querySelector("body")?.appendChild(el);
+    render(toRender, el);
+    html = el.innerHTML;
+    el.remove();
   } else {
-    html = renderToString(toRender)
+    html = renderToString(toRender);
   }
 
-  return { html }
-}
+  return { html };
+};
 
-export default Page
+export default Page;

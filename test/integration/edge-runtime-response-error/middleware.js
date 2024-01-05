@@ -1,6 +1,6 @@
 // populated with tests
 export default () => {
-  return 'Boom'
-}
+  return "Boom";
+};
 
-export const config = { matcher: '/' }
+export const config = { matcher: "/" };

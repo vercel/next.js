@@ -1,1 +1,1 @@
-export default () => 'Hello from b'
+export default () => "Hello from b";

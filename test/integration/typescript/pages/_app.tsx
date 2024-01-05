@@ -1,9 +1,9 @@
-import type { AppType } from 'next/app'
+import type { AppType } from "next/app";
 
 const MyApp: AppType<{ foo: string }> = ({ Component, pageProps }) => {
-  return <Component {...pageProps} />
-}
+  return <Component {...pageProps} />;
+};
 
-MyApp.getInitialProps = () => ({ foo: 'bar' })
+MyApp.getInitialProps = () => ({ foo: "bar" });
 
-export default MyApp
+export default MyApp;

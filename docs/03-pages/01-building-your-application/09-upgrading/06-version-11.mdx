@@ -52,7 +52,7 @@ module.exports = {
   images: {
     disableStaticImages: true,
   },
-}
+};
 ```
 
 ### Remove `super.componentDidCatch()` from `pages/_app.js`
@@ -96,10 +96,10 @@ Moment.js includes translations for a lot of locales by default. Next.js now aut
 To load a specific locale use this snippet:
 
 ```js
-import moment from 'moment'
-import 'moment/locale/ja'
+import moment from "moment";
+import "moment/locale/ja";
 
-moment.locale('ja')
+moment.locale("ja");
 ```
 
 You can opt-out of this new default by adding `excludeDefaultMomentLocales: false` to `next.config.js` if you do not want the new behavior, do note it's highly recommended to not disable this new optimization as it significantly reduces the size of Moment.js.
@@ -113,19 +113,19 @@ useEffect(() => {
   const handleRouteChange = (url, { shallow }) => {
     console.log(
       `App is changing to ${url} ${
-        shallow ? 'with' : 'without'
+        shallow ? "with" : "without"
       } shallow routing`
-    )
-  }
+    );
+  };
 
-  router.events.on('routeChangeStart', handleRouteChange)
+  router.events.on("routeChangeStart", handleRouteChange);
 
   // If the component is unmounted, unsubscribe
   // from the event with the `off` method:
   return () => {
-    router.events.off('routeChangeStart', handleRouteChange)
-  }
-}, [router])
+    router.events.off("routeChangeStart", handleRouteChange);
+  };
+}, [router]);
 ```
 
 If your application uses `router.router.events` which was an internal property that was not public please make sure to use `router.events` as well.

@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default class Counter extends React.Component {
-  state = { count: 0 }
+  state = { count: 0 };
 
   incr() {
-    const { count } = this.state
-    this.setState({ count: count + 1 })
+    const { count } = this.state;
+    this.setState({ count: count + 1 });
   }
 
   render() {
@@ -14,6 +14,6 @@ export default class Counter extends React.Component {
         <p>COUNT: {this.state.count}</p>
         <button onClick={() => this.incr()}>Increment</button>
       </div>
-    )
+    );
   }
 }

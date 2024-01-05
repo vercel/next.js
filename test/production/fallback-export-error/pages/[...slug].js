@@ -3,16 +3,16 @@ export function getStaticProps() {
     props: {
       now: Date.now(),
     },
-  }
+  };
 }
 
 export function getStaticPaths() {
   return {
-    paths: ['/first'],
-    fallback: 'blocking',
-  }
+    paths: ["/first"],
+    fallback: "blocking",
+  };
 }
 
 export default function Page() {
-  return <p>catch-all page</p>
+  return <p>catch-all page</p>;
 }

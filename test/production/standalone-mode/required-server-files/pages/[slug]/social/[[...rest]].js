@@ -5,15 +5,15 @@ export const getStaticProps = ({ params }) => {
       params: params || null,
     },
     revalidate: 1,
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     paths: [],
     fallback: true,
-  }
-}
+  };
+};
 
 export default function Page(props) {
   return (
@@ -21,5 +21,5 @@ export default function Page(props) {
       <p id="page">/[slug]/social/[[...rest]]</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }

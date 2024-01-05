@@ -4,5 +4,5 @@ export default function MyApp({ Component, pageProps }) {
       <p>custom _app</p>
       <Component {...pageProps} />
     </>
-  )
+  );
 }

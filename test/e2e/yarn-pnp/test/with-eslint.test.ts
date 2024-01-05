@@ -1,5 +1,5 @@
-import { runTests } from './utils'
+import { runTests } from "./utils";
 
-describe('yarn PnP', () => {
-  runTests('with-eslint', '/', ['<html', 'Home', 'fake-script'])
-})
+describe("yarn PnP", () => {
+  runTests("with-eslint", "/", ["<html", "Home", "fake-script"]);
+});

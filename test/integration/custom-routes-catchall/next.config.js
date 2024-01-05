@@ -2,9 +2,9 @@ module.exports = {
   rewrites() {
     return [
       {
-        source: '/docs/:path*',
-        destination: '/:path*',
+        source: "/docs/:path*",
+        destination: "/:path*",
       },
-    ]
+    ];
   },
-}
+};

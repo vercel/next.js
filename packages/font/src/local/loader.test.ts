@@ -1,22 +1,22 @@
-import nextFontLocalFontLoader from './loader'
+import nextFontLocalFontLoader from "./loader";
 
-describe('next/font/local loader', () => {
-  describe('generated CSS', () => {
-    test('Default CSS', async () => {
+describe("next/font/local loader", () => {
+  describe("generated CSS", () => {
+    test("Default CSS", async () => {
       const { css } = await nextFontLocalFontLoader({
-        functionName: '',
-        data: [{ src: './my-font.woff2' }],
-        emitFontFile: () => '/_next/static/media/my-font.woff2',
+        functionName: "",
+        data: [{ src: "./my-font.woff2" }],
+        emitFontFile: () => "/_next/static/media/my-font.woff2",
         resolve: jest.fn(),
         isDev: false,
         isServer: true,
-        variableName: 'myFont',
+        variableName: "myFont",
         loaderContext: {
           fs: {
-            readFile: (_: string, cb: any) => cb(null, 'fontdata'),
+            readFile: (_: string, cb: any) => cb(null, "fontdata"),
           },
         } as any,
-      })
+      });
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
@@ -25,24 +25,24 @@ describe('next/font/local loader', () => {
         font-display: swap;
         }
         "
-      `)
-    })
+      `);
+    });
 
-    test('Weight and style', async () => {
+    test("Weight and style", async () => {
       const { css } = await nextFontLocalFontLoader({
-        functionName: '',
-        data: [{ src: './my-font.woff2', weight: '100 900', style: 'italic' }],
-        emitFontFile: () => '/_next/static/media/my-font.woff2',
+        functionName: "",
+        data: [{ src: "./my-font.woff2", weight: "100 900", style: "italic" }],
+        emitFontFile: () => "/_next/static/media/my-font.woff2",
         resolve: jest.fn(),
         isDev: false,
         isServer: true,
-        variableName: 'myFont',
+        variableName: "myFont",
         loaderContext: {
           fs: {
-            readFile: (_: string, cb: any) => cb(null, 'fontdata'),
+            readFile: (_: string, cb: any) => cb(null, "fontdata"),
           },
         } as any,
-      })
+      });
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
@@ -53,32 +53,32 @@ describe('next/font/local loader', () => {
         font-style: italic;
         }
         "
-      `)
-    })
+      `);
+    });
 
-    test('Other properties', async () => {
+    test("Other properties", async () => {
       const { css } = await nextFontLocalFontLoader({
-        functionName: '',
+        functionName: "",
         data: [
           {
-            src: './my-font.woff2',
+            src: "./my-font.woff2",
             declarations: [
-              { prop: 'font-feature-settings', value: '"smcp" on' },
-              { prop: 'ascent-override', value: '90%' },
+              { prop: "font-feature-settings", value: '"smcp" on' },
+              { prop: "ascent-override", value: "90%" },
             ],
           },
         ],
-        emitFontFile: () => '/_next/static/media/my-font.woff2',
+        emitFontFile: () => "/_next/static/media/my-font.woff2",
         resolve: jest.fn(),
         isDev: false,
         isServer: true,
-        variableName: 'myFont',
+        variableName: "myFont",
         loaderContext: {
           fs: {
-            readFile: (_: string, cb: any) => cb(null, 'fontdata'),
+            readFile: (_: string, cb: any) => cb(null, "fontdata"),
           },
         } as any,
-      })
+      });
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
@@ -89,32 +89,32 @@ describe('next/font/local loader', () => {
         font-display: swap;
         }
         "
-      `)
-    })
+      `);
+    });
 
-    test('Multiple weights default style', async () => {
+    test("Multiple weights default style", async () => {
       const { css } = await nextFontLocalFontLoader({
-        functionName: '',
+        functionName: "",
         data: [
           {
-            style: 'italic',
+            style: "italic",
             src: [
               {
-                path: './fonts/font1.woff2',
-                weight: '100',
+                path: "./fonts/font1.woff2",
+                weight: "100",
               },
               {
-                path: './fonts/font2.woff2',
-                weight: '400',
+                path: "./fonts/font2.woff2",
+                weight: "400",
               },
               {
-                path: './fonts/font3.woff2',
-                weight: '700',
+                path: "./fonts/font3.woff2",
+                weight: "700",
               },
               {
-                path: './fonts/font2.woff2',
-                weight: '400',
-                style: 'normal',
+                path: "./fonts/font2.woff2",
+                weight: "400",
+                style: "normal",
               },
             ],
             adjustFontFallback: false,
@@ -124,13 +124,13 @@ describe('next/font/local loader', () => {
         resolve: jest.fn(),
         isDev: false,
         isServer: true,
-        variableName: 'myFont',
+        variableName: "myFont",
         loaderContext: {
           fs: {
             readFile: (path: string, cb: any) => cb(null, path),
           },
         } as any,
-      })
+      });
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
@@ -165,27 +165,27 @@ describe('next/font/local loader', () => {
         font-style: normal;
         }
         "
-      `)
-    })
+      `);
+    });
 
-    test('Multiple styles default weight', async () => {
+    test("Multiple styles default weight", async () => {
       const { css } = await nextFontLocalFontLoader({
-        functionName: '',
+        functionName: "",
         data: [
           {
-            weight: '400',
+            weight: "400",
             src: [
               {
-                path: './fonts/font1.woff2',
-                style: 'normal',
+                path: "./fonts/font1.woff2",
+                style: "normal",
               },
               {
-                path: './fonts/font3.woff2',
-                style: 'italic',
+                path: "./fonts/font3.woff2",
+                style: "italic",
               },
               {
-                path: './fonts/font2.woff2',
-                weight: '700',
+                path: "./fonts/font2.woff2",
+                weight: "700",
               },
             ],
             adjustFontFallback: false,
@@ -195,13 +195,13 @@ describe('next/font/local loader', () => {
         resolve: jest.fn(),
         isDev: false,
         isServer: true,
-        variableName: 'myFont',
+        variableName: "myFont",
         loaderContext: {
           fs: {
             readFile: (path: string, cb: any) => cb(null, path),
           },
         } as any,
-      })
+      });
 
       expect(css).toMatchInlineSnapshot(`
         "@font-face {
@@ -227,7 +227,7 @@ describe('next/font/local loader', () => {
         font-weight: 700;
         }
         "
-      `)
-    })
-  })
-})
+      `);
+    });
+  });
+});

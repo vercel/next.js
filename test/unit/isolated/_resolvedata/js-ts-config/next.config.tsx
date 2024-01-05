@@ -1,3 +1,3 @@
 module.exports = {
-  __test__ext: 'tsx',
-}
+  __test__ext: "tsx",
+};

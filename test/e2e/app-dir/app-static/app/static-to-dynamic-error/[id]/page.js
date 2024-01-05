@@ -1,8 +1,8 @@
-import { cookies } from 'next/headers'
+import { cookies } from "next/headers";
 
 export default function Page({ params }) {
-  if (params.id.includes('static-bailout')) {
-    console.log('calling cookies', cookies())
+  if (params.id.includes("static-bailout")) {
+    console.log("calling cookies", cookies());
   }
 
   return (
@@ -11,5 +11,5 @@ export default function Page({ params }) {
       <p>id: {params.id}</p>
       <p id="now">{Date.now()}</p>
     </>
-  )
+  );
 }

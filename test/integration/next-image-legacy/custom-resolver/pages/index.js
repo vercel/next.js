@@ -1,14 +1,14 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import Link from 'next/link'
+import React from "react";
+import Image from "next/legacy/image";
+import Link from "next/link";
 
 const myLoader = ({ src, width, quality }) => {
-  return `https://customresolver.com/${src}?w~~${width},q~~${quality}`
-}
+  return `https://customresolver.com/${src}?w~~${width},q~~${quality}`;
+};
 
 const MyImage = (props) => {
-  return <Image loader={myLoader} {...props}></Image>
-}
+  return <Image loader={myLoader} {...props}></Image>;
+};
 
 const Page = () => {
   return (
@@ -34,7 +34,7 @@ const Page = () => {
         Client Side
       </Link>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

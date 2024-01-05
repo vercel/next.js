@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 const Page = () => (
   <>
@@ -43,7 +43,7 @@ const Page = () => (
     <div
       id="trigger-error"
       onClick={() => {
-        throw new Error('oops heres an error')
+        throw new Error("oops heres an error");
       }}
     >
       click me for error
@@ -63,5 +63,5 @@ const Page = () => (
       to something else
     </Link>
   </>
-)
-export default Page
+);
+export default Page;

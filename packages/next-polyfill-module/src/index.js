@@ -13,11 +13,11 @@
  * https://caniuse.com/mdn-javascript_builtins_string_trimstart
  * https://caniuse.com/mdn-javascript_builtins_string_trimend
  */
-if (!('trimStart' in String.prototype)) {
-  String.prototype.trimStart = String.prototype.trimLeft
+if (!("trimStart" in String.prototype)) {
+  String.prototype.trimStart = String.prototype.trimLeft;
 }
-if (!('trimEnd' in String.prototype)) {
-  String.prototype.trimEnd = String.prototype.trimRight
+if (!("trimEnd" in String.prototype)) {
+  String.prototype.trimEnd = String.prototype.trimRight;
 }
 
 /**
@@ -29,14 +29,14 @@ if (!('trimEnd' in String.prototype)) {
  *
  * https://caniuse.com/mdn-javascript_builtins_symbol_description
  */
-if (!('description' in Symbol.prototype)) {
-  Object.defineProperty(Symbol.prototype, 'description', {
+if (!("description" in Symbol.prototype)) {
+  Object.defineProperty(Symbol.prototype, "description", {
     configurable: true,
     get: function get() {
-      var m = /\((.*)\)/.exec(this.toString())
-      return m ? m[1] : undefined
+      var m = /\((.*)\)/.exec(this.toString());
+      return m ? m[1] : undefined;
     },
-  })
+  });
 }
 
 /**
@@ -55,11 +55,11 @@ if (!Array.prototype.flat) {
     return (
       (c = this.concat.apply([], this)),
       d > 1 && c.some(Array.isArray) ? c.flat(d - 1) : c
-    )
-  }
+    );
+  };
   Array.prototype.flatMap = function (c, a) {
-    return this.map(c, a).flat()
-  }
+    return this.map(c, a).flat();
+  };
 }
 
 /**
@@ -75,24 +75,24 @@ if (!Array.prototype.flat) {
 // Licensed Apache-2.0
 if (!Promise.prototype.finally) {
   Promise.prototype.finally = function (callback) {
-    if (typeof callback !== 'function') {
-      return this.then(callback, callback)
+    if (typeof callback !== "function") {
+      return this.then(callback, callback);
     }
 
-    var P = this.constructor || Promise
+    var P = this.constructor || Promise;
     return this.then(
       function (value) {
         return P.resolve(callback()).then(function () {
-          return value
-        })
+          return value;
+        });
       },
       function (err) {
         return P.resolve(callback()).then(function () {
-          throw err
-        })
+          throw err;
+        });
       }
-    )
-  }
+    );
+  };
 }
 
 /**
@@ -113,10 +113,10 @@ if (!Object.fromEntries) {
     return Array.from(iterable).reduce(function (obj, entry) {
       // https://github.com/tc39/proposal-object-from-entries/blob/e4837799c1586a07c101570b27997497e5290c22/polyfill.js#L9-L10
       // contract is that entry has "0" and "1" keys, not that it is an array or iterable.
-      obj[entry[0]] = entry[1]
-      return obj
-    }, {})
-  }
+      obj[entry[0]] = entry[1];
+      return obj;
+    }, {});
+  };
 }
 
 /**
@@ -132,12 +132,12 @@ if (!Object.fromEntries) {
 // Modified from TC39 at proposal polyfill: https://github.com/tc39/proposal-relative-indexing-method#polyfill
 if (!Array.prototype.at) {
   Array.prototype.at = function at(n) {
-    let i = Math.trunc(n) || 0
+    let i = Math.trunc(n) || 0;
 
-    if (i < 0) i += this.length
+    if (i < 0) i += this.length;
 
-    if (i < 0 || i >= this.length) return undefined
+    if (i < 0 || i >= this.length) return undefined;
 
-    return this[i]
-  }
+    return this[i];
+  };
 }

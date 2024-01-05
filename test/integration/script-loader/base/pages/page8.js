@@ -1,8 +1,8 @@
-import Script from 'next/script'
-import Link from 'next/link'
+import Script from "next/script";
+import Link from "next/link";
 
 const url =
-  'https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js'
+  "https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js";
 
 const Page = () => {
   return (
@@ -14,11 +14,11 @@ const Page = () => {
         id="script1"
         onReady={() => {
           // eslint-disable-next-line no-undef
-          document.getElementById('text').textContent += _.repeat('a', 3)
+          document.getElementById("text").textContent += _.repeat("a", 3);
         }}
       ></Script>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

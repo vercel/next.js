@@ -1,6 +1,6 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document'
-import Image from 'next/image'
-import img from '../public/test.jpg'
+import Document, { Html, Head, Main, NextScript } from "next/document";
+import Image from "next/image";
+import img from "../public/test.jpg";
 
 class MyDocument extends Document {
   render() {
@@ -13,8 +13,8 @@ class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }
 
-export default MyDocument
+export default MyDocument;

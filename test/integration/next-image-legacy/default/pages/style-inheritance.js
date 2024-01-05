@@ -1,6 +1,6 @@
-import React from 'react'
-import Image from 'next/legacy/image'
-import style from '../style.module.css'
+import React from "react";
+import Image from "next/legacy/image";
+import style from "../style.module.css";
 
 const Page = () => {
   return (
@@ -22,7 +22,7 @@ const Page = () => {
         height="400"
       />
 
-      <div style={{ position: 'relative', width: '200px', height: '200px' }}>
+      <div style={{ position: "relative", width: "200px", height: "200px" }}>
         <Image id="img-fill" layout="fill" src="/test.jpg" objectFit="cover" />
       </div>
 
@@ -36,7 +36,7 @@ const Page = () => {
 
       <footer>Footer</footer>
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

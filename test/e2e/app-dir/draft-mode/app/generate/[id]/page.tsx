@@ -1,5 +1,5 @@
-import React from 'react'
-import { RouteRefresher } from '../../../components/RouterRefresh'
+import React from "react";
+import { RouteRefresher } from "../../../components/RouterRefresh";
 
 export default async function Page() {
   return (
@@ -7,9 +7,9 @@ export default async function Page() {
       <h1>With generateStaticParams</h1>
       <RouteRefresher />
     </main>
-  )
+  );
 }
 
 export function generateStaticParams() {
-  return [{ id: 'foo' }]
+  return [{ id: "foo" }];
 }

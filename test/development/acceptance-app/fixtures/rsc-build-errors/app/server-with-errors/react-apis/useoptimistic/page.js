@@ -1,7 +1,7 @@
-import { useOptimistic } from 'react'
+import { useOptimistic } from "react";
 
-console.log({ useOptimistic })
+console.log({ useOptimistic });
 
 export default function Page() {
-  return null
+  return null;
 }

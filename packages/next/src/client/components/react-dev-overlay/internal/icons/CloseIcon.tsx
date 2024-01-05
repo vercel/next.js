@@ -1,4 +1,4 @@
-import * as React from 'react'
+import * as React from "react";
 
 const CloseIcon = () => {
   return (
@@ -24,7 +24,7 @@ const CloseIcon = () => {
         strokeLinejoin="round"
       />
     </svg>
-  )
-}
+  );
+};
 
-export { CloseIcon }
+export { CloseIcon };

@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { useRouter } from 'next/navigation'
-import React from 'react'
+import { useRouter } from "next/navigation";
+import React from "react";
 
 export function RouteRefresher() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <button id="refresh" onClick={() => router.refresh()}>
       Refresh
     </button>
-  )
+  );
 }

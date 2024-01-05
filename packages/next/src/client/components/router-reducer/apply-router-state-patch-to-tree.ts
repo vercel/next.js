@@ -1,9 +1,9 @@
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
-import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
-import { matchSegment } from '../match-segments'
+} from "../../../server/app-render/types";
+import { DEFAULT_SEGMENT_KEY } from "../../../shared/lib/segment";
+import { matchSegment } from "../match-segments";
 
 /**
  * Deep merge of the two router states. Parallel route keys are preserved if the patch doesn't have them.
@@ -13,8 +13,8 @@ function applyPatch(
   patchTree: FlightRouterState,
   applyPatchToDefaultSegment: boolean = false
 ): FlightRouterState {
-  const [initialSegment, initialParallelRoutes] = initialTree
-  const [patchSegment, patchParallelRoutes] = patchTree
+  const [initialSegment, initialParallelRoutes] = initialTree;
+  const [patchSegment, patchParallelRoutes] = patchTree;
 
   // if the applied patch segment is __DEFAULT__ then it can be ignored in favor of the initial tree
   // this is because the __DEFAULT__ segment is used as a placeholder on navigation
@@ -25,51 +25,51 @@ function applyPatch(
     patchSegment === DEFAULT_SEGMENT_KEY &&
     initialSegment !== DEFAULT_SEGMENT_KEY
   ) {
-    return initialTree
+    return initialTree;
   }
 
   if (matchSegment(initialSegment, patchSegment)) {
-    const newParallelRoutes: FlightRouterState[1] = {}
+    const newParallelRoutes: FlightRouterState[1] = {};
     for (const key in initialParallelRoutes) {
       const isInPatchTreeParallelRoutes =
-        typeof patchParallelRoutes[key] !== 'undefined'
+        typeof patchParallelRoutes[key] !== "undefined";
       if (isInPatchTreeParallelRoutes) {
         newParallelRoutes[key] = applyPatch(
           initialParallelRoutes[key],
           patchParallelRoutes[key],
           applyPatchToDefaultSegment
-        )
+        );
       } else {
-        newParallelRoutes[key] = initialParallelRoutes[key]
+        newParallelRoutes[key] = initialParallelRoutes[key];
       }
     }
 
     for (const key in patchParallelRoutes) {
       if (newParallelRoutes[key]) {
-        continue
+        continue;
       }
 
-      newParallelRoutes[key] = patchParallelRoutes[key]
+      newParallelRoutes[key] = patchParallelRoutes[key];
     }
 
-    const tree: FlightRouterState = [initialSegment, newParallelRoutes]
+    const tree: FlightRouterState = [initialSegment, newParallelRoutes];
 
     if (initialTree[2]) {
-      tree[2] = initialTree[2]
+      tree[2] = initialTree[2];
     }
 
     if (initialTree[3]) {
-      tree[3] = initialTree[3]
+      tree[3] = initialTree[3];
     }
 
     if (initialTree[4]) {
-      tree[4] = initialTree[4]
+      tree[4] = initialTree[4];
     }
 
-    return tree
+    return tree;
   }
 
-  return patchTree
+  return patchTree;
 }
 
 function applyRouterStatePatchToTreeImpl(
@@ -78,7 +78,7 @@ function applyRouterStatePatchToTreeImpl(
   treePatch: FlightRouterState,
   applyPatchDefaultSegment: boolean = false
 ): FlightRouterState | null {
-  const [segment, parallelRoutes, , , isRootLayout] = flightRouterState
+  const [segment, parallelRoutes, , , isRootLayout] = flightRouterState;
 
   // Root refresh
   if (flightSegmentPath.length === 1) {
@@ -86,37 +86,37 @@ function applyRouterStatePatchToTreeImpl(
       flightRouterState,
       treePatch,
       applyPatchDefaultSegment
-    )
+    );
 
-    return tree
+    return tree;
   }
 
-  const [currentSegment, parallelRouteKey] = flightSegmentPath
+  const [currentSegment, parallelRouteKey] = flightSegmentPath;
 
   // Tree path returned from the server should always match up with the current tree in the browser
   if (!matchSegment(currentSegment, segment)) {
-    return null
+    return null;
   }
 
-  const lastSegment = flightSegmentPath.length === 2
+  const lastSegment = flightSegmentPath.length === 2;
 
-  let parallelRoutePatch
+  let parallelRoutePatch;
   if (lastSegment) {
     parallelRoutePatch = applyPatch(
       parallelRoutes[parallelRouteKey],
       treePatch,
       applyPatchDefaultSegment
-    )
+    );
   } else {
     parallelRoutePatch = applyRouterStatePatchToTreeImpl(
       flightSegmentPath.slice(2),
       parallelRoutes[parallelRouteKey],
       treePatch,
       applyPatchDefaultSegment
-    )
+    );
 
     if (parallelRoutePatch === null) {
-      return null
+      return null;
     }
   }
 
@@ -126,14 +126,14 @@ function applyRouterStatePatchToTreeImpl(
       ...parallelRoutes,
       [parallelRouteKey]: parallelRoutePatch,
     },
-  ]
+  ];
 
   // Current segment is the root layout
   if (isRootLayout) {
-    tree[4] = true
+    tree[4] = true;
   }
 
-  return tree
+  return tree;
 }
 
 /**
@@ -151,7 +151,7 @@ export function applyRouterStatePatchToFullTree(
     flightRouterState,
     treePatch,
     true
-  )
+  );
 }
 
 /**
@@ -169,5 +169,5 @@ export function applyRouterStatePatchToTreeSkipDefault(
     flightRouterState,
     treePatch,
     false
-  )
+  );
 }

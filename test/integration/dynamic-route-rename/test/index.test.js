@@ -1,51 +1,51 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
-import { join } from 'path'
+import fs from "fs-extra";
+import { join } from "path";
 import {
   renderViaHTTP,
   launchApp,
   findPort,
   killApp,
   waitFor,
-} from 'next-test-utils'
+} from "next-test-utils";
 
-let app
-let appPort
-let stderr = ''
+let app;
+let appPort;
+let stderr = "";
 
-const appDir = join(__dirname, '../')
-const pageFile = join(appDir, 'pages/[pid].js')
-const pageFileAlt = join(appDir, 'pages/[PiD].js')
+const appDir = join(__dirname, "../");
+const pageFile = join(appDir, "pages/[pid].js");
+const pageFileAlt = join(appDir, "pages/[PiD].js");
 
-describe('Dynamic route rename casing', () => {
+describe("Dynamic route rename casing", () => {
   beforeAll(async () => {
-    appPort = await findPort()
+    appPort = await findPort();
     app = await launchApp(appDir, appPort, {
       onStderr(msg) {
-        stderr += msg || ''
+        stderr += msg || "";
       },
-    })
-  })
-  afterAll(() => killApp(app))
+    });
+  });
+  afterAll(() => killApp(app));
 
-  it('should not throw error when changing casing of dynamic route file', async () => {
+  it("should not throw error when changing casing of dynamic route file", async () => {
     // make sure route is loaded in webpack
-    const html = await renderViaHTTP(appPort, '/abc')
-    expect(html).toContain('hi')
+    const html = await renderViaHTTP(appPort, "/abc");
+    expect(html).toContain("hi");
 
-    await fs.rename(pageFile, pageFileAlt)
-    await waitFor(2000)
-
-    expect(stderr).not.toContain(
-      `You cannot use different slug names for the same dynamic path`
-    )
-
-    await fs.rename(pageFileAlt, pageFile)
-    await waitFor(2000)
+    await fs.rename(pageFile, pageFileAlt);
+    await waitFor(2000);
 
     expect(stderr).not.toContain(
       `You cannot use different slug names for the same dynamic path`
-    )
-  })
-})
+    );
+
+    await fs.rename(pageFileAlt, pageFile);
+    await waitFor(2000);
+
+    expect(stderr).not.toContain(
+      `You cannot use different slug names for the same dynamic path`
+    );
+  });
+});

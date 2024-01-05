@@ -1,4 +1,4 @@
-import './style.css'
+import "./style.css";
 
 export default function Parallel({ foo, bar, children }) {
   return (
@@ -14,5 +14,5 @@ export default function Parallel({ foo, bar, children }) {
         {children}
       </div>
     </div>
-  )
+  );
 }

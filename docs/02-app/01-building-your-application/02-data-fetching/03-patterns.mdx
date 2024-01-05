@@ -69,7 +69,7 @@ For example, the `Playlists` component will only start fetching data once the `A
 
 async function Playlists({ artistID }: { artistID: string }) {
   // Wait for the playlists
-  const playlists = await getArtistPlaylists(artistID)
+  const playlists = await getArtistPlaylists(artistID);
 
   return (
     <ul>
@@ -77,16 +77,16 @@ async function Playlists({ artistID }: { artistID: string }) {
         <li key={playlist.id}>{playlist.name}</li>
       ))}
     </ul>
-  )
+  );
 }
 
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: { username: string };
 }) {
   // Wait for the artist
-  const artist = await getArtist(username)
+  const artist = await getArtist(username);
 
   return (
     <>
@@ -95,7 +95,7 @@ export default async function Page({
         <Playlists artistID={artist.id} />
       </Suspense>
     </>
-  )
+  );
 }
 ```
 
@@ -104,7 +104,7 @@ export default async function Page({
 
 async function Playlists({ artistID }) {
   // Wait for the playlists
-  const playlists = await getArtistPlaylists(artistID)
+  const playlists = await getArtistPlaylists(artistID);
 
   return (
     <ul>
@@ -112,12 +112,12 @@ async function Playlists({ artistID }) {
         <li key={playlist.id}>{playlist.name}</li>
       ))}
     </ul>
-  )
+  );
 }
 
 export default async function Page({ params: { username } }) {
   // Wait for the artist
-  const artist = await getArtist(username)
+  const artist = await getArtist(username);
 
   return (
     <>
@@ -126,7 +126,7 @@ export default async function Page({ params: { username } }) {
         <Playlists artistID={artist.id} />
       </Suspense>
     </>
-  )
+  );
 }
 ```
 
@@ -147,66 +147,66 @@ To fetch data in parallel, you can eagerly initiate requests by defining them ou
 In the example below, the `getArtist` and `getArtistAlbums` functions are defined outside the `Page` component, then called inside the component, and we wait for both promises to resolve:
 
 ```tsx filename="app/artist/[username]/page.tsx" switcher
-import Albums from './albums'
+import Albums from "./albums";
 
 async function getArtist(username: string) {
-  const res = await fetch(`https://api.example.com/artist/${username}`)
-  return res.json()
+  const res = await fetch(`https://api.example.com/artist/${username}`);
+  return res.json();
 }
 
 async function getArtistAlbums(username: string) {
-  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
-  return res.json()
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`);
+  return res.json();
 }
 
 export default async function Page({
   params: { username },
 }: {
-  params: { username: string }
+  params: { username: string };
 }) {
   // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumsData = getArtistAlbums(username)
+  const artistData = getArtist(username);
+  const albumsData = getArtistAlbums(username);
 
   // Wait for the promises to resolve
-  const [artist, albums] = await Promise.all([artistData, albumsData])
+  const [artist, albums] = await Promise.all([artistData, albumsData]);
 
   return (
     <>
       <h1>{artist.name}</h1>
       <Albums list={albums}></Albums>
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/artist/[username]/page.js" switcher
-import Albums from './albums'
+import Albums from "./albums";
 
 async function getArtist(username) {
-  const res = await fetch(`https://api.example.com/artist/${username}`)
-  return res.json()
+  const res = await fetch(`https://api.example.com/artist/${username}`);
+  return res.json();
 }
 
 async function getArtistAlbums(username) {
-  const res = await fetch(`https://api.example.com/artist/${username}/albums`)
-  return res.json()
+  const res = await fetch(`https://api.example.com/artist/${username}/albums`);
+  return res.json();
 }
 
 export default async function Page({ params: { username } }) {
   // Initiate both requests in parallel
-  const artistData = getArtist(username)
-  const albumsData = getArtistAlbums(username)
+  const artistData = getArtist(username);
+  const albumsData = getArtistAlbums(username);
 
   // Wait for the promises to resolve
-  const [artist, albums] = await Promise.all([artistData, albumsData])
+  const [artist, albums] = await Promise.all([artistData, albumsData]);
 
   return (
     <>
       <h1>{artist.name}</h1>
       <Albums list={albums}></Albums>
     </>
-  )
+  );
 }
 ```
 
@@ -217,60 +217,60 @@ To improve the user experience, you can add a [Suspense Boundary](/docs/app/buil
 Another way to prevent waterfalls is to use the preload pattern. You can optionally create a `preload` function to further optimize parallel data fetching. With this approach, you don't have to pass promises down as props. The `preload` function can also have any name as it's a pattern, not an API.
 
 ```tsx filename="components/Item.tsx" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
 export const preload = (id: string) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
+  void getItem(id);
+};
 export default async function Item({ id }: { id: string }) {
-  const result = await getItem(id)
+  const result = await getItem(id);
   // ...
 }
 ```
 
 ```jsx filename="components/Item.js" switcher
-import { getItem } from '@/utils/get-item'
+import { getItem } from "@/utils/get-item";
 
 export const preload = (id) => {
   // void evaluates the given expression and returns undefined
   // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Operators/void
-  void getItem(id)
-}
+  void getItem(id);
+};
 export default async function Item({ id }) {
-  const result = await getItem(id)
+  const result = await getItem(id);
   // ...
 }
 ```
 
 ```tsx filename="app/item/[id]/page.tsx" switcher
-import Item, { preload, checkIsAvailable } from '@/components/Item'
+import Item, { preload, checkIsAvailable } from "@/components/Item";
 
 export default async function Page({
   params: { id },
 }: {
-  params: { id: string }
+  params: { id: string };
 }) {
   // starting loading item data
-  preload(id)
+  preload(id);
   // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
+  const isAvailable = await checkIsAvailable();
 
-  return isAvailable ? <Item id={id} /> : null
+  return isAvailable ? <Item id={id} /> : null;
 }
 ```
 
 ```jsx filename="app/item/[id]/page.js" switcher
-import Item, { preload, checkIsAvailable } from '@/components/Item'
+import Item, { preload, checkIsAvailable } from "@/components/Item";
 
 export default async function Page({ params: { id } }) {
   // starting loading item data
-  preload(id)
+  preload(id);
   // perform another asynchronous task
-  const isAvailable = await checkIsAvailable()
+  const isAvailable = await checkIsAvailable();
 
-  return isAvailable ? <Item id={id} /> : null
+  return isAvailable ? <Item id={id} /> : null;
 }
 ```
 
@@ -279,29 +279,29 @@ export default async function Page({ params: { id } }) {
 You can combine the `cache` function, the `preload` pattern, and the `server-only` package to create a data fetching utility that can be used throughout your app.
 
 ```ts filename="utils/get-item.ts" switcher
-import { cache } from 'react'
-import 'server-only'
+import { cache } from "react";
+import "server-only";
 
 export const preload = (id: string) => {
-  void getItem(id)
-}
+  void getItem(id);
+};
 
 export const getItem = cache(async (id: string) => {
   // ...
-})
+});
 ```
 
 ```js filename="utils/get-item.js" switcher
-import { cache } from 'react'
-import 'server-only'
+import { cache } from "react";
+import "server-only";
 
 export const preload = (id) => {
-  void getItem(id)
-}
+  void getItem(id);
+};
 
 export const getItem = cache(async (id) => {
   // ...
-})
+});
 ```
 
 With this approach, you can eagerly fetch data, cache responses, and guarantee that this data fetching [only happens on the server](/docs/app/building-your-application/rendering/composition-patterns#keeping-server-only-code-out-of-the-client-environment).
@@ -323,80 +323,80 @@ module.exports = {
   experimental: {
     taint: true,
   },
-}
+};
 ```
 
 Then pass the object or value you want to taint to the `experimental_taintObjectReference` or `experimental_taintUniqueValue` functions:
 
 ```ts filename="app/utils.ts" switcher
-import { queryDataFromDB } from './api'
+import { queryDataFromDB } from "./api";
 import {
   experimental_taintObjectReference,
   experimental_taintUniqueValue,
-} from 'react'
+} from "react";
 
 export async function getUserData() {
-  const data = await queryDataFromDB()
+  const data = await queryDataFromDB();
   experimental_taintObjectReference(
-    'Do not pass the whole user object to the client',
+    "Do not pass the whole user object to the client",
     data
-  )
+  );
   experimental_taintUniqueValue(
     "Do not pass the user's phone number to the client",
     data,
     data.phoneNumber
-  )
-  return data
+  );
+  return data;
 }
 ```
 
 ```js filename="app/utils.js" switcher
-import { queryDataFromDB } from './api'
+import { queryDataFromDB } from "./api";
 import {
   experimental_taintObjectReference,
   experimental_taintUniqueValue,
-} from 'react'
+} from "react";
 
 export async function getUserData() {
-  const data = await queryDataFromDB()
+  const data = await queryDataFromDB();
   experimental_taintObjectReference(
-    'Do not pass the whole user object to the client',
+    "Do not pass the whole user object to the client",
     data
-  )
+  );
   experimental_taintUniqueValue(
     "Do not pass the user's phone number to the client",
     data,
     data.phoneNumber
-  )
-  return data
+  );
+  return data;
 }
 ```
 
 ```tsx filename="app/page.tsx" switcher
-import { getUserData } from './data'
+import { getUserData } from "./data";
 
 export async function Page() {
-  const userData = getUserData()
+  const userData = getUserData();
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
       phoneNumber={userData.phoneNumber} // this will cause an error because of taintUniqueValue
     />
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import { getUserData } from './data'
+import { getUserData } from "./data";
 
 export async function Page() {
-  const userData = getUserData()
+  const userData = getUserData();
   return (
     <ClientComponent
       user={userData} // this will cause an error because of taintObjectReference
       phoneNumber={userData.phoneNumber} // this will cause an error because of taintUniqueValue
     />
-  )
+  );
 }
 ```
 

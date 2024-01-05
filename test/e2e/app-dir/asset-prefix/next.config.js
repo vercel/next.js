@@ -1,8 +1,8 @@
 module.exports = {
-  assetPrefix: '/assets',
+  assetPrefix: "/assets",
   rewrites() {
     return {
-      beforeFiles: [{ source: '/assets/:path*', destination: '/:path*' }],
-    }
+      beforeFiles: [{ source: "/assets/:path*", destination: "/:path*" }],
+    };
   },
-}
+};

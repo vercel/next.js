@@ -1,11 +1,11 @@
-import React from 'react'
+import React from "react";
 
 export default function Root({
   children,
   slot,
 }: {
-  children: React.ReactNode
-  slot: React.ReactNode
+  children: React.ReactNode;
+  slot: React.ReactNode;
 }) {
   return (
     <html>
@@ -14,5 +14,5 @@ export default function Root({
         <div id="slot">{slot}</div>
       </body>
     </html>
-  )
+  );
 }

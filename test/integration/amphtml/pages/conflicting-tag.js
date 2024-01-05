@@ -1,6 +1,6 @@
-import Head from 'next/head'
+import Head from "next/head";
 
-export const config = { amp: true }
+export const config = { amp: true };
 
 export default () => (
   <amp-layout className="abc" layout="responsive" width="1" height="1">
@@ -9,4 +9,4 @@ export default () => (
     </Head>
     <span>Hello World</span>
   </amp-layout>
-)
+);

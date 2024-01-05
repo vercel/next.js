@@ -1,8 +1,8 @@
-import React from 'react'
-import RequiredByApp from '../requiredByApp'
-import sideEffect from '../sideEffectModule'
+import React from "react";
+import RequiredByApp from "../requiredByApp";
+import sideEffect from "../sideEffectModule";
 
-sideEffect('_app')
+sideEffect("_app");
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -10,7 +10,7 @@ function MyApp({ Component, pageProps }) {
       <RequiredByApp />
       <Component {...pageProps} />
     </React.Fragment>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

@@ -8,41 +8,41 @@ description: API Reference for the useSearchParams hook.
 `useSearchParams` returns a **read-only** version of the [`URLSearchParams`](https://developer.mozilla.org/docs/Web/API/URLSearchParams) interface.
 
 ```tsx filename="app/dashboard/search-bar.tsx" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // URL -> `/dashboard?search=my-project`
   // `search` -> 'my-project'
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ```jsx filename="app/dashboard/search-bar.js" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // URL -> `/dashboard?search=my-project`
   // `search` -> 'my-project'
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ## Parameters
 
 ```tsx
-const searchParams = useSearchParams()
+const searchParams = useSearchParams();
 ```
 
 `useSearchParams` does not take any parameters.
@@ -85,49 +85,49 @@ This allows a part of the page to be statically rendered while the dynamic part 
 You can reduce the portion of the route that is client-side rendered by wrapping the component that uses `useSearchParams` in a `Suspense` boundary. For example:
 
 ```tsx filename="app/dashboard/search-bar.tsx" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // This will not be logged on the server when using static rendering
-  console.log(search)
+  console.log(search);
 
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ```jsx filename="app/dashboard/search-bar.js" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // This will not be logged on the server when using static rendering
-  console.log(search)
+  console.log(search);
 
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ```tsx filename="app/dashboard/page.tsx" switcher
-import { Suspense } from 'react'
-import SearchBar from './search-bar'
+import { Suspense } from "react";
+import SearchBar from "./search-bar";
 
 // This component passed as a fallback to the Suspense boundary
 // will be rendered in place of the search bar in the initial HTML.
 // When the value is available during React hydration the fallback
 // will be replaced with the `<SearchBar>` component.
 function SearchBarFallback() {
-  return <>placeholder</>
+  return <>placeholder</>;
 }
 
 export default function Page() {
@@ -140,20 +140,20 @@ export default function Page() {
       </nav>
       <h1>Dashboard</h1>
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/dashboard/page.js" switcher
-import { Suspense } from 'react'
-import SearchBar from './search-bar'
+import { Suspense } from "react";
+import SearchBar from "./search-bar";
 
 // This component passed as a fallback to the Suspense boundary
 // will be rendered in place of the search bar in the initial HTML.
 // When the value is available during React hydration the fallback
 // will be replaced with the `<SearchBar>` component.
 function SearchBarFallback() {
-  return <>placeholder</>
+  return <>placeholder</>;
 }
 
 export default function Page() {
@@ -166,7 +166,7 @@ export default function Page() {
       </nav>
       <h1>Dashboard</h1>
     </>
-  )
+  );
 }
 ```
 
@@ -179,45 +179,45 @@ If a route is [dynamically rendered](/docs/app/building-your-application/renderi
 For example:
 
 ```tsx filename="app/dashboard/search-bar.tsx" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // This will be logged on the server during the initial render
   // and on the client on subsequent navigations.
-  console.log(search)
+  console.log(search);
 
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ```jsx filename="app/dashboard/search-bar.js" switcher
-'use client'
+"use client";
 
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams } from "next/navigation";
 
 export default function SearchBar() {
-  const searchParams = useSearchParams()
+  const searchParams = useSearchParams();
 
-  const search = searchParams.get('search')
+  const search = searchParams.get("search");
 
   // This will be logged on the server during the initial render
   // and on the client on subsequent navigations.
-  console.log(search)
+  console.log(search);
 
-  return <>Search: {search}</>
+  return <>Search: {search}</>;
 }
 ```
 
 ```tsx filename="app/dashboard/page.tsx" switcher
-import SearchBar from './search-bar'
+import SearchBar from "./search-bar";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default function Page() {
   return (
@@ -227,14 +227,14 @@ export default function Page() {
       </nav>
       <h1>Dashboard</h1>
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/dashboard/page.js" switcher
-import SearchBar from './search-bar'
+import SearchBar from "./search-bar";
 
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic";
 
 export default function Page() {
   return (
@@ -244,7 +244,7 @@ export default function Page() {
       </nav>
       <h1>Dashboard</h1>
     </>
-  )
+  );
 }
 ```
 
@@ -268,21 +268,21 @@ You can use [`useRouter`](/docs/app/api-reference/functions/use-router) or [`Lin
 
 ```tsx filename="app/example-client-component.tsx" switcher
 export default function ExampleClientComponent() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()!
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams()!;
 
   // Get a new searchParams string by merging the current
   // searchParams with a provided key/value pair
   const createQueryString = useCallback(
     (name: string, value: string) => {
-      const params = new URLSearchParams(searchParams)
-      params.set(name, value)
+      const params = new URLSearchParams(searchParams);
+      params.set(name, value);
 
-      return params.toString()
+      return params.toString();
     },
     [searchParams]
-  )
+  );
 
   return (
     <>
@@ -292,7 +292,7 @@ export default function ExampleClientComponent() {
       <button
         onClick={() => {
           // <pathname>?sort=asc
-          router.push(pathname + '?' + createQueryString('sort', 'asc'))
+          router.push(pathname + "?" + createQueryString("sort", "asc"));
         }}
       >
         ASC
@@ -302,33 +302,33 @@ export default function ExampleClientComponent() {
       <Link
         href={
           // <pathname>?sort=desc
-          pathname + '?' + createQueryString('sort', 'desc')
+          pathname + "?" + createQueryString("sort", "desc")
         }
       >
         DESC
       </Link>
     </>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
 export default function ExampleClientComponent() {
-  const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   // Get a new searchParams string by merging the current
   // searchParams with a provided key/value pair
   const createQueryString = useCallback(
     (name, value) => {
-      const params = new URLSearchParams(searchParams)
-      params.set(name, value)
+      const params = new URLSearchParams(searchParams);
+      params.set(name, value);
 
-      return params.toString()
+      return params.toString();
     },
     [searchParams]
-  )
+  );
 
   return (
     <>
@@ -338,7 +338,7 @@ export default function ExampleClientComponent() {
       <button
         onClick={() => {
           // <pathname>?sort=asc
-          router.push(pathname + '?' + createQueryString('sort', 'asc'))
+          router.push(pathname + "?" + createQueryString("sort", "asc"));
         }}
       >
         ASC
@@ -348,13 +348,13 @@ export default function ExampleClientComponent() {
       <Link
         href={
           // <pathname>?sort=desc
-          pathname + '?' + createQueryString('sort', 'desc')
+          pathname + "?" + createQueryString("sort", "desc")
         }
       >
         DESC
       </Link>
     </>
-  )
+  );
 }
 ```
 

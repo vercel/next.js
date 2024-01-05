@@ -18,4 +18,4 @@ export default () => (
       }
     `}</style>
   </div>
-)
+);

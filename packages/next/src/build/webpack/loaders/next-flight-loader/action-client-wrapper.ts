@@ -1,7 +1,7 @@
 // This file must be bundled in the app's client layer, it shouldn't be directly
 // imported by the server.
 
-import { callServer } from 'next/dist/client/app-call-server'
+import { callServer } from "next/dist/client/app-call-server";
 
 // A noop wrapper to let the Flight client create the server reference.
 // See also: https://github.com/facebook/react/pull/26632
@@ -13,10 +13,10 @@ export function createServerReference(id: string) {
   const { createServerReference: createServerReferenceImpl } = (
     !!process.env.NEXT_RUNTIME
       ? // eslint-disable-next-line import/no-extraneous-dependencies
-        require('react-server-dom-webpack/client.edge')
+        require("react-server-dom-webpack/client.edge")
       : // eslint-disable-next-line import/no-extraneous-dependencies
-        require('react-server-dom-webpack/client')
-  ) as typeof import('react-server-dom-webpack/client')
+        require("react-server-dom-webpack/client")
+  ) as typeof import("react-server-dom-webpack/client");
 
-  return createServerReferenceImpl(id, callServer)
+  return createServerReferenceImpl(id, callServer);
 }

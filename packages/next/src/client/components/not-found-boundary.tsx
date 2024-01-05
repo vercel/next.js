@@ -1,26 +1,26 @@
-'use client'
+"use client";
 
-import React, { useContext } from 'react'
-import { usePathname } from './navigation'
-import { isNotFoundError } from './not-found'
-import { warnOnce } from '../../shared/lib/utils/warn-once'
-import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
+import React, { useContext } from "react";
+import { usePathname } from "./navigation";
+import { isNotFoundError } from "./not-found";
+import { warnOnce } from "../../shared/lib/utils/warn-once";
+import { MissingSlotContext } from "../../shared/lib/app-router-context.shared-runtime";
 
 interface NotFoundBoundaryProps {
-  notFound?: React.ReactNode
-  notFoundStyles?: React.ReactNode
-  asNotFound?: boolean
-  children: React.ReactNode
+  notFound?: React.ReactNode;
+  notFoundStyles?: React.ReactNode;
+  asNotFound?: boolean;
+  children: React.ReactNode;
 }
 
 interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
-  pathname: string
-  missingSlots: Set<string>
+  pathname: string;
+  missingSlots: Set<string>;
 }
 
 interface NotFoundErrorBoundaryState {
-  notFoundTriggered: boolean
-  previousPathname: string
+  notFoundTriggered: boolean;
+  previousPathname: string;
 }
 
 class NotFoundErrorBoundary extends React.Component<
@@ -28,33 +28,33 @@ class NotFoundErrorBoundary extends React.Component<
   NotFoundErrorBoundaryState
 > {
   constructor(props: NotFoundErrorBoundaryProps) {
-    super(props)
+    super(props);
     this.state = {
       notFoundTriggered: !!props.asNotFound,
       previousPathname: props.pathname,
-    }
+    };
   }
 
   componentDidCatch(): void {
     if (
-      process.env.NODE_ENV === 'development' &&
+      process.env.NODE_ENV === "development" &&
       // A missing children slot is the typical not-found case, so no need to warn
-      !this.props.missingSlots.has('children')
+      !this.props.missingSlots.has("children")
     ) {
       let warningMessage =
-        'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
-        'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
+        "No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n" +
+        "Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n";
 
       if (this.props.missingSlots.size > 0) {
         const formattedSlots = Array.from(this.props.missingSlots)
           .sort((a, b) => a.localeCompare(b))
           .map((slot) => `@${slot}`)
-          .join(', ')
+          .join(", ");
 
-        warningMessage += 'Missing slots: ' + formattedSlots
+        warningMessage += "Missing slots: " + formattedSlots;
       }
 
-      warnOnce(warningMessage)
+      warnOnce(warningMessage);
     }
   }
 
@@ -62,10 +62,10 @@ class NotFoundErrorBoundary extends React.Component<
     if (isNotFoundError(error)) {
       return {
         notFoundTriggered: true,
-      }
+      };
     }
     // Re-throw if error is not for 404
-    throw error
+    throw error;
   }
 
   static getDerivedStateFromProps(
@@ -82,12 +82,12 @@ class NotFoundErrorBoundary extends React.Component<
       return {
         notFoundTriggered: false,
         previousPathname: props.pathname,
-      }
+      };
     }
     return {
       notFoundTriggered: state.notFoundTriggered,
       previousPathname: props.pathname,
-    }
+    };
   }
 
   render() {
@@ -95,16 +95,16 @@ class NotFoundErrorBoundary extends React.Component<
       return (
         <>
           <meta name="robots" content="noindex" />
-          {process.env.NODE_ENV === 'development' && (
+          {process.env.NODE_ENV === "development" && (
             <meta name="next-error" content="not-found" />
           )}
           {this.props.notFoundStyles}
           {this.props.notFound}
         </>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }
 
@@ -114,8 +114,8 @@ export function NotFoundBoundary({
   asNotFound,
   children,
 }: NotFoundBoundaryProps) {
-  const pathname = usePathname()
-  const missingSlots = useContext(MissingSlotContext)
+  const pathname = usePathname();
+  const missingSlots = useContext(MissingSlotContext);
   return notFound ? (
     <NotFoundErrorBoundary
       pathname={pathname}
@@ -128,5 +128,5 @@ export function NotFoundBoundary({
     </NotFoundErrorBoundary>
   ) : (
     <>{children}</>
-  )
+  );
 }

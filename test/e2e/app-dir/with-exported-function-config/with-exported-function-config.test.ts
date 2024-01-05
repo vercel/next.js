@@ -1,16 +1,16 @@
-import { createNextDescribe } from 'e2e-utils'
+import { createNextDescribe } from "e2e-utils";
 
 createNextDescribe(
-  'with-exported-function-config',
+  "with-exported-function-config",
   {
     files: __dirname,
   },
   ({ next, isNextStart }) => {
-    it('should have correct values in function config manifest', async () => {
+    it("should have correct values in function config manifest", async () => {
       if (isNextStart) {
         const functionsConfigManifest = JSON.parse(
-          await next.readFile('.next/server/functions-config-manifest.json')
-        )
+          await next.readFile(".next/server/functions-config-manifest.json")
+        );
 
         expect(functionsConfigManifest).toMatchInlineSnapshot(`
           {
@@ -39,8 +39,8 @@ createNextDescribe(
             },
             "version": 1,
           }
-        `)
+        `);
       }
-    })
+    });
   }
-)
+);

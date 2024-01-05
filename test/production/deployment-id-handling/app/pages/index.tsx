@@ -1,6 +1,6 @@
-import testImage from '../public/test.jpg'
-import Image from 'next/image'
-import styles from './styles.module.css'
+import testImage from "../public/test.jpg";
+import Image from "next/image";
+import styles from "./styles.module.css";
 
 export default function Page() {
   return (
@@ -11,14 +11,14 @@ export default function Page() {
 
       <button
         onClick={() => {
-          import('../data').then((mod) => {
-            console.log('loaded data', mod)
-          })
+          import("../data").then((mod) => {
+            console.log("loaded data", mod);
+          });
         }}
         id="dynamic-import"
       >
         click me
       </button>
     </>
-  )
+  );
 }

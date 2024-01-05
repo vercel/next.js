@@ -1,5 +1,5 @@
 ---
-title: '`getInitialProps` was defined as an instance method'
+title: "`getInitialProps` was defined as an instance method"
 ---
 
 ## Why This Error Occurred
@@ -13,11 +13,11 @@ Use the static keyword.
 ```js filename="pages/example.js"
 export default class YourEntryComponent extends React.Component {
   static getInitialProps() {
-    return {}
+    return {};
   }
 
   render() {
-    return 'foo'
+    return "foo";
   }
 }
 ```
@@ -26,14 +26,14 @@ or
 
 ```js filename="pages/example.js"
 const YourEntryComponent = function () {
-  return 'foo'
-}
+  return "foo";
+};
 
 YourEntryComponent.getInitialProps = () => {
-  return {}
-}
+  return {};
+};
 
-export default YourEntryComponent
+export default YourEntryComponent;
 ```
 
 ## Useful Links

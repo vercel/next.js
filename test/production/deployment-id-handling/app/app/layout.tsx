@@ -1,9 +1,9 @@
-import { Inter } from 'next/font/google'
-import '../global.css'
+import { Inter } from "next/font/google";
+import "../global.css";
 
 const interFont = Inter({
-  subsets: ['latin'],
-})
+  subsets: ["latin"],
+});
 
 export default function Layout({ children }) {
   return (
@@ -11,5 +11,5 @@ export default function Layout({ children }) {
       <head />
       <body className={interFont.className}>{children}</body>
     </html>
-  )
+  );
 }

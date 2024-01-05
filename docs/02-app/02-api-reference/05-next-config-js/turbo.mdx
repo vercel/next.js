@@ -20,29 +20,29 @@ module.exports = {
     turbo: {
       rules: {
         // Option format
-        '*.md': [
+        "*.md": [
           {
-            loader: '@mdx-js/loader',
+            loader: "@mdx-js/loader",
             options: {
-              format: 'md',
+              format: "md",
             },
           },
         ],
         // Option-less format
-        '*.mdx': ['@mdx-js/loader'],
+        "*.mdx": ["@mdx-js/loader"],
       },
     },
   },
-}
+};
 ```
 
 Then, given the above configuration, you can use transformed code from your app:
 
 ```js
-import MyDoc from './my-doc.mdx'
+import MyDoc from "./my-doc.mdx";
 
 export default function Home() {
-  return <MyDoc />
+  return <MyDoc />;
 }
 ```
 
@@ -57,12 +57,12 @@ module.exports = {
   experimental: {
     turbo: {
       resolveAlias: {
-        underscore: 'lodash',
-        mocha: { browser: 'mocha/browser-entry.js' },
+        underscore: "lodash",
+        mocha: { browser: "mocha/browser-entry.js" },
       },
     },
   },
-}
+};
 ```
 
 This aliases imports of the `underscore` package to the `lodash` package. In other words, `import underscore from 'underscore'` will load the `lodash` module instead of `underscore`.

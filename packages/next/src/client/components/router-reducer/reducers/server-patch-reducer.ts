@@ -1,56 +1,56 @@
-import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
-import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
+import { createHrefFromUrl } from "../create-href-from-url";
+import { applyRouterStatePatchToTreeSkipDefault } from "../apply-router-state-patch-to-tree";
+import { isNavigatingToNewRootLayout } from "../is-navigating-to-new-root-layout";
 import type {
   ServerPatchAction,
   ReducerState,
   ReadonlyReducerState,
   Mutable,
-} from '../router-reducer-types'
-import { handleExternalUrl } from './navigate-reducer'
-import { applyFlightData } from '../apply-flight-data'
-import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createEmptyCacheNode } from '../../app-router'
-import { handleSegmentMismatch } from '../handle-segment-mismatch'
+} from "../router-reducer-types";
+import { handleExternalUrl } from "./navigate-reducer";
+import { applyFlightData } from "../apply-flight-data";
+import { handleMutable } from "../handle-mutable";
+import type { CacheNode } from "../../../../shared/lib/app-router-context.shared-runtime";
+import { createEmptyCacheNode } from "../../app-router";
+import { handleSegmentMismatch } from "../handle-segment-mismatch";
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, overrideCanonicalUrl } = action
+  const { flightData, overrideCanonicalUrl } = action;
 
-  const mutable: Mutable = {}
+  const mutable: Mutable = {};
 
-  mutable.preserveCustomHistoryState = false
+  mutable.preserveCustomHistoryState = false;
 
   // Handle case when navigating to page in `pages` from `app`
-  if (typeof flightData === 'string') {
+  if (typeof flightData === "string") {
     return handleExternalUrl(
       state,
       mutable,
       flightData,
       state.pushRef.pendingPush
-    )
+    );
   }
 
-  let currentTree = state.tree
-  let currentCache = state.cache
+  let currentTree = state.tree;
+  let currentCache = state.cache;
 
   for (const flightDataPath of flightData) {
     // Slices off the last segment (which is at -4) as it doesn't exist in the tree yet
-    const flightSegmentPath = flightDataPath.slice(0, -4)
+    const flightSegmentPath = flightDataPath.slice(0, -4);
 
-    const [treePatch] = flightDataPath.slice(-3, -2)
+    const [treePatch] = flightDataPath.slice(-3, -2);
     const newTree = applyRouterStatePatchToTreeSkipDefault(
       // TODO-APP: remove ''
-      ['', ...flightSegmentPath],
+      ["", ...flightSegmentPath],
       currentTree,
       treePatch
-    )
+    );
 
     if (newTree === null) {
-      return handleSegmentMismatch(state, action, treePatch)
+      return handleSegmentMismatch(state, action, treePatch);
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -59,26 +59,26 @@ export function serverPatchReducer(
         mutable,
         state.canonicalUrl,
         state.pushRef.pendingPush
-      )
+      );
     }
 
     const canonicalUrlOverrideHref = overrideCanonicalUrl
       ? createHrefFromUrl(overrideCanonicalUrl)
-      : undefined
+      : undefined;
 
     if (canonicalUrlOverrideHref) {
-      mutable.canonicalUrl = canonicalUrlOverrideHref
+      mutable.canonicalUrl = canonicalUrlOverrideHref;
     }
 
-    const cache: CacheNode = createEmptyCacheNode()
-    applyFlightData(currentCache, cache, flightDataPath)
+    const cache: CacheNode = createEmptyCacheNode();
+    applyFlightData(currentCache, cache, flightDataPath);
 
-    mutable.patchedTree = newTree
-    mutable.cache = cache
+    mutable.patchedTree = newTree;
+    mutable.cache = cache;
 
-    currentCache = cache
-    currentTree = newTree
+    currentCache = cache;
+    currentTree = newTree;
   }
 
-  return handleMutable(state, mutable)
+  return handleMutable(state, mutable);
 }

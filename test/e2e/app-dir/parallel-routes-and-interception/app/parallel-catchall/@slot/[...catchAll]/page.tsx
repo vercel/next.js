@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'slot catchall'
+  return "slot catchall";
 }

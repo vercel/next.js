@@ -6,43 +6,43 @@ description: API Reference for the useParams hook.
 `useParams` is a **Client Component** hook that lets you read a route's [dynamic params](/docs/app/building-your-application/routing/dynamic-routes) filled in by the current URL.
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { useParams } from 'next/navigation'
+import { useParams } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const params = useParams<{ tag: string; item: string }>()
+  const params = useParams<{ tag: string; item: string }>();
 
   // Route -> /shop/[tag]/[item]
   // URL -> /shop/shoes/nike-air-max-97
   // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  console.log(params)
+  console.log(params);
 
-  return <></>
+  return <></>;
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
-'use client'
+"use client";
 
-import { useParams } from 'next/navigation'
+import { useParams } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const params = useParams()
+  const params = useParams();
 
   // Route -> /shop/[tag]/[item]
   // URL -> /shop/shoes/nike-air-max-97
   // `params` -> { tag: 'shoes', item: 'nike-air-max-97' }
-  console.log(params)
+  console.log(params);
 
-  return <></>
+  return <></>;
 }
 ```
 
 ## Parameters
 
 ```tsx
-const params = useParams()
+const params = useParams();
 ```
 
 `useParams` does not take any parameters.

@@ -1,28 +1,28 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
-export const runtime = 'edge'
-export const revalidate = 0
+export const runtime = "edge";
+export const revalidate = 0;
 
 export async function GET() {
   const data360 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random',
+    "https://next-data-api-endpoint.vercel.app/api/random",
     {
       next: {
         revalidate: 360,
-        tags: ['thankyounext'],
+        tags: ["thankyounext"],
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
   const data10 = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?a=10',
+    "https://next-data-api-endpoint.vercel.app/api/random?a=10",
     {
       next: {
         revalidate: 10,
-        tags: ['thankyounext'],
+        tags: ["thankyounext"],
       },
     }
-  ).then((res) => res.text())
+  ).then((res) => res.text());
 
-  return NextResponse.json({ data360, data10 })
+  return NextResponse.json({ data360, data10 });
 }

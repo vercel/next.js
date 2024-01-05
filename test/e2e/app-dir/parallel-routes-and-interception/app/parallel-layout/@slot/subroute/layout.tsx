@@ -4,5 +4,5 @@ export default ({ children }) => {
       <h1 id="parallel-subroute">parallel subroute layout</h1>
       {children}
     </div>
-  )
-}
+  );
+};

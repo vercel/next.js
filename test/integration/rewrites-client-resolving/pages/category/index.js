@@ -1,1 +1,1 @@
-export default () => <p id="categories">categories</p>
+export default () => <p id="categories">categories</p>;

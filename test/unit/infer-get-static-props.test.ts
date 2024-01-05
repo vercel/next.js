@@ -1,52 +1,52 @@
-import type { InferGetStaticPropsType, GetStaticPropsContext } from 'next'
-import { expectTypeOf } from 'expect-type'
+import type { InferGetStaticPropsType, GetStaticPropsContext } from "next";
+import { expectTypeOf } from "expect-type";
 
-describe('InferGetServerSidePropsType', () => {
-  it('should work with sync functions', async () => {
+describe("InferGetServerSidePropsType", () => {
+  it("should work with sync functions", async () => {
     function getStaticProps(context: GetStaticPropsContext) {
       if (context.params?.notFound) {
         return {
           notFound: true,
-        }
+        };
       }
 
       return {
         props: {
-          foo: 'bar',
+          foo: "bar",
         },
-      }
+      };
     }
 
-    type PageProps = InferGetStaticPropsType<typeof getStaticProps>
+    type PageProps = InferGetStaticPropsType<typeof getStaticProps>;
 
-    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>()
-  })
+    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>();
+  });
 
-  it('should work with async functions', async () => {
+  it("should work with async functions", async () => {
     async function getStaticProps(context: GetStaticPropsContext) {
       if (context.params?.notFound) {
         return {
           notFound: true,
-        }
+        };
       }
 
       if (context.params?.redirect) {
         return {
           redirect: {
-            destination: '/',
+            destination: "/",
           },
-        }
+        };
       }
 
       return {
         props: {
-          foo: 'bar',
+          foo: "bar",
         },
-      }
+      };
     }
 
-    type PageProps = InferGetStaticPropsType<typeof getStaticProps>
+    type PageProps = InferGetStaticPropsType<typeof getStaticProps>;
 
-    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>()
-  })
-})
+    expectTypeOf<PageProps>().toEqualTypeOf<{ foo: string }>();
+  });
+});

@@ -1,129 +1,129 @@
 import {
   warnOptionHasBeenMovedOutOfExperimental,
   warnOptionHasBeenDeprecated,
-} from 'next/dist/server/config'
+} from "next/dist/server/config";
 
-describe('warnOptionHasBeenMovedOutOfExperimental', () => {
-  let spy: jest.SpyInstance
+describe("warnOptionHasBeenMovedOutOfExperimental", () => {
+  let spy: jest.SpyInstance;
   beforeAll(() => {
-    spy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-  })
+    spy = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
 
-  it('should not log warning message without experimental config', () => {
+  it("should not log warning message without experimental config", () => {
     warnOptionHasBeenMovedOutOfExperimental(
       {},
-      'skipTrailingSlashRedirect',
-      'skipTrailingSlashRedirect',
-      'next.config.js',
+      "skipTrailingSlashRedirect",
+      "skipTrailingSlashRedirect",
+      "next.config.js",
       false
-    )
+    );
 
     warnOptionHasBeenMovedOutOfExperimental(
       {
         experimental: {},
       },
-      'skipTrailingSlashRedirect',
-      'skipTrailingSlashRedirect',
-      'next.config.js',
+      "skipTrailingSlashRedirect",
+      "skipTrailingSlashRedirect",
+      "next.config.js",
       false
-    )
+    );
 
-    expect(spy).not.toBeCalled()
-  })
+    expect(spy).not.toBeCalled();
+  });
 
-  it('should log warning message with removed experimental config', () => {
+  it("should log warning message with removed experimental config", () => {
     warnOptionHasBeenMovedOutOfExperimental(
       {
         experimental: {
           skipTrailingSlashRedirect: true,
         },
       } as any,
-      'skipTrailingSlashRedirect',
-      'skipTrailingSlashRedirect',
-      'next.config.js',
+      "skipTrailingSlashRedirect",
+      "skipTrailingSlashRedirect",
+      "next.config.js",
       false
-    )
+    );
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('⚠'),
-      '`skipTrailingSlashRedirect` has been moved out of `experimental`. Please update your next.config.js file accordingly.'
-    )
-  })
+      expect.stringContaining("⚠"),
+      "`skipTrailingSlashRedirect` has been moved out of `experimental`. Please update your next.config.js file accordingly."
+    );
+  });
 
-  it('should log warning message with removed experimental config - complex key', () => {
+  it("should log warning message with removed experimental config - complex key", () => {
     warnOptionHasBeenMovedOutOfExperimental(
       {
         experimental: {
           relay: true,
         },
       } as any,
-      'relay',
-      'compiler.relay',
-      'next.config.js',
+      "relay",
+      "compiler.relay",
+      "next.config.js",
       false
-    )
+    );
 
     expect(spy).toHaveBeenCalledWith(
-      expect.stringContaining('⚠'),
-      '`relay` has been moved out of `experimental` and into `compiler.relay`. Please update your next.config.js file accordingly.'
-    )
-  })
+      expect.stringContaining("⚠"),
+      "`relay` has been moved out of `experimental` and into `compiler.relay`. Please update your next.config.js file accordingly."
+    );
+  });
 
-  it('should update removed experimental config into new config', () => {
+  it("should update removed experimental config into new config", () => {
     const config = {
       experimental: {
         skipTrailingSlashRedirect: true,
       },
-    } as any
+    } as any;
     warnOptionHasBeenMovedOutOfExperimental(
       config,
-      'skipTrailingSlashRedirect',
-      'skipTrailingSlashRedirect',
-      'next.config.js',
+      "skipTrailingSlashRedirect",
+      "skipTrailingSlashRedirect",
+      "next.config.js",
       false
-    )
+    );
 
-    expect(config.experimental.skipTrailingSlashRedirect).toBe(true)
-    expect(config.skipTrailingSlashRedirect).toBe(true)
-  })
+    expect(config.experimental.skipTrailingSlashRedirect).toBe(true);
+    expect(config.skipTrailingSlashRedirect).toBe(true);
+  });
 
-  it('should update removed experimental config into new config - complex key', () => {
+  it("should update removed experimental config into new config - complex key", () => {
     const config = {
       experimental: {
-        foo: 'bar',
+        foo: "bar",
       },
-    } as any
+    } as any;
     warnOptionHasBeenMovedOutOfExperimental(
       config,
-      'foo',
-      'deep.prop.baz',
-      'next.config.js',
+      "foo",
+      "deep.prop.baz",
+      "next.config.js",
       false
-    )
+    );
 
-    expect(config.experimental.foo).toBe('bar')
-    expect(config.deep.prop.baz).toBe('bar')
-  })
-})
+    expect(config.experimental.foo).toBe("bar");
+    expect(config.deep.prop.baz).toBe("bar");
+  });
+});
 
-describe('warnOptionHasBeenDeprecated', () => {
-  let spy: jest.SpyInstance
+describe("warnOptionHasBeenDeprecated", () => {
+  let spy: jest.SpyInstance;
   beforeAll(() => {
-    spy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-  })
+    spy = jest.spyOn(console, "warn").mockImplementation(() => {});
+  });
 
-  it('should warn experimental.appDir has been deprecated', () => {
+  it("should warn experimental.appDir has been deprecated", () => {
     const config = {
       experimental: {
         appDir: true,
       },
-    } as any
+    } as any;
     warnOptionHasBeenDeprecated(
       config,
-      'experimental.appDir',
-      'experimental.appDir has been removed',
+      "experimental.appDir",
+      "experimental.appDir has been removed",
       false
-    )
-    expect(spy).toBeCalled()
-  })
-})
+    );
+    expect(spy).toBeCalled();
+  });
+});

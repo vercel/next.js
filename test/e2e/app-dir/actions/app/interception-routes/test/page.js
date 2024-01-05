@@ -1,8 +1,8 @@
 export default function TestPage() {
   async function action(data) {
-    'use server'
+    "use server";
 
-    console.log('Action Submitted (Page)')
+    console.log("Action Submitted (Page)");
   }
 
   return (
@@ -12,5 +12,5 @@ export default function TestPage() {
         Test
       </button>
     </form>
-  )
+  );
 }

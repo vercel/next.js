@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -11,11 +11,11 @@ export default function Page(props) {
       <p id="pathname">{router.pathname}</p>
       <p id="asPath">{router.asPath}</p>
     </>
-  )
+  );
 }
 
 export function getStaticProps({ params }) {
-  console.log({ blogSlug: true, params })
+  console.log({ blogSlug: true, params });
 
   return {
     props: {
@@ -24,12 +24,12 @@ export function getStaticProps({ params }) {
       params,
     },
     revalidate: 1,
-  }
+  };
 }
 
 export function getStaticPaths() {
   return {
-    paths: ['/fallback-false/first', '/fallback-false/second'],
+    paths: ["/fallback-false/first", "/fallback-false/second"],
     fallback: false,
-  }
+  };
 }

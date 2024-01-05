@@ -1,6 +1,6 @@
 ---
 title: Incremental Static Regeneration
-description: 'Learn how to create or update static pages at runtime with Incremental Static Regeneration.'
+description: "Learn how to create or update static pages at runtime with Incremental Static Regeneration."
 ---
 
 <details>
@@ -26,15 +26,15 @@ function Blog({ posts }) {
         <li key={post.id}>{post.title}</li>
       ))}
     </ul>
-  )
+  );
 }
 
 // This function gets called at build time on server-side.
 // It may be called again, on a serverless function, if
 // revalidation is enabled and a new request comes in
 export async function getStaticProps() {
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const res = await fetch("https://.../posts");
+  const posts = await res.json();
 
   return {
     props: {
@@ -44,28 +44,28 @@ export async function getStaticProps() {
     // - When a request comes in
     // - At most once every 10 seconds
     revalidate: 10, // In seconds
-  }
+  };
 }
 
 // This function gets called at build time on server-side.
 // It may be called again, on a serverless function, if
 // the path has not been generated.
 export async function getStaticPaths() {
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const res = await fetch("https://.../posts");
+  const posts = await res.json();
 
   // Get the paths we want to pre-render based on posts
   const paths = posts.map((post) => ({
     params: { id: post.id },
-  }))
+  }));
 
   // We'll pre-render only these paths at build time.
   // { fallback: 'blocking' } will server-render pages
   // on-demand if the path doesn't exist.
-  return { paths, fallback: 'blocking' }
+  return { paths, fallback: "blocking" };
 }
 
-export default Blog
+export default Blog;
 ```
 
 When a request is made to a page that was pre-rendered at build time, it will initially show the cached page.
@@ -106,18 +106,18 @@ Next, add the secret as an [Environment Variable](/docs/pages/building-your-appl
 export default async function handler(req, res) {
   // Check for secret to confirm this is a valid request
   if (req.query.secret !== process.env.MY_SECRET_TOKEN) {
-    return res.status(401).json({ message: 'Invalid token' })
+    return res.status(401).json({ message: "Invalid token" });
   }
 
   try {
     // this should be the actual path not a rewritten path
     // e.g. for "/blog/[slug]" this should be "/blog/post-1"
-    await res.revalidate('/path-to-revalidate')
-    return res.json({ revalidated: true })
+    await res.revalidate("/path-to-revalidate");
+    return res.json({ revalidated: true });
   } catch (err) {
     // If there was an error, Next.js will continue
     // to show the last successfully generated page
-    return res.status(500).send('Error revalidating')
+    return res.status(500).send("Error revalidating");
   }
 }
 ```
@@ -144,14 +144,14 @@ export async function getStaticProps() {
   // If this request throws an uncaught error, Next.js will
   // not invalidate the currently shown page and
   // retry getStaticProps on the next request.
-  const res = await fetch('https://.../posts')
-  const posts = await res.json()
+  const res = await fetch("https://.../posts");
+  const posts = await res.json();
 
   if (!res.ok) {
     // If there is a server error, you might want to
     // throw an error instead of returning so that the cache is not updated
     // until the next successful request.
-    throw new Error(`Failed to fetch posts, received status ${res.status}`)
+    throw new Error(`Failed to fetch posts, received status ${res.status}`);
   }
 
   // If the request was successful, return the posts
@@ -161,7 +161,7 @@ export async function getStaticProps() {
       posts,
     },
     revalidate: 10,
-  }
+  };
 }
 ```
 
@@ -183,7 +183,7 @@ module.exports = {
     // Defaults to 50MB
     isrMemoryCacheSize: 0, // cache size in bytes
   },
-}
+};
 ```
 
 > **Good to know**: You might need to consider a race condition between multiple pods trying to update the cache at the same time, depending on how your shared mount is configured.

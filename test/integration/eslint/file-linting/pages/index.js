@@ -5,6 +5,6 @@ export default class Home {
         <h1>Hello title</h1>
         <script src="test"></script>
       </div>
-    )
+    );
   }
 }

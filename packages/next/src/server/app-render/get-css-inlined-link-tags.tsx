@@ -1,4 +1,4 @@
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
+import type { ClientReferenceManifest } from "../../build/webpack/plugins/flight-manifest-plugin";
 
 /**
  * Get external stylesheet link hrefs based on server CSS manifest.
@@ -10,22 +10,22 @@ export function getLinkAndScriptTags(
   injectedScripts: Set<string>,
   collectNewImports?: boolean
 ): { styles: string[]; scripts: string[] } {
-  const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
-  const cssChunks = new Set<string>()
-  const jsChunks = new Set<string>()
+  const filePathWithoutExt = filePath.replace(/\.[^.]+$/, "");
+  const cssChunks = new Set<string>();
+  const jsChunks = new Set<string>();
 
   const entryCSSFiles =
-    clientReferenceManifest.entryCSSFiles[filePathWithoutExt]
+    clientReferenceManifest.entryCSSFiles[filePathWithoutExt];
   const entryJSFiles =
-    clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? []
+    clientReferenceManifest.entryJSFiles?.[filePathWithoutExt] ?? [];
 
   if (entryCSSFiles) {
     for (const file of entryCSSFiles) {
       if (!injectedCSS.has(file)) {
         if (collectNewImports) {
-          injectedCSS.add(file)
+          injectedCSS.add(file);
         }
-        cssChunks.add(file)
+        cssChunks.add(file);
       }
     }
   }
@@ -34,12 +34,12 @@ export function getLinkAndScriptTags(
     for (const file of entryJSFiles) {
       if (!injectedScripts.has(file)) {
         if (collectNewImports) {
-          injectedScripts.add(file)
+          injectedScripts.add(file);
         }
-        jsChunks.add(file)
+        jsChunks.add(file);
       }
     }
   }
 
-  return { styles: [...cssChunks], scripts: [...jsChunks] }
+  return { styles: [...cssChunks], scripts: [...jsChunks] };
 }

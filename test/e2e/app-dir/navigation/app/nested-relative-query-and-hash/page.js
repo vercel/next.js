@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { RouterPushButton } from './client-component'
+import Link from "next/link";
+import { RouterPushButton } from "./client-component";
 
 export default function Page() {
   return (
@@ -24,5 +24,5 @@ export default function Page() {
 
       <RouterPushButton />
     </>
-  )
+  );
 }

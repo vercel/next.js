@@ -1,5 +1,5 @@
-import style from './css.module.css'
+import style from "./css.module.css";
 
-const Page = () => <div className={style.helloWorld}>Hello world 👋</div>
+const Page = () => <div className={style.helloWorld}>Hello world 👋</div>;
 
-export default Page
+export default Page;

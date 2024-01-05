@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default async function Home() {
   return (
@@ -6,5 +6,5 @@ export default async function Home() {
       <Link href="/items/1">Open Items #1 (Intercepted)</Link>
       <Link href="/foobar">Go to Catch-All Page</Link>
     </div>
-  )
+  );
 }

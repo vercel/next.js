@@ -1,5 +1,5 @@
-'use server'
+"use server";
 
 export async function addToCart() {
-  console.log('addToCart')
+  console.log("addToCart");
 }

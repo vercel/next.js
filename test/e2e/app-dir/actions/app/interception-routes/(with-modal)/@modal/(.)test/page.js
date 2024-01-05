@@ -1,8 +1,8 @@
 export default function TestPageIntercepted() {
   async function action(data) {
-    'use server'
+    "use server";
 
-    console.log('Action Submitted (Intercepted)')
+    console.log("Action Submitted (Intercepted)");
   }
 
   return (
@@ -12,5 +12,5 @@ export default function TestPageIntercepted() {
         Test
       </button>
     </form>
-  )
+  );
 }

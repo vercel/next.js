@@ -1,1 +1,1 @@
-export { PUT as put } from '../../../hello'
+export { PUT as put } from "../../../hello";

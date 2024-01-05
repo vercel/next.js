@@ -1,5 +1,5 @@
-import Comp from './comp'
+import Comp from "./comp";
 
 export default function Page() {
-  return <Comp />
+  return <Comp />;
 }

@@ -6,24 +6,24 @@ description: API Reference for the usePathname hook.
 `usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { usePathname } from 'next/navigation'
+import { usePathname } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const pathname = usePathname()
-  return <p>Current pathname: {pathname}</p>
+  const pathname = usePathname();
+  return <p>Current pathname: {pathname}</p>;
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
-'use client'
+"use client";
 
-import { usePathname } from 'next/navigation'
+import { usePathname } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const pathname = usePathname()
-  return <p>Current pathname: {pathname}</p>
+  const pathname = usePathname();
+  return <p>Current pathname: {pathname}</p>;
 }
 ```
 
@@ -41,7 +41,7 @@ For example, a Client Component with `usePathname` will be rendered into HTML on
 ## Parameters
 
 ```tsx
-const pathname = usePathname()
+const pathname = usePathname();
 ```
 
 `usePathname` does not take any parameters.
@@ -62,30 +62,30 @@ const pathname = usePathname()
 ### Do something in response to a route change
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from "next/navigation";
 
 function ExampleClientComponent() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   useEffect(() => {
     // Do something here...
-  }, [pathname, searchParams])
+  }, [pathname, searchParams]);
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
-'use client'
+"use client";
 
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname, useSearchParams } from "next/navigation";
 
 function ExampleClientComponent() {
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   useEffect(() => {
     // Do something here...
-  }, [pathname, searchParams])
+  }, [pathname, searchParams]);
 }
 ```
 

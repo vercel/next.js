@@ -1,10 +1,10 @@
-'use server'
+"use server";
 
-let counter = 0
+let counter = 0;
 
 export async function incrementCounter() {
-  console.log('Button clicked!')
+  console.log("Button clicked!");
 
-  counter++
-  return counter
+  counter++;
+  return counter;
 }

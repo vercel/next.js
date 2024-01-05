@@ -1,1 +1,1 @@
-module.exports = require('./bundle').eslintParser()
+module.exports = require("./bundle").eslintParser();

@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export default () => {
   return (
@@ -10,5 +10,5 @@ export default () => {
       </Head>
       <p>next/head should be placed above the document/head.</p>
     </div>
-  )
-}
+  );
+};

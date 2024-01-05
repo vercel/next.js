@@ -1,7 +1,7 @@
-import sideEffect from '../sideEffectModule'
-import RequiredByPage from '../requiredByPage'
+import sideEffect from "../sideEffectModule";
+import RequiredByPage from "../requiredByPage";
 
-const sideEffects = sideEffect('page')
+const sideEffects = sideEffect("page");
 
 function Hi() {
   return (
@@ -14,9 +14,9 @@ function Hi() {
         </p>
       ))}
     </div>
-  )
+  );
 }
 
-Hi.getInitialProps = () => ({})
+Hi.getInitialProps = () => ({});
 
-export default Hi
+export default Hi;

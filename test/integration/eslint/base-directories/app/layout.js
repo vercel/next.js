@@ -3,6 +3,6 @@ const RootLayout = () => (
     <h1>Hello title</h1>
     <link href="https://fonts.gstatic.com" />
   </div>
-)
+);
 
-export default RootLayout
+export default RootLayout;

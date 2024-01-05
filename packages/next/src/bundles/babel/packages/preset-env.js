@@ -1,1 +1,1 @@
-module.exports = require('./bundle').presetEnv()
+module.exports = require("./bundle").presetEnv();

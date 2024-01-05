@@ -1,1 +1,1 @@
-module.exports = require('./bundle').coreLibConfig()
+module.exports = require("./bundle").coreLibConfig();

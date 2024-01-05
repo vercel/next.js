@@ -1,4 +1,4 @@
-import type { AsyncLocalStorage } from 'async_hooks'
+import type { AsyncLocalStorage } from "async_hooks";
 
 /**
  * Implementations provide a wrapping function that will provide the storage to
@@ -17,5 +17,5 @@ export interface AsyncStorageWrapper<Store extends {}, Context extends {}> {
     storage: AsyncLocalStorage<Store>,
     context: Context,
     callback: (store: Store) => Result
-  ): Result
+  ): Result;
 }

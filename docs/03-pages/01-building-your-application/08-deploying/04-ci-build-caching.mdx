@@ -65,8 +65,8 @@ Add (or merge in) the following to your `buildspec.yml`:
 ```yaml
 cache:
   paths:
-    - 'node_modules/**/*' # Cache `node_modules` for faster `yarn` or `npm i`
-    - '.next/cache/**/*' # Cache Next.js for faster application rebuilds
+    - "node_modules/**/*" # Cache `node_modules` for faster `yarn` or `npm i`
+    - ".next/cache/**/*" # Cache Next.js for faster application rebuilds
 ```
 
 ## GitHub Actions
@@ -121,10 +121,10 @@ Using Azure Pipelines' [Cache task](https://docs.microsoft.com/en-us/azure/devop
 
 ```yaml
 - task: Cache@2
-  displayName: 'Cache .next/cache'
+  displayName: "Cache .next/cache"
   inputs:
     key: next | $(Agent.OS) | yarn.lock
-    path: '$(System.DefaultWorkingDirectory)/.next/cache'
+    path: "$(System.DefaultWorkingDirectory)/.next/cache"
 ```
 
 ## Jenkins (Pipeline)

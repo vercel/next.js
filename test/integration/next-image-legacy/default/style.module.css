@@ -13,6 +13,6 @@
 .overrideImg {
   filter: opacity(0.5);
   background-size: 30%;
-  background-image: url('data:image/png;base64,iVBORw0KGgo=');
+  background-image: url("data:image/png;base64,iVBORw0KGgo=");
   background-position: 1px 2px;
 }

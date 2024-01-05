@@ -1,4 +1,4 @@
-import { css } from '@emotion/react'
+import { css } from "@emotion/react";
 import {
   Animated,
   Basic,
@@ -7,11 +7,11 @@ import {
   Pink,
   BasicExtended,
   ComponentSelectorsExtended,
-} from '../shared/styles'
+} from "../shared/styles";
 
 const Home = () => (
   <div
-    id={'test-element'}
+    id={"test-element"}
     css={css`
       display: flex;
       flex-direction: column;
@@ -28,6 +28,6 @@ const Home = () => (
       <BasicExtended>Nested</BasicExtended>
     </ComponentSelectorsExtended>
   </div>
-)
+);
 
-export default Home
+export default Home;

@@ -1,7 +1,7 @@
-const path = require('path')
-const logger = require('../util/logger')
-const { execSync } = require('child_process')
-const releaseTypes = new Set(['release', 'published'])
+const path = require("path");
+const logger = require("../util/logger");
+const { execSync } = require("child_process");
+const releaseTypes = new Set(["release", "published"]);
 
 module.exports = function actionInfo() {
   let {
@@ -15,32 +15,32 @@ module.exports = function actionInfo() {
     GITHUB_REPOSITORY,
     GITHUB_EVENT_PATH,
     PR_STATS_COMMENT_TOKEN,
-  } = process.env
+  } = process.env;
 
-  delete process.env.GITHUB_TOKEN
-  delete process.env.PR_STATS_COMMENT_TOKEN
+  delete process.env.GITHUB_TOKEN;
+  delete process.env.PR_STATS_COMMENT_TOKEN;
 
   // only use custom endpoint if we don't have a token
-  const commentEndpoint = !PR_STATS_COMMENT_TOKEN && COMMENT_ENDPOINT
+  const commentEndpoint = !PR_STATS_COMMENT_TOKEN && COMMENT_ENDPOINT;
 
-  if (LOCAL_STATS === 'true') {
-    const cwd = process.cwd()
-    const parentDir = path.join(cwd, '../..')
+  if (LOCAL_STATS === "true") {
+    const cwd = process.cwd();
+    const parentDir = path.join(cwd, "../..");
 
     if (!GITHUB_REF) {
       // get the current branch name
       GITHUB_REF = execSync(`cd "${cwd}" && git rev-parse --abbrev-ref HEAD`)
         .toString()
-        .trim()
+        .trim();
     }
     if (!GIT_ROOT_DIR) {
-      GIT_ROOT_DIR = path.join(parentDir, '/')
+      GIT_ROOT_DIR = path.join(parentDir, "/");
     }
     if (!GITHUB_REPOSITORY) {
-      GITHUB_REPOSITORY = path.relative(parentDir, cwd)
+      GITHUB_REPOSITORY = path.relative(parentDir, cwd);
     }
     if (!GITHUB_ACTION) {
-      GITHUB_ACTION = 'opened'
+      GITHUB_ACTION = "opened";
     }
   }
 
@@ -50,54 +50,54 @@ module.exports = function actionInfo() {
     actionName: GITHUB_ACTION,
     githubToken: PR_STATS_COMMENT_TOKEN,
     customCommentEndpoint: !!commentEndpoint,
-    gitRoot: GIT_ROOT_DIR || 'https://github.com/',
+    gitRoot: GIT_ROOT_DIR || "https://github.com/",
     prRepo: GITHUB_REPOSITORY,
     prRef: GITHUB_REF,
     isLocal: LOCAL_STATS,
     commitId: null,
     issueId: ISSUE_ID,
     isRelease:
-      GITHUB_REPOSITORY === 'vercel/next.js' &&
-      (GITHUB_REF || '').includes('canary'),
-  }
+      GITHUB_REPOSITORY === "vercel/next.js" &&
+      (GITHUB_REF || "").includes("canary"),
+  };
 
   if (info.isRelease) {
-    info.prRef = 'canary'
+    info.prRef = "canary";
   }
 
   // get comment
   if (GITHUB_EVENT_PATH) {
-    const event = require(GITHUB_EVENT_PATH)
-    info.actionName = event.action || info.actionName
+    const event = require(GITHUB_EVENT_PATH);
+    info.actionName = event.action || info.actionName;
 
     if (releaseTypes.has(info.actionName)) {
-      info.isRelease = true
+      info.isRelease = true;
     } else {
       // since GITHUB_REPOSITORY and REF might not match the fork
       // use event data to get repository and ref info
-      const prData = event['pull_request']
+      const prData = event["pull_request"];
 
       if (prData) {
-        info.prRepo = prData.head.repo.full_name
-        info.prRef = prData.head.ref
-        info.issueId = prData.number
+        info.prRepo = prData.head.repo.full_name;
+        info.prRef = prData.head.ref;
+        info.issueId = prData.number;
 
         if (!info.commentEndpoint) {
-          info.commentEndpoint = prData._links.comments || ''
+          info.commentEndpoint = prData._links.comments || "";
         }
         // comment endpoint might be under `href`
-        if (typeof info.commentEndpoint === 'object') {
-          info.commentEndpoint = info.commentEndpoint.href
+        if (typeof info.commentEndpoint === "object") {
+          info.commentEndpoint = info.commentEndpoint.href;
         }
       }
     }
   }
 
-  logger('Got actionInfo:')
+  logger("Got actionInfo:");
   logger.json({
     ...info,
-    githubToken: PR_STATS_COMMENT_TOKEN ? 'found' : 'missing',
-  })
+    githubToken: PR_STATS_COMMENT_TOKEN ? "found" : "missing",
+  });
 
-  return info
-}
+  return info;
+};

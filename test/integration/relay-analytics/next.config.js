@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    webVitalsAttribution: ['CLS', 'LCP'],
+    webVitalsAttribution: ["CLS", "LCP"],
   },
-}
+};

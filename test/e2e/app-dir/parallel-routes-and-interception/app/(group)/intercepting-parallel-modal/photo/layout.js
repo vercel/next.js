@@ -4,5 +4,5 @@ export default function PhotoLayout({ children }) {
       <h1>Photo Layout</h1>
       {children}
     </>
-  )
+  );
 }

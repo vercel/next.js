@@ -1,3 +1,3 @@
 export default function Abc() {
-  return <div />
+  return <div />;
 }

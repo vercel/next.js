@@ -1,10 +1,10 @@
-import { LazyClientComponent } from './dynamic-imports/react-lazy-client'
-import { NextDynamicClientComponent } from './dynamic-imports/dynamic-client'
+import { LazyClientComponent } from "./dynamic-imports/react-lazy-client";
+import { NextDynamicClientComponent } from "./dynamic-imports/dynamic-client";
 import {
   NextDynamicServerComponent,
   NextDynamicServerImportClientComponent,
   NextDynamicNoSSRServerComponent,
-} from './dynamic-imports/dynamic-server'
+} from "./dynamic-imports/dynamic-server";
 
 export default function page() {
   return (
@@ -15,5 +15,5 @@ export default function page() {
       <NextDynamicServerImportClientComponent />
       <NextDynamicNoSSRServerComponent />
     </div>
-  )
+  );
 }

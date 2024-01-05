@@ -3,7 +3,7 @@ name: test-e2e-deploy
 on:
   schedule:
     # run every day at midnight
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
   # allow triggering manually as well
   workflow_dispatch:
 
@@ -18,9 +18,9 @@ jobs:
       NAPI_CLI_VERSION: 2.16.2
       TURBO_VERSION: 1.10.9
       NODE_LTS_VERSION: 20
-      CARGO_PROFILE_RELEASE_LTO: 'true'
-      TURBO_TEAM: 'vercel'
-      TURBO_REMOTE_ONLY: 'true'
+      CARGO_PROFILE_RELEASE_LTO: "true"
+      TURBO_TEAM: "vercel"
+      TURBO_REMOTE_ONLY: "true"
       TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
       NEXT_TELEMETRY_DISABLED: 1
 

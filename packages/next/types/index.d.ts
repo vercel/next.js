@@ -4,12 +4,12 @@
 /// <reference types="react-dom" />
 /// <reference types="react-dom/experimental" />
 
-import type { Agent as HttpAgent } from 'http'
-import type { Agent as HttpsAgent } from 'https'
+import type { Agent as HttpAgent } from "http";
+import type { Agent as HttpsAgent } from "https";
 
-import type React from 'react'
-import type { ParsedUrlQuery } from 'querystring'
-import type { IncomingMessage, ServerResponse } from 'http'
+import type React from "react";
+import type { ParsedUrlQuery } from "querystring";
+import type { IncomingMessage, ServerResponse } from "http";
 
 import {
   NextPageContext,
@@ -18,20 +18,20 @@ import {
   NextApiRequest,
   NextApiHandler,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/shared/lib/utils'
+} from "../dist/shared/lib/utils";
 
 import type {
   NextApiRequestCookies,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/server/api-utils'
+} from "../dist/server/api-utils";
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-import next from '../dist/server/next'
+import next from "../dist/server/next";
 
-export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
+export type ServerRuntime = "nodejs" | "experimental-edge" | "edge" | undefined;
 
 // @ts-ignore This path is generated at build time and conflicts otherwise
-export { NextConfig } from '../dist/server/config'
+export { NextConfig } from "../dist/server/config";
 
 export type {
   Metadata,
@@ -42,7 +42,7 @@ export type {
   ResolvingViewport,
   ResolvedViewport,
   // @ts-ignore This path is generated at build time and conflicts otherwise
-} from '../dist/lib/metadata/types/metadata-interface'
+} from "../dist/lib/metadata/types/metadata-interface";
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run
@@ -58,33 +58,33 @@ export type {
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
 // isn't generated yet. It will be replaced when the webpack plugin runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export type Route<RouteInferType = any> = string & {}
+export type Route<RouteInferType = any> = string & {};
 
 // Extend the React types with missing properties
-declare module 'react' {
+declare module "react" {
   // <html amp=""> support
   interface HtmlHTMLAttributes<T> extends React.HTMLAttributes<T> {
-    amp?: string
+    amp?: string;
   }
 
   // <img fetchPriority=""> support
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- It's actually required for module augmentation to work.
   interface ImgHTMLAttributes<T> {
-    fetchPriority?: 'high' | 'low' | 'auto' | undefined
+    fetchPriority?: "high" | "low" | "auto" | undefined;
   }
 }
 
 export type Redirect =
   | {
-      statusCode: 301 | 302 | 303 | 307 | 308
-      destination: string
-      basePath?: false
+      statusCode: 301 | 302 | 303 | 307 | 308;
+      destination: string;
+      basePath?: false;
     }
   | {
-      permanent: boolean
-      destination: string
-      basePath?: false
-    }
+      permanent: boolean;
+      destination: string;
+      basePath?: false;
+    };
 
 /**
  * `NextPage` type, use it as a guide to create `pages`.
@@ -93,72 +93,72 @@ export type NextPage<Props = {}, InitialProps = Props> = NextComponentType<
   NextPageContext,
   InitialProps,
   Props
->
+>;
 
 export type FileSizeSuffix = `${
-  | 'k'
-  | 'K'
-  | 'm'
-  | 'M'
-  | 'g'
-  | 'G'
-  | 't'
-  | 'T'
-  | 'p'
-  | 'P'}${'b' | 'B'}`
+  | "k"
+  | "K"
+  | "m"
+  | "M"
+  | "g"
+  | "G"
+  | "t"
+  | "T"
+  | "p"
+  | "P"}${"b" | "B"}`;
 
-export type SizeLimit = number | `${number}${FileSizeSuffix}`
+export type SizeLimit = number | `${number}${FileSizeSuffix}`;
 
-export type ResponseLimit = SizeLimit | boolean
+export type ResponseLimit = SizeLimit | boolean;
 
 /**
  * `Config` type, use it for export const config
  */
 export type PageConfig = {
-  amp?: boolean | 'hybrid'
+  amp?: boolean | "hybrid";
   api?: {
     /**
      * Configures or disables body size limit warning. Can take a number or
      * any string format supported by `bytes`, for example `1000`, `'500kb'` or
      * `'3mb'`.
      */
-    responseLimit?: ResponseLimit
+    responseLimit?: ResponseLimit;
     /**
      * The byte limit of the body. This is the number of bytes or any string
      * format supported by `bytes`, for example `1000`, `'500kb'` or `'3mb'`.
      */
     bodyParser?:
       | {
-          sizeLimit?: SizeLimit
+          sizeLimit?: SizeLimit;
         }
-      | false
+      | false;
     /**
      * Flag to disable warning "API page resolved
      * without sending a response", due to explicitly
      * using an external API resolver, like express
      */
-    externalResolver?: true
-  }
-  env?: Array<string>
+    externalResolver?: true;
+  };
+  env?: Array<string>;
   /**
    * Configures the longest time in seconds a serverless function can process an HTTP
    * request before responding.
    */
-  maxDuration?: number
-  runtime?: ServerRuntime
-  unstable_runtimeJS?: false
-  unstable_JsPreload?: false
+  maxDuration?: number;
+  runtime?: ServerRuntime;
+  unstable_runtimeJS?: false;
+  unstable_JsPreload?: false;
   /**
    * @deprecated this config has been removed in favor of the next.config.js option
    */
   // TODO: remove in next minor release (current v13.1.1)
-  unstable_includeFiles?: string[]
+  unstable_includeFiles?: string[];
   /**
    * @deprecated this config has been removed in favor of the next.config.js option
    */
   // TODO: remove in next minor release (current v13.1.1)
-  unstable_excludeFiles?: string[]
-}
+  unstable_excludeFiles?: string[];
+};
 
 export {
   NextPageContext,
@@ -166,9 +166,9 @@ export {
   NextApiResponse,
   NextApiRequest,
   NextApiHandler,
-}
+};
 
-export type PreviewData = string | false | object | undefined
+export type PreviewData = string | false | object | undefined;
 
 /**
  * Context object passed into `getStaticProps`.
@@ -178,14 +178,14 @@ export type GetStaticPropsContext<
   Params extends ParsedUrlQuery = ParsedUrlQuery,
   Preview extends PreviewData = PreviewData
 > = {
-  params?: Params
-  preview?: boolean
-  previewData?: Preview
-  draftMode?: boolean
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-}
+  params?: Params;
+  preview?: boolean;
+  previewData?: Preview;
+  draftMode?: boolean;
+  locale?: string;
+  locales?: string[];
+  defaultLocale?: string;
+};
 
 /**
  * The return type of `getStaticProps`.
@@ -194,7 +194,7 @@ export type GetStaticPropsContext<
 export type GetStaticPropsResult<Props> =
   | { props: Props; revalidate?: number | boolean }
   | { redirect: Redirect; revalidate?: number | boolean }
-  | { notFound: true; revalidate?: number | boolean }
+  | { notFound: true; revalidate?: number | boolean };
 
 /**
  * Static Site Generation feature for Next.js.
@@ -213,17 +213,17 @@ export type GetStaticProps<
   Preview extends PreviewData = PreviewData
 > = (
   context: GetStaticPropsContext<Params, Preview>
-) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>
+) => Promise<GetStaticPropsResult<Props>> | GetStaticPropsResult<Props>;
 
 export type InferGetStaticPropsType<T extends (args: any) => any> = Extract<
   Awaited<ReturnType<T>>,
   { props: any }
->['props']
+>["props"];
 
 export type GetStaticPathsContext = {
-  locales?: string[]
-  defaultLocale?: string
-}
+  locales?: string[];
+  defaultLocale?: string;
+};
 
 /**
  * The return type of `getStaticPaths`.
@@ -232,9 +232,9 @@ export type GetStaticPathsContext = {
 export type GetStaticPathsResult<
   Params extends ParsedUrlQuery = ParsedUrlQuery
 > = {
-  paths: Array<string | { params: Params; locale?: string }>
-  fallback: boolean | 'blocking'
-}
+  paths: Array<string | { params: Params; locale?: string }>;
+  fallback: boolean | "blocking";
+};
 
 /**
  * Define a list of paths to be statically generated if dynamic routes exist.
@@ -249,7 +249,7 @@ export type GetStaticPathsResult<
  */
 export type GetStaticPaths<Params extends ParsedUrlQuery = ParsedUrlQuery> = (
   context: GetStaticPathsContext
-) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>
+) => Promise<GetStaticPathsResult<Params>> | GetStaticPathsResult<Params>;
 
 /**
  * Context object passed into `getServerSideProps`.
@@ -260,19 +260,19 @@ export type GetServerSidePropsContext<
   Preview extends PreviewData = PreviewData
 > = {
   req: IncomingMessage & {
-    cookies: NextApiRequestCookies
-  }
-  res: ServerResponse
-  params?: Params
-  query: ParsedUrlQuery
-  preview?: boolean
-  previewData?: Preview
-  draftMode?: boolean
-  resolvedUrl: string
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-}
+    cookies: NextApiRequestCookies;
+  };
+  res: ServerResponse;
+  params?: Params;
+  query: ParsedUrlQuery;
+  preview?: boolean;
+  previewData?: Preview;
+  draftMode?: boolean;
+  resolvedUrl: string;
+  locale?: string;
+  locales?: string[];
+  defaultLocale?: string;
+};
 
 /**
  * The return type of `getServerSideProps`.
@@ -281,7 +281,7 @@ export type GetServerSidePropsContext<
 export type GetServerSidePropsResult<Props> =
   | { props: Props | Promise<Props> }
   | { redirect: Redirect }
-  | { notFound: true }
+  | { notFound: true };
 
 /**
  * Server-side Rendering feature for Next.js.
@@ -299,15 +299,15 @@ export type GetServerSideProps<
   Preview extends PreviewData = PreviewData
 > = (
   context: GetServerSidePropsContext<Params, Preview>
-) => Promise<GetServerSidePropsResult<Props>>
+) => Promise<GetServerSidePropsResult<Props>>;
 
 export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
-  Extract<Awaited<ReturnType<T>>, { props: any }>['props']
->
+  Extract<Awaited<ReturnType<T>>, { props: any }>["props"]
+>;
 
 declare global {
   interface Crypto {
-    readonly subtle: SubtleCrypto
+    readonly subtle: SubtleCrypto;
     getRandomValues<
       T extends
         | Int8Array
@@ -323,14 +323,14 @@ declare global {
         | null
     >(
       array: T
-    ): T
-    randomUUID(): string
+    ): T;
+    randomUUID(): string;
   }
 
-  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
-  var __NEXT_UNDICI_AGENT_SET: boolean
-  var __NEXT_HTTP_AGENT: HttpAgent
-  var __NEXT_HTTPS_AGENT: HttpsAgent
+  var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined;
+  var __NEXT_UNDICI_AGENT_SET: boolean;
+  var __NEXT_HTTP_AGENT: HttpAgent;
+  var __NEXT_HTTPS_AGENT: HttpsAgent;
 }
 
-export default next
+export default next;

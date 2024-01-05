@@ -69,11 +69,11 @@ Create a `next.config.mjs` at the root of your project. This file will hold your
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
-}
+  output: "export", // Outputs a Single-Page Application (SPA).
+  distDir: "./dist", // Changes the build output directory to `./dist/`.
+};
 
-export default nextConfig
+export default nextConfig;
 ```
 
 > **Good to know:** You can use either `.js` or `.mjs` for your Next.js configuration file.
@@ -148,15 +148,15 @@ In this step, you'll convert your `index.html` file into a root layout file:
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  return null
+  return null;
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 export default function RootLayout({ children }) {
-  return null
+  return null;
 }
 ```
 
@@ -169,7 +169,7 @@ export default function RootLayout({ children }) {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -184,7 +184,7 @@ export default function RootLayout({
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -203,7 +203,7 @@ export default function RootLayout({ children }) {
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -216,7 +216,7 @@ export default function RootLayout({ children }) {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -229,7 +229,7 @@ export default function RootLayout({
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -246,7 +246,7 @@ export default function RootLayout({ children }) {
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -261,7 +261,7 @@ export default function RootLayout({ children }) {
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -273,7 +273,7 @@ export default function RootLayout({
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -289,7 +289,7 @@ export default function RootLayout({ children }) {
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -299,17 +299,17 @@ export default function RootLayout({ children }) {
    [`metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object):
 
 ```tsx filename="app/layout.tsx" switcher
-import type { Metadata } from 'next'
+import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: 'My App',
-  description: 'My App is a...',
-}
+  title: "My App",
+  description: "My App is a...",
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -317,15 +317,15 @@ export default function RootLayout({
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
 export const metadata = {
-  title: 'My App',
-  description: 'My App is a...',
-}
+  title: "My App",
+  description: "My App is a...",
+};
 
 export default function RootLayout({ children }) {
   return (
@@ -334,7 +334,7 @@ export default function RootLayout({ children }) {
         <div id="root">{children}</div>
       </body>
     </html>
-  )
+  );
 }
 ```
 
@@ -365,28 +365,28 @@ containing `page.tsx` file.
 2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-'use client'
+"use client";
 
-import dynamic from 'next/dynamic'
-import '../../index.css'
+import dynamic from "next/dynamic";
+import "../../index.css";
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import("../../App"), { ssr: false });
 
 export default function Page() {
-  return <App />
+  return <App />;
 }
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-'use client'
+"use client";
 
-import dynamic from 'next/dynamic'
-import '../../index.css'
+import dynamic from "next/dynamic";
+import "../../index.css";
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import("../../App"), { ssr: false });
 
 export default function Page() {
-  return <App />
+  return <App />;
 }
 ```
 
@@ -403,7 +403,7 @@ application, you need to tell Next.js to disable the prerendering for the `<App>
 dynamically importing it with the `ssr` option set to `false`:
 
 ```tsx
-const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import("../../App"), { ssr: false });
 ```
 
 ### Step 6: Update Static Image Imports
@@ -412,10 +412,10 @@ Next.js handles static image imports slightly different from Vite. With Vite, im
 file will return its public URL as a string:
 
 ```tsx filename="App.tsx"
-import image from './img.png' // `image` will be '/assets/img.2d8efhg.png' in production
+import image from "./img.png"; // `image` will be '/assets/img.2d8efhg.png' in production
 
 export default function App() {
-  return <img src={image} />
+  return <img src={image} />;
 }
 ```
 
@@ -439,10 +439,10 @@ the automatic optimizations.
 
 ```tsx
 // Before
-import logo from '/logo.png'
+import logo from "/logo.png";
 
 // After
-import logo from '../public/logo.png'
+import logo from "../public/logo.png";
 ```
 
 2. **Pass the image `src` property instead of the whole image object to your `<img>` tag:**
@@ -490,12 +490,12 @@ NEXT_PUBLIC_BASE_PATH="/some-base-path"
 ```js filename="next.config.mjs"
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
+  output: "export", // Outputs a Single-Page Application (SPA).
+  distDir: "./dist", // Changes the build output directory to `./dist/`.
   basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
-}
+};
 
-export default nextConfig
+export default nextConfig;
 ```
 
 3. **Update `import.meta.env.BASE_URL` usages to `process.env.NEXT_PUBLIC_BASE_PATH`**

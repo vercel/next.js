@@ -3,4 +3,4 @@ export default () => (
     <div>My heading</div>
     <div>Extraneous stuff</div>
   </div>
-)
+);

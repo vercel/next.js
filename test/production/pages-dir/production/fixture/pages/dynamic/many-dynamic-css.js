@@ -1,14 +1,14 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
 const First = dynamic(
-  import('../../components/dynamic-css/many-imports/with-css-1')
-)
+  import("../../components/dynamic-css/many-imports/with-css-1")
+);
 const Second = dynamic(
-  import('../../components/dynamic-css/many-imports/with-css-2')
-)
+  import("../../components/dynamic-css/many-imports/with-css-2")
+);
 const Third = dynamic(
-  import('../../components/dynamic-css/many-imports/with-css-3')
-)
+  import("../../components/dynamic-css/many-imports/with-css-3")
+);
 
 export default function Page() {
   return (
@@ -17,5 +17,5 @@ export default function Page() {
       <Second />
       <Third />
     </div>
-  )
+  );
 }

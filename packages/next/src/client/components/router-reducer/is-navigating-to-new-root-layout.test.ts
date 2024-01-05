@@ -1,34 +1,34 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
-import { isNavigatingToNewRootLayout } from './is-navigating-to-new-root-layout'
+import type { FlightRouterState } from "../../../server/app-render/types";
+import { isNavigatingToNewRootLayout } from "./is-navigating-to-new-root-layout";
 
-describe('shouldHardNavigate', () => {
-  it('should return false if there is no new root layout', () => {
+describe("shouldHardNavigate", () => {
+  it("should return false if there is no new root layout", () => {
     const getInitialRouterStateTree = (): FlightRouterState => [
-      '',
+      "",
       {
         children: [
-          'linking',
+          "linking",
           {
-            children: ['', {}],
+            children: ["", {}],
           },
         ],
       },
       undefined,
       undefined,
       true,
-    ]
-    const initialRouterStateTree = getInitialRouterStateTree()
+    ];
+    const initialRouterStateTree = getInitialRouterStateTree();
     const getNewRouterStateTree = (): FlightRouterState => {
       return [
-        '',
+        "",
         {
           children: [
-            'link-hard-push',
+            "link-hard-push",
             {
               children: [
-                ['id', '456', 'd'],
+                ["id", "456", "d"],
                 {
-                  children: ['', {}],
+                  children: ["", {}],
                 },
               ],
             },
@@ -37,26 +37,26 @@ describe('shouldHardNavigate', () => {
         null,
         null,
         true,
-      ]
-    }
-    const newRouterState = getNewRouterStateTree()
+      ];
+    };
+    const newRouterState = getNewRouterStateTree();
 
     const result = isNavigatingToNewRootLayout(
       newRouterState,
       initialRouterStateTree
-    )
+    );
 
-    expect(result).toBe(false)
-  })
+    expect(result).toBe(false);
+  });
 
-  it('should return true if there is a mismatch between the root layouts', () => {
+  it("should return true if there is a mismatch between the root layouts", () => {
     const getInitialRouterStateTree = (): FlightRouterState => [
-      '',
+      "",
       {
         children: [
-          'linking',
+          "linking",
           {
-            children: ['', {}],
+            children: ["", {}],
           },
           undefined,
           undefined,
@@ -64,19 +64,19 @@ describe('shouldHardNavigate', () => {
           true,
         ],
       },
-    ]
-    const initialRouterStateTree = getInitialRouterStateTree()
+    ];
+    const initialRouterStateTree = getInitialRouterStateTree();
     const getNewRouterStateTree = (): FlightRouterState => {
       return [
-        '',
+        "",
         {
           children: [
-            'link-hard-push',
+            "link-hard-push",
             {
               children: [
-                ['id', '456', 'd'],
+                ["id", "456", "d"],
                 {
-                  children: ['', {}],
+                  children: ["", {}],
                 },
               ],
             },
@@ -86,15 +86,15 @@ describe('shouldHardNavigate', () => {
             true,
           ],
         },
-      ]
-    }
-    const newRouterState = getNewRouterStateTree()
+      ];
+    };
+    const newRouterState = getNewRouterStateTree();
 
     const result = isNavigatingToNewRootLayout(
       newRouterState,
       initialRouterStateTree
-    )
+    );
 
-    expect(result).toBe(true)
-  })
-})
+    expect(result).toBe(true);
+  });
+});

@@ -1,3 +1,3 @@
 export default function page() {
-  return 'icons-from-layout'
+  return "icons-from-layout";
 }

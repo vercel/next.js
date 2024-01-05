@@ -3,5 +3,5 @@ export default function Page() {
     <>
       <h1 id="page-b">Page B</h1>
     </>
-  )
+  );
 }

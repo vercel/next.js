@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import React from 'react'
+import Link from "next/link";
+import React from "react";
 
 const Page = () => {
   return (
@@ -9,7 +9,7 @@ const Page = () => {
         <Link
           data-next-shallow-push
           shallow
-          href={{ query: { params: 'testParams' } }}
+          href={{ query: { params: "testParams" } }}
         >
           Shallow push
         </Link>
@@ -20,7 +20,7 @@ const Page = () => {
         </Link>
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

@@ -1,1 +1,1 @@
-module.exports = require('./bundle').pluginTransformReactRemovePropTypes()
+module.exports = require("./bundle").pluginTransformReactRemovePropTypes();

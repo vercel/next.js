@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic'
-import Head from 'next/head'
+import dynamic from "next/dynamic";
+import Head from "next/head";
 
 const Test = dynamic({
   loader: async () => {
@@ -21,10 +21,10 @@ const Test = dynamic({
           </Head>
           test
         </div>
-      )
-    }
+      );
+    };
   },
   ssr: false,
-})
+});
 
-export default Test
+export default Test;

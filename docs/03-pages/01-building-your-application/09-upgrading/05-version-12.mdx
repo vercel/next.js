@@ -66,7 +66,7 @@ You can opt-in to replacing Terser with SWC for minifying JavaScript up to 7x fa
 ```js filename="next.config.js"
 module.exports = {
   swcMinify: true,
-}
+};
 ```
 
 Minification using SWC is an opt-in flag to ensure it can be tested against more real-world Next.js applications before it becomes the default in Next.js 12.1. If you have feedback about minification, please leave it on [this feedback thread](https://github.com/vercel/next.js/discussions/30237).
@@ -128,9 +128,9 @@ If you are using Apache (2.x), you can add the following configuration to enable
 For custom servers, such as `express`, you may need to use `app.all` to ensure the request is passed correctly, for example:
 
 ```js
-app.all('/_next/webpack-hmr', (req, res) => {
-  nextjsRequestHandler(req, res)
-})
+app.all("/_next/webpack-hmr", (req, res) => {
+  nextjsRequestHandler(req, res);
+});
 ```
 
 #### Webpack 4 support has been removed

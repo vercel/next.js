@@ -1,6 +1,6 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
 import double, {
   inc,
@@ -9,22 +9,22 @@ import double, {
   getHeaders,
   renamed,
   slowInc,
-} from './actions'
-import { test } from './actions-lib'
+} from "./actions";
+import { test } from "./actions-lib";
 
 export default function Counter() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
   return (
     <div>
       <h1>{count}</h1>
       <button
         id="inc"
         onClick={async () => {
-          const newCount = await inc(count)
-          setCount(newCount)
+          const newCount = await inc(count);
+          setCount(newCount);
 
           // test renamed action
-          renamed()
+          renamed();
         }}
       >
         +1
@@ -32,8 +32,8 @@ export default function Counter() {
       <button
         id="slow-inc"
         onClick={async () => {
-          const newCount = await slowInc(count)
-          setCount(newCount)
+          const newCount = await slowInc(count);
+          setCount(newCount);
         }}
       >
         +1 (Slow)
@@ -41,8 +41,8 @@ export default function Counter() {
       <button
         id="dec"
         onClick={async () => {
-          const newCount = await dec(count)
-          setCount(newCount)
+          const newCount = await dec(count);
+          setCount(newCount);
         }}
       >
         -1
@@ -50,8 +50,8 @@ export default function Counter() {
       <button
         id="double"
         onClick={async () => {
-          const newCount = await double(count)
-          setCount(newCount)
+          const newCount = await double(count);
+          setCount(newCount);
         }}
       >
         *2
@@ -59,7 +59,7 @@ export default function Counter() {
       <form>
         <button
           id="redirect"
-          formAction={() => redirectAction('/redirect-target')}
+          formAction={() => redirectAction("/redirect-target")}
         >
           redirect
         </button>
@@ -69,7 +69,7 @@ export default function Counter() {
           id="redirect-external"
           formAction={() =>
             redirectAction(
-              'https://next-data-api-endpoint.vercel.app/api/random?page'
+              "https://next-data-api-endpoint.vercel.app/api/random?page"
             )
           }
         >
@@ -85,5 +85,5 @@ export default function Counter() {
         <button>test</button>
       </form>
     </div>
-  )
+  );
 }

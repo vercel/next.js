@@ -1,7 +1,7 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <p id="blog">/blog/[slug]</p>
@@ -10,7 +10,7 @@ export default function Page(props) {
       <p id="as-path">{router.asPath}</p>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }
 
 export function getServerSideProps({ params }) {
@@ -19,5 +19,5 @@ export function getServerSideProps({ params }) {
       now: Date.now(),
       params,
     },
-  }
+  };
 }

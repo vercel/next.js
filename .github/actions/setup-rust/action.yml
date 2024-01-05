@@ -1,20 +1,20 @@
-name: 'Rust Setup'
-description: 'Sets up the Rust toolchain for CI'
+name: "Rust Setup"
+description: "Sets up the Rust toolchain for CI"
 inputs:
   targets:
-    description: 'Comma-separated list of target triples to install for this toolchain'
+    description: "Comma-separated list of target triples to install for this toolchain"
     required: false
   components:
-    description: 'Comma-separated list of components to be additionally installed'
+    description: "Comma-separated list of components to be additionally installed"
     required: false
   skip-install:
-    description: 'Sets environment variables without installing the rust toolchain'
+    description: "Sets environment variables without installing the rust toolchain"
     required: false
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
-    - name: 'Get toolchain version from file'
+    - name: "Get toolchain version from file"
       id: file
       shell: bash
       run: echo "toolchain=$(cat ./rust-toolchain)" >> $GITHUB_OUTPUT
@@ -52,7 +52,7 @@ runs:
           echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV
         fi
 
-    - name: 'Setup Rust toolchain'
+    - name: "Setup Rust toolchain"
       uses: dtolnay/rust-toolchain@master
       if: ${{ !inputs.skip-install }}
       with:
@@ -60,6 +60,6 @@ runs:
         targets: ${{ inputs.targets }}
         components: ${{ inputs.components }}
 
-    - name: 'Add cargo problem matchers'
+    - name: "Add cargo problem matchers"
       shell: bash
       run: echo "::add-matcher::${{ github.action_path }}/matchers.json"

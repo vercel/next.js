@@ -4,4 +4,4 @@ module.exports = {
     adjustFontFallbacks: true,
     adjustFontFallbacksWithSizeAdjust: true,
   },
-}
+};

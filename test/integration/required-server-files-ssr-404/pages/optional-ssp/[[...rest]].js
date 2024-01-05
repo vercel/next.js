@@ -5,9 +5,9 @@ export const getServerSideProps = ({ query, params }) => {
       query: query,
       params: params || null,
     },
-  }
-}
+  };
+};
 
 export default function Page(props) {
-  return <p id="props">{JSON.stringify(props)}</p>
+  return <p id="props">{JSON.stringify(props)}</p>;
 }

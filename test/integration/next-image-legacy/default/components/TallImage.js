@@ -1,7 +1,7 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
-import testTall from './tall.png'
+import testTall from "./tall.png";
 
 const Page = () => {
   return (
@@ -14,7 +14,7 @@ const Page = () => {
         placeholder="blur"
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

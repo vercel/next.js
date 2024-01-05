@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page(props) {
   return (
@@ -14,15 +14,15 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }
 
 export function getStaticProps() {
-  console.log('revalidating /')
+  console.log("revalidating /");
   return {
     props: {
       now: Date.now(),
     },
     revalidate: 1,
-  }
+  };
 }

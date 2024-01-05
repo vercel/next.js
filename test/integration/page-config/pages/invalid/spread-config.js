@@ -1,5 +1,5 @@
-const props = { amp: true }
+const props = { amp: true };
 
 // export const config = { ...props }
 
-export default () => <p>{JSON.stringify(props)}</p>
+export default () => <p>{JSON.stringify(props)}</p>;

@@ -1,9 +1,9 @@
-import { headers } from 'next/headers'
+import { headers } from "next/headers";
 
 export default function Page() {
-  const headersList = headers()
-  const hasHeader = headersList.get('x-use-headers') === 'value'
-  const referer = headersList.get('referer')
+  const headersList = headers();
+  const hasHeader = headersList.get("x-use-headers") === "value";
+  const referer = headersList.get("referer");
 
   return (
     <>
@@ -15,5 +15,5 @@ export default function Page() {
       )}
       {referer && <h3 id="has-referer">Has referer header</h3>}
     </>
-  )
+  );
 }

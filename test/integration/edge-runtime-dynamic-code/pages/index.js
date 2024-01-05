@@ -1,9 +1,9 @@
-import { usingEvalSync, usingEval } from '../lib/utils'
+import { usingEvalSync, usingEval } from "../lib/utils";
 
 export async function getServerSideProps() {
   return {
     props: await usingEval(),
-  }
+  };
 }
 
 export default function Page(props) {
@@ -11,5 +11,5 @@ export default function Page(props) {
     <div>
       {props.value} and {usingEvalSync().value}
     </div>
-  )
+  );
 }

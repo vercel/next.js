@@ -1,23 +1,23 @@
-import Link from 'next/link'
-import { Component } from 'react'
-import Router from 'next/router'
+import Link from "next/link";
+import { Component } from "react";
+import Router from "next/router";
 
-let counter = 0
+let counter = 0;
 
 const linkStyle = {
   marginRight: 10,
-}
+};
 
 export default class extends Component {
   increase() {
-    counter++
-    this.forceUpdate()
+    counter++;
+    this.forceUpdate();
   }
 
   visitQueryStringPage() {
-    const href = { pathname: '/nav/querystring', query: { id: 10 } }
-    const as = { pathname: '/nav/querystring/10', hash: '10' }
-    Router.push(href, as)
+    const href = { pathname: "/nav/querystring", query: { id: 10 } };
+    const as = { pathname: "/nav/querystring/10", hash: "10" };
+    Router.push(href, as);
   }
 
   render() {
@@ -47,8 +47,8 @@ export default class extends Component {
           Redirect
         </Link>
         <Link
-          href={{ pathname: '/nav/querystring', query: { id: 10 } }}
-          as={{ pathname: '/nav/querystring/10', hash: '10' }}
+          href={{ pathname: "/nav/querystring", query: { id: 10 } }}
+          as={{ pathname: "/nav/querystring/10", hash: "10" }}
           id="query-string-link"
           style={linkStyle}
         >
@@ -93,7 +93,7 @@ export default class extends Component {
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
         >
-          <Link href="/nav/about" id="in-svg-link" style={{ display: 'block' }}>
+          <Link href="/nav/about" id="in-svg-link" style={{ display: "block" }}>
             <path
               fillRule="evenodd"
               clipRule="evenodd"
@@ -123,6 +123,6 @@ export default class extends Component {
           Scroll to CJK hash
         </Link>
       </div>
-    )
+    );
   }
 }

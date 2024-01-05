@@ -1,9 +1,9 @@
-import React from 'react'
-import Image from 'next/legacy/image'
+import React from "react";
+import Image from "next/legacy/image";
 
 const myLoader = ({ src, width, quality }) => {
-  return `https://customresolver.com${src}?w~~${width},q~~${quality}`
-}
+  return `https://customresolver.com${src}?w~~${width},q~~${quality}`;
+};
 
 const Page = () => {
   return (
@@ -18,7 +18,7 @@ const Page = () => {
         height={360}
       />
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

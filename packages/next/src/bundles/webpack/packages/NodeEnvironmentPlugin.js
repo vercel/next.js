@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').NodeEnvironmentPlugin
+module.exports = require("./webpack.js").NodeEnvironmentPlugin;

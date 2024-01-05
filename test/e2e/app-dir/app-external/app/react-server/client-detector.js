@@ -1,3 +1,3 @@
-'use client'
+"use client";
 
-export { default } from './detector'
+export { default } from "./detector";

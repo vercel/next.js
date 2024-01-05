@@ -1,5 +1,5 @@
-import { foo } from 'my-lib'
+import { foo } from "my-lib";
 
 export default function Page() {
-  return <h1>{foo}</h1>
+  return <h1>{foo}</h1>;
 }

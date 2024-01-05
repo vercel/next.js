@@ -1,8 +1,8 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from "next/dist/compiled/webpack/webpack";
 
-import { getModuleBuildError } from './webpackModuleError'
+import { getModuleBuildError } from "./webpackModuleError";
 
-const NAME = 'WellKnownErrorsPlugin'
+const NAME = "WellKnownErrorsPlugin";
 export class WellKnownErrorsPlugin {
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(NAME, (compilation) => {
@@ -11,13 +11,13 @@ export class WellKnownErrorsPlugin {
           await Promise.all(
             compilation.warnings.map(async (warn, i) => {
               if (
-                warn.name === 'ModuleDependencyWarning' &&
-                warn.module.context?.includes('node_modules')
+                warn.name === "ModuleDependencyWarning" &&
+                warn.module.context?.includes("node_modules")
               ) {
-                compilation.warnings.splice(i, 1)
+                compilation.warnings.splice(i, 1);
               }
             })
-          )
+          );
         }
 
         if (compilation.errors?.length) {
@@ -28,17 +28,17 @@ export class WellKnownErrorsPlugin {
                   compiler,
                   compilation,
                   err
-                )
+                );
                 if (moduleError !== false) {
-                  compilation.errors[i] = moduleError
+                  compilation.errors[i] = moduleError;
                 }
               } catch (e) {
-                console.log(e)
+                console.log(e);
               }
             })
-          )
+          );
         }
-      })
-    })
+      });
+    });
   }
 }

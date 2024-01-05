@@ -1,5 +1,5 @@
-import styles from '../styles/index.module.css'
-import Hello from '../components/hello'
+import styles from "../styles/index.module.css";
+import Hello from "../components/hello";
 
 export default function Home() {
   return (
@@ -7,13 +7,13 @@ export default function Home() {
       <p>Hello World</p>
       <Hello />
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = () => {
   return {
     props: {
-      hello: 'world',
+      hello: "world",
     },
-  }
-}
+  };
+};

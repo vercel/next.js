@@ -1,6 +1,6 @@
 module.exports = {
   trailingSlash: true,
   async rewrites() {
-    return [{ source: '/country/', destination: '/' }]
+    return [{ source: "/country/", destination: "/" }];
   },
-}
+};

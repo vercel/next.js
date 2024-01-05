@@ -8,12 +8,12 @@ description: API Reference for the useSelectedLayoutSegments hook.
 It is useful for creating UI in parent Layouts that need knowledge of active child segments such as breadcrumbs.
 
 ```tsx filename="app/example-client-component.tsx" switcher
-'use client'
+"use client";
 
-import { useSelectedLayoutSegments } from 'next/navigation'
+import { useSelectedLayoutSegments } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const segments = useSelectedLayoutSegments()
+  const segments = useSelectedLayoutSegments();
 
   return (
     <ul>
@@ -21,17 +21,17 @@ export default function ExampleClientComponent() {
         <li key={index}>{segment}</li>
       ))}
     </ul>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/example-client-component.js" switcher
-'use client'
+"use client";
 
-import { useSelectedLayoutSegments } from 'next/navigation'
+import { useSelectedLayoutSegments } from "next/navigation";
 
 export default function ExampleClientComponent() {
-  const segments = useSelectedLayoutSegments()
+  const segments = useSelectedLayoutSegments();
 
   return (
     <ul>
@@ -39,7 +39,7 @@ export default function ExampleClientComponent() {
         <li key={index}>{segment}</li>
       ))}
     </ul>
-  )
+  );
 }
 ```
 

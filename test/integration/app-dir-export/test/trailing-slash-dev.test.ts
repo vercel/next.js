@@ -1,12 +1,12 @@
-import { runTests } from './utils'
+import { runTests } from "./utils";
 
-describe('app dir - with output export - trailing slash dev', () => {
-  describe('development mode', () => {
+describe("app dir - with output export - trailing slash dev", () => {
+  describe("development mode", () => {
     it.each([{ trailingSlash: false }, { trailingSlash: true }])(
       "should work in dev with trailingSlash '$trailingSlash'",
       async ({ trailingSlash }) => {
-        await runTests({ isDev: true, trailingSlash })
+        await runTests({ isDev: true, trailingSlash });
       }
-    )
-  })
-})
+    );
+  });
+});

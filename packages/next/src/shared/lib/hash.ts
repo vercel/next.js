@@ -6,14 +6,14 @@
 // overflow behavior. This is more `correct` in terms of having canonical hash across different runtime / implementation
 // as can gaurantee determinstic output from 32bit hash.
 export function djb2Hash(str: string) {
-  let hash = 5381
+  let hash = 5381;
   for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i)
-    hash = ((hash << 5) + hash + char) & 0xffffffff
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) + hash + char) & 0xffffffff;
   }
-  return hash >>> 0
+  return hash >>> 0;
 }
 
 export function hexHash(str: string) {
-  return djb2Hash(str).toString(36).slice(0, 5)
+  return djb2Hash(str).toString(36).slice(0, 5);
 }

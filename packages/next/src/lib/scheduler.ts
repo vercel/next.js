@@ -1,5 +1,5 @@
-export type ScheduledFn<T = void> = () => T | PromiseLike<T>
-export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void
+export type ScheduledFn<T = void> = () => T | PromiseLike<T>;
+export type SchedulerFn<T = void> = (cb: ScheduledFn<T>) => void;
 
 /**
  * Schedules a function to be called on the next tick after the other promises
@@ -15,9 +15,9 @@ export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
   // This was inspired by the implementation of the DataLoader interface: https://github.com/graphql/dataloader/blob/d336bd15282664e0be4b4a657cb796f09bafbc6b/src/index.js#L213-L255
   //
   Promise.resolve().then(() => {
-    process.nextTick(cb)
-  })
-}
+    process.nextTick(cb);
+  });
+};
 
 /**
  * Schedules a function to be called using `setImmediate` or `setTimeout` if
@@ -26,9 +26,9 @@ export const scheduleOnNextTick = <T = void>(cb: ScheduledFn<T>): void => {
  * @param cb the function to schedule
  */
 export const scheduleImmediate = <T = void>(cb: ScheduledFn<T>): void => {
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    setTimeout(cb, 0)
+  if (process.env.NEXT_RUNTIME === "edge") {
+    setTimeout(cb, 0);
   } else {
-    setImmediate(cb)
+    setImmediate(cb);
   }
-}
+};

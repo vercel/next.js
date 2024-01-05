@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import './client-layout.css'
+import "./client-layout.css";
 
-import Foo from './foo'
+import Foo from "./foo";
 
 export default function ServerLayout({ children }) {
   return (
@@ -10,5 +10,5 @@ export default function ServerLayout({ children }) {
       {children}
       <Foo />
     </>
-  )
+  );
 }

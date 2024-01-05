@@ -1,5 +1,5 @@
 ---
-title: 'Global CSS Must Be in Your Custom `<App>`'
+title: "Global CSS Must Be in Your Custom `<App>`"
 ---
 
 ## Why This Error Occurred
@@ -20,8 +20,8 @@ Consider the stylesheet named [`styles.css`](/docs/pages/building-your-applicati
 
 ```css filename="styles.css"
 body {
-  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
-    'Arial', sans-serif;
+  font-family: "SF Pro Text", "SF Pro Icons", "Helvetica Neue", "Helvetica",
+    "Arial", sans-serif;
   padding: 20px 20px 60px;
   max-width: 680px;
   margin: 0 auto;
@@ -31,9 +31,9 @@ body {
 Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](/docs/pages/building-your-application/styling/css-modules).
 
 ```jsx filename="pages/_app.js"
-import '../styles.css'
+import "../styles.css";
 
 export default function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 ```

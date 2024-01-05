@@ -1,36 +1,36 @@
-import { test as base, defineConfig } from './index'
-import type { NextFixture } from './next-fixture'
+import { test as base, defineConfig } from "./index";
+import type { NextFixture } from "./next-fixture";
 import {
   type RequestHandler,
   type MockedResponse,
   MockedRequest,
   handleRequest,
   // eslint-disable-next-line import/no-extraneous-dependencies
-} from 'msw'
+} from "msw";
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { Emitter } from 'strict-event-emitter'
+import { Emitter } from "strict-event-emitter";
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export * from 'msw'
+export * from "msw";
 // eslint-disable-next-line import/no-extraneous-dependencies
-export * from '@playwright/test'
-export type { NextFixture }
-export { defineConfig }
+export * from "@playwright/test";
+export type { NextFixture };
+export { defineConfig };
 
 export interface MswFixture {
-  use: (...handlers: RequestHandler[]) => void
+  use: (...handlers: RequestHandler[]) => void;
 }
 
 export const test = base.extend<{
-  msw: MswFixture
-  mswHandlers: RequestHandler[]
+  msw: MswFixture;
+  mswHandlers: RequestHandler[];
 }>({
   mswHandlers: [[], { option: true }],
 
   msw: [
     async ({ next, mswHandlers }, use) => {
-      const handlers: RequestHandler[] = [...mswHandlers]
-      const emitter = new Emitter()
+      const handlers: RequestHandler[] = [...mswHandlers];
+      const emitter = new Emitter();
 
       next.onFetch(async (request) => {
         const {
@@ -46,7 +46,7 @@ export const test = base.extend<{
           destination,
           referrer,
           referrerPolicy,
-        } = request
+        } = request;
         const mockedRequest = new MockedRequest(new URL(request.url), {
           body: body ? await request.arrayBuffer() : undefined,
           method,
@@ -60,34 +60,34 @@ export const test = base.extend<{
           destination,
           referrer,
           referrerPolicy,
-        })
-        let isUnhandled = false
-        let isPassthrough = false
-        let mockedResponse: MockedResponse | undefined
+        });
+        let isUnhandled = false;
+        let isPassthrough = false;
+        let mockedResponse: MockedResponse | undefined;
         await handleRequest(
           mockedRequest,
           handlers.slice(0),
           {
             onUnhandledRequest: () => {
-              isUnhandled = true
+              isUnhandled = true;
             },
           },
           emitter as any,
           {
             onPassthroughResponse: () => {
-              isPassthrough = true
+              isPassthrough = true;
             },
             onMockedResponse: (r) => {
-              mockedResponse = r
+              mockedResponse = r;
             },
           }
-        )
+        );
 
         if (isUnhandled) {
-          return undefined
+          return undefined;
         }
         if (isPassthrough) {
-          return 'continue'
+          return "continue";
         }
 
         if (mockedResponse) {
@@ -96,29 +96,29 @@ export const test = base.extend<{
             headers: responseHeaders,
             body: responseBody,
             delay,
-          } = mockedResponse
+          } = mockedResponse;
           if (delay) {
-            await new Promise((resolve) => setTimeout(resolve, delay))
+            await new Promise((resolve) => setTimeout(resolve, delay));
           }
           return new Response(responseBody, {
             status,
             headers: new Headers(responseHeaders),
-          })
+          });
         }
 
-        return 'abort'
-      })
+        return "abort";
+      });
 
       await use({
         use: (...newHandlers) => {
-          handlers.unshift(...newHandlers)
+          handlers.unshift(...newHandlers);
         },
-      })
+      });
 
-      handlers.length = 0
+      handlers.length = 0;
     },
     { auto: true },
   ],
-})
+});
 
-export default test
+export default test;

@@ -6,13 +6,13 @@ export default function Main({ message, middleware, now }) {
       <p className="middleware">{middleware}</p>
       <p className="now">{now}</p>
     </div>
-  )
+  );
 }
 
 export const getServerSideProps = ({ query }) => ({
   props: {
     now: Date.now(),
-    middleware: query.middleware || '',
-    message: query.message || '',
+    middleware: query.middleware || "",
+    message: query.message || "",
   },
-})
+});

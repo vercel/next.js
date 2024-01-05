@@ -1,10 +1,10 @@
-import Form from './form'
+import Form from "./form";
 
-async function action(payload = '') {
-  'use server'
-  console.log('size =', payload.length)
+async function action(payload = "") {
+  "use server";
+  console.log("size =", payload.length);
 }
 
 export default function Page() {
-  return <Form action={action} />
+  return <Form action={action} />;
 }

@@ -1,3 +1,3 @@
-module.exports = require('../../module.compiled').vendored[
-  'react-rsc'
-].ReactServerDOMWebpackServerEdge
+module.exports = require("../../module.compiled").vendored[
+  "react-rsc"
+].ReactServerDOMWebpackServerEdge;

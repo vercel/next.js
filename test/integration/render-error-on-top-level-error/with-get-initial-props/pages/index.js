@@ -1,7 +1,7 @@
-if (typeof window !== 'undefined') {
-  throw new Error('top level error')
+if (typeof window !== "undefined") {
+  throw new Error("top level error");
 }
 
-const Page = () => 'page'
+const Page = () => "page";
 
-export default Page
+export default Page;

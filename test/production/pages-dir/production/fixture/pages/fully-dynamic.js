@@ -1,11 +1,11 @@
 export async function getServerSideProps() {
   return {
     props: {
-      myDynamicProp: 'hello world',
+      myDynamicProp: "hello world",
     },
-  }
+  };
 }
 
 export default function FullyDynamic({ myDynamicProp }) {
-  return <h1>{myDynamicProp}</h1>
+  return <h1>{myDynamicProp}</h1>;
 }

@@ -1,5 +1,5 @@
-const page = () => 'page with err'
+const page = () => "page with err";
 page.getInitialProps = () => {
-  throw new Error('oops')
-}
-export default page
+  throw new Error("oops");
+};
+export default page;

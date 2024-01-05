@@ -1,17 +1,17 @@
-import { use } from 'react'
-import Runtime from '../../utils/runtime'
-import Time from '../../utils/time'
+import { use } from "react";
+import Runtime from "../../utils/runtime";
+import Time from "../../utils/time";
 
 async function getData() {
   return {
     props: {
-      type: 'SSG',
+      type: "SSG",
     },
-  }
+  };
 }
 
 export default function Page(props) {
-  const { type } = use(getData())
+  const { type } = use(getData());
   return (
     <div className="node-rsc-ssg">
       This is a {type} RSC page.
@@ -20,5 +20,5 @@ export default function Page(props) {
       <br />
       <Time />
     </div>
-  )
+  );
 }

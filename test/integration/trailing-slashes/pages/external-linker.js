@@ -1,17 +1,17 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ query }) {
   return {
-    props: { href: decodeURI(query.href) || '/' },
-  }
+    props: { href: decodeURI(query.href) || "/" },
+  };
 }
 
 export default function ExternalLinker({ href }) {
-  const router = useRouter()
+  const router = useRouter();
   const pushRoute = () => {
-    router.push(href)
-  }
+    router.push(href);
+  };
   return (
     <div>
       <Link href={href} id="link">
@@ -21,5 +21,5 @@ export default function ExternalLinker({ href }) {
         push route {href}
       </button>
     </div>
-  )
+  );
 }

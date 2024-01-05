@@ -1,8 +1,8 @@
-name: 'Docs Request for an Update or Improvement'
+name: "Docs Request for an Update or Improvement"
 description: A request to update or improve Next.js documentation
-title: 'Docs: '
+title: "Docs: "
 labels:
-  - 'template: documentation'
+  - "template: documentation"
 body:
   - type: markdown
     attributes:
@@ -13,7 +13,7 @@ body:
   - type: textarea
     attributes:
       label: What is the improvement or update you wish to see?
-      description: 'Example: I would like to see more examples of how to use the `<Link>` component. Or, the `<Link>` component docs are missing information.'
+      description: "Example: I would like to see more examples of how to use the `<Link>` component. Or, the `<Link>` component docs are missing information."
     validations:
       required: true
   - type: textarea
@@ -25,6 +25,6 @@ body:
   - type: input
     attributes:
       label: Does the docs page already exist? Please link to it.
-      description: 'Example: https://nextjs.org/docs/api-reference/next/link'
+      description: "Example: https://nextjs.org/docs/api-reference/next/link"
     validations:
       required: false

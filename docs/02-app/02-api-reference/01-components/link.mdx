@@ -22,18 +22,18 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 <AppOnly>
 
 ```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/dashboard">Dashboard</Link>
+  return <Link href="/dashboard">Dashboard</Link>;
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
-  return <Link href="/dashboard">Dashboard</Link>
+  return <Link href="/dashboard">Dashboard</Link>;
 }
 ```
 
@@ -50,7 +50,7 @@ For an example, consider a `pages` directory with the following files:
 We can have a link to each of these pages like so:
 
 ```jsx
-import Link from 'next/link'
+import Link from "next/link";
 
 function Home() {
   return (
@@ -65,10 +65,10 @@ function Home() {
         <Link href="/blog/hello-world">Blog Post</Link>
       </li>
     </ul>
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 </PagesOnly>
@@ -100,8 +100,8 @@ The path or URL to navigate to.
 // Navigate to /about?name=test
 <Link
   href={{
-    pathname: '/about',
-    query: { name: 'test' },
+    pathname: "/about",
+    query: { name: "test" },
   }}
 >
   About
@@ -113,26 +113,26 @@ The path or URL to navigate to.
 **Defaults to `false`.** When `true`, `next/link` will replace the current history state instead of adding a new URL into the [browser’s history](https://developer.mozilla.org/docs/Web/API/History_API) stack.
 
 ```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" replace>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" replace>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
@@ -141,26 +141,26 @@ export default function Page() {
 **Defaults to `true`.** The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
 
 ```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" scroll={false}>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" scroll={false}>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
@@ -171,26 +171,26 @@ export default function Page() {
 Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
 
 ```tsx filename="app/page.tsx" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" prefetch={false}>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page() {
   return (
     <Link href="/dashboard" prefetch={false}>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 
@@ -233,7 +233,7 @@ For dynamic routes, it can be handy to use template literals to create the link'
 For example, you can generate a list of links to the dynamic route `pages/blog/[slug].js`
 
 ```jsx filename="pages/blog/index.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 function Posts({ posts }) {
   return (
@@ -244,10 +244,10 @@ function Posts({ posts }) {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 
-export default Posts
+export default Posts;
 ```
 
 </PagesOnly>
@@ -257,7 +257,7 @@ export default Posts
 For example, you can generate a list of links to the dynamic route `app/blog/[slug]/page.js`:
 
 ```jsx filename="app/blog/page.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 function Page({ posts }) {
   return (
@@ -268,7 +268,7 @@ function Page({ posts }) {
         </li>
       ))}
     </ul>
-  )
+  );
 }
 ```
 
@@ -291,23 +291,23 @@ If the child of `Link` is a custom component that wraps an `<a>` tag, you must a
 </PagesOnly>
 
 ```jsx
-import Link from 'next/link'
-import styled from 'styled-components'
+import Link from "next/link";
+import styled from "styled-components";
 
 // This creates a custom component that wraps an <a> tag
 const RedLink = styled.a`
   color: red;
-`
+`;
 
 function NavLink({ href, name }) {
   return (
     <Link href={href} passHref legacyBehavior>
       <RedLink>{name}</RedLink>
     </Link>
-  )
+  );
 }
 
-export default NavLink
+export default NavLink;
 ```
 
 - If you’re using [emotion](https://emotion.sh/)’s JSX pragma feature (`@jsx jsx`), you must use `passHref` even if you use an `<a>` tag directly.
@@ -318,7 +318,7 @@ export default NavLink
 If the child of `Link` is a functional component, in addition to using `passHref` and `legacyBehavior`, you must wrap the component in [`React.forwardRef`](https://react.dev/reference/react/forwardRef):
 
 ```jsx
-import Link from 'next/link'
+import Link from "next/link";
 
 // `onClick`, `href`, and `ref` need to be passed to the DOM element
 // for proper handling
@@ -327,18 +327,18 @@ const MyButton = React.forwardRef(({ onClick, href }, ref) => {
     <a href={href} onClick={onClick} ref={ref}>
       Click Me
     </a>
-  )
-})
+  );
+});
 
 function Home() {
   return (
     <Link href="/about" passHref legacyBehavior>
       <MyButton />
     </Link>
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 ### With URL Object
@@ -346,7 +346,7 @@ export default Home
 `Link` can also receive a URL object and it will automatically format it to create the URL string. Here's how to do it:
 
 ```jsx
-import Link from 'next/link'
+import Link from "next/link";
 
 function Home() {
   return (
@@ -354,8 +354,8 @@ function Home() {
       <li>
         <Link
           href={{
-            pathname: '/about',
-            query: { name: 'test' },
+            pathname: "/about",
+            query: { name: "test" },
           }}
         >
           About us
@@ -364,18 +364,18 @@ function Home() {
       <li>
         <Link
           href={{
-            pathname: '/blog/[slug]',
-            query: { slug: 'my-post' },
+            pathname: "/blog/[slug]",
+            query: { slug: "my-post" },
           }}
         >
           Blog Post
         </Link>
       </li>
     </ul>
-  )
+  );
 }
 
-export default Home
+export default Home;
 ```
 
 The above example has a link to:
@@ -415,12 +415,12 @@ For example, if you want to serve a `/dashboard` route that has authenticated an
 
 ```js filename="middleware.js"
 export function middleware(req) {
-  const nextUrl = req.nextUrl
-  if (nextUrl.pathname === '/dashboard') {
+  const nextUrl = req.nextUrl;
+  if (nextUrl.pathname === "/dashboard") {
     if (req.cookies.authToken) {
-      return NextResponse.rewrite(new URL('/auth/dashboard', req.url))
+      return NextResponse.rewrite(new URL("/auth/dashboard", req.url));
     } else {
-      return NextResponse.rewrite(new URL('/public/dashboard', req.url))
+      return NextResponse.rewrite(new URL("/public/dashboard", req.url));
     }
   }
 }
@@ -429,17 +429,17 @@ export function middleware(req) {
 In this case, you would want to use the following code in your `<Link />` component:
 
 ```js
-import Link from 'next/link'
-import useIsAuthed from './hooks/useIsAuthed'
+import Link from "next/link";
+import useIsAuthed from "./hooks/useIsAuthed";
 
 export default function Page() {
-  const isAuthed = useIsAuthed()
-  const path = isAuthed ? '/auth/dashboard' : '/dashboard'
+  const isAuthed = useIsAuthed();
+  const path = isAuthed ? "/auth/dashboard" : "/dashboard";
   return (
     <Link as="/dashboard" href={path}>
       Dashboard
     </Link>
-  )
+  );
 }
 ```
 

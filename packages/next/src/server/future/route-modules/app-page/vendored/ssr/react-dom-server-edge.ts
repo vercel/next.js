@@ -1,3 +1,3 @@
-module.exports = require('../../module.compiled').vendored[
-  'react-ssr'
-].ReactDOMServerEdge
+module.exports = require("../../module.compiled").vendored[
+  "react-ssr"
+].ReactDOMServerEdge;

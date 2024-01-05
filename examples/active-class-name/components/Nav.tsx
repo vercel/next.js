@@ -1,4 +1,4 @@
-import ActiveLink from './ActiveLink'
+import ActiveLink from "./ActiveLink";
 
 const Nav = () => (
   <nav>
@@ -8,7 +8,7 @@ const Nav = () => (
       }
 
       .active:after {
-        content: ' (current page)';
+        content: " (current page)";
       }
     `}</style>
     <ul className="nav">
@@ -39,6 +39,6 @@ const Nav = () => (
       </li>
     </ul>
   </nav>
-)
+);
 
-export default Nav
+export default Nav;

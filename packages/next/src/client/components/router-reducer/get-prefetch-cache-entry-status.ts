@@ -1,13 +1,13 @@
-import type { PrefetchCacheEntry } from './router-reducer-types'
+import type { PrefetchCacheEntry } from "./router-reducer-types";
 
-const FIVE_MINUTES = 5 * 60 * 1000
-const THIRTY_SECONDS = 30 * 1000
+const FIVE_MINUTES = 5 * 60 * 1000;
+const THIRTY_SECONDS = 30 * 1000;
 
 export enum PrefetchCacheEntryStatus {
-  fresh = 'fresh',
-  reusable = 'reusable',
-  expired = 'expired',
-  stale = 'stale',
+  fresh = "fresh",
+  reusable = "reusable",
+  expired = "expired",
+  stale = "stale",
 }
 
 export function getPrefetchEntryCacheStatus({
@@ -19,22 +19,22 @@ export function getPrefetchEntryCacheStatus({
   if (Date.now() < (lastUsedTime ?? prefetchTime) + THIRTY_SECONDS) {
     return lastUsedTime
       ? PrefetchCacheEntryStatus.reusable
-      : PrefetchCacheEntryStatus.fresh
+      : PrefetchCacheEntryStatus.fresh;
   }
 
   // if the cache entry was prefetched less than 5 mins ago, then we want to re-use only the loading state
-  if (kind === 'auto') {
+  if (kind === "auto") {
     if (Date.now() < prefetchTime + FIVE_MINUTES) {
-      return PrefetchCacheEntryStatus.stale
+      return PrefetchCacheEntryStatus.stale;
     }
   }
 
   // if the cache entry was prefetched less than 5 mins ago and was a "full" prefetch, then we want to re-use it "full
-  if (kind === 'full') {
+  if (kind === "full") {
     if (Date.now() < prefetchTime + FIVE_MINUTES) {
-      return PrefetchCacheEntryStatus.reusable
+      return PrefetchCacheEntryStatus.reusable;
     }
   }
 
-  return PrefetchCacheEntryStatus.expired
+  return PrefetchCacheEntryStatus.expired;
 }

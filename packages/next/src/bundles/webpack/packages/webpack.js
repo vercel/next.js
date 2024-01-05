@@ -1,26 +1,26 @@
-exports.__esModule = true
+exports.__esModule = true;
 
-exports.default = undefined
+exports.default = undefined;
 
 exports.init = function () {
   if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
     Object.assign(exports, {
       // eslint-disable-next-line import/no-extraneous-dependencies
-      BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
+      BasicEvaluatedExpression: require("webpack/lib/javascript/BasicEvaluatedExpression"),
       // eslint-disable-next-line import/no-extraneous-dependencies
-      ModuleFilenameHelpers: require('webpack/lib/ModuleFilenameHelpers'),
+      ModuleFilenameHelpers: require("webpack/lib/ModuleFilenameHelpers"),
       // eslint-disable-next-line import/no-extraneous-dependencies
-      NodeTargetPlugin: require('webpack/lib/node/NodeTargetPlugin'),
+      NodeTargetPlugin: require("webpack/lib/node/NodeTargetPlugin"),
       // eslint-disable-next-line import/no-extraneous-dependencies
-      StringXor: require('webpack/lib/util/StringXor'),
+      StringXor: require("webpack/lib/util/StringXor"),
       // eslint-disable-next-line import/no-extraneous-dependencies
-      NormalModule: require('webpack/lib/NormalModule'),
+      NormalModule: require("webpack/lib/NormalModule"),
       // eslint-disable-next-line import/no-extraneous-dependencies
-      sources: require('webpack').sources,
+      sources: require("webpack").sources,
       // eslint-disable-next-line import/no-extraneous-dependencies
-      webpack: require('webpack'),
-    })
+      webpack: require("webpack"),
+    });
   } else {
-    Object.assign(exports, require('./bundle5')())
+    Object.assign(exports, require("./bundle5")());
   }
-}
+};

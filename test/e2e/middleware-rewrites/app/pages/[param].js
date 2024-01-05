@@ -1,6 +1,6 @@
 export const getServerSideProps = ({ params, query }) => {
-  return { props: { params, query } }
-}
+  return { props: { params, query } };
+};
 
 export default function Page({ params: { param }, query: { qp } }) {
   return (
@@ -8,5 +8,5 @@ export default function Page({ params: { param }, query: { qp } }) {
       <p id="props">{param}</p>
       <p id="qp">{qp}</p>
     </>
-  )
+  );
 }

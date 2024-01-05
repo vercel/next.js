@@ -1,11 +1,11 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export default function Page() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
-      <p id="slug">catch-all slug {router.query.slug?.join('/')}</p>
+      <p id="slug">catch-all slug {router.query.slug?.join("/")}</p>
     </>
-  )
+  );
 }

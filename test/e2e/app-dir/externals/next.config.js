@@ -3,8 +3,8 @@
  */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['external-package'],
+    serverComponentsExternalPackages: ["external-package"],
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

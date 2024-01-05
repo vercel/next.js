@@ -1,5 +1,5 @@
 ---
-title: 'Incompatible `href` and `as` values'
+title: "Incompatible `href` and `as` values"
 ---
 
 ## Why This Error Occurred
@@ -11,7 +11,7 @@ Note: this error will only show when the `next/link` component is clicked not wh
 **Incompatible `href` and `as`**
 
 ```jsx filename="pages/blog.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page(props) {
   return (
@@ -20,14 +20,14 @@ export default function Page(props) {
         <a>Invalid link</a>
       </Link>
     </>
-  )
+  );
 }
 ```
 
 **Compatible `href` and `as`**
 
 ```jsx filename="pages/blog.js"
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Page(props) {
   return (
@@ -36,7 +36,7 @@ export default function Page(props) {
         <a>Valid link</a>
       </Link>
     </>
-  )
+  );
 }
 ```
 

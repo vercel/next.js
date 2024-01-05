@@ -5,23 +5,23 @@
  * by "next/src/build/cssnano-simple"
  */
 
-const createSimplePreset = require('./cssnano-preset-simple')
+const createSimplePreset = require("./cssnano-preset-simple");
 
-module.exports = (opts = {}, postcss = require('postcss')) => {
-  const excludeAll = Boolean(opts && opts.excludeAll)
+module.exports = (opts = {}, postcss = require("postcss")) => {
+  const excludeAll = Boolean(opts && opts.excludeAll);
 
-  const userOpts = Object.assign({}, opts)
+  const userOpts = Object.assign({}, opts);
 
   if (excludeAll) {
     for (const userOption in userOpts) {
-      if (!userOpts.hasOwnProperty(userOption)) continue
-      const val = userOpts[userOption]
+      if (!userOpts.hasOwnProperty(userOption)) continue;
+      const val = userOpts[userOption];
       if (!Boolean(val)) {
-        continue
+        continue;
       }
 
-      if (Object.prototype.toString.call(val) === '[object Object]') {
-        userOpts[userOption] = Object.assign({}, { exclude: false }, val)
+      if (Object.prototype.toString.call(val) === "[object Object]") {
+        userOpts[userOption] = Object.assign({}, { exclude: false }, val);
       }
     }
   }
@@ -30,39 +30,39 @@ module.exports = (opts = {}, postcss = require('postcss')) => {
     {},
     excludeAll ? { rawCache: true } : undefined,
     userOpts
-  )
+  );
 
-  const plugins = []
+  const plugins = [];
   createSimplePreset(options).plugins.forEach((plugin) => {
     if (Array.isArray(plugin)) {
-      let [processor, pluginOpts] = plugin
-      processor = processor.default || processor
+      let [processor, pluginOpts] = plugin;
+      processor = processor.default || processor;
 
       const isEnabled =
         // No options:
-        (!excludeAll && typeof pluginOpts === 'undefined') ||
+        (!excludeAll && typeof pluginOpts === "undefined") ||
         // Short-hand enabled:
-        (typeof pluginOpts === 'boolean' && pluginOpts) ||
+        (typeof pluginOpts === "boolean" && pluginOpts) ||
         // Include all plugins:
         (!excludeAll &&
           pluginOpts &&
-          typeof pluginOpts === 'object' &&
+          typeof pluginOpts === "object" &&
           !pluginOpts.exclude) ||
         // Exclude all plugins:
         (excludeAll &&
           pluginOpts &&
-          typeof pluginOpts === 'object' &&
-          pluginOpts.exclude === false)
+          typeof pluginOpts === "object" &&
+          pluginOpts.exclude === false);
 
       if (isEnabled) {
-        plugins.push(processor(pluginOpts))
+        plugins.push(processor(pluginOpts));
       }
     } else {
-      plugins.push(plugin)
+      plugins.push(plugin);
     }
-  })
+  });
 
-  return postcss(plugins)
-}
+  return postcss(plugins);
+};
 
-module.exports.postcss = true
+module.exports.postcss = true;

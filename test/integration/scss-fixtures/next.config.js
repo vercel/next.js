@@ -4,7 +4,7 @@ module.exports = {
     maxInactiveAge: 1000 * 60 * 60,
   },
   webpack(cfg) {
-    cfg.devtool = 'source-map'
-    return cfg
+    cfg.devtool = "source-map";
+    return cfg;
   },
-}
+};

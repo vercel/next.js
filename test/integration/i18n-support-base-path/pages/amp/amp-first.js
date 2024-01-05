@@ -1,17 +1,17 @@
-import { useAmp } from 'next/amp'
-import { useRouter } from 'next/router'
+import { useAmp } from "next/amp";
+import { useRouter } from "next/router";
 
 export const config = {
   amp: true,
-}
+};
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
       <p id="another">another page</p>
-      <p id="is-amp">{useAmp() ? 'yes' : 'no'}</p>
+      <p id="is-amp">{useAmp() ? "yes" : "no"}</p>
       <p id="props">{JSON.stringify(props)}</p>
       <p id="router-locale">{router.locale}</p>
       <p id="router-locales">{JSON.stringify(router.locales)}</p>
@@ -19,7 +19,7 @@ export default function Page(props) {
       <p id="router-pathname">{router.pathname}</p>
       <p id="router-as-path">{router.asPath}</p>
     </>
-  )
+  );
 }
 
 export const getServerSideProps = ({ locale, locales }) => {
@@ -28,5 +28,5 @@ export const getServerSideProps = ({ locale, locales }) => {
       locale,
       locales,
     },
-  }
-}
+  };
+};

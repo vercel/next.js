@@ -1,1 +1,1 @@
-export * from './dist/client/web-vitals'
+export * from "./dist/client/web-vitals";

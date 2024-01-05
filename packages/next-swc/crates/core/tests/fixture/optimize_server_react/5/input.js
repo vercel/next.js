@@ -1,4 +1,4 @@
-import { ClientComponent } from './ClientComponent'
+import { ClientComponent } from "./ClientComponent";
 
 export default async function Page() {
   return (
@@ -11,5 +11,5 @@ export default async function Page() {
         <ClientComponent />
       </div>
     </>
-  )
+  );
 }

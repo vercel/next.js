@@ -1,1 +1,1 @@
-module.exports = require('./webpack.js').NodeTemplatePlugin
+module.exports = require("./webpack.js").NodeTemplatePlugin;

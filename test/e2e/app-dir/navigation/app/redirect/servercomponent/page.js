@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation'
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  redirect('/redirect/result')
-  return <></>
+  redirect("/redirect/result");
+  return <></>;
 }

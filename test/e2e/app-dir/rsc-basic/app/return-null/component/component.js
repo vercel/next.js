@@ -1,3 +1,3 @@
 export default function Component() {
-  return null
+  return null;
 }

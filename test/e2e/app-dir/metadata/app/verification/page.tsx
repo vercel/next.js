@@ -1,14 +1,14 @@
 export default function page() {
-  return 'verification'
+  return "verification";
 }
 
 export const metadata = {
   verification: {
-    google: 'google',
-    yandex: 'yandex',
-    yahoo: 'yahoo',
+    google: "google",
+    yandex: "yandex",
+    yahoo: "yahoo",
     other: {
-      me: ['my-email', 'my-link'],
+      me: ["my-email", "my-link"],
     },
   },
-}
+};

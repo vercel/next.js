@@ -1,5 +1,5 @@
-'use client'
-import { nanoid } from 'nanoid'
+"use client";
+import { nanoid } from "nanoid";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <h1>No searchParams used</h1>
       <p id="nanoid">{nanoid()}</p>
     </>
-  )
+  );
 }

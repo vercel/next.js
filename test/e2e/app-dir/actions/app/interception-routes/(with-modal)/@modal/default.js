@@ -1,3 +1,3 @@
 export default function Empty() {
-  return null
+  return null;
 }

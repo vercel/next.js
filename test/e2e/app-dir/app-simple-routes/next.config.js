@@ -5,6 +5,6 @@ const config = {
   typescript: {
     ignoreBuildErrors: true,
   },
-}
+};
 
-module.exports = config
+module.exports = config;

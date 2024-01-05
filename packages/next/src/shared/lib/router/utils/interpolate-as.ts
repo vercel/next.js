@@ -1,39 +1,39 @@
-import type { ParsedUrlQuery } from 'querystring'
+import type { ParsedUrlQuery } from "querystring";
 
-import { getRouteMatcher } from './route-matcher'
-import { getRouteRegex } from './route-regex'
+import { getRouteMatcher } from "./route-matcher";
+import { getRouteRegex } from "./route-regex";
 
 export function interpolateAs(
   route: string,
   asPathname: string,
   query: ParsedUrlQuery
 ) {
-  let interpolatedRoute = ''
+  let interpolatedRoute = "";
 
-  const dynamicRegex = getRouteRegex(route)
-  const dynamicGroups = dynamicRegex.groups
+  const dynamicRegex = getRouteRegex(route);
+  const dynamicGroups = dynamicRegex.groups;
   const dynamicMatches =
     // Try to match the dynamic route against the asPath
-    (asPathname !== route ? getRouteMatcher(dynamicRegex)(asPathname) : '') ||
+    (asPathname !== route ? getRouteMatcher(dynamicRegex)(asPathname) : "") ||
     // Fall back to reading the values from the href
     // TODO: should this take priority; also need to change in the router.
-    query
+    query;
 
-  interpolatedRoute = route
-  const params = Object.keys(dynamicGroups)
+  interpolatedRoute = route;
+  const params = Object.keys(dynamicGroups);
 
   if (
     !params.every((param) => {
-      let value = dynamicMatches[param] || ''
-      const { repeat, optional } = dynamicGroups[param]
+      let value = dynamicMatches[param] || "";
+      const { repeat, optional } = dynamicGroups[param];
 
       // support single-level catch-all
       // TODO: more robust handling for user-error (passing `/`)
-      let replaced = `[${repeat ? '...' : ''}${param}]`
+      let replaced = `[${repeat ? "..." : ""}${param}]`;
       if (optional) {
-        replaced = `${!value ? '/' : ''}[${replaced}]`
+        replaced = `${!value ? "/" : ""}[${replaced}]`;
       }
-      if (repeat && !Array.isArray(value)) value = [value]
+      if (repeat && !Array.isArray(value)) value = [value];
 
       return (
         (optional || param in dynamicMatches) &&
@@ -50,13 +50,13 @@ export function interpolateAs(
                     // when parsing dynamic route params
                     (segment) => encodeURIComponent(segment)
                   )
-                  .join('/')
+                  .join("/")
               : encodeURIComponent(value as string)
-          ) || '/')
-      )
+          ) || "/")
+      );
     })
   ) {
-    interpolatedRoute = '' // did not satisfy all requirements
+    interpolatedRoute = ""; // did not satisfy all requirements
 
     // n.b. We ignore this error because we handle warning for this case in
     // development in the `<Link>` component directly.
@@ -64,5 +64,5 @@ export function interpolateAs(
   return {
     params,
     result: interpolatedRoute,
-  }
+  };
 }

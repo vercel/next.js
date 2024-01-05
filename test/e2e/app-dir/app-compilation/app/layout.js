@@ -3,5 +3,5 @@ export default function Root({ children }) {
     <html className="this-is-the-document-html">
       <body className="this-is-the-document-body">{children}</body>
     </html>
-  )
+  );
 }

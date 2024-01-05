@@ -1,64 +1,64 @@
-import React from 'react'
-import type { FlightRouterState } from '../../../../server/app-render/types'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_RESTORE } from '../router-reducer-types'
-import type { RestoreAction } from '../router-reducer-types'
-import { restoreReducer } from './restore-reducer'
+import React from "react";
+import type { FlightRouterState } from "../../../../server/app-render/types";
+import type { CacheNode } from "../../../../shared/lib/app-router-context.shared-runtime";
+import { createInitialRouterState } from "../create-initial-router-state";
+import { ACTION_RESTORE } from "../router-reducer-types";
+import type { RestoreAction } from "../router-reducer-types";
+import { restoreReducer } from "./restore-reducer";
 
-const buildId = 'development'
+const buildId = "development";
 
 const getInitialRouterStateTree = (): FlightRouterState => [
-  '',
+  "",
   {
     children: [
-      'linking',
+      "linking",
       {
-        children: ['about', { children: ['', {}] }],
+        children: ["about", { children: ["", {}] }],
       },
     ],
   },
   undefined,
   undefined,
   true,
-]
+];
 
 async function runPromiseThrowChain(fn: any): Promise<any> {
   try {
-    return await fn()
+    return await fn();
   } catch (err) {
     if (err instanceof Promise) {
-      await err
-      return await runPromiseThrowChain(fn)
+      await err;
+      return await runPromiseThrowChain(fn);
     }
 
-    throw err
+    throw err;
   }
 }
 
-describe('serverPatchReducer', () => {
-  it('should apply server patch', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+describe("serverPatchReducer", () => {
+  it("should apply server patch", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '',
+                      "",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -76,31 +76,31 @@ describe('serverPatchReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
     const action: RestoreAction = {
       type: ACTION_RESTORE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       tree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
               children: [
-                'about',
+                "about",
                 {
-                  children: ['', {}],
+                  children: ["", {}],
                 },
               ],
             },
@@ -110,11 +110,11 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-    }
+    };
 
     const newState = await runPromiseThrowChain(() =>
       restoreReducer(state, action)
-    )
+    );
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
@@ -130,8 +130,8 @@ describe('serverPatchReducer', () => {
         hashFragment: null,
         segmentPaths: [],
       },
-      canonicalUrl: '/linking/about',
-      nextUrl: '/linking/about',
+      canonicalUrl: "/linking/about",
+      nextUrl: "/linking/about",
       cache: {
         lazyData: null,
         rsc: (
@@ -143,17 +143,17 @@ describe('serverPatchReducer', () => {
         prefetchRsc: null,
         parallelRoutes: new Map([
           [
-            'children',
+            "children",
             new Map([
               [
-                'linking',
+                "linking",
                 {
                   parallelRoutes: new Map([
                     [
-                      'children',
+                      "children",
                       new Map([
                         [
-                          '',
+                          "",
                           {
                             lazyData: null,
                             rsc: <>Linking page</>,
@@ -174,12 +174,12 @@ describe('serverPatchReducer', () => {
         ]),
       },
       tree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
-              children: ['about', { children: ['', {}] }],
+              children: ["about", { children: ["", {}] }],
             },
           ],
         },
@@ -187,33 +187,33 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-    }
+    };
 
-    expect(newState).toMatchObject(expectedState)
-  })
+    expect(newState).toMatchObject(expectedState);
+  });
 
-  it('should apply server patch (concurrent)', async () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+  it("should apply server patch (concurrent)", async () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map([
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map([
       [
-        'children',
+        "children",
         new Map([
           [
-            'linking',
+            "linking",
             {
               parallelRoutes: new Map([
                 [
-                  'children',
+                  "children",
                   new Map([
                     [
-                      '',
+                      "",
                       {
                         lazyData: null,
                         rsc: <>Linking page</>,
@@ -231,42 +231,42 @@ describe('serverPatchReducer', () => {
           ],
         ]),
       ],
-    ])
+    ]);
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
     const state2 = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
-    })
+      location: new URL("/linking", "https://localhost") as any,
+    });
 
     const action: RestoreAction = {
       type: ACTION_RESTORE,
-      url: new URL('/linking/about', 'https://localhost'),
+      url: new URL("/linking/about", "https://localhost"),
       tree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
               children: [
-                'about',
+                "about",
                 {
-                  children: ['', {}],
+                  children: ["", {}],
                 },
               ],
             },
@@ -276,13 +276,13 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-    }
+    };
 
-    await runPromiseThrowChain(() => restoreReducer(state, action))
+    await runPromiseThrowChain(() => restoreReducer(state, action));
 
     const newState = await runPromiseThrowChain(() =>
       restoreReducer(state2, action)
-    )
+    );
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
@@ -298,8 +298,8 @@ describe('serverPatchReducer', () => {
         hashFragment: null,
         segmentPaths: [],
       },
-      canonicalUrl: '/linking/about',
-      nextUrl: '/linking/about',
+      canonicalUrl: "/linking/about",
+      nextUrl: "/linking/about",
       cache: {
         lazyData: null,
         rsc: (
@@ -311,17 +311,17 @@ describe('serverPatchReducer', () => {
         prefetchRsc: null,
         parallelRoutes: new Map([
           [
-            'children',
+            "children",
             new Map([
               [
-                'linking',
+                "linking",
                 {
                   parallelRoutes: new Map([
                     [
-                      'children',
+                      "children",
                       new Map([
                         [
-                          '',
+                          "",
                           {
                             lazyData: null,
                             rsc: <>Linking page</>,
@@ -342,12 +342,12 @@ describe('serverPatchReducer', () => {
         ]),
       },
       tree: [
-        '',
+        "",
         {
           children: [
-            'linking',
+            "linking",
             {
-              children: ['about', { children: ['', {}] }],
+              children: ["about", { children: ["", {}] }],
             },
           ],
         },
@@ -355,8 +355,8 @@ describe('serverPatchReducer', () => {
         null,
         true,
       ],
-    }
+    };
 
-    expect(newState).toMatchObject(expectedState)
-  })
-})
+    expect(newState).toMatchObject(expectedState);
+  });
+});

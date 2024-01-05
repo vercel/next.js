@@ -1,9 +1,9 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
+import { useState } from "react";
 
 export default function Counter({ inc, dec, double, slowInc }) {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
   return (
     <div>
@@ -11,8 +11,8 @@ export default function Counter({ inc, dec, double, slowInc }) {
       <button
         id="inc"
         onClick={async () => {
-          const newCount = await inc(count)
-          setCount(newCount)
+          const newCount = await inc(count);
+          setCount(newCount);
         }}
       >
         +1
@@ -20,8 +20,8 @@ export default function Counter({ inc, dec, double, slowInc }) {
       <button
         id="slow-inc"
         onClick={async () => {
-          const newCount = await slowInc(count)
-          setCount(newCount)
+          const newCount = await slowInc(count);
+          setCount(newCount);
         }}
       >
         +1 (Slow)
@@ -29,8 +29,8 @@ export default function Counter({ inc, dec, double, slowInc }) {
       <button
         id="dec"
         onClick={async () => {
-          const newCount = await dec(count)
-          setCount(newCount)
+          const newCount = await dec(count);
+          setCount(newCount);
         }}
       >
         -1
@@ -38,12 +38,12 @@ export default function Counter({ inc, dec, double, slowInc }) {
       <button
         id="double"
         onClick={async () => {
-          const newCount = await double(count)
-          setCount(newCount)
+          const newCount = await double(count);
+          setCount(newCount);
         }}
       >
         *2
       </button>
     </div>
-  )
+  );
 }

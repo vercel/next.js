@@ -1,7 +1,7 @@
 export function getServerSideProps() {
-  return { props: {} }
+  return { props: {} };
 }
 
 export default function BadSsr() {
-  throw new Error('oops')
+  throw new Error("oops");
 }

@@ -8,21 +8,21 @@
 export function hoist(module: any, name: string) {
   // If the name is available in the module, return it.
   if (name in module) {
-    return module[name]
+    return module[name];
   }
 
   // If a property called `then` exists, assume it's a promise and
   // return a promise that resolves to the name.
-  if ('then' in module && typeof module.then === 'function') {
-    return module.then((mod: any) => hoist(mod, name))
+  if ("then" in module && typeof module.then === "function") {
+    return module.then((mod: any) => hoist(mod, name));
   }
 
   // If we're trying to hoise the default export, and the module is a function,
   // return the module itself.
-  if (typeof module === 'function' && name === 'default') {
-    return module
+  if (typeof module === "function" && name === "default") {
+    return module;
   }
 
   // Otherwise, return undefined.
-  return undefined
+  return undefined;
 }

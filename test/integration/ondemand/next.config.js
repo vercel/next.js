@@ -1,6 +1,6 @@
 module.exports = {
-  assetPrefix: 'foo',
+  assetPrefix: "foo",
   onDemandEntries: {
     maxInactiveAge: 1000 * 5,
   },
-}
+};

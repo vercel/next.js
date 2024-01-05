@@ -1,1 +1,1 @@
-export default () => 'hello from index'
+export default () => "hello from index";

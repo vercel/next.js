@@ -1,18 +1,18 @@
 /* eslint-env jest */
 
-import fs from 'fs-extra'
-import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import fs from "fs-extra";
+import { join } from "path";
+import { nextBuild } from "next-test-utils";
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, "../");
 
-describe('Export index page with `notFound: true` in `getStaticProps`', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    it('should build successfully', async () => {
-      await fs.remove(join(appDir, '.next'))
-      await fs.remove(join(appDir, 'out'))
-      const { code } = await nextBuild(appDir)
-      expect(code).toBe(0)
-    })
-  })
-})
+describe("Export index page with `notFound: true` in `getStaticProps`", () => {
+  (process.env.TURBOPACK ? describe.skip : describe)("production mode", () => {
+    it("should build successfully", async () => {
+      await fs.remove(join(appDir, ".next"));
+      await fs.remove(join(appDir, "out"));
+      const { code } = await nextBuild(appDir);
+      expect(code).toBe(0);
+    });
+  });
+});

@@ -1,14 +1,14 @@
-import { use } from 'react'
+import { use } from "react";
 
 async function getData() {
   return {
-    message: 'hello from layout',
+    message: "hello from layout",
     nowDuringExecution: Date.now(),
-  }
+  };
 }
 
 export default function gspLayout(props) {
-  const data = use(getData())
+  const data = use(getData());
 
   return (
     <>
@@ -16,5 +16,5 @@ export default function gspLayout(props) {
       <p id="layout-now">{data.nowDuringExecution}</p>
       {props.children}
     </>
-  )
+  );
 }

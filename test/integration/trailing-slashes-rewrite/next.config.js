@@ -4,13 +4,13 @@ module.exports = {
   async rewrites() {
     return [
       {
-        source: '/:path*/',
-        destination: '/:path*/',
+        source: "/:path*/",
+        destination: "/:path*/",
       },
       {
-        source: '/:path*/',
-        destination: 'http://localhost:__EXTERNAL_PORT__/:path*',
+        source: "/:path*/",
+        destination: "http://localhost:__EXTERNAL_PORT__/:path*",
       },
-    ]
+    ];
   },
-}
+};

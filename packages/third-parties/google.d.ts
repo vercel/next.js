@@ -1,1 +1,1 @@
-export * from './dist/google/index'
+export * from "./dist/google/index";

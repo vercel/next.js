@@ -1,6 +1,6 @@
 name: Bug Report
 description: Create a bug report for the Next.js core
-labels: ['template: bug']
+labels: ["template: bug"]
 body:
   - type: markdown
     attributes:
@@ -20,7 +20,7 @@ body:
         A link to a **public** [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue. To report a Pages Router related issue, you can use these templates: [`npx create-next-app -e reproduction-template-pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages) or [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-pages)
 
         **Skipping this/providing an invalid link will result in the issue being closed**
-      placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
+      placeholder: "https://github.com/user/my-minimal-nextjs-issue-reproduction"
     validations:
       required: true
   - type: textarea
@@ -37,13 +37,13 @@ body:
     attributes:
       label: Current vs. Expected behavior
       description: A clear and concise description of what the bug is, and what you expected to happen.
-      placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
+      placeholder: "Following the steps from the previous section, I expected A to happen, but I observed B instead"
     validations:
       required: true
   - type: checkboxes
     attributes:
       label: Verify canary release
-      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
+      description: "Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue."
       options:
         - label: I verified that the issue exists in the latest Next.js canary release
           required: true
@@ -77,30 +77,30 @@ body:
       label: Which area(s) are affected? (Select all that apply)
       multiple: true
       options:
-        - 'Not sure'
-        - 'App Router'
-        - 'CLI (create-next-app)'
-        - 'Data fetching (gS(S)P, getInitialProps)'
-        - 'Dynamic imports (next/dynamic)'
-        - 'ESLint (eslint-config-next)'
-        - 'Font optimization (next/font)'
-        - 'Image optimization (next/image, next/legacy/image)'
-        - 'Internationalization (i18n)'
-        - 'Jest (next/jest)'
-        - 'MDX (@next/mdx)'
-        - 'Metadata (metadata, generateMetadata, next/head)'
-        - 'Middleware / Edge (API routes, runtime)'
-        - 'Module resolution (CJS / ESM, module resolving)'
-        - 'Operating System (Windows, MacOS, Linux)'
-        - 'Package manager (npm, pnpm, Yarn)'
-        - 'Routing (next/router, next/navigation, next/link)'
-        - 'Script optimization (next/script)'
+        - "Not sure"
+        - "App Router"
+        - "CLI (create-next-app)"
+        - "Data fetching (gS(S)P, getInitialProps)"
+        - "Dynamic imports (next/dynamic)"
+        - "ESLint (eslint-config-next)"
+        - "Font optimization (next/font)"
+        - "Image optimization (next/image, next/legacy/image)"
+        - "Internationalization (i18n)"
+        - "Jest (next/jest)"
+        - "MDX (@next/mdx)"
+        - "Metadata (metadata, generateMetadata, next/head)"
+        - "Middleware / Edge (API routes, runtime)"
+        - "Module resolution (CJS / ESM, module resolving)"
+        - "Operating System (Windows, MacOS, Linux)"
+        - "Package manager (npm, pnpm, Yarn)"
+        - "Routing (next/router, next/navigation, next/link)"
+        - "Script optimization (next/script)"
         - 'Standalone mode (output: "standalone")'
         - 'Static HTML Export (output: "export")'
-        - 'SWC minifier (swcMinify: true)'
-        - 'SWC transpilation'
-        - 'Turbopack (--turbo)'
-        - 'TypeScript (plugin, built-in types)'
+        - "SWC minifier (swcMinify: true)"
+        - "SWC transpilation"
+        - "Turbopack (--turbo)"
+        - "TypeScript (plugin, built-in types)"
     validations:
       required: true
   - type: dropdown
@@ -108,11 +108,11 @@ body:
       label: Which stage(s) are affected? (Select all that apply)
       multiple: true
       options:
-        - 'next dev (local)'
-        - 'next build (local)'
-        - 'next start (local)'
-        - 'Vercel (Deployed)'
-        - 'Other (Deployed)'
+        - "next dev (local)"
+        - "next build (local)"
+        - "next start (local)"
+        - "Vercel (Deployed)"
+        - "Other (Deployed)"
     validations:
       required: true
   - type: markdown

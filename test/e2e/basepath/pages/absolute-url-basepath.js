@@ -1,16 +1,16 @@
-import React from 'react'
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import React from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export async function getServerSideProps({ query: { port } }) {
   if (!port) {
-    throw new Error('port required')
+    throw new Error("port required");
   }
-  return { props: { port } }
+  return { props: { port } };
 }
 
 export default function Page({ port }) {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <>
       <Link
@@ -21,5 +21,5 @@ export default function Page({ port }) {
         {router.basePath}/something-else
       </Link>
     </>
-  )
+  );
 }

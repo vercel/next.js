@@ -1,9 +1,9 @@
-'use client'
-import { useEffect } from 'react'
+"use client";
+import { useEffect } from "react";
 
-let i = 1
+let i = 1;
 export default function Page() {
   useEffect(() => {
-    console.log(`logged ${i++} times`)
-  }, [])
+    console.log(`logged ${i++} times`);
+  }, []);
 }

@@ -1,6 +1,6 @@
 /* eslint-env jest */
 
-import { join } from 'path'
+import { join } from "path";
 import {
   killApp,
   findPort,
@@ -8,31 +8,31 @@ import {
   fetchViaHTTP,
   getPageFileFromBuildManifest,
   renderViaHTTP,
-} from 'next-test-utils'
+} from "next-test-utils";
 
-const appDir = join(__dirname, '../')
+const appDir = join(__dirname, "../");
 
-let appPort
-let app
+let appPort;
+let app;
 
-const runTest = (mode = 'server') => {
-  it('supports trailing slash', async () => {
+const runTest = (mode = "server") => {
+  it("supports trailing slash", async () => {
     // Make sure the page is built before getting the file
-    await renderViaHTTP(appPort, '/')
-    const file = getPageFileFromBuildManifest(appDir, '/')
-    const res = await fetchViaHTTP(appPort, join('/_next', file))
+    await renderViaHTTP(appPort, "/");
+    const file = getPageFileFromBuildManifest(appDir, "/");
+    const res = await fetchViaHTTP(appPort, join("/_next", file));
 
-    expect(res.status).toBe(200)
-  })
-}
+    expect(res.status).toBe(200);
+  });
+};
 
-describe('Trailing slash in distDir', () => {
-  describe('dev mode', () => {
+describe("Trailing slash in distDir", () => {
+  describe("dev mode", () => {
     beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    runTest('dev')
-  })
-})
+      appPort = await findPort();
+      app = await launchApp(appDir, appPort);
+    });
+    afterAll(() => killApp(app));
+    runTest("dev");
+  });
+});

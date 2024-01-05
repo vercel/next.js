@@ -1,5 +1,5 @@
-import type { SpanTypes } from './constants'
-import { NextVanillaSpanAllowlist } from './constants'
+import type { SpanTypes } from "./constants";
+import { NextVanillaSpanAllowlist } from "./constants";
 
 import type {
   ContextAPI,
@@ -8,9 +8,9 @@ import type {
   Tracer,
   AttributeValue,
   TextMapGetter,
-} from 'next/dist/compiled/@opentelemetry/api'
+} from "next/dist/compiled/@opentelemetry/api";
 
-let api: typeof import('next/dist/compiled/@opentelemetry/api')
+let api: typeof import("next/dist/compiled/@opentelemetry/api");
 
 // we want to allow users to use their own version of @opentelemetry/api if they
 // want to, so we try to require it first, and if it fails we fall back to the
@@ -19,46 +19,46 @@ let api: typeof import('next/dist/compiled/@opentelemetry/api')
 // @opentelemetry/tracing that is used, and we don't want to force users to use
 // the version that is bundled with Next.js.
 // the API is ~stable, so this should be fine
-if (process.env.NEXT_RUNTIME === 'edge') {
-  api = require('@opentelemetry/api')
+if (process.env.NEXT_RUNTIME === "edge") {
+  api = require("@opentelemetry/api");
 } else {
   try {
-    api = require('@opentelemetry/api')
+    api = require("@opentelemetry/api");
   } catch (err) {
-    api = require('next/dist/compiled/@opentelemetry/api')
+    api = require("next/dist/compiled/@opentelemetry/api");
   }
 }
 
 const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
-  api
+  api;
 
 const isPromise = <T>(p: any): p is Promise<T> => {
-  return p !== null && typeof p === 'object' && typeof p.then === 'function'
-}
+  return p !== null && typeof p === "object" && typeof p.then === "function";
+};
 
-type BubbledError = Error & { bubble?: boolean }
+type BubbledError = Error & { bubble?: boolean };
 
 const closeSpanWithError = (span: Span, error?: Error) => {
   if ((error as BubbledError | undefined)?.bubble === true) {
-    span.setAttribute('next.bubble', true)
+    span.setAttribute("next.bubble", true);
   } else {
     if (error) {
-      span.recordException(error)
+      span.recordException(error);
     }
-    span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
+    span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message });
   }
-  span.end()
-}
+  span.end();
+};
 
-type TracerSpanOptions = Omit<SpanOptions, 'attributes'> & {
-  parentSpan?: Span
-  spanName?: string
-  attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>
-  hideSpan?: boolean
-}
+type TracerSpanOptions = Omit<SpanOptions, "attributes"> & {
+  parentSpan?: Span;
+  spanName?: string;
+  attributes?: Partial<Record<AttributeNames, AttributeValue | undefined>>;
+  hideSpan?: boolean;
+};
 
 interface NextTracer {
-  getContext(): ContextAPI
+  getContext(): ContextAPI;
 
   /**
    * Instruments a function by automatically creating a span activated on its
@@ -78,21 +78,21 @@ interface NextTracer {
   trace<T>(
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
+  ): Promise<T>;
   trace<T>(
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
+  ): T;
   trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
+  ): Promise<T>;
   trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
+  ): T;
 
   /**
    * Wrap a function to automatically create a span activated on its
@@ -108,17 +108,17 @@ interface NextTracer {
    * * The function doesn't accept a callback and doesn't return a promise, in
    * which case the span will finish at the end of the function execution.
    */
-  wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
+  wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T;
   wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: T
-  ): T
+  ): T;
   wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
-  ): T
+  ): T;
 
   /**
    * Starts and returns a new Span representing a logical unit of work.
@@ -128,32 +128,32 @@ interface NextTracer {
    * context via `tracer.getContext().with`. `trace`, or `wrap` is generally recommended as it gracefully
    * handles context activation. (ref: https://github.com/open-telemetry/opentelemetry-js/issues/1923)
    */
-  startSpan(type: SpanTypes): Span
-  startSpan(type: SpanTypes, options: TracerSpanOptions): Span
+  startSpan(type: SpanTypes): Span;
+  startSpan(type: SpanTypes, options: TracerSpanOptions): Span;
 
   /**
    * Returns currently activated span if current context is in the scope of the span.
    * Returns undefined otherwise.
    */
-  getActiveScopeSpan(): Span | undefined
+  getActiveScopeSpan(): Span | undefined;
 }
 
 type NextAttributeNames =
-  | 'next.route'
-  | 'next.page'
-  | 'next.span_name'
-  | 'next.span_type'
-type OTELAttributeNames = `http.${string}` | `net.${string}`
-type AttributeNames = NextAttributeNames | OTELAttributeNames
+  | "next.route"
+  | "next.page"
+  | "next.span_name"
+  | "next.span_type";
+type OTELAttributeNames = `http.${string}` | `net.${string}`;
+type AttributeNames = NextAttributeNames | OTELAttributeNames;
 
 /** we use this map to propagate attributes from nested spans to the top span */
 const rootSpanAttributesStore = new Map<
   number,
   Map<AttributeNames, AttributeValue | undefined>
->()
-const rootSpanIdKey = api.createContextKey('next.rootSpanId')
-let lastSpanId = 0
-const getSpanId = () => lastSpanId++
+>();
+const rootSpanIdKey = api.createContextKey("next.rootSpanId");
+let lastSpanId = 0;
+const getSpanId = () => lastSpanId++;
 
 class NextTracerImpl implements NextTracer {
   /**
@@ -162,15 +162,15 @@ class NextTracerImpl implements NextTracer {
    * This should be lazily evaluated.
    */
   private getTracerInstance(): Tracer {
-    return trace.getTracer('next.js', '0.0.1')
+    return trace.getTracer("next.js", "0.0.1");
   }
 
   public getContext(): ContextAPI {
-    return context
+    return context;
   }
 
   public getActiveScopeSpan(): Span | undefined {
-    return trace.getSpan(context?.active())
+    return trace.getSpan(context?.active());
   }
 
   public withPropagatedContext<T, C>(
@@ -178,13 +178,13 @@ class NextTracerImpl implements NextTracer {
     fn: () => T,
     getter?: TextMapGetter<C>
   ): T {
-    const activeContext = context.active()
+    const activeContext = context.active();
     if (trace.getSpanContext(activeContext)) {
       // Active span is already set, too late to propagate.
-      return fn()
+      return fn();
     }
-    const remoteContext = propagation.extract(activeContext, carrier, getter)
-    return context.with(remoteContext, fn)
+    const remoteContext = propagation.extract(activeContext, carrier, getter);
+    return context.with(remoteContext, fn);
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation
@@ -192,33 +192,33 @@ class NextTracerImpl implements NextTracer {
   public trace<T>(
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
+  ): Promise<T>;
   public trace<T>(
     type: SpanTypes,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
+  ): T;
   public trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => Promise<T>
-  ): Promise<T>
+  ): Promise<T>;
   public trace<T>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: (span?: Span, done?: (error?: Error) => any) => T
-  ): T
+  ): T;
   public trace<T>(...args: Array<any>) {
-    const [type, fnOrOptions, fnOrEmpty] = args
+    const [type, fnOrOptions, fnOrEmpty] = args;
 
     // coerce options form overload
     const {
       fn,
       options,
     }: {
-      fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>
-      options: TracerSpanOptions
+      fn: (span?: Span, done?: (error?: Error) => any) => T | Promise<T>;
+      options: TracerSpanOptions;
     } =
-      typeof fnOrOptions === 'function'
+      typeof fnOrOptions === "function"
         ? {
             fn: fnOrOptions,
             options: {},
@@ -226,38 +226,38 @@ class NextTracerImpl implements NextTracer {
         : {
             fn: fnOrEmpty,
             options: { ...fnOrOptions },
-          }
+          };
 
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
-        process.env.NEXT_OTEL_VERBOSE !== '1') ||
+        process.env.NEXT_OTEL_VERBOSE !== "1") ||
       options.hideSpan
     ) {
-      return fn()
+      return fn();
     }
 
-    const spanName = options.spanName ?? type
+    const spanName = options.spanName ?? type;
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
-    )
-    let isRootSpan = false
+    );
+    let isRootSpan = false;
 
     if (!spanContext) {
-      spanContext = ROOT_CONTEXT
-      isRootSpan = true
+      spanContext = ROOT_CONTEXT;
+      isRootSpan = true;
     } else if (trace.getSpanContext(spanContext)?.isRemote) {
-      isRootSpan = true
+      isRootSpan = true;
     }
 
-    const spanId = getSpanId()
+    const spanId = getSpanId();
 
     options.attributes = {
-      'next.span_name': spanName,
-      'next.span_type': type,
+      "next.span_name": spanName,
+      "next.span_type": type,
       ...options.attributes,
-    }
+    };
 
     return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
@@ -265,8 +265,8 @@ class NextTracerImpl implements NextTracer {
         options,
         (span: Span) => {
           const onCleanup = () => {
-            rootSpanAttributesStore.delete(spanId)
-          }
+            rootSpanAttributesStore.delete(spanId);
+          };
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
@@ -276,14 +276,14 @@ class NextTracerImpl implements NextTracer {
                   AttributeValue | undefined
                 ][]
               )
-            )
+            );
           }
           try {
             if (fn.length > 1) {
-              return fn(span, (err?: Error) => closeSpanWithError(span, err))
+              return fn(span, (err?: Error) => closeSpanWithError(span, err));
             }
 
-            const result = fn(span)
+            const result = fn(span);
 
             if (isPromise(result)) {
               result
@@ -291,101 +291,102 @@ class NextTracerImpl implements NextTracer {
                   () => span.end(),
                   (err) => closeSpanWithError(span, err)
                 )
-                .finally(onCleanup)
+                .finally(onCleanup);
             } else {
-              span.end()
-              onCleanup()
+              span.end();
+              onCleanup();
             }
 
-            return result
+            return result;
           } catch (err: any) {
-            closeSpanWithError(span, err)
-            onCleanup()
-            throw err
+            closeSpanWithError(span, err);
+            onCleanup();
+            throw err;
           }
         }
       )
-    )
+    );
   }
 
-  public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T
+  public wrap<T = (...args: Array<any>) => any>(type: SpanTypes, fn: T): T;
   public wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
     options: TracerSpanOptions,
     fn: T
-  ): T
+  ): T;
   public wrap<T = (...args: Array<any>) => any>(
     type: SpanTypes,
     options: (...args: any[]) => TracerSpanOptions,
     fn: T
-  ): T
+  ): T;
   public wrap(...args: Array<any>) {
-    const tracer = this
+    const tracer = this;
     const [name, options, fn] =
-      args.length === 3 ? args : [args[0], {}, args[1]]
+      args.length === 3 ? args : [args[0], {}, args[1]];
 
     if (
       !NextVanillaSpanAllowlist.includes(name) &&
-      process.env.NEXT_OTEL_VERBOSE !== '1'
+      process.env.NEXT_OTEL_VERBOSE !== "1"
     ) {
-      return fn
+      return fn;
     }
 
     return function (this: any) {
-      let optionsObj = options
-      if (typeof optionsObj === 'function' && typeof fn === 'function') {
-        optionsObj = optionsObj.apply(this, arguments)
+      let optionsObj = options;
+      if (typeof optionsObj === "function" && typeof fn === "function") {
+        optionsObj = optionsObj.apply(this, arguments);
       }
 
-      const lastArgId = arguments.length - 1
-      const cb = arguments[lastArgId]
+      const lastArgId = arguments.length - 1;
+      const cb = arguments[lastArgId];
 
-      if (typeof cb === 'function') {
-        const scopeBoundCb = tracer.getContext().bind(context.active(), cb)
+      if (typeof cb === "function") {
+        const scopeBoundCb = tracer.getContext().bind(context.active(), cb);
         return tracer.trace(name, optionsObj, (_span, done) => {
           arguments[lastArgId] = function (err: any) {
-            done?.(err)
-            return scopeBoundCb.apply(this, arguments)
-          }
+            done?.(err);
+            return scopeBoundCb.apply(this, arguments);
+          };
 
-          return fn.apply(this, arguments)
-        })
+          return fn.apply(this, arguments);
+        });
       } else {
-        return tracer.trace(name, optionsObj, () => fn.apply(this, arguments))
+        return tracer.trace(name, optionsObj, () => fn.apply(this, arguments));
       }
-    }
+    };
   }
 
-  public startSpan(type: SpanTypes): Span
-  public startSpan(type: SpanTypes, options: TracerSpanOptions): Span
+  public startSpan(type: SpanTypes): Span;
+  public startSpan(type: SpanTypes, options: TracerSpanOptions): Span;
   public startSpan(...args: Array<any>): Span {
-    const [type, options]: [string, TracerSpanOptions | undefined] = args as any
+    const [type, options]: [string, TracerSpanOptions | undefined] =
+      args as any;
 
     const spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
-    )
-    return this.getTracerInstance().startSpan(type, options, spanContext)
+    );
+    return this.getTracerInstance().startSpan(type, options, spanContext);
   }
 
   private getSpanContext(parentSpan?: Span) {
     const spanContext = parentSpan
       ? trace.setSpan(context.active(), parentSpan)
-      : undefined
+      : undefined;
 
-    return spanContext
+    return spanContext;
   }
 
   public getRootSpanAttributes() {
-    const spanId = context.active().getValue(rootSpanIdKey) as number
-    return rootSpanAttributesStore.get(spanId)
+    const spanId = context.active().getValue(rootSpanIdKey) as number;
+    return rootSpanAttributesStore.get(spanId);
   }
 }
 
 const getTracer = (() => {
-  const tracer = new NextTracerImpl()
+  const tracer = new NextTracerImpl();
 
-  return () => tracer
-})()
+  return () => tracer;
+})();
 
-export { getTracer, SpanStatusCode, SpanKind }
-export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions }
+export { getTracer, SpanStatusCode, SpanKind };
+export type { NextTracer, Span, SpanOptions, ContextAPI, TracerSpanOptions };

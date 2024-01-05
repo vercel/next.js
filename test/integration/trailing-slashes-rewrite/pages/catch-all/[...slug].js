@@ -1,3 +1,3 @@
 export default function Page() {
-  return <p>catch-all</p>
+  return <p>catch-all</p>;
 }

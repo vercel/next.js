@@ -4,7 +4,7 @@ export default function NotFound(props) {
       <h1 id="not-found">This page could not be found | 404</h1>
       <p id="props">{JSON.stringify(props)}</p>
     </>
-  )
+  );
 }
 
 export const getStaticProps = ({ locale, locales, defaultLocale }) => {
@@ -15,5 +15,5 @@ export const getStaticProps = ({ locale, locales, defaultLocale }) => {
       defaultLocale,
       is404: true,
     },
-  }
-}
+  };
+};

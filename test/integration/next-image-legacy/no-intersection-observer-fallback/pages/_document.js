@@ -1,4 +1,4 @@
-import Document, { Html, Head, Main, NextScript } from 'next/document'
+import Document, { Html, Head, Main, NextScript } from "next/document";
 
 export default class MyDocument extends Document {
   render() {
@@ -6,7 +6,7 @@ export default class MyDocument extends Document {
       <Html>
         <Head crossOrigin="anonymous">
           <script
-            dangerouslySetInnerHTML={{ __html: 'IntersectionObserver = null' }}
+            dangerouslySetInnerHTML={{ __html: "IntersectionObserver = null" }}
           />
         </Head>
         <body>
@@ -14,6 +14,6 @@ export default class MyDocument extends Document {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }

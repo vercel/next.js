@@ -13,173 +13,173 @@ import type {
   StringLiteral,
   TemplateLiteral,
   VariableDeclaration,
-} from '@swc/core'
+} from "@swc/core";
 
 export class NoSuchDeclarationError extends Error {}
 
 function isExportDeclaration(node: Node): node is ExportDeclaration {
-  return node.type === 'ExportDeclaration'
+  return node.type === "ExportDeclaration";
 }
 
 function isVariableDeclaration(node: Node): node is VariableDeclaration {
-  return node.type === 'VariableDeclaration'
+  return node.type === "VariableDeclaration";
 }
 
 function isIdentifier(node: Node): node is Identifier {
-  return node.type === 'Identifier'
+  return node.type === "Identifier";
 }
 
 function isBooleanLiteral(node: Node): node is BooleanLiteral {
-  return node.type === 'BooleanLiteral'
+  return node.type === "BooleanLiteral";
 }
 
 function isNullLiteral(node: Node): node is NullLiteral {
-  return node.type === 'NullLiteral'
+  return node.type === "NullLiteral";
 }
 
 function isStringLiteral(node: Node): node is StringLiteral {
-  return node.type === 'StringLiteral'
+  return node.type === "StringLiteral";
 }
 
 function isNumericLiteral(node: Node): node is NumericLiteral {
-  return node.type === 'NumericLiteral'
+  return node.type === "NumericLiteral";
 }
 
 function isArrayExpression(node: Node): node is ArrayExpression {
-  return node.type === 'ArrayExpression'
+  return node.type === "ArrayExpression";
 }
 
 function isObjectExpression(node: Node): node is ObjectExpression {
-  return node.type === 'ObjectExpression'
+  return node.type === "ObjectExpression";
 }
 
 function isKeyValueProperty(node: Node): node is KeyValueProperty {
-  return node.type === 'KeyValueProperty'
+  return node.type === "KeyValueProperty";
 }
 
 function isRegExpLiteral(node: Node): node is RegExpLiteral {
-  return node.type === 'RegExpLiteral'
+  return node.type === "RegExpLiteral";
 }
 
 function isTemplateLiteral(node: Node): node is TemplateLiteral {
-  return node.type === 'TemplateLiteral'
+  return node.type === "TemplateLiteral";
 }
 
 export class UnsupportedValueError extends Error {
   /** @example `config.runtime[0].value` */
-  path?: string
+  path?: string;
 
   constructor(message: string, paths?: string[]) {
-    super(message)
+    super(message);
 
     // Generating "path" that looks like "config.runtime[0].value"
-    let codePath: string | undefined
+    let codePath: string | undefined;
     if (paths) {
-      codePath = ''
+      codePath = "";
       for (const path of paths) {
-        if (path[0] === '[') {
+        if (path[0] === "[") {
           // "array" + "[0]"
-          codePath += path
+          codePath += path;
         } else {
-          if (codePath === '') {
-            codePath = path
+          if (codePath === "") {
+            codePath = path;
           } else {
             // "object" + ".key"
-            codePath += `.${path}`
+            codePath += `.${path}`;
           }
         }
       }
     }
 
-    this.path = codePath
+    this.path = codePath;
   }
 }
 
 function extractValue(node: Node, path?: string[]): any {
   if (isNullLiteral(node)) {
-    return null
+    return null;
   } else if (isBooleanLiteral(node)) {
     // e.g. true / false
-    return node.value
+    return node.value;
   } else if (isStringLiteral(node)) {
     // e.g. "abc"
-    return node.value
+    return node.value;
   } else if (isNumericLiteral(node)) {
     // e.g. 123
-    return node.value
+    return node.value;
   } else if (isRegExpLiteral(node)) {
     // e.g. /abc/i
-    return new RegExp(node.pattern, node.flags)
+    return new RegExp(node.pattern, node.flags);
   } else if (isIdentifier(node)) {
     switch (node.value) {
-      case 'undefined':
-        return undefined
+      case "undefined":
+        return undefined;
       default:
         throw new UnsupportedValueError(
           `Unknown identifier "${node.value}"`,
           path
-        )
+        );
     }
   } else if (isArrayExpression(node)) {
     // e.g. [1, 2, 3]
-    const arr = []
+    const arr = [];
     for (let i = 0, len = node.elements.length; i < len; i++) {
-      const elem = node.elements[i]
+      const elem = node.elements[i];
       if (elem) {
         if (elem.spread) {
           // e.g. [ ...a ]
           throw new UnsupportedValueError(
-            'Unsupported spread operator in the Array Expression',
+            "Unsupported spread operator in the Array Expression",
             path
-          )
+          );
         }
 
-        arr.push(extractValue(elem.expression, path && [...path, `[${i}]`]))
+        arr.push(extractValue(elem.expression, path && [...path, `[${i}]`]));
       } else {
         // e.g. [1, , 2]
         //         ^^
-        arr.push(undefined)
+        arr.push(undefined);
       }
     }
-    return arr
+    return arr;
   } else if (isObjectExpression(node)) {
     // e.g. { a: 1, b: 2 }
-    const obj: any = {}
+    const obj: any = {};
     for (const prop of node.properties) {
       if (!isKeyValueProperty(prop)) {
         // e.g. { ...a }
         throw new UnsupportedValueError(
-          'Unsupported spread operator in the Object Expression',
+          "Unsupported spread operator in the Object Expression",
           path
-        )
+        );
       }
 
-      let key
+      let key;
       if (isIdentifier(prop.key)) {
         // e.g. { a: 1, b: 2 }
-        key = prop.key.value
+        key = prop.key.value;
       } else if (isStringLiteral(prop.key)) {
         // e.g. { "a": 1, "b": 2 }
-        key = prop.key.value
+        key = prop.key.value;
       } else {
         throw new UnsupportedValueError(
           `Unsupported key type "${prop.key.type}" in the Object Expression`,
           path
-        )
+        );
       }
 
-      obj[key] = extractValue(prop.value, path && [...path, key])
+      obj[key] = extractValue(prop.value, path && [...path, key]);
     }
 
-    return obj
+    return obj;
   } else if (isTemplateLiteral(node)) {
     // e.g. `abc`
     if (node.expressions.length !== 0) {
       // TODO: should we add support for `${'e'}d${'g'}'e'`?
       throw new UnsupportedValueError(
-        'Unsupported template literal with expressions',
+        "Unsupported template literal with expressions",
         path
-      )
+      );
     }
 
     // When TemplateLiteral has 0 expressions, the length of quasis is always 1.
@@ -191,14 +191,14 @@ function extractValue(node: Node, path?: string[]): any {
     // A "cooked" interpretation where backslashes have special meaning, while a
     // "raw" interpretation where backslashes do not have special meaning
     // https://exploringjs.com/impatient-js/ch_template-literals.html#template-strings-cooked-vs-raw
-    const [{ cooked, raw }] = node.quasis
+    const [{ cooked, raw }] = node.quasis;
 
-    return cooked ?? raw
+    return cooked ?? raw;
   } else {
     throw new UnsupportedValueError(
       `Unsupported node type "${node.type}"`,
       path
-    )
+    );
   }
 }
 
@@ -222,16 +222,16 @@ export function extractExportedConstValue(
 ): any {
   for (const moduleItem of module.body) {
     if (!isExportDeclaration(moduleItem)) {
-      continue
+      continue;
     }
 
-    const declaration = moduleItem.declaration
+    const declaration = moduleItem.declaration;
     if (!isVariableDeclaration(declaration)) {
-      continue
+      continue;
     }
 
-    if (declaration.kind !== 'const') {
-      continue
+    if (declaration.kind !== "const") {
+      continue;
     }
 
     for (const decl of declaration.declarations) {
@@ -240,10 +240,10 @@ export function extractExportedConstValue(
         decl.id.value === exportedName &&
         decl.init
       ) {
-        return extractValue(decl.init, [exportedName])
+        return extractValue(decl.init, [exportedName]);
       }
     }
   }
 
-  throw new NoSuchDeclarationError()
+  throw new NoSuchDeclarationError();
 }

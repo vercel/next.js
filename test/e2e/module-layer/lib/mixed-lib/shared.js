@@ -1,1 +1,1 @@
-export const shared = 'shared:module'
+export const shared = "shared:module";

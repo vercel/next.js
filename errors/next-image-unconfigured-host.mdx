@@ -1,5 +1,5 @@
 ---
-title: '`next/image` Un-configured Host'
+title: "`next/image` Un-configured Host"
 ---
 
 ## Why This Error Occurred
@@ -15,14 +15,14 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'assets.example.com',
-        port: '',
-        pathname: '/account123/**',
+        protocol: "https",
+        hostname: "assets.example.com",
+        port: "",
+        pathname: "/account123/**",
       },
     ],
   },
-}
+};
 ```
 
 #### Fixing older versions of Next.js
@@ -35,9 +35,9 @@ Older versions of Next.js can configure `images.domains` instead:
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    domains: ['assets.example.com'],
+    domains: ["assets.example.com"],
   },
-}
+};
 ```
 
 </details>

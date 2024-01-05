@@ -1,5 +1,5 @@
-import dynamic from 'next/dynamic'
+import dynamic from "next/dynamic";
 
-const DynamicComponent = dynamic(() => import('../../components/nested1'))
+const DynamicComponent = dynamic(() => import("../../components/nested1"));
 
-export default DynamicComponent
+export default DynamicComponent;

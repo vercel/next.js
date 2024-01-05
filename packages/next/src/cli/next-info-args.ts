@@ -1,13 +1,13 @@
-import type arg from 'next/dist/compiled/arg/index.js'
+import type arg from "next/dist/compiled/arg/index.js";
 
 /**
  * Supported CLI arguments.
  */
 export const validArgs: arg.Spec = {
   // Types
-  '--help': Boolean,
+  "--help": Boolean,
   // Aliases
-  '-h': '--help',
+  "-h": "--help",
   // Detailed diagnostics
-  '--verbose': Boolean,
-}
+  "--verbose": Boolean,
+};

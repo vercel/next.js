@@ -1,42 +1,42 @@
-import { Component } from 'react'
-import Link from 'next/link'
-import Router, { withRouter } from 'next/router'
+import { Component } from "react";
+import Link from "next/link";
+import Router, { withRouter } from "next/router";
 
-let getInitialPropsRunCount = 1
+let getInitialPropsRunCount = 1;
 
 const linkStyle = {
   marginRight: 10,
-}
+};
 
 export default withRouter(
   class extends Component {
     static getInitialProps({ res }) {
-      if (res) return { getInitialPropsRunCount: 1 }
-      getInitialPropsRunCount++
+      if (res) return { getInitialPropsRunCount: 1 };
+      getInitialPropsRunCount++;
 
-      return { getInitialPropsRunCount }
+      return { getInitialPropsRunCount };
     }
 
     getCurrentCounter() {
-      const { router } = this.props
-      return router.query.counter ? parseInt(router.query.counter) : 0
+      const { router } = this.props;
+      return router.query.counter ? parseInt(router.query.counter) : 0;
     }
 
     increase(scroll) {
-      const counter = this.getCurrentCounter()
-      const href = `/nav/shallow-routing?counter=${counter + 1}`
-      Router.push(href, href, { shallow: true, scroll })
+      const counter = this.getCurrentCounter();
+      const href = `/nav/shallow-routing?counter=${counter + 1}`;
+      Router.push(href, href, { shallow: true, scroll });
     }
 
     increaseNonShallow() {
-      const counter = this.getCurrentCounter()
-      const href = `/nav/shallow-routing?counter=${counter + 1}`
-      Router.push(href, href, {})
+      const counter = this.getCurrentCounter();
+      const href = `/nav/shallow-routing?counter=${counter + 1}`;
+      Router.push(href, href, {});
     }
 
     gotoNavShallow() {
-      const href = `/nav`
-      Router.push(href, href, { shallow: true })
+      const href = `/nav`;
+      Router.push(href, href, { shallow: true });
     }
 
     render() {
@@ -64,7 +64,7 @@ export default withRouter(
             Invalid Shallow Nav
           </button>
         </div>
-      )
+      );
     }
   }
-)
+);

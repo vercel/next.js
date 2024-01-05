@@ -1,15 +1,15 @@
-import { readFileSync } from 'fs'
-import JSON5 from 'next/dist/compiled/json5'
+import { readFileSync } from "fs";
+import JSON5 from "next/dist/compiled/json5";
 
-import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
-import loadConfig from 'next/dist/compiled/babel/core-lib-config'
+import { createConfigItem, loadOptions } from "next/dist/compiled/babel/core";
+import loadConfig from "next/dist/compiled/babel/core-lib-config";
 
-import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
-import { consumeIterator } from './util'
-import * as Log from '../../output/log'
+import type { NextBabelLoaderOptions, NextJsLoaderContext } from "./types";
+import { consumeIterator } from "./util";
+import * as Log from "../../output/log";
 
 const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/;
 
 /**
  * The properties defined here are the conditions with which subsets of inputs
@@ -31,24 +31,24 @@ const nextDistPath =
  * transformations.
  */
 interface CharacteristicsGermaneToCaching {
-  isServer: boolean
-  isPageFile: boolean
-  isNextDist: boolean
-  hasModuleExports: boolean
-  fileExt: string
+  isServer: boolean;
+  isPageFile: boolean;
+  isNextDist: boolean;
+  hasModuleExports: boolean;
+  fileExt: string;
 }
 
-const fileExtensionRegex = /\.([a-z]+)$/
+const fileExtensionRegex = /\.([a-z]+)$/;
 function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
   filename: string
 ): CharacteristicsGermaneToCaching {
-  const { isServer, pagesDir } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
-  const isNextDist = nextDistPath.test(filename)
-  const hasModuleExports = source.indexOf('module.exports') !== -1
-  const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+  const { isServer, pagesDir } = loaderOptions;
+  const isPageFile = filename.startsWith(pagesDir);
+  const isNextDist = nextDistPath.test(filename);
+  const hasModuleExports = source.indexOf("module.exports") !== -1;
+  const fileExt = fileExtensionRegex.exec(filename)?.[1] || "unknown";
 
   return {
     isServer,
@@ -56,7 +56,7 @@ function getCacheCharacteristics(
     isNextDist,
     hasModuleExports,
     fileExt,
-  }
+  };
 }
 
 /**
@@ -68,63 +68,63 @@ function getPlugins(
   cacheCharacteristics: CharacteristicsGermaneToCaching
 ) {
   const { isServer, isPageFile, isNextDist, hasModuleExports } =
-    cacheCharacteristics
+    cacheCharacteristics;
 
-  const { hasReactRefresh, development } = loaderOptions
+  const { hasReactRefresh, development } = loaderOptions;
 
   const applyCommonJsItem = hasModuleExports
-    ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
-    : null
+    ? createConfigItem(require("../plugins/commonjs"), { type: "plugin" })
+    : null;
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
         [
-          require('next/dist/compiled/react-refresh/babel'),
+          require("next/dist/compiled/react-refresh/babel"),
           { skipEnvCheck: true },
         ],
-        { type: 'plugin' }
+        { type: "plugin" }
       )
-    : null
+    : null;
   const pageConfigItem =
     !isServer && isPageFile
-      ? createConfigItem([require('../plugins/next-page-config')], {
-          type: 'plugin',
+      ? createConfigItem([require("../plugins/next-page-config")], {
+          type: "plugin",
         })
-      : null
+      : null;
   const disallowExportAllItem =
     !isServer && isPageFile
       ? createConfigItem(
-          [require('../plugins/next-page-disallow-re-export-all-exports')],
-          { type: 'plugin' }
+          [require("../plugins/next-page-disallow-re-export-all-exports")],
+          { type: "plugin" }
         )
-      : null
+      : null;
   const transformDefineItem = createConfigItem(
     [
-      require.resolve('next/dist/compiled/babel/plugin-transform-define'),
+      require.resolve("next/dist/compiled/babel/plugin-transform-define"),
       {
-        'process.env.NODE_ENV': development ? 'development' : 'production',
-        'typeof window': isServer ? 'undefined' : 'object',
-        'process.browser': isServer ? false : true,
+        "process.env.NODE_ENV": development ? "development" : "production",
+        "typeof window": isServer ? "undefined" : "object",
+        "process.browser": isServer ? false : true,
       },
-      'next-js-transform-define-instance',
+      "next-js-transform-define-instance",
     ],
-    { type: 'plugin' }
-  )
+    { type: "plugin" }
+  );
   const nextSsgItem =
     !isServer && isPageFile
-      ? createConfigItem([require.resolve('../plugins/next-ssg-transform')], {
-          type: 'plugin',
+      ? createConfigItem([require.resolve("../plugins/next-ssg-transform")], {
+          type: "plugin",
         })
-      : null
+      : null;
   const commonJsItem = isNextDist
     ? createConfigItem(
-        require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
-        { type: 'plugin' }
+        require("next/dist/compiled/babel/plugin-transform-modules-commonjs"),
+        { type: "plugin" }
       )
-    : null
+    : null;
   const nextFontUnsupported = createConfigItem(
-    [require('../plugins/next-font-unsupported')],
-    { type: 'plugin' }
-  )
+    [require("../plugins/next-font-unsupported")],
+    { type: "plugin" }
+  );
 
   return [
     reactRefreshItem,
@@ -135,11 +135,11 @@ function getPlugins(
     nextSsgItem,
     commonJsItem,
     nextFontUnsupported,
-  ].filter(Boolean)
+  ].filter(Boolean);
 }
 
-const isJsonFile = /\.(json|babelrc)$/
-const isJsFile = /\.js$/
+const isJsonFile = /\.(json|babelrc)$/;
+const isJsFile = /\.js$/;
 
 /**
  * While this function does block execution while reading from disk, it
@@ -149,17 +149,17 @@ const isJsFile = /\.js$/
  */
 function getCustomBabelConfig(configFilePath: string) {
   if (isJsonFile.exec(configFilePath)) {
-    const babelConfigRaw = readFileSync(configFilePath, 'utf8')
-    return JSON5.parse(babelConfigRaw)
+    const babelConfigRaw = readFileSync(configFilePath, "utf8");
+    return JSON5.parse(babelConfigRaw);
   } else if (isJsFile.exec(configFilePath)) {
-    return require(configFilePath)
+    return require(configFilePath);
   }
   throw new Error(
-    'The Next.js Babel loader does not support .mjs or .cjs config files.'
-  )
+    "The Next.js Babel loader does not support .mjs or .cjs config files."
+  );
 }
 
-let babelConfigWarned = false
+let babelConfigWarned = false;
 /**
  * Check if custom babel configuration from user only contains options that
  * can be migrated into latest Next.js features supported by SWC.
@@ -170,63 +170,63 @@ function checkCustomBabelConfigDeprecation(
   config: Record<string, any> | undefined
 ) {
   if (!config || Object.keys(config).length === 0) {
-    return
+    return;
   }
 
-  const { plugins, presets, ...otherOptions } = config
+  const { plugins, presets, ...otherOptions } = config;
   if (Object.keys(otherOptions ?? {}).length > 0) {
-    return
+    return;
   }
 
   if (babelConfigWarned) {
-    return
+    return;
   }
 
-  babelConfigWarned = true
+  babelConfigWarned = true;
 
   const isPresetReadyToDeprecate =
     !presets ||
     presets.length === 0 ||
-    (presets.length === 1 && presets[0] === 'next/babel')
-  const pluginReasons = []
-  const unsupportedPlugins = []
+    (presets.length === 1 && presets[0] === "next/babel");
+  const pluginReasons = [];
+  const unsupportedPlugins = [];
 
   if (Array.isArray(plugins)) {
     for (const plugin of plugins) {
-      const pluginName = Array.isArray(plugin) ? plugin[0] : plugin
+      const pluginName = Array.isArray(plugin) ? plugin[0] : plugin;
 
       // [NOTE]: We cannot detect if the user uses babel-plugin-macro based transform plugins,
       // such as `styled-components/macro` in here.
       switch (pluginName) {
-        case 'styled-components':
-        case 'babel-plugin-styled-components':
+        case "styled-components":
+        case "babel-plugin-styled-components":
           pluginReasons.push(
             `\t- 'styled-components' can be enabled via 'compiler.styledComponents' in 'next.config.js'`
-          )
-          break
-        case '@emotion/babel-plugin':
+          );
+          break;
+        case "@emotion/babel-plugin":
           pluginReasons.push(
             `\t- '@emotion/babel-plugin' can be enabled via 'compiler.emotion' in 'next.config.js'`
-          )
-          break
-        case 'babel-plugin-relay':
+          );
+          break;
+        case "babel-plugin-relay":
           pluginReasons.push(
             `\t- 'babel-plugin-relay' can be enabled via 'compiler.relay' in 'next.config.js'`
-          )
-          break
-        case 'react-remove-properties':
+          );
+          break;
+        case "react-remove-properties":
           pluginReasons.push(
             `\t- 'react-remove-properties' can be enabled via 'compiler.reactRemoveProperties' in 'next.config.js'`
-          )
-          break
-        case 'transform-remove-console':
+          );
+          break;
+        case "transform-remove-console":
           pluginReasons.push(
             `\t- 'transform-remove-console' can be enabled via 'compiler.removeConsole' in 'next.config.js'`
-          )
-          break
+          );
+          break;
         default:
-          unsupportedPlugins.push(pluginName)
-          break
+          unsupportedPlugins.push(pluginName);
+          break;
       }
     }
   }
@@ -234,16 +234,16 @@ function checkCustomBabelConfigDeprecation(
   if (isPresetReadyToDeprecate && unsupportedPlugins.length === 0) {
     Log.warn(
       `It looks like there is a custom Babel configuration that can be removed${
-        pluginReasons.length > 0 ? ':' : '.'
+        pluginReasons.length > 0 ? ":" : "."
       }`
-    )
+    );
 
     if (pluginReasons.length > 0) {
-      Log.warn(`Next.js supports the following features natively: `)
-      Log.warn(pluginReasons.join(''))
+      Log.warn(`Next.js supports the following features natively: `);
+      Log.warn(pluginReasons.join(""));
       Log.warn(
         `For more details configuration options, please refer https://nextjs.org/docs/architecture/nextjs-compiler#supported-features`
-      )
+      );
     }
   }
 }
@@ -261,13 +261,13 @@ function getFreshConfig(
   inputSourceMap?: object | null
 ) {
   let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
-    loaderOptions
+    loaderOptions;
 
   let customConfig: any = configFile
     ? getCustomBabelConfig(configFile)
-    : undefined
+    : undefined;
 
-  checkCustomBabelConfigDeprecation(customConfig)
+  checkCustomBabelConfigDeprecation(customConfig);
 
   let options = {
     babelrc: false,
@@ -300,22 +300,22 @@ function getFreshConfig(
     presets: (() => {
       // If presets is defined the user will have next/babel in their babelrc
       if (customConfig?.presets) {
-        return customConfig.presets
+        return customConfig.presets;
       }
 
       // If presets is not defined the user will likely have "env" in their babelrc
       if (customConfig) {
-        return undefined
+        return undefined;
       }
 
       // If no custom config is provided the default is to use next/babel
-      return ['next/babel']
+      return ["next/babel"];
     })(),
 
     overrides: loaderOptions.overrides,
 
     caller: {
-      name: 'next-babel-turbo-loader',
+      name: "next-babel-turbo-loader",
       supportsStaticESM: true,
       supportsDynamicImport: true,
 
@@ -335,28 +335,28 @@ function getFreshConfig(
 
       ...loaderOptions.caller,
     },
-  } as any
+  } as any;
 
   // Babel does strict checks on the config so undefined is not allowed
-  if (typeof options.target === 'undefined') {
-    delete options.target
+  if (typeof options.target === "undefined") {
+    delete options.target;
   }
 
-  Object.defineProperty(options.caller, 'onWarning', {
+  Object.defineProperty(options.caller, "onWarning", {
     enumerable: false,
     writable: false,
     value: (reason: any) => {
       if (!(reason instanceof Error)) {
-        reason = new Error(reason)
+        reason = new Error(reason);
       }
-      this.emitWarning(reason)
+      this.emitWarning(reason);
     },
-  })
+  });
 
-  const loadedOptions = loadOptions(options)
-  const config = consumeIterator(loadConfig(loadedOptions))
+  const loadedOptions = loadOptions(options);
+  const config = consumeIterator(loadConfig(loadedOptions));
 
-  return config
+  return config;
 }
 
 /**
@@ -366,21 +366,21 @@ function getFreshConfig(
  */
 function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
   const { isServer, isPageFile, isNextDist, hasModuleExports, fileExt } =
-    cacheCharacteristics
+    cacheCharacteristics;
 
   const flags =
     0 |
     (isServer ? 0b0001 : 0) |
     (isPageFile ? 0b0010 : 0) |
     (isNextDist ? 0b0100 : 0) |
-    (hasModuleExports ? 0b1000 : 0)
+    (hasModuleExports ? 0b1000 : 0);
 
-  return fileExt + flags
+  return fileExt + flags;
 }
 
-type BabelConfig = any
-const configCache: Map<any, BabelConfig> = new Map()
-const configFiles: Set<string> = new Set()
+type BabelConfig = any;
+const configCache: Map<any, BabelConfig> = new Map();
+const configFiles: Set<string> = new Set();
 
 export default function getConfig(
   this: NextJsLoaderContext,
@@ -391,27 +391,27 @@ export default function getConfig(
     filename,
     inputSourceMap,
   }: {
-    source: string
-    loaderOptions: NextBabelLoaderOptions
-    target: string
-    filename: string
-    inputSourceMap?: object | null
+    source: string;
+    loaderOptions: NextBabelLoaderOptions;
+    target: string;
+    filename: string;
+    inputSourceMap?: object | null;
   }
 ): BabelConfig {
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
     filename
-  )
+  );
 
   if (loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
-    this.addDependency(loaderOptions.configFile)
+    this.addDependency(loaderOptions.configFile);
   }
 
-  const cacheKey = getCacheKey(cacheCharacteristics)
+  const cacheKey = getCacheKey(cacheCharacteristics);
   if (configCache.has(cacheKey)) {
-    const cachedConfig = configCache.get(cacheKey)
+    const cachedConfig = configCache.get(cacheKey);
 
     return {
       ...cachedConfig,
@@ -422,14 +422,14 @@ export default function getConfig(
         filename,
         sourceFileName: filename,
       },
-    }
+    };
   }
 
   if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
-    configFiles.add(loaderOptions.configFile)
+    configFiles.add(loaderOptions.configFile);
     Log.info(
       `Using external babel configuration from ${loaderOptions.configFile}`
-    )
+    );
   }
 
   const freshConfig = getFreshConfig.call(
@@ -439,9 +439,9 @@ export default function getConfig(
     target,
     filename,
     inputSourceMap
-  )
+  );
 
-  configCache.set(cacheKey, freshConfig)
+  configCache.set(cacheKey, freshConfig);
 
-  return freshConfig
+  return freshConfig;
 }

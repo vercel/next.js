@@ -2,7 +2,7 @@ name: Notify about approved but still open PRs
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Once a day
+    - cron: "0 0 * * *" # Once a day
   workflow_dispatch:
 
 jobs:
@@ -15,7 +15,7 @@ jobs:
         with:
           node-version: 18
       - run: corepack enable
-      - name: 'Send notification to Slack'
+      - name: "Send notification to Slack"
         run: node ./.github/actions/pr-approved-open/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

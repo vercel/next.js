@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Component() {
   return (
@@ -39,5 +39,5 @@ export default function Component() {
         to /gsp-fallback-redirect/from-ctx
       </Link>
     </>
-  )
+  );
 }

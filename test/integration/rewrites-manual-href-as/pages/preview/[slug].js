@@ -1,5 +1,5 @@
-import { useRouter } from 'next/router'
-import Link from 'next/link'
+import { useRouter } from "next/router";
+import Link from "next/link";
 
 export const getStaticProps = ({ params }) => {
   return {
@@ -7,18 +7,18 @@ export const getStaticProps = ({ params }) => {
       params: params || null,
       preview: true,
     },
-  }
-}
+  };
+};
 
 export const getStaticPaths = () => {
   return {
     paths: [],
-    fallback: 'blocking',
-  }
-}
+    fallback: "blocking",
+  };
+};
 
 export default function Page(props) {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <>
@@ -48,7 +48,7 @@ export default function Page(props) {
       <br />
 
       <Link
-        href={{ pathname: '/preview/[slug]', query: { slug: '321' } }}
+        href={{ pathname: "/preview/[slug]", query: { slug: "321" } }}
         as="/rewrite-me"
         id="to-preview-as-rewrite"
       >
@@ -57,7 +57,7 @@ export default function Page(props) {
       <br />
 
       <Link
-        href={{ pathname: '/news/[[...slugs]]', query: { slugs: [] } }}
+        href={{ pathname: "/news/[[...slugs]]", query: { slugs: [] } }}
         as="/blog"
         id="to-news-as-blog"
       >
@@ -65,5 +65,5 @@ export default function Page(props) {
       </Link>
       <br />
     </>
-  )
+  );
 }

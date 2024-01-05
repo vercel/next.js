@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'main catchall'
+  return "main catchall";
 }

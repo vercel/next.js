@@ -1,22 +1,22 @@
-import { fileExists } from '../../lib/file-exists'
-import { getPagePaths } from '../../shared/lib/page-path/get-page-paths'
-import { nonNullable } from '../../lib/non-nullable'
-import { join, sep, normalize } from 'path'
-import { promises as fsPromises } from 'fs'
-import { warn } from '../../build/output/log'
-import { cyan } from '../../lib/picocolors'
-import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
-import type { PageExtensions } from '../../build/page-extensions-type'
+import { fileExists } from "../../lib/file-exists";
+import { getPagePaths } from "../../shared/lib/page-path/get-page-paths";
+import { nonNullable } from "../../lib/non-nullable";
+import { join, sep, normalize } from "path";
+import { promises as fsPromises } from "fs";
+import { warn } from "../../build/output/log";
+import { cyan } from "../../lib/picocolors";
+import { isMetadataRouteFile } from "../../lib/metadata/is-metadata-route";
+import type { PageExtensions } from "../../build/page-extensions-type";
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
-  const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
+  const pageSegments = normalize(pagePath).split(sep).filter(Boolean);
   const segmentExistsPromises = pageSegments.map(async (segment, i) => {
-    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i))
-    const parentDirEntries = await fsPromises.readdir(segmentParentDir)
-    return parentDirEntries.includes(segment)
-  })
+    const segmentParentDir = join(pagesDir, ...pageSegments.slice(0, i));
+    const parentDirEntries = await fsPromises.readdir(segmentParentDir);
+    return parentDirEntries.includes(segment);
+  });
 
-  return (await Promise.all(segmentExistsPromises)).every(Boolean)
+  return (await Promise.all(segmentExistsPromises)).every(Boolean);
 }
 
 /**
@@ -34,38 +34,38 @@ export async function findPageFile(
   pageExtensions: PageExtensions,
   isAppDir: boolean
 ): Promise<string | null> {
-  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
+  const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir);
   const [existingPath, ...others] = (
     await Promise.all(
       pagePaths.map(async (path) => {
-        const filePath = join(pagesDir, path)
+        const filePath = join(pagesDir, path);
         try {
-          return (await fileExists(filePath)) ? path : null
+          return (await fileExists(filePath)) ? path : null;
         } catch (err: any) {
-          if (!err?.code?.includes('ENOTDIR')) throw err
+          if (!err?.code?.includes("ENOTDIR")) throw err;
         }
-        return null
+        return null;
       })
     )
-  ).filter(nonNullable)
+  ).filter(nonNullable);
 
   if (!existingPath) {
-    return null
+    return null;
   }
 
   if (!(await isTrueCasePagePath(existingPath, pagesDir))) {
-    return null
+    return null;
   }
 
   if (others.length > 0) {
     warn(
-      `Duplicate page detected. ${cyan(join('pages', existingPath))} and ${cyan(
-        join('pages', others[0])
+      `Duplicate page detected. ${cyan(join("pages", existingPath))} and ${cyan(
+        join("pages", others[0])
       )} both resolve to ${cyan(normalizedPagePath)}.`
-    )
+    );
   }
 
-  return existingPath
+  return existingPath;
 }
 
 /**
@@ -80,19 +80,19 @@ export function createValidFileMatcher(
   appDirPath: string | undefined
 ) {
   const getExtensionRegexString = (extensions: string[]) =>
-    `(?:${extensions.join('|')})`
+    `(?:${extensions.join("|")})`;
 
   const validExtensionFileRegex = new RegExp(
-    '\\.' + getExtensionRegexString(pageExtensions) + '$'
-  )
+    "\\." + getExtensionRegexString(pageExtensions) + "$"
+  );
   const leafOnlyPageFileRegex = new RegExp(
     `(^(page|route)|[\\\\/](page|route))\\.${getExtensionRegexString(
       pageExtensions
     )}$`
-  )
+  );
   const rootNotFoundFileRegex = new RegExp(
     `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
-  )
+  );
   /** TODO-METADATA: support other metadata routes
    *  regex for:
    *
@@ -111,31 +111,31 @@ export function createValidFileMatcher(
    */
   function isMetadataFile(filePath: string) {
     const appDirRelativePath = appDirPath
-      ? filePath.replace(appDirPath, '')
-      : filePath
+      ? filePath.replace(appDirPath, "")
+      : filePath;
 
-    return isMetadataRouteFile(appDirRelativePath, pageExtensions, true)
+    return isMetadataRouteFile(appDirRelativePath, pageExtensions, true);
   }
 
   // Determine if the file is leaf node page file or route file under layouts,
   // 'page.<extension>' | 'route.<extension>'
   function isAppRouterPage(filePath: string) {
-    return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath)
+    return leafOnlyPageFileRegex.test(filePath) || isMetadataFile(filePath);
   }
 
   function isPageFile(filePath: string) {
-    return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
+    return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath);
   }
 
   function isRootNotFound(filePath: string) {
     if (!appDirPath) {
-      return false
+      return false;
     }
     if (!filePath.startsWith(appDirPath + sep)) {
-      return false
+      return false;
     }
-    const rest = filePath.slice(appDirPath.length + 1)
-    return rootNotFoundFileRegex.test(rest)
+    const rest = filePath.slice(appDirPath.length + 1);
+    return rootNotFoundFileRegex.test(rest);
   }
 
   return {
@@ -143,5 +143,5 @@ export function createValidFileMatcher(
     isAppRouterPage,
     isMetadataFile,
     isRootNotFound,
-  }
+  };
 }

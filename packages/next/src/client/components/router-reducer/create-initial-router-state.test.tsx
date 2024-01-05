@@ -1,58 +1,58 @@
-import React from 'react'
-import type { FlightRouterState } from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import { createInitialRouterState } from './create-initial-router-state'
+import React from "react";
+import type { FlightRouterState } from "../../../server/app-render/types";
+import type { CacheNode } from "../../../shared/lib/app-router-context.shared-runtime";
+import { createInitialRouterState } from "./create-initial-router-state";
 
-const buildId = 'development'
+const buildId = "development";
 
 const getInitialRouterStateTree = (): FlightRouterState => [
-  '',
+  "",
   {
     children: [
-      'linking',
+      "linking",
       {
-        children: ['', {}],
+        children: ["", {}],
       },
     ],
   },
   undefined,
   undefined,
   true,
-]
+];
 
-describe('createInitialRouterState', () => {
-  it('should return the correct initial router state', () => {
-    const initialTree = getInitialRouterStateTree()
-    const initialCanonicalUrl = '/linking'
+describe("createInitialRouterState", () => {
+  it("should return the correct initial router state", () => {
+    const initialTree = getInitialRouterStateTree();
+    const initialCanonicalUrl = "/linking";
     const children = (
       <html>
         <head></head>
         <body>Root layout</body>
       </html>
-    )
-    const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
+    );
+    const initialParallelRoutes: CacheNode["parallelRoutes"] = new Map();
 
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
+      location: new URL("/linking", "https://localhost") as any,
       initialHead: <title>Test</title>,
-    })
+    });
 
     const state2 = createInitialRouterState({
       buildId,
       initialTree,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ["", {}, children],
       initialParallelRoutes,
       isServer: false,
-      location: new URL('/linking', 'https://localhost') as any,
+      location: new URL("/linking", "https://localhost") as any,
       initialHead: <title>Test</title>,
-    })
+    });
 
     const expectedCache: CacheNode = {
       lazyData: null,
@@ -60,17 +60,17 @@ describe('createInitialRouterState', () => {
       prefetchRsc: null,
       parallelRoutes: new Map([
         [
-          'children',
+          "children",
           new Map([
             [
-              'linking',
+              "linking",
               {
                 parallelRoutes: new Map([
                   [
-                    'children',
+                    "children",
                     new Map([
                       [
-                        '',
+                        "",
                         {
                           lazyData: null,
                           rsc: null,
@@ -90,7 +90,7 @@ describe('createInitialRouterState', () => {
           ]),
         ],
       ]),
-    }
+    };
 
     const expected: ReturnType<typeof createInitialRouterState> = {
       buildId,
@@ -109,10 +109,10 @@ describe('createInitialRouterState', () => {
         segmentPaths: [],
       },
       cache: expectedCache,
-      nextUrl: '/linking',
-    }
+      nextUrl: "/linking",
+    };
 
-    expect(state).toMatchObject(expected)
-    expect(state2).toMatchObject(expected)
-  })
-})
+    expect(state).toMatchObject(expected);
+    expect(state2).toMatchObject(expected);
+  });
+});

@@ -1,7 +1,7 @@
-import type webpack from 'webpack'
-import fs from 'fs'
-import path from 'path'
-import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import type webpack from "webpack";
+import fs from "fs";
+import path from "path";
+import { imageExtMimeTypeMap } from "../../../lib/mime-type";
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -10,39 +10,39 @@ function errorOnBadHandler(resourcePath: string) {
       resourcePath
     )}')
   }
-  `
+  `;
 }
 
 const cacheHeader = {
-  none: 'no-cache, no-store',
-  longCache: 'public, immutable, no-transform, max-age=31536000',
-  revalidate: 'public, max-age=0, must-revalidate',
-}
+  none: "no-cache, no-store",
+  longCache: "public, immutable, no-transform, max-age=31536000",
+  revalidate: "public, max-age=0, must-revalidate",
+};
 
 type MetadataRouteLoaderOptions = {
-  page: string
-  isDynamic: '1' | '0'
-}
+  page: string;
+  isDynamic: "1" | "0";
+};
 
 export function getFilenameAndExtension(resourcePath: string) {
-  const filename = path.basename(resourcePath)
-  const [name, ext] = filename.split('.', 2)
-  return { name, ext }
+  const filename = path.basename(resourcePath);
+  const [name, ext] = filename.split(".", 2);
+  return { name, ext };
 }
 
 function getContentType(resourcePath: string) {
-  let { name, ext } = getFilenameAndExtension(resourcePath)
-  if (ext === 'jpg') ext = 'jpeg'
+  let { name, ext } = getFilenameAndExtension(resourcePath);
+  if (ext === "jpg") ext = "jpeg";
 
-  if (name === 'favicon' && ext === 'ico') return 'image/x-icon'
-  if (name === 'sitemap') return 'application/xml'
-  if (name === 'robots') return 'text/plain'
-  if (name === 'manifest') return 'application/manifest+json'
+  if (name === "favicon" && ext === "ico") return "image/x-icon";
+  if (name === "sitemap") return "application/xml";
+  if (name === "robots") return "text/plain";
+  if (name === "manifest") return "application/manifest+json";
 
-  if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
-    return imageExtMimeTypeMap[ext]
+  if (ext === "png" || ext === "jpeg" || ext === "ico" || ext === "svg") {
+    return imageExtMimeTypeMap[ext];
   }
-  return 'text/plain'
+  return "text/plain";
 }
 
 // Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
@@ -51,17 +51,17 @@ async function getStaticAssetRouteCode(
   fileBaseName: string
 ) {
   const cache =
-    fileBaseName === 'favicon'
-      ? 'public, max-age=0, must-revalidate'
-      : process.env.NODE_ENV !== 'production'
+    fileBaseName === "favicon"
+      ? "public, max-age=0, must-revalidate"
+      : process.env.NODE_ENV !== "production"
       ? cacheHeader.none
-      : cacheHeader.longCache
+      : cacheHeader.longCache;
   const code = `\
 import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const buffer = Buffer.from(${JSON.stringify(
-    (await fs.promises.readFile(resourcePath)).toString('base64')
+    (await fs.promises.readFile(resourcePath)).toString("base64")
   )}, 'base64'
   )
 
@@ -75,8 +75,8 @@ export function GET() {
 }
 
 export const dynamic = 'force-static'
-`
-  return code
+`;
+  return code;
 }
 
 function getDynamicTextRouteCode(resourcePath: string) {
@@ -101,7 +101,7 @@ export async function GET() {
     },
   })
 }
-`
+`;
 }
 
 // <metadata-image>/[id]/route.js
@@ -140,15 +140,15 @@ export async function GET(_, ctx) {
   }
   return handler({ params: ctx.params ? params : undefined, id })
 }
-`
+`;
 }
 
 function getDynamicSiteMapRouteCode(resourcePath: string, page: string) {
-  let staticGenerationCode = ''
+  let staticGenerationCode = "";
 
   if (
-    process.env.NODE_ENV === 'production' &&
-    page.includes('[__metadata_id__]')
+    process.env.NODE_ENV === "production" &&
+    page.includes("[__metadata_id__]")
   ) {
     staticGenerationCode = `\
 export async function generateStaticParams() {
@@ -160,7 +160,7 @@ export async function generateStaticParams() {
   }
   return params
 }
-    `
+    `;
   }
 
   const code = `\
@@ -176,7 +176,7 @@ const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
 
 ${errorOnBadHandler(resourcePath)}
 
-${'' /* re-export the userland route configs */}
+${"" /* re-export the userland route configs */}
 export * from ${JSON.stringify(resourcePath)}
 
 export async function GET(_, ctx) {
@@ -213,32 +213,32 @@ export async function GET(_, ctx) {
 }
 
 ${staticGenerationCode}
-`
-  return code
+`;
+  return code;
 }
 // `import.meta.url` is the resource name of the current module.
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { resourcePath } = this
-    const { page, isDynamic } = this.getOptions()
-    const { name: fileBaseName } = getFilenameAndExtension(resourcePath)
+    const { resourcePath } = this;
+    const { page, isDynamic } = this.getOptions();
+    const { name: fileBaseName } = getFilenameAndExtension(resourcePath);
 
-    let code = ''
-    if (isDynamic === '1') {
-      if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
-        code = getDynamicTextRouteCode(resourcePath)
-      } else if (fileBaseName === 'sitemap') {
-        code = getDynamicSiteMapRouteCode(resourcePath, page)
+    let code = "";
+    if (isDynamic === "1") {
+      if (fileBaseName === "robots" || fileBaseName === "manifest") {
+        code = getDynamicTextRouteCode(resourcePath);
+      } else if (fileBaseName === "sitemap") {
+        code = getDynamicSiteMapRouteCode(resourcePath, page);
       } else {
-        code = getDynamicImageRouteCode(resourcePath)
+        code = getDynamicImageRouteCode(resourcePath);
       }
     } else {
-      code = await getStaticAssetRouteCode(resourcePath, fileBaseName)
+      code = await getStaticAssetRouteCode(resourcePath, fileBaseName);
     }
 
-    return code
-  }
+    return code;
+  };
 
-export default nextMetadataRouterLoader
+export default nextMetadataRouterLoader;

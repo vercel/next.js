@@ -1,54 +1,54 @@
 // This module provides intellisense for all components that has the `"use client"` directive.
 
-import { NEXT_TS_ERRORS } from '../constant'
-import { getTs, getTypeChecker } from '../utils'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import { NEXT_TS_ERRORS } from "../constant";
+import { getTs, getTypeChecker } from "../utils";
+import type tsModule from "typescript/lib/tsserverlibrary";
 
 const clientBoundary = {
   getSemanticDiagnosticsForExportVariableStatement(
     source: tsModule.SourceFile,
     node: tsModule.VariableStatement
   ) {
-    const ts = getTs()
+    const ts = getTs();
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = [];
 
     if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
-        const initializer = declaration.initializer
+        const initializer = declaration.initializer;
         if (initializer && ts.isArrowFunction(initializer)) {
           diagnostics.push(
             ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
               source,
               initializer
             )
-          )
+          );
         }
       }
     }
 
-    return diagnostics
+    return diagnostics;
   },
 
   getSemanticDiagnosticsForFunctionExport(
     source: tsModule.SourceFile,
     node: tsModule.FunctionDeclaration | tsModule.ArrowFunction
   ) {
-    const ts = getTs()
-    const typeChecker = getTypeChecker()
-    if (!typeChecker) return []
+    const ts = getTs();
+    const typeChecker = getTypeChecker();
+    if (!typeChecker) return [];
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: tsModule.Diagnostic[] = [];
 
-    const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
-    const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
+    const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName);
+    const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName);
 
-    const props = node.parameters?.[0]?.name
+    const props = node.parameters?.[0]?.name;
     if (props && ts.isObjectBindingPattern(props)) {
       for (const prop of (props as tsModule.ObjectBindingPattern).elements) {
-        const type = typeChecker.getTypeAtLocation(prop)
-        const typeDeclarationNode = type.symbol?.getDeclarations()?.[0]
-        const propName = (prop.propertyName || prop.name).getText()
+        const type = typeChecker.getTypeAtLocation(prop);
+        const typeDeclarationNode = type.symbol?.getDeclarations()?.[0];
+        const propName = (prop.propertyName || prop.name).getText();
 
         if (typeDeclarationNode) {
           if (
@@ -59,7 +59,7 @@ const clientBoundary = {
             // There's a special case for the error file that the `reset` prop is allowed
             // to be a function:
             // https://github.com/vercel/next.js/issues/46573
-            if (!(isErrorFile || isGlobalErrorFile) || propName !== 'reset') {
+            if (!(isErrorFile || isGlobalErrorFile) || propName !== "reset") {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,
@@ -67,15 +67,15 @@ const clientBoundary = {
                 messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
                 start: prop.getStart(),
                 length: prop.getWidth(),
-              })
+              });
             }
           }
         }
       }
     }
 
-    return diagnostics
+    return diagnostics;
   },
-}
+};
 
-export default clientBoundary
+export default clientBoundary;

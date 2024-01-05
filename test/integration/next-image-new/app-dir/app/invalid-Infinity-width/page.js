@@ -1,5 +1,5 @@
-import React from 'react'
-import Image from 'next/image'
+import React from "react";
+import Image from "next/image";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <p>Invalid Infinity width</p>
       <Image src="/test.jpg" width={Infinity} height={300} />
     </div>
-  )
+  );
 }

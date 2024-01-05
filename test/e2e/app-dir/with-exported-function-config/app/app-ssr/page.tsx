@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>app-ssr</p>
+  return <p>app-ssr</p>;
 }
 
-export const maxDuration = 3
+export const maxDuration = 3;

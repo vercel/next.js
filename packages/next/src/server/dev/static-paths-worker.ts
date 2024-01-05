@@ -1,24 +1,24 @@
-import type { NextConfigComplete } from '../config-shared'
+import type { NextConfigComplete } from "../config-shared";
 
-import '../require-hook'
-import '../node-environment'
+import "../require-hook";
+import "../node-environment";
 
 import {
   buildAppStaticPaths,
   buildStaticPaths,
   collectGenerateParams,
-} from '../../build/utils'
-import type { GenerateParamsResults } from '../../build/utils'
-import { loadComponents } from '../load-components'
-import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
-import type { IncrementalCache } from '../lib/incremental-cache'
-import { isAppRouteRouteModule } from '../future/route-modules/checks'
+} from "../../build/utils";
+import type { GenerateParamsResults } from "../../build/utils";
+import { loadComponents } from "../load-components";
+import { setHttpClientAndAgentOptions } from "../setup-http-agent-env";
+import type { IncrementalCache } from "../lib/incremental-cache";
+import { isAppRouteRouteModule } from "../future/route-modules/checks";
 
 type RuntimeConfig = {
-  configFileName: string
-  publicRuntimeConfig: { [key: string]: any }
-  serverRuntimeConfig: { [key: string]: any }
-}
+  configFileName: string;
+  publicRuntimeConfig: { [key: string]: any };
+  serverRuntimeConfig: { [key: string]: any };
+};
 
 // we call getStaticPaths in a separate process to ensure
 // side-effects aren't relied on in dev that will break
@@ -40,49 +40,49 @@ export async function loadStaticPaths({
   incrementalCacheHandlerPath,
   ppr,
 }: {
-  dir: string
-  distDir: string
-  pathname: string
-  config: RuntimeConfig
-  httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  locales?: string[]
-  defaultLocale?: string
-  isAppPath: boolean
-  page: string
-  isrFlushToDisk?: boolean
-  fetchCacheKeyPrefix?: string
-  maxMemoryCacheSize?: number
-  requestHeaders: IncrementalCache['requestHeaders']
-  incrementalCacheHandlerPath?: string
-  ppr: boolean
+  dir: string;
+  distDir: string;
+  pathname: string;
+  config: RuntimeConfig;
+  httpAgentOptions: NextConfigComplete["httpAgentOptions"];
+  locales?: string[];
+  defaultLocale?: string;
+  isAppPath: boolean;
+  page: string;
+  isrFlushToDisk?: boolean;
+  fetchCacheKeyPrefix?: string;
+  maxMemoryCacheSize?: number;
+  requestHeaders: IncrementalCache["requestHeaders"];
+  incrementalCacheHandlerPath?: string;
+  ppr: boolean;
 }): Promise<{
-  paths?: string[]
-  encodedPaths?: string[]
-  fallback?: boolean | 'blocking'
+  paths?: string[];
+  encodedPaths?: string[];
+  fallback?: boolean | "blocking";
 }> {
   // update work memory runtime-config
-  require('../../shared/lib/runtime-config.external').setConfig(config)
+  require("../../shared/lib/runtime-config.external").setConfig(config);
   setHttpClientAndAgentOptions({
     httpAgentOptions,
-  })
+  });
 
   const components = await loadComponents({
     distDir,
     // In `pages/`, the page is the same as the pathname.
     page: page || pathname,
     isAppPath,
-  })
+  });
 
   if (!components.getStaticPaths && !isAppPath) {
     // we shouldn't get to this point since the worker should
     // only be called for SSG pages with getStaticPaths
     throw new Error(
       `Invariant: failed to load page with getStaticPaths for ${pathname}`
-    )
+    );
   }
 
   if (isAppPath) {
-    const { routeModule } = components
+    const { routeModule } = components;
     const generateParams: GenerateParamsResults =
       routeModule && isAppRouteRouteModule(routeModule)
         ? [
@@ -96,7 +96,7 @@ export async function loadStaticPaths({
               segmentPath: pathname,
             },
           ]
-        : await collectGenerateParams(components.ComponentMod.tree)
+        : await collectGenerateParams(components.ComponentMod.tree);
 
     return await buildAppStaticPaths({
       dir,
@@ -111,7 +111,7 @@ export async function loadStaticPaths({
       maxMemoryCacheSize,
       ppr,
       ComponentMod: components.ComponentMod,
-    })
+    });
   }
 
   return await buildStaticPaths({
@@ -120,5 +120,5 @@ export async function loadStaticPaths({
     configFileName: config.configFileName,
     locales,
     defaultLocale,
-  })
+  });
 }

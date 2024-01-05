@@ -1,26 +1,26 @@
-import React, { useEffect, useState } from 'react'
-import Image from 'next/image'
+import React, { useEffect, useState } from "react";
+import Image from "next/image";
 
 const Page = () => {
-  const [src, setSrc] = useState()
+  const [src, setSrc] = useState();
 
   useEffect(() => {
-    fetch('/test.jpg')
+    fetch("/test.jpg")
       .then((res) => {
-        return res.blob()
+        return res.blob();
       })
       .then((blob) => {
-        const url = URL.createObjectURL(blob)
-        setSrc(url)
-      })
-  }, [])
+        const url = URL.createObjectURL(blob);
+        setSrc(url);
+      });
+  }, []);
 
   return (
     <div>
       <p>Blob URL</p>
       {src ? <Image id="blob-image" src={src} width="10" height="10" /> : null}
     </div>
-  )
-}
+  );
+};
 
-export default Page
+export default Page;

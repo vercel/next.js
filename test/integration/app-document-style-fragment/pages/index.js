@@ -8,9 +8,9 @@ function Hi() {
         }
       `}</style>
     </div>
-  )
+  );
 }
 
-Hi.getInitialProps = () => ({})
+Hi.getInitialProps = () => ({});
 
-export default Hi
+export default Hi;
