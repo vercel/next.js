@@ -1210,7 +1210,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefresh.test.ts": {
+  "test/development/acceptance-pages/ReactRefresh.test.ts": {
     "passed": [
       "ReactRefresh can edit a component without losing state",
       "ReactRefresh cyclic dependencies"
@@ -1220,7 +1220,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo empty _app shows logbox",
       "ReactRefreshLogBox turbo empty _document shows logbox"
@@ -1238,7 +1238,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo Module not found (empty import trace)"
     ],
@@ -1256,14 +1256,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshLogBox-scss.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["ReactRefreshLogBox scss syntax errors"],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshLogBox.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
       "ReactRefreshLogBox turbo module init error not shown",
@@ -1290,7 +1290,7 @@
     "flakey": ["ReactRefreshLogBox turbo conversion to class component (1)"],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshLogBoxMisc.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshLogBoxMisc.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -1301,14 +1301,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshModule.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshModule.test.ts": {
     "passed": [],
     "failed": ["ReactRefreshModule should allow any variable names"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshRegression.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshRegression.test.ts": {
     "passed": [
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
@@ -1323,7 +1323,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/ReactRefreshRequire.test.ts": {
+  "test/development/acceptance-pages/ReactRefreshRequire.test.ts": {
     "passed": [
       "ReactRefreshRequire bails out if the update bubbles to the root via one of the paths",
       "ReactRefreshRequire bails out if update bubbles to the root via the only path",
@@ -1348,7 +1348,7 @@
     ],
     "runtimeError": false
   },
-  "test/development/acceptance/component-stack.test.ts": {
+  "test/development/acceptance-pages/component-stack.test.ts": {
     "passed": [],
     "failed": [
       "Component Stack in error overlay should show a component stack on hydration error"
@@ -1357,7 +1357,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/error-recovery.test.ts": {
+  "test/development/acceptance-pages/error-recovery.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox turbo stuck error"
@@ -1379,7 +1379,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/hydration-error.test.ts": {
+  "test/development/acceptance-pages/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors should show correct hydration error when client and server render different text"
     ],
@@ -1388,7 +1388,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance/server-component-compiler-errors-in-pages.test.ts": {
+  "test/development/acceptance-pages/server-component-compiler-errors-in-pages.test.ts": {
     "passed": [],
     "failed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
