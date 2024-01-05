@@ -1,5 +1,4 @@
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
-import type { FlightResponseRef } from './flight-response-ref'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import {
@@ -42,6 +41,11 @@ function createFlightTransformer(
   })
 }
 
+const flightResponses = new WeakMap<
+  ReadableStream<Uint8Array>,
+  Promise<JSX.Element>
+>()
+
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
@@ -50,13 +54,15 @@ export function useFlightResponse(
   writable: WritableStream<Uint8Array>,
   flightStream: ReadableStream<Uint8Array>,
   clientReferenceManifest: ClientReferenceManifest,
-  flightResponseRef: FlightResponseRef,
   formState: null | any,
   nonce?: string
 ): Promise<JSX.Element> {
-  if (flightResponseRef.current !== null) {
-    return flightResponseRef.current
+  const response = flightResponses.get(flightStream)
+
+  if (response) {
+    return response
   }
+
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   let createFromReadableStream
   // @TODO: investigate why the aliasing for turbopack doesn't pick this up, requiring this runtime check
@@ -80,21 +86,25 @@ export function useFlightResponse(
     },
     nonce,
   })
-  flightResponseRef.current = res
+  flightResponses.set(flightStream, res)
 
-  forwardStream
+  pipeFlightDataToInlinedStream(forwardStream, writable, nonce, formState)
+
+  return res
+}
+
+function pipeFlightDataToInlinedStream(
+  flightStream: ReadableStream<Uint8Array>,
+  writable: WritableStream<Uint8Array>,
+  nonce: string | undefined,
+  formState: unknown | null
+): void {
+  flightStream
     .pipeThrough(createDecodeTransformStream())
     .pipeThrough(createFlightTransformer(nonce, formState))
     .pipeThrough(createEncodeTransformStream())
     .pipeTo(writable)
-    .finally(() => {
-      // Once the last encoding stream has flushed, then unset the flight
-      // response ref.
-      flightResponseRef.current = null
-    })
     .catch((err) => {
       console.error('Unexpected error while rendering Flight stream', err)
     })
-
-  return res
 }
