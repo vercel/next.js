@@ -177,8 +177,8 @@ importers:
         specifier: 6.1.1
         version: 6.1.1(@types/node-fetch@2.6.1)(node-fetch@2.6.7)
       '@vercel/og':
-        specifier: 0.5.15
-        version: 0.5.15
+        specifier: 0.6.2
+        version: 0.6.2
       abort-controller:
         specifier: 3.0.0
         version: 3.0.0
@@ -483,8 +483,8 @@ importers:
         specifier: 1.54.0
         version: 1.54.0
       satori:
-        specifier: 0.10.6
-        version: 0.10.6
+        specifier: 0.10.9
+        version: 0.10.9
       scheduler-builtin:
         specifier: npm:scheduler@0.24.0-canary-0cdfef19b-20231211
         version: /scheduler@0.24.0-canary-0cdfef19b-20231211
@@ -741,7 +741,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -806,7 +806,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -933,19 +933,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1074,11 +1074,11 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       '@vercel/nft':
-        specifier: 0.24.4
-        version: 0.24.4
+        specifier: 0.26.2
+        version: 0.26.2
       '@vercel/turbopack-ecmascript-runtime':
-        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231213.2
-        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231213.2(react-refresh@0.12.0)(webpack@5.86.0)'
+        specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1
+        version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1(react-refresh@0.12.0)(webpack@5.86.0)'
       acorn:
         specifier: 8.5.0
         version: 8.5.0
@@ -1599,7 +1599,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.5-canary.14
+        specifier: 14.0.5-canary.39
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -5737,8 +5737,8 @@ packages:
     resolution: {integrity: sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==}
     dev: true
 
-  /@resvg/resvg-wasm@2.4.1:
-    resolution: {integrity: sha512-yi6R0HyHtsoWTRA06Col4WoDs7SvlXU3DLMNP2bdAgs7HK18dTEVl1weXgxRzi8gwLteGUbIg29zulxIB3GSdg==}
+  /@resvg/resvg-wasm@2.4.0:
+    resolution: {integrity: sha512-C7c51Nn4yTxXFKvgh2txJFNweaVcfUPQxwEUFw4aWsCmfiBDJsTSwviIF8EcwjQ6k8bPyMWCl1vw4BdxE569Cg==}
     engines: {node: '>= 10'}
     dev: true
 
@@ -7172,14 +7172,15 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft@0.24.4:
-    resolution: {integrity: sha512-KjYAZty7boH5fi5udp6p+lNu6nawgs++pHW+3koErMgbRkkHuToGX/FwjN5clV1FcaM3udfd4zW/sUapkMgpZw==}
+  /@vercel/nft@0.26.2:
+    resolution: {integrity: sha512-bxe2iShmKZi7476xYamyKvhhKwQ6JPEtQ2FSq1AjMUH2buMd8LQMkdoHinTqZYc+1sMTh3G0ARdjzNvV1FEisA==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
       '@mapbox/node-pre-gyp': 1.0.5
       '@rollup/pluginutils': 4.2.1
       acorn: 8.10.0
+      acorn-import-attributes: 1.9.2(acorn@8.10.0)
       async-sema: 3.1.1
       bindings: 1.5.0
       estree-walker: 2.0.2
@@ -7193,12 +7194,12 @@ packages:
       - supports-color
     dev: true
 
-  /@vercel/og@0.5.15:
-    resolution: {integrity: sha512-8LrEb/3C7R2TqRA9qTde+eoeOCCQZfElqCNiSi3qqnKSczv2V91Wa1Nt3Gy6qqLDeny8aFQxcB/OCZEWNubaqw==}
+  /@vercel/og@0.6.2:
+    resolution: {integrity: sha512-OTe0KE37F5Y2eTys6eMnfopC+P4qr2ooXUTFyFPTplYSPwowmFk/HLD1FXtbKLjqsIH0SgekcJWad+C5uX4nkg==}
     engines: {node: '>=16'}
     dependencies:
-      '@resvg/resvg-wasm': 2.4.1
-      satori: 0.10.6
+      '@resvg/resvg-wasm': 2.4.0
+      satori: 0.10.9
       yoga-wasm-web: 0.3.3
     dev: true
 
@@ -7372,6 +7373,14 @@ packages:
       acorn: ^8
     dependencies:
       acorn: 8.8.2
+
+  /acorn-import-attributes@1.9.2(acorn@8.10.0):
+    resolution: {integrity: sha512-O+nfJwNolEA771IYJaiLWK1UAwjNsQmZbTRqqwBYxCgVQTmpFEMvBw6LOIQV0Me339L5UMVYFyRohGnGlQDdIQ==}
+    peerDependencies:
+      acorn: ^8
+    dependencies:
+      acorn: 8.10.0
+    dev: true
 
   /acorn-jsx@5.3.2(acorn@7.4.1):
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -21424,8 +21433,8 @@ packages:
       immutable: 4.1.0
       source-map-js: 1.0.2
 
-  /satori@0.10.6:
-    resolution: {integrity: sha512-bhAAnh+ZZgulFpxoDi5AB1VA3MsN6AnhB0Elfdj5bQitn4N9GHAB3MC5eFauOnXHF7a9TT1jIPHhUY4JQsP6Xg==}
+  /satori@0.10.9:
+    resolution: {integrity: sha512-XU9EELUEZuioT4acLIpCXxHcFzrsC8muvg0MY28d+TlqwxbkTzBmWbw+3+hnCzXT7YZ0Qm8k3eXktDaEu+qmEw==}
     engines: {node: '>=16'}
     dependencies:
       '@shuding/opentype.js': 1.4.0-beta.0
@@ -24669,9 +24678,9 @@ packages:
   /zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
-  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231213.2(react-refresh@0.12.0)(webpack@5.86.0)':
-    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231213.2}
-    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-231213.2'
+  '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1(react-refresh@0.12.0)(webpack@5.86.0)':
+    resolution: {registry: https://registry.npmjs.org/, tarball: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1}
+    id: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240102.1'
     name: '@vercel/turbopack-ecmascript-runtime'
     version: 0.0.0
     dependencies:

@@ -1,23 +1,6 @@
-// Make development mode typescript module resolving and jsx parsing correct for all tests
+// Make development mode typescript module resolving and jsx parsing correct for all tests.
+// We want to apply the compiler options to the testing app, but we don't want to do strict type checking for them.
+// e.g. testing app could have import a from '3rd-lib-nextjs-ws-doesnt-have'
 {
-  "compilerOptions": {
-    "strict": false,
-    "noEmit": true,
-    "allowJs": true,
-    "resolveJsonModule": true,
-    "jsx": "react-jsx",
-    "module": "esnext",
-    "target": "ESNext",
-    "esModuleInterop": true,
-    "moduleResolution": "node",
-    "baseUrl": ".",
-    "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
-    "paths": {
-      "development-sandbox": ["./lib/development-sandbox"],
-      "next-test-utils": ["./lib/next-test-utils"],
-      "amp-test-utils": ["./lib/amp-test-utils"],
-      "next-webdriver": ["./lib/next-webdriver"],
-      "e2e-utils": ["./lib/e2e-utils"]
-    }
-  }
+  "extends": "../tsconfig.base.json"
 }

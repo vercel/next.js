@@ -48,6 +48,11 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
+  // TODO: We should make both of these non-optional. Most of the places that
+  // clone the Cache Nodes do not preserve this field. In practice this ends up
+  // working out because we only clone nodes when we're receiving a new head,
+  // anyway. But it's fragile. It also breaks monomorphization.
+  prefetchHead?: React.ReactNode
   head?: React.ReactNode
   /**
    * Child parallel routes.
@@ -86,6 +91,7 @@ export type ReadyCacheNode = {
    * There should never be a lazy data request in this case.
    */
   lazyData: null
+  prefetchHead?: React.ReactNode
   head?: React.ReactNode
   parallelRoutes: Map<string, ChildSegmentMap>
 }
@@ -155,3 +161,5 @@ if (process.env.NODE_ENV !== 'production') {
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
 }
+
+export const MissingSlotContext = React.createContext<Set<string>>(new Set())
