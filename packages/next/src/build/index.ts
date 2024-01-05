@@ -796,25 +796,6 @@ export default async function build(
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
-      const typeCheckingOptions: Parameters<typeof startTypeChecking>[0] = {
-        dir,
-        appDir,
-        pagesDir,
-        runLint,
-        shouldLint,
-        ignoreESLint,
-        telemetry,
-        nextBuildSpan,
-        config,
-        cacheDir,
-      }
-
-      // For app directory, we run type checking after build. That's because
-      // we dynamically generate types for each layout and page in the app
-      // directory.
-      if (!appDir && !isCompileMode)
-        await startTypeChecking(typeCheckingOptions)
-
       if (appDir && 'exportPathMap' in config) {
         Log.error(
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
@@ -1461,9 +1442,20 @@ export default async function build(
         }
       }
 
-      // For app directory, we run type checking after build.
-      if (appDir && !isCompileMode && !isGenerateMode) {
-        await startTypeChecking(typeCheckingOptions)
+      // Run type checking after the build as the build writes additional types.
+      if (!isCompileMode && !isGenerateMode) {
+        await startTypeChecking({
+          dir,
+          appDir,
+          pagesDir,
+          runLint,
+          shouldLint,
+          ignoreESLint,
+          telemetry,
+          nextBuildSpan,
+          config,
+          cacheDir,
+        })
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
