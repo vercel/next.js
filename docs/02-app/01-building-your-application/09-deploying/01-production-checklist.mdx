@@ -103,15 +103,21 @@ While building your application, we recommend using the following features to en
 - **[Environment Variables](/docs/app/building-your-application/configuring/environment-variables):** Ensure your `.env.*` files are added to `.gitignore` and only public variables are prefixed with `NEXT_PUBLIC_`.
 - **[Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy):** Consider adding a Content Security Policy to protect your application against various security threats such as cross-site scripting, clickjacking, and other code injection attacks.
 
-<AppOnly>
-
 ### Metadata and SEO
+
+<AppOnly>
 
 - **[Metadata API](/docs/app/building-your-application/optimizing/metadata):** Use the Metadata API to improve your application's Search Engine Optimization (SEO) by adding page titles, descriptions, and more.
 - **[Open Graph (OG) images](/docs/app/api-reference/file-conventions/metadata/opengraph-image):** Create OG images to prepare your application for social sharing.
 - **[Sitemaps](/docs/app/api-reference/functions/generate-sitemaps) and [Robots](/docs/app/api-reference/file-conventions/metadata/robots):** Help Search Engines crawl and index your pages by generating sitemaps and robots files.
 
 </AppOnly>
+
+<PagesOnly>
+
+- **[`<Head>` Component](/docs/pages/api-reference/components/head):** Use the `next/head` component to add page titles, descriptions, and more.
+
+</PagesOnly>
 
 ### Type safety
 
@@ -124,7 +130,12 @@ Before going to production, you can run `next build` to build your application l
 ### Core Web Vitals
 
 - **[Lighthouse](https://developers.google.com/web/tools/lighthouse):** Run lighthouse in incognito to gain a better understanding of how your users will experience your site, and to identify areas for improvement. This is a simulated test and should be paired with looking at field data (such as Core Web Vitals).
+
+<AppOnly>
+
 - **[`useReportWebVitals` hook](/docs/app/api-reference/functions/use-report-web-vitals):** Use this hook to send [Core Web Vitals](https://web.dev/articles/vitals) data to analytics tools.
+
+</AppOnly>
 
 ### Analyzing bundles
 
