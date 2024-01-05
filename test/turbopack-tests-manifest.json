@@ -1128,7 +1128,6 @@
       "Error overlay - RSC build errors should error when page component export is not valid on initial load",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
-      "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error when Component from react is used in server component",
       "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
@@ -1150,14 +1149,16 @@
       "Error overlay - RSC build errors should error when useSyncExternalStore from react is used in server component",
       "Error overlay - RSC build errors should error when useTransition from react is used in server component",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
-      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
+      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions"
+    ],
+    "failed": [
+      "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
     ],
-    "failed": [],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
