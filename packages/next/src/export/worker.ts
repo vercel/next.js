@@ -36,7 +36,6 @@ import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
-import { is } from 'superstruct'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
