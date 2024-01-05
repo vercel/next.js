@@ -444,6 +444,94 @@ export function Signup() {
 >
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 
+#### Using `useFormState` with [additional arguments](#passing-additional-arguments)
+
+Sometimes, you may want to benefits the advantages of the React [`useFormState`](https://react.dev/reference/react-dom/hooks/useFormState) hook with a Server Action that has additional arguments. For example, to edit a user:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+export async function editUser(
+  userId: string,
+  prevState: any,
+  formData: FormData
+) {
+  // ...
+  return {
+    message: 'The user has been updated',
+  }
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+export async function editUser(userId, prevState, formData) {
+  // ...
+  return {
+    message: 'The user has been updated',
+  }
+}
+```
+
+Then, you can pass your action to the `useFormState` hook and use the returned `state` to display an error message.
+
+```tsx filename="app/ui/user-details.tsx" switcher
+'use client'
+
+import { useFormState } from 'react-dom'
+import { editUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function UserDetails({ userId }: { userId: string }) {
+  const editUserWithId = editUser.bind(null, userId)
+  const [state, formAction] = useFormState(editUserWithId, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="username">username</label>
+      <input type="text" id="username" name="username" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button>Edit</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/user-details.js" switcher
+'use client'
+
+import { useFormState } from 'react-dom'
+import { editUser } from '@/app/actions'
+
+const initialState = {
+  message: '',
+}
+
+export function UserDetails({ userId }) {
+  const editUserWithId = editUser.bind(null, userId)
+  const [state, formAction] = useFormState(editUserWithId, initialState)
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="username">username</label>
+      <input type="text" id="username" name="username" required />
+      {/* ... */}
+      <p aria-live="polite" className="sr-only">
+        {state?.message}
+      </p>
+      <button>Edit</button>
+    </form>
+  )
+}
+```
+
 #### Optimistic updates
 
 You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
