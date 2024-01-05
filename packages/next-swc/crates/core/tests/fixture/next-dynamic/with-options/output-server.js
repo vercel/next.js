@@ -7,9 +7,7 @@ const DynamicComponentWithCustomLoading = dynamic(()=>import('../components/hell
     },
     loading: ()=><p>...</p>
 });
-const DynamicClientOnlyComponent = dynamic(async ()=>{
-    typeof require.resolveWeak !== "undefined" && require.resolveWeak("../components/hello");
-}, {
+const DynamicClientOnlyComponent = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
             "some-file.js -> " + "../components/hello"
@@ -17,9 +15,7 @@ const DynamicClientOnlyComponent = dynamic(async ()=>{
     },
     ssr: false
 });
-const DynamicClientOnlyComponentWithSuspense = dynamic(async ()=>{
-    typeof require.resolveWeak !== "undefined" && require.resolveWeak("../components/hello");
-}, {
+const DynamicClientOnlyComponentWithSuspense = dynamic(()=>import('../components/hello'), {
     loadableGenerated: {
         modules: [
             "some-file.js -> " + "../components/hello"

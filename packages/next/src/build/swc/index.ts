@@ -12,6 +12,7 @@ import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -499,9 +500,9 @@ export interface Issue {
   severity: string
   category: string
   filePath: string
-  title: string
-  description: StyledString
-  detail: string
+  title: StyledString
+  description?: StyledString
+  detail?: StyledString
   source?: {
     source: {
       ident: string
@@ -531,9 +532,15 @@ export interface Middleware {
   endpoint: Endpoint
 }
 
+export interface Instrumentation {
+  nodeJs: Endpoint
+  edge: Endpoint
+}
+
 export interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
+  instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
@@ -648,10 +655,8 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
-      files: string[]
       /** All server paths that has been written for the endpoint. */
       serverPaths: ServerPath[]
-      globalVarName: string
       config: EndpointConfig
     }
 
@@ -797,6 +802,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        instrumentation?: NapiInstrumentation
         pagesDocumentEndpoint: NapiEndpoint
         pagesAppEndpoint: NapiEndpoint
         pagesErrorEndpoint: NapiEndpoint
@@ -806,6 +812,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
         endpoint: NapiEndpoint
         runtime: 'nodejs' | 'edge'
         matcher?: string[]
+      }
+
+      type NapiInstrumentation = {
+        nodeJs: NapiEndpoint
+        edge: NapiEndpoint
       }
 
       type NapiRoute = {
@@ -894,9 +905,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
           const middleware = entrypoints.middleware
             ? napiMiddlewareToMiddleware(entrypoints.middleware)
             : undefined
+          const napiInstrumentationToInstrumentation = (
+            instrumentation: NapiInstrumentation
+          ) => ({
+            nodeJs: new EndpointImpl(instrumentation.nodeJs),
+            edge: new EndpointImpl(instrumentation.edge),
+          })
+          const instrumentation = entrypoints.instrumentation
+            ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+            : undefined
           yield {
             routes,
             middleware,
+            instrumentation,
             pagesDocumentEndpoint: new EndpointImpl(
               entrypoints.pagesDocumentEndpoint
             ),
@@ -1127,7 +1148,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[],
+              pageExtensions: PageExtensions,
               callbackFn: (err: Error, entrypoints: any) => void
             ) => {
               return bindings.streamEntrypoints(
@@ -1142,7 +1163,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[]
+              pageExtensions: PageExtensions
             ) => {
               return bindings.getEntrypoints(
                 turboTasks,
@@ -1322,7 +1343,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[],
+            pageExtensions: PageExtensions,
             fn: (entrypoints: any) => void
           ) => {
             return (customBindings ?? bindings).streamEntrypoints(
@@ -1337,7 +1358,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[]
+            pageExtensions: PageExtensions
           ) => {
             return (customBindings ?? bindings).getEntrypoints(
               turboTasks,

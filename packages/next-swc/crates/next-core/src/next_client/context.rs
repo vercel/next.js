@@ -17,7 +17,7 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
-        ecmascript::chunk::EcmascriptChunkingContext,
+        ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
         node::execution_context::ExecutionContext,
         turbopack::{
             condition::ContextCondition,
@@ -163,6 +163,7 @@ pub async fn get_client_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
@@ -266,6 +267,7 @@ pub async fn get_client_module_options_context(
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     };
 

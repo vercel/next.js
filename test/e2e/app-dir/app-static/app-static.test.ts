@@ -45,6 +45,14 @@ createNextDescribe(
           'unstable_cache_tag1'
         )
       })
+
+      if (!process.env.CUSTOM_CACHE_HANDLER) {
+        it('should honor force-static with fetch cache: no-store correctly', async () => {
+          const res = await next.fetch('/force-static-fetch-no-store')
+          expect(res.status).toBe(200)
+          expect(res.headers.get('x-nextjs-cache').toLowerCase()).toBe('hit')
+        })
+      }
     }
 
     it('should correctly include headers instance in cache key', async () => {
@@ -507,8 +515,9 @@ createNextDescribe(
             'ssg-draft-mode.rsc',
             'ssr-forced/page.js',
             'articles/works.rsc',
-            'custom.prefetch.rsc',
             'force-cache/page.js',
+            'force-cache/large-data/page.js',
+            'force-cache/large-data/page_client-reference-manifest.js',
             'ssg-draft-mode.html',
             'articles/works.html',
             'no-store/static.rsc',
@@ -520,13 +529,17 @@ createNextDescribe(
             'default-cache/page.js',
             'fetch-no-cache/page.js',
             'force-no-store/page.js',
+            'force-static-fetch-no-store.html',
+            'force-static-fetch-no-store.rsc',
+            'force-static-fetch-no-store/page.js',
+            'force-static-fetch-no-store/page_client-reference-manifest.js',
             'force-static/first.rsc',
             'api/draft-mode/route.js',
+            'api/large-data/route.js',
             'blog/tim/first-post.rsc',
             'force-static/first.html',
             'force-static/second.rsc',
             'ssg-draft-mode/test.rsc',
-            'ssr-forced.prefetch.rsc',
             'isr-error-handling.html',
             'articles/[slug]/page.js',
             'no-store/static/page.js',
@@ -537,26 +550,19 @@ createNextDescribe(
             'no-store/dynamic/page.js',
             'blog/seb/second-post.html',
             'ssg-draft-mode/test-2.rsc',
-            'response-url.prefetch.rsc',
             'blog/styfle/first-post.rsc',
-            'default-cache.prefetch.rsc',
             'dynamic-error/[id]/page.js',
             'ssg-draft-mode/test-2.html',
             'blog/styfle/first-post.html',
             'blog/styfle/second-post.rsc',
-            'fetch-no-cache.prefetch.rsc',
-            'force-no-store.prefetch.rsc',
             'force-static/[slug]/page.js',
             'hooks/use-pathname/slug.rsc',
-            'hooks/use-search-params.rsc',
             'route-handler/post/route.js',
             'blog/[author]/[slug]/page.js',
             'blog/styfle/second-post.html',
             'hooks/use-pathname/slug.html',
-            'hooks/use-search-params.html',
             'flight/[slug]/[slug2]/page.js',
             'variable-revalidate/cookie.rsc',
-            'hooks/use-search-params/page.js',
             'ssr-auto/cache-no-store/page.js',
             'variable-revalidate/cookie.html',
             'api/revalidate-tag-edge/route.js',
@@ -571,12 +577,10 @@ createNextDescribe(
             'react-fetch-deduping-node/page.js',
             'variable-revalidate/encoding.html',
             'variable-revalidate/cookie/page.js',
-            'gen-params-dynamic/one.prefetch.rsc',
             'ssg-draft-mode/[[...route]]/page.js',
             'variable-revalidate/post-method.rsc',
             'stale-cache-serving/app-page/page.js',
             'dynamic-no-gen-params/[slug]/page.js',
-            'ssr-auto/cache-no-store.prefetch.rsc',
             'static-to-dynamic-error/[id]/page.js',
             'variable-revalidate/encoding/page.js',
             'variable-revalidate/no-store/page.js',
@@ -590,7 +594,6 @@ createNextDescribe(
             'variable-revalidate/revalidate-3.html',
             'force-dynamic-prerender/[slug]/page.js',
             'gen-params-dynamic-revalidate/one.html',
-            'react-fetch-deduping-node.prefetch.rsc',
             'ssr-auto/fetch-revalidate-zero/page.js',
             'variable-revalidate/authorization.html',
             '_not-found_client-reference-manifest.js',
@@ -598,14 +601,11 @@ createNextDescribe(
             'variable-revalidate/post-method/page.js',
             'variable-revalidate/status-code/page.js',
             'dynamic-no-gen-params-ssr/[slug]/page.js',
-            'force-dynamic-no-with-revalidate/page.js',
             'hooks/use-search-params/force-static.rsc',
             'partial-gen-params/[lang]/[slug]/page.js',
             'variable-revalidate/headers-instance.rsc',
             'variable-revalidate/revalidate-3/page.js',
             'stale-cache-serving-edge/app-page/page.js',
-            'stale-cache-serving/app-page.prefetch.rsc',
-            'force-dynamic-catch-all/slug.prefetch.rsc',
             'hooks/use-search-params/force-static.html',
             'hooks/use-search-params/with-suspense.rsc',
             'route-handler/revalidate-360-isr/route.js',
@@ -613,13 +613,11 @@ createNextDescribe(
             'variable-revalidate-edge/no-store/page.js',
             'variable-revalidate/authorization/page.js',
             'variable-revalidate/headers-instance.html',
-            'variable-revalidate/no-store.prefetch.rsc',
             'stale-cache-serving/route-handler/route.js',
             'hooks/use-search-params/with-suspense.html',
             'route-handler-edge/revalidate-360/route.js',
             'variable-revalidate/revalidate-360-isr.rsc',
             'variable-revalidate/revalidate-360/page.js',
-            'ssr-auto/fetch-revalidate-zero.prefetch.rsc',
             'static-to-dynamic-error-forced/[id]/page.js',
             'variable-config-revalidate/revalidate-3.rsc',
             'variable-revalidate/revalidate-360-isr.html',
@@ -630,9 +628,7 @@ createNextDescribe(
             'variable-config-revalidate/revalidate-3.html',
             'variable-revalidate-edge/post-method/page.js',
             'variable-revalidate/headers-instance/page.js',
-            'variable-revalidate/status-code.prefetch.rsc',
             'force-cache/page_client-reference-manifest.js',
-            'force-dynamic-no-with-revalidate.prefetch.rsc',
             'hooks/use-search-params/with-suspense/page.js',
             'variable-revalidate-edge/revalidate-3/page.js',
             '(new)/custom/page_client-reference-manifest.js',
@@ -642,10 +638,8 @@ createNextDescribe(
             'stale-cache-serving-edge/route-handler/route.js',
             'blog/[author]/page_client-reference-manifest.js',
             'default-cache/page_client-reference-manifest.js',
-            'force-dynamic-prerender/frameworks.prefetch.rsc',
             'variable-config-revalidate/revalidate-3/page.js',
             'variable-revalidate/post-method-request/page.js',
-            'variable-revalidate/revalidate-360.prefetch.rsc',
             'fetch-no-cache/page_client-reference-manifest.js',
             'force-dynamic-catch-all/[slug]/[[...id]]/page.js',
             'force-no-store/page_client-reference-manifest.js',
@@ -677,12 +671,14 @@ createNextDescribe(
             'partial-gen-params-no-additional-lang/fr/second.html',
             'partial-gen-params-no-additional-slug/en/second.html',
             'partial-gen-params-no-additional-slug/fr/second.html',
-            'variable-revalidate/post-method-request.prefetch.rsc',
             'variable-revalidate-edge/post-method-request/page.js',
             'force-static/[slug]/page_client-reference-manifest.js',
             'blog/[author]/[slug]/page_client-reference-manifest.js',
             'flight/[slug]/[slug2]/page_client-reference-manifest.js',
-            'hooks/use-search-params/page_client-reference-manifest.js',
+            'hooks/use-search-params/static-bailout.html',
+            'hooks/use-search-params/static-bailout.rsc',
+            'hooks/use-search-params/static-bailout/page.js',
+            'hooks/use-search-params/static-bailout/page_client-reference-manifest.js',
             'ssr-auto/cache-no-store/page_client-reference-manifest.js',
             'gen-params-dynamic/[slug]/page_client-reference-manifest.js',
             'hooks/use-pathname/[slug]/page_client-reference-manifest.js',
@@ -704,7 +700,6 @@ createNextDescribe(
             'variable-revalidate/post-method/page_client-reference-manifest.js',
             'variable-revalidate/status-code/page_client-reference-manifest.js',
             'dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js',
-            'force-dynamic-no-with-revalidate/page_client-reference-manifest.js',
             'partial-gen-params/[lang]/[slug]/page_client-reference-manifest.js',
             'variable-revalidate/revalidate-3/page_client-reference-manifest.js',
             'stale-cache-serving-edge/app-page/page_client-reference-manifest.js',
@@ -777,6 +772,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/api/large-data": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
+              },
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/api/large-data",
             },
             "/articles/works": {
               "dataRoute": "/articles/works.rsc",
@@ -922,6 +937,22 @@ createNextDescribe(
               "initialRevalidateSeconds": 3,
               "srcRoute": "/force-cache",
             },
+            "/force-static-fetch-no-store": {
+              "dataRoute": "/force-static-fetch-no-store.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/force-static-fetch-no-store",
+            },
             "/force-static/first": {
               "dataRoute": "/force-static/first.rsc",
               "experimentalBypassFor": [
@@ -986,22 +1017,6 @@ createNextDescribe(
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-pathname/[slug]",
             },
-            "/hooks/use-search-params": {
-              "dataRoute": "/hooks/use-search-params.rsc",
-              "experimentalBypassFor": [
-                {
-                  "key": "Next-Action",
-                  "type": "header",
-                },
-                {
-                  "key": "content-type",
-                  "type": "header",
-                  "value": "multipart/form-data",
-                },
-              ],
-              "initialRevalidateSeconds": false,
-              "srcRoute": "/hooks/use-search-params",
-            },
             "/hooks/use-search-params/force-static": {
               "dataRoute": "/hooks/use-search-params/force-static.rsc",
               "experimentalBypassFor": [
@@ -1017,6 +1032,22 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/hooks/use-search-params/force-static",
+            },
+            "/hooks/use-search-params/static-bailout": {
+              "dataRoute": "/hooks/use-search-params/static-bailout.rsc",
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/hooks/use-search-params/static-bailout",
             },
             "/hooks/use-search-params/with-suspense": {
               "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
@@ -1708,35 +1739,38 @@ createNextDescribe(
       { path: '/stale-cache-serving-edge/app-page' },
       { path: '/stale-cache-serving-edge/route-handler' },
     ])('should stream properly for $path', async ({ path }) => {
-      // prime cache initially
-      await next.fetch(path)
+      // Prime the cache.
+      let res = await next.fetch(path)
+      expect(res.status).toBe(200)
+
+      // Consume the cache, the revalidations are completed on the end of the
+      // stream so we need to wait for that to complete.
+      await res.text()
 
       for (let i = 0; i < 6; i++) {
         await waitFor(1000)
-        const start = Date.now()
-        let streamStart = 0
-        const res = await next.fetch(path)
-        const chunks: any[] = []
 
-        await new Promise<void>((bodyResolve) => {
-          res.body.on('data', (chunk) => {
-            if (!streamStart) {
-              streamStart = Date.now()
+        const timings = {
+          start: Date.now(),
+          startedStreaming: 0,
+        }
+
+        res = await next.fetch(path)
+
+        // eslint-disable-next-line no-loop-func
+        await new Promise<void>((resolve) => {
+          res.body.on('data', () => {
+            if (!timings.startedStreaming) {
+              timings.startedStreaming = Date.now()
             }
-            chunks.push(chunk)
           })
 
           res.body.on('end', () => {
-            bodyResolve()
+            resolve()
           })
         })
-        require('console').log({
-          start,
-          duration: Date.now() - start,
-          streamStart,
-          startDuration: streamStart - start,
-        })
-        expect(streamStart - start).toBeLessThan(3000)
+
+        expect(timings.startedStreaming - timings.start).toBeLessThan(3000)
       }
     })
 
@@ -2532,24 +2566,6 @@ createNextDescribe(
       }
     })
 
-    it('should force no store with force-dynamic', async () => {
-      const res = await next.fetch('/force-dynamic-no-with-revalidate')
-      const html = await res.text()
-      expect(res.status).toBe(200)
-      const initData = cheerio.load(html)('#data').text()
-
-      await check(async () => {
-        const res2 = await next.fetch('/force-dynamic-no-with-revalidate')
-
-        expect(res2.status).toBe(200)
-
-        const $ = cheerio.load(await res2.text())
-        expect($('#data').text()).toBeTruthy()
-        expect($('#data').text()).not.toBe(initData)
-        return 'success'
-      }, 'success')
-    })
-
     it('should not error with generateStaticParams and dynamic data', async () => {
       const res = await next.fetch('/gen-params-dynamic/one')
       const html = await res.text()
@@ -2873,9 +2889,9 @@ createNextDescribe(
     describe('useSearchParams', () => {
       describe('client', () => {
         it('should bailout to client rendering - without suspense boundary', async () => {
-          const browser = await next.browser(
-            '/hooks/use-search-params?first=value&second=other&third'
-          )
+          const url =
+            '/hooks/use-search-params/static-bailout?first=value&second=other&third'
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2887,12 +2903,15 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it('should bailout to client rendering - with suspense boundary', async () => {
-          const browser = await next.browser(
+          const url =
             '/hooks/use-search-params/with-suspense?first=value&second=other&third'
-          )
+          const browser = await next.browser(url)
 
           expect(await browser.elementByCss('#params-first').text()).toBe(
             'value'
@@ -2904,6 +2923,11 @@ createNextDescribe(
           expect(await browser.elementByCss('#params-not-real').text()).toBe(
             'N/A'
           )
+
+          const $ = await next.render$(url)
+          // dynamic page doesn't have bail out
+          expect($('html#__next_error__').length).toBe(0)
+          expect($('meta[content=noindex]').length).toBe(0)
         })
 
         it.skip('should have empty search params on force-static', async () => {
@@ -2954,7 +2978,9 @@ createNextDescribe(
       if (!isDev) {
         describe('server response', () => {
           it('should bailout to client rendering - without suspense boundary', async () => {
-            const res = await next.fetch('/hooks/use-search-params')
+            const res = await next.fetch(
+              '/hooks/use-search-params/static-bailout'
+            )
             const html = await res.text()
             expect(html).toInclude('<html id="__next_error__">')
           })
@@ -3049,6 +3075,12 @@ createNextDescribe(
         expect(next.cliOutput).toContain('initialized custom cache-handler')
         expect(next.cliOutput).toContain('cache-handler get')
         expect(next.cliOutput).toContain('cache-handler set')
+      })
+
+      it('should load large data only once when using custom cache handler and force-cache mode', async () => {
+        await next.fetch('/force-cache/large-data')
+        await next.fetch('/force-cache/large-data')
+        expect(next.cliOutput.match('Load data').length).toBe(1)
       })
     }
   }

@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import Home from '../pages'
+import Home from '../pages/home'
 
 test('Pages Router', () => {
   render(<Home />)

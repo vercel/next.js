@@ -65,6 +65,7 @@ export class CacheHandler {
 export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
+  hasCustomCacheHandler: boolean
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   requestProtocol?: 'http' | 'https'
@@ -112,6 +113,7 @@ export class IncrementalCache implements IncrementalCacheType {
     experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+    this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -460,9 +462,7 @@ export class IncrementalCache implements IncrementalCacheType {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -557,8 +557,14 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     if (this.dev && !ctx.fetchCache) return
-    // fetchCache has upper limit of 2MB per-entry currently
-    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    // FetchCache has upper limit of 2MB per-entry currently
+    if (
+      ctx.fetchCache &&
+      // we don't show this error/warning when a custom cache handler is being used
+      // as it might not have this limit
+      this.hasCustomCacheHandler &&
+      JSON.stringify(data).length > 2 * 1024 * 1024
+    ) {
       if (this.dev) {
         throw new Error(`fetch for over 2MB of data can not be cached`)
       }

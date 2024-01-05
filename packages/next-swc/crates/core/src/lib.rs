@@ -43,8 +43,10 @@ use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
         common::{
-            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-            SyntaxContext,
+            chain,
+            comments::{Comments, NoopComments},
+            pass::Optional,
+            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
             ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
@@ -94,6 +96,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub is_server_compiler: bool,
+
+    #[serde(default)]
+    pub prefer_esm: bool,
 
     #[serde(default)]
     pub server_components: Option<react_server_components::Config>,
@@ -214,6 +219,7 @@ where
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
+                    NoopComments
                 )
             ),
             None => Either::Right(noop()),
@@ -235,6 +241,7 @@ where
                 },
                 _ => false,
             },
+            opts.prefer_esm,
             NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()

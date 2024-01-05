@@ -161,29 +161,24 @@ export async function copy_babel_runtime(task, opts) {
 
 externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
 export async function copy_vercel_og(task, opts) {
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        '{./dist/*.+(js|ttf|wasm),LICENSE}'
+  function copy_og_asset(globPattern) {
+    return task
+      .source(
+        join(
+          relative(
+            __dirname,
+            dirname(require.resolve('@vercel/og/package.json'))
+          ),
+          globPattern
+        )
       )
-    )
-    .target('src/compiled/@vercel/og')
+      .target('src/compiled/@vercel/og')
+  }
 
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        './dist/index.*.js'
-      )
-    )
-    .target('src/compiled/@vercel/og')
+  await copy_og_asset('./dist/*.ttf')
+  await copy_og_asset('./dist/*.wasm')
+  await copy_og_asset('LICENSE')
+  await copy_og_asset('./dist/index.*.js')
 
   // Types are not bundled, include satori types here
   await task
@@ -2340,9 +2335,11 @@ export async function next_compile(task, opts) {
       'bin',
       'server',
       'server_esm',
+      'api_esm',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuildstatic_esm',
       'nextbuild_esm',
       'pages',
       'pages_esm',
@@ -2424,6 +2421,16 @@ export async function server_esm(task, opts) {
     .target('dist/esm/server')
 }
 
+// Provide ESM entry files for Next.js apis,
+// Remain in ESM both for dist/ and dist/esm
+export async function api_esm(task, opts) {
+  await task
+    .source('src/api/**/*.+(js|mts|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/api')
+    .target('dist/esm/api')
+}
+
 export async function nextbuild(task, opts) {
   await task
     .source('src/build/**/*.+(js|ts|tsx)', {
@@ -2488,6 +2495,14 @@ export async function nextbuildstatic(task, opts) {
     .source('src/export/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
+}
+
+// export is a reserved keyword for functions
+export async function nextbuildstatic_esm(task, opts) {
+  await task
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/export')
 }
 
 export async function pages_app(task, opts) {
@@ -2603,12 +2618,14 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
   await task.watch('src/export', 'nextbuildstatic', opts)
+  await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/lib', 'lib', opts)

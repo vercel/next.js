@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
+var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we

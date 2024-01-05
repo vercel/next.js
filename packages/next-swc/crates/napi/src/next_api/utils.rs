@@ -77,22 +77,24 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
-    issues.get_plain_issues().await
+    Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
 /// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
 /// returns [turbopack::core::diagnostics::PlainDiagnostic]
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
+pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
 
-    captured_diags
-        .diagnostics
-        .iter()
-        .map(|d| d.into_plain())
-        .try_join()
-        .await
+    Ok(Arc::new(
+        captured_diags
+            .diagnostics
+            .iter()
+            .map(|d| d.into_plain())
+            .try_join()
+            .await?,
+    ))
 }
 
 #[napi(object)]
@@ -100,9 +102,9 @@ pub struct NapiIssue {
     pub severity: String,
     pub category: String,
     pub file_path: String,
-    pub title: String,
-    pub description: serde_json::Value,
-    pub detail: String,
+    pub title: serde_json::Value,
+    pub description: Option<serde_json::Value>,
+    pub detail: Option<serde_json::Value>,
     pub source: Option<NapiIssueSource>,
     pub documentation_link: String,
     pub sub_issues: Vec<NapiIssue>,
@@ -111,15 +113,20 @@ pub struct NapiIssue {
 impl From<&PlainIssue> for NapiIssue {
     fn from(issue: &PlainIssue) -> Self {
         Self {
-            description: serde_json::to_value(Into::<NapiStyledString>::into(&issue.description))
-                .unwrap(),
+            description: issue
+                .description
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             category: issue.category.clone(),
             file_path: issue.file_path.clone(),
-            detail: issue.detail.clone(),
+            detail: issue
+                .detail
+                .as_ref()
+                .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             documentation_link: issue.documentation_link.clone(),
             severity: issue.severity.as_str().to_string(),
             source: issue.source.as_deref().map(|source| source.into()),
-            title: issue.title.clone(),
+            title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             sub_issues: issue
                 .sub_issues
                 .iter()
@@ -131,32 +138,36 @@ impl From<&PlainIssue> for NapiIssue {
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum NapiStyledString {
-    Line { value: Vec<NapiStyledString> },
-    Stack { value: Vec<NapiStyledString> },
-    Text { value: String },
-    Code { value: String },
-    Strong { value: String },
+pub enum StyledStringSerialize<'a> {
+    Line {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Stack {
+        value: Vec<StyledStringSerialize<'a>>,
+    },
+    Text {
+        value: &'a str,
+    },
+    Code {
+        value: &'a str,
+    },
+    Strong {
+        value: &'a str,
+    },
 }
 
-impl From<&StyledString> for NapiStyledString {
-    fn from(value: &StyledString) -> Self {
+impl<'a> From<&'a StyledString> for StyledStringSerialize<'a> {
+    fn from(value: &'a StyledString) -> Self {
         match value {
-            StyledString::Line(parts) => NapiStyledString::Line {
+            StyledString::Line(parts) => StyledStringSerialize::Line {
                 value: parts.iter().map(|p| p.into()).collect(),
             },
-            StyledString::Stack(parts) => NapiStyledString::Stack {
+            StyledString::Stack(parts) => StyledStringSerialize::Stack {
                 value: parts.iter().map(|p| p.into()).collect(),
             },
-            StyledString::Text(string) => NapiStyledString::Text {
-                value: string.clone(),
-            },
-            StyledString::Code(string) => NapiStyledString::Code {
-                value: string.clone(),
-            },
-            StyledString::Strong(string) => NapiStyledString::Strong {
-                value: string.clone(),
-            },
+            StyledString::Text(string) => StyledStringSerialize::Text { value: string },
+            StyledString::Code(string) => StyledStringSerialize::Code { value: string },
+            StyledString::Strong(string) => StyledStringSerialize::Strong { value: string },
         }
     }
 }

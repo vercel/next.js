@@ -159,7 +159,7 @@ export default class FetchCache implements CacheHandler {
 
     let data = memoryCache?.get(key)
 
-    // memory cache data is only leveraged for up to 1 seconds
+    // memory cache data is only leveraged for up to 2 seconds
     // so that revalidation events can be pulled from source
     if (Date.now() - (data?.lastModified || 0) > 2000) {
       data = undefined
