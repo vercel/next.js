@@ -176,22 +176,29 @@ interface PatchableModule {
   staticGenerationAsyncStorage: StaticGenerationAsyncStorage
 }
 
-function fetchErrorHandlingWrapper(
+/*
+ * When the fetch throws an error, the error stack trace will be:
+ * `Error: fetch failed` + node-internal trace -> `Error: fetch failed` + userland trace
+ */
+function traceErroredFetcher(
   fetchFn: typeof fetch,
   tracingError: Error
 ): typeof fetch {
+  // Remove the error message and the trace line inside `patchFetch()`
   const modifiedTrace = tracingError.stack?.split('\n').slice(2).join('\n')
-  const overriddenFetch: typeof fetch = function (...args) {
+  const tracedFetch: typeof fetch = function (...args) {
     return fetchFn(...args).catch((err) => {
       // If it's failed with internal fetch call, and there's only node:internal traces
       if (
-        (err instanceof Error && err.name === 'TypeError',
-        err.message === 'fetch failed')
+        err instanceof Error &&
+        err.name === 'TypeError' &&
+        err.message === 'fetch failed'
       ) {
-        const traces: string[] = err.stack?.split('\n')
+        const traces: string[] = err.stack?.split('\n') || []
         // trace without the error message
         const originStackTrace = traces.slice(1)
         if (originStackTrace.every((line) => line.includes('node:internal'))) {
+          // Combine the origin error message with the modified trace containing userland trace
           err.stack = traces[0] + '\n' + modifiedTrace
           throw err
         }
@@ -199,7 +206,7 @@ function fetchErrorHandlingWrapper(
       throw err
     })
   }
-  return overriddenFetch
+  return tracedFetch
 }
 
 // we patch fetch to collect cache information used for
@@ -221,9 +228,9 @@ export function patchFetch({
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) {
+    const tracingError = new Error()
     const tracedOriginalFetch = (...args: Parameters<typeof fetch>) =>
-      fetchErrorHandlingWrapper(originFetch, tracingError)(...args)
-    const tracingError = new Error('NEXT_FETCH_TRACING_ERROR')
+      traceErroredFetcher(originFetch, tracingError)(...args)
 
     let url: URL | undefined
     try {

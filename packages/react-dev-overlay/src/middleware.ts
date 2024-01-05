@@ -320,9 +320,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
 
       if (
         !(
-          (frame.file?.startsWith('webpack-internal://') ||
+          (frame.file?.startsWith('webpack-internal:///') ||
             frame.file?.startsWith('file://') ||
-            frame.file?.startsWith('webpack://')) &&
+            frame.file?.startsWith('webpack:///')) &&
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
