@@ -26,7 +26,7 @@ function Loadable(options: LoadableOptions) {
   const Lazy = lazy(() => opts.loader().then(convertModule))
   const Loading = opts.loading
 
-  function LoadableComponent(props: React.ReactElement) {
+  function LoadableComponent(props: any) {
     const fallbackElement = Loading ? (
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
