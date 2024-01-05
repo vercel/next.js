@@ -1,0 +1,61 @@
+---
+title: HTTPs Support Local Dev Environment
+description: How to setup Local Dev Environment with Caddy
+---
+
+In order to have as much parity between Dev and Production Environment we want to work on a HTTPs Environmetn
+even when we are working Locally.
+
+## Caddyfile
+
+We will use Caddy in order to have a reverse-proxy with a Self Sign Certificate. To setup Caddy for you Environment
+please follow the instructions in ther [site](https://caddyserver.com/docs/install) first.
+
+Once that is done and the Caddy Service is started, we need to do 3 things:
+
+- Create a Caddyfile
+- Edit the `etc/hosts`
+- Run Caddy and Dev Server
+
+### Caddyfile
+
+In the root of your project create a Caddyfile that looks like this. This will work for 99% of what we need for NextJS
+such as Pages and App Router, API Routes and Assets.
+
+```
+custom.local.domain.com {
+	tls internal
+	reverse_proxy 127.0.0.1:3200
+}
+```
+
+The above can be augmented to include more environment in case your application needs to check for Cookies per Environment
+and stuff that are unique per environment.
+
+```
+custom.stating.domain.com {
+	tls internal
+	reverse_proxy 127.0.0.1:3200
+}
+```
+
+Please note that the `3200` is the port you are running your Dev server at. Please adjust accordingly.
+
+### Edit the `etc/hosts`
+
+Now we need to add the following URLs to our `etc/hosts` so they can be resolved:
+
+```
+127.0.0.1 custom.local.domain.com
+127.0.0.1 custom.staging.domain.com
+```
+
+### Just run the Dev Server and Caddy
+
+Now we are done. All we have to do is run our Dev Server and Caddy with this specific config.
+
+```
+caddy run --config /path/to/your/caddy-config
+```
+
+Now you can visit both the `http://localhost:3200` and the `https://custom.local.domain.com` and any other enviroments as well.
