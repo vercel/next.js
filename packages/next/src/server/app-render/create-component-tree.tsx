@@ -9,6 +9,8 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
+import { validateRevalidate } from '../lib/patch-fetch'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -42,6 +44,7 @@ export async function createComponentTree({
   asNotFound,
   metadataOutlet,
   ctx,
+  missingSlots,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -54,6 +57,7 @@ export async function createComponentTree({
   asNotFound?: boolean
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
+  missingSlots?: Set<string>
 }): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -187,6 +191,13 @@ export async function createComponentTree({
 
   if (typeof layoutOrPageMod?.fetchCache === 'string') {
     staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
+  }
+
+  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+    validateRevalidate(
+      layoutOrPageMod?.revalidate,
+      staticGenerationStore.urlPathname
+    )
   }
 
   if (typeof layoutOrPageMod?.revalidate === 'number') {
@@ -364,6 +375,16 @@ export async function createComponentTree({
           // client router.
         } else {
           // Create the child component
+
+          if (process.env.NODE_ENV === 'development' && missingSlots) {
+            // When we detect the default fallback (which triggers a 404), we collect the missing slots
+            // to provide more helpful debug information during development mode.
+            const parsedTree = parseLoaderTree(parallelRoute)
+            if (parsedTree.layoutOrPagePath === PARALLEL_ROUTE_DEFAULT_PATH) {
+              missingSlots.add(parallelRouteKey)
+            }
+          }
+
           const { seedData, styles: childComponentStyles } =
             await createComponentTree({
               createSegmentPath: (child) => {
@@ -378,6 +399,7 @@ export async function createComponentTree({
               asNotFound,
               metadataOutlet,
               ctx,
+              missingSlots,
             })
 
           currentStyles = childComponentStyles

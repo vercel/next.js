@@ -1,4 +1,4 @@
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { LoaderTree } from '../lib/app-dir-module'
 
 export function parseLoaderTree(tree: LoaderTree) {

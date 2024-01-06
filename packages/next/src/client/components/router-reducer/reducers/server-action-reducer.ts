@@ -31,13 +31,14 @@ import type {
 import { addBasePath } from '../../../add-base-path'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToFullTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -216,7 +217,7 @@ export function serverActionReducer(
 
         // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToTree(
+        const newTree = applyRouterStatePatchToFullTree(
           // TODO-APP: remove ''
           [''],
           currentTree,
@@ -224,7 +225,7 @@ export function serverActionReducer(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
