@@ -17,7 +17,7 @@ const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app
 
-describe('app dir with output export (next start)', () => {
+describe('app dir - with output export (next start)', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     afterEach(async () => {
       await killApp(app)

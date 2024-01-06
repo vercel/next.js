@@ -17,7 +17,7 @@ revalidatePath(path: string, type?: 'page' | 'layout'): void;
 ```
 
 - `path`: Either a string representing the filesystem path associated with the data you want to revalidate (for example, `/product/[slug]/page`), or the literal route segment (for example, `/product/123`). Must be less than 1024 characters.
-- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate.
+- `type`: (optional) `'page'` or `'layout'` string to change the type of path to revalidate. If `path` contains a dynamic segment (for example, `/product/[slug]/page`), it must be `page`.
 
 ## Returns
 
@@ -55,6 +55,16 @@ revalidatePath('/(main)/post/[slug]', 'layout')
 ```
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
+
+### Revalidating All Data
+
+```ts
+import { revalidatePath } from 'next/cache'
+
+revalidatePath('/', 'layout')
+```
+
+This will purge the Client-side Router Cache, and revalidate the Data Cache on the next page visit.
 
 ### Server Action
 

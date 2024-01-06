@@ -2,9 +2,8 @@
 
 const path = require('path')
 const execa = require('execa')
-const { copy } = require('fs-extra')
 const { Sema } = require('async-sema')
-const { readFile, readdir, writeFile } = require('fs/promises')
+const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
 
@@ -28,7 +27,7 @@ const cwd = process.cwd()
 
         try {
           let binaryName = `next-swc.${platform}.node`
-          await copy(
+          await cp(
             path.join(cwd, 'packages/next-swc/native', binaryName),
             path.join(nativePackagesDir, platform, binaryName)
           )
@@ -76,11 +75,9 @@ const cwd = process.cwd()
     // Update name/version of wasm packages and publish
     const pkgDirectory = 'packages/next-swc/crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
-
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {
         await publishSema.acquire()
-
         let wasmPkg = JSON.parse(
           await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
         )
@@ -91,12 +88,10 @@ const cwd = process.cwd()
           url: 'https://github.com/vercel/next.js',
           directory: pkgDirectory,
         }
-
         await writeFile(
           path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
           JSON.stringify(wasmPkg, null, 2)
         )
-
         try {
           await execa(
             `npm`,
@@ -112,7 +107,6 @@ const cwd = process.cwd()
         } catch (err) {
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, wasmTarget, err)
-
           if (
             err.message &&
             err.message.includes(

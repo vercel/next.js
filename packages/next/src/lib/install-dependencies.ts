@@ -1,7 +1,7 @@
 import { cyan } from './picocolors'
 import path from 'path'
 
-import { MissingDependency } from './has-necessary-dependencies'
+import type { MissingDependency } from './has-necessary-dependencies'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { install } from './helpers/install'
 import { getOnline } from './helpers/get-online'

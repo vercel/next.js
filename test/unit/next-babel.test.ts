@@ -33,7 +33,7 @@ describe('next/babel', () => {
       expect(
         babel(`const a = ()=><a href="/">home</a>`, true)
       ).toMatchInlineSnapshot(
-        `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `"import React from"react";var __jsx=React.createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};"`
       )
     })
 
@@ -60,7 +60,7 @@ describe('next/babel', () => {
       expect(output).toMatch(`__jsx("a",{href:"/"`)
 
       expect(babel(`const a = ()=><a href="/">home</a>`)).toMatchInlineSnapshot(
-        `"\\"use strict\\";var _interopRequireDefault=require(\\"@babel/runtime/helpers/interopRequireDefault\\");var _react=_interopRequireDefault(require(\\"react\\"));var __jsx=_react[\\"default\\"].createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `""use strict";var _interopRequireDefault=require("@babel/runtime/helpers/interopRequireDefault");var _react=_interopRequireDefault(require("react"));var __jsx=_react["default"].createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};"`
       )
     })
 
@@ -70,7 +70,7 @@ describe('next/babel', () => {
       expect(output).toMatch(`React.Fragment`)
 
       expect(babel(`const a = () => <>hello</>;`, true)).toMatchInlineSnapshot(
-        `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(React.Fragment,null,\\"hello\\");};"`
+        `"import React from"react";var __jsx=React.createElement;var a=function a(){return __jsx(React.Fragment,null,"hello");};"`
       )
     })
 
@@ -84,7 +84,7 @@ describe('next/babel', () => {
       )
 
       expect(output).toMatchInlineSnapshot(
-        `"var React=require('react');var __jsx=React.createElement;module.exports=function(){return __jsx(\\"div\\",null,\\"test2\\");};"`
+        `"var React=require('react');var __jsx=React.createElement;module.exports=function(){return __jsx("div",null,"test2");};"`
       )
     })
   })
@@ -175,7 +175,7 @@ describe('next/babel', () => {
       })
 
       expect(output).toMatchInlineSnapshot(
-        `"import{jsx as _jsx}from\\"react/jsx-runtime\\";var a=function a(){return/*#__PURE__*/_jsx(\\"a\\",{href:\\"/\\",children:\\"home\\"});};"`
+        `"import{jsx as _jsx}from"react/jsx-runtime";var a=function a(){return/*#__PURE__*/_jsx("a",{href:"/",children:"home"});};"`
       )
     })
 
@@ -188,7 +188,7 @@ describe('next/babel', () => {
       })
 
       expect(output).toMatchInlineSnapshot(
-        `"import React from\\"react\\";var __jsx=React.createElement;var a=function a(){return __jsx(\\"a\\",{href:\\"/\\"},\\"home\\");};"`
+        `"import React from"react";var __jsx=React.createElement;var a=function a(){return __jsx("a",{href:"/"},"home");};"`
       )
     })
   })

@@ -1,10 +1,10 @@
 import * as React from 'react'
-
 import * as ReactDOM from 'react-dom/server-rendering-stub'
+import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
+import * as ReactJsxRuntime from 'react/jsx-runtime'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import * as ReactDOMServerEdge from 'react-dom/server.edge'
-// eslint-disable-next-line import/no-extraneous-dependencies
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
@@ -52,6 +52,8 @@ if (process.env.TURBOPACK) {
 
 export {
   React,
+  ReactJsxDevRuntime,
+  ReactJsxRuntime,
   ReactDOM,
   ReactDOMServerEdge,
   ReactServerDOMTurbopackClientEdge,

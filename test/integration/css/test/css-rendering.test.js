@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import 'flat-map-polyfill'
 import { pathExists, readFile, readJSON, remove } from 'fs-extra'
 import {
   check,

@@ -25,11 +25,13 @@ fn next_dynamic_fixture(input: PathBuf) {
         true,
         false,
         false,
+        false,
         NextDynamicMode::Webpack,
     );
     next_dynamic_fixture_run(
         &input,
         "output-webpack-prod.js",
+        false,
         false,
         false,
         false,
@@ -41,6 +43,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         false,
         true,
         false,
+        false,
         NextDynamicMode::Webpack,
     );
 
@@ -48,6 +51,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         &input,
         "output-turbo-dev-client.js",
         true,
+        false,
         false,
         false,
         NextDynamicMode::Turbopack {
@@ -60,6 +64,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         true,
         true,
         false,
+        false,
         NextDynamicMode::Turbopack {
             dynamic_transition_name: "next-client-chunks".into(),
         },
@@ -67,6 +72,7 @@ fn next_dynamic_fixture(input: PathBuf) {
     next_dynamic_fixture_run(
         &input,
         "output-turbo-build-client.js",
+        false,
         false,
         false,
         false,
@@ -80,6 +86,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         false,
         true,
         false,
+        false,
         NextDynamicMode::Turbopack {
             dynamic_transition_name: "next-dynamic".into(),
         },
@@ -88,6 +95,7 @@ fn next_dynamic_fixture(input: PathBuf) {
         &input,
         "output-turbo-build-rsc.js",
         false,
+        true,
         true,
         true,
         NextDynamicMode::Turbopack {
@@ -100,8 +108,9 @@ fn next_dynamic_fixture_run(
     input: &Path,
     output: &str,
     is_development: bool,
-    is_server: bool,
-    is_server_components: bool,
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
+    prefer_esm: bool,
     mode: NextDynamicMode,
 ) {
     let output = input.parent().unwrap().join(output);
@@ -110,8 +119,9 @@ fn next_dynamic_fixture_run(
         &|_tr| {
             next_dynamic(
                 is_development,
-                is_server,
-                is_server_components,
+                is_server_compiler,
+                is_react_server_layer,
+                prefer_esm,
                 mode.clone(),
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
                 Some("/some-project/src".into()),

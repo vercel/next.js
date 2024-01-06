@@ -1,4 +1,4 @@
-import { getValidatedArgs } from './get-validated-args'
+import type { getValidatedArgs } from './get-validated-args'
 
 export type CliCommand = (args: ReturnType<typeof getValidatedArgs>) => void
 

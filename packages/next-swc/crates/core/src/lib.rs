@@ -34,36 +34,37 @@ DEALINGS IN THE SOFTWARE.
 
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use auto_cjs::contains_cjs;
 use either::Either;
 use fxhash::FxHashSet;
+use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
+use next_visitor_cjs_finder::contains_cjs;
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
         common::{
-            chain, comments::Comments, pass::Optional, FileName, Mark, SourceFile, SourceMap,
-            SyntaxContext,
+            chain,
+            comments::{Comments, NoopComments},
+            pass::Optional,
+            FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, atoms::JsWord, parser::parse_file_as_module,
-            transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
 };
 
 pub mod amp_attributes;
-mod auto_cjs;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
+mod import_analyzer;
 pub mod named_import_transform;
-pub mod next_dynamic;
 pub mod next_ssg;
 pub mod optimize_barrel;
 pub mod optimize_server_react;
 pub mod page_config;
-pub mod react_server_components;
+pub mod pure;
 pub mod server_actions;
 pub mod shake_exports;
 
@@ -92,13 +93,13 @@ pub struct TransformOptions {
     pub is_development: bool,
 
     #[serde(default)]
-    pub is_server: bool,
+    pub is_server_compiler: bool,
 
     #[serde(default)]
-    pub bundle_target: JsWord,
+    pub prefer_esm: bool,
 
     #[serde(default)]
-    pub server_components: Option<react_server_components::Config>,
+    pub server_components: Option<next_transform_react_server_components::Config>,
 
     #[serde(default)]
     pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
@@ -191,12 +192,11 @@ where
         disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
-                Either::Left(react_server_components::server_components(
+                Either::Left(next_transform_react_server_components::server_components(
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
                     opts.app_dir.clone(),
-                    opts.bundle_target.clone()
                 )),
             _ => Either::Right(noop()),
         },
@@ -217,6 +217,7 @@ where
                     file.name.clone(),
                     file.src_hash,
                     config.clone(),
+                    NoopComments
                 )
             ),
             None => Either::Right(noop()),
@@ -226,18 +227,20 @@ where
             !opts.disable_next_ssg
         ),
         amp_attributes::amp_attributes(),
-        next_dynamic::next_dynamic(
+        next_dynamic(
             opts.is_development,
-            opts.is_server,
+            opts.is_server_compiler,
             match &opts.server_components {
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    react_server_components::Config::WithOptions(_) => true,
+                    next_transform_react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
             },
+            opts.prefer_esm,
+            NextDynamicMode::Webpack,
             file.name.clone(),
             opts.pages_dir.clone()
         ),
@@ -309,7 +312,7 @@ where
             Some(config) => Either::Left(server_actions::server_actions(
                 &file.name,
                 config.clone(),
-                comments,
+                comments.clone(),
             )),
             None => Either::Right(noop()),
         },
@@ -319,6 +322,7 @@ where
             },
             None => Either::Right(noop()),
         },
+        pure::pure_magic(comments),
     )
 }
 

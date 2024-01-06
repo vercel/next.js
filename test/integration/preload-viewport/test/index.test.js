@@ -510,7 +510,7 @@ describe('Prefetching Links in viewport', () => {
       // eslint-disable-next-line no-eval
       eval(content)
       expect([...self.__SSG_MANIFEST].sort()).toMatchInlineSnapshot(`
-      Array [
+      [
         "/[...rest]",
         "/ssg/basic",
         "/ssg/catch-all/[...slug]",

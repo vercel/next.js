@@ -1,5 +1,5 @@
 import { INTERCEPTION_ROUTE_MARKERS } from '../future/helpers/interception-routes'
-import { DynamicParamTypes } from './types'
+import type { DynamicParamTypes } from './types'
 
 /**
  * Parse dynamic route segment to type of parameter

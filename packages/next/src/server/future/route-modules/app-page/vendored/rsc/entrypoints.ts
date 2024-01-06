@@ -1,6 +1,7 @@
 import * as React from 'react'
-
 import * as ReactDOM from 'react-dom/server-rendering-stub'
+import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
+import * as ReactJsxRuntime from 'react/jsx-runtime'
 
 function getAltProxyForBindingsDEV(
   type: 'Turbopack' | 'Webpack',
@@ -68,6 +69,8 @@ if (process.env.TURBOPACK) {
 
 export {
   React,
+  ReactJsxDevRuntime,
+  ReactJsxRuntime,
   ReactDOM,
   ReactServerDOMWebpackServerEdge,
   ReactServerDOMTurbopackServerEdge,

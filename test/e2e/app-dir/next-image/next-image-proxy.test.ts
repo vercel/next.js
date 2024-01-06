@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { findPort } from 'next-test-utils'
+import { findPort, check } from 'next-test-utils'
 import https from 'https'
 import httpProxy from 'http-proxy'
 import fs from 'fs'
@@ -40,7 +40,7 @@ createNextDescribe(
       })
 
       proxy.on('error', (err) => {
-        console.warn('Failed to proxy', err)
+        throw new Error('Failed to proxy: ' + err.message)
       })
 
       await new Promise<void>((resolve) => {
@@ -50,6 +50,7 @@ createNextDescribe(
 
     it('loads images without any errors', async () => {
       let failCount = 0
+      let fulfilledCount = 0
 
       const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
         ignoreHTTPSErrors: true,
@@ -66,21 +67,43 @@ createNextDescribe(
               console.log(`Request failed: ${url}`)
               failCount++
             }
+
+            fulfilledCount++
           })
         },
       })
 
-      const image = browser.elementByCss('#app-page')
-      const src = await image.getAttribute('src')
-
-      expect(src).toContain(
+      const local = await browser.elementByCss('#app-page').getAttribute('src')
+      expect(local).toContain(
         '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90'
       )
 
-      expect(failCount).toBe(0)
+      const remote = await browser
+        .elementByCss('#remote-app-page')
+        .getAttribute('src')
+      expect(remote).toBe(
+        '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90'
+      )
+
+      const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
+      await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
     })
 
-    afterAll(async () => {
+    it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {
+      const opts = { headers: { connection: 'upgrade' } }
+      const res1 = await next.fetch(
+        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90',
+        opts
+      )
+      expect(res1.status).toBe(200)
+      const res2 = await next.fetch(
+        '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90',
+        opts
+      )
+      expect(res2.status).toBe(200)
+    })
+
+    afterAll(() => {
       proxyServer.close()
     })
   }

@@ -84,4 +84,17 @@ describe('transpile packages', () => {
       ).toBe('rgb(0, 0, 255)')
     })
   })
+  describe('optional deps', () => {
+    it('should not throw an error when optional deps are not installed', async () => {
+      expect(next.cliOutput).not.toContain(
+        "Module not found: Error: Can't resolve 'foo'"
+      )
+    })
+
+    it('should hide dynammic module dependency errors from node_modules', async () => {
+      expect(next.cliOutput).not.toContain(
+        'Critical dependency: the request of a dependency is an expression'
+      )
+    })
+  })
 })

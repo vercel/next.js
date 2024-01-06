@@ -1,9 +1,6 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import {
-  CacheStates,
-  CacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightData } from '../../../server/app-render/types'
 
 const getFlightData = (): FlightData => {
@@ -28,7 +25,7 @@ const getFlightData = (): FlightData => {
         null,
         true,
       ],
-      <h1>About Page!</h1>,
+      ['', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -39,15 +36,15 @@ const getFlightData = (): FlightData => {
 describe('fillLazyItemsTillLeafWithHead', () => {
   it('should fill lazy items till leaf with head', () => {
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -55,9 +52,9 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -65,9 +62,9 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -89,14 +86,19 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [treePatch, _subTreeData, head] = flightDataPath.slice(-3)
-    fillLazyItemsTillLeafWithHead(cache, existingCache, treePatch, head)
+    const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+    fillLazyItemsTillLeafWithHead(
+      cache,
+      existingCache,
+      treePatch,
+      cacheNodeSeedData,
+      head
+    )
 
     const expectedCache: CacheNode = {
-      data: null,
-      status: CacheStates.LAZY_INITIALIZED,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -104,9 +106,9 @@ describe('fillLazyItemsTillLeafWithHead', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.LAZY_INITIALIZED,
-                subTreeData: null,
+                lazyData: null,
+                rsc: null,
+                prefetchRsc: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -114,7 +116,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                       [
                         'about',
                         {
-                          data: null,
+                          lazyData: null,
                           parallelRoutes: new Map([
                             [
                               'children',
@@ -122,9 +124,9 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                 [
                                   '',
                                   {
-                                    data: null,
-                                    status: CacheStates.LAZY_INITIALIZED,
-                                    subTreeData: null,
+                                    lazyData: null,
+                                    rsc: null,
+                                    prefetchRsc: null,
                                     parallelRoutes: new Map(),
                                     head: (
                                       <>
@@ -136,16 +138,16 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                               ]),
                             ],
                           ]),
-                          subTreeData: null,
-                          status: CacheStates.LAZY_INITIALIZED,
+                          rsc: null,
+                          prefetchRsc: null,
                         },
                       ],
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                         },
                       ],

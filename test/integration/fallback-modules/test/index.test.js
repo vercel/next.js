@@ -1,6 +1,5 @@
 /* eslint-env jest */
 
-import 'flat-map-polyfill'
 import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'

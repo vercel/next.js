@@ -14,11 +14,12 @@ import { getImageSize } from '../../../server/image-optimizer'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+import type { PageExtensions } from '../../page-extensions-type'
 
 interface Options {
   segment: string
   type: PossibleImageFileNameConvention
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   basePath: string
 }
 

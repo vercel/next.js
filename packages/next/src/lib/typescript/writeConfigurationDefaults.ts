@@ -20,7 +20,7 @@ type DesiredCompilerOptionsShape = {
 
 function getDesiredCompilerOptions(
   ts: typeof import('typescript'),
-  userTsConfig?: { compilerOptions?: CompilerOptions }
+  tsOptions?: CompilerOptions
 ): DesiredCompilerOptionsShape {
   const o: DesiredCompilerOptionsShape = {
     // These are suggested values and will be set when not present in the
@@ -80,7 +80,7 @@ function getDesiredCompilerOptions(
       reason: 'to match webpack resolution',
     },
     resolveJsonModule: { value: true, reason: 'to match webpack resolution' },
-    ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
+    ...(tsOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
           isolatedModules: {
@@ -139,7 +139,7 @@ export async function writeConfigurationDefaults(
     isFirstTimeSetup = true
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts, userTsConfig)
+  const desiredCompilerOptions = getDesiredCompilerOptions(ts, tsOptions)
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []

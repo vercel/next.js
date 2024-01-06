@@ -43,7 +43,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.domains must have 50 or fewer items but it has 51.'
+        'Array must contain at most 50 element(s) at "images.domains"'
       )
     })
 
@@ -70,7 +70,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.remotePatterns must have 50 or fewer items but it has 51.'
+        'Array must contain at most 50 element(s) at "images.remotePatterns"'
       )
     })
 
@@ -95,7 +95,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.remotePatterns[0] has an unexpected property, foo, which is not in the list of allowed properties (hostname, pathname, port, protocol).'
+        `Unrecognized key(s) in object: 'foo' at "images.remotePatterns[0]"`
       )
     })
 
@@ -120,7 +120,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        "The value at .images.remotePatterns[0] is missing the required field 'hostname'."
+        `"images.remotePatterns[0].hostname" is missing, expected string`
       )
     })
 
@@ -145,7 +145,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.deviceSizes must have 25 or fewer items but it has 51.'
+        `Array must contain at most 25 element(s) at "images.deviceSizes"`
       )
     })
 
@@ -170,10 +170,10 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.deviceSizes[0] must be equal to or greater than 1.'
+        'Number must be greater than or equal to 1 at "images.deviceSizes[0]"'
       )
       expect(stderr).toContain(
-        'The value at .images.deviceSizes[1] must be equal to or less than 10000.'
+        'Number must be less than or equal to 10000 at "images.deviceSizes[1]"'
       )
     })
 
@@ -198,10 +198,10 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.imageSizes[0] must be equal to or greater than 1.'
+        'Number must be greater than or equal to 1 at "images.imageSizes[0]"'
       )
       expect(stderr).toContain(
-        'The value at .images.imageSizes[3] must be equal to or less than 10000.'
+        'Number must be less than or equal to 10000 at "images.imageSizes[3]"'
       )
     })
 
@@ -226,7 +226,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        'The value at .images.loader must be one of: "default", "imgix", "cloudinary", "akamai", or "custom".'
+        `Expected 'default' | 'imgix' | 'cloudinary' | 'akamai' | 'custom', received 'notreal' at "images.loader"`
       )
     })
 
@@ -251,7 +251,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.formats[1] must be one of: "image/avif" or "image/webp".`
+        `Expected 'image/avif' | 'image/webp', received 'jpeg' at "images.formats[1]"`
       )
     })
 
@@ -351,7 +351,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.dangerouslyAllowSVG must be a boolean but it was a string.`
+        `Expected boolean, received string at "images.dangerouslyAllowSVG"`
       )
     })
 
@@ -376,7 +376,58 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.contentSecurityPolicy must be a string but it was a number.`
+        `Expected string, received number at "images.contentSecurityPolicy"`
+      )
+    })
+
+    it('should error when assetPrefix is provided but is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          assetPrefix: 'httpbad',
+          images: {
+            formats: ['image/webp'],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+      )
+    })
+
+    it('should error when images.remotePatterns is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            remotePatterns: 'testing',
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Expected array, received string at "images.remotePatterns"`
       )
     })
 
@@ -401,7 +452,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.contentDispositionType must be one of: "inline" or "attachment".`
+        `Expected 'inline' | 'attachment', received 'nope' at "images.contentDispositionType"`
       )
     })
 
@@ -426,7 +477,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.minimumCacheTTL must be equal to or greater than 0.`
+        `Number must be greater than or equal to 0 at "images.minimumCacheTTL"`
       )
     })
 
@@ -451,7 +502,7 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `The value at .images.unoptimized must be a boolean but it was a string.`
+        `Expected boolean, received string at "images.unoptimized"`
       )
     })
   })

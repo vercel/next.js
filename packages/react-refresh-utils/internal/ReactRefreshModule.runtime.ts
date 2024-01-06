@@ -1,4 +1,4 @@
-import { RefreshRuntimeGlobals } from '../runtime'
+import type { RefreshRuntimeGlobals } from '../runtime'
 
 declare const self: Window & RefreshRuntimeGlobals
 

@@ -1,4 +1,4 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { isAppRouteRoute } from '../../lib/is-app-route-route'
 
 export function traverseModules(

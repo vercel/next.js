@@ -1,6 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiResponse } from '../../../shared/lib/utils'
-import { checkIsOnDemandRevalidate, __ApiPreviewProps } from '../.'
+import { checkIsOnDemandRevalidate } from '../.'
+import type { __ApiPreviewProps } from '../.'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { PreviewData } from 'next/types'
 

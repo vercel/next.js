@@ -83,11 +83,11 @@ describe('distDir', () => {
       )
     })
 
-    it('should handle null/undefined distDir', async () => {
+    it('should handle undefined distDir', async () => {
       const origNextConfig = await fs.readFile(nextConfig, 'utf8')
       await fs.writeFile(
         nextConfig,
-        `module.exports = { distDir: null, eslint: { ignoreDuringBuilds: true } }`
+        `module.exports = { distDir: undefined, eslint: { ignoreDuringBuilds: true } }`
       )
       const { stderr } = await nextBuild(appDir, [], { stderr: true })
       await fs.writeFile(nextConfig, origNextConfig)

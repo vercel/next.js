@@ -24,7 +24,7 @@ describe('Link Component with Encoding', () => {
       )
       try {
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello world \\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello world "}"`)
       } finally {
         await browser.close()
       }
@@ -46,7 +46,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello world \\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello world "}"`)
       } finally {
         await browser.close()
       }
@@ -63,7 +63,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello world \\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello world "}"`)
       } finally {
         await browser.close()
       }
@@ -75,7 +75,7 @@ describe('Link Component with Encoding', () => {
       const browser = await webdriver(appPort, encodeURI('/single/hello%world'))
       try {
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello%world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello%world"}"`)
       } finally {
         await browser.close()
       }
@@ -97,7 +97,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello%world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello%world"}"`)
       } finally {
         await browser.close()
       }
@@ -114,7 +114,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello%world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello%world"}"`)
       } finally {
         await browser.close()
       }
@@ -129,7 +129,7 @@ describe('Link Component with Encoding', () => {
       )
       try {
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello/world"}"`)
       } finally {
         await browser.close()
       }
@@ -151,7 +151,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello/world"}"`)
       } finally {
         await browser.close()
       }
@@ -168,7 +168,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello/world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello/world"}"`)
       } finally {
         await browser.close()
       }
@@ -184,8 +184,8 @@ describe('Link Component with Encoding', () => {
       try {
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
-            "slug": "hello\\"world",
+          {
+            "slug": "hello"world",
           }
         `)
       } finally {
@@ -210,8 +210,8 @@ describe('Link Component with Encoding', () => {
         })
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
-            "slug": "hello\\"world",
+          {
+            "slug": "hello"world",
           }
         `)
       } finally {
@@ -231,8 +231,8 @@ describe('Link Component with Encoding', () => {
         })
         const text = await browser.elementByCss('#query-content').text()
         expect(JSON.parse(text)).toMatchInlineSnapshot(`
-          Object {
-            "slug": "hello\\"world",
+          {
+            "slug": "hello"world",
           }
         `)
       } finally {
@@ -249,7 +249,7 @@ describe('Link Component with Encoding', () => {
       )
       try {
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello:world"}"`)
       } finally {
         await browser.close()
       }
@@ -271,7 +271,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello:world"}"`)
       } finally {
         await browser.close()
       }
@@ -288,7 +288,7 @@ describe('Link Component with Encoding', () => {
           },
         })
         const text = await browser.elementByCss('#query-content').text()
-        expect(text).toMatchInlineSnapshot(`"{\\"slug\\":\\"hello:world\\"}"`)
+        expect(text).toMatchInlineSnapshot(`"{"slug":"hello:world"}"`)
       } finally {
         await browser.close()
       }

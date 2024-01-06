@@ -5,10 +5,11 @@ import Image from 'next/image'
 import Script from 'next/script'
 import styles from '../styles/Header.module.css'
 import Link from 'next/link'
+import type { Metadata } from 'next'
 
 const inter = Inter({ subsets: ['latin'] })
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Clerk with App Router',
   description: 'Power your Next.js application with Clerk ',
 }
@@ -39,7 +40,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head></head>
       <ClerkProvider>
         <body className={inter.className}>
           <Header />

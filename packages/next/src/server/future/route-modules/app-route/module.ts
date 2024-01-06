@@ -32,7 +32,6 @@ import * as Log from '../../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import { getNonStaticMethods } from './helpers/get-non-static-methods'
 import { appendMutableCookies } from '../../../web/spec-extension/adapters/request-cookies'
-import { RouteKind } from '../../route-kind'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
 
 import * as serverHooks from '../../../../client/components/hooks-server-context'
@@ -43,6 +42,14 @@ import { requestAsyncStorage } from '../../../../client/components/request-async
 import { staticGenerationAsyncStorage } from '../../../../client/components/static-generation-async-storage.external'
 import { actionAsyncStorage } from '../../../../client/components/action-async-storage.external'
 import * as sharedModules from './shared-modules'
+import { getIsServerAction } from '../../../lib/server-action-request-meta'
+
+/**
+ * The AppRouteModule is the type of the module exported by the bundled App
+ * Route module.
+ */
+export type AppRouteModule =
+  typeof import('../../../../build/templates/app-route')
 
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
@@ -154,10 +161,6 @@ export class AppRouteRouteModule extends RouteModule<
   private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
   private readonly nonStaticMethods: ReadonlyArray<HTTP_METHOD> | false
   private readonly dynamic: AppRouteUserlandModule['dynamic']
-
-  public static is(route: RouteModule): route is AppRouteRouteModule {
-    return route.definition.kind === RouteKind.APP_ROUTE
-  }
 
   constructor({
     userland,
@@ -272,6 +275,7 @@ export class AppRouteRouteModule extends RouteModule<
     const response: unknown = await this.actionAsyncStorage.run(
       {
         isAppRoute: true,
+        isAction: getIsServerAction(request),
       },
       () =>
         RequestAsyncStorageWrapper.wrap(
@@ -366,7 +370,9 @@ export class AppRouteRouteModule extends RouteModule<
                       staticGenerationStore.fetchMetrics
 
                     context.renderOpts.waitUntil = Promise.all(
-                      staticGenerationStore.pendingRevalidates || []
+                      Object.values(
+                        staticGenerationStore.pendingRevalidates || []
+                      )
                     )
 
                     addImplicitTags(staticGenerationStore)
@@ -429,7 +435,7 @@ export class AppRouteRouteModule extends RouteModule<
       // // Relativize the url so it's relative to the base url. This is so the
       // // outgoing headers upstream can be relative.
       // const rewritePath = response.headers.get('x-middleware-rewrite')!
-      // const initUrl = getRequestMeta(req, '__NEXT_INIT_URL')!
+      // const initUrl = getRequestMeta(req, 'initURL')!
       // const { pathname } = parseUrl(relativizeURL(rewritePath, initUrl))
       // response.headers.set('x-middleware-rewrite', pathname)
     }

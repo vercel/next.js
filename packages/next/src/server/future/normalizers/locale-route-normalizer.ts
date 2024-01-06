@@ -1,5 +1,5 @@
-import { I18NProvider } from '../helpers/i18n-provider'
-import { Normalizer } from './normalizer'
+import type { I18NProvider } from '../helpers/i18n-provider'
+import type { Normalizer } from './normalizer'
 
 /**
  * Normalizes the pathname by removing the locale prefix if any.

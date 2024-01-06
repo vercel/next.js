@@ -5,7 +5,7 @@ import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
 } from '../server/future/helpers/interception-routes'
-import { Rewrite } from './load-custom-routes'
+import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
 function toPathToRegexpPath(path: string): string {

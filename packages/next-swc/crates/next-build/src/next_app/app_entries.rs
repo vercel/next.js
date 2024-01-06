@@ -20,6 +20,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    util::NextRuntime,
 };
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
@@ -27,7 +28,10 @@ use turbopack_binding::{
     turbopack::{
         build::BuildChunkingContext,
         core::{
-            chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo, file_source::FileSource,
+            chunk::{ChunkingContext, EvaluatableAssets},
+            compile_time_info::CompileTimeInfo,
+            file_source::FileSource,
+            ident::AssetIdent,
             output::OutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkingContext,
@@ -35,6 +39,8 @@ use turbopack_binding::{
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
 };
+
+const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
 
 #[turbo_tasks::value]
 pub struct AppEntries {
@@ -108,6 +114,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("app-client".to_string()),
     );
 
     let ssr_resolve_options_context = get_server_resolve_options_context(
@@ -130,9 +137,10 @@ pub async fn get_app_entries(
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
+        Vc::cell("app-ssr".to_string()),
     );
 
-    const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-reference";
+    transitions.insert("next-ssr".to_string(), Vc::upcast(ssr_transition));
 
     transitions.insert(
         ECMASCRIPT_CLIENT_TRANSITION_NAME.to_string(),
@@ -176,6 +184,7 @@ pub async fn get_app_entries(
         server_compile_time_info,
         rsc_module_options_context,
         rsc_resolve_options_context,
+        Vc::cell("app-rsc".to_string()),
     );
 
     let entries = entrypoints
@@ -185,15 +194,16 @@ pub async fn get_app_entries(
             Ok(match entrypoint {
                 Entrypoint::AppPage { page, loader_tree } => get_app_page_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     *loader_tree,
                     page.clone(),
                     project_root,
+                    next_config,
                 ),
                 Entrypoint::AppRoute { page, path } => get_app_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     Vc::upcast(FileSource::new(*path)),
                     page.clone(),
@@ -201,7 +211,7 @@ pub async fn get_app_entries(
                 ),
                 Entrypoint::AppMetadata { page, metadata } => get_app_metadata_route_entry(
                     rsc_context,
-                    // TODO add edge support
+                    // TODO(WEB-1824): add edge support
                     rsc_context,
                     project_root,
                     page.clone(),
@@ -218,6 +228,7 @@ pub async fn get_app_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("app-client".to_string()),
     );
 
     let client_runtime_entries = get_client_runtime_entries(
@@ -253,11 +264,19 @@ pub async fn compute_app_entries_chunks(
     build_manifest: &mut BuildManifest,
     app_paths_manifest: &mut AppPathsManifest,
     all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
+    runtime: NextRuntime,
 ) -> Result<()> {
     let client_relative_path_ref = client_relative_path.await?;
 
-    let app_client_shared_chunks =
-        get_app_client_shared_chunks(app_entries.client_runtime_entries, client_chunking_context);
+    let app_client_shared_chunks = get_app_client_shared_chunks(
+        AssetIdent::from_path(
+            client_chunking_context
+                .context_path()
+                .join("client shared chunk group".to_string()),
+        ),
+        app_entries.client_runtime_entries,
+        client_chunking_context,
+    );
 
     let mut app_shared_client_chunks_paths = vec![];
     for chunk in app_client_shared_chunks.await?.iter().copied() {
@@ -281,7 +300,7 @@ pub async fn compute_app_entries_chunks(
             .entry(Vc::upcast(app_entry.rsc_entry))
             .await?;
 
-        let rsc_chunk = rsc_chunking_context.entry_chunk(
+        let rsc_chunk = rsc_chunking_context.entry_chunk_group(
             node_root.join(format!(
                 "server/app/{original_name}.js",
                 original_name = app_entry.original_name
@@ -342,6 +361,7 @@ pub async fn compute_app_entries_chunks(
             client_chunking_context,
             ssr_chunking_context,
             next_config.computed_asset_prefix(),
+            runtime,
         );
 
         all_chunks.push(entry_manifest);

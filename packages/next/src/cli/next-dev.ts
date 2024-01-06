@@ -2,32 +2,37 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
+import {
+  RESTART_EXIT_CODE,
+  checkNodeDebugType,
+  getDebugPort,
+  getMaxOldSpaceSize,
+  getNodeOptionsWithoutInspect,
+  getPort,
+  printAndExit,
+} from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
-import { NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
-import {
-  SelfSignedCertificate,
-  createSelfSignedCertificate,
-} from '../lib/mkcert'
+import { createSelfSignedCertificate } from '../lib/mkcert'
+import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv, loadEnvConfig } from '@next/env'
-import { trace } from '../trace'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
+import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import os from 'os'
 
 let dir: string
 let child: undefined | ReturnType<typeof fork>
@@ -186,27 +191,7 @@ const nextDev: CliCommand = async (args) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
@@ -221,21 +206,13 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
-    await validateTurboNextConfig({
-      ...devServerOptions,
-      isDev: true,
-    })
-  }
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -247,6 +224,25 @@ const nextDev: CliCommand = async (args) => {
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
+      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
+      let nodeDebugType = checkNodeDebugType()
+
+      const maxOldSpaceSize = getMaxOldSpaceSize()
+
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
+          totalMemInMB * 0.5
+        )}`
+      }
+
+      if (nodeDebugType) {
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+          getDebugPort() + 1
+        }`
+      }
+
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -256,6 +252,7 @@ const nextDev: CliCommand = async (args) => {
           NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
             ? options.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS,
         },
       })
 
@@ -275,6 +272,19 @@ const nextDev: CliCommand = async (args) => {
           return
         }
         if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              isTurboSession,
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
           return startServer(options)
         }
         await handleSessionStop(signal)
@@ -320,9 +330,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {

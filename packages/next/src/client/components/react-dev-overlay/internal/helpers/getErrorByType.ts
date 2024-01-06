@@ -2,10 +2,11 @@ import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
 } from '../error-overlay-reducer'
-import { SupportedErrorEvent } from '../container/Errors'
+import type { SupportedErrorEvent } from '../container/Errors'
 import { getErrorSource } from './nodeStackFrames'
-import { getOriginalStackFrames, OriginalStackFrame } from './stack-frame'
-import { ComponentStackFrame } from './parse-component-stack'
+import { getOriginalStackFrames } from './stack-frame'
+import type { OriginalStackFrame } from './stack-frame'
+import type { ComponentStackFrame } from './parse-component-stack'
 
 export type ReadyRuntimeError = {
   id: number
