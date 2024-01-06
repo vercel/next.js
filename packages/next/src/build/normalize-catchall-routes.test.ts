@@ -96,4 +96,27 @@ describe('normalizeCatchallRoutes', () => {
       ],
     })
   })
+
+  it('should not add the catch-all route to segments that have a more specific default', () => {
+    const appPaths = {
+      '/': ['/page'],
+      '/[[...catchAll]]': ['/[[...catchAll]]/page'],
+      '/nested/[foo]/[bar]/default': [
+        '/nested/[foo]/[bar]/default',
+        '/nested/[foo]/[bar]/@slot/default',
+      ],
+      '/nested/[foo]/[bar]': ['/nested/[foo]/[bar]/@slot/page'],
+      '/nested/[foo]/[bar]/[baz]/default': [
+        '/nested/[foo]/[bar]/@slot/[baz]/default',
+        '/[[...catchAll]]/page',
+      ],
+      '/nested/[foo]/[bar]/[baz]': ['/nested/[foo]/[bar]/@slot/[baz]/page'],
+    }
+
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    normalizeCatchAllRoutes(appPaths)
+
+    expect(appPaths).toMatchObject(initialAppPaths)
+  })
 })
