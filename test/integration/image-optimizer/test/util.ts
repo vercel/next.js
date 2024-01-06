@@ -1217,11 +1217,14 @@ export function runTests(ctx) {
   })
 
   it('should error if the image file does not exist', async () => {
-    const query = { url: '/does_not_exist.jpg', w: ctx.w, q: 80 }
+    const filepath = '/does_not_exist.jpg'
+    const query = { url: filepath, w: ctx.w, q: 80 }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
-    expect(await res.text()).toBe("The requested resource isn't a valid image.")
+    expect(await res.text()).toBe(
+      `The requested resource was not found. ${filepath}`
+    )
   })
 
   if (domains.length > 0) {

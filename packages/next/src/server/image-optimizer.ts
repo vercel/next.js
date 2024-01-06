@@ -569,6 +569,13 @@ export async function imageOptimizer(
         )
       }
 
+      if (mocked.res.statusCode === 404) {
+        throw new ImageError(
+          404,
+          `The requested resource was not found. ${href}`
+        )
+      }
+
       upstreamBuffer = Buffer.concat(mocked.res.buffers)
       upstreamType =
         detectContentType(upstreamBuffer) ||
@@ -576,6 +583,10 @@ export async function imageOptimizer(
       const cacheControl = mocked.res.getHeader('Cache-Control')
       maxAge = cacheControl ? getMaxAge(cacheControl) : 0
     } catch (err) {
+      if (err instanceof ImageError) {
+        throw err
+      }
+
       Log.error('upstream image response failed for', href, err)
       throw new ImageError(
         500,
