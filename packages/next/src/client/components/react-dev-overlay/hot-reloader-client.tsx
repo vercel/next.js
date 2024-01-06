@@ -38,7 +38,6 @@ import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
 import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
-import { extractModulesFromTurbopackMessage } from './internal/helpers/extract-modules-from-turbopack-message'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -62,7 +61,7 @@ function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
 function onFastRefresh(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
-  updatedModules: string[]
+  updatedModules: ReadonlyArray<string>
 ) {
   let endLatency = Date.now()
   dispatcher.onBuildOk()
@@ -227,22 +226,12 @@ function tryApplyUpdates(
     )
 }
 
-let lastUpdatedModules: string[] = []
-
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  if (
-    'type' in obj &&
-    obj.type === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  ) {
-    lastUpdatedModules = [...extractModulesFromTurbopackMessage(obj.data)]
-    return
-  }
-
   if (!('action' in obj)) {
     return
   }
@@ -272,19 +261,18 @@ function processMessage(
     }
   }
 
-  function handleHotUpdate() {
+  function handleHotUpdate(updatedModules?: ReadonlyArray<string>) {
     if (process.env.TURBOPACK) {
-      onFastRefresh(dispatcher, sendMessage, lastUpdatedModules)
-      lastUpdatedModules = []
+      onFastRefresh(dispatcher, sendMessage, updatedModules || [])
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
           onBeforeFastRefresh(dispatcher, hasUpdates)
         },
-        function onSuccessfulHotUpdate(updatedModules: string[]) {
+        function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, sendMessage, updatedModules)
+          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
         },
         sendMessage,
         dispatcher

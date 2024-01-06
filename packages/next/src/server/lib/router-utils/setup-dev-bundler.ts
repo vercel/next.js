@@ -133,6 +133,7 @@ import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-u
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -520,6 +521,16 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
 
+      hotReloader.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+        hash: String(++hmrHash),
+        errors: [...errors.values()],
+        warnings: [],
+        updatedModules: [
+          ...extractModulesFromTurbopackMessage(turbopackUpdates),
+        ],
+      })
+
       if (errors.size === 0) {
         for (const payload of hmrPayloads.values()) {
           hotReloader.send(payload)
@@ -533,13 +544,6 @@ async function startWatcher(opts: SetupOpts) {
           turbopackUpdates.length = 0
         }
       }
-
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-      })
       hmrBuilding = false
     }, 2)
 
