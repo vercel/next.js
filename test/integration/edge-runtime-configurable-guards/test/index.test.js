@@ -312,6 +312,7 @@ describe('Edge runtime configurable guards', () => {
           })
           expect(output.stderr).not.toContain(`Build failed`)
           expect(output.stderr).toContain(TELEMETRY_EVENT_NAME)
+          context.appPort = await findPort()
           context.app = await nextStart(
             context.appDir,
             context.appPort,
@@ -453,6 +454,7 @@ describe('Edge runtime configurable guards', () => {
             stderr: true,
           })
           expect(output.stderr).not.toContain(`Build failed`)
+          context.appPort = await findPort()
           context.app = await nextStart(
             context.appDir,
             context.appPort,

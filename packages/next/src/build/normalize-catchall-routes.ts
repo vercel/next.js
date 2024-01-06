@@ -36,12 +36,15 @@ export function normalizeCatchAllRoutes(
         0,
         normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
-
       if (
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
         // check if there's not already a slot value that could match the catch-all
-        !appPaths[appPath].some((path) => hasMatchedSlots(path, catchAllRoute))
+        !appPaths[appPath].some((path) =>
+          hasMatchedSlots(path, catchAllRoute)
+        ) &&
+        // check if the catch-all is not already matched by a default route
+        !appPaths[`${appPath}/default`]
       ) {
         appPaths[appPath].push(catchAllRoute)
       }
