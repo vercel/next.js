@@ -3076,12 +3076,85 @@ createNextDescribe(
         expect(next.cliOutput).toContain('cache-handler get')
         expect(next.cliOutput).toContain('cache-handler set')
       })
-
-      it('should load large data only once when using custom cache handler and force-cache mode', async () => {
-        await next.fetch('/force-cache/large-data')
-        await next.fetch('/force-cache/large-data')
-        expect(next.cliOutput.match('Load data').length).toBe(1)
-      })
     }
+
+    describe('Incremental cache limits', () => {
+      if (process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
+        it('should load large data only once when using custom cache handler and force-cache mode', async () => {
+          const cliOutputStart = next.cliOutput.length
+          await next.fetch('/force-cache/large-data')
+          await next.fetch('/force-cache/large-data')
+          expect(
+            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
+          ).toBe(1)
+        })
+      }
+      if (!process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
+        it('should load data only at build time even if response data size is greater than 2MB and FetchCache is possible', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
+          expect(
+            next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+          ).toBeNull()
+        })
+      }
+      if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).not.toEqual(data2)
+          expect(
+            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
+          ).toBe(2)
+          expect(next.cliOutput.substring(cliOutputStart)).toContain(
+            'Error: fetch for over 2MB of data can not be cached'
+          )
+        })
+      }
+      if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
+        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
+          expect(
+            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
+          ).toBe(1)
+          expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
+            'Error: fetch for over 2MB of data can not be cached'
+          )
+        })
+      }
+    })
   }
 )
