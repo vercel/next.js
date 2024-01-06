@@ -835,9 +835,6 @@ importers:
       styled-jsx:
         specifier: 5.1.1
         version: 5.1.1(@babel/core@7.22.5)(react@18.2.0)
-      watchpack:
-        specifier: 2.4.0
-        version: 2.4.0
     devDependencies:
       '@ampproject/toolbox-optimizer':
         specifier: 2.8.3
@@ -1421,6 +1418,9 @@ importers:
       vm-browserify:
         specifier: 1.1.2
         version: 1.1.2
+      watchpack:
+        specifier: 2.4.0
+        version: 2.4.0
       web-vitals:
         specifier: 3.0.0
         version: 3.0.0
