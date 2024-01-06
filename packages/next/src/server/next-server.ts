@@ -26,7 +26,7 @@ import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { Revalidate } from './lib/revalidate'
 
 import fs from 'fs'
-import { join, resolve, isAbsolute } from 'path'
+import { join, resolve } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -101,6 +101,7 @@ import { loadManifest } from './load-manifest'
 import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 
 export * from './base-server'
 
@@ -310,9 +311,7 @@ export default class NextNodeServer extends BaseServer {
     if (incrementalCacheHandlerPath) {
       CacheHandler = interopDefault(
         await dynamicImportEsmDefault(
-          isAbsolute(incrementalCacheHandlerPath)
-            ? incrementalCacheHandlerPath
-            : join(this.distDir, incrementalCacheHandlerPath)
+          formatDynamicImportPath(this.distDir, incrementalCacheHandlerPath)
         )
       )
     }

@@ -74,6 +74,7 @@ import { RouteKind } from '../server/future/route-kind'
 import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1310,11 +1311,7 @@ export async function buildAppStaticPaths({
 
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
-      await import(
-        path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath)
-      )
+      await import(formatDynamicImportPath(dir, incrementalCacheHandlerPath))
     )
   }
 

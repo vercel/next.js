@@ -163,6 +163,7 @@ import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1537,9 +1538,7 @@ export default async function build(
         if (incrementalCacheHandlerPath) {
           CacheHandler = interopDefault(
             await import(
-              path.isAbsolute(incrementalCacheHandlerPath)
-                ? incrementalCacheHandlerPath
-                : path.join(dir, incrementalCacheHandlerPath)
+              formatDynamicImportPath(dir, incrementalCacheHandlerPath)
             )
           )
         }
