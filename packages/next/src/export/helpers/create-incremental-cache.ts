@@ -5,6 +5,7 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 export async function createIncrementalCache({
   incrementalCacheHandlerPath,
@@ -29,13 +30,7 @@ export async function createIncrementalCache({
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
-      (
-        await import(
-          path.isAbsolute(incrementalCacheHandlerPath)
-            ? incrementalCacheHandlerPath
-            : path.join(dir, incrementalCacheHandlerPath)
-        )
-      ).default
+      await import(formatDynamicImportPath(dir, incrementalCacheHandlerPath))
     )
   }
 
