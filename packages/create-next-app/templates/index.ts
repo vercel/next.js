@@ -117,7 +117,7 @@ export const installTemplate = async ({
   }
 
   if (srcDir) {
-    await fs.mkdir(path.join(root, 'src'))
+    await fs.mkdir(path.join(root, 'src'), { recursive: true })
     await Promise.all(
       SRC_DIR_NAMES.map(async (file) => {
         await fs

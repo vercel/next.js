@@ -13,10 +13,7 @@ export type RepoInfo = {
 export async function isUrlOk(url: string): Promise<boolean> {
   try {
     const res = await fetch(url, { method: 'HEAD' })
-    if (res.status !== 200) {
-      return false
-    }
-    return true
+    return res.status === 200
   } catch {
     return false
   }
@@ -89,13 +86,13 @@ export function existsInRepo(nameOrUrl: string): Promise<boolean> {
 }
 
 async function downloadTarStream(url: string) {
-  const resp = await fetch(url)
+  const res = await fetch(url)
 
-  if (!resp.body) {
+  if (!res.body) {
     throw new Error(`Failed to download: ${url}`)
   }
 
-  return Readable.fromWeb(resp.body as import('stream/web').ReadableStream)
+  return Readable.fromWeb(res.body as import('stream/web').ReadableStream)
 }
 
 export async function downloadAndExtractRepo(
