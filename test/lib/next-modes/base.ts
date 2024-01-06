@@ -64,11 +64,12 @@ export class NextInstance {
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
   protected basePath?: string
-  protected env?: Record<string, string>
+  public env: Record<string, string>
   public forcedPort?: string
   public dirSuffix: string = ''
 
   constructor(opts: NextInstanceOpts) {
+    this.env = {}
     Object.assign(this, opts)
 
     if (!(global as any).isNextDeploy) {
@@ -232,11 +233,13 @@ export class NextInstance {
           ((global as any).isNextDeploy && !nextConfigFile)
         ) {
           const functions = []
-
+          const exportDeclare =
+            this.packageJson?.type === 'module'
+              ? 'export default'
+              : 'module.exports = '
           await fs.writeFile(
             path.join(this.testDir, 'next.config.js'),
-            `
-        module.exports = ` +
+            exportDeclare +
               JSON.stringify(
                 {
                   ...this.nextConfig,
@@ -389,7 +392,9 @@ export class NextInstance {
               `next-trace`
             )
           )
-          .catch(() => {})
+          .catch((e) => {
+            require('console').error(e)
+          })
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {

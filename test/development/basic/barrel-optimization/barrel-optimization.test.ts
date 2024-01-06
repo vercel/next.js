@@ -28,6 +28,9 @@ createNextDescribe(
       '@heroicons/react': '2.0.18',
       '@visx/visx': '3.3.0',
       'recursive-barrel': '1.0.0',
+      '@mui/material': '5.14.19',
+      '@emotion/styled': '11.11.0',
+      '@emotion/react': '11.11.1',
     },
   },
   ({ next }) => {
@@ -125,6 +128,25 @@ createNextDescribe(
     it('should support visx', async () => {
       const html = await next.render('/visx')
       expect(html).toContain('<linearGradient')
+    })
+
+    it('should support MUI', async () => {
+      let logs = ''
+      next.on('stdout', (log) => {
+        logs += log
+      })
+
+      // Ensure that MUI is working
+      const html = await next.render('/mui')
+      expect(html).toContain('test_mui')
+
+      const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
+      expect(modules.length).toBeGreaterThanOrEqual(1)
+      for (const [, moduleCount] of modules) {
+        // Ensure that the number of modules is less than 1500 - otherwise we're
+        // importing the entire library.
+        expect(parseInt(moduleCount)).toBeLessThan(1500)
+      }
     })
 
     it('should not break "use client" directive in optimized packages', async () => {
