@@ -280,7 +280,7 @@ describe('Error overlay - RSC build errors', () => {
 
       expect(await session.hasRedbox(true)).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
-        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components`
       )
 
       await cleanup()
@@ -348,25 +348,29 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    await check(
+      () => session.getRedboxSource(),
+      /must be a Client \n| Component/
+    )
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      `
       "./app/server-with-errors/error-file/error.js
-      ReactServerComponentsError:
-
-      ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-      Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-
+      Error: 
+        x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
+        | of the file to resolve this issue.
+        | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+        | 
+        | 
          ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
        1 | export default function Error() {}
          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
          \`----
 
-      Import path:
+      Import trace for requested module:
       ./app/server-with-errors/error-file/error.js"
-    `)
+    `
     )
 
     await cleanup()
