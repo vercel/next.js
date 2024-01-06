@@ -1262,6 +1262,7 @@ export default async function getBaseWebpackConfig(
                   WEBPACK_RESOURCE_QUERIES.metadataRoute
                 ),
                 layer: WEBPACK_LAYERS.appMetadataRoute,
+                type: 'javascript/auto'
               },
               {
                 // Ensure that the app page module is in the client layers, this
