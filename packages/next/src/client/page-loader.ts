@@ -64,7 +64,7 @@ export default class PageLoader {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
         this.promisedDevPagesManifest ||= fetch(
-          `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`
+          `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`,{credentials:'same-origin'}
         )
           .then((res) => res.json())
           .then((manifest: { pages: string[] }) => {
