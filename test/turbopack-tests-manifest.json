@@ -115,6 +115,7 @@
     "passed": [
       "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
       "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
+      "normalizeCatchallRoutes should not add the catch-all route to a path that has a @children slot",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
       "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
@@ -1721,39 +1722,6 @@
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the component on client side",
       "basic next/dynamic usage, basePath: \"/docs\" with \"swc\" compiler swc Dynamic import custom chunkfilename should render the correct filename"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/basic/next-rs-api.test.ts": {
-    "passed": [
-      "next.rs api should allow to write app Node.js page to disk",
-      "next.rs api should allow to write app Node.js route to disk",
-      "next.rs api should allow to write app edge page to disk",
-      "next.rs api should allow to write app edge route to disk",
-      "next.rs api should allow to write pages Node.js api to disk",
-      "next.rs api should allow to write pages Node.js page to disk",
-      "next.rs api should allow to write pages edge api to disk",
-      "next.rs api should allow to write pages edge page to disk",
-      "next.rs api should allow to write root page to disk",
-      "next.rs api should detect the correct routes",
-      "next.rs api should have working HMR on client and server-side change on a page 0",
-      "next.rs api should have working HMR on client and server-side change on a page 1",
-      "next.rs api should have working HMR on client and server-side change on a page 2",
-      "next.rs api should have working HMR on client-side change on a app page 0",
-      "next.rs api should have working HMR on client-side change on a app page 1",
-      "next.rs api should have working HMR on client-side change on a app page 2",
-      "next.rs api should have working HMR on client-side change on a page 0",
-      "next.rs api should have working HMR on client-side change on a page 1",
-      "next.rs api should have working HMR on client-side change on a page 2",
-      "next.rs api should have working HMR on server-side change on a app page 0",
-      "next.rs api should have working HMR on server-side change on a app page 1",
-      "next.rs api should have working HMR on server-side change on a app page 2",
-      "next.rs api should have working HMR on server-side change on a page 0",
-      "next.rs api should have working HMR on server-side change on a page 1",
-      "next.rs api should have working HMR on server-side change on a page 2"
-    ],
-    "failed": [],
-    "pending": ["next.rs api should allow to make many HMR updates"],
     "flakey": [],
     "runtimeError": false
   },
@@ -3947,6 +3915,15 @@
     "failed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall-children-slot/parallel-routes-catchall-children-slot.test.ts": {
+    "passed": [],
+    "failed": [
+      "parallel-routes-catchall-children-slot should match the @children slot for a page before attempting to match the catchall"
     ],
     "pending": [],
     "flakey": [],
