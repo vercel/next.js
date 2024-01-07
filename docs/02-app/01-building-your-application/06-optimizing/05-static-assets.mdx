@@ -1,5 +1,6 @@
 ---
-title: Static Assets
+title: Statics Assets in `public`
+nav_title: Static Assets
 description: Next.js allows you to serve static files, like images, in the public directory. You can learn how it works here.
 ---
 
@@ -17,9 +18,19 @@ export function Avatar() {
 }
 ```
 
+## Caching
+
+Next.js automatically adds caching headers to immutable assets in the `public` folder. The default caching headers applied are:
+
+```jsx
+Cache-Control: public, max-age=31536000, immutable
+```
+
+## Robots, Favicons, and others
+
 <PagesOnly>
 
-This folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`). But make sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error. [Read more](/docs/messages/conflicting-public-file-page).
+The folder is also useful for `robots.txt`, `favicon.ico`, Google Site Verification, and any other static files (including `.html`). But make sure to not have a static file with the same name as a file in the `pages/` directory, as this will result in an error. [Read more](/docs/messages/conflicting-public-file-page).
 
 </PagesOnly>
 

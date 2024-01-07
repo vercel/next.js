@@ -77,22 +77,24 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
-    issues.get_plain_issues().await
+    Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
 /// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
 /// returns [turbopack::core::diagnostics::PlainDiagnostic]
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainDiagnostic>>> {
+pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
 
-    captured_diags
-        .diagnostics
-        .iter()
-        .map(|d| d.into_plain())
-        .try_join()
-        .await
+    Ok(Arc::new(
+        captured_diags
+            .diagnostics
+            .iter()
+            .map(|d| d.into_plain())
+            .try_join()
+            .await?,
+    ))
 }
 
 #[napi(object)]
