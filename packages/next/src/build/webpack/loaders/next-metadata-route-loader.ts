@@ -152,7 +152,7 @@ function getDynamicSiteMapRouteCode(resourcePath: string, page: string) {
   ) {
     staticGenerationCode = `\
 export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
+  const sitemaps = generateSitemaps ? await generateSitemaps() : [{ id: 0 }]
   const params = []
 
   for (const item of sitemaps) {
