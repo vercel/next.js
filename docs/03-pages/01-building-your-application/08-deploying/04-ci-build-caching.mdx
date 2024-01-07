@@ -87,6 +87,20 @@ with:
     ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}-
 ```
 
+If you'd prefer to use bun instead of npm or node:
+
+```yaml
+uses: actions/cache@v3
+with:
+  path: |
+    ${{ github.workspace }}/.next/cache
+  # Generate a new cache whenever packages or source files change.
+  key: ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lockb.json') }}-${{ hashFiles('**/*.js', '**/*.jsx', '**/*.ts', '**/*.tsx') }}
+  # If source files changed but packages didn't, rebuild from a prior cache.
+  restore-keys: |
+    ${{ runner.os }}-nextjs-${{ hashFiles('**/bun.lockb.json') }}-
+```
+
 ## Bitbucket Pipelines
 
 Add or merge the following into your `bitbucket-pipelines.yml` at the top level (same level as `pipelines`):
