@@ -56,6 +56,66 @@ Disallow: /private/
 
 Sitemap: https://acme.com/sitemap.xml
 ```
+## Customize user-agent rules
+
+Pass an array of user-agents to the `rules` property to customize.
+And make `robots.js` or `robots.ts` file returns a [`Robots` object](#robots-object).
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: 'Googlebot',
+        allow: ['/'],
+        disallow: '/private/'
+      },
+      {
+        userAgent: ['Applebot', 'Bingbot'],
+        disallow: ['/'],
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: [
+      {
+        userAgent: 'Googlebot',
+        allow: ['/'],
+        disallow: ['/private/'],
+      },
+      {
+        userAgent: ['Applebot', 'Bingbot'],
+        disallow: ['/'],
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: Googlebot
+Allow: /
+Disallow: /private/
+
+User-Agent: Applebot
+Disallow: /
+
+User-Agent: Bingbot
+Disallow: /
+
+Sitemap: https://acme.com/sitemap.xml
+```
 
 ### Robots object
 
