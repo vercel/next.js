@@ -28,9 +28,33 @@ export function getNodeOptionsWithoutInspect() {
   return (process.env.NODE_OPTIONS || '').replace(NODE_INSPECT_RE, '')
 }
 
-export function getPort(args: arg.Result<arg.Spec>): number {
+interface GetPortOptions {
+  dir?: string
+}
+
+export function getPort(
+  args: arg.Result<arg.Spec>,
+  options: GetPortOptions = {}
+): number {
   if (typeof args['--port'] === 'number') {
     return args['--port']
+  }
+
+  if (args['--readDotEnv']) {
+    const { dir } = options
+    const isDev = process.env.NODE_ENV === 'development'
+    const isTest = process.env.NODE_ENV === 'test'
+    const mode = isTest ? 'test' : isDev ? 'development' : 'production'
+    const { getDotEnvFilenames, loadEnvConfig } =
+      require('@next/env') as typeof import('@next/env')
+    const findUp =
+      require('next/dist/compiled/find-up') as typeof import('next/dist/compiled/find-up')
+    const dotenvFiles = getDotEnvFilenames(mode)
+    const envPath = findUp.sync(dotenvFiles, { cwd: dir })
+    if (envPath) {
+      const { dirname } = require('path') as typeof import('path')
+      loadEnvConfig(dirname(envPath), isDev)
+    }
   }
 
   const parsed = process.env.PORT && parseInt(process.env.PORT, 10)

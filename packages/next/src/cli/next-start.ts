@@ -26,6 +26,7 @@ const nextStart: CliCommand = async (args) => {
         --port, -p          A port number on which to start the application
         --hostname, -H      Hostname on which to start the application (default: 0.0.0.0)
         --keepAliveTimeout  Max milliseconds to wait before closing inactive connections
+        --readDotEnv        Read .env file before starting the application
         --help, -h          Displays this message
     `)
     process.exit(0)
@@ -33,7 +34,7 @@ const nextStart: CliCommand = async (args) => {
 
   const dir = getProjectDir(args._[0])
   const host = args['--hostname']
-  const port = getPort(args)
+  const port = getPort(args, { dir })
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)

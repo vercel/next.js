@@ -127,6 +127,7 @@ const nextDev: CliCommand = async (args) => {
       Options
         --port, -p      A port number on which to start the application
         --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
+        --readDotEnv    Read .env file before starting the application
         --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
         --help, -h      Displays this message
     `)
@@ -177,7 +178,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  const port = getPort(args)
+  const port = getPort(args, { dir })
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
