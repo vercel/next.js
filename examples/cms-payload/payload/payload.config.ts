@@ -29,7 +29,7 @@ export default buildConfig({
     url: process.env.MONGODB_URI as string,
   }),
   admin: {
-    bundler: webpackBundler()
+    bundler: webpackBundler(),
   },
   collections: [Pages, Users, Media],
   globals: [MainMenu],

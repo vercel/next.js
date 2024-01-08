@@ -33,7 +33,7 @@ const richText: RichText = (
           elements: [...elements, ...(additions.elements || [])],
           leaves: [...leaves, ...(additions.leaves || [])],
         },
-      })
+      }),
     },
     overrides || {}
   )
