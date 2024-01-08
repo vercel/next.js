@@ -21,15 +21,14 @@ once_cell = { workspace = true }
 pathdiff = "0.2.0"
 regex = "1.5"
 rustc-hash = "1"
-serde = "1"
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
+anyhow = { workspace = true }
 
-next-visitor-cjs-finder = { workspace = true }
 next-transform-dynamic = { workspace = true }
 next-transform-font = { workspace = true }
-next-transform-react-server-components = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",

@@ -1,11 +1,8 @@
-#![feature(arbitrary_self_types)]
-
 use std::{collections::HashMap, path::PathBuf};
 
-use next_visitor_cjs_finder::contains_cjs;
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::{
+use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -18,6 +15,8 @@ use swc_core::{
         visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitMutWith},
     },
 };
+
+use super::cjs_finder::contains_cjs;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]

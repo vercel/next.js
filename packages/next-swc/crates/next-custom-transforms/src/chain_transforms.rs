@@ -4,7 +4,6 @@ use either::Either;
 use fxhash::FxHashSet;
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::next_font_loaders;
-use next_visitor_cjs_finder::contains_cjs;
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
@@ -20,6 +19,8 @@ use turbopack_binding::swc::{
     },
     custom_transform::modularize_imports,
 };
+
+use crate::transforms::{cjs_finder::contains_cjs, react_server_components};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -52,7 +53,7 @@ pub struct TransformOptions {
     pub prefer_esm: bool,
 
     #[serde(default)]
-    pub server_components: Option<next_transform_react_server_components::Config>,
+    pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
     pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
@@ -145,7 +146,7 @@ where
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
-                Either::Left(next_transform_react_server_components::server_components(
+                Either::Left(react_server_components::server_components(
                     file.name.clone(),
                     config.clone(),
                     comments.clone(),
@@ -187,7 +188,7 @@ where
                 Some(config) if config.truthy() => match config {
                     // Always enable the Server Components mode for both
                     // server and client layers.
-                    next_transform_react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
+                    react_server_components::Config::WithOptions(config) => config.is_react_server_layer,
                     _ => false,
                 },
                 _ => false,
