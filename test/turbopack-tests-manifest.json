@@ -115,6 +115,7 @@
     "passed": [
       "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
       "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
+      "normalizeCatchallRoutes should not add the catch-all route to a path that has a @children slot",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
       "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
@@ -3728,6 +3729,7 @@
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
+      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3746,9 +3748,7 @@
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
-    "failed": [
-      "app dir - navigation query string useParams identity between renders should be stable in pages"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3947,6 +3947,15 @@
     "failed": [
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall-children-slot/parallel-routes-catchall-children-slot.test.ts": {
+    "passed": [],
+    "failed": [
+      "parallel-routes-catchall-children-slot should match the @children slot for a page before attempting to match the catchall"
     ],
     "pending": [],
     "flakey": [],
