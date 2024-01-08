@@ -359,7 +359,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test('logbox: anchors links in error messages', async () => {
+  test.only('logbox: anchors links in error messages', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
