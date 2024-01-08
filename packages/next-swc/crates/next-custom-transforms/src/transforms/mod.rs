@@ -13,3 +13,4 @@ pub mod pure;
 pub mod react_server_components;
 pub mod server_actions;
 pub mod shake_exports;
+pub mod strip_page_exports;

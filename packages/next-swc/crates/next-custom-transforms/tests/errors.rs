@@ -231,3 +231,20 @@ fn react_server_actions_client_errors(input: PathBuf) {
         },
     );
 }
+
+#[fixture("tests/errors/strip-page-exports/**/input.js")]
+fn next_transform_strip_page_exports_errors(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_transform_strip_page_exports(ExportFilter::StripDataExports, Default::default())
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            allow_error: true,
+            ..Default::default()
+        },
+    );
+}

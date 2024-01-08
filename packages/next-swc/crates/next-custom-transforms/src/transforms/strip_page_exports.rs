@@ -2,11 +2,12 @@
 //! https://github.com/vercel/next.js/blob/f7fecf00cb40c2f784387ff8ccc5e213b8bdd9ca/packages/next-swc/crates/core/src/next_ssg.rs
 //!
 //! This version adds support for eliminating client-side exports only.
+//! [TODO] may consolidate into next_ssg
 
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
-use swc_core::{
+use turbopack_binding::swc::core::{
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -949,7 +950,8 @@ impl Fold for NextSsg {
         match e {
             Expr::Assign(assign_expr) => {
                 let mut retain = true;
-                let left = self.within_lhs_of_var(true, |this| assign_expr.left.fold_with(this));
+                let left =
+                    self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
 
                 let right = self.within_lhs_of_var(false, |this| {
                     if let PatOrExpr::Pat(pat) = &left {
@@ -958,7 +960,7 @@ impl Fold for NextSsg {
                             this.mark_as_candidate(&assign_expr.right);
                         }
                     }
-                    assign_expr.right.fold_with(this)
+                    assign_expr.right.clone().fold_with(this)
                 });
 
                 if retain {
@@ -983,13 +985,13 @@ impl Fold for NextSsg {
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it
     /// should be removed.
     fn fold_var_declarator(&mut self, d: VarDeclarator) -> VarDeclarator {
-        let name = self.within_lhs_of_var(true, |this| d.name.fold_with(this));
+        let name = self.within_lhs_of_var(true, |this| d.name.clone().fold_with(this));
 
         let init = self.within_lhs_of_var(false, |this| {
             if name.is_invalid() {
                 this.mark_as_candidate(&d.init);
             }
-            d.init.fold_with(this)
+            d.init.clone().fold_with(this)
         });
 
         VarDeclarator { name, init, ..d }

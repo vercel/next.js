@@ -623,3 +623,17 @@ fn pure(input: PathBuf) {
         Default::default(),
     );
 }
+
+#[fixture("tests/fixtures/strip-page-exports/**/output-data.js")]
+fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
+    let input = output.parent().unwrap().join("input.js");
+
+    run_test(&input, &output, ExportFilter::StripDefaultExport);
+}
+
+#[fixture("tests/fixtures/strip-page-exports/**/output-default.js")]
+fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
+    let input = output.parent().unwrap().join("input.js");
+
+    run_test(&input, &output, ExportFilter::StripDataExports);
+}
