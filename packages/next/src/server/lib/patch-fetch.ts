@@ -243,8 +243,14 @@ export function patchFetch({
      *
      */
     const tracingError = new Error()
-    const tracedOriginalFetch = (...args: Parameters<typeof fetch>) =>
-      originFetch(...args)
+    const tryCatchFetch = async (...args: Parameters<typeof fetch>) => {
+      try {
+        return await originFetch(...args)
+      } catch (e) {
+        throw e
+      }
+    }
+
     // traceErroredFetcher(originFetch, tracingError)(...args)
 
     let url: URL | undefined
@@ -298,8 +304,7 @@ export function patchFetch({
           isInternal ||
           staticGenerationStore.isDraftMode
         ) {
-          console.log('original fetch')
-          return await originFetch(input, init)
+          return await tryCatchFetch(input, init)
           // return tracedOriginalFetch(input, init)
         }
 
@@ -606,13 +611,13 @@ export function patchFetch({
           })
         }
 
-        // let handleUnlock = () => Promise.resolve()
+        let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
-          // handleUnlock = await staticGenerationStore.incrementalCache.lock(
-          //   cacheKey
-          // )
+          handleUnlock = await staticGenerationStore.incrementalCache.lock(
+            cacheKey
+          )
 
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
@@ -733,7 +738,9 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return await doOriginalFetch(false, cacheReasonOverride) //.finally(handleUnlock)
+        return await doOriginalFetch(false, cacheReasonOverride).finally(
+          handleUnlock
+        )
       }
     )
   }
