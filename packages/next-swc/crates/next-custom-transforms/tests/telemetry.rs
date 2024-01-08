@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use fxhash::FxHashSet;
-use next_swc::next_ssg::next_ssg;
+use next_custom_transforms::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
 use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler},

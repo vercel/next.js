@@ -1,6 +1,6 @@
 [package]
 edition = "2018"
-name = "next-swc"
+name = "next-custom-transforms"
 version = "0.0.0"
 publish = false
 

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use next_swc::{
+use next_custom_transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
     next_ssg::next_ssg,
     react_server_components::server_components,

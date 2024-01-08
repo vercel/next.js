@@ -1,6 +1,6 @@
 use std::{env::current_dir, path::PathBuf};
 
-use next_swc::{
+use next_custom_transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
     named_import_transform::named_import_transform,
