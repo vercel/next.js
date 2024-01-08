@@ -6,7 +6,7 @@ use turbopack_binding::swc::core::{
     },
 };
 
-use crate::import_analyzer::ImportMap;
+use crate::transforms::import_analyzer::ImportMap;
 
 pub fn pure_magic<C>(comments: C) -> impl Fold
 where

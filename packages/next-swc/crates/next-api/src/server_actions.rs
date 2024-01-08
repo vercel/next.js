@@ -6,7 +6,7 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::{get_asset_prefix_from_pathname, NextRuntime},
 };
-use next_custom_transforms::server_actions::parse_server_actions;
+use next_custom_transforms::transforms::server_actions::parse_server_actions;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},

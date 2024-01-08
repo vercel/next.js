@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::server_actions::{server_actions, Config};
+use next_custom_transforms::transforms::server_actions::{server_actions, Config};
 use swc_core::{
     common::FileName,
     ecma::{ast::Program, visit::VisitMutWith},
