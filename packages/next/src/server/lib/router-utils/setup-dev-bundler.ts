@@ -36,7 +36,7 @@ import fs from 'fs'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
-import Watchpack from 'watchpack'
+import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
@@ -1870,7 +1870,7 @@ async function startWatcher(opts: SetupOpts) {
         const watchTimeChange =
           watchTime === undefined ||
           (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta.timestamp)
+        fileWatchTimes.set(fileName, meta?.timestamp)
 
         if (envFiles.includes(fileName)) {
           if (watchTimeChange) {
