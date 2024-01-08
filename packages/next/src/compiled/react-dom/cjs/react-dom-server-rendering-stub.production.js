@@ -12,7 +12,7 @@
 
 var React = require("next/dist/compiled/react");
 
-var ReactVersion = '18.3.0-canary-0cdfef19b-20231211';
+var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
 
 const Internals = {
   usingClientEntryPoint: false,
