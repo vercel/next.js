@@ -55,6 +55,7 @@ import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
+import { isDefaultRoute } from '../lib/is-default-route'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -563,9 +564,13 @@ export async function exportAppImpl(
   ]
 
   const filteredPaths = exportPaths.filter(
-    // Remove API routes
     (route) =>
-      exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
+      // Remove default routes -- they don't need to be exported
+      // and are only used for parallel route normalization
+      !isDefaultRoute(exportPathMap[route].page) &&
+      (exportPathMap[route]._isAppDir ||
+        // Remove API routes
+        !isAPIRoute(exportPathMap[route].page))
   )
 
   if (filteredPaths.length !== exportPaths.length) {

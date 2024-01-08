@@ -1,7 +1,7 @@
 import Image from 'next/image'
-import ViewSource from '../components/view-source'
-import styles from '../styles.module.css'
-import mountains from '../public/mountains.jpg'
+import ViewSource from '../../components/view-source'
+import styles from '../../styles.module.css'
+import mountains from '../../public/mountains.jpg'
 
 const BackgroundPage = () => (
   <div>

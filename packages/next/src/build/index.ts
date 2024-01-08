@@ -676,6 +676,20 @@ async function writeFullyStaticExport(
   appWorker.close()
 }
 
+async function getBuildId(
+  isGenerateMode: boolean,
+  distDir: string,
+  nextBuildSpan: Span,
+  config: NextConfigComplete
+) {
+  if (isGenerateMode) {
+    return await fs.readFile(path.join(distDir, 'BUILD_ID'), 'utf8')
+  }
+  return await nextBuildSpan
+    .traceChild('generate-buildid')
+    .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
+}
+
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -731,15 +745,12 @@ export default async function build(
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
-      let buildId: string = ''
-
-      if (isGenerateMode) {
-        buildId = await readFileUtf8(path.join(distDir, 'BUILD_ID'))
-      } else {
-        buildId = await nextBuildSpan
-          .traceChild('generate-buildid')
-          .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
-      }
+      const buildId = await getBuildId(
+        isGenerateMode,
+        distDir,
+        nextBuildSpan,
+        config
+      )
       NextBuildContext.buildId = buildId
 
       const customRoutes: CustomRoutes = await nextBuildSpan
@@ -922,7 +933,9 @@ export default async function build(
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
+                validFileMatcher.isRootNotFound(absolutePath) ||
+                // Default slots are also valid pages, and need to be considered during path normalization
+                validFileMatcher.isDefaultSlot(absolutePath),
               ignorePartFilter: (part) => part.startsWith('_'),
             })
           )
@@ -1462,7 +1475,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompileMode || isGenerateMode)) {
+      if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
       }
 
