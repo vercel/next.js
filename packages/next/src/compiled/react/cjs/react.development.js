@@ -23,7 +23,7 @@ if (
 ) {
   __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(new Error());
 }
-          var ReactVersion = '18.3.0-canary-0cdfef19b-20231211';
+          var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -152,7 +152,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
 var ReactSharedInternals = {
   ReactCurrentDispatcher: ReactCurrentDispatcher$1,

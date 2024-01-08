@@ -1,6 +1,6 @@
 import Image from 'next/image'
-import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
+import ViewSource from '../../components/view-source'
+import mountains from '../../public/mountains.jpg'
 
 const PlaceholderBlur = () => (
   <div>

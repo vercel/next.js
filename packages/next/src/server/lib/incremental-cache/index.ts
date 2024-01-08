@@ -562,7 +562,7 @@ export class IncrementalCache implements IncrementalCacheType {
       ctx.fetchCache &&
       // we don't show this error/warning when a custom cache handler is being used
       // as it might not have this limit
-      this.hasCustomCacheHandler &&
+      !this.hasCustomCacheHandler &&
       JSON.stringify(data).length > 2 * 1024 * 1024
     ) {
       if (this.dev) {
