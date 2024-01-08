@@ -28,7 +28,15 @@ import '../server/require-hook'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import { green, yellow, cyan, bold, underline } from '../lib/picocolors'
+import {
+  green,
+  yellow,
+  red,
+  cyan,
+  white,
+  bold,
+  underline,
+} from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -387,7 +395,7 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    return bold(size)
+    return white(bold(size))
   }
 
   const MIN_DURATION = 300
@@ -398,7 +406,7 @@ export async function printTreeView(
     // yellow for 1000-2000ms
     if (_duration < 2000) return yellow(duration)
     // red for >= 2000ms
-    return yellow(bold(duration))
+    return red(bold(duration))
   }
 
   const getCleanName = (fileName: string) =>
