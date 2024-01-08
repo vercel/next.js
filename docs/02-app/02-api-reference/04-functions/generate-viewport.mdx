@@ -19,7 +19,7 @@ You can customize the initial viewport of the page with the static `viewport` ob
 
 ## The `viewport` object
 
-To define the viewport options, export a `viewport` object from a `layout.js` or `page.js` file.
+To define the viewport options, export a `viewport` object from a `layout.jsx` or `page.jsx` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
@@ -71,16 +71,16 @@ Learn more about [`theme-color`](https://developer.mozilla.org/docs/Web/HTML/Ele
 
 **Simple theme color**
 
-```jsx filename="layout.jsx | page.jsx" switcher
-export const viewport = {
-  themeColor: 'black',
-}
-```
-
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
+  themeColor: 'black',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
   themeColor: 'black',
 }
 ```
@@ -91,8 +91,10 @@ export const viewport: Viewport = {
 
 **With media attribute**
 
-```jsx filename="layout.jsx | page.jsx" switcher
-export const viewport = {
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'cyan' },
     { media: '(prefers-color-scheme: dark)', color: 'black' },
@@ -100,10 +102,8 @@ export const viewport = {
 }
 ```
 
-```tsx filename="layout.tsx | page.tsx" switcher
-import type { Viewport } from 'next'
-
-export const viewport: Viewport = {
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'cyan' },
     { media: '(prefers-color-scheme: dark)', color: 'black' },
@@ -120,8 +120,10 @@ export const viewport: Viewport = {
 
 > **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
 
-```jsx filename="layout.jsx | page.jsx" switcher
-export const viewport = {
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -131,10 +133,8 @@ export const viewport = {
 }
 ```
 
-```tsx filename="layout.tsx | page.tsx" switcher
-import type { Viewport } from 'next'
-
-export const viewport: Viewport = {
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -155,16 +155,16 @@ export const viewport: Viewport = {
 
 Learn more about [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#:~:text=color%2Dscheme%3A%20specifies,of%20the%20following%3A).
 
-```jsx filename="layout.jsx | page.jsx" switcher
-export const viewport = {
-  colorScheme: 'dark',
-}
-```
-
 ```tsx filename="layout.tsx | page.tsx" switcher
 import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
+  colorScheme: 'dark',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
+export const viewport = {
   colorScheme: 'dark',
 }
 ```
