@@ -63,27 +63,6 @@ pub fn server_actions<C: Comments>(
     })
 }
 
-/// Parses the Server Actions comment for all exported action function names.
-///
-/// Action names are stored in a leading BlockComment prefixed by
-/// `__next_internal_action_entry_do_not_use__`.
-pub fn parse_server_actions<C: Comments>(program: &Program, comments: C) -> Option<ActionsMap> {
-    let byte_pos = match program {
-        Program::Module(m) => m.span.lo,
-        Program::Script(s) => s.span.lo,
-    };
-    comments.get_leading(byte_pos).and_then(|comments| {
-        comments.iter().find_map(|c| {
-            c.text
-                .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| match serde_json::from_str(actions) {
-                    Ok(v) => Some(v),
-                    Err(_) => None,
-                })
-        })
-    })
-}
-
 /// Serializes the Server Actions into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
 fn generate_server_actions_comment(actions: ActionsMap) -> String {
