@@ -187,7 +187,7 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
-This behavior is enabled with the [`windowHistorySupport`](/docs/app/api-reference/next-config-js/experimental/windowHistorySupport) config option. When the flag is enabled, `pushState` and `replaceState` calls are integrated into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+This behavior is enabled with the Next.js [`windowHistorySupport`](/docs/app/api-reference/next-config-js/windowHistorySupport) config option. When the flag is enabled, `pushState` and `replaceState` calls are integrated into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
 
 ### `window.history.pushState`
 
@@ -222,7 +222,7 @@ export default function SortProducts() {
 
 ### `window.history.replaceState`
 
-Use it to replace the current entry on the browser's history stack. The user is not able to navigate back to the previous state. For example, to switch the locale:
+Use it to replace the current entry on the browser's history stack. The user is not able to navigate back to the previous state. For example, to switch the application's locale:
 
 ```tsx fileName="app/ui/locale-switcher.tsx"
 'use client'
