@@ -224,7 +224,7 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
-  async function patchedFetch(
+  globalThis.fetch = async function (
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) {
@@ -732,7 +732,6 @@ export function patchFetch({
       }
     )
   }
-  globalThis.fetch = patchedFetch.bind(globalThis)
   ;(globalThis.fetch as any).__nextGetStaticStore = () => {
     return staticGenerationAsyncStorage
   }
