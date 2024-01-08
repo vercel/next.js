@@ -505,8 +505,10 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
-        processTurbopackMessage?.(obj)
-        processMessage(obj, sendMessage, router, dispatcher)
+        const handledByTurbopack = processTurbopackMessage?.(obj)
+        if (!handledByTurbopack) {
+          processMessage(obj, sendMessage, router, dispatcher)
+        }
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')

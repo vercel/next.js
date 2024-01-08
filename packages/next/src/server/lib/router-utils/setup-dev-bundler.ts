@@ -530,6 +530,7 @@ async function startWatcher(opts: SetupOpts) {
           ...extractModulesFromTurbopackMessage(turbopackUpdates),
         ],
       })
+      hmrBuilding = false
 
       if (errors.size === 0) {
         for (const payload of hmrPayloads.values()) {
@@ -544,7 +545,6 @@ async function startWatcher(opts: SetupOpts) {
           turbopackUpdates.length = 0
         }
       }
-      hmrBuilding = false
     }, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
