@@ -228,6 +228,19 @@ export function patchFetch({
     input: RequestInfo | URL,
     init: RequestInit | undefined
   ) {
+    /**
+     * The tracing error is used to get the stack trace of the fetch call, when the fetch is executed in the
+     * different tick, where the stack trace is not available to trace back to original invoked place.
+     *
+     * e.g. You might see failed fetch stack trace like this:
+     * > fetch
+     * > process.processTicksAndRejections
+     *
+     * This tracing error will preserve the original stack trace, so that we can trace back to the original,
+     * we'll use it to replace the stack trace of the error thrown by the fetch call, once we detect there's only
+     * unhelpful internal call trace showed up.
+     *
+     */
     const tracingError = new Error()
     const tracedOriginalFetch = (...args: Parameters<typeof fetch>) =>
       traceErroredFetcher(originFetch, tracingError)(...args)
