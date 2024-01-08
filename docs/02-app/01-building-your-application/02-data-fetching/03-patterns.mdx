@@ -6,7 +6,7 @@ description: Learn about common data fetching patterns in React and Next.js.
 
 There are a few recommended patterns and best practices for fetching data in React and Next.js. This page will go over some of the most common patterns and how to use them.
 
-## Fetching Data on the Server
+## Fetching data on the server
 
 Whenever possible, we recommend fetching data on the server with Server Components. This allows you to:
 
@@ -19,7 +19,7 @@ Whenever possible, we recommend fetching data on the server with Server Componen
 
 Then, you can mutate or update data with [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
-## Fetching Data Where It's Needed
+## Fetching data where it's needed
 
 If you need to use the same data (e.g. current user) in multiple components in a tree, you do not have to fetch data globally, nor forward props between components. Instead, you can use `fetch` or React `cache` in the component that needs the data without worrying about the performance implications of making multiple requests for the same data.
 
@@ -43,7 +43,7 @@ With Server Components and [nested layouts](/docs/app/building-your-application/
 
 To learn more about Streaming and Suspense, see the [Loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [Streaming and Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense) pages.
 
-### Parallel and Sequential Data Fetching
+## Parallel and sequential data fetching
 
 When fetching data inside React components, you need to be aware of two data fetching patterns: Parallel and Sequential.
 

@@ -20,8 +20,6 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       swr: 'latest',
     },
     packageJson: {
@@ -226,6 +224,11 @@ createNextDescribe(
           'relative-mixed-syntax-esm'
         )
       })
+    })
+
+    it('should emit cjs helpers for external cjs modules when compiled', async () => {
+      const $ = await next.render$('/cjs/client')
+      expect($('#private-prop').text()).toBe('prop')
     })
 
     it('should export client module references in esm', async () => {

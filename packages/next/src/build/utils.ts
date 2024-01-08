@@ -72,6 +72,8 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/future/route-kind'
 import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
+import { interopDefault } from '../lib/interop-default'
+import type { PageExtensions } from './page-extensions-type'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -375,7 +377,7 @@ export async function printTreeView(
     distPath: string
     buildId: string
     pagesDir?: string
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
@@ -1325,10 +1327,13 @@ export async function buildAppStaticPaths({
   let CacheHandler: any
 
   if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
-    CacheHandler = CacheHandler.default || CacheHandler
+    CacheHandler = interopDefault(
+      await import(
+        path.isAbsolute(incrementalCacheHandlerPath)
+          ? incrementalCacheHandlerPath
+          : path.join(dir, incrementalCacheHandlerPath)
+      )
+    )
   }
 
   const incrementalCache = new IncrementalCache({
