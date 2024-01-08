@@ -4,7 +4,7 @@ title: Parallel Build Without Build Worker
 
 ## Why This Error Occurred
 
-The `experimental.parallelServerAndEdgeCompiles` and `experimental.parallelServerBuildTraces`
+The `experimental.parallelServerCompiles` and `experimental.parallelServerBuildTraces`
 options require that the `experimental.webpackBuildWorker` option is set to true. These
 options use workers to improve the paralellization of the build which may improve performance,
 but the build may use more memory at the same time.

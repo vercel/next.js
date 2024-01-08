@@ -290,7 +290,7 @@ export interface ExperimentalConfig {
    * NOTE: This option is only valid when the build process can use workers. See
    * the documentation for `webpackBuildWorker` for more details.
    */
-  parallelServerAndEdgeCompiles?: boolean
+  parallelServerCompiles?: boolean
 
   /**
    * Runs the logic to collect build traces for the server routes in parallel
@@ -830,7 +830,7 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
-    parallelServerAndEdgeCompiles: false,
+    parallelServerCompiles: false,
     parallelServerBuildTraces: false,
     ppr:
       // TODO: remove once we've made PPR default

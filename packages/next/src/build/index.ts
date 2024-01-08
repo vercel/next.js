@@ -1099,7 +1099,7 @@ export default async function build(
         (config.experimental.webpackBuildWorker === undefined &&
           !config.webpack)
       const runServerAndEdgeInParallel =
-        config.experimental.parallelServerAndEdgeCompiles
+        config.experimental.parallelServerCompiles
       const collectServerBuildTracesInParallel =
         config.experimental.parallelServerBuildTraces ||
         (config.experimental.parallelServerBuildTraces === undefined &&
@@ -1124,7 +1124,7 @@ export default async function build(
         (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
       ) {
         throw new Error(
-          'The "parallelServerBuildTraces" and "parallelServerAndEdgeCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
+          'The "parallelServerBuildTraces" and "parallelServerCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
         )
       }
 

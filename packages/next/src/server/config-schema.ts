@@ -285,7 +285,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         outputFileTracingIncludes: z
           .record(z.string(), z.array(z.string()))
           .optional(),
-        parallelServerAndEdgeCompiles: z.boolean().optional(),
+        parallelServerCompiles: z.boolean().optional(),
         parallelServerBuildTraces: z.boolean().optional(),
         ppr: z.boolean().optional(),
         taint: z.boolean().optional(),
