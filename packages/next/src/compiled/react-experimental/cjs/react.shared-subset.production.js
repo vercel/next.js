@@ -302,7 +302,7 @@ function taintObjectReference(message, object) {
   TaintRegistryObjects.set(object, message);
 }
 
-var ReactVersion = '18.3.0-experimental-0cdfef19b-20231211';
+var ReactVersion = '18.3.0-experimental-f1039be4a-20240107';
 
 // ATTENTION
 // When adding new symbols to this file,
