@@ -59,8 +59,7 @@ Sitemap: https://acme.com/sitemap.xml
 
 ### Customizing specific user agents
 
-You can pass an array of user-agents to the `rules` property to customize.
-And make sure that `robots.js` or `robots.ts` file returns a [`Robots` object](#robots-object).
+You can customise how individual search engine bots crawl your site by passing an array of user agents to the `rules` property. For example:
 
 ```ts filename="app/robots.ts" switcher
 import type { MetadataRoute } from 'next'
