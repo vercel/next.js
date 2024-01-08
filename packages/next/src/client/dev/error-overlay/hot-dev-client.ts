@@ -67,6 +67,10 @@ export default function connect(mode: 'webpack' | 'turbopack') {
   register()
 
   addMessageListener((payload) => {
+    if (!('action' in payload)) {
+      return
+    }
+
     try {
       processMessage(payload)
     } catch (err: any) {
