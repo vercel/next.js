@@ -1,10 +1,8 @@
-// TODO(alexkirsz) Remove once the diagnostic is fixed.
-#![allow(rustc::untranslatable_diagnostic_trivial)]
-
 use std::path::{Path, PathBuf};
 
 use pathdiff::diff_paths;
-use swc_core::{
+use swc_core::quote;
+use turbopack_binding::swc::core::{
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
     ecma::{
         ast::{
@@ -16,7 +14,6 @@ use swc_core::{
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{Fold, FoldWith},
     },
-    quote,
 };
 
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the

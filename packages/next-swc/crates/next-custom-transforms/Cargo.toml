@@ -18,7 +18,7 @@ either = "1"
 fxhash = "0.2.1"
 hex = "0.4.3"
 once_cell = { workspace = true }
-pathdiff = "0.2.0"
+pathdiff = { workspace = true }
 regex = "1.5"
 rustc-hash = { workspace = true }
 serde = { workspace = true }
@@ -26,8 +26,6 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
-
-next-transform-dynamic = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",
@@ -38,6 +36,8 @@ turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
 ] }
+# To allow quote! macro works
+swc_core = { workspace = true, features = ["ecma_quote"]}
 react_remove_properties = "0.19.0"
 remove_console = "0.20.0"
 

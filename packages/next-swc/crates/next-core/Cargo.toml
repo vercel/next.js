@@ -60,7 +60,6 @@ turbopack-binding = { workspace = true, features = [
 ] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-next-transform-dynamic = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",

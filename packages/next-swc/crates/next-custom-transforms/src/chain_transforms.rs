@@ -2,7 +2,6 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use fxhash::FxHashSet;
-use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
@@ -20,7 +19,10 @@ use turbopack_binding::swc::{
 };
 
 use crate::transforms::{
-    cjs_finder::contains_cjs, fonts::next_font_loaders, react_server_components,
+    cjs_finder::contains_cjs,
+    dynamic::{next_dynamic, NextDynamicMode},
+    fonts::next_font_loaders,
+    react_server_components,
 };
 
 #[derive(Clone, Debug, Deserialize)]
