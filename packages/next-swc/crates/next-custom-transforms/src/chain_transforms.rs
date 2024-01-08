@@ -3,7 +3,6 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use either::Either;
 use fxhash::FxHashSet;
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
-use next_transform_font::next_font_loaders;
 use serde::Deserialize;
 use turbopack_binding::swc::{
     core::{
@@ -20,7 +19,9 @@ use turbopack_binding::swc::{
     custom_transform::modularize_imports,
 };
 
-use crate::transforms::{cjs_finder::contains_cjs, react_server_components};
+use crate::transforms::{
+    cjs_finder::contains_cjs, fonts::next_font_loaders, react_server_components,
+};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -94,7 +95,7 @@ pub struct TransformOptions {
     pub optimize_barrel_exports: Option<crate::transforms::optimize_barrel::Config>,
 
     #[serde(default)]
-    pub font_loaders: Option<next_transform_font::Config>,
+    pub font_loaders: Option<crate::transforms::fonts::Config>,
 
     #[serde(default)]
     pub server_actions: Option<crate::transforms::server_actions::Config>,

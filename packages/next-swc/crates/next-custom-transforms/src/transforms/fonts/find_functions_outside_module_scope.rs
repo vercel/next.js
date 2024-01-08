@@ -1,4 +1,4 @@
-use swc_core::{
+use turbopack_binding::swc::core::{
     common::errors::HANDLER,
     ecma::{
         ast::*,

@@ -20,7 +20,7 @@ hex = "0.4.3"
 once_cell = { workspace = true }
 pathdiff = "0.2.0"
 regex = "1.5"
-rustc-hash = "1"
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
@@ -28,7 +28,6 @@ tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
 
 next-transform-dynamic = { workspace = true }
-next-transform-font = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",

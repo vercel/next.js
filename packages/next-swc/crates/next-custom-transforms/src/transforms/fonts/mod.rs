@@ -1,9 +1,6 @@
-// TODO(alexkirsz) Remove once the diagnostic is fixed.
-#![allow(rustc::untranslatable_diagnostic_trivial)]
-
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
-use swc_core::{
+use turbopack_binding::swc::core::{
     common::{collections::AHashMap, BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem},
