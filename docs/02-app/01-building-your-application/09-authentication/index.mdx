@@ -5,9 +5,9 @@ description: Learn how to implement authentication in Next.js, covering best pra
 
 To implement authentication in Next.js, familiarize yourself with three foundational concepts:
 
-- **[Authentication](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21)** verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as username and password.
-- **[Session Management](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21)** tracks the user’s state (e.g. logged in) across multiple requests.
-- **[Authorization](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21)** decides what parts of the application the user is allowed to access.
+- **[Authentication](#authentication)** verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as username and password.
+- **[Session Management](#session-management)** tracks the user’s state (e.g. logged in) across multiple requests.
+- **[Authorization](#authorization)** decides what parts of the application the user is allowed to access.
 
 This page demonstrates how to use Next.js features to implement common authentication, authorization and session management patterns, so you can choose the best solutions based on your application’s needs.
 
@@ -28,7 +28,7 @@ Selecting an authentication strategy should align with your application's specif
 
 ### Implementing Authentication
 
-In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss involves a user entering their credentials into a form, which then initiates a server action for validation. Upon successful verification, the user is redirected to a designated page. Conversely, if authentication fails, an error message is displayed.
+In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss involves a user entering their credentials into a form, which then initiates a server action for validation. Upon successful verification, the user is redirected to a designated page. Alternatively, if authentication fails, an error message is displayed.
 
 First, introduce a login form. This form is the entry point for users to input their credentials.
 
@@ -48,9 +48,9 @@ const LoginPage = () => {
 export default LoginPage
 ```
 
-In this snippet, two input fields are designed to capture the user's email and password. Once the form is submitted, it triggers a server action as specified in the `action` attribute. In this case, the action points to the `authenticate` function, ensuring secure processing of the credentials on the server side.
+This section details the creation of two input fields for email and password. Upon form submission, a server-side action, defined in the `action` attribute, is initiated. Here, it links to the `authenticate` function, ensuring the secure handling of credentials.
 
-Next, we focus on defining the `authenticate` function in the server-side code. Located in the `lib` directory, this function plays a crucial role in interacting with an authentication provider's API to verify user credentials. Specifically, in the `actions.ts` file, we export an asynchronous `authenticate` function. Its primary responsibilities include verifying the user's credentials and initiating a session upon successful authentication.
+Next, we define the `authenticate` function in the server-side code. Located in the `lib` directory, within the `actions.ts` file, this function is vital for verifying user credentials through an authentication provider's API. As an exported asynchronous function, its core duties include credential verification and session initiation upon successful authentication.
 
 ```ts filename="/app/lib/actions.ts" switcher
 'use server'
@@ -61,7 +61,6 @@ import { redirect } from 'next/navigation'
 export async function authenticate(formData: FormData) {
   try {
     await signIn('credentials', formData)
-    redirect('/dashboard')
   } catch (error) {
     if (error instanceof AuthError) {
       switch (error.type) {
@@ -73,15 +72,17 @@ export async function authenticate(formData: FormData) {
     }
     throw error
   }
+  redirect('/dashboard')
 }
 ```
 
-In this code, the `signIn` method checks the credentials against stored user data. If successful, it redirects to the dashboard; otherwise, it handles exceptions. For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21).
-
+In this code, the `signIn` method checks the credentials against stored user data.
 After the authentication provider processes the credentials, there are two possible outcomes:
 
 - **Successful Authentication**: The user is redirected to the dashboard where user info can be fetched, indicating a successful login.
 - **Failed Authentication**: If the credentials are incorrect or an error occurs, the function returns an appropriate error message.
+
+For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#authentication-solutions).
 
 This approach ensures a secure and efficient authentication process, laying the foundation for a reliable and user-friendly web application.
 
@@ -91,7 +92,7 @@ Once a user is authenticated, you’ll need to ensure the user is allowed to vis
 
 ### Protecting Routes with Middleware
 
-Middleware in Next.js lets you control access to routes, enhancing security and user experience. It can protect sensitive areas like a user dashboard while allowing open access to pages like marketing content. We recommend applying middleware across all routes and specifying exclusions for public access.
+Middleware in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. It's recommended to apply middleware across all routes and specifying exclusions for public access.
 
 Here's how to implement middleware for authentication in Next.js:
 
@@ -133,7 +134,15 @@ For specific redirection needs, the `redirect` function can be used in server co
 ```js
 import { redirect } from 'next/navigation'
 
-redirect('/login')
+export default function Page() {
+  // Logic to determine if a redirect is needed
+  const accessDenied = true
+  if (accessDenied) {
+    redirect('/login')
+  }
+
+  // Define other routes and logic
+}
 ```
 
 This flexibility is key when handling redirections based on detailed authentication outcomes or other contextual factors. For example, `redirect('/login')` in a server action allows for precise redirection based on the user's role or specific conditions during the authentication process.
@@ -173,26 +182,23 @@ Here's an example of securing a route handler:
 export async function GET() {
   // User authentication and role verification
   const session = await getSession()
-  if (!session || !session.user || session.user.role !== 'admin') {
-    return new Response(null, { status: 401 }) // or 403 for forbidden access
+
+  // Check if the user is authenticated
+  if (!session) {
+    return new Response(null, { status: 401 }) // User is not authenticated
+  }
+
+  // Check if the user has the 'admin' role
+  if (session.user.role !== 'admin') {
+    return new Response(null, { status: 403 }) // User is authenticated but does not have the right permissions
   }
 
   // Data fetching for authorized users
-  const res = await fetch('https://data.mongodb-api.com/...', {
-    headers: {
-      'Content-Type': 'application/json',
-      'API-Key': process.env.DATA_API_KEY,
-    },
-  })
-  const data = await res.json()
-
-  return new Response(JSON.stringify({ data }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+  // {...}
 }
 ```
 
-In this example, the route handler first checks if the user is logged in before processing the request. Additional authorization checks, such as role verification, can also be added as needed. This approach ensures that route handlers are secure and accessible only to authenticated and authorized users.
+This example demonstrates a route handler with a two-tier security check for authentication and authorization. It first checks for an active session, and then verifies if the logged-in user is an 'admin'. This approach ensures secure access, limited to authenticated and authorized users, maintaining robust security for request processing.
 
 ### Authorization Using Server Components
 
@@ -208,11 +214,11 @@ In this example, the route handler first checks if the user is logged in before 
 
 Implementing authorization in server components involves verifying user roles or permissions and conditionally rendering content based on these verifications.
 
-1. Identify Authorization Requirements: Determine where restricted access is needed in your application.
-2. Fetch User Details: Retrieve user roles or permissions from sessions or authentication contexts.
-3. Role-Based Access Control: Use server components to check user roles or permissions against access requirements.
-4. Conditional Rendering: Render components based on the user's authorization level.
-5. Handle Unauthorized Access: Manage lack of permissions by displaying appropriate messages or redirecting.
+1. **Identify Authorization Requirements**: Determine restricted access areas in your application.
+2. **Fetch User Details**: Retrieve user roles or permissions from sessions or authentication contexts.
+3. **Role-Based Access Control**: Check user roles or permissions using server components.
+4. **Conditional Rendering**: Render components based on user authorization.
+5. **Handle Unauthorized Access**: Display messages or redirect for insufficient permissions.
 
 **Example:**
 
@@ -234,10 +240,10 @@ const Dashboard = async () => {
 
 This example uses the user's role to conditionally render different dashboard components, showing `AccessDenied` for unauthorized users. Ensure secure session management and robust error handling for a seamless and secure user experience.
 
-### **Best Practices**
+### Best Practices
 
 - **Secure Session Management**: Prioritize the security of session data to prevent unauthorized access and data breaches. Use encryption and secure storage practices.
-- **Dynamic Role Management**: Instead of hardcoding user roles, use a dynamic system that can easily adapt to changes in user permissions and roles.
+- **Dynamic Role Management**: Use a flexible system for user roles to easily adjust to changes in permissions and roles, avoiding hardcoded roles.
 - **Security-First Approach**: In all aspects of authorization logic, prioritize security to safeguard user data and maintain the integrity of your application. This includes thorough testing and considering potential security vulnerabilities.
 
 For more advanced scenarios and detailed guidance, refer to the [Next.js Data Fetching Documentation](https://nextjs.org/docs/app/building-your-application/data-fetching).
@@ -250,7 +256,7 @@ Effective session management is essential for maintaining a secure and continuou
 
 ### Cookie-Based Sessions
 
-Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data, not just a session identifier, is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency. However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Additionally, while individual cookies are limited in size (typically around 4KB), techniques like cookie-chunking can overcome this limitation by dividing large session data into multiple cookies.
+Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency. However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Additionally, while individual cookies are limited in size (typically around 4KB), techniques like cookie-chunking can overcome this limitation by dividing large session data into multiple cookies.
 
 Setting a cookie in a Next.js project might look something like this:
 
@@ -315,17 +321,17 @@ export async function getSession(req) {
 
 ### Selecting Session Management in Next.js
 
-Choosing between cookie-based and database sessions in Next.js depends on your application's specific needs. Cookie-based sessions, simpler to implement, are generally well-suited for smaller applications where ease of development and lower server overhead are priorities. However, they might be less secure than database sessions. On the other hand, database sessions, offering enhanced security and scalability, are better for larger applications that handle more sensitive data or require handling large volumes of user interactions.
+Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
 
-When integrating [authentication solutions](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21) like NextAuth.js, session management is often streamlined. These tools may use either cookies or database storage for session management, each with its unique approach. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
+With [authentication solutions](https://www.notion.so/Authentication-fec5315fd5de47988e45d0ee1996e3c5?pvs=21) such as NextAuth.js, session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
 
-Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Additionally, implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
+Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
 
-## Authentication **Solutions**
+## Authentication Solutions
 
 Here are authentication solutions compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
 
-- NextAuth.js
+- [NextAuth.js](https://next-auth.js.org/configuration/initialization#route-handlers-app)
 - [AuthO](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
