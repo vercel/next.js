@@ -36,8 +36,8 @@ export const projectSpecification: ProjectSpecification = {
   default: {
     js: {
       files: [
-        'pages/index.js',
-        'pages/_app.js',
+        'pages/index.jsx',
+        'pages/_app.jsx',
         'pages/api/hello.js',
         'jsconfig.json',
       ],
@@ -65,9 +65,9 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       files: [
         'jsconfig.json',
-        'pages/_app.js',
+        'pages/_app.jsx',
         'pages/api/hello.js',
-        'pages/index.js',
+        'pages/index.jsx',
         'postcss.config.js',
         'tailwind.config.js',
       ],
@@ -100,7 +100,7 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       deps: [],
       devDeps: [],
-      files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
+      files: ['app/page.jsx', 'app/layout.jsx', 'jsconfig.json'],
     },
     ts: {
       deps: [],
@@ -123,8 +123,8 @@ export const projectSpecification: ProjectSpecification = {
       deps: [],
       devDeps: ['autoprefixer', 'postcss', 'tailwindcss'],
       files: [
-        'app/layout.js',
-        'app/page.js',
+        'app/layout.jsx',
+        'app/page.jsx',
         'jsconfig.json',
         'postcss.config.js',
         'tailwind.config.js',
