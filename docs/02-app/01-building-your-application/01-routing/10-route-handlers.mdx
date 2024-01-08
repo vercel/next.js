@@ -604,6 +604,46 @@ export async function GET(request) {
 }
 ```
 
+### Webhooks
+
+You can use a Route Handler to receive webhooks from third-party services:
+
+```ts filename="app/api/route.ts" switcher
+export async function POST(request: Request) {
+  try {
+    const text = await request.text()
+    // Process the webhook payload
+  } catch (error) {
+    return new Response(`Webhook error: ${error.message}`, {
+      status: 400,
+    })
+  }
+
+  return new Response('Success!', {
+    status: 200,
+  })
+}
+```
+
+```js filename="app/api/route.js" switcher
+export async function POST(request) {
+  try {
+    const text = await request.text()
+    // Process the webhook payload
+  } catch (error) {
+    return new Response(`Webhook error: ${error.message}`, {
+      status: 400,
+    })
+  }
+
+  return new Response('Success!', {
+    status: 200,
+  })
+}
+```
+
+Notably, unlike API Routes with the Pages Router, you do not need to use `bodyParser` to use any additional configuration.
+
 ### Edge and Node.js Runtimes
 
 Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) Route Handlers.
