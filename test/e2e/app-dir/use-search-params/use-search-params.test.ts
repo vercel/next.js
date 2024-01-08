@@ -19,6 +19,7 @@ createNextDescribe(
     })
 
     it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
+      await next.clean()
       await next.renameFile('app/layout.js', 'app/layout-suspense.js')
       await next.renameFile('app/layout-no-suspense.js', 'app/layout.js')
 
