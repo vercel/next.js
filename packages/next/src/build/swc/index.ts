@@ -569,7 +569,7 @@ interface PartialUpdate extends BaseUpdate {
   type: 'partial'
   instruction: {
     type: 'ChunkListUpdate'
-    merged: EcmascriptMergedUpdate[]
+    merged: EcmascriptMergedUpdate[] | undefined
   }
 }
 

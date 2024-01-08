@@ -9,7 +9,8 @@ export function extractModulesFromTurbopackMessage(
   for (const update of updates) {
     if (
       update.type !== 'partial' ||
-      update.instruction.type !== 'ChunkListUpdate'
+      update.instruction.type !== 'ChunkListUpdate' ||
+      update.instruction.merged === undefined
     ) {
       continue
     }
