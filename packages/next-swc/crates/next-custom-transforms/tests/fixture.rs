@@ -9,7 +9,6 @@ use next_custom_transforms::{
     optimize_server_react::optimize_server_react,
     page_config::page_config_test,
     pure::pure_magic,
-    react_server_components::server_components,
     server_actions::{
         server_actions, {self},
     },
@@ -17,6 +16,7 @@ use next_custom_transforms::{
 };
 use next_transform_dynamic::{next_dynamic, NextDynamicMode};
 use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
+use next_transform_react_server_components::server_components;
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
@@ -311,8 +311,8 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options {
+                next_transform_react_server_components::Config::WithOptions(
+                    next_transform_react_server_components::Options {
                         is_react_server_layer: true,
                     },
                 ),
@@ -334,8 +334,8 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options {
+                next_transform_react_server_components::Config::WithOptions(
+                    next_transform_react_server_components::Options {
                         is_react_server_layer: true,
                     },
                 ),
@@ -357,8 +357,8 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options {
+                next_transform_react_server_components::Config::WithOptions(
+                    next_transform_react_server_components::Options {
                         is_react_server_layer: false,
                     },
                 ),
@@ -380,8 +380,8 @@ fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_swc::react_server_components::Config::WithOptions(
-                    next_swc::react_server_components::Options {
+                next_transform_react_server_components::Config::WithOptions(
+                    next_transform_react_server_components::Options {
                         is_react_server_layer: false,
                     },
                 ),
