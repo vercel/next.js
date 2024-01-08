@@ -655,7 +655,17 @@ function createHints() {
 }
 
 const supportsRequestStorage = typeof AsyncLocalStorage === 'function';
-const requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
+const requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null; // We use the Node version but get access to async_hooks from a global.
+
+typeof async_hooks === 'object' ? async_hooks.createHook : function () {
+  return {
+    enable() {},
+
+    disable() {}
+
+  };
+};
+typeof async_hooks === 'object' ? async_hooks.executionAsyncId : null;
 
 // ATTENTION
 // When adding new symbols to this file,

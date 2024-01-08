@@ -933,7 +933,9 @@ export default async function build(
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath),
+                validFileMatcher.isRootNotFound(absolutePath) ||
+                // Default slots are also valid pages, and need to be considered during path normalization
+                validFileMatcher.isDefaultSlot(absolutePath),
               ignorePartFilter: (part) => part.startsWith('_'),
             })
           )
@@ -1473,7 +1475,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompileMode || isGenerateMode)) {
+      if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
       }
 
