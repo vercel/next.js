@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { getNamedExports } from './next-metadata-image-loader'
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -143,16 +144,23 @@ export async function GET(_, ctx) {
 `
 }
 
-function getDynamicSiteMapRouteCode(resourcePath: string, page: string) {
+async function getDynamicSiteMapRouteCode(
+  resourcePath: string,
+  page: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
   let staticGenerationCode = ''
 
+  const exportNames = await getNamedExports(resourcePath, loaderContext)
+  const hasGenerateSiteMaps = exportNames.includes('generateSitemaps')
   if (
     process.env.NODE_ENV === 'production' &&
+    hasGenerateSiteMaps &&
     page.includes('[__metadata_id__]')
   ) {
     staticGenerationCode = `\
 export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
+  const sitemaps = generateSitemaps ? await generateSitemaps() : []
   const params = []
 
   for (const item of sitemaps) {
@@ -230,7 +238,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(resourcePath)
       } else if (fileBaseName === 'sitemap') {
-        code = getDynamicSiteMapRouteCode(resourcePath, page)
+        code = await getDynamicSiteMapRouteCode(resourcePath, page, this)
       } else {
         code = getDynamicImageRouteCode(resourcePath)
       }

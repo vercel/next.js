@@ -115,6 +115,17 @@ describe('normalizeCatchallRoutes', () => {
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
+    expect(appPaths).toMatchObject(initialAppPaths)
+  })
+
+  it('should not add the catch-all route to a path that has a @children slot', async () => {
+    const appPaths = {
+      '/': ['/@children/page', '/@slot/page'],
+      '/[...slug]': ['/[...slug]/page'],
+      '/nested': ['/nested/@children/page'],
+    }
+
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
     normalizeCatchAllRoutes(appPaths)
 
     expect(appPaths).toMatchObject(initialAppPaths)

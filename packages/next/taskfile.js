@@ -1299,14 +1299,6 @@ export async function ncc_devalue(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
-export async function ncc_find_cache_dir(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('find-cache-dir')))
-    .ncc({ packageName: 'find-cache-dir', externals })
-    .target('src/compiled/find-cache-dir')
-}
-// eslint-disable-next-line camelcase
 externals['find-up'] = 'next/dist/compiled/find-up'
 export async function ncc_find_up(task, opts) {
   await task
@@ -2282,7 +2274,6 @@ export async function ncc(task, opts) {
         'ncc_cross_spawn',
         'ncc_debug',
         'ncc_devalue',
-        'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
         'ncc_glob',
