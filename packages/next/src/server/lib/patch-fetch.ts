@@ -186,8 +186,8 @@ function traceErroredFetcher(
 ): typeof fetch {
   // Remove the error message and the trace line inside `patchFetch()`
   const modifiedTrace = tracingError.stack?.split('\n').slice(2).join('\n')
-  const tracedFetch: typeof fetch = function (...args) {
-    return fetchFn(...args).catch((err) => {
+  const tracedFetch: typeof fetch = async function (...args) {
+    return await fetchFn(...args).catch((err) => {
       // If it's failed with internal fetch call, and there's only node:internal traces
       if (
         err instanceof Error &&
@@ -224,6 +224,7 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
+  console.log('nextjs patch fetch')
   globalThis.fetch = async function (
     input: RequestInfo | URL,
     init: RequestInit | undefined
@@ -243,7 +244,8 @@ export function patchFetch({
      */
     const tracingError = new Error()
     const tracedOriginalFetch = (...args: Parameters<typeof fetch>) =>
-      traceErroredFetcher(originFetch, tracingError)(...args)
+      originFetch(...args)
+    // traceErroredFetcher(originFetch, tracingError)(...args)
 
     let url: URL | undefined
     try {
@@ -296,7 +298,9 @@ export function patchFetch({
           isInternal ||
           staticGenerationStore.isDraftMode
         ) {
-          return tracedOriginalFetch(input, init)
+          console.log('original fetch')
+          return await originFetch(input, init)
+          // return tracedOriginalFetch(input, init)
         }
 
         let revalidate: number | undefined | false = undefined
@@ -546,7 +550,7 @@ export function patchFetch({
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return tracedOriginalFetch(input, clonedInit).then(async (res) => {
+          return await originFetch(input, clonedInit).then(async (res) => {
             if (!isStale) {
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
@@ -602,13 +606,13 @@ export function patchFetch({
           })
         }
 
-        let handleUnlock = () => Promise.resolve()
+        // let handleUnlock = () => Promise.resolve()
         let cacheReasonOverride
 
         if (cacheKey && staticGenerationStore.incrementalCache) {
-          handleUnlock = await staticGenerationStore.incrementalCache.lock(
-            cacheKey
-          )
+          // handleUnlock = await staticGenerationStore.incrementalCache.lock(
+          //   cacheKey
+          // )
 
           const entry = staticGenerationStore.isOnDemandRevalidate
             ? null
@@ -622,13 +626,14 @@ export function patchFetch({
               })
 
           if (entry) {
-            await handleUnlock()
+            // await handleUnlock()
           } else {
             // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
             cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
           }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
+            console.log('cache promise')
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
@@ -728,7 +733,7 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
+        return await doOriginalFetch(false, cacheReasonOverride) //.finally(handleUnlock)
       }
     )
   }
