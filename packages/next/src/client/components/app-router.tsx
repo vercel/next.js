@@ -14,6 +14,7 @@ import {
   AppRouterContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
+  MissingSlotContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   CacheNode,
@@ -104,6 +105,7 @@ type AppRouterProps = Omit<
   buildId: string
   initialHead: ReactNode
   assetPrefix: string
+  missingSlots: Set<string>
 }
 
 function isExternalURL(url: URL) {
@@ -266,6 +268,7 @@ function Router({
   initialCanonicalUrl,
   initialSeedData,
   assetPrefix,
+  missingSlots,
 }: AppRouterProps) {
   const initialState = useMemo(
     () =>
@@ -598,7 +601,13 @@ function Router({
     if (typeof window !== 'undefined') {
       const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
         require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
-      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
+      content = (
+        <DevRootNotFoundBoundary>
+          <MissingSlotContext.Provider value={missingSlots}>
+            {content}
+          </MissingSlotContext.Provider>
+        </DevRootNotFoundBoundary>
+      )
     }
     const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
       require('./react-dev-overlay/hot-reloader-client').default

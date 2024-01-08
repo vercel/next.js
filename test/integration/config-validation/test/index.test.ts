@@ -54,5 +54,28 @@ describe('next.config.js validation', () => {
         }
       }
     )
+
+    it('should allow undefined environment variables', async () => {
+      const configContent = `
+        module.exports = {
+          env: {
+            FOO: 'bar',
+            QUX: undefined
+          }
+        }
+      `
+
+      await fs.writeFile(nextConfigPath, configContent)
+      const result = await nextBuild(path.join(__dirname, '../'), undefined, {
+        stderr: true,
+        stdout: true,
+      })
+
+      await fs.remove(nextConfigPath)
+
+      expect(result.stdout + result.stderr).not.toContain(
+        '"env.QUX" is missing'
+      )
+    })
   })
 })
