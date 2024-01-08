@@ -183,6 +183,70 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 > **Recommendation:** Use the `<Link>` component to navigate between routes unless you have a specific requirement for using `useRouter`.
 
+## Using the native History API
+
+Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
+
+This behavior is enabled with the [`windowHistorySupport`](/docs/app/api-reference/next-config-js/experimental/windowHistorySupport) config option. When the flag is enabled, `pushState` and `replaceState` calls are integrated into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+
+### `window.history.pushState`
+
+Use it to add a new entry to the browser's history stack. The user can navigate back to the previous state. For example, to sort a list of products:
+
+```tsx fileName="app/ui/sort-products.tsx"
+'use client'
+
+import { useCallback } from 'react'
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  const updateSorting = useCallback(
+    (sortOrder: string) => {
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('sort', sortOrder)
+      window.history.pushState(null, '', `?${params.toString()}`)
+    },
+    [searchParams]
+  )
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+### `window.history.replaceState`
+
+Use it to replace the current entry on the browser's history stack. The user is not able to navigate back to the previous state. For example, to switch the locale:
+
+```tsx fileName="app/ui/locale-switcher.tsx"
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export default function LocaleSwitcher() {
+  const pathname = usePathname()
+
+  const switchLocale = (locale: string) => {
+    // e.g. '/en/about' or '/fr/contact'
+    const newPath = `/${locale}${pathname}`
+    window.history.replaceState(null, '', newPath)
+  }
+
+  return (
+    <>
+      <button onClick={() => switchLocale('en')}>English</button>
+      <button onClick={() => switchLocale('fr')}>French</button>
+    </>
+  )
+}
+```
+
 ## How Routing and Navigation Works
 
 The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. And on the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
