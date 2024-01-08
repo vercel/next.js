@@ -99,7 +99,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
 var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
 function isValidElementType(type) {

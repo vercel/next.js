@@ -1476,7 +1476,7 @@ export default async function build(
       }
 
       // For app directory, we run type checking after build.
-      if (appDir && !(isCompileMode || isGenerateMode)) {
+      if (appDir && !isCompileMode && !isGenerateMode) {
         await startTypeChecking(typeCheckingOptions)
       }
 
