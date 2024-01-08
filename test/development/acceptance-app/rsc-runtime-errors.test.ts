@@ -77,7 +77,7 @@ createNextDescribe(
       )
     })
 
-    it('should show source code for bad identifier in jsx from server component', async () => {
+    it('should show source code for jsx errors from server component', async () => {
       await next.patchFile(
         'app/server/page.js',
         outdent`
