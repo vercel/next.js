@@ -80,7 +80,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
 var ContextRegistry = {};
 
@@ -401,7 +401,7 @@ function taintObjectReference(message, object) {
   TaintRegistryObjects.set(object, message);
 }
 
-var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
+var ReactVersion = '18.3.0-experimental-f1039be4a-20240107';
 
 // ATTENTION
 // When adding new symbols to this file,

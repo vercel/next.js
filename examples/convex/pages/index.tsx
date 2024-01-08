@@ -3,11 +3,10 @@ import { useMutation, useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
 
 export default function App() {
-  const messages = useQuery(api.messages.list) || []
-
-  const [newMessageText, setNewMessageText] = useState('')
+  const messages = useQuery(api.messages.list)
   const sendMessage = useMutation(api.messages.send)
 
+  const [newMessageText, setNewMessageText] = useState('')
   const [name, setName] = useState('user')
 
   useEffect(() => {
@@ -26,7 +25,7 @@ export default function App() {
         <span>{name}</span>
       </p>
       <ul>
-        {messages.map((message) => (
+        {messages?.map((message) => (
           <li key={message._id.toString()}>
             <span>{message.author}:</span>
             <span>{message.body}</span>

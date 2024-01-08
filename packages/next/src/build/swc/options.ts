@@ -1,3 +1,4 @@
+import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
 import type {
   NextConfig,
   ExperimentalConfig,
@@ -9,23 +10,39 @@ import type { ResolvedBaseUrl } from '../load-jsconfig'
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
 
+const nodeModulesPath = /[\\/]node_modules[\\/]/
+
 const regeneratorRuntimePath = require.resolve(
   'next/dist/compiled/regenerator-runtime'
 )
 
+function isTypeScriptFile(filename: string) {
+  return filename.endsWith('.ts') || filename.endsWith('.tsx')
+}
+
+function isCommonJSFile(filename: string) {
+  return filename.endsWith('.cjs')
+}
+
+// Ensure Next.js internals and .cjs files are output as CJS modules,
+// By default all modules are output as ESM or will treated as CJS if next-swc/auto-cjs plugin detects file is CJS.
+function shouldOutputCommonJs(filename: string) {
+  return isCommonJSFile(filename) || nextDistPath.test(filename)
+}
+
 export function getParserOptions({ filename, jsConfig, ...rest }: any) {
   const isTSFile = filename.endsWith('.ts')
-  const isTypeScript = isTSFile || filename.endsWith('.tsx')
+  const hasTsSyntax = isTypeScriptFile(filename)
   const enableDecorators = Boolean(
     jsConfig?.compilerOptions?.experimentalDecorators
   )
   return {
     ...rest,
-    syntax: isTypeScript ? 'typescript' : 'ecmascript',
+    syntax: hasTsSyntax ? 'typescript' : 'ecmascript',
     dynamicImport: true,
     decorators: enableDecorators,
     // Exclude regular TypeScript files from React transformation to prevent e.g. generic parameters and angle-bracket type assertion from being interpreted as JSX tags.
-    [isTypeScript ? 'tsx' : 'jsx']: !isTSFile,
+    [hasTsSyntax ? 'tsx' : 'jsx']: !isTSFile,
     importAssertions: true,
   }
 }
@@ -36,6 +53,7 @@ function getBaseSWCOptions({
   development,
   hasReactRefresh,
   globalWindow,
+  esm,
   modularizeImports,
   swcPlugins,
   compilerOptions,
@@ -43,13 +61,14 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   serverComponents,
-  isReactServerLayer,
+  bundleLayer,
 }: {
   filename: string
   jest?: boolean
   development: boolean
   hasReactRefresh: boolean
   globalWindow: boolean
+  esm: boolean
   modularizeImports?: NextConfig['modularizeImports']
   compilerOptions: NextConfig['compiler']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -57,8 +76,10 @@ function getBaseSWCOptions({
   jsConfig: any
   swcCacheDir?: string
   serverComponents?: boolean
-  isReactServerLayer?: boolean
+  bundleLayer?: WebpackLayerName
 }) {
+  const isReactServerLayer =
+    bundleLayer === WEBPACK_LAYERS.reactServerComponents
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -109,7 +130,6 @@ function getBaseSWCOptions({
               ? '@emotion/react'
               : 'react'),
           runtime: 'automatic',
-          pragma: 'React.createElement',
           pragmaFrag: 'React.Fragment',
           throwIfNamespace: true,
           development: !!development,
@@ -176,7 +196,7 @@ function getBaseSWCOptions({
     serverComponents:
       serverComponents && !jest
         ? {
-            isReactServerLayer: !!isReactServerLayer,
+            isReactServerLayer,
           }
         : undefined,
     serverActions:
@@ -185,9 +205,12 @@ function getBaseSWCOptions({
             // always enable server actions
             // TODO: remove this option
             enabled: true,
-            isReactServerLayer: !!isReactServerLayer,
+            isReactServerLayer,
           }
         : undefined,
+    // For app router we prefer to bundle ESM,
+    // On server side of pages router we prefer CJS.
+    preferEsm: esm,
   }
 }
 
@@ -273,14 +296,14 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    esm,
     // Don't apply server layer transformations for Jest
-    isReactServerLayer: false,
     // Disable server / client graph assertions for Jest
+    bundleLayer: undefined,
     serverComponents: false,
   })
 
-  const isNextDist = nextDistPath.test(filename)
-
+  const useCjsModules = shouldOutputCommonJs(filename)
   return {
     ...baseOptions,
     env: {
@@ -290,7 +313,7 @@ export function getJestSWCOptions({
       },
     },
     module: {
-      type: esm && !isNextDist ? 'es6' : 'commonjs',
+      type: esm && !useCjsModules ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
     disablePageConfig: true,
@@ -318,7 +341,8 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   serverComponents,
-  isReactServerLayer,
+  bundleLayer,
+  esm,
 }: {
   filename: string
   development: boolean
@@ -338,8 +362,9 @@ export function getLoaderSWCOptions({
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   relativeFilePathFromRoot: string
+  esm?: boolean
   serverComponents?: boolean
-  isReactServerLayer?: boolean
+  bundleLayer?: WebpackLayerName
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -352,8 +377,9 @@ export function getLoaderSWCOptions({
     jsConfig,
     // resolvedBaseUrl,
     swcCacheDir,
-    isReactServerLayer,
+    bundleLayer,
     serverComponents,
+    esm: !!esm,
   })
   baseOptions.fontLoaders = {
     fontLoaders: [
@@ -393,11 +419,21 @@ export function getLoaderSWCOptions({
     }
   }
 
-  const isNextDist = nextDistPath.test(filename)
+  const isNodeModules = nodeModulesPath.test(filename)
+  const isAppBrowserLayer = bundleLayer === WEBPACK_LAYERS.appPagesBrowser
+  const moduleResolutionConfig = shouldOutputCommonJs(filename)
+    ? {
+        module: {
+          type: 'commonjs',
+        },
+      }
+    : {}
 
+  let options: any
   if (isServer) {
-    return {
+    options = {
       ...baseOptions,
+      ...moduleResolutionConfig,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
       disablePageConfig: true,
@@ -405,6 +441,7 @@ export function getLoaderSWCOptions({
       isServerCompiler: isServer,
       pagesDir,
       appDir,
+      preferEsm: !!esm,
       isPageFile,
       env: {
         targets: {
@@ -414,16 +451,9 @@ export function getLoaderSWCOptions({
       },
     }
   } else {
-    const options = {
+    options = {
       ...baseOptions,
-      // Ensure Next.js internals are output as commonjs modules
-      ...(isNextDist
-        ? {
-            module: {
-              type: 'commonjs',
-            },
-          }
-        : {}),
+      ...moduleResolutionConfig,
       disableNextSsg: !isPageFile,
       isDevelopment: development,
       isServerCompiler: isServer,
@@ -442,6 +472,17 @@ export function getLoaderSWCOptions({
       // Matches default @babel/preset-env behavior
       options.jsc.target = 'es5'
     }
-    return options
   }
+
+  // For node_modules in app browser layer, we don't need to do any server side transformation.
+  // Only keep server actions transform to discover server actions from client components.
+  if (isAppBrowserLayer && isNodeModules) {
+    options.disableNextSsg = true
+    options.disablePageConfig = true
+    options.isPageFile = false
+    options.optimizeServerReact = undefined
+    options.cjsRequireOptimizer = undefined
+  }
+
+  return options
 }

@@ -1,53 +1,36 @@
-html {
-  font-family: sans-serif;
+html,
+body {
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
 }
 
-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+body {
+  padding: 0.5rem;
+}
+
+* {
+  box-sizing: border-box;
 }
 
 main {
-  display: flex;
-  margin: 25px 0;
+  display: grid;
+  align-items: flex-start;
+  grid-template-columns: minmax(min-content, 200px) 1fr;
+  gap: 0.5rem;
 }
 
-.menu {
-  flex: 2;
-}
-
-footer {
-  text-align: center;
-}
-
+.ais-Hits,
 .ais-Pagination {
-  margin-bottom: 25px;
+  margin-top: 1rem;
 }
 
-.results {
-  flex: 9;
-}
-
-.hit {
+.ais-Hits-item {
   display: flex;
-  align-items: center;
+  justify-content: space-between;
 }
 
-.hit-actions {
-  display: flex;
-}
-
-.hit-content {
-  padding: 0px 10px;
-}
-
-.hit-picture img {
-  width: 80px;
-  height: 80px;
-}
-
-.hit-type {
+.Hit-price {
   color: #888888;
-  font-size: 13px;
 }

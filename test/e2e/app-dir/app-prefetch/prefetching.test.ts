@@ -302,24 +302,6 @@ createNextDescribe(
     })
 
     describe('dynamic rendering', () => {
-      async function hasStaticPrefetch(filePath: string): Promise<boolean> {
-        try {
-          await next.readFile(`.next/server/app${filePath}`)
-          return true
-        } catch {
-          return false
-        }
-      }
-      it('should not generate a static prefetch for layouts that use cookies/headers', async () => {
-        expect(
-          await hasStaticPrefetch('/prefetch-dynamic-usage/foo.prefetch.rsc')
-        ).toBe(false)
-
-        expect(
-          await hasStaticPrefetch('/prefetch-dynamic-usage/bar.prefetch.rsc')
-        ).toBe(false)
-      })
-
       describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
         it('should not re-render layout when navigating between sub-pages', async () => {
           const logStartIndex = next.cliOutput.length

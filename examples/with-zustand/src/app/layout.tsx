@@ -1,4 +1,4 @@
-import StoreProvider from '@/lib/StoreProvider'
+import StoreProvider from '@/lib/storeProvider'
 
 export default function RootLayout({
   children,
@@ -8,7 +8,9 @@ export default function RootLayout({
   return (
     <html>
       <body>
-        <StoreProvider>{children}</StoreProvider>
+        <StoreProvider lastUpdate={new Date().getTime()}>
+          {children}
+        </StoreProvider>
       </body>
     </html>
   )

@@ -6,8 +6,6 @@ export const PRERENDER_REVALIDATE_HEADER = 'x-prerender-revalidate'
 export const PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER =
   'x-prerender-revalidate-if-generated'
 
-export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed'
-
 export const RSC_PREFETCH_SUFFIX = '.prefetch.rsc'
 export const RSC_SUFFIX = '.rsc'
 export const NEXT_DATA_SUFFIX = '.json'
@@ -173,6 +171,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appRouteHandler,
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
+      WEBPACK_LAYERS_NAMES.shared,
     ],
   },
 }

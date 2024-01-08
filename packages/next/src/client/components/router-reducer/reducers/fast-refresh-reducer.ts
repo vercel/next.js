@@ -1,46 +1,42 @@
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ReadonlyReducerState,
   ReducerState,
   FastRefreshAction,
+  Mutable,
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
   state: ReadonlyReducerState,
   action: FastRefreshAction
 ): ReducerState {
-  const { mutable, origin } = action
+  const { origin } = action
+  const mutable: Mutable = {}
   const href = state.canonicalUrl
-
-  const isForCurrentTree =
-    JSON.stringify(mutable.previousTree) === JSON.stringify(state.tree)
-
-  if (isForCurrentTree) {
-    return handleMutable(state, mutable)
-  }
 
   mutable.preserveCustomHistoryState = false
 
   const cache: CacheNode = createEmptyCacheNode()
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.data = fetchServerResponse(
+  cache.lazyData = fetchServerResponse(
     new URL(href, origin),
     [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     state.nextUrl,
     state.buildId
   )
 
-  return cache.data.then(
+  return cache.lazyData.then(
     ([flightData, canonicalUrlOverride]) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
@@ -52,8 +48,8 @@ function fastRefreshReducerImpl(
         )
       }
 
-      // Remove cache.data as it has been resolved at this point.
-      cache.data = null
+      // Remove cache.lazyData as it has been resolved at this point.
+      cache.lazyData = null
 
       let currentTree = state.tree
       let currentCache = state.cache
@@ -66,9 +62,9 @@ function fastRefreshReducerImpl(
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and subTreeData for the root.
+        // Given the path can only have two items the items are only the router state and rsc for the root.
         const [treePatch] = flightDataPath
-        const newTree = applyRouterStatePatchToTree(
+        const newTree = applyRouterStatePatchToTreeSkipDefault(
           // TODO-APP: remove ''
           [''],
           currentTree,
@@ -76,7 +72,7 @@ function fastRefreshReducerImpl(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
@@ -102,7 +98,6 @@ function fastRefreshReducerImpl(
           currentCache = cache
         }
 
-        mutable.previousTree = currentTree
         mutable.patchedTree = newTree
         mutable.canonicalUrl = href
 
