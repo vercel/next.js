@@ -76,5 +76,26 @@ createNextDescribe(
         `Error: Invariant: cookies() expects to have requestAsyncStorage, none available.`
       )
     })
+
+    it('should show source code for jsx errors from server component', async () => {
+      await next.patchFile(
+        'app/server/page.js',
+        outdent`
+        export default function Page() {
+          return <div>{alert('warn')}</div>
+        }
+      `
+      )
+
+      const browser = await next.browser('/server')
+
+      await check(
+        async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+        /success/
+      )
+      const errorDescription = await getRedboxDescription(browser)
+
+      expect(errorDescription).toContain(`Error: alert is not defined`)
+    })
   }
 )
