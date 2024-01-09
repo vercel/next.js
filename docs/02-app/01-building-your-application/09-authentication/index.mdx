@@ -92,7 +92,7 @@ Once a user is authenticated, you’ll need to ensure the user is allowed to vis
 
 ### Protecting Routes with Middleware
 
-Middleware in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. It's recommended to apply Middleware across all routes and specifying exclusions for public access.
+Middleware in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. By default, middleware will be applied to all pages. If you anticipate that only certain routes will require authentication or specific processing, you can use the matcher property to specify exactly which pages the middleware should run on.
 
 Here's how to implement middleware for authentication in Next.js:
 
@@ -313,7 +313,7 @@ import { cookies } from 'next/headers'
 import db from 'path/to/databaseModule'
 
 export async function getSession() {
-  const sessionId = cookies().get("sessionId")?.value // Assuming session ID is stored in a cookie
+  const sessionId = cookies().get('sessionId')?.value // Assuming session ID is stored in a cookie
   return sessionId ? await db.findSession(sessionId) : null
 }
 ```
