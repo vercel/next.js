@@ -1281,13 +1281,13 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
+      "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline"
     ],
     "failed": [
       "ReactRefreshLogBox turbo css syntax errors",
-      "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
     "pending": [
@@ -2524,6 +2524,7 @@
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
       "app dir - external dependency react in external esm packages should use the same react in pages",
       "app dir - external dependency react in external esm packages should use the same react in server app",
+      "app dir - external dependency server actions should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should correctly collect global css imports and mark them as side effects",
       "app dir - external dependency should emit cjs helpers for external cjs modules when compiled",
       "app dir - external dependency should export client module references in esm",
@@ -2540,7 +2541,6 @@
     ],
     "failed": [
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
-      "app dir - external dependency server actions should not prefer to resolve esm over cjs for bundling optout packages",
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
       "app dir - external dependency should have proper tree-shaking for known modules in CJS"
     ],
@@ -3729,7 +3729,6 @@
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
-      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3750,7 +3749,9 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app dir - navigation query string useParams identity between renders should be stable in pages"
+    ],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-config/index.test.ts": {
@@ -5625,11 +5626,11 @@
   },
   "test/e2e/multi-zone/multi-zone.test.ts": {
     "passed": [
-      "multi-zone should correctly respond for /first",
-      "multi-zone should correctly respond for /first/blog/post-1",
-      "multi-zone should correctly respond for /second",
-      "multi-zone should correctly respond for /second/another/post-1",
-      "multi-zone should correctly respond for /second/blog/post-1",
+      "multi-zone should correctly respond for /",
+      "multi-zone should correctly respond for /blog/post-1",
+      "multi-zone should correctly respond for /guest",
+      "multi-zone should correctly respond for /guest/another/post-1",
+      "multi-zone should correctly respond for /guest/blog/post-1",
       "multi-zone should support HMR in both apps"
     ],
     "failed": [],
