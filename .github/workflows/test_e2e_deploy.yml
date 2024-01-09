@@ -9,8 +9,8 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
 
     env:
       VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
