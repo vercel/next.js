@@ -285,7 +285,7 @@ export function unstable_cache<T extends Callback>(
           isUnstableCacheCallback: true,
           urlPathname: '/',
           isStaticGeneration: false,
-          postpone: undefined,
+          prerenderState: null,
         },
         cb,
         ...args

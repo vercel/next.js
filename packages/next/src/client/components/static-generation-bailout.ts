@@ -5,7 +5,7 @@ import { staticGenerationAsyncStorage } from './static-generation-async-storage.
 
 const NEXT_STATIC_GEN_BAILOUT = 'NEXT_STATIC_GEN_BAILOUT'
 
-class StaticGenBailoutError extends Error {
+export class StaticGenBailoutError extends Error {
   public readonly code = NEXT_STATIC_GEN_BAILOUT
 }
 
@@ -57,9 +57,6 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     // in case it's uncaught, this link provides some additional context as to why
     link: 'https://nextjs.org/docs/messages/dynamic-server-error',
   })
-
-  // If postpone is available, we should postpone the render.
-  staticGenerationStore.postpone?.(reason)
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.
