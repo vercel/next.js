@@ -21,15 +21,21 @@ import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
+import {
+  interpolateDynamicPath,
+  normalizeVercelUrl,
+  normalizeDynamicRouteParams,
+} from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
+import type { PAGE_TYPES } from '../lib/page-types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
     pathname: string
-    pagesType: 'app' | 'pages' | 'root'
+    pagesType: PAGE_TYPES
     loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
@@ -49,7 +55,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
@@ -74,6 +80,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
+      // PPR is not supported in the edge runtime.
+      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -156,7 +164,25 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
       if (isDynamicRoute(pathname)) {
         const routeRegex = getNamedRouteRegex(pathname, false)
-        pathname = interpolateDynamicPath(pathname, query, routeRegex)
+        const dynamicRouteMatcher = getRouteMatcher(routeRegex)
+        const defaultRouteMatches = dynamicRouteMatcher(
+          pathname
+        ) as NextParsedUrlQuery
+        const paramsResult = normalizeDynamicRouteParams(
+          query,
+          false,
+          routeRegex,
+          defaultRouteMatches
+        )
+        const normalizedParams = paramsResult.hasValidParams
+          ? paramsResult.params
+          : query
+
+        pathname = interpolateDynamicPath(
+          pathname,
+          normalizedParams,
+          routeRegex
+        )
         normalizeVercelUrl(
           req,
           true,
@@ -278,11 +304,13 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     page,
     query,
     params,
+    url: _url,
   }: {
     page: string
     query: NextParsedUrlQuery
     params: Params | null
     isAppPath: boolean
+    url?: string
   }) {
     const result = await this.serverOptions.webServerConfig.loadComponent(page)
     if (!result) return null
@@ -340,7 +368,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // The web server does not support web sockets.
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async getFallbackErrorComponents(
+    _url?: string
+  ): Promise<LoadComponentsReturnType | null> {
     // The web server does not need to handle fallback errors in production.
     return null
   }

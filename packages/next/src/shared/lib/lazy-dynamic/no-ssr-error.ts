@@ -7,3 +7,7 @@ export function throwWithNoSSR() {
   ;(error as any).digest = NEXT_DYNAMIC_NO_SSR_CODE
   throw error
 }
+
+export function isBailoutCSRError(err: any) {
+  return err?.digest === NEXT_DYNAMIC_NO_SSR_CODE
+}

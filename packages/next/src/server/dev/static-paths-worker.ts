@@ -8,12 +8,10 @@ import {
   buildStaticPaths,
   collectGenerateParams,
 } from '../../build/utils'
-import type { GenerateParams } from '../../build/utils'
+import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
 type RuntimeConfig = {
@@ -85,7 +83,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
+    const generateParams: GenerateParamsResults =
       routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
@@ -108,12 +106,11 @@ export async function loadStaticPaths({
       distDir,
       requestHeaders,
       incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ppr,
+      ComponentMod: components.ComponentMod,
     })
   }
 

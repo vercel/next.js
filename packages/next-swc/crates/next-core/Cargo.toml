@@ -8,6 +8,9 @@ edition = "2021"
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }
@@ -53,12 +56,14 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_static",
   "__turbopack_image",
   "__turbopack_node",
+  "__turbopack_trace_utils",
 ] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 next-transform-strip-page-exports = { workspace = true }
 next-transform-font = { workspace = true }
 next-transform-dynamic = { workspace = true }
+next-transform-react-server-components = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",

@@ -7,6 +7,9 @@ publish = false
 [features]
 plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 
+[lints]
+workspace = true
+
 [dependencies]
 chrono = "0.4"
 convert_case = "0.5.0"
@@ -23,8 +26,10 @@ serde_json = "1"
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 
+next-visitor-cjs-finder = { workspace = true }
 next-transform-dynamic = { workspace = true }
 next-transform-font = { workspace = true }
+next-transform-react-server-components = { workspace = true }
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",
@@ -35,8 +40,8 @@ turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
 ] }
-react_remove_properties = "0.5.0"
-remove_console = "0.6.0"
+react_remove_properties = "0.19.0"
+remove_console = "0.20.0"
 
 [dev-dependencies]
 turbopack-binding = { workspace = true, features = [

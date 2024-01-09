@@ -32,6 +32,7 @@ export interface CacheHandlerContext {
   fetchCacheKeyPrefix?: string
   prerenderManifest?: PrerenderManifest
   revalidatedTags: string[]
+  experimental: { ppr: boolean }
   _appDir: boolean
   _pagesDir: boolean
   _requestHeaders: IncrementalCache['requestHeaders']
@@ -64,6 +65,7 @@ export class CacheHandler {
 export class IncrementalCache implements IncrementalCacheType {
   dev?: boolean
   cacheHandler?: CacheHandler
+  hasCustomCacheHandler: boolean
   prerenderManifest: PrerenderManifest
   requestHeaders: Record<string, undefined | string | string[]>
   requestProtocol?: 'http' | 'https'
@@ -91,6 +93,7 @@ export class IncrementalCache implements IncrementalCacheType {
     fetchCacheKeyPrefix,
     CurCacheHandler,
     allowedRevalidateHeaderKeys,
+    experimental,
   }: {
     fs?: CacheFs
     dev: boolean
@@ -107,8 +110,10 @@ export class IncrementalCache implements IncrementalCacheType {
     getPrerenderManifest: () => PrerenderManifest
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
+    experimental: { ppr: boolean }
   }) {
     const debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
+    this.hasCustomCacheHandler = Boolean(CurCacheHandler)
     if (!CurCacheHandler) {
       if (fs && serverDistDir) {
         if (debug) {
@@ -175,6 +180,7 @@ export class IncrementalCache implements IncrementalCacheType {
         _appDir: !!appDir,
         _requestHeaders: requestHeaders,
         fetchCacheKeyPrefix,
+        experimental,
       })
     }
   }
@@ -456,9 +462,7 @@ export class IncrementalCache implements IncrementalCacheType {
       }
 
       revalidate = revalidate || cacheData.value.revalidate
-      const age = Math.round(
-        (Date.now() - (cacheData.lastModified || 0)) / 1000
-      )
+      const age = (Date.now() - (cacheData.lastModified || 0)) / 1000
 
       const isStale = age > revalidate
       const data = cacheData.value.data
@@ -553,8 +557,14 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     if (this.dev && !ctx.fetchCache) return
-    // fetchCache has upper limit of 2MB per-entry currently
-    if (ctx.fetchCache && JSON.stringify(data).length > 2 * 1024 * 1024) {
+    // FetchCache has upper limit of 2MB per-entry currently
+    if (
+      ctx.fetchCache &&
+      // we don't show this error/warning when a custom cache handler is being used
+      // as it might not have this limit
+      !this.hasCustomCacheHandler &&
+      JSON.stringify(data).length > 2 * 1024 * 1024
+    ) {
       if (this.dev) {
         throw new Error(`fetch for over 2MB of data can not be cached`)
       }
@@ -569,12 +579,15 @@ export class IncrementalCache implements IncrementalCacheType {
       // revalidateAfter values so we update this on set
       if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
         this.prerenderManifest.routes[pathname] = {
+          experimentalPPR: undefined,
           dataRoute: path.posix.join(
             '/_next/data',
             `${normalizePagePath(pathname)}.json`
           ),
           srcRoute: null, // FIXME: provide actual source route, however, when dynamically appending it doesn't really matter
           initialRevalidateSeconds: ctx.revalidate,
+          // Pages routes do not have a prefetch data route.
+          prefetchDataRoute: undefined,
         }
       }
       await this.cacheHandler?.set(pathname, data, ctx)

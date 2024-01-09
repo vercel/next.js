@@ -55,6 +55,17 @@ createNextDescribe(
         }, 'success')
       })
 
+      it('should not reset shallow url updates on prefetch', async () => {
+        const browser = await next.browser('/search-params/shallow')
+        const button = await browser.elementByCss('button')
+        await button.click()
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+        const link = await browser.elementByCss('a')
+        await link.hover()
+        // Hovering a prefetch link should keep the URL intact
+        expect(await browser.url()).toMatch(/\?foo=bar$/)
+      })
+
       describe('useParams identity between renders', () => {
         async function runTests(page: string) {
           const browser = await next.browser(page)
@@ -719,6 +730,35 @@ createNextDescribe(
             ).toBe(`${subcategory}`)
           }
         }
+      })
+    })
+
+    describe('scroll restoration', () => {
+      it('should restore original scroll position when navigating back', async () => {
+        const browser = await next.browser('/scroll-restoration', {
+          // throttling the CPU to rule out flakiness based on how quickly the page loads
+          cpuThrottleRate: 6,
+        })
+        const body = await browser.elementByCss('body')
+        expect(await body.text()).toContain('Item 50')
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        await browser.elementById('load-more').click()
+        expect(await body.text()).toContain('Item 200')
+
+        // scroll to the bottom of the page
+        await browser.eval('window.scrollTo(0, document.body.scrollHeight)')
+
+        // grab the current position
+        const scrollPosition = await browser.eval('window.pageYOffset')
+
+        await browser.elementByCss("[href='/scroll-restoration/other']").click()
+        await browser.elementById('back-button').click()
+
+        const newScrollPosition = await browser.eval('window.pageYOffset')
+
+        // confirm that the scroll position was restored
+        await check(() => scrollPosition === newScrollPosition, true)
       })
     })
   }

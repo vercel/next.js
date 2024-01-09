@@ -50,6 +50,7 @@ interface Dispatcher {
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
+let startLatency: number | null = null
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -57,9 +58,29 @@ function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   }
 }
 
-function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+function onFastRefresh(
+  dispatcher: Dispatcher,
+  sendMessage: (message: string) => void,
+  updatedModules: ReadonlyArray<string>
+) {
+  let endLatency = Date.now()
   dispatcher.onBuildOk()
-  if (hasUpdates) {
+
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
+
+  if (updatedModules.length > 0) {
     dispatcher.onRefresh()
   }
 }
@@ -122,7 +143,7 @@ function performFullReload(err: any, sendMessage: any) {
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
   onBeforeUpdate: (hasUpdates: boolean) => void,
-  onHotUpdateSuccess: (hasUpdates: boolean) => void,
+  onHotUpdateSuccess: (updatedModules: string[]) => void,
   sendMessage: any,
   dispatcher: Dispatcher
 ) {
@@ -131,7 +152,7 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any[] | null) {
+  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -154,7 +175,7 @@ function tryApplyUpdates(
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess(hasUpdates)
+      onHotUpdateSuccess(updatedModules)
     }
 
     if (isUpdateAvailable()) {
@@ -207,7 +228,7 @@ function tryApplyUpdates(
 
 function processMessage(
   obj: HMR_ACTION_TYPES,
-  sendMessage: any,
+  sendMessage: (message: string) => void,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
@@ -240,18 +261,18 @@ function processMessage(
     }
   }
 
-  function handleHotUpdate() {
+  function handleHotUpdate(updatedModules?: ReadonlyArray<string>) {
     if (process.env.TURBOPACK) {
-      onFastRefresh(dispatcher, true)
+      onFastRefresh(dispatcher, sendMessage, updatedModules || [])
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
           onBeforeFastRefresh(dispatcher, hasUpdates)
         },
-        function onSuccessfulHotUpdate(hasUpdates: any) {
+        function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
           // Otherwise it would flicker right before the reload.
-          onFastRefresh(dispatcher, hasUpdates)
+          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
         },
         sendMessage,
         dispatcher
@@ -261,6 +282,7 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -326,7 +348,7 @@ function processMessage(
 
         // Attempt to apply hot updates or reload.
         if (isHotUpdate) {
-          handleHotUpdate()
+          handleHotUpdate(obj.updatedModules)
         }
         return
       }
@@ -345,7 +367,7 @@ function processMessage(
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
-        handleHotUpdate()
+        handleHotUpdate(obj.updatedModules)
       }
       return
     }
@@ -414,7 +436,6 @@ function processMessage(
       return
     }
     default: {
-      throw new Error('Unexpected action ' + JSON.stringify(obj))
     }
   }
 }
