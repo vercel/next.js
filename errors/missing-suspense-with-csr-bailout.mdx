@@ -1,0 +1,15 @@
+---
+title: Missing Suspense with CSR Bailout
+---
+
+#### Why This Error Occurred
+
+Certain methods like `useSearchParams()` opt Next.js into client-side rendering. Without a suspense boundary, this will opt the entire page into client-side rendering, which is likely not intended.
+
+#### Possible Ways to Fix It
+
+Make sure that the method is wrapped in a suspense boundary. This way Next.js will only opt the component into client-side rendering up to the suspense boundary.
+
+### Useful Links
+
+- [`useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)
