@@ -261,7 +261,7 @@ Setting a cookie in a Next.js project might look something like this:
 **Setting a cookie on the server:**
 
 ```jsx
-import { setCookie } from 'next/cookies'
+import { cookies } from 'next/headers'
 
 export function handleLogin(req, res, sessionData) {
   const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
