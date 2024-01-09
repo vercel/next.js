@@ -1,22 +1,26 @@
-use std::{env::current_dir, path::PathBuf};
+use std::{
+    env::current_dir,
+    path::{Path, PathBuf},
+};
 
-use next_custom_transforms::{
+use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
+    dynamic::{next_dynamic, NextDynamicMode},
+    fonts::{next_font_loaders, Config as FontLoaderConfig},
     named_import_transform::named_import_transform,
     next_ssg::next_ssg,
     optimize_barrel::optimize_barrel,
-    optimize_server_react::optimize_server_react,
+    optimize_server_react::{self, optimize_server_react},
     page_config::page_config_test,
     pure::pure_magic,
+    react_server_components::server_components,
     server_actions::{
         server_actions, {self},
     },
     shake_exports::{shake_exports, Config as ShakeExportsConfig},
+    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
-use next_transform_dynamic::{next_dynamic, NextDynamicMode};
-use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use next_transform_react_server_components::server_components;
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
@@ -305,17 +309,16 @@ fn shake_exports_fixture_default(input: PathBuf) {
 
 #[fixture("tests/fixture/react-server-components/server-graph/**/input.js")]
 fn react_server_components_server_graph_fixture(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: true,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: true,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -328,17 +331,16 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/react-server-components/server-graph-no-checks/**/input.js")]
 fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: true,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: true,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -351,17 +353,16 @@ fn react_server_components_no_checks_server_graph_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/react-server-components/client-graph/**/input.js")]
 fn react_server_components_client_graph_fixture(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: false,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: false,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -374,17 +375,16 @@ fn react_server_components_client_graph_fixture(input: PathBuf) {
 
 #[fixture("tests/fixture/react-server-components/client-graph-no-checks/**/input.js")]
 fn react_server_components_no_checks_client_graph_fixture(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: false,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: false,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -586,7 +586,7 @@ fn optimize_server_react_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                optimize_server_react(next_swc::optimize_server_react::Config {
+                optimize_server_react(optimize_server_react::Config {
                     optimize_use_state: true
                 })
             )
@@ -624,16 +624,50 @@ fn pure(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixtures/strip-page-exports/**/output-data.js")]
+fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
+    test_fixture(
+        syntax(),
+        &|tr| {
+            let top_level_mark = Mark::fresh(Mark::root());
+            let unresolved_mark = Mark::fresh(Mark::root());
+            let jsx = jsx::<SingleThreadedComments>(
+                tr.cm.clone(),
+                None,
+                swc_core::ecma::transforms::react::Options {
+                    next: false.into(),
+                    runtime: None,
+                    import_source: Some("".into()),
+                    pragma: Some("__jsx".into()),
+                    pragma_frag: Some("__jsxFrag".into()),
+                    throw_if_namespace: false.into(),
+                    development: false.into(),
+                    ..Default::default()
+                },
+                top_level_mark,
+                unresolved_mark,
+            );
+            chain!(
+                swc_core::ecma::transforms::base::resolver(unresolved_mark, top_level_mark, true),
+                next_transform_strip_page_exports(mode, Default::default()),
+                jsx
+            )
+        },
+        input,
+        output,
+        Default::default(),
+    );
+}
+
+#[fixture("tests/fixture/strip-page-exports/**/output-data.js")]
 fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_test(&input, &output, ExportFilter::StripDefaultExport);
+    run_stip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
 }
 
-#[fixture("tests/fixtures/strip-page-exports/**/output-default.js")]
+#[fixture("tests/fixture/strip-page-exports/**/output-default.js")]
 fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_test(&input, &output, ExportFilter::StripDataExports);
+    run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
 }

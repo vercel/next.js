@@ -1,15 +1,16 @@
 use std::path::PathBuf;
 
-use next_custom_transforms::{
+use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
+    dynamic::{next_dynamic, NextDynamicMode},
+    fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
+    react_server_components::server_components,
     server_actions::{
         server_actions, {self},
     },
+    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
-use next_transform_dynamic::{next_dynamic, NextDynamicMode};
-use next_transform_font::{next_font_loaders, Config as FontLoaderConfig};
-use next_transform_react_server_components::server_components;
 use turbopack_binding::swc::{
     core::{
         common::{chain, FileName, Mark},
@@ -88,17 +89,16 @@ fn next_ssg_errors(input: PathBuf) {
 
 #[fixture("tests/errors/react-server-components/server-graph/**/input.js")]
 fn react_server_components_server_graph_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/layout.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: true,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: true,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -114,17 +114,16 @@ fn react_server_components_server_graph_errors(input: PathBuf) {
 
 #[fixture("tests/errors/react-server-components/client-graph/**/input.js")]
 fn react_server_components_client_graph_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
         &|tr| {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/page.js")),
-                next_transform_react_server_components::Config::WithOptions(
-                    next_transform_react_server_components::Options {
-                        is_react_server_layer: false,
-                    },
-                ),
+                Config::WithOptions(Options {
+                    is_react_server_layer: false,
+                }),
                 tr.comments.as_ref().clone(),
                 None,
             )
@@ -160,6 +159,7 @@ fn next_font_loaders_errors(input: PathBuf) {
 
 #[fixture("tests/errors/server-actions/server-graph/**/input.js")]
 fn react_server_actions_server_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -168,11 +168,9 @@ fn react_server_actions_server_errors(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")),
-                    next_transform_react_server_components::Config::WithOptions(
-                        next_transform_react_server_components::Options {
-                            is_react_server_layer: true
-                        },
-                    ),
+                    Config::WithOptions(Options {
+                        is_react_server_layer: true
+                    },),
                     tr.comments.as_ref().clone(),
                     None,
                 ),
@@ -197,6 +195,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
 
 #[fixture("tests/errors/server-actions/client-graph/**/input.js")]
 fn react_server_actions_client_errors(input: PathBuf) {
+    use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -205,11 +204,9 @@ fn react_server_actions_client_errors(input: PathBuf) {
                 resolver(Mark::new(), Mark::new(), false),
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")),
-                    next_transform_react_server_components::Config::WithOptions(
-                        next_transform_react_server_components::Options {
-                            is_react_server_layer: false
-                        },
-                    ),
+                    Config::WithOptions(Options {
+                        is_react_server_layer: false
+                    },),
                     tr.comments.as_ref().clone(),
                     None,
                 ),

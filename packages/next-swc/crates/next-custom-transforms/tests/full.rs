@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use next_custom_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
 use turbopack_binding::swc::{
     core::{
