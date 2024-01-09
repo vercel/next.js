@@ -748,7 +748,7 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
     }
     await waitFor(1000)
   }
-  return !expected
+  return false
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
