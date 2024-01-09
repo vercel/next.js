@@ -1,5 +1,4 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-// import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
   | {

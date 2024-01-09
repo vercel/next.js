@@ -1185,7 +1185,9 @@
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
       "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed"
     ],
-    "failed": [],
+    "failed": [
+      "Error overlay - RSC runtime errors should show the userland code error trace when fetch failed error occurred"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
