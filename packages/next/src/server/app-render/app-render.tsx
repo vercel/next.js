@@ -1219,7 +1219,7 @@ async function renderToHTMLOrFlightImpl(
     renderOpts.experimental.ppr &&
     staticGenerationStore.postponeWasTriggered &&
     !metadata.postponed &&
-    (!response.err || !isBailoutCSRError(response.err))
+    (!response.err || !isBailoutToCSRError(response.err))
   ) {
     // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
     // as we won't be able to generate the static part

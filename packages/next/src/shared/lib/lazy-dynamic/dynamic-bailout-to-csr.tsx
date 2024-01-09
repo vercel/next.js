@@ -10,7 +10,7 @@ interface BailoutToCSRProps {
 
 /**
  * If rendered on the server, this component throws an error
- * to signal to Next.js to bail out to client-side rendering instead.
+ * to signal Next.js that it should bail out to client-side rendering instead.
  */
 export function BailoutToCSR({ reason, children }: BailoutToCSRProps) {
   if (typeof window === 'undefined') {
