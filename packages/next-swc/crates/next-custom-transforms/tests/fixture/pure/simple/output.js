@@ -1,2 +1,2 @@
 ;
-/*#__PURE__*/ console.log("test!");
+/*#__PURE__*/ console.log('test!');
