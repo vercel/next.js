@@ -1314,7 +1314,9 @@ export async function buildAppStaticPaths({
 
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
-      await import(formatDynamicImportPath(dir, incrementalCacheHandlerPath))
+      await import(
+        formatDynamicImportPath(dir, incrementalCacheHandlerPath)
+      ).then((mod) => mod.default || mod)
     )
   }
 

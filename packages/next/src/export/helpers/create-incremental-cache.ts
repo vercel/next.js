@@ -30,7 +30,9 @@ export async function createIncrementalCache({
   let CacheHandler: any
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
-      await import(formatDynamicImportPath(dir, incrementalCacheHandlerPath))
+      await import(
+        formatDynamicImportPath(dir, incrementalCacheHandlerPath)
+      ).then((mod) => mod.default || mod)
     )
   }
 

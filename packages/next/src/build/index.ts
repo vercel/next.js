@@ -1539,7 +1539,7 @@ export default async function build(
           CacheHandler = interopDefault(
             await import(
               formatDynamicImportPath(dir, incrementalCacheHandlerPath)
-            )
+            ).then((mod) => mod.default || mod)
           )
         }
 
