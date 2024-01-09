@@ -31,6 +31,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'Object.fromEntries',
   'Object.getOwnPropertyDescriptor',
   'Object.getOwnPropertyDescriptors',
+  'Object.hasOwn',
   'Object.is',
   'Object.keys',
   'Object.values',
