@@ -191,10 +191,10 @@ export function patchFetch({
   const { DynamicServerError } = serverHooks
   const originFetch: typeof fetch = (globalThis as any)._nextOriginalFetch
 
-  globalThis.fetch = async function (
+  globalThis.fetch = async (
     input: RequestInfo | URL,
     init: RequestInit | undefined
-  ) {
+  ) => {
     let url: URL | undefined
     try {
       url = new URL(input instanceof Request ? input.url : input)
@@ -572,14 +572,13 @@ export function patchFetch({
               })
 
           if (entry) {
-            // await handleUnlock()
+            await handleUnlock()
           } else {
             // in dev, incremental cache response will be null in case the browser adds `cache-control: no-cache` in the request headers
             cacheReasonOverride = 'cache-control: no-cache (hard refresh)'
           }
 
           if (entry?.value && entry.value.kind === 'FETCH') {
-            console.log('cache promise')
             // when stale and is revalidating we wait for fresh data
             // so the revalidated entry has the updated data
             if (!(staticGenerationStore.isRevalidate && entry.isStale)) {
