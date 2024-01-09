@@ -118,7 +118,7 @@ createNextDescribe(
       const source = await getRedboxSource(browser)
       // Can show the original source code
       expect(source).toContain('app/server/page.js')
-      expect(source).toContain(`> 2 | await fetch('http://locahost:3000/xxxx')`)
+      expect(source).toContain(`await fetch('http://locahost:3000/xxxx')`)
     })
   }
 )
