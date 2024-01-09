@@ -14,6 +14,53 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 ## Using the `redirect` function
 
+The `redirect` function allows you to temporarily redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+
+`redirect` is often used after a mutation or user interaction, such as creating or updating a post. For example:
+
+```tsx filename="app/actions.tsx"
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
+export async function createPost(id: string) {
+  try {
+    // Call database
+  } catch (error) {
+    // Handle errors
+  }
+
+  revalidatePath('/posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+```jsx filename="app/actions.js"
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
+export async function createPost(id) {
+  try {
+    // Call database
+  } catch (error) {
+    // Handle errors
+  }
+
+  revalidatePath('/posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+> **Good to know**:
+>
+> - `redirect` returns a 307 (temporary redirect) status code by default. When used in a Server Action, it returns a 303 (see other), which is commonly used for redirecting to a success page as a result of a POST request.
+> - `redirect` needs to be called outside of a `try/catch` block.
+
+See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
+
 ## Using `router.push` in Client Components
 
 ## Using the `permanentRedirect` function
