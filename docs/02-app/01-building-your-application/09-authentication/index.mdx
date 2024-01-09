@@ -147,7 +147,7 @@ This flexibility is key when handling redirections based on detailed authenticat
 
 ### Protecting Server Actions
 
-It is important to treat [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with the same security considerations as public-facing API endpoints. Verifying user authorization for each action is crucial. Implement checks within server actions to determine user permissions, such as restricting certain actions to admin users.
+It is important to treat [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with the same security considerations as public-facing API endpoints. Verifying user authorization for each action is crucial. Implement checks within Server Actions to determine user permissions, such as restricting certain actions to admin users.
 
 In the example below, we check the user's role before allowing the action to proceed:
 
