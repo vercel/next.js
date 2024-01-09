@@ -40,7 +40,7 @@ next-transform-react-server-components = { path = "packages/next-swc/crates/next
 next-visitor-cjs-finder = { path = "packages/next-swc/crates/next-visitor-cjs-finder" }
 
 # SWC crates
-swc_core = { version = "0.87.10", features = [
+swc_core = { version = "0.87.16", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }

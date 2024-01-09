@@ -459,12 +459,12 @@ export async function isDynamicMetadataRoute(
   pageFilePath: string
 ): Promise<boolean> {
   const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
-  if (!/generateImageMetadata|generateSitemaps/.test(fileContent)) return false
-
-  const swcAST = await parseModule(pageFilePath, fileContent)
-  const exportsInfo = checkExports(swcAST, pageFilePath)
-
-  return !exportsInfo.generateImageMetadata || !exportsInfo.generateSitemaps
+  if (/generateImageMetadata|generateSitemaps/.test(fileContent)) {
+    const swcAST = await parseModule(pageFilePath, fileContent)
+    const exportsInfo = checkExports(swcAST, pageFilePath)
+    return !!(exportsInfo.generateImageMetadata || exportsInfo.generateSitemaps)
+  }
+  return false
 }
 
 /**
