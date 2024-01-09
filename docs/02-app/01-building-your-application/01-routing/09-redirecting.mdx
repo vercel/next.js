@@ -3,6 +3,15 @@ title: Redirecting
 description: Learn the different ways to handle redirects in Next.js.
 ---
 
+There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes and use cases.
+
+| API                                                             | Purpose                                           | Status Code                |
+| --------------------------------------------------------------- | ------------------------------------------------- | -------------------------- | --- |
+| [`redirect`](#using-the-redirect-function)                      | Redirect user after mutation or interaction       | 307 or 303 (Server Action) |
+| [`permanentRedirect`](#using-the-permanentredirect-function)    | Redirect user after mutation or interaction       |                            | 308 |
+| [`redirects` in `next.config.js`](#redirecting-in-nextconfigjs) | Redirect an incoming request                      |                            |
+| [`NextResponse.redirect` in Middleware](#using-middleware)      | Redirect an incoming request based on a condition |                            |
+
 ## Using the `redirect` function
 
 ## Using `router.push` in Client Components
