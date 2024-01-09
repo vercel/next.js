@@ -22,7 +22,6 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 futures = { workspace = true }
-next-swc = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 next-core = { workspace = true }

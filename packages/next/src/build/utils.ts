@@ -28,7 +28,15 @@ import '../server/require-hook'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
+import {
+  green,
+  yellow,
+  red,
+  cyan,
+  white,
+  bold,
+  underline,
+} from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -74,6 +82,7 @@ import { RouteKind } from '../server/future/route-kind'
 import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -387,12 +396,7 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-130kb
-    if (_size < 130 * 1000) return green(size)
-    // yellow for 130-170kb
-    if (_size < 170 * 1000) return yellow(size)
-    // red for >= 170kb
-    return red(bold(size))
+    return white(bold(size))
   }
 
   const MIN_DURATION = 300
@@ -1311,10 +1315,8 @@ export async function buildAppStaticPaths({
   if (incrementalCacheHandlerPath) {
     CacheHandler = interopDefault(
       await import(
-        path.isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : path.join(dir, incrementalCacheHandlerPath)
-      )
+        formatDynamicImportPath(dir, incrementalCacheHandlerPath)
+      ).then((mod) => mod.default || mod)
     )
   }
 

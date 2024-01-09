@@ -464,13 +464,21 @@ export class NextInstance {
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
   }
-  public async patchFile(filename: string, content: string) {
+  public async patchFile(
+    filename: string,
+    content: string | ((contents: string) => string)
+  ) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
     const newFile = !existsSync(outputPath)
     await fs.mkdir(path.dirname(outputPath), { recursive: true })
-    await fs.writeFile(outputPath, content)
+    await fs.writeFile(
+      outputPath,
+      typeof content === 'function'
+        ? content(await this.readFile(filename))
+        : content
+    )
 
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)

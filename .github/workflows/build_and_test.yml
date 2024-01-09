@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.11.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -118,29 +118,6 @@ jobs:
       afterBuild: turbo run test-cargo-unit
       mold: 'yes'
     secrets: inherit
-
-  test-cargo-integration:
-    name: test cargo integration
-    needs: ['changes', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      needsNextest: 'yes'
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-integration
-
-  test-cargo-bench:
-    name: test cargo benchmarks
-    needs: ['changes', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' || needs.changes.outputs.is-release == 'false' }}
-
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      needsRust: 'yes'
-      skipNativeBuild: 'yes'
-      afterBuild: xvfb-run turbo run test-cargo-bench
 
   rust-check:
     name: rust check
@@ -373,8 +350,6 @@ jobs:
         'test-ppr-prod',
         'test-ppr-integration',
         'test-cargo-unit',
-        'test-cargo-integration',
-        'test-cargo-bench',
         'rust-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',

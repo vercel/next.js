@@ -295,7 +295,6 @@ export class IncrementalCache implements IncrementalCacheType {
     // that should bust the cache
     const MAIN_KEY_PREFIX = 'v3'
 
-    let cacheKey: string
     const bodyChunks: string[] = []
 
     const encoder = new TextEncoder()
@@ -398,12 +397,11 @@ export class IncrementalCache implements IncrementalCacheType {
           .join('')
       }
       const buffer = encoder.encode(cacheString)
-      cacheKey = bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
+      return bufferToHex(await crypto.subtle.digest('SHA-256', buffer))
     } else {
       const crypto = require('crypto') as typeof import('crypto')
-      cacheKey = crypto.createHash('sha256').update(cacheString).digest('hex')
+      return crypto.createHash('sha256').update(cacheString).digest('hex')
     }
-    return cacheKey
   }
 
   // get data from cache if available
