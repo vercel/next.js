@@ -66,21 +66,21 @@ function onFastRefresh(
   let endLatency = Date.now()
   dispatcher.onBuildOk()
 
-  sendMessage(
-    JSON.stringify({
-      event: 'client-hmr-latency',
-      id: window.__nextDevClientId,
-      startTime: startLatency,
-      endTime: endLatency,
-      page: window.location.pathname,
-      updatedModules,
-      // Whether the page (tab) was hidden at the time the event occurred.
-      // This can impact the accuracy of the event's timing.
-      isPageHidden: document.visibilityState === 'hidden',
-    })
-  )
-
   if (updatedModules.length > 0) {
+    sendMessage(
+      JSON.stringify({
+        event: 'client-hmr-latency',
+        id: window.__nextDevClientId,
+        startTime: startLatency,
+        endTime: endLatency,
+        page: window.location.pathname,
+        updatedModules,
+        // Whether the page (tab) was hidden at the time the event occurred.
+        // This can impact the accuracy of the event's timing.
+        isPageHidden: document.visibilityState === 'hidden',
+      })
+    )
+
     dispatcher.onRefresh()
   }
 }

@@ -56,7 +56,7 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../trace'
+import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -386,16 +386,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
           switch (payload.event) {
             case 'span-end': {
-              new Span({
+              traceChild = {
                 name: payload.spanName,
                 startTime:
                   BigInt(Math.floor(payload.startTime)) *
                   BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: payload.attributes,
-              }).stop(
-                BigInt(Math.floor(payload.endTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND)
-              )
+                endTime:
+                  BigInt(Math.floor(payload.endTime)) *
+                  BigInt(MILLISECONDS_IN_NANOSECOND),
+              }
               break
             }
             case 'client-hmr-latency': {
@@ -408,7 +408,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: {
                   updatedModules: payload.updatedModules.map((m: string) =>
-                    m.replace(/^\.\//, '[project]/')
+                    m
+                      .replace(`(${WEBPACK_LAYERS.appPagesBrowser})/`, '')
+                      .replace(/^\.\//, '[project]/')
                   ),
                   page: payload.page,
                   isPageHidden: payload.isPageHidden,

@@ -195,7 +195,7 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: any = undefined
+let startLatency: number | undefined = undefined
 
 function onBeforeFastRefresh(updatedModules: string[]) {
   if (updatedModules.length > 0) {
@@ -207,11 +207,13 @@ function onBeforeFastRefresh(updatedModules: string[]) {
 
 function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
   onBuildOk()
-  if (updatedModules.length > 0) {
+  if (updatedModules.length === 0) {
     // Only complete a pending state if we applied updates
     // (cf. onBeforeFastRefresh)
-    onRefresh()
+    return
   }
+
+  onRefresh()
 
   if (startLatency) {
     const endLatency = Date.now()
@@ -248,6 +250,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     return
   }
 
+  // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()

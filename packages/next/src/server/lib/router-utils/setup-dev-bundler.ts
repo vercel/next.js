@@ -5,7 +5,6 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
   Issue,
-  Project,
   StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
@@ -134,7 +133,7 @@ import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
-import { Span } from '../../../trace'
+import { trace } from '../../../trace'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
@@ -239,6 +238,13 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.afterFiles.length > 0 ||
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
+
+    const hotReloaderSpan = trace('hot-reloader', undefined, {
+      version: process.env.__NEXT_VERSION as string,
+    })
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    hotReloaderSpan.stop()
 
     const project = await bindings.turbo.createProject({
       projectPath: dir,
@@ -497,6 +503,7 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
+    let hmrEventHappened = false
     let hmrHash = 0
     const sendHmrDebounce = debounce(() => {
       interface HmrError {
@@ -549,30 +556,12 @@ async function startWatcher(opts: SetupOpts) {
       }
     }, 2)
 
-    function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
+    function enqueueHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       hmrPayloads.set(`${key}:${id}`, payload)
-      hmrEventHappened = true
-      sendHmrDebounce()
     }
 
-    function sendTurbopackMessage(payload: TurbopackUpdate) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
+    function enqueueTurbopackMessage(payload: TurbopackUpdate) {
       turbopackUpdates.push(payload)
-      hmrEventHappened = true
-      sendHmrDebounce()
     }
 
     async function loadPartialManifest<T>(
@@ -710,7 +699,9 @@ async function startWatcher(opts: SetupOpts) {
       for await (const change of changed) {
         processIssues(page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', key, payload)
+        if (payload) {
+          enqueueHmr('endpoint-change', key, payload)
+        }
       }
     }
 
@@ -1077,7 +1068,7 @@ async function startWatcher(opts: SetupOpts) {
 
         for await (const data of subscription) {
           processIssues(id, data)
-          sendTurbopackMessage(data)
+          enqueueTurbopackMessage(data)
         }
       } catch (e) {
         // The client might be using an HMR session from a previous server, tell them
@@ -1149,12 +1140,12 @@ async function startWatcher(opts: SetupOpts) {
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
             await clearChangeSubscription('middleware', 'server')
-            sendHmr('entrypoint-change', 'middleware', {
+            enqueueHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
-            sendHmr('endpoint-change', 'middleware', {
+            enqueueHmr('endpoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
@@ -1284,21 +1275,6 @@ async function startWatcher(opts: SetupOpts) {
     await currentEntriesHandling
     await writeManifests()
 
-    let hmrEventHappened = false
-    if (process.env.NEXT_HMR_TIMING) {
-      ;(async (proj: Project) => {
-        for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappened) {
-            const time = updateInfo.duration
-            const timeMessage =
-              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
-            Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappened = false
-          }
-        }
-      })(project)
-    }
-
     const overlayMiddleware = getOverlayMiddleware(project)
     const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
@@ -1351,23 +1327,30 @@ async function startWatcher(opts: SetupOpts) {
                 // Ping doesn't need additional handling in Turbopack.
                 break
               case 'span-end': {
-                new Span({
-                  name: parsedData.spanName,
-                  startTime:
-                    BigInt(Math.floor(parsedData.startTime)) *
-                    BigInt(MILLISECONDS_IN_NANOSECOND),
-                  attrs: parsedData.attributes,
-                }).stop(
-                  BigInt(Math.floor(parsedData.endTime)) *
-                    BigInt(MILLISECONDS_IN_NANOSECOND)
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.spanName,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  parsedData.attributes
                 )
                 break
               }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.event,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  {
+                    updatedModules: parsedData.updatedModules,
+                    page: parsedData.page,
+                    isPageHidden: parsedData.isPageHidden,
+                  }
+                )
+                break
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
-              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
@@ -1747,6 +1730,33 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
+
+    ;(async function () {
+      for await (const updateMessage of project.updateInfoSubscribe(1)) {
+        switch (updateMessage.updateType) {
+          case 'start': {
+            if (!hmrBuilding) {
+              hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+              hmrBuilding = true
+            }
+            break
+          }
+          case 'end': {
+            sendHmrDebounce()
+
+            if (process.env.NEXT_HMR_TIMING && hmrEventHappened) {
+              const time = updateMessage.value.duration
+              const timeMessage =
+                time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+              Log.event(`Compiled in ${timeMessage}`)
+              hmrEventHappened = false
+            }
+            break
+          }
+          default:
+        }
+      }
+    })()
 
     return hotReloader
   }
@@ -2640,4 +2650,8 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
     default:
       throw new Error('Unknown StyledString type', string)
   }
+}
+
+function msToNs(ms: number): bigint {
+  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }
