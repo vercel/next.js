@@ -278,7 +278,7 @@ export function handleLogin(req, res, sessionData) {
 **Accessing the session data stored in the cookie in a server component:**
 
 ```jsx
-import { getCookie } from 'next/cookies'
+import { cookies } from 'next/headers'
 
 export async function getSessionData(req) {
   const encryptedSessionData = cookies().get('session')?.value
