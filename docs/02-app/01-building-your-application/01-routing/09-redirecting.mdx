@@ -3,14 +3,15 @@ title: Redirecting
 description: Learn the different ways to handle redirects in Next.js.
 ---
 
-There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes and use cases.
+There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, and use cases.
 
-| API                                                             | Purpose                                           | Status Code                |
-| --------------------------------------------------------------- | ------------------------------------------------- | -------------------------- | --- |
-| [`redirect`](#using-the-redirect-function)                      | Redirect user after mutation or interaction       | 307 or 303 (Server Action) |
-| [`permanentRedirect`](#using-the-permanentredirect-function)    | Redirect user after mutation or interaction       |                            | 308 |
-| [`redirects` in `next.config.js`](#redirecting-in-nextconfigjs) | Redirect an incoming request                      |                            |
-| [`NextResponse.redirect` in Middleware](#using-middleware)      | Redirect an incoming request based on a condition |                            |
+| API                                                          | Purpose                                           | Where                                                                 | Status Code                |
+| ------------------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------- | -------------------------- |
+| [`redirect`](#using-the-redirect-function)                   | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers                     | 307 or 303 (Server Action) |
+| [`router.push`](#using-routerpush-in-client-components)      | Perform a client-side navigation to a new route   | Client Components                                                     | N/A                        |
+| [`permanentRedirect`](#using-the-permanentredirect-function) | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers, Client Components? | 308                        |
+| [`redirects`](#redirecting-in-nextconfigjs)                  | Redirect an incoming request                      | `next.config.js` file                                                 |
+| [`NextResponse.redirect`]                                    | Redirect an incoming request based on a condition | Middleware                                                            |                            |
 
 ## Using the `redirect` function
 
@@ -18,7 +19,7 @@ The `redirect` function allows you to temporarily redirect the user to another U
 
 `redirect` is often used after a mutation or user interaction, such as creating or updating a post. For example:
 
-```tsx filename="app/actions.tsx"
+```tsx filename="app/actions.tsx" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -36,7 +37,7 @@ export async function createPost(id: string) {
 }
 ```
 
-```jsx filename="app/actions.js"
+```jsx filename="app/actions.js" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -68,7 +69,5 @@ See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) f
 ## Using Middleware
 
 ### Bulk Redirects
-
-## Redirect Status Codes
 
 ## Redirecting in `next.config.js`
