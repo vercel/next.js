@@ -289,6 +289,8 @@ class NextTracerImpl implements NextTracer {
               return result
                 .then((res) => {
                   span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
                   return res
                 })
                 .catch((err) => {
