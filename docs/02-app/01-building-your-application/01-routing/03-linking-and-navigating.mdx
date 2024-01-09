@@ -16,7 +16,7 @@ This page will go through how to use `<Link>`, `useRouter()`, and dive deeper in
 
 ## `<Link>` Component
 
-`<Link>` is a built-in component that extends the HTML `<a>` tag to provide [prefetching](#1-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+`<Link>` is a built-in component that extends the HTML `<a>` tag to provide [prefetching](#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 You can use it by importing it from `next/link`, and passing a `href` prop to the component:
 
@@ -161,9 +161,7 @@ router.push('/dashboard', { scroll: false })
 
 ## `useRouter()` Hook
 
-The `useRouter` hook allows you to programmatically change routes.
-
-This hook can only be used inside Client Components and is imported from `next/navigation`.
+The `useRouter` hook allows you to programmatically change routes from Client Components. For Server Components, you would [`redirect()`](/docs/app/api-reference/functions/redirect) instead.
 
 ```jsx filename="app/page.js"
 'use client'
@@ -187,9 +185,15 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 ## How Routing and Navigation Works
 
-The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically code-split by route segments. And on the client, Next.js [prefetches](#1-prefetching) and [caches](#2-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
+The App Router uses a hybrid approach for routing and navigation. On the server, your application code is automatically [code-split](#1-code-splitting) by route segments. And on the client, Next.js [prefetches](#2-prefetching) and [caches](#3-caching) the route segments. This means, when a user navigates to a new route, the browser doesn't reload the page, and only the route segments that change re-render - improving the navigation experience and performance.
 
-### 1. Prefetching
+### 1. Code Splitting
+
+Code splitting allows you to split your application code into smaller bundles to be downloaded and executed by the browser. This reduces the amount of data transferred and execution time for each request, leading to improved performance.
+
+Server Components allow your application code to be automatically code-split by route segments. This means only the code needed for the current route is loaded on navigation.
+
+### 2. Prefetching
 
 Prefetching is a way to preload a route in the background before the user visits it.
 
@@ -201,7 +205,7 @@ There are two ways routes are prefetched in Next.js:
 The`<Link>`'s prefetching behavior is different for static and dynamic routes:
 
 - [**Static Routes**](/docs/app/building-your-application/rendering/server-components#static-rendering-default): `prefetch` defaults to `true`. The entire route is prefetched and cached.
-- [**Dynamic Routes**](/docs/app/building-your-application/rendering/server-components#dynamic-rendering): `prefetch` default to automatic. Only the shared layout down until the first `loading.js` file is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
+- [**Dynamic Routes**](/docs/app/building-your-application/rendering/server-components#dynamic-rendering): `prefetch` default to automatic. Only the shared layout, down the rendered "tree" of components until the first `loading.js` file, is prefetched and cached for `30s`. This reduces the cost of fetching an entire dynamic route, and it means you can show an [instant loading state](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) for better visual feedback to users.
 
 You can disable prefetching by setting the `prefetch` prop to `false`.
 
@@ -211,15 +215,15 @@ See the [`<Link>` API reference](/docs/app/api-reference/components/link) for mo
 >
 > - Prefetching is not enabled in development, only in production.
 
-### 2. Caching
+### 3. Caching
 
-Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#1-prefetching) route segments and visited routes are stored in the cache.
+Next.js has an **in-memory client-side cache** called the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data#router-cache). As users navigate around the app, the React Server Component Payload of [prefetched](#2-prefetching) route segments and visited routes are stored in the cache.
 
 This means on navigation, the cache is reused as much as possible, instead of making a new request to the server - improving performance by reducing the number of requests and data transferred.
 
 Learn more about how the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data) works and how to configure it.
 
-### 3. Partial Rendering
+### 4. Partial Rendering
 
 Partial rendering means only the route segments that change on navigation re-render on the client, and any shared segments are preserved.
 
@@ -233,12 +237,12 @@ For example, when navigating between two sibling routes, `/dashboard/settings` a
   height="945"
 />
 
-Without partial rendering, each navigation would cause the full page to re-render on the server. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
+Without partial rendering, each navigation would cause the full page to re-render on the client. Rendering only the segment that changes reduces the amount of data transferred and execution time, leading to improved performance.
 
-### 4. Soft Navigation
+### 5. Soft Navigation
 
-By default, the browser performs a hard navigation between pages. This means the browser reloads the page and resets React state such as `useState` hooks in your app and browser state such as the user's scroll position or focused element. However, in Next.js, the App Router uses soft navigation. This means React only renders the segments that have changed while preserving React and browser state, and there is no full page reload.
+Browsers perform a "hard navigation" when navigating between pages. The Next.js App Router enables "soft navigation" between pages, ensuring only the route segments that have changed are re-rendered (partial rendering). This enables client React state to be preserved during navigation.
 
-### 5. Back and Forward Navigation
+### 6. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).

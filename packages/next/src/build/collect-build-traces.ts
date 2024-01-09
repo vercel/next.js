@@ -14,7 +14,11 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
+import {
+  deserializePageInfos,
+  type PageInfos,
+  type SerializedPageInfos,
+} from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -79,7 +83,8 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  // pageInfos is serialized when this function runs in a worker.
+  pageInfos: PageInfos | SerializedPageInfos
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -305,6 +310,10 @@ export async function collectBuildTraces({
 
       const routesIgnores = [
         ...sharedIgnores,
+        // server chunks are provided via next-trace-entrypoints-plugin plugin
+        // as otherwise all chunks are traced here and included for all pages
+        // whether they are needed or not
+        '**/.next/server/chunks/**',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
@@ -619,6 +628,9 @@ export async function collectBuildTraces({
     }
 
     const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+    const infos =
+      pageInfos instanceof Map ? pageInfos : deserializePageInfos(pageInfos)
+
     await Promise.all(
       [
         ...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map()),
@@ -638,7 +650,7 @@ export async function collectBuildTraces({
         }
 
         // edge routes have no trace files
-        const [, pageInfo] = pageInfos.find((item) => item[0] === route) || []
+        const pageInfo = infos.get(route)
         if (pageInfo?.runtime === 'edge') {
           return
         }

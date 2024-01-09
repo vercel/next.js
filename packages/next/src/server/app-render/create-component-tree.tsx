@@ -9,6 +9,8 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
+import { validateRevalidate } from '../lib/patch-fetch'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -42,6 +44,7 @@ export async function createComponentTree({
   asNotFound,
   metadataOutlet,
   ctx,
+  missingSlots,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -54,9 +57,10 @@ export async function createComponentTree({
   asNotFound?: boolean
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
+  missingSlots?: Set<string>
 }): Promise<ComponentTree> {
   const {
-    renderOpts: { nextConfigOutput },
+    renderOpts: { nextConfigOutput, experimental },
     staticGenerationStore,
     componentMod: {
       staticGenerationBailout,
@@ -189,6 +193,13 @@ export async function createComponentTree({
     staticGenerationStore.fetchCache = layoutOrPageMod?.fetchCache
   }
 
+  if (typeof layoutOrPageMod?.revalidate !== 'undefined') {
+    validateRevalidate(
+      layoutOrPageMod?.revalidate,
+      staticGenerationStore.urlPathname
+    )
+  }
+
   if (typeof layoutOrPageMod?.revalidate === 'number') {
     ctx.defaultRevalidate = layoutOrPageMod.revalidate as number
 
@@ -201,6 +212,7 @@ export async function createComponentTree({
     }
 
     if (
+      !staticGenerationStore.forceStatic &&
       staticGenerationStore.isStaticGeneration &&
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
@@ -325,13 +337,54 @@ export async function createComponentTree({
         // We also want to bail out if there's no Loading component in the tree.
         let currentStyles = undefined
         let childCacheNodeSeedData: CacheNodeSeedData | null = null
+
         if (
-          !(
-            isPrefetch &&
-            (Loading || !hasLoadingComponentInTree(parallelRoute))
-          )
+          // Before PPR, the way instant navigations work in Next.js is we
+          // prefetch everything up to the first route segment that defines a
+          // loading.tsx boundary. (We do the same if there's no loading
+          // boundary in the entire tree, because we don't want to prefetch too
+          // much) The rest of the tree is defered until the actual navigation.
+          // It does not take into account whether the data is dynamic — even if
+          // the tree is completely static, it will still defer everything
+          // inside the loading boundary.
+          //
+          // This behavior predates PPR and is only relevant if the
+          // PPR flag is not enabled.
+          isPrefetch &&
+          (Loading || !hasLoadingComponentInTree(parallelRoute)) &&
+          // The approach with PPR is different — loading.tsx behaves like a
+          // regular Suspense boundary and has no special behavior.
+          //
+          // With PPR, we prefetch as deeply as possible, and only defer when
+          // dynamic data is accessed. If so, we only defer the nearest parent
+          // Suspense boundary of the dynamic data access, regardless of whether
+          // the boundary is defined by loading.tsx or a normal <Suspense>
+          // component in userspace.
+          //
+          // NOTE: In practice this usually means we'll end up prefetching more
+          // than we were before PPR, which may or may not be considered a
+          // performance regression by some apps. The plan is to address this
+          // before General Availability of PPR by introducing granular
+          // per-segment fetching, so we can reuse as much of the tree as
+          // possible during both prefetches and dynamic navigations. But during
+          // the beta period, we should be clear about this trade off in our
+          // communications.
+          !experimental.ppr
         ) {
+          // Don't prefetch this child. This will trigger a lazy fetch by the
+          // client router.
+        } else {
           // Create the child component
+
+          if (process.env.NODE_ENV === 'development' && missingSlots) {
+            // When we detect the default fallback (which triggers a 404), we collect the missing slots
+            // to provide more helpful debug information during development mode.
+            const parsedTree = parseLoaderTree(parallelRoute)
+            if (parsedTree.layoutOrPagePath === PARALLEL_ROUTE_DEFAULT_PATH) {
+              missingSlots.add(parallelRouteKey)
+            }
+          }
+
           const { seedData, styles: childComponentStyles } =
             await createComponentTree({
               createSegmentPath: (child) => {
@@ -346,6 +399,7 @@ export async function createComponentTree({
               asNotFound,
               metadataOutlet,
               ctx,
+              missingSlots,
             })
 
           currentStyles = childComponentStyles

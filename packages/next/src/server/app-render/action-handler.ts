@@ -40,6 +40,7 @@ import {
   getIsServerAction,
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -298,6 +299,9 @@ export async function handleAction({
     )
   }
 
+  // When running actions the default is no-store, you can still `cache: 'force-cache'`
+  staticGenerationStore.fetchCache = 'default-no-store'
+
   const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
@@ -331,7 +335,7 @@ export async function handleAction({
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (serverActions?.allowedOrigins?.includes(originDomain)) {
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {

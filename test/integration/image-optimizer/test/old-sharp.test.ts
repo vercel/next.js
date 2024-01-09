@@ -11,17 +11,17 @@ describe('with outdated sharp', () => {
     await fs.writeFile(
       join(appDir, 'package.json'),
       JSON.stringify({
-        packageManager: 'yarn@1.22.19',
+        packageManager: 'npm@10.2.5',
       })
     )
-    await execa('yarn', ['add', 'sharp@0.26.3'], {
+    await execa('npm', ['add', 'sharp@0.26.3'], {
       cwd: appDir,
       stdio: 'inherit',
     })
   })
   afterAll(async () => {
     await fs.remove(join(appDir, 'node_modules'))
-    await fs.remove(join(appDir, 'yarn.lock'))
+    await fs.remove(join(appDir, 'package-lock.json'))
     await fs.remove(join(appDir, 'package.json'))
   })
 

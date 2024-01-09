@@ -12,6 +12,8 @@ members = [
   "packages/next-swc/crates/next-transform-font",
   "packages/next-swc/crates/next-transform-dynamic",
   "packages/next-swc/crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/next-transform-react-server-components",
+  "packages/next-swc/crates/next-visitor-cjs-finder",
 ]
 
 [workspace.lints.clippy]
@@ -34,20 +36,22 @@ next-swc = { path = "packages/next-swc/crates/core" }
 next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
 next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
 next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
+next-transform-react-server-components = { path = "packages/next-swc/crates/next-transform-react-server-components" }
+next-visitor-cjs-finder = { path = "packages/next-swc/crates/next-visitor-cjs-finder" }
 
 # SWC crates
-swc_core = { version = "0.86.98", features = [
+swc_core = { version = "0.87.16", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.13" }
+testing = { version = "0.35.14" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231208.1" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231208.1" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231208.1" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240102.1" }
 
 # General Deps
 

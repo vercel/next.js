@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.11.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -263,7 +263,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.17.0
-      afterBuild: node run-tests.js --timings -g ${{ matrix.group }}2 -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
 
   test-firefox-safari:

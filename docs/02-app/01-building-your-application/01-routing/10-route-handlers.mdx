@@ -25,12 +25,12 @@ Route Handlers allow you to create custom request handlers for a given route usi
 Route Handlers are defined in a [`route.js|ts` file](/docs/app/api-reference/file-conventions/route) inside the `app` directory:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request: Request) {}
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 export async function GET(request) {}
 ```
 
@@ -229,9 +229,9 @@ Route Handlers can be used with dynamic functions from Next.js, like [`cookies`]
 
 #### Cookies
 
-You can read cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
+You can read or set cookies with [`cookies`](/docs/app/api-reference/functions/cookies) from `next/headers`. This server function can be called directly in a Route Handler, or nested inside of another function.
 
-This `cookies` instance is read-only. To set cookies, you need to return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
+Alternatively, you can return a new `Response` using the [`Set-Cookie`](https://developer.mozilla.org/docs/Web/HTTP/Headers/Set-Cookie) header.
 
 ```ts filename="app/api/route.ts" switcher
 import { cookies } from 'next/headers'
@@ -261,7 +261,7 @@ export async function GET(request) {
 }
 ```
 
-Alternatively, you can use abstractions on top of the underlying Web APIs to read cookies ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+You can also use the underlying Web APIs to read cookies from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
 import { type NextRequest } from 'next/server'
@@ -311,7 +311,7 @@ export async function GET(request) {
 }
 ```
 
-Alternatively, you can use abstractions on top of the underlying Web APIs to read headers ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
+You can also use the underlying Web APIs to read headers from the request ([`NextRequest`](/docs/app/api-reference/functions/next-request)):
 
 ```ts filename="app/api/route.ts" switcher
 import { type NextRequest } from 'next/server'
@@ -575,7 +575,7 @@ Since `formData` data are all strings, you may want to use [`zod-form-data`](htt
 You can set CORS headers on a `Response` using the standard Web API methods:
 
 ```ts filename="app/api/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 
 export async function GET(request: Request) {
   return new Response('Hello, Next.js!', {
@@ -590,7 +590,7 @@ export async function GET(request: Request) {
 ```
 
 ```js filename="app/api/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 
 export async function GET(request) {
   return new Response('Hello, Next.js!', {
@@ -604,6 +604,46 @@ export async function GET(request) {
 }
 ```
 
+### Webhooks
+
+You can use a Route Handler to receive webhooks from third-party services:
+
+```ts filename="app/api/route.ts" switcher
+export async function POST(request: Request) {
+  try {
+    const text = await request.text()
+    // Process the webhook payload
+  } catch (error) {
+    return new Response(`Webhook error: ${error.message}`, {
+      status: 400,
+    })
+  }
+
+  return new Response('Success!', {
+    status: 200,
+  })
+}
+```
+
+```js filename="app/api/route.js" switcher
+export async function POST(request) {
+  try {
+    const text = await request.text()
+    // Process the webhook payload
+  } catch (error) {
+    return new Response(`Webhook error: ${error.message}`, {
+      status: 400,
+    })
+  }
+
+  return new Response('Success!', {
+    status: 200,
+  })
+}
+```
+
+Notably, unlike API Routes with the Pages Router, you do not need to use `bodyParser` to use any additional configuration.
+
 ### Edge and Node.js Runtimes
 
 Route Handlers have an isomorphic Web API to support both Edge and Node.js runtimes seamlessly, including support for streaming. Since Route Handlers use the same [route segment configuration](/docs/app/api-reference/file-conventions/route-segment-config) as Pages and Layouts, they support long-awaited features like general-purpose [statically regenerated](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#revalidating-data) Route Handlers.
@@ -616,13 +656,14 @@ export const runtime = 'edge' // 'nodejs' is the default
 
 ### Non-UI Responses
 
-You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
+You can use Route Handlers to return non-UI content. Note that [`sitemap.xml`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts), [`robots.txt`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file), [`app icons`](/docs/app/api-reference/file-conventions/metadata/app-icons#generate-icons-using-code-js-ts-tsx), and [open graph images](/docs/app/api-reference/file-conventions/metadata/opengraph-image) all have built-in support.
 
 ```ts filename="app/rss.xml/route.ts" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 
 export async function GET() {
-  return new Response(`<?xml version="1.0" encoding="UTF-8" ?>
+  return new Response(
+    `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0">
 
 <channel>
@@ -631,12 +672,18 @@ export async function GET() {
   <description>The React Framework for the Web</description>
 </channel>
 
-</rss>`)
+</rss>`,
+    {
+      headers: {
+        'Content-Type': 'text/xml',
+      },
+    }
+  )
 }
 ```
 
 ```js filename="app/rss.xml/route.js" switcher
-export const dynamic = 'force-dynamic' // defaults to force-static
+export const dynamic = 'force-dynamic' // defaults to auto
 
 export async function GET() {
   return new Response(`<?xml version="1.0" encoding="UTF-8" ?>

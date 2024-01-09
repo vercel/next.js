@@ -51,6 +51,22 @@ describe('build trace with extra entries', () => {
         true
       )
       expect(
+        appTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      ).toBe(0)
+
+      expect(
+        indexTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      ).toBeGreaterThan(
+        anotherTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      )
+
+      expect(
         appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
       ).toBe(true)
       expect(
