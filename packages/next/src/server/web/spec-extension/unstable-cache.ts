@@ -169,11 +169,7 @@ export function unstable_cache<T extends Callback>(
 
         if (cacheEntry) {
           const resData = cacheEntry.value.data
-          if (resData.body === undefined) {
-            cachedValue = undefined
-          } else {
-            cachedValue = JSON.parse(resData.body)
-          }
+          cachedValue = JSON.parse(resData.body)
         }
 
         if (isStale) {
