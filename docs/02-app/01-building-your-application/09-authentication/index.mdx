@@ -265,7 +265,7 @@ import { cookies } from 'next/headers'
 
 export function handleLogin(req, res, sessionData) {
   const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
-  setCookie({ res }, 'session', encryptedSessionData, {
+  cookies().set('session', encryptedSessionData, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     maxAge: 60 * 60 * 24 * 7, // One week
