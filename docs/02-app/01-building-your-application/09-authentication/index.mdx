@@ -115,10 +115,9 @@ export function middleware(request: NextRequest) {
   const currentUser = request.cookies.get('currentUser')?.value
 
   if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
-  } else {
-    return NextResponse.redirect(new URL('/login', request.url))
+    return Response.redirect(new URL('/dashboard', request.url))
   }
+  return Response.redirect(new URL('/login', request.url))
 }
 
 export const config = {
