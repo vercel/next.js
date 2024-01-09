@@ -1475,41 +1475,40 @@ impl FileSystemPath {
                 path: self,
                 symlinks: Vec::new(),
             }
-            .into());
+            .cell());
         }
-        let segments = this.path.split('/');
-        let mut current = self.root().resolve().await?;
-        let mut symlinks = Vec::new();
-        for segment in segments {
-            current = current.join(segment.to_string()).resolve().await?;
-            while let FileSystemEntryType::Symlink = &*current.get_type().await? {
-                if let LinkContent::Link { target, link_type } = &*current.read_link().await? {
-                    symlinks.push(current.resolve().await?);
-                    current = if link_type.contains(LinkType::ABSOLUTE) {
-                        current.root().resolve().await?
-                    } else {
-                        current.parent().resolve().await?
-                    }
-                    .join(target.to_string())
-                    .resolve()
-                    .await?;
+        let parent = self.parent().resolve().await?;
+        let parent_result = parent.realpath_with_links().await?;
+        let basename = this
+            .path
+            .rsplit_once('/')
+            .map_or(this.path.as_str(), |(_, name)| name);
+        let real_self = if parent_result.path != parent {
+            parent_result
+                .path
+                .join(basename.to_string())
+                .resolve()
+                .await?
+        } else {
+            self
+        };
+        let mut result = parent_result.clone_value();
+        if matches!(*real_self.get_type().await?, FileSystemEntryType::Symlink) {
+            if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
+                result.symlinks.push(real_self);
+                result.path = if link_type.contains(LinkType::ABSOLUTE) {
+                    real_self.root().resolve().await?
                 } else {
-                    break;
+                    result.path
                 }
+                .join(target.to_string())
+                .resolve()
+                .await?;
+                return Ok(result.cell());
             }
         }
-        if symlinks.is_empty() {
-            return Ok(RealPathResult {
-                path: self,
-                symlinks: Vec::new(),
-            }
-            .into());
-        }
-        Ok(RealPathResult {
-            path: current.resolve().await?,
-            symlinks,
-        }
-        .into())
+        result.path = real_self;
+        Ok(result.cell())
     }
 }
 

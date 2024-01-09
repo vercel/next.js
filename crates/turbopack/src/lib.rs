@@ -422,6 +422,7 @@ async fn process_default_internal(
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
     let ident = source.ident().resolve().await?;
+    let path_ref = ident.path().await?;
     let options = ModuleOptions::new(
         ident.path().parent(),
         module_asset_context.module_options_context(),
@@ -444,10 +445,7 @@ async fn process_default_internal(
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule
-            .matches(source, &*ident.path().await?, &reference_type)
-            .await?
-        {
+        if rule.matches(source, &path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::SourceTransforms(transforms) => {

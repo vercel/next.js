@@ -3,7 +3,6 @@ use std::collections::HashSet;
 use anyhow::Result;
 use auto_hash_map::AutoSet;
 use indexmap::{IndexMap, IndexSet};
-use once_cell::unsync::Lazy;
 use turbo_tasks::{TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 
 use super::{
@@ -102,9 +101,11 @@ pub async fn make_chunk_group(
     }
 
     // Insert async chunk loaders for every referenced async module
-    let async_loaders = {
-        // If necessary, compute new [AvailabilityInfo]
-        let inner_availability_info = Lazy::new(|| {
+    let async_loaders = if async_modules.is_empty() {
+        vec![]
+    } else {
+        // Compute new [AvailabilityInfo]
+        let inner_availability_info = {
             let map = chunk_items
                 .iter()
                 .map(|(&chunk_item, async_info)| {
@@ -117,14 +118,14 @@ pub async fn make_chunk_group(
                 })
                 .collect();
             let map = Vc::cell(map);
-            availability_info.with_chunk_items(map)
-        });
+            availability_info.with_chunk_items(map).await?
+        };
 
         async_modules
             .into_iter()
             .map(|module| {
                 chunking_context
-                    .async_loader_chunk_item(module, Value::new(*inner_availability_info))
+                    .async_loader_chunk_item(module, Value::new(inner_availability_info))
             })
             .collect::<Vec<_>>()
     };

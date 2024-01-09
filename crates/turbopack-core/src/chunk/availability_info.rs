@@ -1,3 +1,4 @@
+use anyhow::Result;
 use turbo_tasks::Vc;
 
 use super::available_chunk_items::{AvailableChunkItemInfoMap, AvailableChunkItems};
@@ -27,17 +28,23 @@ impl AvailabilityInfo {
         }
     }
 
-    pub fn with_chunk_items(self, chunk_items: Vc<AvailableChunkItemInfoMap>) -> Self {
-        match self {
+    pub async fn with_chunk_items(
+        self,
+        chunk_items: Vc<AvailableChunkItemInfoMap>,
+    ) -> Result<Self> {
+        Ok(match self {
             AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
             AvailabilityInfo::Root => AvailabilityInfo::Complete {
-                available_chunk_items: AvailableChunkItems::new(chunk_items),
+                available_chunk_items: AvailableChunkItems::new(chunk_items).resolve().await?,
             },
             AvailabilityInfo::Complete {
                 available_chunk_items,
             } => AvailabilityInfo::Complete {
-                available_chunk_items: available_chunk_items.with_chunk_items(chunk_items),
+                available_chunk_items: available_chunk_items
+                    .with_chunk_items(chunk_items)
+                    .resolve()
+                    .await?,
             },
-        }
+        })
     }
 }

@@ -423,7 +423,11 @@ impl EcmascriptModuleAsset {
             SpecifiedModuleType::Automatic => {}
         }
 
-        let find_package_json = find_context_file(self.origin_path(), package_json()).await?;
+        let find_package_json = find_context_file(
+            self.origin_path().resolve().await?,
+            package_json().resolve().await?,
+        )
+        .await?;
         let FindContextFileResult::Found(package_json, _) = *find_package_json else {
             return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
         };
