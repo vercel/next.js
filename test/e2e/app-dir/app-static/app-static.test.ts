@@ -3130,12 +3130,17 @@ createNextDescribe(
           const data2 = dom2('#now').text()
           expect(data1 && data2).toBeTruthy()
           expect(data1).not.toEqual(data2)
-          expect(
-            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
-          ).toBe(2)
-          expect(next.cliOutput.substring(cliOutputStart)).toContain(
-            'Error: fetch for over 2MB of data can not be cached'
-          )
+
+          await check(async () => {
+            expect(
+              next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+                .length
+            ).toBe(2)
+            expect(next.cliOutput.substring(cliOutputStart)).toContain(
+              'Error: fetch for over 2MB of data can not be cached'
+            )
+            return 'success'
+          }, 'success')
         })
       }
       if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
@@ -3153,9 +3158,15 @@ createNextDescribe(
           const data2 = dom2('#now').text()
           expect(data1 && data2).toBeTruthy()
           expect(data1).toEqual(data2)
-          expect(
-            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
-          ).toBe(1)
+
+          await check(async () => {
+            expect(
+              next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+                .length
+            ).toBe(1)
+            return 'success'
+          }, 'success')
+
           expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
             'Error: fetch for over 2MB of data can not be cached'
           )
