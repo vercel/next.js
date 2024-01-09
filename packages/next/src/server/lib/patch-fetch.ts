@@ -246,8 +246,7 @@ export function patchFetch({
           isInternal ||
           staticGenerationStore.isDraftMode
         ) {
-          return await originFetch(input, init)
-          // return tracedOriginalFetch(input, init)
+          return originFetch(input, init)
         }
 
         let revalidate: number | undefined | false = undefined
@@ -497,7 +496,7 @@ export function patchFetch({
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return await originFetch(input, clonedInit).then(async (res) => {
+          return originFetch(input, clonedInit).then(async (res) => {
             if (!isStale) {
               trackFetchMetric(staticGenerationStore, {
                 start: fetchStart,
@@ -680,9 +679,7 @@ export function patchFetch({
           if (hasNextConfig) delete init.next
         }
 
-        return await doOriginalFetch(false, cacheReasonOverride).finally(
-          handleUnlock
-        )
+        return doOriginalFetch(false, cacheReasonOverride).finally(handleUnlock)
       }
     )
   }

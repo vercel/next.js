@@ -1,4 +1,3 @@
-export default async function Page() {
-  await fetch('http://localhost:3000/xxxx')
+export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }

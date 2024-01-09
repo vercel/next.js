@@ -283,15 +283,19 @@ class NextTracerImpl implements NextTracer {
               return fn(span, (err?: Error) => closeSpanWithError(span, err))
             }
 
-            const result = fn(span)
+            let result: T | Promise<T | void> = fn(span)
             if (isPromise(result)) {
-              return (result as Promise<T>)
-                .catch((err) => {
-                  closeSpanWithError(span, err)
-                  throw err
-                })
-                .then(() => span.end())
-                .finally(onCleanup)
+              result = result.catch((err) => {
+                closeSpanWithError(span, err)
+                onCleanup()
+                throw err
+              })
+
+              return result.then((res) => {
+                span.end()
+                onCleanup()
+                return res
+              })
             } else {
               span.end()
               onCleanup()
