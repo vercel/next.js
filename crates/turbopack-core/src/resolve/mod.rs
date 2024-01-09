@@ -1575,7 +1575,7 @@ async fn resolve_module_request(
     let result = find_package(
         lookup_path,
         module.to_string(),
-        resolve_modules_options(options),
+        resolve_modules_options(options).resolve().await?,
     )
     .await?;
 
