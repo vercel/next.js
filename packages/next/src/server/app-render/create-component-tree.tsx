@@ -24,18 +24,6 @@ type Params = {
 }
 
 /**
- * This component will call `React.postpone` that throws the postponed error.
- */
-export const Postpone = ({
-  postpone,
-}: {
-  postpone: (reason: string) => never
-}): never => {
-  // Call the postpone API now with the reason set to "force-dynamic".
-  return postpone('dynamic = "force-dynamic" was used')
-}
-
-/**
  * Use the provided loader tree to create the React Component tree.
  */
 export function createComponentTree(props: {
@@ -96,13 +84,16 @@ async function createComponentTreeInternal({
       NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
-      StaticGenerationSearchParamsBailoutProvider,
+      ClientPageRoot,
+      createUntrackedSearchParams,
+      createDynamicallyTrackedSearchParams,
       serverHooks: { DynamicServerError },
+      Postpone,
     },
     pagePath,
     getDynamicParamFromSegment,
     isPrefetch,
-    searchParamsProps,
+    query,
   } = ctx
 
   const { page, layoutOrPagePath, segment, components, parallelRoutes } =
@@ -213,7 +204,7 @@ async function createComponentTreeInternal({
       staticGenerationStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (!staticGenerationStore.postpone) {
+      if (!staticGenerationStore.prerenderState) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
         staticGenerationBailout(`force-dynamic`, { dynamic })
@@ -256,7 +247,7 @@ async function createComponentTreeInternal({
       ctx.defaultRevalidate === 0 &&
       // If the postpone API isn't available, we can't postpone the render and
       // therefore we can't use the dynamic API.
-      !staticGenerationStore.postpone
+      !staticGenerationStore.prerenderState
     ) {
       const dynamicUsageDescription = `revalidate: 0 configured ${segment}`
       staticGenerationStore.dynamicUsageDescription = dynamicUsageDescription
@@ -519,12 +510,22 @@ async function createComponentTreeInternal({
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
   // render phase.
-  if (staticGenerationStore.forceDynamic && staticGenerationStore.postpone) {
+  // @TODO this does not actually do what it seems like it would or should do. The idea is that
+  // if we are rendering in a force-dynamic mode and we can postpone we should only make the segments
+  // that ask for force-dynamic to be dynamic, allowing other segments to still prerender. However
+  // because this comes after the children traversal and the static generation store is mutated every segment
+  // along the parent path of a force-dynamic segment will hit this condition effectively making the entire
+  // render force-dynamic. We should refactor this function so that we can correctly track which segments
+  // need to be dynamic
+  if (
+    staticGenerationStore.forceDynamic &&
+    staticGenerationStore.prerenderState
+  ) {
     return {
       seedData: [
         actualSegment,
         parallelRouteCacheNodeSeedData,
-        <Postpone postpone={staticGenerationStore.postpone} />,
+        <Postpone reason='dynamic = "force-dynamic" was used' />,
       ],
       styles: layerAssets,
     }
@@ -532,9 +533,11 @@ async function createComponentTreeInternal({
 
   const isClientComponent = isClientReference(layoutOrPageMod)
 
+  // We avoid cloning this object because it gets consumed here exclusively.
+  const props: { [prop: string]: any } = parallelRouteProps
+
   // If it's a not found route, and we don't have any matched parallel
   // routes, we try to render the not found component if it exists.
-  let notFoundComponent = {}
   if (
     NotFound &&
     asNotFound &&
@@ -542,37 +545,70 @@ async function createComponentTreeInternal({
     // Or if there's no parallel routes means it reaches the end.
     !parallelRouteMap.length
   ) {
-    notFoundComponent = {
-      children: (
-        <>
-          <meta name="robots" content="noindex" />
-          {process.env.NODE_ENV === 'development' && (
-            <meta name="next-error" content="not-found" />
-          )}
-          {notFoundStyles}
-          <NotFound />
-        </>
-      ),
-    }
+    props.children = (
+      <>
+        <meta name="robots" content="noindex" />
+        {process.env.NODE_ENV === 'development' && (
+          <meta name="next-error" content="not-found" />
+        )}
+        {notFoundStyles}
+        <NotFound />
+      </>
+    )
   }
 
-  const props = {
-    ...parallelRouteProps,
-    ...notFoundComponent,
-    // TODO-APP: params and query have to be blocked parallel route names. Might have to add a reserved name list.
-    // Params are always the current params that apply to the layout
-    // If you have a `/dashboard/[team]/layout.js` it will provide `team` as a param but not anything further down.
-    params: currentParams,
-    // Query is only provided to page
-    ...(() => {
-      if (isClientComponent && staticGenerationStore.isStaticGeneration) {
-        return {}
-      }
+  // Assign params to props
+  if (
+    process.env.NODE_ENV === 'development' &&
+    'params' in parallelRouteProps
+  ) {
+    // @TODO consider making this an error and runnign the check in build as well
+    console.error(
+      `The prop name "params" is reserved in Layouts and Pages and cannot be used as the name of a parallel routes in ${segment}.`
+    )
+  }
+  props.params = currentParams
 
-      if (isPage) {
-        return searchParamsProps
-      }
-    })(),
+  let segmentElement: React.ReactNode
+  if (isPage) {
+    // Assign searchParams to props if this is a page
+    if (
+      process.env.NODE_ENV === 'development' &&
+      'searchParams' in parallelRouteProps
+    ) {
+      // @TODO consider making this an error and runnign the check in build as well
+      console.error(
+        `The prop name "searchParams" is reserved in Layouts and Pages and cannot be used as the name of a parallel routes in ${segment}.`
+      )
+    }
+
+    if (isClientComponent) {
+      // When we are passing searchParams to a client component Page we don't want to try the access
+      // dynamically here in the RSC layer because the serialization will trigger a dynamic API usage.
+      // Instead we pass the searchParams untracked but we wrap the Page in a root client component
+      // which can among other things adds the dynamic tracking before rendering the page.
+      // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component
+      props.searchParams = createUntrackedSearchParams(query)
+      segmentElement = (
+        <>
+          {metadataOutlet}
+          <ClientPageRoot props={props} Component={Component} />
+        </>
+      )
+    } else {
+      // If we are passing searchParams to a server component Page we need to track their usage in case
+      // the current render mode tracks dynamic API usage.
+      props.searchParams = createDynamicallyTrackedSearchParams(query)
+      segmentElement = (
+        <>
+          {metadataOutlet}
+          <Component {...props} />
+        </>
+      )
+    }
+  } else {
+    // For layouts we just render the component
+    segmentElement = <Component {...props} />
   }
 
   return {
@@ -580,17 +616,7 @@ async function createComponentTreeInternal({
       actualSegment,
       parallelRouteCacheNodeSeedData,
       <>
-        {isPage ? metadataOutlet : null}
-        {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
-        {isPage && isClientComponent ? (
-          <StaticGenerationSearchParamsBailoutProvider
-            propsForComponent={props}
-            Component={Component}
-            isStaticGeneration={staticGenerationStore.isStaticGeneration}
-          />
-        ) : (
-          <Component {...props} />
-        )}
+        {segmentElement}
         {/* This null is currently critical. The wrapped Component can render null and if there was not fragment
             surrounding it this would look like a pending tree data state on the client which will cause an error
             and break the app. Long-term we need to move away from using null as a partial tree identifier since it

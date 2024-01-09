@@ -1,11 +1,14 @@
 import type { AppConfigDynamic } from '../../build/utils'
 
+import React from 'react'
 import { DynamicServerError } from './hooks-server-context'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
+const hasPostpone = typeof React.unstable_postpone === 'function'
+
 const NEXT_STATIC_GEN_BAILOUT = 'NEXT_STATIC_GEN_BAILOUT'
 
-class StaticGenBailoutError extends Error {
+export class StaticGenBailoutError extends Error {
   public readonly code = NEXT_STATIC_GEN_BAILOUT
 }
 
@@ -51,22 +54,23 @@ export const staticGenerationBailout: StaticGenerationBailout = (
     )
   }
 
-  const message = formatErrorMessage(reason, {
-    dynamic,
-    // this error should be caught by Next to bail out of static generation
-    // in case it's uncaught, this link provides some additional context as to why
-    link: 'https://nextjs.org/docs/messages/dynamic-server-error',
-  })
-
-  // If postpone is available, we should postpone the render.
-  staticGenerationStore.postpone?.(reason)
+  if (staticGenerationStore.prerenderState && hasPostpone) {
+    throw React.unstable_postpone(formatErrorMessage(reason, { link, dynamic }))
+  }
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.
   staticGenerationStore.revalidate = 0
 
   if (staticGenerationStore.isStaticGeneration) {
-    const err = new DynamicServerError(message)
+    const err = new DynamicServerError(
+      formatErrorMessage(reason, {
+        dynamic,
+        // this error should be caught by Next to bail out of static generation
+        // in case it's uncaught, this link provides some additional context as to why
+        link: 'https://nextjs.org/docs/messages/dynamic-server-error',
+      })
+    )
     staticGenerationStore.dynamicUsageDescription = reason
     staticGenerationStore.dynamicUsageStack = err.stack
 
@@ -75,3 +79,7 @@ export const staticGenerationBailout: StaticGenerationBailout = (
 
   return false
 }
+
+// export function interuptStaticGeneration(store: StaticGenerationStore) {
+//   if (store.)
+// }
