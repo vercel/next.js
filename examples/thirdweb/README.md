@@ -1,8 +1,8 @@
 ## Example app using Thirdweb
 
-[Thirdweb](https://www.mongodb.com/) is the complete web3 development toolkit. This example will show you how to connect to wallets and run write functions using Thirdweb.
+[Thirdweb](https://thirdweb.com/) is the complete web3 development toolkit. This example will show you how to connect to wallets and run write functions using Thirdweb.
 
-If you want to learn more about MongoDB, visit the following pages:
+If you want to learn more about Thirdweb, visit the following pages:
 
 - [Thirdweb Documentation](https://portal.thirdweb.com/)
 
