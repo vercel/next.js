@@ -5,13 +5,13 @@ description: Learn the different ways to handle redirects in Next.js.
 
 There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, and use cases.
 
-| API                                                          | Purpose                                           | Where                                                                 | Status Code                |
-| ------------------------------------------------------------ | ------------------------------------------------- | --------------------------------------------------------------------- | -------------------------- |
-| [`redirect`](#using-the-redirect-function)                   | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers                     | 307 or 303 (Server Action) |
-| [`router.push`](#using-routerpush-in-client-components)      | Perform a client-side navigation to a new route   | Client Components                                                     | N/A                        |
-| [`permanentRedirect`](#using-the-permanentredirect-function) | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers, Client Components? | 308                        |
-| [`redirects`](#redirecting-in-nextconfigjs)                  | Redirect an incoming request                      | `next.config.js` file                                                 |
-| [`NextResponse.redirect`]                                    | Redirect an incoming request based on a condition | Middleware                                                            |                            |
+| API                                                             | Purpose                                           | Where                                                                 | Status Code                |
+| --------------------------------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------- | -------------------------- |
+| [`redirect`](#using-the-redirect-function)                      | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers                     | 307 or 303 (Server Action) |
+| [`router.push`](#using-the-userouter-hook-in-client-components) | Perform a client-side navigation to a new route   | Client Components                                                     | N/A                        |
+| [`permanentRedirect`](#using-the-permanentredirect-function)    | Redirect user after mutation or interaction       | Server Components, Server Actions, Route Handlers, Client Components? | 308                        |
+| [`redirects`](#redirecting-in-nextconfigjs)                     | Redirect an incoming request                      | `next.config.js` file                                                 |
+| [`NextResponse.redirect`]                                       | Redirect an incoming request based on a condition | Middleware                                                            |                            |
 
 ## Using the `redirect` function
 
@@ -57,12 +57,160 @@ export async function createPost(id) {
 
 > **Good to know**:
 >
-> - `redirect` returns a 307 (temporary redirect) status code by default. When used in a Server Action, it returns a 303 (see other), which is commonly used for redirecting to a success page as a result of a POST request.
+> - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
 > - `redirect` needs to be called outside of a `try/catch` block.
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 
-## Using `router.push` in Client Components
+### Using the `useRouter` hook in Client Components
+
+If you need to redirect after a mutation or user interaction in a Client Component, you can either:
+
+- Use `push` method from the `useRouter` hook inside the Client Component.
+- Invoke a Server Action to mutate data and call `redirect`.
+
+For example, to use `router.push`:
+
+```tsx filename="app/ui/create-post.tsx" highlight={19} switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { PostData } from '@/app/lib/types'
+
+export function CreatePost() {
+  const router = useRouter()
+  const [postData, setPostData] = useState<PostData>({ title: '', content: '' })
+
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setPostData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    // Mutate data
+    router.push(`/post/${post.id}`) // Navigate to the new post page
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* ... */}
+      <textarea value={postData.content} onChange={handleChange} />
+      <button onClick={}>Create Post</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/create-post.js" highlight={19} switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+export function CreatePost() {
+  const router = useRouter()
+  const [postData, setPostData] = useState({ title: '', content: '' })
+
+  function handleChange(e) {
+    setPostData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    })
+  }
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    // Mutate data
+    router.push(`/post/${post.id}`) // Navigate to the new post page
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* ... */}
+      <textarea value={postData.content} onChange={handleChange} />
+      <button onClick={}>Create Post</button>
+    </form>
+  )
+}
+```
+
+Alternatively, we recommend invoking a Server Action in your Client Component. This will simplify your code and allow you to use `redirect`.
+
+```tsx filename="app/ui/create-post.tsx" switcher
+'use client'
+
+import { createPost } from '@/app/actions'
+
+export function CreatePost() {
+  return (
+    <form action={createPost}>
+      {/* ... */}
+      <textarea />
+      <button type="submit">Create Post</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/create-post.js" switcher
+'use client'
+
+import { createPost } from '@/app/actions'
+
+export function CreatePost() {
+  return (
+    <form action={createPost}>
+      {/* ... */}
+      <textarea />
+      <button type="submit">Create Post</button>
+    </form>
+  )
+}
+```
+
+Then, in the Server Action, you can call `redirect`:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
+export async function createPost(data: PostData) {
+  try {
+    // Call database
+  } catch (error) {
+    // Handle errors
+  }
+
+  revalidatePath('/posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
+
+export async function createPost(data) {
+  try {
+    // Call database
+  } catch (error) {
+    // Handle errors
+  }
+
+  revalidatePath('/posts') // Update cached posts
+  redirect(`/post/${id}`) // Navigate to the new post page
+}
+```
+
+See the [`useRouter` API reference](/docs/app/api-reference/functions/router-push) and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) documentation for more information.
 
 ## Using the `permanentRedirect` function
 
