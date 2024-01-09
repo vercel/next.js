@@ -101,6 +101,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     expect(next.normalizeTestDirContent(await session.getRedboxSource()))
       .toMatchInlineSnapshot(`
       "./components/Comp.js
+      ./pages/index.js
       Error: 
         x You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
         | react-essentials#server-components
