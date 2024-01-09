@@ -348,7 +348,7 @@ function processMessage(
 
         // Attempt to apply hot updates or reload.
         if (isHotUpdate) {
-          handleHotUpdate()
+          handleHotUpdate(obj.updatedModules)
         }
         return
       }
@@ -367,7 +367,7 @@ function processMessage(
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
-        handleHotUpdate()
+        handleHotUpdate(obj.updatedModules)
       }
       return
     }
