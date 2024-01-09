@@ -3729,7 +3729,6 @@
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
-      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3750,7 +3749,9 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "app dir - navigation query string useParams identity between renders should be stable in pages"
+    ],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-config/index.test.ts": {
