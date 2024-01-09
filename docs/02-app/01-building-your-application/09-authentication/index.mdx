@@ -309,10 +309,11 @@ export async function createSession(user) {
 **Retrieving a Session in Middleware or Server-Side Logic**:
 
 ```js
+import { cookies } from 'next/headers'
 import db from 'path/to/databaseModule'
 
-export async function getSession(req) {
-  const sessionId = req.cookies.sessionId // Assuming session ID is stored in a cookie
+export async function getSession() {
+  const sessionId = cookies().get("sessionId")?.value // Assuming session ID is stored in a cookie
   return sessionId ? await db.findSession(sessionId) : null
 }
 ```
