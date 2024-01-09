@@ -72,9 +72,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-function useResolvedErrors(
-  errors: SupportedErrorEvent[]
-): [ReadyRuntimeError[], boolean] {
+function useResolvedErrors(errors: SupportedErrorEvent[]): ReadyRuntimeError[] {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
@@ -105,14 +103,13 @@ function useResolvedErrors(
       // Show unresolved errors as fallback
       ready.push(getUnresolvedErrorByType(e))
 
-      next = e
-      break
+      if (!next) {
+        next = e
+      }
     }
 
     return [ready, next]
   }, [errors, lookups])
-
-  const isLoading = readyErrors.length === 0 && errors.length > 1
 
   React.useEffect(() => {
     if (nextError == null) {
@@ -147,7 +144,7 @@ function useResolvedErrors(
     }
   }, [errors.length])
 
-  return [readyErrors, isLoading]
+  return readyErrors
 }
 
 const enum TabId {
@@ -335,6 +332,7 @@ type ErrorsState = {
 }
 
 enum ErrorsActionType {
+  Init = 'init',
   UpdateBuildErrors = 'update-build-errors',
   UpdateErrors = 'update-errors',
   UpdateRootLayoutError = 'update-root-layout-error',
@@ -342,6 +340,10 @@ enum ErrorsActionType {
   Fullscreen = 'fullscreen',
   Minimize = 'minimize',
   Hide = 'hide',
+}
+
+type InitAction = {
+  type: typeof ErrorsActionType.Init
 }
 
 type UpdateBuildErrorsAction = {
@@ -377,6 +379,7 @@ type HideAction = {
 }
 
 type ErrorsAction =
+  | InitAction
   | UpdateBuildErrorsAction
   | UpdateErrorsAction
   | UpdateRootLayoutErrorAction
@@ -407,12 +410,25 @@ function prependNewItems<T extends object>(
 function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
   let state = oldState
   switch (action.type) {
+    case ErrorsActionType.Init: {
+      state = {
+        ...oldState,
+        tabs: createTabs({
+          buildErrors: oldState.buildErrors,
+          readyErrors: oldState.readyErrors,
+          rootLayoutError: oldState.rootLayoutError,
+        }),
+      }
+      break
+    }
     case ErrorsActionType.UpdateBuildErrors: {
       if (action.buildErrors === oldState.buildErrors) {
         return oldState
       }
 
-      const buildErrors = prependNewItems(action.buildErrors, oldState.seenIds)
+      // disabled for now, needs debounce
+      // const buildErrors = prependNewItems(action.buildErrors, oldState.seenIds)
+      const buildErrors = action.buildErrors
 
       state = {
         ...oldState,
@@ -430,7 +446,9 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
         return oldState
       }
 
-      const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds)
+      // disabled for now, needs debounce
+      // const readyErrors = prependNewItems(action.readyErrors, oldState.seenIds)
+      const readyErrors = action.readyErrors
 
       state = {
         ...oldState,
@@ -504,8 +522,6 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
     }
   }
 
-  let autoOpen = false
-
   // When the selected tab disappears, we will go to another important tab or close the overlay
   if (
     state.display.type === 'fullscreen' &&
@@ -519,12 +535,10 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
         type: 'hidden',
       }
     }
-  } else {
-    autoOpen = true
   }
 
   state.seenIds = new Set()
-  // When there is a new item, we open the overlay when autoOpen is set
+  // When there is a new item, we open the overlay if it's not open yet
   for (const tab of state.tabs) {
     for (const item of tab.items) {
       state.seenIds.add(itemHash(item))
@@ -535,7 +549,7 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
           }
         }
 
-        if (autoOpen && tab.autoOpen) {
+        if (state.display.type !== 'fullscreen' && tab.autoOpen) {
           state.display = {
             type: 'fullscreen',
             tab: tab.id,
@@ -578,7 +592,7 @@ export function Errors({
   rootLayoutError,
   versionInfo,
 }: ErrorsProps): React.ReactNode {
-  const [readyErrors] = useResolvedErrors(errors)
+  const readyErrors = useResolvedErrors(errors)
 
   const [{ tabs, display, errorCount, warningCount }, dispatch] =
     React.useReducer<React.Reducer<ErrorsState, ErrorsAction>, null>(
@@ -599,7 +613,7 @@ export function Errors({
             errorCount: 0,
             warningCount: 0,
           },
-          { type: ErrorsActionType.UpdateErrors, readyErrors }
+          { type: ErrorsActionType.Init }
         )
     )
 
