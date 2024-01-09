@@ -125,7 +125,7 @@ export const config = {
 }
 ```
 
-This example uses `NextResponse.redirect` for efficient, centralized access control. It handles redirects early in the request pipeline, making it efficient and ideal for broad strategies.
+This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for efficient, centralized access control. It handles redirects early in the request pipeline, making it efficient and ideal for broad strategies.
 
 For specific redirection needs, the `redirect` function can be used in server components, route handlers, and server actions to provide more control. This is useful for role-based navigation or context-sensitive scenarios.
 
