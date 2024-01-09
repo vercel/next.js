@@ -51,7 +51,6 @@ describe('Error overlay for hydration errors', () => {
       'app/page.js',
       outdent`
       'use client'
-      const isClient = typeof window !== 'undefined'
       export default function Mismatch() {
         return (
           <div className="parent">
@@ -77,6 +76,7 @@ describe('Error overlay for hydration errors', () => {
           'app/page.js',
           outdent`
             'use client'
+            const isClient = typeof window !== 'undefined'
             export default function Mismatch() {
               return (
                 <div className="parent">
