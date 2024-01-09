@@ -194,7 +194,7 @@ This behavior is enabled with the Next.js [`windowHistorySupport`](/docs/app/api
 
 Use it to add a new entry to the browser's history stack. The user can navigate back to the previous state. For example, to sort a list of products:
 
-```tsx fileName="app/ui/sort-products.tsx"
+```tsx fileName="app/ui/sort-products.tsx" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -217,7 +217,7 @@ export default function SortProducts() {
 }
 ```
 
-```jsx fileName="app/ui/sort-products.js"
+```jsx fileName="app/ui/sort-products.js" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -244,7 +244,7 @@ export default function SortProducts() {
 
 Use it to replace the current entry on the browser's history stack. The user is not able to navigate back to the previous state. For example, to switch the application's locale:
 
-```tsx fileName="app/ui/locale-switcher.tsx"
+```tsx fileName="app/ui/locale-switcher.tsx" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
@@ -267,7 +267,7 @@ export function LocaleSwitcher() {
 }
 ```
 
-```jsx fileName="app/ui/locale-switcher.js"
+```jsx fileName="app/ui/locale-switcher.js" switcher
 'use client'
 
 import { usePathname } from 'next/navigation'
