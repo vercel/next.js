@@ -1313,7 +1313,7 @@ fn remove_server_directive_index_in_module(
                                 handler
                                     .struct_span_err(
                                         *span,
-                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
+                                        "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#convention",
                                     )
                                     .emit()
                             });
@@ -1412,7 +1412,7 @@ fn remove_server_directive_index_in_fn(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations#convention",
+                                    "To use Server Actions, please enable the feature flag in your Next.js config. Read more: https://nextjs.org/docs/app/api-reference/functions/server-actions#convention",
                                 )
                                 .emit()
                         });
