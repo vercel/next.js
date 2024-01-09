@@ -133,6 +133,7 @@ import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-u
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
 
 const wsServer = new ws.Server({ noServer: true })
 
@@ -525,6 +526,9 @@ async function startWatcher(opts: SetupOpts) {
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
+        updatedModules: [
+          ...extractModulesFromTurbopackMessage(turbopackUpdates),
+        ],
       })
       hmrBuilding = false
 
@@ -1349,6 +1353,7 @@ async function startWatcher(opts: SetupOpts) {
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
