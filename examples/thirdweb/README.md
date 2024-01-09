@@ -42,6 +42,10 @@ Set each variable on `.env.local`:
 
 - `NEXT_PUBLIC_TEMPLATE_CLIENT_ID` - Your Thirdweb client id. You can create [CLIENT_ID here](https://thirdweb.com/dashboard/settings/api-keys) by clicking the "Connect" button for your account.
 
+### Set up Contants directory
+
+Update `abi.json` and `contractAddresses.json` file with respective abi and its contract address.
+
 ### Run Next.js in development mode
 
 ```bash
