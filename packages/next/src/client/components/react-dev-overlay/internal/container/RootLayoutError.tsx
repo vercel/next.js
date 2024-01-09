@@ -34,7 +34,7 @@ export function RootLayoutErrorDialogBody({
       data-hidden={hidden}
       className={clsx('root-layout-error', className)}
     >
-      <div className="title-pagination">
+      <div className="title-pagination" data-nextjs-dialog-header>
         <h1 id="nextjs__container_errors_label">{message}</h1>
       </div>
       <Terminal content={content} />

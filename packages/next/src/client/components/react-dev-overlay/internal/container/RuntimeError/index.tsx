@@ -186,7 +186,11 @@ export function RuntimeErrorsDialogBody({
         </LeftRightDialogHeader>
       </div>
 
-      <p id="nextjs__container_errors_desc" data-severity="error">
+      <p
+        id="nextjs__container_errors_desc"
+        data-severity="error"
+        data-nextjs-dialog-header
+      >
         {activeError.error.name}:{' '}
         <HotlinkedText text={activeError.error.message} />
       </p>
