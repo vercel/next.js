@@ -284,13 +284,13 @@ class NextTracerImpl implements NextTracer {
             }
 
             const result = fn(span)
-
             if (isPromise(result)) {
-              result
-                .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
-                )
+              return (result as Promise<T>)
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
+                .then(() => span.end())
                 .finally(onCleanup)
             } else {
               span.end()
