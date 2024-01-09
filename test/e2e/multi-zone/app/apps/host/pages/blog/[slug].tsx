@@ -1,5 +1,5 @@
 export default function Page() {
-  return <p>hello from second app /another/[slug]</p>
+  return <p>hello from host app /blog/[slug]</p>
 }
 
 export function getServerSideProps({ params }) {
