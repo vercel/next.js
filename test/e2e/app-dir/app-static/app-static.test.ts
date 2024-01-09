@@ -3080,13 +3080,19 @@ createNextDescribe(
 
     describe('Incremental cache limits', () => {
       if (process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
-        it('should load large data only once when using custom cache handler and force-cache mode', async () => {
-          const cliOutputStart = next.cliOutput.length
-          await next.fetch('/force-cache/large-data')
-          await next.fetch('/force-cache/large-data')
-          expect(
-            next.cliOutput.substring(cliOutputStart).match(/Load data/g).length
-          ).toBe(1)
+        it('should cache large data when using custom cache handler and force-cache mode', async () => {
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
         })
       }
       if (!process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
