@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
@@ -101,7 +101,6 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     expect(next.normalizeTestDirContent(await session.getRedboxSource()))
       .toMatchInlineSnapshot(`
       "./components/Comp.js
-      ./pages/index.js
       Error: 
         x You're importing a component that needs server-only. That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/
         | react-essentials#server-components
@@ -117,7 +116,6 @@ describe('Error Overlay for server components compiler errors in pages', () => {
 
       Import trace for requested module:
       ./components/Comp.js
-      ./pages/index.js"
     `)
 
     await cleanup()
