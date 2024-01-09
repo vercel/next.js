@@ -1,32 +1,47 @@
 
-  x NEXT_RSC_ERR_REACT_API: useState
+  x You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
    ,-[input.js:1:1]
  1 | import { useState } from 'react'
    :          ^^^^^^^^
    `----
 
-  x NEXT_RSC_ERR_REACT_API: createContext
+  x You're importing a component that needs createContext. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
    ,-[input.js:2:1]
  2 | 
  3 | import { createContext } from 'react'
    :          ^^^^^^^^^^^^^
    `----
 
-  x NEXT_RSC_ERR_REACT_API: useEffect
+  x You're importing a component that needs useEffect. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
    ,-[input.js:4:1]
  4 | 
  5 | import { useEffect, useImperativeHandle } from 'react'
    :          ^^^^^^^^^
    `----
 
-  x NEXT_RSC_ERR_REACT_API: useImperativeHandle
+  x You're importing a component that needs useImperativeHandle. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
    ,-[input.js:4:1]
  4 | 
  5 | import { useEffect, useImperativeHandle } from 'react'
    :                     ^^^^^^^^^^^^^^^^^^^
    `----
 
-  x NEXT_RSC_ERR_REACT_API: Component
+  x You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+  | 
+  | 
    ,-[input.js:7:1]
  7 | import {
  8 |   Component,
@@ -34,7 +49,10 @@
  9 |   createFactory,
    `----
 
-  x NEXT_RSC_ERR_REACT_API: createFactory
+  x You're importing a component that needs createFactory. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:8:1]
   8 |   Component,
   9 |   createFactory,
@@ -42,7 +60,10 @@
  10 |   PureComponent,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: PureComponent
+  x You're importing a component that needs PureComponent. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:9:1]
   9 |   createFactory,
  10 |   PureComponent,
@@ -50,7 +71,10 @@
  11 |   useDeferredValue,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useDeferredValue
+  x You're importing a component that needs useDeferredValue. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:10:1]
  10 |   PureComponent,
  11 |   useDeferredValue,
@@ -58,7 +82,10 @@
  12 |   useInsertionEffect,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useInsertionEffect
+  x You're importing a component that needs useInsertionEffect. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:11:1]
  11 |   useDeferredValue,
  12 |   useInsertionEffect,
@@ -66,7 +93,10 @@
  13 |   useLayoutEffect,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useLayoutEffect
+  x You're importing a component that needs useLayoutEffect. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:12:1]
  12 |   useInsertionEffect,
  13 |   useLayoutEffect,
@@ -74,7 +104,10 @@
  14 |   useReducer,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useReducer
+  x You're importing a component that needs useReducer. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:13:1]
  13 |   useLayoutEffect,
  14 |   useReducer,
@@ -82,7 +115,10 @@
  15 |   useRef,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useRef
+  x You're importing a component that needs useRef. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:14:1]
  14 |   useReducer,
  15 |   useRef,
@@ -90,17 +126,13 @@
  16 |   useSyncExternalStore,
     `----
 
-  x NEXT_RSC_ERR_REACT_API: useSyncExternalStore
+  x You're importing a component that needs useSyncExternalStore. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+  | Learn more: https://nextjs.org/docs/getting-started/react-essentials
+  | 
+  | 
     ,-[input.js:15:1]
  15 |   useRef,
  16 |   useSyncExternalStore,
     :   ^^^^^^^^^^^^^^^^^^^^
  17 | } from 'react'
-    `----
-
-  x NEXT_RSC_ERR_REACT_API: experimental_useOptimistic
-    ,-[input.js:18:1]
- 18 | 
- 19 | import { experimental_useOptimistic as useOptimistic } from 'react'
-    :          ^^^^^^^^^^^^^^^^^^^^^^^^^^
     `----

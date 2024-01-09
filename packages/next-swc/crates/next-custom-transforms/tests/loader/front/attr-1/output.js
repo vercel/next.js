@@ -7,7 +7,7 @@ export default function Foo() {
             });
         },
         className: "jsx-3d44fb7892a1f38b"
-    }, React.createElement(_JSXStyle, {
+    }, /*#__PURE__*/ React.createElement(_JSXStyle, {
         id: "3d44fb7892a1f38b"
     }, "span.jsx-3d44fb7892a1f38b{color:red}"));
 }
