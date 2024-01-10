@@ -1020,7 +1020,9 @@ export default async function build(
 
       const appPaths = Array.from(appPageKeys)
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.push(...generateInterceptionRoutesRewrites(appPaths))
+      rewrites.beforeFiles.push(
+        ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
+      )
 
       const totalAppPagesCount = appPaths.length
 

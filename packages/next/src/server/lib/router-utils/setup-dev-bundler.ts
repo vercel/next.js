@@ -2270,13 +2270,15 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
-          buildCustomRoute(
-            'before_files_rewrite',
-            item,
-            opts.nextConfig.basePath,
-            opts.nextConfig.experimental.caseSensitiveRoutes
-          )
+        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map(
+          (item) =>
+            buildCustomRoute(
+              'before_files_rewrite',
+              item,
+              opts.nextConfig.basePath,
+              opts.nextConfig.experimental.caseSensitiveRoutes
+            ),
+          opts.nextConfig.basePath
         ) || []
 
       const exportPathMap =
