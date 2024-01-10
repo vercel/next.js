@@ -86,7 +86,7 @@ describe('Edge runtime configurable guards', () => {
       expect(res.status).toBe(200)
       await check(
         () => context.logs.output,
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        /Dynamic Code Evaluation \(e\. g\. 'eval', 'new Function'\) not allowed in Edge Runtime/g
       )
     })
 
@@ -96,7 +96,7 @@ describe('Edge runtime configurable guards', () => {
       expect(res.status).toBe(200)
       await check(
         () => context.logs.output,
-        `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        /Dynamic Code Evaluation \(e\. g\. 'eval', 'new Function'\) not allowed in Edge Runtime/g
       )
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)(
