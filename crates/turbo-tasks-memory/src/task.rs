@@ -1408,17 +1408,32 @@ impl Task {
     ) {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            let thresholds_job;
             let mut add_job = None;
             {
                 let mut guard = TaskGuard {
                     id: self.id,
                     guard: self.state_mut(),
                 };
-                thresholds_job = ensure_thresholds(&aggregation_context, &mut guard);
+                while let Some(thresholds_job) = ensure_thresholds(&aggregation_context, &mut guard)
+                {
+                    drop(guard);
+                    thresholds_job();
+                    guard = TaskGuard {
+                        id: self.id,
+                        guard: self.state_mut(),
+                    };
+                }
                 let TaskGuard { guard, .. } = guard;
                 let mut state = TaskMetaStateWriteGuard::full_from(guard.into_inner(), self);
                 if state.children.insert(child_id) {
+                    if let TaskStateType::InProgress {
+                        outdated_children, ..
+                    } = &mut state.state_type
+                    {
+                        if outdated_children.remove(&child_id) {
+                            return;
+                        }
+                    }
                     add_job = Some(
                         state
                             .aggregation_leaf
@@ -1426,7 +1441,6 @@ impl Task {
                     );
                 }
             }
-            thresholds_job();
             if let Some(job) = add_job {
                 // To avoid bubbling up the dirty tasks into the new parent tree, we make a
                 // quick check for activeness of the parent when the child is dirty. This is
