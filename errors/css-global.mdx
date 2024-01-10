@@ -31,7 +31,7 @@ body {
 
 **Global CSS**:
 
-Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then [`import`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import) the [`styles.css` file](/docs/pages/building-your-application/styling/css-modules).
+Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then import the `styles.css` file:
 
 ```jsx filename="pages/_app.js"
 import '../styles.css'
@@ -43,7 +43,7 @@ export default function MyApp({ Component, pageProps }) {
 
 **CSS Modules**:
 
-Rename the `styles.css` file to `styles.module.css`. Then [`import`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Statements/import) the [`styles.module.css` file](/docs/pages/building-your-application/styling/css-modules) in the component or page where you want to use the styles.
+Rename the `styles.css` file to `styles.module.css`. Then import the file in the component or page where you want to use the styles.
 
 ```jsx filename="pages/index.js"
 import styles from '../../styles.module.css'
