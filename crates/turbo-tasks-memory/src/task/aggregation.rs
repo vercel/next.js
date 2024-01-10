@@ -415,12 +415,7 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
 
     fn number_of_children(&self) -> usize {
         match self.guard {
-            TaskMetaStateWriteGuard::Full(ref guard) => match &guard.state_type {
-                TaskStateType::InProgress {
-                    outdated_children, ..
-                } => guard.children.len() + outdated_children.len(),
-                _ => guard.children.len(),
-            },
+            TaskMetaStateWriteGuard::Full(ref guard) => guard.children.len(),
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => 0,
         }
     }
@@ -428,21 +423,9 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
     fn children(&self) -> Self::ChildrenIter<'_> {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref guard) => {
-                let outdated_children = match &guard.state_type {
-                    TaskStateType::InProgress {
-                        outdated_children, ..
-                    } => Some(outdated_children.iter().map(Cow::Borrowed)),
-                    _ => None,
-                };
-                Some(
-                    guard
-                        .children
-                        .iter()
-                        .map(Cow::Borrowed)
-                        .chain(outdated_children.into_iter().flatten()),
-                )
-                .into_iter()
-                .flatten()
+                Some(guard.children.iter().map(Cow::Borrowed))
+                    .into_iter()
+                    .flatten()
             }
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
                 None.into_iter().flatten()
@@ -472,17 +455,6 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
                 if let Some(collectibles) = guard.collectibles.as_ref() {
                     for (&(trait_type_id, collectible), _) in collectibles.iter() {
                         change.collectibles.push((trait_type_id, collectible, 1));
-                    }
-                }
-                if let TaskStateType::InProgress {
-                    outdated_collectibles,
-                    ..
-                } = &guard.state_type
-                {
-                    if let Some(collectibles) = outdated_collectibles.as_ref() {
-                        for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                            change.collectibles.push((trait_type_id, collectible, 1));
-                        }
                     }
                 }
                 if change.is_empty() {
@@ -517,17 +489,6 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
                 if let Some(collectibles) = guard.collectibles.as_ref() {
                     for (&(trait_type_id, collectible), _) in collectibles.iter() {
                         change.collectibles.push((trait_type_id, collectible, -1));
-                    }
-                }
-                if let TaskStateType::InProgress {
-                    outdated_collectibles,
-                    ..
-                } = &guard.state_type
-                {
-                    if let Some(collectibles) = outdated_collectibles.as_ref() {
-                        for (&(trait_type_id, collectible), _) in collectibles.iter() {
-                            change.collectibles.push((trait_type_id, collectible, -1));
-                        }
                     }
                 }
                 if change.is_empty() {
