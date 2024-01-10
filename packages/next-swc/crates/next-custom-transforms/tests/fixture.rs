@@ -22,6 +22,7 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use serde::de::DeserializeOwned;
+use swc_core::ecma::visit::as_folder;
 use turbopack_binding::swc::{
     core::{
         common::{chain, comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
@@ -429,7 +430,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                cjs_optimizer(
+                as_folder(cjs_optimizer(
                     json(
                         r#"
                         {
@@ -444,7 +445,7 @@ fn cjs_optimize_fixture(input: PathBuf) {
                         "#
                     ),
                     unresolved_ctxt
-                )
+                ))
             )
         },
         &input,
@@ -571,7 +572,7 @@ fn pure(input: PathBuf) {
 
             chain!(
                 resolver(unresolved_mark, top_level_mark, false),
-                pure_magic(tr.comments.clone())
+                as_folder(pure_magic(tr.comments.clone()))
             )
         },
         &input,
