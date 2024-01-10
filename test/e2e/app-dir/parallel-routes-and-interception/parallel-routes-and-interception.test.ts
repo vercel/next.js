@@ -330,7 +330,11 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          /main catchall/
+        )
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          /catchall page client component/
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
