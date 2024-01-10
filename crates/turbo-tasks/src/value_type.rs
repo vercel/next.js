@@ -10,6 +10,7 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use serde::{Deserialize, Serialize};
+use tracing::Span;
 
 use crate::{
     id::{FunctionId, TraitTypeId},
@@ -253,6 +254,13 @@ impl TraitType {
 
     pub fn register(&'static self, global_name: &'static str) {
         register_trait_type(global_name, self);
+    }
+
+    pub fn resolve_span(&'static self, name: &str) -> Span {
+        tracing::trace_span!(
+            "turbo_tasks::resolve_trait_call",
+            name = format_args!("{}::{name}", &self.name),
+        )
     }
 }
 

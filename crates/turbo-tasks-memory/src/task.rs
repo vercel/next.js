@@ -26,11 +26,12 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use stats::TaskStats;
 use tokio::task_local;
+use tracing::Span;
 use turbo_tasks::{
     backend::{PersistentTaskType, TaskExecutionSpec},
     event::{Event, EventListener},
-    get_invalidator, registry, CellId, Invalidator, RawVc, StatsType, TaskId, TaskIdSet,
-    TraitTypeId, TurboTasksBackendApi, ValueTypeId,
+    get_invalidator, registry, CellId, Invalidator, NativeFunction, RawVc, StatsType, TaskId,
+    TaskIdSet, TraitType, TraitTypeId, TurboTasksBackendApi, ValueTypeId,
 };
 
 use crate::{
@@ -122,7 +123,9 @@ impl Display for TaskType {
 enum PrepareTaskType {
     #[default]
     None,
-    Native(NativeTaskFn),
+    Resolve(&'static NativeFunction),
+    ResolveTrait(&'static TraitType),
+    Native(&'static NativeFunction, NativeTaskFn),
 }
 
 /// A Task is an instantiation of an Function with some arguments.
@@ -675,8 +678,7 @@ impl Task {
     ) -> Option<TaskExecutionSpec> {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         let dependencies;
-        let future;
-        {
+        let (future, span) = {
             let mut state = self.full_state_mut();
             match state.state_type {
                 Done { .. } | InProgress { .. } | InProgressDirty { .. } => {
@@ -707,11 +709,11 @@ impl Task {
                     )
                 }
             };
-            future = self.make_execution_future(state, backend, turbo_tasks);
-        }
+            self.make_execution_future(state, backend, turbo_tasks)
+        };
         aggregation_context.apply_queued_updates();
         self.clear_dependencies(dependencies, backend, turbo_tasks);
-        Some(TaskExecutionSpec { future })
+        Some(TaskExecutionSpec { future, span })
     }
 
     /// Prepares task execution and returns a future that will execute the task.
@@ -720,52 +722,85 @@ impl Task {
         mut state: FullTaskWriteGuard<'_>,
         _backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
-    ) -> Pin<Box<dyn Future<Output = Result<RawVc>> + Send>> {
+    ) -> (Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>, Span) {
         match &self.ty {
             TaskType::Root(bound_fn) => {
                 drop(state);
-                bound_fn()
+                (bound_fn(), tracing::trace_span!("turbo_tasks::root_task"))
             }
             TaskType::Once(mutex) => {
                 drop(state);
-                mutex.lock().take().expect("Task can only be executed once")
+                (
+                    mutex.lock().take().expect("Task can only be executed once"),
+                    tracing::trace_span!("turbo_tasks::once_task"),
+                )
             }
             TaskType::Persistent { ty, .. } => match &**ty {
                 PersistentTaskType::Native(native_fn, inputs) => {
-                    let future = if let PrepareTaskType::Native(bound_fn) = &state.prepared_type {
-                        bound_fn()
+                    let result =
+                        if let PrepareTaskType::Native(func, bound_fn) = &state.prepared_type {
+                            let span = func.span();
+                            let entered = span.enter();
+                            let future = bound_fn();
+                            drop(entered);
+                            (future, span)
+                        } else {
+                            let func = registry::get_function(*native_fn);
+                            let span = func.span();
+                            let entered = span.enter();
+                            let bound_fn = func.bind(inputs);
+                            let future = bound_fn();
+                            drop(entered);
+                            state.prepared_type = PrepareTaskType::Native(func, bound_fn);
+                            (future, span)
+                        };
+                    drop(state);
+                    result
+                }
+                PersistentTaskType::ResolveNative(ref native_fn_id, inputs) => {
+                    let native_fn_id = *native_fn_id;
+                    let span = if let &PrepareTaskType::Resolve(func) = &state.prepared_type {
+                        func.resolve_span()
                     } else {
-                        let bound_fn = registry::get_function(*native_fn).bind(inputs);
-                        let future = bound_fn();
-                        state.prepared_type = PrepareTaskType::Native(bound_fn);
-                        future
+                        let func = registry::get_function(native_fn_id);
+                        state.prepared_type = PrepareTaskType::Resolve(func);
+                        func.resolve_span()
                     };
                     drop(state);
-                    future
-                }
-                PersistentTaskType::ResolveNative(ref native_fn, inputs) => {
-                    drop(state);
-                    let native_fn = *native_fn;
+                    let entered = span.enter();
                     let inputs = inputs.clone();
                     let turbo_tasks = turbo_tasks.pin();
-                    Box::pin(PersistentTaskType::run_resolve_native(
-                        native_fn,
+                    let future = Box::pin(PersistentTaskType::run_resolve_native(
+                        native_fn_id,
                         inputs,
                         turbo_tasks,
-                    ))
+                    ));
+                    drop(entered);
+                    (future, span)
                 }
-                PersistentTaskType::ResolveTrait(trait_type, name, inputs) => {
+                PersistentTaskType::ResolveTrait(trait_type_id, name, inputs) => {
+                    let trait_type_id = *trait_type_id;
+                    let span =
+                        if let PrepareTaskType::ResolveTrait(trait_type) = &state.prepared_type {
+                            trait_type.resolve_span(name)
+                        } else {
+                            let trait_type = registry::get_trait(trait_type_id);
+                            state.prepared_type = PrepareTaskType::ResolveTrait(trait_type);
+                            trait_type.resolve_span(name)
+                        };
                     drop(state);
-                    let trait_type = *trait_type;
+                    let entered = span.enter();
                     let name = name.clone();
                     let inputs = inputs.clone();
                     let turbo_tasks = turbo_tasks.pin();
-                    Box::pin(PersistentTaskType::run_resolve_trait(
-                        trait_type,
+                    let future = Box::pin(PersistentTaskType::run_resolve_trait(
+                        trait_type_id,
                         name,
                         inputs,
                         turbo_tasks,
-                    ))
+                    ));
+                    drop(entered);
+                    (future, span)
                 }
             },
         }

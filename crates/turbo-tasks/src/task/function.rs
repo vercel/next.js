@@ -26,13 +26,13 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::{bail, Context, Result};
 
 use super::{TaskInput, TaskOutput};
-use crate::{macro_helpers, ConcreteTaskInput, RawVc, Vc, VcRead, VcValueType};
+use crate::{ConcreteTaskInput, RawVc, Vc, VcRead, VcValueType};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 pub type NativeTaskFn = Box<dyn Fn() -> NativeTaskFuture + Send + Sync>;
 
 pub trait TaskFn: Send + Sync + 'static {
-    fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
+    fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
 }
 
 pub trait IntoTaskFn<Mode, Inputs> {
@@ -70,13 +70,13 @@ where
     Mode: TaskFnMode,
     Inputs: TaskInputs,
 {
-    fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
-        TaskFnInputFunction::functor(&self.task_fn, name, inputs)
+    fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+        TaskFnInputFunction::functor(&self.task_fn, inputs)
     }
 }
 
 trait TaskFnInputFunction<Mode: TaskFnMode, Inputs: TaskInputs>: Send + Sync + Clone + 'static {
-    fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
+    fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn>;
 }
 
 pub trait TaskInputs: Send + Sync + 'static {}
@@ -118,7 +118,7 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let mut iter = inputs.iter();
 
@@ -135,16 +135,14 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
-                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
-                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     $(
                         let $arg = $arg.clone();
                     )*
 
-                    Box::pin(macro_helpers::tracing::Instrument::instrument(async move {
+                    Box::pin(async move {
                         Output::try_into_raw_vc((task_fn)($($arg),*))
-                    }, span.clone()))
+                    })
                 }))
             }
         }
@@ -157,7 +155,7 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let mut iter = inputs.iter();
 
@@ -174,18 +172,14 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
-                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
-                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     $(
                         let $arg = $arg.clone();
                     )*
 
-                    Box::pin(macro_helpers::tracing::Instrument::instrument(async move {
-                        let result = Output::try_into_raw_vc((task_fn)($($arg),*).await);
-                        macro_helpers::notify_scheduled_tasks();
-                        result
-                    }, span.clone()))
+                    Box::pin(async move {
+                        Output::try_into_raw_vc((task_fn)($($arg),*).await)
+                    })
                 }))
             }
         }
@@ -198,7 +192,7 @@ macro_rules! task_fn_impl {
             Output: TaskOutput + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let mut iter = inputs.iter();
 
@@ -217,21 +211,17 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
-                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
-                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     let recv = recv.clone();
                     $(
                         let $arg = $arg.clone();
                     )*
 
-                    Box::pin(macro_helpers::tracing::Instrument::instrument(async move {
+                    Box::pin(async move {
                         let recv = recv.await?;
                         let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                        let result = Output::try_into_raw_vc((task_fn)(recv, $($arg),*));
-                        macro_helpers::notify_scheduled_tasks();
-                        result
-                    }, span.clone()))
+                        Output::try_into_raw_vc((task_fn)(recv, $($arg),*))
+                    })
                 }))
             }
         }
@@ -258,7 +248,7 @@ macro_rules! task_fn_impl {
             F: for<'a> $async_fn_trait<&'a Recv, $($arg,)*> + Clone + Send + Sync + 'static,
         {
             #[allow(non_snake_case)]
-            fn functor(&self, name: &'static str, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
+            fn functor(&self, inputs: &[ConcreteTaskInput]) -> Result<NativeTaskFn> {
                 let task_fn = self.clone();
                 let mut iter = inputs.iter();
 
@@ -277,21 +267,17 @@ macro_rules! task_fn_impl {
                 )*
 
                 Ok(Box::new(move || {
-                    let span = macro_helpers::tracing::trace_span!("turbo_tasks::function", name);
-                    let _entered = span.enter();
                     let task_fn = task_fn.clone();
                     let recv = recv.clone();
                     $(
                         let $arg = $arg.clone();
                     )*
 
-                    Box::pin(macro_helpers::tracing::Instrument::instrument(async move {
+                    Box::pin(async move {
                         let recv = recv.await?;
                         let recv = <<Recv as VcValueType>::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
-                        let result = <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg),*).await);
-                        macro_helpers::notify_scheduled_tasks();
-                        result
-                    }, span.clone()))
+                        <F as $async_fn_trait<&Recv, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg),*).await)
+                    })
                 }))
             }
         }

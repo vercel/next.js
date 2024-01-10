@@ -114,7 +114,7 @@ async fn handle_split_group(
 
 /// Creates a chunk with the given `chunk_items. `key` should be unique and is
 /// used with [keyed_cell] to place the chunk items into a cell.
-#[tracing::instrument(level = Level::TRACE, skip(chunk_items, split_context))]
+#[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
 async fn make_chunk(
     chunk_items: Vec<ChunkItemWithInfo>,
     key: &mut String,
@@ -138,7 +138,7 @@ async fn make_chunk(
 
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
-#[tracing::instrument(level = Level::TRACE, skip(chunk_items, split_context))]
+#[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
 async fn app_vendors_split(
     chunk_items: Vec<ChunkItemWithInfo>,
     mut name: String,
@@ -187,7 +187,7 @@ async fn app_vendors_split(
 
 /// Split chunk items by node_modules package name. Continues splitting with
 /// [folder_split] if necessary.
-#[tracing::instrument(level = Level::TRACE, skip(chunk_items, split_context))]
+#[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
 async fn package_name_split(
     chunk_items: Vec<ChunkItemWithInfo>,
     mut name: String,
@@ -229,7 +229,7 @@ fn folder_split_boxed<'a, 'b>(
 }
 
 /// Split chunk items by folder structure.
-#[tracing::instrument(level = Level::TRACE, skip(chunk_items, split_context))]
+#[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name), location))]
 async fn folder_split(
     mut chunk_items: Vec<ChunkItemWithInfo>,
     mut location: usize,

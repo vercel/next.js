@@ -23,7 +23,7 @@ use tokio::{runtime::Handle, select, task_local};
 use tracing::{info_span, instrument, trace_span, Instrument, Level};
 
 use crate::{
-    backend::{Backend, CellContent, PersistentTaskType, TransientTaskType},
+    backend::{Backend, CellContent, PersistentTaskType, TaskExecutionSpec, TransientTaskType},
     event::{Event, EventListener},
     id::{BackendJobId, FunctionId, TraitTypeId},
     id_factory::IdFactory,
@@ -33,7 +33,7 @@ use crate::{
         TimedFuture, {self},
     },
     trace::TraceRawVcs,
-    util::{FormatDuration, StaticOrArc},
+    util::StaticOrArc,
     Completion, ConcreteTaskInput, InvalidationReason, InvalidationReasonSet, SharedReference,
     TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
@@ -468,40 +468,35 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     }
 
                     // Setup thread locals
-                    let execution_future = CELL_COUNTERS.scope(Default::default(), async {
-                        let execution = this.backend.try_start_task_execution(task_id, &*this)?;
-                        Some(
-                            TimedFuture::new(AssertUnwindSafe(execution.future).catch_unwind())
-                                .await,
-                        )
-                    });
-                    if let Some((result, duration, instant)) = execution_future.await {
-                        if cfg!(feature = "log_function_stats") && duration.as_millis() > 1000 {
-                            println!(
-                                "{} took {}",
-                                this.backend.get_task_description(task_id),
-                                FormatDuration(duration)
-                            )
-                        }
-                        let result = result.map_err(|any| match any.downcast::<String>() {
-                            Ok(owned) => Some(Cow::Owned(*owned)),
-                            Err(any) => match any.downcast::<&'static str>() {
-                                Ok(str) => Some(Cow::Borrowed(*str)),
-                                Err(_) => None,
-                            },
-                        });
-                        this.backend.task_execution_result(task_id, result, &*this);
-                        let stateful = this.finish_current_task_state();
-                        let reexecute = this
-                            .backend
-                            .task_execution_completed(task_id, duration, instant, stateful, &*this);
-                        if !reexecute {
-                            return false;
-                        }
-                    } else {
-                        return false;
-                    }
-                    true
+                    CELL_COUNTERS
+                        .scope(Default::default(), async {
+                            let Some(TaskExecutionSpec { future, span }) =
+                                this.backend.try_start_task_execution(task_id, &*this)
+                            else {
+                                return false;
+                            };
+
+                            async {
+                                let (result, duration, instant) =
+                                    TimedFuture::new(AssertUnwindSafe(future).catch_unwind()).await;
+
+                                let result = result.map_err(|any| match any.downcast::<String>() {
+                                    Ok(owned) => Some(Cow::Owned(*owned)),
+                                    Err(any) => match any.downcast::<&'static str>() {
+                                        Ok(str) => Some(Cow::Borrowed(*str)),
+                                        Err(_) => None,
+                                    },
+                                });
+                                this.backend.task_execution_result(task_id, result, &*this);
+                                let stateful = this.finish_current_task_state();
+                                this.backend.task_execution_completed(
+                                    task_id, duration, instant, stateful, &*this,
+                                )
+                            }
+                            .instrument(span)
+                            .await
+                        })
+                        .await
                 })
                 .await
             {}
@@ -810,7 +805,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
             } = &mut *cell.borrow_mut();
             let tasks = take(tasks_to_notify);
             if !tasks.is_empty() {
-                let _guard = trace_span!("finish_current_task_state").entered();
                 self.backend.invalidate_tasks(&tasks, self);
             }
             *stateful

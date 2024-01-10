@@ -1110,7 +1110,10 @@ impl<P: PersistedGraph> Backend for MemoryBackendWithPersistedGraph<P> {
                 )
             }
         };
-        Some(TaskExecutionSpec { future })
+        Some(TaskExecutionSpec {
+            future,
+            span: tracing::Span::none(),
+        })
     }
 
     fn task_execution_result(
