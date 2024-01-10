@@ -642,30 +642,29 @@ export async function printTreeView(
       ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
     ]
 
-    // if the some chunk are less than 10kb or we don't know the size, we don't show them
+    // if the some chunk are less than 10kb or we don't know the size, we only show the total size of the rest
     const tenKbLimit = 10 * 1000
     let restChunkSize = 0
+    let restChunkCount = 0
     sharedJsChunks.forEach((fileName, index, { length }) => {
-      const innerSymbol =
-        index === length - 1 && restChunkSize < tenKbLimit ? '└' : '├'
+      const innerSymbol = index + restChunkCount === length - 1 ? '└' : '├'
 
       const originalName = fileName.replace('<buildId>', buildId)
       const cleanName = getCleanName(fileName)
       const size = stats.sizes.get(originalName)
 
       if (!size || size < tenKbLimit) {
-        if (typeof size === 'number') {
-          restChunkSize += size
-        }
+        restChunkCount++
+        restChunkSize += size || 0
         return
       }
 
       messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
     })
 
-    if (restChunkSize > tenKbLimit) {
+    if (restChunkCount > 0) {
       messages.push([
-        `  └ Other shared modules`,
+        `  └ other shared chunks (total)`,
         prettyBytes(restChunkSize),
         '',
       ])
