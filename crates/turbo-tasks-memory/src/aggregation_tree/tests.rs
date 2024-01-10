@@ -566,17 +566,20 @@ fn connect_child(
     let state = parent.inner.lock();
     let node_ref = NodeRef(child.clone());
     let mut node_guard = unsafe { NodeGuard::new(state, parent.clone()) };
-    let job1 = ensure_thresholds(aggregation_context, &mut node_guard);
+    while let Some(job) = ensure_thresholds(aggregation_context, &mut node_guard) {
+        drop(node_guard);
+        job();
+        node_guard = unsafe { NodeGuard::new(parent.inner.lock(), parent.clone()) };
+    }
     let NodeGuard {
         guard: mut state, ..
     } = node_guard;
     state.children.push(child.clone());
-    let job2 = state
+    let job = state
         .aggregation_leaf
         .add_child_job(aggregation_context, &node_ref);
     drop(state);
-    job1();
-    job2();
+    job();
 }
 
 fn print(aggregation_context: &NodeAggregationContext<'_>, current: &NodeRef) {

@@ -364,12 +364,12 @@ pub fn remove_inner_upper_from_item<C: AggregationContext>(
 }
 
 /// Checks thresholds for an item to ensure the aggregation graph stays
-/// well-formed. Run this before added a child to an item. Returns a closure
+/// well-formed. Run this before adding a child to an item. Returns a closure
 /// that should be executed outside of the leaf lock.
 pub fn ensure_thresholds<'a, C: AggregationContext>(
     aggregation_context: &'a C,
     item: &mut C::ItemLock<'_>,
-) -> impl FnOnce() + 'a {
+) -> Option<impl FnOnce() + 'a> {
     let mut result = None;
 
     let number_of_total_children = item.number_of_children();
@@ -389,8 +389,9 @@ pub fn ensure_thresholds<'a, C: AggregationContext>(
             ));
         }
     }
-    || {
-        if let Some((result, reference, new_bottom_tree)) = result {
+    result.map(|(result, reference, new_bottom_tree)| {
+        move || {
+            let _span = tracing::trace_span!("aggregation_tree::reorganize").entered();
             add_left_upper_to_item_step_2(
                 aggregation_context,
                 &reference,
@@ -398,5 +399,5 @@ pub fn ensure_thresholds<'a, C: AggregationContext>(
                 result,
             );
         }
-    }
+    })
 }
