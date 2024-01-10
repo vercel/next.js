@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import type { Request } from 'playwright-chromium'
 
 createNextDescribe(
@@ -17,9 +17,10 @@ createNextDescribe(
 
         browser.elementById('set-query').click()
 
-        await check(
-          async () => await browser.elementById('query').text(),
-          'a=b&c=d'
+        await retry(() =>
+          expect(browser.elementById('query').text()).resolves.toEqual(
+            'a=b&c=d'
+          )
         )
 
         const url = new URL(await browser.url())
@@ -27,32 +28,35 @@ createNextDescribe(
       })
 
       it('should handle unicode search params', async () => {
-        const requests = []
+        const requests: Array<{
+          pathname: string
+          ok: boolean
+          headers: Record<string, string>
+        }> = []
 
         const browser = await next.browser('/search-params?name=名')
         browser.on('request', async (req: Request) => {
           const res = await req.response()
-          requests.push([
-            new URL(req.url()).pathname,
-            res.ok(),
-            await res.headers(),
-          ])
+          if (!res) return
+
+          requests.push({
+            pathname: new URL(req.url()).pathname,
+            ok: res.ok(),
+            headers: res.headers(),
+          })
         })
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
 
-        await check(async () => {
-          return requests.some((requestPair) => {
-            const [pathname, ok, headers] = requestPair
-            return (
-              pathname === '/' &&
-              ok &&
-              headers['content-type'] === 'text/x-component'
-            )
+        await retry(() =>
+          expect(requests).toContainEqual({
+            pathname: '/',
+            ok: true,
+            headers: expect.objectContaining({
+              'content-type': 'text/x-component',
+            }),
           })
-            ? 'success'
-            : JSON.stringify(requests)
-        }, 'success')
+        )
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
@@ -142,15 +146,11 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -184,15 +184,10 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -215,15 +210,10 @@ createNextDescribe(
           expectedScroll: number
         ) => {
           await browser.elementByCss(`#link-to-${val.toString()}`).click()
-          await check(
-            async () => {
-              const val = await browser.eval('window.pageYOffset')
-              return val.toString()
-            },
-            expectedScroll.toString(),
-            true,
-            // Try maximum of 15 seconds
-            15
+          await retry(() =>
+            expect(browser.eval('window.pageYOffset')).resolves.toEqual(
+              expectedScroll
+            )
           )
         }
 
@@ -242,15 +232,8 @@ createNextDescribe(
           // Wait for hash-link-back-to-same-page to load
           .waitForElementByCss('#to-other-page')
 
-        await check(
-          async () => {
-            const val = await browser.eval('window.pageYOffset')
-            return val.toString()
-          },
-          (0).toString(),
-          true,
-          // Try maximum of 15 seconds
-          15
+        await retry(() =>
+          expect(browser.eval('window.pageYOffset')).resolves.toEqual(0)
         )
       })
     })
@@ -262,49 +245,71 @@ createNextDescribe(
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-h1-hash-only').click()
 
-        await check(() => browser.url(), next.url + pathname + '#h1')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(next.url + pathname + '#h1')
+        )
       })
 
       it('should work with a hash-only `router.push(...)`', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#button-to-h3-hash-only').click()
 
-        await check(() => browser.url(), next.url + pathname + '#h3')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(next.url + pathname + '#h3')
+        )
       })
 
       it('should work with a query-only href', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-dummy-query').click()
 
-        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2'
+          )
+        )
       })
 
       it('should work with both relative hashes and queries', async () => {
         const browser = await next.browser(pathname)
         await browser.elementByCss('#link-to-h2-with-hash-and-query').click()
 
-        await check(() => browser.url(), next.url + pathname + '?here=ok#h2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?here=ok#h2'
+          )
+        )
 
         // Only update hash
         await browser.elementByCss('#link-to-h1-hash-only').click()
-        await check(() => browser.url(), next.url + pathname + '?here=ok#h1')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?here=ok#h1'
+          )
+        )
 
         // Replace all with new query
         await browser.elementByCss('#link-to-dummy-query').click()
-        await check(() => browser.url(), next.url + pathname + '?foo=1&bar=2')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2'
+          )
+        )
 
         // Add hash to existing query
         await browser.elementByCss('#link-to-h1-hash-only').click()
-        await check(
-          () => browser.url(),
-          next.url + pathname + '?foo=1&bar=2#h1'
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2#h1'
+          )
         )
 
         // Update hash again via `router.push(...)`
         await browser.elementByCss('#button-to-h3-hash-only').click()
-        await check(
-          () => browser.url(),
-          next.url + pathname + '?foo=1&bar=2#h3'
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + pathname + '?foo=1&bar=2#h3'
+          )
         )
       })
     })
@@ -581,7 +586,11 @@ createNextDescribe(
           .elementByCss('#link-to-pages-router')
           .click()
           .waitForElementByCss('#link-to-app')
-        await check(() => browser.url(), next.url + '/some#non-existent')
+        await retry(() =>
+          expect(browser.url()).resolves.toEqual(
+            next.url + '/some#non-existent'
+          )
+        )
       })
 
       if (!isNextDev) {
@@ -776,7 +785,7 @@ createNextDescribe(
         const newScrollPosition = await browser.eval('window.pageYOffset')
 
         // confirm that the scroll position was restored
-        await check(() => scrollPosition === newScrollPosition, true)
+        expect(newScrollPosition).toEqual(scrollPosition)
       })
     })
   }
