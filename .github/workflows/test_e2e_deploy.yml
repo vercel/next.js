@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
 
     env:
