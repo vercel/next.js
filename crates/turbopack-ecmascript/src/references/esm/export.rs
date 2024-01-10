@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     collections::{BTreeMap, HashSet},
     ops::ControlFlow,
 };
@@ -16,6 +15,7 @@ use swc_core::{
 };
 use turbo_tasks::{trace::TraceRawVcs, ValueToString, Vc};
 use turbopack_core::{
+    ident::AssetIdent,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference::ModuleReference,
@@ -237,15 +237,15 @@ async fn handle_star_reexports(
 }
 
 #[turbo_tasks::value]
-struct ExpandResults {
-    star_exports: Vec<String>,
-    has_dynamic_exports: bool,
+pub struct ExpandStarResult {
+    pub star_exports: Vec<String>,
+    pub has_dynamic_exports: bool,
 }
 
 #[turbo_tasks::function]
-async fn expand_star_exports(
+pub async fn expand_star_exports(
     root_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-) -> Result<Vc<ExpandResults>> {
+) -> Result<Vc<ExpandStarResult>> {
     let mut set = HashSet::new();
     let mut has_dynamic_exports = false;
     let mut checked_modules = HashSet::new();
@@ -266,71 +266,63 @@ async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None => AnalyzeIssue {
-                code: None,
-                category: Vc::cell("analyze".to_string()),
-                message: StyledString::Text(format!(
+            EcmascriptExports::None => emit_star_exports_issue(
+                asset.ident(),
+                format!(
                     "export * used with module {} which has no exports\nTypescript only: Did you \
                      want to export only types with `export type * from \"...\"`?\nNote: Using \
                      `export type` is more efficient than `export *` as it won't emit any runtime \
                      code.",
                     asset.ident().to_string().await?
-                ))
-                .cell(),
-                source_ident: asset.ident(),
-                severity: IssueSeverity::Warning.into(),
-                source: None,
-                title: Vc::cell("unexpected export *".to_string()),
-            }
-            .cell()
-            .emit(),
-            EcmascriptExports::Value => AnalyzeIssue {
-                code: None,
-                category: Vc::cell("analyze".to_string()),
-                message: StyledString::Text(format!(
+                ),
+            ),
+            EcmascriptExports::Value => emit_star_exports_issue(
+                asset.ident(),
+                format!(
                     "export * used with module {} which only has a default export (default export \
                      is not exported with export *)\nDid you want to use `export {{ default }} \
                      from \"...\";` instead?",
                     asset.ident().to_string().await?
-                ))
-                .cell(),
-                source_ident: asset.ident(),
-                severity: IssueSeverity::Warning.into(),
-                source: None,
-                title: Vc::cell("unexpected export *".to_string()),
-            }
-            .cell()
-            .emit(),
+                ),
+            ),
             EcmascriptExports::CommonJs => {
                 has_dynamic_exports = true;
-                AnalyzeIssue {
-                    code: None,
-                    category: Vc::cell("analyze".to_string()),
-                    message: StyledString::Text(format!(
+                emit_star_exports_issue(
+                    asset.ident(),
+                    format!(
                         "export * used with module {} which is a CommonJS module with exports \
                          only available at runtime\nList all export names manually (`export {{ a, \
                          b, c }} from \"...\") or rewrite the module to ESM, to avoid the \
                          additional runtime code.`",
                         asset.ident().to_string().await?
-                    ))
-                    .cell(),
-                    source_ident: asset.ident(),
-                    severity: IssueSeverity::Warning.into(),
-                    source: None,
-                    title: Vc::cell("unexpected export *".to_string()),
-                }
-                .cell()
-                .emit()
+                    ),
+                );
             }
             EcmascriptExports::DynamicNamespace => {
                 has_dynamic_exports = true;
             }
         }
     }
-    Ok(ExpandResults::cell(ExpandResults {
+
+    Ok(ExpandStarResult {
         star_exports: set.into_iter().collect(),
         has_dynamic_exports,
-    }))
+    }
+    .cell())
+}
+
+fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: String) {
+    AnalyzeIssue {
+        code: None,
+        category: Vc::cell("analyze".to_string()),
+        message: StyledString::Text(message).cell(),
+        source_ident,
+        severity: IssueSeverity::Warning.into(),
+        source: None,
+        title: Vc::cell("unexpected export *".to_string()),
+    }
+    .cell()
+    .emit();
 }
 
 #[turbo_tasks::value(shared)]
@@ -340,6 +332,59 @@ pub struct EsmExports {
     pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
 }
 
+/// The expanded version of [EsmExports], the `exports` field here includes all
+/// exports that could be expanded from `star_exports`.
+///
+/// `star_exports` that could not be (fully) expanded end up in
+/// `dynamic_exports`.
+#[turbo_tasks::value(shared)]
+#[derive(Hash, Debug)]
+pub struct ExpandedExports {
+    pub exports: BTreeMap<String, EsmExport>,
+    /// Modules we couldn't analyse all exports of.
+    pub dynamic_exports: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmExports {
+    #[turbo_tasks::function]
+    pub async fn expand_exports(&self) -> Result<Vc<ExpandedExports>> {
+        let mut exports: BTreeMap<String, EsmExport> = self.exports.clone();
+        let mut dynamic_exports = vec![];
+
+        for esm_ref in self.star_exports.iter() {
+            // TODO(PACK-2176): we probably need to handle re-exporting from external
+            // modules.
+            let ReferencedAsset::Some(asset) =
+                &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
+            else {
+                continue;
+            };
+
+            let export_info = expand_star_exports(*asset).await?;
+
+            for export in &export_info.star_exports {
+                if !exports.contains_key(export) {
+                    exports.insert(
+                        export.clone(),
+                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.to_string()),
+                    );
+                }
+            }
+
+            if export_info.has_dynamic_exports {
+                dynamic_exports.push(*asset);
+            }
+        }
+
+        Ok(ExpandedExports {
+            exports,
+            dynamic_exports,
+        }
+        .cell())
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmExports {
     #[turbo_tasks::function]
@@ -347,47 +392,23 @@ impl CodeGenerateable for EsmExports {
         self: Vc<Self>,
         _context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
         let mut visitors = Vec::new();
 
-        let mut all_exports: BTreeMap<Cow<str>, Cow<EsmExport>> = this
-            .exports
-            .iter()
-            .map(|(k, v)| (Cow::<str>::Borrowed(k), Cow::Borrowed(v)))
-            .collect();
-        let mut props = Vec::new();
+        let expanded = self.expand_exports().await?;
+
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
+        for dynamic_export_asset in &expanded.dynamic_exports {
+            let ident = ReferencedAsset::get_ident_from_placeable(dynamic_export_asset).await?;
 
-        for esm_ref in this.star_exports.iter() {
-            if let ReferencedAsset::Some(asset) =
-                &*ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
-            {
-                let export_info = expand_star_exports(*asset).await?;
-                let export_names = &export_info.star_exports;
-                for export in export_names.iter() {
-                    if !all_exports.contains_key(&Cow::<str>::Borrowed(export)) {
-                        all_exports.insert(
-                            Cow::Owned(export.clone()),
-                            Cow::Owned(EsmExport::ImportedBinding(
-                                Vc::upcast(*esm_ref),
-                                export.to_string(),
-                            )),
-                        );
-                    }
-                }
-
-                if export_info.has_dynamic_exports {
-                    let ident = ReferencedAsset::get_ident_from_placeable(asset).await?;
-
-                    dynamic_exports.push(quote_expr!(
-                        "__turbopack_dynamic__($arg)",
-                        arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
-                    ));
-                }
-            }
+            dynamic_exports.push(quote_expr!(
+                "__turbopack_dynamic__($arg)",
+                arg: Expr = Ident::new(ident.into(), DUMMY_SP).into()
+            ));
         }
-        for (exported, local) in all_exports.into_iter() {
-            let expr = match local.as_ref() {
+
+        let mut props = Vec::new();
+        for (exported, local) in &expanded.exports {
+            let expr = match local {
                 EsmExport::Error => Some(quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
                 )),
@@ -431,7 +452,7 @@ impl CodeGenerateable for EsmExports {
                 props.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
                     key: PropName::Str(Str {
                         span: DUMMY_SP,
-                        value: exported.as_ref().into(),
+                        value: exported.clone().into(),
                         raw: None,
                     }),
                     value: Box::new(expr),
