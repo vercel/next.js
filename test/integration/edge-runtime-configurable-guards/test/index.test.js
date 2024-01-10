@@ -2,6 +2,7 @@
 
 import { join } from 'path'
 import {
+  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -83,7 +84,8 @@ describe('Edge runtime configurable guards', () => {
       const res = await fetchViaHTTP(context.appPort, middlewareUrl)
       await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).toContain(
+      await check(
+        () => context.logs.output,
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
@@ -91,9 +93,9 @@ describe('Edge runtime configurable guards', () => {
     it('warns in dev for unallowed code', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, routeUrl)
-      await waitFor(500)
       expect(res.status).toBe(200)
-      expect(context.logs.output).toContain(
+      await check(
+        () => context.logs.output,
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
