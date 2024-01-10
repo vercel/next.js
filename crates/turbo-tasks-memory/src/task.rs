@@ -1418,15 +1418,6 @@ impl Task {
                 thresholds_job = ensure_thresholds(&aggregation_context, &mut guard);
                 let TaskGuard { guard, .. } = guard;
                 let mut state = TaskMetaStateWriteGuard::full_from(guard.into_inner(), self);
-                if let TaskStateType::InProgress {
-                    outdated_children, ..
-                } = &mut state.state_type
-                {
-                    if outdated_children.remove(&child_id) {
-                        state.children.insert(child_id);
-                        return;
-                    }
-                }
                 if state.children.insert(child_id) {
                     add_job = Some(
                         state
