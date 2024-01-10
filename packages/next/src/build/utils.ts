@@ -628,7 +628,7 @@ export async function printTreeView(
       '',
     ])
     const sharedCssFiles: string[] = []
-    ;[
+    const sharedJsChunks = [
       ...sharedFiles
         .filter((file) => {
           if (file.endsWith('.css')) {
@@ -640,19 +640,36 @@ export async function printTreeView(
         .map((e) => e.replace(buildId, '<buildId>'))
         .sort(),
       ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
-    ].forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+    ]
+
+    // if the some chunk are less than 10kb or we don't know the size, we don't show them
+    const tenKbLimit = 10 * 1000
+    let restChunkSize = 0
+    sharedJsChunks.forEach((fileName, index, { length }) => {
+      const innerSymbol =
+        index === length - 1 && restChunkSize < tenKbLimit ? '└' : '├'
 
       const originalName = fileName.replace('<buildId>', buildId)
       const cleanName = getCleanName(fileName)
       const size = stats.sizes.get(originalName)
 
+      if (!size || size < tenKbLimit) {
+        if (typeof size === 'number') {
+          restChunkSize += size
+        }
+        return
+      }
+
+      messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
+    })
+
+    if (restChunkSize > tenKbLimit) {
       messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        typeof size === 'number' ? prettyBytes(size) : '',
+        `  └ Other shared modules`,
+        prettyBytes(restChunkSize),
         '',
       ])
-    })
+    }
   }
 
   // If enabled, then print the tree for the app directory.
