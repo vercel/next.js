@@ -64,6 +64,7 @@ export async function createPost(id) {
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
 > - `redirect` throws an error so it needs to be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in Event Handlers. You can use the [`useRouter` hook](#using-the-userouter-hook-in-client-components) instead.
+> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 
@@ -111,7 +112,8 @@ export async function updateUsername(username, formData) {
 
 > **Good to know**:
 >
-> - `redirect` returns a 308 (permanent redirect) status code by default.
+> - `permanentRedirect` returns a 308 (permanent redirect) status code by default.
+> - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
 See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/permanentRedirect) for more information.
 
@@ -289,7 +291,7 @@ See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redir
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
-> - `redirects` runs before [Middleware](/docs/app/building-your-application/routing/middleware) so you can use it to redirect an incoming request before it reaches your application code.
+> - `redirects` runs **before** [Middleware](/docs/app/building-your-application/routing/middleware).
 
 ...
 
