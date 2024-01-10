@@ -1,8 +1,6 @@
-use std::{
-    fmt::Debug,
-    hash::Hash,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::{fmt::Debug, hash::Hash};
+
+use tracing::Span;
 
 use crate::{
     registry::register_function,
@@ -21,10 +19,6 @@ pub struct NativeFunction {
     /// handles the task execution.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
-    // TODO move to Task
-    /// A counter that tracks total executions of that function
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub executed_count: AtomicUsize,
 }
 
 impl Debug for NativeFunction {
@@ -43,23 +37,13 @@ impl NativeFunction {
         Self {
             name,
             implementation: Box::new(implementation.into_task_fn()),
-            executed_count: AtomicUsize::new(0),
         }
     }
 
     /// Creates a functor for execution from a fixed set of inputs.
     pub fn bind(&'static self, inputs: &[ConcreteTaskInput]) -> NativeTaskFn {
-        match (self.implementation).functor(&self.name, inputs) {
-            Ok(functor) => Box::new(move || {
-                let r = (functor)();
-                if cfg!(feature = "log_function_stats") {
-                    let count = self.executed_count.fetch_add(1, Ordering::Relaxed);
-                    if count > 0 && count % 100000 == 0 {
-                        println!("{} was executed {}k times", self.name, count / 1000);
-                    }
-                }
-                r
-            }),
+        match (self.implementation).functor(inputs) {
+            Ok(functor) => functor,
             Err(err) => {
                 let err = SharedError::new(err);
                 Box::new(move || {
@@ -68,6 +52,14 @@ impl NativeFunction {
                 })
             }
         }
+    }
+
+    pub fn span(&'static self) -> Span {
+        tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
+    }
+
+    pub fn resolve_span(&'static self) -> Span {
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
     }
 
     pub fn register(&'static self, global_name: &'static str) {
@@ -94,6 +86,7 @@ impl PartialOrd for &'static NativeFunction {
         Some(self.cmp(other))
     }
 }
+
 impl Ord for &'static NativeFunction {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         Ord::cmp(
