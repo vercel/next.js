@@ -41,6 +41,9 @@ pub enum ServerToClientMessage {
         is_graph: bool,
         start: u64,
         end: u64,
+        duration: u64,
+        allocations: u64,
+        deallocations: u64,
         args: Vec<(String, String)>,
         path: Vec<String>,
     },
@@ -90,6 +93,7 @@ pub struct ViewRect {
     pub horizontal_pixels: u64,
     pub query: String,
     pub view_mode: String,
+    pub value_mode: String,
 }
 
 struct ConnectionState {
@@ -133,6 +137,7 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                         horizontal_pixels: 1,
                         query: String::new(),
                         view_mode: "aggregated".to_string(),
+                        value_mode: "duration".to_string(),
                     },
                     last_update_generation: 0,
                 }));
@@ -270,6 +275,9 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                     {
                                         let span_start = span.start();
                                         let span_end = span.end();
+                                        let duration = span.corrected_total_time();
+                                        let allocations = span.total_allocations();
+                                        let deallocations = span.total_deallocations();
                                         let args = span
                                             .args()
                                             .map(|(k, v)| (k.to_string(), v.to_string()))
@@ -286,6 +294,9 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                             is_graph,
                                             start: span_start,
                                             end: span_end,
+                                            duration,
+                                            allocations,
+                                            deallocations,
                                             args,
                                             path,
                                         }
@@ -295,6 +306,9 @@ pub fn serve(store: Arc<StoreContainer>) -> Result<()> {
                                             is_graph: false,
                                             start: 0,
                                             end: 0,
+                                            duration: 0,
+                                            allocations: 0,
+                                            deallocations: 0,
                                             args: Vec::new(),
                                             path: Vec::new(),
                                         }

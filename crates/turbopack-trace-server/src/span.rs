@@ -23,6 +23,10 @@ pub struct Span {
     // These values are computed automatically:
     pub self_end: u64,
     pub self_time: u64,
+    pub self_allocations: u64,
+    pub self_allocation_count: u64,
+    pub self_deallocations: u64,
+    pub self_deallocation_count: u64,
 
     // These values are computed when accessed (and maybe deleted during writing):
     pub end: OnceLock<u64>,
@@ -30,6 +34,10 @@ pub struct Span {
     pub group_name: OnceLock<String>,
     pub max_depth: OnceLock<u32>,
     pub total_time: OnceLock<u64>,
+    pub total_allocations: OnceLock<u64>,
+    pub total_deallocations: OnceLock<u64>,
+    pub total_persistent_allocations: OnceLock<u64>,
+    pub total_allocation_count: OnceLock<u64>,
     pub corrected_self_time: OnceLock<u64>,
     pub corrected_total_time: OnceLock<u64>,
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
@@ -63,7 +71,15 @@ pub struct SpanGraph {
     pub max_depth: OnceLock<u32>,
     pub events: OnceLock<Vec<SpanGraphEvent>>,
     pub self_time: OnceLock<u64>,
+    pub self_allocations: OnceLock<u64>,
+    pub self_deallocations: OnceLock<u64>,
+    pub self_persistent_allocations: OnceLock<u64>,
+    pub self_allocation_count: OnceLock<u64>,
     pub total_time: OnceLock<u64>,
+    pub total_allocations: OnceLock<u64>,
+    pub total_deallocations: OnceLock<u64>,
+    pub total_persistent_allocations: OnceLock<u64>,
+    pub total_allocation_count: OnceLock<u64>,
     pub corrected_self_time: OnceLock<u64>,
     pub corrected_total_time: OnceLock<u64>,
 }

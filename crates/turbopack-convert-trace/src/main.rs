@@ -344,6 +344,9 @@ fn main() {
                 let parent = &mut spans[internal_parent];
                 parent.items.push(SpanItem::Child(internal_id));
             }
+            TraceRow::Allocation { .. } => {
+                // ignore
+            }
         }
     }
 

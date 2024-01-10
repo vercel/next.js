@@ -37,7 +37,15 @@ impl Store {
                 max_depth: OnceLock::new(),
                 graph: OnceLock::new(),
                 self_time: 0,
+                self_allocations: 0,
+                self_allocation_count: 0,
+                self_deallocations: 0,
+                self_deallocation_count: 0,
                 total_time: OnceLock::new(),
+                total_allocations: OnceLock::new(),
+                total_deallocations: OnceLock::new(),
+                total_persistent_allocations: OnceLock::new(),
+                total_allocation_count: OnceLock::new(),
                 corrected_self_time: OnceLock::new(),
                 corrected_total_time: OnceLock::new(),
                 search_index: OnceLock::new(),
@@ -78,7 +86,15 @@ impl Store {
             max_depth: OnceLock::new(),
             graph: OnceLock::new(),
             self_time: 0,
+            self_allocations: 0,
+            self_allocation_count: 0,
+            self_deallocations: 0,
+            self_deallocation_count: 0,
             total_time: OnceLock::new(),
+            total_allocations: OnceLock::new(),
+            total_deallocations: OnceLock::new(),
+            total_persistent_allocations: OnceLock::new(),
+            total_allocation_count: OnceLock::new(),
             corrected_self_time: OnceLock::new(),
             corrected_total_time: OnceLock::new(),
             search_index: OnceLock::new(),
@@ -110,6 +126,32 @@ impl Store {
         span.self_end = max(span.self_end, end);
     }
 
+    pub fn add_allocation(
+        &mut self,
+        span_index: SpanIndex,
+        allocation: u64,
+        count: u64,
+        outdated_spans: &mut HashSet<SpanIndex>,
+    ) {
+        let span = &mut self.spans[span_index.get()];
+        outdated_spans.insert(span_index);
+        span.self_allocations += allocation;
+        span.self_allocation_count += count;
+    }
+
+    pub fn add_deallocation(
+        &mut self,
+        span_index: SpanIndex,
+        deallocation: u64,
+        count: u64,
+        outdated_spans: &mut HashSet<SpanIndex>,
+    ) {
+        let span = &mut self.spans[span_index.get()];
+        outdated_spans.insert(span_index);
+        span.self_deallocations += deallocation;
+        span.self_deallocation_count += count;
+    }
+
     pub fn complete_span(&mut self, span_index: SpanIndex) {
         let span = &mut self.spans[span_index.get()];
         span.is_complete = true;
@@ -121,6 +163,10 @@ impl Store {
             loop {
                 span.end.take();
                 span.total_time.take();
+                span.total_allocations.take();
+                span.total_deallocations.take();
+                span.total_persistent_allocations.take();
+                span.total_allocation_count.take();
                 span.corrected_self_time.take();
                 span.corrected_total_time.take();
                 span.graph.take();
@@ -257,6 +303,24 @@ impl<'a> SpanRef<'a> {
         self.span.self_time
     }
 
+    pub fn self_allocations(&self) -> u64 {
+        self.span.self_allocations
+    }
+
+    pub fn self_deallocations(&self) -> u64 {
+        self.span.self_deallocations
+    }
+
+    pub fn self_persistent_allocations(&self) -> u64 {
+        self.span
+            .self_allocations
+            .saturating_sub(self.span.self_deallocations)
+    }
+
+    pub fn self_allocation_count(&self) -> u64 {
+        self.span.self_allocation_count
+    }
+
     // TODO(sokra) use events instead of children for visualizing span graphs
     #[allow(dead_code)]
     pub fn events_count(&self) -> usize {
@@ -294,6 +358,46 @@ impl<'a> SpanRef<'a> {
                 .reduce(|a, b| a + b)
                 .unwrap_or_default()
                 + self.self_time()
+        })
+    }
+
+    pub fn total_allocations(&self) -> u64 {
+        *self.span.total_allocations.get_or_init(|| {
+            self.children()
+                .map(|child| child.total_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_allocations()
+        })
+    }
+
+    pub fn total_deallocations(&self) -> u64 {
+        *self.span.total_deallocations.get_or_init(|| {
+            self.children()
+                .map(|child| child.total_deallocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_deallocations()
+        })
+    }
+
+    pub fn total_persistent_allocations(&self) -> u64 {
+        *self.span.total_persistent_allocations.get_or_init(|| {
+            self.children()
+                .map(|child| child.total_persistent_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_persistent_allocations()
+        })
+    }
+
+    pub fn total_allocation_count(&self) -> u64 {
+        *self.span.total_allocation_count.get_or_init(|| {
+            self.children()
+                .map(|child| child.total_allocation_count())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_allocation_count()
         })
     }
 
@@ -349,7 +453,15 @@ impl<'a> SpanRef<'a> {
                             max_depth: OnceLock::new(),
                             events: OnceLock::new(),
                             self_time: OnceLock::new(),
+                            self_allocations: OnceLock::new(),
+                            self_deallocations: OnceLock::new(),
+                            self_persistent_allocations: OnceLock::new(),
+                            self_allocation_count: OnceLock::new(),
                             total_time: OnceLock::new(),
+                            total_allocations: OnceLock::new(),
+                            total_deallocations: OnceLock::new(),
+                            total_persistent_allocations: OnceLock::new(),
+                            total_allocation_count: OnceLock::new(),
                             corrected_self_time: OnceLock::new(),
                             corrected_total_time: OnceLock::new(),
                         };
@@ -448,12 +560,38 @@ pub enum SpanGraphEventRef<'a> {
 }
 
 impl<'a> SpanGraphEventRef<'a> {
-    // TODO(sokra) use events instead of children for visualizing span graphs
-    #[allow(dead_code)]
     pub fn corrected_total_time(&self) -> u64 {
         match self {
             SpanGraphEventRef::SelfTime { duration } => *duration,
             SpanGraphEventRef::Child { graph } => graph.corrected_total_time(),
+        }
+    }
+
+    pub fn total_allocations(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { .. } => 0,
+            SpanGraphEventRef::Child { graph } => graph.total_allocations(),
+        }
+    }
+
+    pub fn total_deallocations(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { .. } => 0,
+            SpanGraphEventRef::Child { graph } => graph.total_deallocations(),
+        }
+    }
+
+    pub fn total_persistent_allocations(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { .. } => 0,
+            SpanGraphEventRef::Child { graph } => graph.total_persistent_allocations(),
+        }
+    }
+
+    pub fn total_allocation_count(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { .. } => 0,
+            SpanGraphEventRef::Child { graph } => graph.total_allocation_count(),
         }
     }
 }
@@ -544,7 +682,15 @@ impl<'a> SpanGraphRef<'a> {
                                 max_depth: OnceLock::new(),
                                 events: OnceLock::new(),
                                 self_time: OnceLock::new(),
+                                self_allocations: OnceLock::new(),
+                                self_deallocations: OnceLock::new(),
+                                self_persistent_allocations: OnceLock::new(),
+                                self_allocation_count: OnceLock::new(),
                                 total_time: OnceLock::new(),
+                                total_allocations: OnceLock::new(),
+                                total_deallocations: OnceLock::new(),
+                                total_persistent_allocations: OnceLock::new(),
+                                total_allocation_count: OnceLock::new(),
                                 corrected_self_time: OnceLock::new(),
                                 corrected_total_time: OnceLock::new(),
                             };
@@ -608,6 +754,82 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
+    pub fn self_allocations(&self) -> u64 {
+        *self.graph.self_allocations.get_or_init(|| {
+            self.recursive_spans()
+                .map(|span| span.self_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn self_deallocations(&self) -> u64 {
+        *self.graph.self_deallocations.get_or_init(|| {
+            self.recursive_spans()
+                .map(|span| span.self_deallocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn self_persistent_allocations(&self) -> u64 {
+        *self.graph.self_persistent_allocations.get_or_init(|| {
+            self.recursive_spans()
+                .map(|span| span.self_persistent_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn self_allocation_count(&self) -> u64 {
+        *self.graph.self_allocation_count.get_or_init(|| {
+            self.recursive_spans()
+                .map(|span| span.self_allocation_count())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+        })
+    }
+
+    pub fn total_allocations(&self) -> u64 {
+        *self.graph.total_allocations.get_or_init(|| {
+            self.children()
+                .map(|graph| graph.total_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_allocations()
+        })
+    }
+
+    pub fn total_deallocations(&self) -> u64 {
+        *self.graph.total_deallocations.get_or_init(|| {
+            self.children()
+                .map(|graph| graph.total_deallocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_deallocations()
+        })
+    }
+
+    pub fn total_persistent_allocations(&self) -> u64 {
+        *self.graph.total_persistent_allocations.get_or_init(|| {
+            self.children()
+                .map(|graph| graph.total_persistent_allocations())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_persistent_allocations()
+        })
+    }
+
+    pub fn total_allocation_count(&self) -> u64 {
+        *self.graph.total_allocation_count.get_or_init(|| {
+            self.children()
+                .map(|graph| graph.total_allocation_count())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_allocation_count()
+        })
+    }
+
     pub fn corrected_self_time(&self) -> u64 {
         *self.graph.self_time.get_or_init(|| {
             self.recursive_spans()
@@ -636,7 +858,9 @@ impl<'a> Debug for SpanGraphRef<'a> {
             .field("count", &self.count())
             .field("max_depth", &self.max_depth())
             .field("self_time", &self.self_time())
+            .field("self_allocations", &self.self_allocations())
             .field("total_time", &self.total_time())
+            .field("total_allocations", &self.total_allocations())
             .finish()
     }
 }

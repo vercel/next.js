@@ -253,6 +253,7 @@ fn process(store: &mut StoreWriteGuard, state: &mut ReaderState, row: TraceRow<'
                 .remove("name")
                 .and_then(|v| v.as_str().map(|s| s.to_string()))
                 .unwrap_or("event".into());
+
             let id = store.add_span(
                 parent,
                 ts,
@@ -270,6 +271,34 @@ fn process(store: &mut StoreWriteGuard, state: &mut ReaderState, row: TraceRow<'
                 ts,
                 &mut state.outdated_spans,
             );
+        }
+        TraceRow::Allocation {
+            ts: _,
+            thread_id,
+            allocations,
+            allocation_count,
+            deallocations,
+            deallocation_count,
+        } => {
+            let stack = state.thread_stacks.entry(thread_id).or_default();
+            if let Some(&id) = stack.last() {
+                if allocations > 0 {
+                    store.add_allocation(
+                        id,
+                        allocations,
+                        allocation_count,
+                        &mut state.outdated_spans,
+                    );
+                }
+                if deallocations > 0 {
+                    store.add_deallocation(
+                        id,
+                        deallocations,
+                        deallocation_count,
+                        &mut state.outdated_spans,
+                    );
+                }
+            }
         }
     }
 }
