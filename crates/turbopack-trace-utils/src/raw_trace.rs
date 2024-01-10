@@ -7,6 +7,7 @@ use tracing::{
 use tracing_subscriber::{registry::LookupSpan, Layer};
 
 use crate::{
+    flavor::BufFlavor,
     trace_writer::TraceWriter,
     tracing::{TraceRow, TraceValue},
 };
@@ -29,8 +30,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
     }
 
     fn write(&self, data: TraceRow<'_>) {
-        // Always use allocated buffer to allow sending it to another thread.
-        let buf = postcard::to_allocvec(&data).unwrap();
+        // Buffer is recycled
+        let buf = self.trace_writer.try_get_buffer().unwrap_or_default();
+        let buf = postcard::serialize_with_flavor(&data, BufFlavor { buf }).unwrap();
         self.trace_writer.write(buf);
     }
 }
