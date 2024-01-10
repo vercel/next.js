@@ -293,7 +293,13 @@ See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redir
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
 > - `redirects` runs **before** [Middleware](/docs/app/building-your-application/routing/middleware).
 
-...
+## `NextResponse.redirect` in Middleware
+
+Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can redirect the user to a different URL using `NextResponse.redirect`. This is useful if you want to redirect users based on a condition (e.g. authentication) or have a large number of redirects (see [Bulk Redirects](#bulk-redirects-advanced)).
+
+> **Good to know**:
+>
+> - Middleware runs **after** `redirects` in `next.config.js` and **before** rendering.
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
 
