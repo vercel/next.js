@@ -9,19 +9,19 @@ related:
 
 There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, and use cases.
 
-| API                                                           | Purpose                                                          | Where                                             | Status Code                |
-| ------------------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------- | -------------------------- |
-| [`redirect`](#using-the-redirect-function)                    | Redirect user after a mutation or event                          | Server Components, Server Actions, Route Handlers | 307 or 303 (Server Action) |
-| [`permanentRedirect`](#using-the-permanentredirect-function)  | Redirect user after a mutation or event                          | Server Components, Server Actions, Route Handlers | 308                        |
-| [`useRouter`](#using-the-userouter-hook-in-client-components) | Perform a client-side navigation from an Event Handler           | Event Handlers in Client Components               | N/A                        |
-| [`redirects`](#using-redirects-in-nextconfigjs)               | Redirect an incoming request                                     | `next.config.js` file                             |
-| [`NextResponse.redirect`]                                     | Redirect an incoming request based on a condition, bulk redirect | Middleware                                        |                            |
+| API                                                | Purpose                                                          | Where                                             | Status Code                |
+| -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------- | -------------------------- |
+| [`redirect`](#redirect-function)                   | Redirect user after a mutation or event                          | Server Components, Server Actions, Route Handlers | 307 or 303 (Server Action) |
+| [`permanentRedirect`](#permanentredirect-function) | Redirect user after a mutation or event                          | Server Components, Server Actions, Route Handlers | 308                        |
+| [`useRouter`](#userouter-hook)                     | Perform a client-side navigation                                 | Event Handlers in Client Components               | N/A                        |
+| [`redirects`](#using-redirects-in-nextconfigjs)    | Redirect an incoming request                                     | `next.config.js` file                             |
+| [`NextResponse.redirect`]()                        | Redirect an incoming request based on a condition, bulk redirect | Middleware                                        |                            |
 
-## Using the `redirect` function
+## `redirect` function
 
 The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
-`redirect` is often used after a mutation or user interaction, such as creating or updating a post. For example:
+`redirect` is often used after a mutation or event. For example, creating a post:
 
 ```tsx filename="app/actions.tsx" switcher
 'use server'
@@ -67,7 +67,7 @@ export async function createPost(id) {
 
 See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) for more information.
 
-## Using the `permanentRedirect` function
+## `permanentRedirect` function
 
 The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
@@ -115,7 +115,7 @@ export async function updateUsername(username, formData) {
 
 See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/permanentRedirect) for more information.
 
-## Using the `useRouter` hook in Event Handlers
+## `useRouter` hook
 
 If you need to redirect in an Event Handler in a Client Component, you can use `push` method from the `useRouter` hook. For example:
 
@@ -186,9 +186,9 @@ export function CreatePost() {
 }
 ```
 
-Alternatively, we recommend invoking a Server Action in your Client Component. This will simplify your code and allow you to call `redirect`.
+Alternatively, we recommend invoking a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) in your Client Component. This will simplify your code and allow you to call [`redirect`](#redirect-function) or [`permanentRedirect`](#permanentredirect-function).
 
-For example, invoke the action from your Client Component:
+For example, import and invoke the Server Action in your Client Component:
 
 ```tsx filename="app/ui/create-post.tsx" switcher
 'use client'
@@ -263,8 +263,6 @@ export async function createPost(data) {
 See the [`useRouter` API reference](/docs/app/api-reference/functions/router-push) and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) documentation for more information.
 
 ## Using `redirects` in `next.config.js`
-
-{/* When you need to redirect a large number of URLs that you know ahead of time. list. etc. Use patterns. */}
 
 The `redirects` option in `next.config.js` allows you to...
 
