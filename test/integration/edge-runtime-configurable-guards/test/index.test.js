@@ -2,7 +2,6 @@
 
 import { join } from 'path'
 import {
-  check,
   fetchViaHTTP,
   File,
   findPort,
@@ -10,6 +9,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import { remove } from 'fs-extra'
@@ -84,20 +84,22 @@ describe('Edge runtime configurable guards', () => {
       const res = await fetchViaHTTP(context.appPort, middlewareUrl)
       await waitFor(500)
       expect(res.status).toBe(200)
-      await check(
-        () => context.logs.output,
-        /Dynamic Code Evaluation \(e\. g\. 'eval', 'new Function'\) not allowed in Edge Runtime/g
-      )
+      await retry(async () => {
+        expect(context.logs.output).toContain(
+          `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        )
+      })
     })
 
     it('warns in dev for unallowed code', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, routeUrl)
       expect(res.status).toBe(200)
-      await check(
-        () => context.logs.output,
-        /Dynamic Code Evaluation \(e\. g\. 'eval', 'new Function'\) not allowed in Edge Runtime/g
-      )
+      await retry(async () => {
+        expect(context.logs.output).toContain(
+          `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
+        )
+      })
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)(
       'production mode',
