@@ -911,7 +911,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       }
 
       req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port?.toString()
+      req.headers['x-forwarded-port'] ??= this.port ? this.port.toString() : '80'
       const { originalRequest } = req as NodeNextRequest
       req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
         ?.encrypted
