@@ -17,7 +17,7 @@ plugin = [
   "turbopack-binding/__swc_core_binding_napi_plugin",
   "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache",
   "turbopack-binding/__swc_core_binding_napi_plugin_shared_runtime",
-  "next-swc/plugin",
+  "next-custom-transforms/plugin",
   "next-core/plugin",
 ]
 sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
@@ -54,7 +54,7 @@ napi = { version = "2", default-features = false, features = [
   "error_anyhow",
 ] }
 napi-derive = "2"
-next-swc = { workspace = true }
+next-custom-transforms = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
