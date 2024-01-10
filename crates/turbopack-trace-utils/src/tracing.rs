@@ -61,6 +61,21 @@ pub enum TraceRow<'a> {
         #[serde(borrow)]
         values: Vec<(Cow<'a, str>, TraceValue<'a>)>,
     },
+    /// Data about (de)allocations that happened
+    Allocation {
+        /// Timestamp
+        ts: u64,
+        /// The thread id of the thread where allocations happend.
+        thread_id: u64,
+        /// Allocations
+        allocations: u64,
+        /// Allocation count
+        allocation_count: u64,
+        /// Deallocations
+        deallocations: u64,
+        /// Deallocation count
+        deallocation_count: u64,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

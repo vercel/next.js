@@ -20,3 +20,4 @@ serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["signal", "rt"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+turbo-tasks-malloc = { workspace = true }

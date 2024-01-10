@@ -16,6 +16,10 @@ impl TurboMalloc {
     pub fn thread_stop() {
         flush();
     }
+
+    pub fn pop_allocations() -> self::counter::AllocationInfo {
+        self::counter::pop_allocations()
+    }
 }
 
 #[cfg(all(

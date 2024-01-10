@@ -35,6 +35,21 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
         let buf = postcard::serialize_with_flavor(&data, BufFlavor { buf }).unwrap();
         self.trace_writer.write(buf);
     }
+
+    fn report_allocations(&self, ts: u64, thread_id: u64) {
+        let allocation_info = turbo_tasks_malloc::TurboMalloc::pop_allocations();
+        if allocation_info.is_empty() {
+            return;
+        }
+        self.write(TraceRow::Allocation {
+            ts,
+            thread_id,
+            allocations: allocation_info.allocations as u64,
+            deallocations: allocation_info.deallocations as u64,
+            allocation_count: allocation_info.allocation_count as u64,
+            deallocation_count: allocation_info.deallocation_count as u64,
+        });
+    }
 }
 
 impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
@@ -72,6 +87,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_enter(&self, id: &span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
+        self.report_allocations(ts, thread_id);
         self.write(TraceRow::Enter {
             ts,
             id: id.into_u64(),
@@ -82,6 +98,7 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
     fn on_exit(&self, id: &span::Id, _ctx: tracing_subscriber::layer::Context<'_, S>) {
         let ts = self.start.elapsed().as_micros() as u64;
         let thread_id = thread::current().id().as_u64().into();
+        self.report_allocations(ts, thread_id);
         self.write(TraceRow::Exit {
             ts,
             id: id.into_u64(),
