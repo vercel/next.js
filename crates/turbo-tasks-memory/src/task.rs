@@ -1448,10 +1448,16 @@ impl Task {
                 // So it's fine to ignore the race condition existing here.
                 backend.with_task(child_id, |child| {
                     if child.is_dirty() {
-                        let active = self
-                            .full_state_mut()
-                            .aggregation_leaf
-                            .get_root_info(&aggregation_context, &RootInfoType::IsActive);
+                        let state = self.state();
+                        let active = match state {
+                            TaskMetaStateReadGuard::Full(state) => state
+                                .aggregation_leaf
+                                .get_root_info(&aggregation_context, &RootInfoType::IsActive),
+                            TaskMetaStateReadGuard::Partial(state) => state
+                                .aggregation_leaf
+                                .get_root_info(&aggregation_context, &RootInfoType::IsActive),
+                            TaskMetaStateReadGuard::Unloaded(_) => false,
+                        };
                         if active {
                             child.schedule_when_dirty_from_aggregation(backend, turbo_tasks);
                         }
