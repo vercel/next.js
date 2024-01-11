@@ -563,6 +563,14 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
     }
   }
 
+  // build error should always go to the foreground
+  if (state.buildErrors.length > 0 && oldState.buildErrors.length === 0) {
+    state.display = {
+      type: 'fullscreen',
+      tab: TabId.BuildErrors,
+    }
+  }
+
   if (state.tabs !== oldState.tabs) {
     state.errorCount = state.tabs.reduce(
       (sum, tab) => sum + (tab.severity === 'error' ? tab.items.length : 0),
