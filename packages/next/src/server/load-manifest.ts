@@ -26,11 +26,12 @@ export function evalManifest(path: string, shouldCache: boolean = true) {
   }
 
   const content = readFileSync(path, 'utf8')
-  if (content.length === 0)
+  if (content.length === 0) {
     throw new Error('Manifest file is empty')
+  }
 
-  // eslint-disable-next-line no-eval
   //@ts-ignore
+  // eslint-disable-next-line no-eval
   ;(0, eval)(content)
 
   if (shouldCache) {
