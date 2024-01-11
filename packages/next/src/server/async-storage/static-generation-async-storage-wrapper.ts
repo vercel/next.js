@@ -18,7 +18,7 @@ export type StaticGenerationContext = {
     isDraftMode?: boolean
     isServerAction?: boolean
     waitUntil?: Promise<any>
-    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+    experimental: { ppr: boolean }
 
     /**
      * A hack around accessing the store value outside the context of the
