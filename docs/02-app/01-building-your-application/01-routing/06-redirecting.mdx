@@ -9,7 +9,7 @@ related:
     - app/api-reference/next-config-js/redirects
 ---
 
-There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, use cases, and how to handle large numbers of redirects.
+There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, use cases, and how to manage large numbers of redirects.
 
 | API                                                            | Purpose                                           | Where                                             | Status Code                            |
 | -------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
@@ -270,7 +270,7 @@ See the [`useRouter` API reference](/docs/app/api-reference/functions/use-router
 
 The `redirects` option allows you to redirect an incoming request path to a different destination path. This is useful when you change the URL structure of a page or have a list of **static** redirects that are known ahead of time.
 
-The `redirects` option allows [path](/docs/app/api-reference/next-config-js/redirects#path-matching), [header, cookie, and query matching](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching), giving you the flexibility to redirect users based on an incoming request.
+`redirects` supports [path](/docs/app/api-reference/next-config-js/redirects#path-matching), [header, cookie, and query matching](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching), giving you the flexibility to redirect users based on an incoming request.
 
 To use `redirects`, add the option to your `next.config.js` file:
 
@@ -300,8 +300,8 @@ See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redir
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
+> - `redirects` may have a limit on platforms. For example, on Vercel there's a limit of 1,024 redirects and a maximum string length of 4,096 characters. To manage a large number of redirects (1000+), you may want to consider creating a custom solution that integrates with Next.js Middleware. See [Managing redirects at scale](#managing-redirects-at-scale-advanced) section.
 > - `redirects` runs **before** [Middleware](/docs/app/building-your-application/routing/middleware).
-> - To handle a large number of redirects (1000+), you may want to consider creating a custom solution that integrates with Next.js Middleware. See [Handling redirects at scale](#handling-redirects-at-scale-advanced) section.
 
 ## `NextResponse.redirect` in Middleware
 
@@ -313,10 +313,54 @@ Middleware allows you to run code before a request is completed. Then, based on 
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
 
-## Handling redirects at scale (Advanced)
+## Managing redirects at scale (Advanced)
 
-There are three main considerations when handling redirects at scale:
+To manage a large number of redirects (1000+), you may consider creating a custom solution that integrates with Next.js Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime).
+
+When handling redirects at scale, some things to consider are:
 
 1. Creating and storing a redirect map.
 2. Optimizing data lookup performance.
-3. Caching requests to reduce database load (if applicable).
+
+### 1. Creating and storing a redirect map
+
+A redirect map is a list of redirects that you can store in a database (usually a key-value store) or JSON file.
+
+Considering the following data structure:
+
+```json filename="redirects.json"
+
+```
+
+In Middleware, you can read the map and redirect the user based on the incoming request:
+
+```tsx filename="middleware.ts"
+
+```
+
+```tsx filename="app/redirects/route.ts"
+
+```
+
+> **Good to know:**
+>
+> - If hosting on Vercel, redirects can be stored in an [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) file and read from Middleware. This enables you to update redirects without having to redeploy your whole application.
+
+### 2. Optimizing data lookup performance
+
+Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
+
+- Use a database that is optimized for fast reads, such as [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/).
+- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading a large file.
+
+Considering the previous example, you can import a generated Bloom Filter file into your Middleware, then check if the incoming request exists using the Bloom Filter. If it does, forward the request to a Route Handler which will read the redirects map and redirect the user to the appropriate URL.
+
+This avoids importing a large file into Middleware, which can slow down every incoming request.
+
+```tsx filename="middleware.ts"
+
+```
+
+> **Good to know:**
+>
+> - To generate a Bloom filter, you can use a library like [bloom-filters](https://www.npmjs.com/package/bloom-filters).
