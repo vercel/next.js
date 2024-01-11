@@ -30,7 +30,7 @@ Selecting an authentication strategy should align with your application's specif
 
 In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss involves a user entering their credentials into a form, which then initiates a server action for validation. Upon successful verification, the user is redirected to a designated page. Alternatively, if authentication fails, an error message is displayed.
 
-Consider a login form where users can input their credentials: 
+Consider a login form where users can input their credentials:
 
 ```tsx filename="/app/login/page.tsx" switcher
 import { authenticate } from '@/app/lib/actions'
@@ -50,7 +50,7 @@ export default LoginPage
 
 The form above has two input fields for capturing the user's email and password. On submission, it calls the `authenticate` Server Action.
 
-You can then call your Authentication Provider's API in the Server Action to handle authentication: 
+You can then call your Authentication Provider's API in the Server Action to handle authentication:
 
 ```ts filename="/app/lib/actions.ts" switcher
 'use server'
@@ -92,7 +92,7 @@ Once a user is authenticated, you’ll need to ensure the user is allowed to vis
 
 ### Protecting Routes with Middleware
 
-Middleware in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. By default, middleware will be applied to all pages. If you anticipate that only certain routes will require authentication or specific processing, you can use the `matcher` property to specify exactly which pages the middleware should run on.
+[Middleware](/docs/app/building-your-application/routing/middleware) in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. It's recommended to apply middleware across all routes and specifying exclusions for public access.
 
 Here's how to implement middleware for authentication in Next.js:
 
@@ -100,7 +100,7 @@ Here's how to implement middleware for authentication in Next.js:
    - Create a `middleware.ts` or `.js` file in your project's root directory.
    - Include logic to authorize user access, such as checking for authentication tokens.
 2. **Defining Protected Routes:**
-   - Use the `matcher` option in your middleware to identify routes that require authorization checks.
+   - Not all routes require authorization. Use the `matcher` option in your middleware to specify any routes that do not require authorization checks.
 3. **Middleware Logic:**
    - Write logic to verify if a user is authenticated. Check user roles or permissions for route authorization.
 4. **Handling Unauthorized Access:**
