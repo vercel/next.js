@@ -11,7 +11,7 @@ const Code = (props: PropsWithChildren<{}>) => (
 
 const Index = () => (
   <div className={styles.container}>
-    <ViewSource pathname="pages/index.tsx" />
+    <ViewSource pathname="app/page.tsx" />
     <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>
