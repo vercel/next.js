@@ -216,7 +216,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     distDir: z.string().min(1).optional(),
-    env: z.record(z.string(), z.string()).optional(),
+    env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
     eslint: z
       .strictObject({
         dirs: z.array(z.string().min(1)).optional(),
@@ -371,6 +371,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
+        missingSuspenseWithCSRBailout: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

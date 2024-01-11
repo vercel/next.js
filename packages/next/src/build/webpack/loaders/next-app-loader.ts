@@ -31,6 +31,7 @@ import {
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import type { PageExtensions } from '../../page-extensions-type'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
 
 export type AppLoaderOptions = {
   name: string
@@ -424,8 +425,6 @@ async function createTreeCodeFromPath(
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const fallbackDefault =
-          'next/dist/client/components/parallel-route-default'
         let defaultPath = await resolver(
           `${appDirPrefix}${segmentPath}/${actualSegment}/default`
         )
@@ -440,7 +439,7 @@ async function createTreeCodeFromPath(
           )
 
           // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-          defaultPath = normalizedDefault ?? fallbackDefault
+          defaultPath = normalizedDefault ?? PARALLEL_ROUTE_DEFAULT_PATH
         }
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[

@@ -380,6 +380,16 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of swc_css
    */
   useLightningcss?: boolean
+
+  /**
+   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
+   * if they are not wrapped in a suspense boundary.
+   *
+   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
+   *
+   * @default false
+   */
+  missingSuspenseWithCSRBailout?: boolean
 }
 
 export type ExportPathMap = {
@@ -479,7 +489,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: Record<string, string>
+  env?: Record<string, string | undefined>
 
   /**
    * Destination directory (defaults to `.next`)
@@ -842,6 +852,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
+    missingSuspenseWithCSRBailout: false,
   },
 }
 
