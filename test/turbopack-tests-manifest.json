@@ -3940,6 +3940,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-and-interception-basepath/parallel-routes-and-interception-basepath.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-basepath should show normal route via direct link with basepath when parallel intercepted slot exist",
+      "parallel-routes-and-interception-basepath should show parallel intercepted slot with basepath"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
     "passed": [
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
