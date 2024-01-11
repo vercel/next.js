@@ -270,6 +270,8 @@ export default function Page() {
 
 This flexibility is crucial for role-specific redirections post-authentication. For example, an admin user can be redirected to an admin dashboard, while a regular user might be sent to a different page. It's also useful for conditional navigation, like redirecting users to complete their profile if necessary.
 
+When setting up authorization, it's important to make sure the main security checks happen where your app accesses or changes data. Middleware can help by doing a first check, but it shouldn't be the only thing keeping your data safe. Always check if a user has the right access when you're actually getting or changing the data. This way, even if someone gets past the first check, your data is still secure at the most important step - when it's being accessed.
+
 ### Protecting Server Actions
 
 It is important to treat [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with the same security considerations as public-facing API endpoints. Verifying user authorization for each action is crucial. Implement checks within Server Actions to determine user permissions, such as restricting certain actions to admin users.
