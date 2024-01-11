@@ -20,9 +20,9 @@ async function run() {
 
     if (pendingPRs) {
       await slackClient.chat.postMessage({
-        channel: '#coord-next-turbopack',
-        text: `🤖 Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved+-is%3Adraft|${prs.data.items.length} PRs> awaiting merge.`,
-        username: 'GitHub Notifier',
+        channel: '#next-js-repo-udpates',
+        text: `Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved+-is%3Adraft|${prs.data.items.length} s> awaiting merge.`,
+        username: 'GitHub',
         icon_emoji: ':github:',
       })
 
