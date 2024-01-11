@@ -28,11 +28,32 @@ Selecting an authentication strategy should align with your application's specif
 
 ### Implementing Authentication
 
-In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss involves a user entering their credentials into a form, which then initiates a server action for validation. Upon successful verification, the user is redirected to a designated page. Alternatively, if authentication fails, an error message is displayed.
+In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss is as follows:
+
+1. The user submits their credentials via a login form.
+2. The form calls a server action.
+3. Upon successful verification, the process is completed, indicating the user's successful authentication.
+4. If verification is unsuccessful, an error message is shown.
 
 Consider a login form where users can input their credentials:
 
 ```tsx filename="/app/login/page.tsx" switcher
+import { authenticate } from '@/app/lib/actions'
+
+const LoginPage = () => {
+  return (
+    <form action={authenticate}>
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+  )
+}
+
+export default LoginPage
+```
+
+```jsx filename="/app/login/page.jsx" switcher
 import { authenticate } from '@/app/lib/actions'
 
 const LoginPage = () => {
@@ -56,13 +77,12 @@ You can then call your Authentication Provider's API in the Server Action to han
 'use server'
 
 import { signIn } from '@/auth'
-import { redirect } from 'next/navigation'
 
 export async function authenticate(formData: FormData) {
   try {
     await signIn('credentials', formData)
   } catch (error) {
-    if (error instanceof AuthError) {
+    if (error) {
       switch (error.type) {
         case 'CredentialsSignin':
           return 'Invalid credentials.'
@@ -72,15 +92,88 @@ export async function authenticate(formData: FormData) {
     }
     throw error
   }
-  redirect('/dashboard')
+}
+```
+
+```js filename="/app/lib/actions.js" switcher
+'use server'
+
+import { signIn } from '@/auth'
+
+export async function authenticate(formData) {
+  try {
+    await signIn('credentials', formData)
+  } catch (error) {
+    if (error) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.'
+        default:
+          return 'Something went wrong.'
+      }
+    }
+    throw error
+  }
 }
 ```
 
 In this code, the `signIn` method checks the credentials against stored user data.
 After the authentication provider processes the credentials, there are two possible outcomes:
 
-- **Successful Authentication**: The user is redirected to the dashboard where user info can be fetched, indicating a successful login.
-- **Failed Authentication**: If the credentials are incorrect or an error occurs, the function returns an appropriate error message.
+- **Successful Authentication**: This outcome implies that the login was successful. Further actions, such as accessing protected routes and fetching user information, can then be initiated.
+- **Failed Authentication**: In cases where the credentials are incorrect or an error is encountered, the function returns a corresponding error message to indicate the authentication failure.
+
+Finally, in your login-form.tsx component, you can use React's `useFormState` to call the server action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
+
+```tsx filename="/app/login/page.tsx" switcher
+'use client'
+
+import { authenticate } from '@/app/lib/actions'
+import { useFormState, useFormStatus } from 'react-dom'
+
+const LoginPage = () => {
+  const [errorMessage, dispatch] = useFormState(authenticate, undefined)
+  const { pending } = useFormStatus()
+
+  return (
+    <form action={dispatch}>
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <div>{errorMessage && <p>{errorMessage}</p>}</div>
+      <button aria-disabled={pending} type="submit">
+        Login
+      </button>
+    </form>
+  )
+}
+
+export default LoginPage
+```
+
+```jsx filename="/app/login/page.jsx" switcher
+'use client'
+
+import { authenticate } from '@/app/lib/actions'
+import { useFormState, useFormStatus } from 'react-dom'
+
+const LoginPage = () => {
+  const [errorMessage, dispatch] = useFormState(authenticate, undefined)
+  const { pending } = useFormStatus()
+
+  return (
+    <form action={dispatch}>
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <div>{errorMessage && <p>{errorMessage}</p>}</div>
+      <button aria-disabled={pending} type="submit">
+        Login
+      </button>
+    </form>
+  )
+}
+
+export default LoginPage
+```
 
 For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#authentication-solutions).
 
@@ -126,11 +219,28 @@ export const config = {
 }
 ```
 
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+export function middleware(request) {
+  const currentUser = request.cookies.get('currentUser')?.value
+
+  if (currentUser) {
+    return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+  return NextResponse.redirect(new URL('/login', request.url))
+}
+
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+}
+```
+
 This example uses [`NextResponse.redirect`](https://nextjs.org/docs/app/api-reference/functions/next-response#redirect) for efficient, centralized access control. It handles redirects early in the request pipeline, making it efficient and ideal for broad strategies.
 
 For specific redirection needs, the `redirect` function can be used in Server Components, Route Handlers, and Server Actions to provide more control. This is useful for role-based navigation or context-sensitive scenarios.
 
-```js
+```ts filename="/app/page.tsx" switcher
 import { redirect } from 'next/navigation'
 
 export default function Page() {
@@ -144,7 +254,21 @@ export default function Page() {
 }
 ```
 
-This flexibility is key when handling redirections based on detailed authentication outcomes or other contextual factors. For example, `redirect('/login')` in a Server Action allows for precise redirection based on the user's role or specific conditions during the authentication process.
+```js filename="/app/page.jsx" switcher
+import { redirect } from 'next/navigation'
+
+export default function Page() {
+  // Logic to determine if a redirect is needed
+  const accessDenied = true
+  if (accessDenied) {
+    redirect('/login')
+  }
+
+  // Define other routes and logic
+}
+```
+
+This flexibility is crucial for role-specific redirections post-authentication. For example, an admin user can be redirected to an admin dashboard, while a regular user might be sent to a different page. It's also useful for conditional navigation, like redirecting users to complete their profile if necessary.
 
 ### Protecting Server Actions
 
@@ -157,7 +281,26 @@ In the example below, we check the user's role before allowing the action to pro
 
 // ...
 
-export async function serverAction(request) {
+export async function serverAction() {
+  const session = await getSession()
+  const userRole = session?.user?.role
+
+  // Check if user is authorized to perform the action
+  if (userRole !== 'admin') {
+    throw new Error('Unauthorized access: User does not have admin privileges.')
+  }
+
+  // Proceed with the action for authorized users
+  // ... implementation of the action
+}
+```
+
+```js filename="app/lib/actions.js" switcher
+'use server'
+
+// ...
+
+export async function serverAction() {
   const session = await getSession()
   const userRole = session?.user?.role
 
@@ -202,21 +345,7 @@ This example demonstrates a Route Handler with a two-tier security check for aut
 
 [Server Components](/docs/app/building-your-application/rendering/server-components) in Next.js are designed for server-side execution and offer a secure environment for integrating complex logic like authorization. They enable direct access to back-end resources, optimizing performance for data-heavy tasks and enhancing security for sensitive operations.
 
-**Key Advantages of Server Components:**
-
-- Server-Side Execution: Offloads complex tasks from the client, improving performance.
-- Direct Back-End Access: Simplifies interactions with server resources, reducing the need for extra API endpoints.
-- Enhanced Security: Ideal for critical operations like authorization, as server-side execution minimizes exposure to vulnerabilities.
-
-**Implementing Authorization Logic in Server Components**
-
-Implementing authorization in Server Components involves verifying user roles or permissions and conditionally rendering content based on these verifications.
-
-1. **Identify Authorization Requirements**: Determine restricted access areas in your application.
-2. **Fetch User Details**: Retrieve user roles or permissions from sessions or authentication contexts.
-3. **Role-Based Access Control**: Check user roles or permissions using server components.
-4. **Conditional Rendering**: Render components based on user authorization.
-5. **Handle Unauthorized Access**: Display messages or redirect for insufficient permissions.
+In Server Components, a common practice is to conditionally render UI elements based on the user's role. This approach enhances user experience and security by ensuring users only access content they are authorized to view.
 
 **Example:**
 
@@ -235,7 +364,7 @@ export default function Dashboard() => {
 }
 ```
 
-This example uses the user's role to conditionally render different dashboard components, showing `AccessDenied` for unauthorized users. Ensure secure session management and robust error handling for a seamless and secure user experience.
+In this example, the Dashboard component renders different UIs for 'admin', 'user', and unauthorized roles. This pattern ensures that each user interacts only with components appropriate to their role, enhancing both security and user experience.
 
 ### Best Practices
 
