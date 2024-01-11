@@ -262,7 +262,7 @@ createNextDescribe(
         expect(await hasRedbox(browser)).toBe(true)
         expect(
           await browser.elementByCss('#nextjs__container_errors_label').text()
-        ).toEqual('Failed to compile')
+        ).toEqual('Errors reported when compiling the application.')
         await next.patchFile('middleware.js', `export default function () {}`)
         await hasRedbox(browser)
         expect(await browser.elementByCss('#page-title')).toBeTruthy()
