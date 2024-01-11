@@ -325,6 +325,12 @@ export async function handleAction({
     : undefined
 
   let warning: string | undefined = undefined
+
+  function warnBadServerActionRequest() {
+    if (warning) {
+      warn(warning)
+    }
+  }
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
@@ -420,8 +426,12 @@ export async function handleAction({
             bound = await decodeReply(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
-            const actionReturnedState = await action()
-            formState = decodeFormState(actionReturnedState, formData)
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              warnBadServerActionRequest()
+              const actionReturnedState = await action()
+              formState = decodeFormState(actionReturnedState, formData)
+            }
 
             // Skip the fetch path
             return
@@ -498,12 +508,9 @@ export async function handleAction({
             })
             const formData = await fakeRequest.formData()
             const action = await decodeAction(formData, serverModuleMap)
-            // Only
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
-              if (warning) {
-                warn(warning)
-              }
+              warnBadServerActionRequest()
               const actionReturnedState = await action()
               formState = await decodeFormState(actionReturnedState, formData)
             }
