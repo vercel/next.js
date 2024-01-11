@@ -69,6 +69,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.useLightningcss',
   'experimental.windowHistorySupport',
   'experimental.instrumentationHook',
+  'experimental.externalDir',
 
   // Experimental options that don't affect compilation
   'experimental.ppr',
@@ -79,6 +80,7 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.isrFlushToDisk',
   'experimental.logging.level',
   'experimental.logging.fullUrl',
+  'logging.fetches.fullUrl',
   'experimental.scrollRestoration',
   'experimental.forceSwcTransforms',
   'experimental.serverActions.bodySizeLimit',
@@ -86,6 +88,8 @@ const supportedTurbopackNextConfigOptions = [
   'experimental.memoryBasedWorkersCount',
   'experimental.clientRouterFilterRedirects',
   'experimental.webpackBuildWorker',
+  'experimental.parallelServerCompiles',
+  'experimental.parallelServerBuildTraces',
   'experimental.appDocumentPreloading',
   'experimental.incrementalCacheHandlerPath',
   'experimental.amp',
@@ -130,7 +134,6 @@ const supportedTurbopackNextConfigOptions = [
   // 'experimental.craCompat',
   // 'experimental.disablePostcssPresetEnv',
   // 'experimental.esmExternals',
-  // 'experimental.externalDir',
   // This is used to force swc-loader to run regardless of finding Babel.
   // 'experimental.forceSwcTransforms',
   // 'experimental.fullySpecified',

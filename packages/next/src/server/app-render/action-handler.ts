@@ -40,6 +40,7 @@ import {
   getIsServerAction,
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -146,6 +147,7 @@ async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
   redirectUrl: string,
+  basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   res.setHeader('x-action-redirect', redirectUrl)
@@ -157,7 +159,7 @@ async function createRedirectRenderResult(
     const host = req.headers['host']
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
+    const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
@@ -298,6 +300,9 @@ export async function handleAction({
     )
   }
 
+  // When running actions the default is no-store, you can still `cache: 'force-cache'`
+  staticGenerationStore.fetchCache = 'default-no-store'
+
   const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
@@ -331,7 +336,7 @@ export async function handleAction({
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (serverActions?.allowedOrigins?.includes(originDomain)) {
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
@@ -611,6 +616,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
             req,
             res,
             redirectUrl,
+            ctx.renderOpts.basePath,
             staticGenerationStore
           ),
         }

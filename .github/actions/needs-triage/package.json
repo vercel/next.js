@@ -1,11 +1,11 @@
 {
   "private": true,
-  "exports": "./index.js",
+  "exports": "./dist/index.js",
   "files": [
     "src"
   ],
   "scripts": {
-    "build": "pnpm types && ncc -m -o . build lib/index.js --license licenses.txt",
+    "build": "pnpm types && ncc build lib/index.js -m -o dist --license licenses.txt",
     "types": "tsc"
   },
   "devDependencies": {

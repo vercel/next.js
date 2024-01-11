@@ -3,7 +3,7 @@
 
 mod app;
 mod dynamic_imports;
-mod entrypoints;
+pub mod entrypoints;
 mod instrumentation;
 mod middleware;
 mod pages;

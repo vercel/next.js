@@ -43,18 +43,20 @@ interface FinishBuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
 }
 
-interface SyncAction {
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {

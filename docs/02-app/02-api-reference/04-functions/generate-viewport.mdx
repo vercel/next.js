@@ -22,7 +22,7 @@ You can customize the initial viewport of the page with the static `viewport` ob
 To define the viewport options, export a `viewport` object from a `layout.js` or `page.js` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Viewport } from 'next'
+import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
   themeColor: 'black',
@@ -97,7 +97,7 @@ export const viewport = {
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="black" />
 ```
 
-### `width`, `initialScale`, and `maximumScale`
+### `width`, `initialScale`, `maximumScale` and 'userScalable'
 
 > **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
 
@@ -106,6 +106,7 @@ export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: 1,
   // Also supported by less commonly used
   // interactiveWidget: 'resizes-visual',
 }
@@ -114,7 +115,7 @@ export const viewport = {
 ```html filename="<head> output" hideLineNumbers
 <meta
   name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=1"
 />
 ```
 
