@@ -3445,6 +3445,7 @@ dependencies = [
  "once_cell",
  "qstring",
  "regex",
+ "rustc-hash",
  "serde",
  "serde_json",
  "swc_core",
