@@ -81,30 +81,16 @@ impl ClientReferenceManifest {
 
                 match app_client_reference_ty {
                     ClientReferenceType::CssClientReference(_) => {
-                        entry_css_files.extend(
-                            client_chunks_paths
-                                .iter()
-                                .filter_map(|chunk_path| {
-                                    if chunk_path.extension_ref() == Some("css") {
-                                        client_relative_path.get_path_to(chunk_path)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .map(ToString::to_string),
-                        );
-                        entry_js_files.extend(
-                            client_chunks_paths
-                                .iter()
-                                .filter_map(|chunk_path| {
-                                    if chunk_path.extension_ref() != Some("css") {
-                                        client_relative_path.get_path_to(chunk_path)
-                                    } else {
-                                        None
-                                    }
-                                })
-                                .map(ToString::to_string),
-                        );
+                        for chunk_path in client_chunks_paths {
+                            if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
+                                let path = path.to_string();
+                                if chunk_path.extension_ref() == Some("css") {
+                                    entry_css_files.insert(path);
+                                } else {
+                                    entry_js_files.insert(path);
+                                }
+                            }
+                        }
                     }
 
                     ClientReferenceType::EcmascriptClientReference(_) => {
