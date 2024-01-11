@@ -1,4 +1,4 @@
-import { getFullUrl } from 'next-test-utils'
+import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
@@ -185,6 +185,13 @@ export default async function webdriver(
     }
 
     console.log(`\n> Hydration complete for ${fullUrl}\n`)
+  }
+
+  // This is a temporary workaround for turbopack starting watching too late.
+  // So we delay file changes by 500ms to give it some time
+  // to connect the WebSocket and start watching.
+  if (process.env.TURBOPACK) {
+    await waitFor(1000)
   }
   return browser
 }

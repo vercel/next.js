@@ -31,6 +31,24 @@ Build wasm bindings to integrate with next.js
 pnpm build-wasm
 ```
 
+### napi bindings feature matrix
+
+Due to platform differences napi bindings selectively enables supported features.
+See below tables for the currently enabled features.
+
+| arch\platform | Linux(gnu) | Linux(musl) | Darwin    | Win32     |
+| ------------- | ---------- | ----------- | --------- | --------- |
+| ia32          |            |             |           | a,b,d,e   |
+| x64           | a,b,d,e,f  | a,b,d,e,f   | a,b,d,e,f | a,b,d,e,f |
+| aarch64       | a,d,e,f    | a,d,e,f     | a,b,d,e,f | a,b,c,e   |
+
+- a: `turbo_tasks_malloc`,
+- b: `turbo_tasks_malloc_custom_allocator`,
+- c: `native-tls`,
+- d: `rustls-tls`,
+- e: `image-extended` (webp)
+- f: `plugin`
+
 ### Package hierarchies
 
 `@next/swc` consist of multiple rust packages to enable features. See below for the high level hierarchies.
