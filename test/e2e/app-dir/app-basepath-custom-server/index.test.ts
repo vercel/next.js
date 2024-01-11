@@ -23,10 +23,11 @@ createNextDescribe(
         expect(await getCount()).toBe('Count: 2')
       })
 
-      await browser
-        .elementById('submit-server-action-redirect')
-        .click()
-        .waitForElementByCss('#another')
+      await browser.elementById('submit-server-action-redirect').click()
+
+      expect(await browser.waitForElementByCss('#another').text()).toBe(
+        'Another Page'
+      )
       expect(await browser.url()).toBe(
         `http://localhost:${next.appPort}/base/another`
       )
