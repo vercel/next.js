@@ -164,6 +164,7 @@ import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isDefaultRoute } from '../lib/is-default-route'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -2516,6 +2517,7 @@ export default async function build(
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
+              if (isDefaultRoute(page)) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,

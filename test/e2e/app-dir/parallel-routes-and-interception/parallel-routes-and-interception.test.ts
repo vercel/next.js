@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     describe('parallel routes', () => {
       it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
@@ -821,6 +821,20 @@ createNextDescribe(
 
         await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
+
+      if (isNextStart) {
+        it('should not have /default paths in the prerender manifest', async () => {
+          const prerenderManifest = JSON.parse(
+            await next.readFile('.next/prerender-manifest.json')
+          )
+
+          const routes = Object.keys(prerenderManifest.routes)
+
+          for (const route of routes) {
+            expect(route.endsWith('/default')).toBe(false)
+          }
+        })
+      }
     })
   }
 )
