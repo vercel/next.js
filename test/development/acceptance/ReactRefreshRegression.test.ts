@@ -296,52 +296,54 @@ describe('ReactRefreshRegression', () => {
 
   // https://github.com/vercel/next.js/issues/13574
   // Test is skipped with Turbopack as the package uses webpack loaders
-  ;(process.env.TURBOPACK ? test.skip : test)(
-    'custom loader (mdx) should have Fast Refresh enabled',
-    async () => {
-      const { session, cleanup } = await sandbox(
-        next,
-        new Map([
-          [
-            'next.config.js',
-            outdent`
-            const withMDX = require("@next/mdx")({
-              extension: /\\.mdx?$/,
-            });
-            module.exports = withMDX({
-              pageExtensions: ["js", "mdx"],
-            });
-          `,
-          ],
-          ['pages/mdx.mdx', `Hello World!`],
-        ]),
-        '/mdx'
-      )
-      expect(
-        await session.evaluate(
-          () => document.querySelector('#__next').textContent
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'Turbopack skipped tests',
+    () => {
+      test('custom loader (mdx) should have Fast Refresh enabled', async () => {
+        const { session, cleanup } = await sandbox(
+          next,
+          new Map([
+            [
+              'next.config.js',
+              outdent`
+              const withMDX = require("@next/mdx")({
+                extension: /\\.mdx?$/,
+              });
+              module.exports = withMDX({
+                pageExtensions: ["js", "mdx"],
+              });
+            `,
+            ],
+            ['pages/mdx.mdx', `Hello World!`],
+          ]),
+          '/mdx'
         )
-      ).toBe('Hello World!')
+        expect(
+          await session.evaluate(
+            () => document.querySelector('#__next').textContent
+          )
+        ).toBe('Hello World!')
 
-      let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
-      expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox(false)).toBe(false)
-      expect(
-        await session.evaluate(
-          () => document.querySelector('#__next').textContent
-        )
-      ).toBe('Hello Foo!')
+        let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
+        expect(didNotReload).toBe(true)
+        expect(await session.hasRedbox(false)).toBe(false)
+        expect(
+          await session.evaluate(
+            () => document.querySelector('#__next').textContent
+          )
+        ).toBe('Hello Foo!')
 
-      didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
-      expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox(false)).toBe(false)
-      expect(
-        await session.evaluate(
-          () => document.querySelector('#__next').textContent
-        )
-      ).toBe('Hello Bar!')
+        didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
+        expect(didNotReload).toBe(true)
+        expect(await session.hasRedbox(false)).toBe(false)
+        expect(
+          await session.evaluate(
+            () => document.querySelector('#__next').textContent
+          )
+        ).toBe('Hello Bar!')
 
-      await cleanup()
+        await cleanup()
+      })
     }
   )
 })
