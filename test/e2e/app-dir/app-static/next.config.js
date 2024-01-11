@@ -13,7 +13,7 @@ module.exports = {
       afterFiles: [
         {
           source: '/rewritten-use-search-params',
-          destination: '/hooks/use-search-params/with-suspense',
+          destination: '/hooks/use-search-params/static-bailout',
         },
         {
           source: '/rewritten-use-pathname',
