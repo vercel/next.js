@@ -479,12 +479,12 @@ export const metadata = {
     siteName: 'Next.js',
     images: [
       {
-        url: 'https://nextjs.org/og.png',
+        url: 'https://nextjs.org/og.png', // Must be an absolute URL
         width: 800,
         height: 600,
       },
       {
-        url: 'https://nextjs.org/og-alt.png',
+        url: 'https://nextjs.org/og-alt.png', // Must be an absolute URL
         width: 1800,
         height: 1600,
         alt: 'My custom alt',
@@ -658,6 +658,8 @@ export const metadata = {
 
 ### `twitter`
 
+The Twitter specification is (surprisingly) used for more than just X (formerly known as Twitter).
+
 Learn more about the [Twitter Card markup reference](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup).
 
 ```jsx filename="layout.js | page.js"
@@ -669,7 +671,7 @@ export const metadata = {
     siteId: '1467726470533754880',
     creator: '@nextjs',
     creatorId: '1467726470533754880',
-    images: ['https://nextjs.org/og.png'],
+    images: ['https://nextjs.org/og.png'], // Must be an absolute URL
   },
 }
 ```

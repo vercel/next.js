@@ -130,12 +130,7 @@ Navigating to the `/my-mdx-page` route should display your rendered MDX.
 
 ## Remote MDX
 
-If your markdown or MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else.
-
-There are two popular community packages for fetching MDX content:
-
-- [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support)
-- [`contentlayer`](https://www.contentlayer.dev/)
+If your markdown or MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else. A popular community packages for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
 
 > **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
@@ -451,3 +446,4 @@ module.exports = withMDX({
 - [`@next/mdx`](https://www.npmjs.com/package/@next/mdx)
 - [remark](https://github.com/remarkjs/remark)
 - [rehype](https://github.com/rehypejs/rehype)
+- [Markdoc](https://markdoc.dev/docs/nextjs)

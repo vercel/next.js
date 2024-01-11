@@ -9,7 +9,10 @@ import type {
   ChildSegmentMap,
   ReadyCacheNode,
 } from '../../../shared/lib/app-router-context.shared-runtime'
-import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -108,13 +111,50 @@ export function updateCacheNodeOnNavigation(
     const newSegmentChild = newRouterStateChild[0]
     const newSegmentKeyChild = createRouterCacheKey(newSegmentChild)
 
+    const oldSegmentChild =
+      oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
+
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
         : undefined
 
     let taskChild: Task | null
-    if (matchSegment(newSegmentChild, oldRouterStateChild[0])) {
+    if (newSegmentChild === PAGE_SEGMENT_KEY) {
+      // This is a leaf segment — a page, not a shared layout. We always apply
+      // its data.
+      taskChild = spawnPendingTask(
+        newRouterStateChild,
+        prefetchDataChild !== undefined ? prefetchDataChild : null,
+        prefetchHead,
+        isPrefetchStale
+      )
+    } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
+      // This is another kind of leaf segment — a default route.
+      //
+      // Default routes have special behavior. When there's no matching segment
+      // for a parallel route, Next.js preserves the currently active segment
+      // during a client navigation — but not for initial render. The server
+      // leaves it to the client to account for this. So we need to handle
+      // it here.
+      if (oldRouterStateChild !== undefined) {
+        // Reuse the existing Router State for this segment. We spawn a "task"
+        // just to keep track of the updated router state; unlike most, it's
+        // already fulfilled and won't be affected by the dynamic response.
+        taskChild = spawnReusedTask(oldRouterStateChild)
+      } else {
+        // There's no currently active segment. Switch to the "create" path.
+        taskChild = spawnPendingTask(
+          newRouterStateChild,
+          prefetchDataChild !== undefined ? prefetchDataChild : null,
+          prefetchHead,
+          isPrefetchStale
+        )
+      }
+    } else if (
+      oldSegmentChild !== undefined &&
+      matchSegment(newSegmentChild, oldSegmentChild)
+    ) {
       if (
         oldCacheNodeChild !== undefined &&
         oldRouterStateChild !== undefined
@@ -150,27 +190,13 @@ export function updateCacheNodeOnNavigation(
         )
       }
     } else {
-      // The segment does not match.
-      if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
-        // This is a special case related to default routes. When there's no
-        // matching segment for a parallel route, Next.js preserves the
-        // currently active segment during a client navigation — but not for
-        // initial render. The server leaves it to the client to account for
-        // this. So we need to handle it here.
-        //
-        // Reuse the existing Router State for this segment. We spawn a "task"
-        // just to keep track of the updated router state; unlike most, it's
-        // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
-      } else {
-        // This is a new tree. Switch to the "create" path.
-        taskChild = spawnPendingTask(
-          newRouterStateChild,
-          prefetchDataChild !== undefined ? prefetchDataChild : null,
-          prefetchHead,
-          isPrefetchStale
-        )
-      }
+      // This is a new tree. Switch to the "create" path.
+      taskChild = spawnPendingTask(
+        newRouterStateChild,
+        prefetchDataChild !== undefined ? prefetchDataChild : null,
+        prefetchHead,
+        isPrefetchStale
+      )
     }
 
     if (taskChild !== null) {

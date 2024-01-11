@@ -516,6 +516,8 @@ createNextDescribe(
             'ssr-forced/page.js',
             'articles/works.rsc',
             'force-cache/page.js',
+            'force-cache/large-data/page.js',
+            'force-cache/large-data/page_client-reference-manifest.js',
             'ssg-draft-mode.html',
             'articles/works.html',
             'no-store/static.rsc',
@@ -533,6 +535,7 @@ createNextDescribe(
             'force-static-fetch-no-store/page_client-reference-manifest.js',
             'force-static/first.rsc',
             'api/draft-mode/route.js',
+            'api/large-data/route.js',
             'blog/tim/first-post.rsc',
             'force-static/first.html',
             'force-static/second.rsc',
@@ -769,6 +772,26 @@ createNextDescribe(
               ],
               "initialRevalidateSeconds": false,
               "srcRoute": "/",
+            },
+            "/api/large-data": {
+              "dataRoute": null,
+              "experimentalBypassFor": [
+                {
+                  "key": "Next-Action",
+                  "type": "header",
+                },
+                {
+                  "key": "content-type",
+                  "type": "header",
+                  "value": "multipart/form-data",
+                },
+              ],
+              "initialHeaders": {
+                "content-type": "application/json",
+                "x-next-cache-tags": "_N_T_/layout,_N_T_/api/layout,_N_T_/api/large-data/layout,_N_T_/api/large-data/route,_N_T_/api/large-data",
+              },
+              "initialRevalidateSeconds": false,
+              "srcRoute": "/api/large-data",
             },
             "/articles/works": {
               "dataRoute": "/articles/works.rsc",
@@ -3054,5 +3077,101 @@ createNextDescribe(
         expect(next.cliOutput).toContain('cache-handler set')
       })
     }
+
+    describe('Incremental cache limits', () => {
+      if (process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
+        it('should cache large data when using custom cache handler and force-cache mode', async () => {
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
+        })
+      }
+      if (!process.env.CUSTOM_CACHE_HANDLER && isNextStart) {
+        it('should load data only at build time even if response data size is greater than 2MB and FetchCache is possible', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
+          expect(
+            next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+          ).toBeNull()
+        })
+      }
+      if (!process.env.CUSTOM_CACHE_HANDLER && isDev) {
+        it('should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).not.toEqual(data2)
+
+          await check(async () => {
+            expect(
+              next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+                .length
+            ).toBe(2)
+            expect(next.cliOutput.substring(cliOutputStart)).toContain(
+              'Error: fetch for over 2MB of data can not be cached'
+            )
+            return 'success'
+          }, 'success')
+        })
+      }
+      if (process.env.CUSTOM_CACHE_HANDLER && isDev) {
+        it('should cache request if response data size is greater than 2MB in Dev mode', async () => {
+          const cliOutputStart = next.cliOutput.length
+          const resp1 = await next.fetch('/force-cache/large-data')
+          const resp1Text = await resp1.text()
+          const dom1 = cheerio.load(resp1Text)
+
+          const resp2 = await next.fetch('/force-cache/large-data')
+          const resp2Text = await resp2.text()
+          const dom2 = cheerio.load(resp2Text)
+
+          const data1 = dom1('#now').text()
+          const data2 = dom2('#now').text()
+          expect(data1 && data2).toBeTruthy()
+          expect(data1).toEqual(data2)
+
+          await check(async () => {
+            expect(
+              next.cliOutput.substring(cliOutputStart).match(/Load data/g)
+                .length
+            ).toBe(1)
+            return 'success'
+          }, 'success')
+
+          expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
+            'Error: fetch for over 2MB of data can not be cached'
+          )
+        })
+      }
+    })
   }
 )
