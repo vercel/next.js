@@ -147,6 +147,7 @@ async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
   redirectUrl: string,
+  basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   res.setHeader('x-action-redirect', redirectUrl)
@@ -158,7 +159,7 @@ async function createRedirectRenderResult(
     const host = req.headers['host']
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
+    const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
@@ -615,6 +616,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
             req,
             res,
             redirectUrl,
+            ctx.renderOpts.basePath,
             staticGenerationStore
           ),
         }

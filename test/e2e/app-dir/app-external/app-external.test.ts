@@ -262,12 +262,7 @@ createNextDescribe(
         browser.elementByCss('#dual-pkg-outout button').click()
         await check(async () => {
           const text = await browser.elementByCss('#dual-pkg-outout p').text()
-          if (process.env.TURBOPACK) {
-            // The prefer esm won't effect turbopack resolving
-            expect(text).toBe('dual-pkg-optout:mjs')
-          } else {
-            expect(text).toBe('dual-pkg-optout:cjs')
-          }
+          expect(text).toBe('dual-pkg-optout:cjs')
           return 'success'
         }, /success/)
       })

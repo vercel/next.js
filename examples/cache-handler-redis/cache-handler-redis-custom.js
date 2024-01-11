@@ -3,100 +3,87 @@ const {
   replaceJsonWithBase64,
 } = require('@neshca/json-replacer-reviver')
 const { IncrementalCache } = require('@neshca/cache-handler')
+const createLruCache = require('@neshca/cache-handler/local-lru').default
 const { createClient } = require('redis')
 
-/** @type {import('@neshca/cache-handler').TagsManifest} */
-const localTagsManifest = {
-  version: 1,
-  items: {},
-}
+const REVALIDATED_TAGS_KEY = 'sharedRevalidatedTags'
 
-const TAGS_MANIFEST_KEY = 'sharedTagsManifest'
+const client = createClient({
+  url: process.env.REDIS_URL ?? 'redis://localhost:6379',
+})
 
-function createRedisClient(url) {
-  const client = createClient({
-    url,
-  })
+client.on('error', (error) => {
+  console.error('Redis error:', error.message)
+})
 
-  client.on('error', (error) => {
-    console.error('Redis error:', error.message)
-  })
+IncrementalCache.onCreation(async () => {
+  // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
+  const useTtl = false
 
-  return client
-}
+  await client.connect()
 
-async function connect(client) {
-  try {
-    await client.connect()
-  } catch (error) {
-    console.error('Redis connection error:', error.message)
+  const redisCache = {
+    async get(key) {
+      try {
+        const result = (await client.get(key)) ?? null
+
+        if (!result) {
+          return null
+        }
+
+        // use reviveFromBase64Representation to restore binary data from Base64
+        return JSON.parse(result, reviveFromBase64Representation)
+      } catch (error) {
+        console.error('cache.get', error)
+
+        return null
+      }
+    },
+    async set(key, value, ttl) {
+      try {
+        await client.set(
+          key,
+          // use replaceJsonWithBase64 to store binary data in Base64 and save space
+          JSON.stringify(value, replaceJsonWithBase64),
+          useTtl && typeof ttl === 'number' ? { EX: ttl } : undefined
+        )
+      } catch (error) {
+        console.error('cache.set', error)
+      }
+    },
+    async getRevalidatedTags() {
+      try {
+        const sharedRevalidatedTags = await client.hGetAll(REVALIDATED_TAGS_KEY)
+
+        const entries = Object.entries(sharedRevalidatedTags)
+
+        const revalidatedTags = Object.fromEntries(
+          entries.map(([tag, revalidatedAt]) => [tag, Number(revalidatedAt)])
+        )
+
+        return revalidatedTags
+      } catch (error) {
+        console.error('cache.getRevalidatedTags', error)
+      }
+    },
+    async revalidateTag(tag, revalidatedAt) {
+      try {
+        await client.hSet(REVALIDATED_TAGS_KEY, {
+          [tag]: revalidatedAt,
+        })
+      } catch (error) {
+        console.error('cache.revalidateTag', error)
+      }
+    },
   }
-}
 
-IncrementalCache.onCreation(() => {
-  const client = createRedisClient(
-    process.env.REDIS_URL ?? 'redis://localhost:6379'
-  )
-
-  connect(client).then(() => {
-    console.log('Redis connected')
+  const localCache = createLruCache({
+    useTtl,
   })
 
   return {
-    cache: {
-      async get(key) {
-        try {
-          const result = (await client.get(key)) ?? null
-
-          if (!result) {
-            return null
-          }
-
-          // use reviveFromBase64Representation to restore binary data from Base64
-          return JSON.parse(result, reviveFromBase64Representation)
-        } catch (error) {
-          return null
-        }
-      },
-      async set(key, value) {
-        try {
-          // use replaceJsonWithBase64 to store binary data in Base64 and save space
-          await client.set(key, JSON.stringify(value, replaceJsonWithBase64))
-        } catch (error) {
-          // ignore because value will be written to disk
-        }
-      },
-      async getTagsManifest() {
-        try {
-          const remoteTagsManifest = await client.hGetAll(TAGS_MANIFEST_KEY)
-
-          if (!remoteTagsManifest) {
-            return localTagsManifest
-          }
-
-          Object.entries(remoteTagsManifest).reduce(
-            (acc, [tag, revalidatedAt]) => {
-              acc[tag] = { revalidatedAt: parseInt(revalidatedAt ?? '0', 10) }
-              return acc
-            },
-            localTagsManifest.items
-          )
-
-          return localTagsManifest
-        } catch (error) {
-          return localTagsManifest
-        }
-      },
-      async revalidateTag(tag, revalidatedAt) {
-        try {
-          await client.hSet(TAGS_MANIFEST_KEY, {
-            [tag]: revalidatedAt,
-          })
-        } catch (error) {
-          localTagsManifest.items[tag] = { revalidatedAt }
-        }
-      },
-    },
+    cache: [redisCache, localCache],
+    useFileSystem: !useTtl,
   }
 })
 
