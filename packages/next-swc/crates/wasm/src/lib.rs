@@ -2,10 +2,12 @@ use std::{collections::HashMap, sync::Arc};
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
-use next_page_static_info::{
-    build_ast_from_source, collect_exports, collect_rsc_module_info, extract_expored_const_values,
-    Const, ExportInfo, RscModuleInfo,
+use next_custom_transforms::{
+    chain_transforms::{custom_before_pass, TransformOptions},
+    transforms::page_static_info::{
+        build_ast_from_source, collect_exports, collect_rsc_module_info,
+        extract_expored_const_values, Const, ExportInfo, RscModuleInfo,
+    },
 };
 use once_cell::sync::Lazy;
 use regex::Regex;

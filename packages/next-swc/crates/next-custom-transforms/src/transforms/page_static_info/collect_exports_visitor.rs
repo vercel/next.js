@@ -9,7 +9,7 @@ use swc_core::ecma::{
     visit::{Visit, VisitWith},
 };
 
-use crate::{ExportInfo, ExportInfoWarning};
+use super::{ExportInfo, ExportInfoWarning};
 
 lazy_static! {
     static ref EXPORTS_SET: HashSet<&'static str> = HashSet::from([

@@ -74,7 +74,6 @@ next-custom-transforms = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
-next-page-static-info = { workspace = true }
 turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
 regex = "1.5"

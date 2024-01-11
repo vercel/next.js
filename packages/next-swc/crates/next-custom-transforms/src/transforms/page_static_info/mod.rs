@@ -1,5 +1,3 @@
-#![feature(box_patterns)]
-
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
@@ -25,8 +23,8 @@ use swc_core::{
     },
 };
 
-mod collect_exported_const_visitor;
-mod collect_exports_visitor;
+pub mod collect_exported_const_visitor;
+pub mod collect_exports_visitor;
 
 /// Parse given contents of the file as ecmascript via swc's parser.
 /// [NOTE] this is being used outside of turbopack (next.js's analysis phase)
@@ -289,7 +287,7 @@ pub fn extract_expored_const_values(
 
 #[cfg(test)]
 mod tests {
-    use crate::{build_ast_from_source, collect_rsc_module_info, RscModuleInfo};
+    use super::{build_ast_from_source, collect_rsc_module_info, RscModuleInfo};
 
     #[test]
     fn should_parse_server_info() {

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use anyhow::Context as _;
 use napi::bindgen_prelude::*;
-use next_page_static_info::{
+use next_custom_transforms::transforms::page_static_info::{
     build_ast_from_source, collect_exports, collect_rsc_module_info, extract_expored_const_values,
     Const, ExportInfo, ExportInfoWarning, RscModuleInfo,
 };
