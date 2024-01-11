@@ -102,11 +102,11 @@ import {
   getErrorSource,
   getSourceById,
   parseStack,
-} from '../../../client/components/react-dev-overlay/pages/middleware'
+} from '../../../client/components/react-dev-overlay/server/middleware'
 import {
   getOverlayMiddleware,
   createOriginalStackFrame as createOriginalTurboStackFrame,
-} from '../../../client/components/react-dev-overlay/pages/middleware-turbopack'
+} from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {

@@ -371,7 +371,7 @@ export function errorToJSON(err: Error) {
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     source =
-      require('../client/components/react-dev-overlay/pages/middleware').getErrorSource(
+      require('../client/components/react-dev-overlay/server/middleware').getErrorSource(
         err
       ) || 'server'
   }

@@ -5,12 +5,12 @@ import type {
   UnhandledErrorAction,
 } from './error-overlay-reducer'
 
-import { ShadowPortal } from './components/ShadowPortal'
-import { Errors, type SupportedErrorEvent } from './container/Errors'
-import { parseStack } from './helpers/parseStack'
-import { Base } from './styles/Base'
-import { ComponentStyles } from './styles/ComponentStyles'
-import { CssReset } from './styles/CssReset'
+import { ShadowPortal } from '../internal/components/ShadowPortal'
+import { Errors, type SupportedErrorEvent } from '../internal/container/Errors'
+import { parseStack } from '../internal/helpers/parseStack'
+import { Base } from '../internal/styles/Base'
+import { ComponentStyles } from '../internal/styles/ComponentStyles'
+import { CssReset } from '../internal/styles/CssReset'
 
 type ReactDevOverlayProps = {
   state: OverlayState

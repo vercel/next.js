@@ -31,7 +31,7 @@ type RunnerFn = (params: {
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('../../../client/components/react-dev-overlay/pages/middleware') as typeof import('../../../client/components/react-dev-overlay/pages/middleware')
+      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
 
     return (params) =>
       fn(params)

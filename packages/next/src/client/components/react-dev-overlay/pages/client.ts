@@ -1,4 +1,4 @@
-import * as Bus from './internal/bus'
+import * as Bus from './bus'
 import { parseStack } from '../internal/helpers/parseStack'
 import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
@@ -116,7 +116,7 @@ function onBeforeRefresh() {
 
 export { getErrorByType } from '../internal/helpers/getErrorByType'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
-export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
+export { default as ReactDevOverlay } from './ReactDevOverlay'
 export {
   onBuildOk,
   onBuildError,

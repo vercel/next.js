@@ -1,12 +1,12 @@
 import * as React from 'react'
 
-import { ShadowPortal } from '../../internal/components/ShadowPortal'
-import type { SupportedErrorEvent } from '../../internal/container/Errors'
-import { Errors } from '../../internal/container/Errors'
+import { ShadowPortal } from '../internal/components/ShadowPortal'
+import type { SupportedErrorEvent } from '../internal/container/Errors'
+import { Errors } from '../internal/container/Errors'
 
-import { Base } from '../../internal/styles/Base'
-import { ComponentStyles } from '../../internal/styles/ComponentStyles'
-import { CssReset } from '../../internal/styles/CssReset'
+import { Base } from '../internal/styles/Base'
+import { ComponentStyles } from '../internal/styles/ComponentStyles'
+import { CssReset } from '../internal/styles/CssReset'
 
 import * as Bus from './bus'
 import { ErrorBoundary } from './ErrorBoundary'

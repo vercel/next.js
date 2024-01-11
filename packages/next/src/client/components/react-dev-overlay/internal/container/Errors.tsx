@@ -3,11 +3,11 @@ import * as React from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 
 import { Dialog, DialogContent, DialogHeader } from '../components/Dialog'
 import { Overlay } from '../components/Overlay'
