@@ -8,9 +8,10 @@ export function getAssetQueryString(
 ) {
   let qs = ''
 
-  // In development when add the request timestamp to allow react to
+  // In development we add the request timestamp to allow react to
   // reload assets when a new RSC response is received.
   // Turbopack handles HMR of assets itself and react doesn't need to reload them
+  // so this approach is not needed for Turbopack.
   if (isDev && !isTurbopack && addTimestamp) {
     qs += `?v=${ctx.requestTimestamp}`
   }
