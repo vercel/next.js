@@ -76,6 +76,7 @@ class ReactDevOverlay extends React.PureComponent<
             <ComponentStyles />
 
             <Errors
+              isAppDir={true}
               buildErrors={
                 state.buildError ? [{ message: state.buildError }] : []
               }

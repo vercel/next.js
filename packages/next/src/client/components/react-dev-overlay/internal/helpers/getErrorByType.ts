@@ -18,7 +18,8 @@ export type ReadyRuntimeError = {
 }
 
 export async function getErrorByType(
-  ev: SupportedErrorEvent
+  ev: SupportedErrorEvent,
+  isAppDir: boolean
 ): Promise<ReadyRuntimeError> {
   const { id, event } = ev
   switch (event.type) {
@@ -31,6 +32,7 @@ export async function getErrorByType(
         frames: await getOriginalStackFrames(
           event.frames,
           getErrorSource(event.reason),
+          isAppDir,
           event.reason.toString()
         ),
         complete: true,

@@ -185,6 +185,7 @@ export default function ReactDevOverlay({
 
           {shouldPreventDisplay(errorType, preventDisplay) ? null : (
             <Errors
+              isAppDir={false}
               errors={state.errors}
               buildErrors={
                 state.buildError ? [{ message: state.buildError }] : []

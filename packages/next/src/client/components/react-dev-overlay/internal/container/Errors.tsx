@@ -47,6 +47,7 @@ export type RootLayoutError = {
 }
 
 export type ErrorsProps = {
+  isAppDir: boolean
   buildErrors: BuildError[]
   errors: SupportedErrorEvent[]
   rootLayoutError?: RootLayoutError
@@ -72,7 +73,10 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-function useResolvedErrors(errors: SupportedErrorEvent[]): ReadyRuntimeError[] {
+function useResolvedErrors(
+  errors: SupportedErrorEvent[],
+  isAppDir: boolean
+): ReadyRuntimeError[] {
   const [lookups, setLookups] = React.useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
@@ -117,7 +121,7 @@ function useResolvedErrors(errors: SupportedErrorEvent[]): ReadyRuntimeError[] {
     }
     let mounted = true
 
-    getErrorByType(nextError).then(
+    getErrorByType(nextError, isAppDir).then(
       (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
@@ -134,7 +138,7 @@ function useResolvedErrors(errors: SupportedErrorEvent[]): ReadyRuntimeError[] {
     return () => {
       mounted = false
     }
-  }, [nextError])
+  }, [nextError, isAppDir])
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but let's handle it.
@@ -587,12 +591,13 @@ function reducer(oldState: ErrorsState, action: ErrorsAction): ErrorsState {
 }
 
 export function Errors({
+  isAppDir,
   buildErrors,
   errors,
   rootLayoutError,
   versionInfo,
 }: ErrorsProps): React.ReactNode {
-  const readyErrors = useResolvedErrors(errors)
+  const readyErrors = useResolvedErrors(errors, isAppDir)
 
   const [{ tabs, display, errorCount, warningCount }, dispatch] =
     React.useReducer<React.Reducer<ErrorsState, ErrorsAction>, null>(
