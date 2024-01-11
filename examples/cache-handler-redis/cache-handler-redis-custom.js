@@ -1,42 +1,42 @@
 const {
   reviveFromBase64Representation,
   replaceJsonWithBase64,
-} = require('@neshca/json-replacer-reviver')
-const { IncrementalCache } = require('@neshca/cache-handler')
-const createLruCache = require('@neshca/cache-handler/local-lru').default
-const { createClient } = require('redis')
+} = require("@neshca/json-replacer-reviver");
+const { IncrementalCache } = require("@neshca/cache-handler");
+const createLruCache = require("@neshca/cache-handler/local-lru").default;
+const { createClient } = require("redis");
 
-const REVALIDATED_TAGS_KEY = 'sharedRevalidatedTags'
+const REVALIDATED_TAGS_KEY = "sharedRevalidatedTags";
 
 const client = createClient({
-  url: process.env.REDIS_URL ?? 'redis://localhost:6379',
-})
+  url: process.env.REDIS_URL ?? "redis://localhost:6379",
+});
 
-client.on('error', (error) => {
-  console.error('Redis error:', error.message)
-})
+client.on("error", (error) => {
+  console.error("Redis error:", error.message);
+});
 
 IncrementalCache.onCreation(async () => {
   // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
-  const useTtl = false
+  const useTtl = false;
 
-  await client.connect()
+  await client.connect();
 
   const redisCache = {
     async get(key) {
       try {
-        const result = (await client.get(key)) ?? null
+        const result = (await client.get(key)) ?? null;
 
         if (!result) {
-          return null
+          return null;
         }
 
         // use reviveFromBase64Representation to restore binary data from Base64
-        return JSON.parse(result, reviveFromBase64Representation)
+        return JSON.parse(result, reviveFromBase64Representation);
       } catch (error) {
-        console.error('cache.get', error)
+        console.error("cache.get", error);
 
-        return null
+        return null;
       }
     },
     async set(key, value, ttl) {
@@ -45,46 +45,48 @@ IncrementalCache.onCreation(async () => {
           key,
           // use replaceJsonWithBase64 to store binary data in Base64 and save space
           JSON.stringify(value, replaceJsonWithBase64),
-          useTtl && typeof ttl === 'number' ? { EX: ttl } : undefined
-        )
+          useTtl && typeof ttl === "number" ? { EX: ttl } : undefined,
+        );
       } catch (error) {
-        console.error('cache.set', error)
+        console.error("cache.set", error);
       }
     },
     async getRevalidatedTags() {
       try {
-        const sharedRevalidatedTags = await client.hGetAll(REVALIDATED_TAGS_KEY)
+        const sharedRevalidatedTags = await client.hGetAll(
+          REVALIDATED_TAGS_KEY,
+        );
 
-        const entries = Object.entries(sharedRevalidatedTags)
+        const entries = Object.entries(sharedRevalidatedTags);
 
         const revalidatedTags = Object.fromEntries(
-          entries.map(([tag, revalidatedAt]) => [tag, Number(revalidatedAt)])
-        )
+          entries.map(([tag, revalidatedAt]) => [tag, Number(revalidatedAt)]),
+        );
 
-        return revalidatedTags
+        return revalidatedTags;
       } catch (error) {
-        console.error('cache.getRevalidatedTags', error)
+        console.error("cache.getRevalidatedTags", error);
       }
     },
     async revalidateTag(tag, revalidatedAt) {
       try {
         await client.hSet(REVALIDATED_TAGS_KEY, {
           [tag]: revalidatedAt,
-        })
+        });
       } catch (error) {
-        console.error('cache.revalidateTag', error)
+        console.error("cache.revalidateTag", error);
       }
     },
-  }
+  };
 
   const localCache = createLruCache({
     useTtl,
-  })
+  });
 
   return {
     cache: [redisCache, localCache],
     useFileSystem: !useTtl,
-  }
-})
+  };
+});
 
-module.exports = IncrementalCache
+module.exports = IncrementalCache;

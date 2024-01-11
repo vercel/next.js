@@ -1,9 +1,9 @@
-import styles from '../styles.module.css'
+import styles from "../styles.module.css";
 
 type CodeProps = {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 export default function Code({ children }: CodeProps) {
-  return <code className={styles.inlineCode}>{children}</code>
+  return <code className={styles.inlineCode}>{children}</code>;
 }

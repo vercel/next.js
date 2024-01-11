@@ -1,14 +1,14 @@
-import React from 'react'
-import styles from '../styles/Home.module.css'
-import { LoginMethod } from '../lib/types'
-import StytchContainer from './StytchContainer'
+import React from "react";
+import styles from "../styles/Home.module.css";
+import { LoginMethod } from "../lib/types";
+import StytchContainer from "./StytchContainer";
 
 type Props = {
-  setLoginMethod: (loginMethod: LoginMethod) => void
-}
+  setLoginMethod: (loginMethod: LoginMethod) => void;
+};
 
 const LoginEntryPoint = (props: Props) => {
-  const { setLoginMethod } = props
+  const { setLoginMethod } = props;
   return (
     <StytchContainer>
       <h2>Hello Vercel!</h2>
@@ -29,7 +29,7 @@ const LoginEntryPoint = (props: Props) => {
         API Integration (SMS Passcodes)
       </button>
     </StytchContainer>
-  )
-}
+  );
+};
 
-export default LoginEntryPoint
+export default LoginEntryPoint;
