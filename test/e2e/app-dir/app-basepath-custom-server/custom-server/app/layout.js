@@ -1,7 +1,11 @@
+import { Counter } from '../components/counter'
 export default function Root({ children }) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        <Counter />
+        {children}
+      </body>
     </html>
   )
 }

@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { Request, Response } from 'playwright-chromium'
+import { retry } from 'next-test-utils'
 
 createNextDescribe(
   'custom-app-server-action-redirect',
@@ -14,25 +14,13 @@ createNextDescribe(
   },
   ({ next }) => {
     it('redirects with basepath properly when server action handler uses `redirect`', async () => {
-      const postRequests = []
-      const responses = []
+      const browser = await next.browser('/base')
+      const getCount = async () => browser.elementByCss('#current-count').text()
 
-      const browser = await next.browser('/base', {
-        beforePageLoad(page) {
-          page.on('request', (request: Request) => {
-            const url = new URL(request.url())
-            if (request.method() === 'POST') {
-              postRequests.push(`${url.pathname}${url.search}`)
-            }
-          })
-
-          page.on('response', (response: Response) => {
-            const url = new URL(response.url())
-            const status = response.status()
-
-            responses.push([url.pathname, status])
-          })
-        },
+      // Increase count to track if the page reloaded
+      await browser.elementByCss('#increase-count').click().click()
+      await retry(async () => {
+        expect(await getCount()).toBe('Count: 2')
       })
 
       await browser
@@ -43,13 +31,8 @@ createNextDescribe(
         `http://localhost:${next.appPort}/base/another`
       )
 
-      expect(postRequests).toEqual([`/base`])
-
-      // responses should only have a single 303 redirect in it from the /base path
-      // if broken, this will include a 200 from the /base/another indicating a full page redirect
-      responses.forEach((res) => {
-        expect(res).not.toEqual(['/base/another', 200])
-      })
+      // Count should still be 2 as the browser should not have reloaded the page.
+      expect(await getCount()).toBe('Count: 2')
     })
   }
 )
