@@ -41,6 +41,7 @@ import {
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
+import { warn } from '../../build/output/log'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -323,14 +324,13 @@ export async function handleAction({
       }
     : undefined
 
+  let warning: string | undefined = undefined
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
-    console.warn(
-      'Missing `origin` header from a forwarded Server Actions request.'
-    )
+    warning = 'Missing `origin` header from a forwarded Server Actions request.'
   } else if (!host || originDomain !== host.value) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
@@ -498,8 +498,15 @@ export async function handleAction({
             })
             const formData = await fakeRequest.formData()
             const action = await decodeAction(formData, serverModuleMap)
-            const actionReturnedState = await action()
-            formState = await decodeFormState(actionReturnedState, formData)
+            // Only
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              if (warning) {
+                warn(warning)
+              }
+              const actionReturnedState = await action()
+              formState = await decodeFormState(actionReturnedState, formData)
+            }
 
             // Skip the fetch path
             return
