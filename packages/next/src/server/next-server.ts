@@ -102,6 +102,7 @@ import { lazyRenderAppPage } from './future/route-modules/app-page/module.render
 import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 export * from './base-server'
 
@@ -355,13 +356,17 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
+    return loadManifest(
+      join(this.serverDistDir, PAGES_MANIFEST)
+    ) as PagesManifest
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
     if (!this.enabledDirectories.app) return undefined
 
-    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
+    return loadManifest(
+      join(this.serverDistDir, APP_PATHS_MANIFEST)
+    ) as PagesManifest
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -747,10 +752,10 @@ export default class NextNodeServer extends BaseServer {
     return requireFontManifest(this.distDir)
   }
 
-  protected getNextFontManifest() {
+  protected getNextFontManifest(): NextFontManifest | undefined {
     return loadManifest(
       join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
-    )
+    ) as NextFontManifest
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -1743,14 +1748,16 @@ export default class NextNodeServer extends BaseServer {
       return this._cachedPreviewManifest
     }
 
-    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
+    const manifest = loadManifest(
+      join(this.distDir, PRERENDER_MANIFEST)
+    ) as PrerenderManifest
 
     return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST))
+      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
 
       let rewrites = manifest.rewrites ?? {
         beforeFiles: [],

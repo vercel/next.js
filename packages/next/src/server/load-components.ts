@@ -66,10 +66,10 @@ export type LoadComponentsReturnType<NextModule = any> = {
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function loadManifestWithRetries<T>(
+export async function loadManifestWithRetries(
   manifestPath: string,
   attempts = 3
-): Promise<T> {
+): Promise<unknown> {
   while (true) {
     try {
       return loadManifest(manifestPath)
@@ -88,11 +88,10 @@ export async function loadManifestWithRetries<T>(
 export async function evalManifestWithRetries(
   manifestPath: string,
   attempts = 3
-): Promise<void> {
+): Promise<unknown> {
   while (true) {
     try {
-      evalManifest(manifestPath)
-      return
+      return evalManifest(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -107,10 +106,10 @@ async function loadClientReferenceManifest(
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
   try {
-    await evalManifestWithRetries(manifestPath)
-    return (globalThis as any).__RSC_MANIFEST[
-      entryName
-    ] as ClientReferenceManifest
+    const context = (await evalManifestWithRetries(manifestPath)) as {
+      __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
+    }
+    return context.__RSC_MANIFEST[entryName] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -148,10 +147,12 @@ async function loadComponentsImpl<N = any>({
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-    loadManifestWithRetries<ReactLoadableManifest>(
+    loadManifestWithRetries(
+      join(distDir, BUILD_MANIFEST)
+    ) as Promise<BuildManifest>,
+    loadManifestWithRetries(
       join(distDir, REACT_LOADABLE_MANIFEST)
-    ),
+    ) as Promise<ReactLoadableManifest>,
     hasClientManifest
       ? loadClientReferenceManifest(
           join(
