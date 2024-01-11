@@ -9,7 +9,7 @@ related:
     - app/api-reference/next-config-js/redirects
 ---
 
-There are a few ways you can handle redirects in Next.js. This page will go through each available option, their status codes, use cases, and how to manage large numbers of redirects.
+There are a few ways you can handle redirects in Next.js. This page will go through each available option, use cases, and how to manage large numbers of redirects.
 
 | API                                                            | Purpose                                           | Where                                             | Status Code                            |
 | -------------------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------- | -------------------------------------- |
@@ -64,7 +64,7 @@ export async function createPost(id) {
 > **Good to know**:
 >
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
-> - `redirect` throws an error so it needs to be called outside of `try/catch` blocks.
+> - `redirect` internally throws an error so should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
 
@@ -74,7 +74,7 @@ See the [`redirect` API reference](/docs/app/api-reference/functions/redirect) f
 
 The `permanentRedirect` function allows you to **permanently** redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
-`permanentRedirect` is often used after a mutation or event that changes an URL path, such as updating a user's profile URL after they change their username:
+`permanentRedirect` is often used after a mutation or event that changes an entity's canonical URL, such as updating a user's profile URL after they change their username:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
@@ -123,152 +123,47 @@ See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/pe
 
 If you need to redirect inside an event handler in a Client Component, you can use the `push` method from the `useRouter` hook. For example:
 
-```tsx filename="app/ui/create-post.tsx" highlight={19} switcher
+```tsx filename="app/page.tsx" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { PostData } from '@/app/lib/types'
 
-export function CreatePost() {
+export default function Page() {
   const router = useRouter()
-  const [postData, setPostData] = useState<PostData>({ title: '', content: '' })
-
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    setPostData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    // Mutate data
-    router.push(`/post/${post.id}`) // Navigate to the new post page
-  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      {/* ... */}
-      <textarea value={postData.content} onChange={handleChange} />
-      <button type="submit">Create Post</button>
-    </form>
+    <button type="button" onClick={() => router.push('/dashboard')}>
+      Dashboard
+    </button>
   )
 }
 ```
 
-```jsx filename="app/ui/create-post.js" highlight={19} switcher
+```jsx filename="app/page.js" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
 
-export function CreatePost() {
+export default function Page() {
   const router = useRouter()
-  const [postData, setPostData] = useState({ title: '', content: '' })
-
-  function handleChange(e) {
-    setPostData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
-  }
-
-  function handleSubmit(e) {
-    e.preventDefault()
-    // Mutate data
-    router.push(`/post/${post.id}`) // Navigate to the new post page
-  }
 
   return (
-    <form onSubmit={handleSubmit}>
-      {/* ... */}
-      <textarea value={postData.content} onChange={handleChange} />
-      <button type="submit">Create Post</button>
-    </form>
+    <button type="button" onClick={() => router.push('/dashboard')}>
+      Dashboard
+    </button>
   )
 }
 ```
 
-Alternatively, we recommend invoking a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) in your Client Component. This will simplify your code and allow you to call [`redirect`](#redirect-function) or [`permanentRedirect`](#permanentredirect-function).
+> **Good to know**:
+>
+> - If you don't need to programatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
 
-For example, import the Server Action in your Client Component:
-
-```tsx filename="app/ui/create-post.tsx" switcher
-'use client'
-
-import { createPost } from '@/app/actions'
-
-export function CreatePost() {
-  return (
-    <form action={createPost}>
-      {/* ... */}
-      <textarea />
-      <button type="submit">Create Post</button>
-    </form>
-  )
-}
-```
-
-```jsx filename="app/ui/create-post.js" switcher
-'use client'
-
-import { createPost } from '@/app/actions'
-
-export function CreatePost() {
-  return (
-    <form action={createPost}>
-      {/* ... */}
-      <textarea />
-      <button type="submit">Create Post</button>
-    </form>
-  )
-}
-```
-
-Then, in the Server Action, call `redirect`:
-
-```tsx filename="app/actions.ts" switcher
-'use server'
-
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
-
-export async function createPost(data: PostData) {
-  try {
-    // Call database
-  } catch (error) {
-    // Handle errors
-  }
-
-  revalidatePath('/posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to the new post page
-}
-```
-
-```jsx filename="app/actions.js" switcher
-'use server'
-
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
-
-export async function createPost(data) {
-  try {
-    // Call database
-  } catch (error) {
-    // Handle errors
-  }
-
-  revalidatePath('/posts') // Update cached posts
-  redirect(`/post/${id}`) // Navigate to the new post page
-}
-```
-
-See the [`useRouter` API reference](/docs/app/api-reference/functions/use-router) and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) documentation for more information.
+See the [`useRouter` API reference](/docs/app/api-reference/functions/use-router) for more information.
 
 ## `redirects` in `next.config.js`
 
-The `redirects` option allows you to redirect an incoming request path to a different destination path. This is useful when you change the URL structure of a page or have a list of **static** redirects that are known ahead of time.
+The `redirects` option in the `next.config.js` file allows you to redirect an incoming request path to a different destination path. This is useful when you change the URL structure of pages or have a list of redirects that are known ahead of time.
 
 `redirects` supports [path](/docs/app/api-reference/next-config-js/redirects#path-matching), [header, cookie, and query matching](/docs/app/api-reference/next-config-js/redirects#header-cookie-and-query-matching), giving you the flexibility to redirect users based on an incoming request.
 
@@ -300,14 +195,14 @@ See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redir
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
-> - `redirects` may have a limit on platforms. For example, on Vercel there's a limit of 1,024 redirects and a maximum string length of 4,096 characters. To manage a large number of redirects (1000+), you may want to consider creating a custom solution that integrates with Next.js Middleware. See [Managing redirects at scale](#managing-redirects-at-scale-advanced) section.
-> - `redirects` runs **before** [Middleware](/docs/app/building-your-application/routing/middleware).
+> - `redirects` may have a limit on platforms. For example, on Vercel there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/building-your-application/routing/middleware).. See [Managing redirects at scale](#managing-redirects-at-scale-advanced) section.
+> - `redirects` runs **before** Middleware.
 
 ## `NextResponse.redirect` in Middleware
 
-Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can redirect the user to a different URL using `NextResponse.redirect`. This is useful if you want to redirect users based on a condition (e.g. authentication, session management, etc) or have [a large number of redirects](#managing-redirects-at-scale-advanced).
+Middleware allows you to run code before a request is completed. Then, based on the incoming request, redirect to a different URL using `NextResponse.redirect`. This is useful if you want to redirect users based on a condition (e.g. authentication, session management, etc) or have [a large number of redirects](#managing-redirects-at-scale-advanced).
 
-For example, to redirect the user to a login page if they are not authenticated:
+For example, to redirect the user to a `/login` page if they are not authenticated:
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -359,7 +254,7 @@ See the [Middleware](/docs/app/building-your-application/routing/middleware) doc
 
 ## Managing redirects at scale (Advanced)
 
-To manage a large number of redirects (1000+), you may consider creating a custom solution that integrates with Next.js Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) without having to redeploy your whole application.
+To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) without having to redeploy your whole application.
 
 When handling redirects at scale, some things to consider are:
 
@@ -370,7 +265,7 @@ When handling redirects at scale, some things to consider are:
 
 A redirect map is a list of redirects that you can store in a database (usually a key-value store) or JSON file.
 
-Considering the following data structure:
+Consider the following data structure:
 
 ```json
 {
@@ -449,11 +344,11 @@ export async function middleware(request) {
 Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
 
 - Use a database that is optimized for fast reads, such as [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/).
-- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger file.
+- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file.
 
-Considering the previous example, you can import a generated Bloom Filter file into Middleware, then check if the incoming request pathname exists in the Bloom Filter.
+Considering the previous example, you can import a generated Bloom Filter file into Middleware, then, check if the incoming request's pathname exists in the Bloom Filter.
 
-If it does, forward the request to a [Route Handler](/docs/app/building-your-application/routing/route-handlers) which will read the map and redirect the user to the appropriate URL. This avoids importing a large redirect map file into Middleware, which can slow down every incoming request.
+If it does, forward the request to a [Route Handler](/docs/app/building-your-application/routing/route-handlers) which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -550,6 +445,8 @@ export async function middleware(request) {
   return NextResponse.next()
 }
 ```
+
+The in the Route Handler:
 
 ```tsx filename="app/redirects/route.ts" switcher
 import { NextRequest, NextResponse } from 'next/server'
