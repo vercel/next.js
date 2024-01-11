@@ -1,6 +1,5 @@
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
 import { Request, Response } from 'playwright-chromium'
 
 createNextDescribe(
@@ -36,8 +35,13 @@ createNextDescribe(
         },
       })
 
-      await browser.elementById('submit-server-action-redirect').click()
-      await check(() => browser.url(), /another/)
+      await browser
+        .elementById('submit-server-action-redirect')
+        .click()
+        .waitForElementByCss('#another')
+      expect(await browser.url()).toBe(
+        `http://localhost:${next.appPort}/base/another`
+      )
 
       expect(postRequests).toEqual([`/base`])
 
