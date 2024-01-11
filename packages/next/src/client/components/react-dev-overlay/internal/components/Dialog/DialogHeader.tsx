@@ -73,6 +73,7 @@ export function DialogHeader({
           onClick={close}
           aria-label="Close"
           className="close-button"
+          data-nextjs-dialog-close-button
         >
           <span aria-hidden="true">
             <CloseIcon />

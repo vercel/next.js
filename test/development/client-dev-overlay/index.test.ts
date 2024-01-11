@@ -30,8 +30,8 @@ describe('client-dev-overlay', () => {
   const selectors = {
     fullScreenDialog: '[data-nextjs-dialog]',
     toast: '[data-nextjs-toast]',
-    minimizeButton: '[data-nextjs-errors-dialog-left-right-close-button]',
-    hideButton: '[data-nextjs-toast-errors-hide-button]',
+    minimizeButton: '[data-nextjs-dialog-close-button]',
+    hideButton: '[data-toast-errors-hide-button]',
   }
   function getToast() {
     return browser.elementByCss(selectors.toast)

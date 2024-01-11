@@ -82,6 +82,7 @@ export function Dialog({
       aria-describedby={props['aria-describedby']}
       aria-modal="true"
       className={clsx('dialog', className)}
+      data-nextjs-dialog
     >
       {children}
     </div>
