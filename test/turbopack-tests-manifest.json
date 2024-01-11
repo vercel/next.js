@@ -1183,7 +1183,8 @@
   "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
     "passed": [
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
-      "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed"
+      "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
+      "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
     ],
     "failed": [
       "Error overlay - RSC runtime errors should show the userland code error trace when fetch failed error occurred"
@@ -1448,6 +1449,15 @@
   },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
     "passed": ["experimental-lightningcss should support css modules"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
+    "passed": [
+      "HMR Move File should work when moving a component to another directory"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2794,6 +2804,7 @@
   },
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling Incremental cache limits should cache request if response data size is greater than 2MB in Dev mode",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
       "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
@@ -2823,7 +2834,6 @@
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should keep querystring on static page",
-      "app-dir static/dynamic handling should load large data only once when using custom cache handler and force-cache mode",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -2851,7 +2861,6 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
-      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -2866,6 +2875,7 @@
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
@@ -2927,7 +2937,6 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
-      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -3908,6 +3917,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-route-not-found-params/parallel-route-not-found-params.test.ts": {
+    "passed": [
+      "parallel-route-not-found should behave correctly without any errors",
+      "parallel-route-not-found should handle the not found case correctly without any errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-route-not-found/parallel-route-not-found.test.ts": {
     "passed": [
       "parallel-route-not-found should not log any warnings for a regular not found page",
@@ -3917,6 +3936,16 @@
       "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
       "parallel-route-not-found should handle multiple missing parallel routes"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-and-interception-basepath/parallel-routes-and-interception-basepath.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-basepath should show normal route via direct link with basepath when parallel intercepted slot exist",
+      "parallel-routes-and-interception-basepath should show parallel intercepted slot with basepath"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4447,6 +4476,13 @@
       "use-params should work for single dynamic param",
       "use-params should work for single dynamic param client navigating"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-search-params/use-search-params.test.ts": {
+    "passed": ["use-search-params skip test for dev mode"],
     "failed": [],
     "pending": [],
     "flakey": [],

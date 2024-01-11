@@ -31,6 +31,7 @@ describe('ReactRefreshModule app', () => {
         outdent`
           'use client'
           import { default as ${variable} } from 'next/link'
+          console.log({ ${variable} })
           export default function Page() {
             return null
           }

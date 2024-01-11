@@ -24,9 +24,9 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
-next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
-next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
+next-api = { path = "packages/next-swc/crates/next-api" }
+next-build = { path = "packages/next-swc/crates/next-build" }
+next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
