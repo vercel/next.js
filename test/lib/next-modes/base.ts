@@ -8,7 +8,7 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { BrowserInterface } from '../browsers/base'
 import escapeStringRegexp from 'escape-string-regexp'
@@ -438,7 +438,7 @@ export class NextInstance {
     // to connect the WebSocket and start watching.
     if (process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(500)
     }
   }
   private async handleDevWatchDelayAfterChange(filename: string) {

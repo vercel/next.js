@@ -23,7 +23,7 @@ const ThemeImage = (props: Props) => {
 
 const Page = () => (
   <div>
-    <ViewSource pathname="pages/theme.tsx" />
+    <ViewSource pathname="app/theme/page.tsx" />
     <h1>Image With Light/Dark Theme Detection</h1>
     <ThemeImage
       alt="Next.js Streaming"

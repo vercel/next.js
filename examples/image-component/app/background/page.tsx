@@ -5,7 +5,7 @@ import mountains from '../../public/mountains.jpg'
 
 const BackgroundPage = () => (
   <div>
-    <ViewSource pathname="pages/background.tsx" />
+    <ViewSource pathname="app/background/page.tsx" />
     <div className={styles.bgWrap}>
       <Image
         alt="Mountains"

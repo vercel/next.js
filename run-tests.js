@@ -422,6 +422,7 @@ ${ENDGROUP}`)
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
+        ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
         '--verbose',
