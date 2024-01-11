@@ -48,7 +48,7 @@ const LoginPage = () => {
 export default LoginPage
 ```
 
-This section details the creation of two input fields for email and password. Upon form submission, a server-side action, defined in the `action` attribute, is initiated. Here, it links to the `authenticate` function, ensuring the secure handling of credentials.
+The form above has two input fields for capturing the user's email and password. On submission, it calls the `authenticate` Server Action.
 
 Next, we define the `authenticate` function in the server-side code. Located in the `lib` directory, within the `actions.ts` file, this function is vital for verifying user credentials through an authentication provider's API. As an exported asynchronous function, its core duties include credential verification and session initiation upon successful authentication.
 
