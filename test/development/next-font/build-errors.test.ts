@@ -31,7 +31,7 @@ export default function Page() {
 `
     )
 
-    expect(await hasRedbox(browser, true)).toBeTrue()
+    expect(await hasRedbox(browser)).toBeTrue()
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
       "app/page.js
       \`next/font\` error:
@@ -39,7 +39,7 @@ export default function Page() {
     `)
 
     await next.patchFile('app/page.js', content)
-    expect(await hasRedbox(browser, false)).toBeFalse()
+    expect(await hasRedbox(browser)).toBeFalse()
   })
 
   it("should show a module not found error if local font file can' be resolved", async () => {
@@ -59,7 +59,7 @@ export default function Page() {
 `
     )
 
-    expect(await hasRedbox(browser, true)).toBeTrue()
+    expect(await hasRedbox(browser)).toBeTrue()
     const sourceLines = (await getRedboxSource(browser)).split('\n')
 
     // Should display the file name correctly
@@ -70,6 +70,6 @@ export default function Page() {
     )
 
     await next.patchFile('app/page.js', content)
-    expect(await hasRedbox(browser, false)).toBeFalse()
+    expect(await hasRedbox(browser)).toBeFalse()
   })
 })

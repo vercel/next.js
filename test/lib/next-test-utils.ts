@@ -729,8 +729,9 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  // Try to read the redbox for 7 seconds. If it wasn't there the redbox was not shown.
+  for (let i = 0; i < 7; i++) {
     const result = await evaluate(browser, () => {
       return Boolean(
         [].slice
@@ -743,12 +744,14 @@ export async function hasRedbox(browser: BrowserInterface, expected = true) {
       )
     })
 
-    if (result === expected) {
-      return result
+    if (result) {
+      return true
     }
     await waitFor(1000)
   }
-  return !expected
+
+  // If it wasn't found after 7 seconds, it's not there.
+  return false
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {

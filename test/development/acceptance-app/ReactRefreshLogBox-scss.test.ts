@@ -33,21 +33,21 @@ describe('ReactRefreshLogBox app', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
     await session.patch('index.module.scss', `.button { font-size: :5px; }`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatchSnapshot()
 
     // Fix syntax error
     await session.patch('index.module.scss', `.button { font-size: 5px; }`)
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     // Not local error
     await session.patch('index.module.scss', `button { font-size: 5px; }`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     const source2 = await session.getRedboxSource()
     expect(source2).toMatchSnapshot()
 

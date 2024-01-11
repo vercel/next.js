@@ -220,7 +220,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, true)).toBe(true)
+    expect(await hasRedbox(browser)).toBe(true)
     expect(await getRedboxHeader(browser)).toContain(
       'ISR cannot be used with "output: export".'
     )
@@ -255,7 +255,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
   })
 
   it('should work with getStaticProps and without revalidate', async () => {
@@ -283,7 +283,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
   })
 
   it('should error with getServerSideProps without fallback', async () => {
@@ -311,7 +311,7 @@ describe('config-output-export', () => {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    expect(await hasRedbox(browser, true)).toBe(true)
+    expect(await hasRedbox(browser)).toBe(true)
     expect(await getRedboxHeader(browser)).toContain(
       'getServerSideProps cannot be used with "output: export".'
     )
@@ -351,9 +351,9 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
       browser = await webdriver(result.port, '/posts/two')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
@@ -397,9 +397,9 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/posts/one')
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
       browser = await webdriver(result.port, '/posts/two')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(posts, { recursive: true, force: true })
@@ -449,7 +449,7 @@ describe('config-output-export', () => {
     }
     const h1 = await browser.elementByCss('h1')
     expect(await h1.text()).toContain('Hello from one')
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
     expect(result.stderr).toBeEmpty()
   })
 })
