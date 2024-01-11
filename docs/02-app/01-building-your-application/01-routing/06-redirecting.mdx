@@ -315,7 +315,7 @@ See the [Middleware](/docs/app/building-your-application/routing/middleware) doc
 
 ## Managing redirects at scale (Advanced)
 
-To manage a large number of redirects (1000+), you may consider creating a custom solution that integrates with Next.js Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime).
+To manage a large number of redirects (1000+), you may consider creating a custom solution that integrates with Next.js Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) without having to redeploy your whole application.
 
 When handling redirects at scale, some things to consider are:
 
@@ -328,39 +328,238 @@ A redirect map is a list of redirects that you can store in a database (usually 
 
 Considering the following data structure:
 
-```json filename="redirects.json"
-
+```json
+{
+  "/old": {
+    "destination": "/new",
+    "permanent": true
+  },
+  "/blog/post-old": {
+    "destination": "/blog/post-new",
+    "permanent": true
+  }
+}
 ```
 
-In Middleware, you can read the map and redirect the user based on the incoming request:
+In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/), and redirect the user based on the incoming request:
 
-```tsx filename="middleware.ts"
+```tsx filename="middleware.ts" switcher
+import { NextResponse, NextRequest } from 'next/server'
+import { get } from '@vercel/edge-config'
 
+type RedirectEntry = {
+  destination: string
+  permanent: boolean
+}
+
+export async function middleware(request: NextRequest) {
+  // Get the path for the incoming request
+  const pathname = request.nextUrl.pathname
+
+  // Fetch redirect data from database
+  const redirectData = await get(pathname)
+
+  if (redirectData && typeof redirectData === 'string') {
+    const redirectEntry: RedirectEntry = JSON.parse(redirectData)
+
+    // Determine the status code
+    const statusCode = redirectEntry.permanent ? 308 : 307
+
+    // Redirect to the destination
+    return NextResponse.redirect(redirectEntry.destination, statusCode)
+  }
+
+  // No redirect found, continue without redirecting
+  return NextResponse.next()
+}
 ```
 
-```tsx filename="app/redirects/route.ts"
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+import { get } from '@vercel/edge-config'
 
+export async function middleware(request) {
+  // Get the path for the incoming request
+  const pathname = request.nextUrl.pathname
+
+  // Fetch redirect data from database
+  const redirectData = await get(pathname)
+
+  if (redirectData) {
+    const redirectEntry = JSON.parse(redirectData)
+
+    // Determine the status code
+    const statusCode = redirectEntry.permanent ? 308 : 307
+
+    // Redirect to the destination
+    return NextResponse.redirect(redirectEntry.destination, statusCode)
+  }
+
+  // No redirect found, continue without redirecting
+  return NextResponse.next()
+}
 ```
-
-> **Good to know:**
->
-> - If hosting on Vercel, redirects can be stored in an [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) file and read from Middleware. This enables you to update redirects without having to redeploy your whole application.
 
 ### 2. Optimizing data lookup performance
 
 Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
 
 - Use a database that is optimized for fast reads, such as [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/).
-- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading a large file.
+- Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger file.
 
-Considering the previous example, you can import a generated Bloom Filter file into your Middleware, then check if the incoming request exists using the Bloom Filter. If it does, forward the request to a Route Handler which will read the redirects map and redirect the user to the appropriate URL.
+Considering the previous example, you can import a generated Bloom Filter file into Middleware, then check if the incoming request pathname exists in the Bloom Filter.
 
-This avoids importing a large file into Middleware, which can slow down every incoming request.
+If it does, forward the request to a [Route Handler](/docs/app/building-your-application/routing/route-handlers) which will read the map and redirect the user to the appropriate URL. This avoids importing a large redirect map file into Middleware, which can slow down every incoming request.
 
-```tsx filename="middleware.ts"
+```tsx filename="middleware.ts" switcher
+import { NextResponse, NextRequest } from 'next/server'
+import { ScalableBloomFilter } from 'bloom-filters'
+import GeneratedBloomFilter from './redirects/bloom-filter.json'
 
+type RedirectEntry = {
+  destination: string
+  permanent: boolean
+}
+
+// Initialize bloom filter from a generated JSON file
+const bloomFilter = ScalableBloomFilter.fromJSON(GeneratedBloomFilter as any)
+
+export async function middleware(request: NextRequest) {
+  // Get the path for the incoming request
+  const pathname = request.nextUrl.pathname
+
+  // Check if the path is in the bloom filter
+  if (bloomFilter.has(pathname)) {
+    // Forward the pathname to the Route Handler
+    const api = new URL(
+      `/api/redirects?pathname=${encodeURIComponent(request.nextUrl.pathname)}`,
+      request.nextUrl.origin
+    )
+
+    try {
+      // Fetch redirect data from the Route Handler
+      const redirectData = await fetch(api)
+
+      if (redirectData.ok) {
+        const redirectEntry: RedirectEntry | undefined =
+          await redirectData.json()
+
+        if (redirectEntry) {
+          // Determine the status code
+          const statusCode = redirectEntry.permanent ? 308 : 307
+
+          // Redirect to the destination
+          return NextResponse.redirect(redirectEntry.destination, statusCode)
+        }
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // No redirect found, continue the request without redirecting
+  return NextResponse.next()
+}
+```
+
+```js filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+import { ScalableBloomFilter } from 'bloom-filters'
+import GeneratedBloomFilter from './redirects/bloom-filter.json'
+
+// Initialize bloom filter from a generated JSON file
+const bloomFilter = ScalableBloomFilter.fromJSON(GeneratedBloomFilter)
+
+export async function middleware(request) {
+  // Get the path for the incoming request
+  const pathname = request.nextUrl.pathname
+
+  // Check if the path is in the bloom filter
+  if (bloomFilter.has(pathname)) {
+    // Forward the pathname to the Route Handler
+    const api = new URL(
+      `/api/redirects?pathname=${encodeURIComponent(request.nextUrl.pathname)}`,
+      request.nextUrl.origin
+    )
+
+    try {
+      // Fetch redirect data from the Route Handler
+      const redirectData = await fetch(api)
+
+      if (redirectData.ok) {
+        const redirectEntry = await redirectData.json()
+
+        if (redirectEntry) {
+          // Determine the status code
+          const statusCode = redirectEntry.permanent ? 308 : 307
+
+          // Redirect to the destination
+          return NextResponse.redirect(redirectEntry.destination, statusCode)
+        }
+      }
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  // No redirect found, continue the request without redirecting
+  return NextResponse.next()
+}
+```
+
+```tsx filename="app/redirects/route.ts" switcher
+import { NextRequest, NextResponse } from 'next/server'
+import redirects from '@/app/redirects/redirects.json'
+
+type RedirectEntry = {
+  destination: string
+  permanent: boolean
+}
+
+export function GET(request: NextRequest) {
+  const pathname = request.nextUrl.searchParams.get('pathname')
+  if (!pathname) {
+    return new Response('Bad Request', { status: 400 })
+  }
+
+  // Get the redirect entry from the redirects.json file
+  const redirect = (redirects as Record<string, RedirectEntry>)[pathname]
+
+  // Account for bloom filter false positives
+  if (!redirect) {
+    return new Response('No redirect', { status: 400 })
+  }
+
+  // Return the redirect entry
+  return NextResponse.json(redirect)
+}
+```
+
+```js filename="app/redirects/route.js" switcher
+import { NextResponse } from 'next/server'
+import redirects from '@/app/redirects/redirects.json'
+
+export function GET(request) {
+  const pathname = request.nextUrl.searchParams.get('pathname')
+  if (!pathname) {
+    return new Response('Bad Request', { status: 400 })
+  }
+
+  // Get the redirect entry from the redirects.json file
+  const redirect = redirects[pathname]
+
+  // Account for bloom filter false positives
+  if (!redirect) {
+    return new Response('No redirect', { status: 400 })
+  }
+
+  // Return the redirect entry
+  return NextResponse.json(redirect)
+}
 ```
 
 > **Good to know:**
 >
 > - To generate a Bloom filter, you can use a library like [bloom-filters](https://www.npmjs.com/package/bloom-filters).
+> - You should validate requests made to your Route Handler to prevent malicious requests.
+> - On Vercel, Middleware runs on the [Edge Network](https://vercel.com/docs/edge-network/overview), check the Vercel or your platform's [documentation for limits](https://vercel.com/docs/storage/edge-config/edge-config-limits).
