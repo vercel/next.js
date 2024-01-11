@@ -2,7 +2,7 @@ name: Notify about approved but still open PRs
 
 on:
   schedule:
-    - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
+    - cron: '0 13 */2 * *' # Runs every two days at 1PM UTC (9AM EST)
   workflow_dispatch:
 
 jobs:
