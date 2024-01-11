@@ -1,4 +1,4 @@
-import { FacebookPixel } from './components'
+import { FacebookPixel } from "./components";
 
 export default function RootLayout({ children }) {
   return (
@@ -8,5 +8,5 @@ export default function RootLayout({ children }) {
         <FacebookPixel />
       </body>
     </html>
-  )
+  );
 }

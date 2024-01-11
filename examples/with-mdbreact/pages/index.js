@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 import {
   MDBBtn,
   MDBCard,
@@ -9,7 +9,7 @@ import {
   MDBContainer,
   MDBFooter,
   MDBRow,
-} from 'mdbreact'
+} from "mdbreact";
 
 export default function Home() {
   return (
@@ -114,5 +114,5 @@ export default function Home() {
         </MDBFooter>
       </MDBContainer>
     </>
-  )
+  );
 }
