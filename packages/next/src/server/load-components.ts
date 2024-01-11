@@ -106,8 +106,8 @@ async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  await evalManifestWithRetries(manifestPath)
   try {
+    await evalManifestWithRetries(manifestPath)
     return (globalThis as any).__RSC_MANIFEST[
       entryName
     ] as ClientReferenceManifest

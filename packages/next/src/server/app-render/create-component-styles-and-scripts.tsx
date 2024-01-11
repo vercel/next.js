@@ -16,7 +16,7 @@ export async function createComponentStylesAndScripts({
   injectedCSS: Set<string>
   injectedJS: Set<string>
   ctx: AppRenderContext
-}): Promise<[any, React.ReactNode, React.ReactNode]> {
+}): Promise<[React.ComponentType<any>, React.ReactNode, React.ReactNode]> {
   const { styles: cssHrefs, scripts: jsHrefs } = getLinkAndScriptTags(
     ctx.clientReferenceManifest,
     filePath,

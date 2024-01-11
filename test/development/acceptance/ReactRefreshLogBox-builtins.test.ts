@@ -118,16 +118,30 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox(true)).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchInlineSnapshot(`
-      "./pages/index.js:1:0
-      Module not found: Can't resolve 'b'
-      > 1 | import Comp from 'b'
-        2 |
-        3 | export default function Oops() {
-        4 |   return (
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./pages/index.js:1:0
+        Module not found: Can't resolve 'b'
+        > 1 | import Comp from 'b'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function Oops() {
+          4 |   return (
 
-      https://nextjs.org/docs/messages/module-not-found"
-    `)
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "./pages/index.js:1:0
+              Module not found: Can't resolve 'b'
+              > 1 | import Comp from 'b'
+                2 |
+                3 | export default function Oops() {
+                4 |   return (
+
+              https://nextjs.org/docs/messages/module-not-found"
+          `)
+    }
 
     await cleanup()
   })

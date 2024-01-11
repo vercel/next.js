@@ -283,7 +283,11 @@ import { createContext } from 'react'
 
 export const ThemeContext = createContext({})
 
-export default function ThemeProvider({ children }) {
+export default function ThemeProvider({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return <ThemeContext.Provider value="dark">{children}</ThemeContext.Provider>
 }
 ```
@@ -552,5 +556,5 @@ With this approach, `<ClientComponent>` and `<ServerComponent>` are decoupled an
 
 > **Good to know:**
 >
-> - The pattern of "lifting content up" has been used to avoid re-rendering a nested child component when a parent to re-renders.
+> - The pattern of "lifting content up" has been used to avoid re-rendering a nested child component when a parent component re-renders.
 > - You're not limited to the `children` prop. You can use any prop to pass JSX.

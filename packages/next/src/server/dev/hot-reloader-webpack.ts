@@ -51,6 +51,7 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import {
   difference,
+  isInstrumentationHookFile,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
@@ -75,6 +76,8 @@ import {
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import type { WebpackError } from 'webpack'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -153,7 +156,7 @@ function findEntryModule(
 }
 
 function erroredPages(compilation: webpack.Compilation) {
-  const failedPages: { [page: string]: any[] } = {}
+  const failedPages: { [page: string]: WebpackError[] } = {}
   for (const error of compilation.errors) {
     if (!error.module) {
       continue
@@ -182,7 +185,7 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export default class HotReloader implements NextJsHotReloaderInterface {
+export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
@@ -312,7 +315,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
 
       if (page === '/_error' || BLOCKED_PAGES.indexOf(page) === -1) {
         try {
-          await this.ensurePage({ page, clientOnly: true })
+          await this.ensurePage({ page, clientOnly: true, url: req.url })
         } catch (error) {
           return await renderScriptError(pageBundleRes, getProperError(error))
         }
@@ -577,7 +580,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
-            pagesType: 'pages',
+            pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagePaths.filter(
               (i: string | null): i is string => typeof i === 'string'
             ),
@@ -812,11 +815,13 @@ export default class HotReloader implements NextJsHotReloaderInterface {
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
-            const pageType = entryData.bundlePath.startsWith('pages/')
-              ? 'pages'
+            const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
+              'pages/'
+            )
+              ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
-              ? 'app'
-              : 'root'
+              ? PAGE_TYPES.APP
+              : PAGE_TYPES.ROOT
 
             if (pageType === 'pages') {
               this.hasPagesRouterEntrypoints = true
@@ -874,7 +879,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isAppPath ? 'app' : 'pages',
+                    pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo.preferredRegion,
                   }),
                   hasAppDir,
@@ -955,7 +960,8 @@ export default class HotReloader implements NextJsHotReloaderInterface {
                 } else if (
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest) &&
-                  !isNonRoutePagesPage(page)
+                  !isNonRoutePagesPage(page) &&
+                  !(isInstrumentationHookFile(page) && pageType === 'root')
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
@@ -1446,8 +1452,10 @@ export default class HotReloader implements NextJsHotReloaderInterface {
         : compilation.errors
     }
 
-    if (this.clientError || this.serverError) {
-      return [this.clientError || this.serverError]
+    if (this.clientError) {
+      return [this.clientError]
+    } else if (this.serverError) {
+      return [this.serverError]
     } else if (this.clientStats?.hasErrors()) {
       return getErrors(this.clientStats)
     } else if (this.serverStats?.hasErrors()) {
@@ -1469,12 +1477,14 @@ export default class HotReloader implements NextJsHotReloaderInterface {
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     definition?: RouteDefinition
+    url?: string
   }): Promise<void> {
     // Make sure we don't re-build or dispose prebuilt pages
     if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
@@ -1492,6 +1502,7 @@ export default class HotReloader implements NextJsHotReloaderInterface {
       appPaths,
       definition,
       isApp,
+      url,
     })
   }
 }

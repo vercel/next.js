@@ -27,7 +27,6 @@ import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
-import { trace } from '../trace'
 import { fork } from 'child_process'
 import {
   getReservedPortExplanation,
@@ -126,10 +125,14 @@ const nextDev: CliCommand = async (args) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
-        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
-        --help, -h      Displays this message
+        --port, -p                              A port number to start the application on
+        --hostname, -H                          Hostname start the application on (default: 0.0.0.0)
+        --experimental-https                    Start the server with HTTPS and generate a self-signed certificate
+        --experimental-https-key <path>         Path to a HTTPS key file
+        --experimental-https-cert <path>        Path to a HTTPS certificate file
+        --experimental-https-ca <path>          Path to a HTTPS certificate authority file
+        --experimental-upload-trace=<trace-url> Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
+        --help, -h                              Displays this message
     `)
     process.exit(0)
   }
@@ -273,6 +276,19 @@ const nextDev: CliCommand = async (args) => {
           return
         }
         if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              isTurboSession,
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
           return startServer(options)
         }
         await handleSessionStop(signal)
@@ -318,9 +334,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
 
 function cleanup() {

@@ -142,19 +142,13 @@ export default class FetchCache implements CacheHandler {
     }
   }
 
-  public async get(
-    key: string,
-    ctx: {
-      tags?: string[]
-      softTags?: string[]
-      fetchCache?: boolean
-      fetchUrl?: string
-      fetchIdx?: number
-    }
-  ) {
-    const { tags, softTags, fetchCache, fetchIdx, fetchUrl } = ctx
+  public async get(...args: Parameters<CacheHandler['get']>) {
+    const [key, ctx = {}] = args
+    const { tags, softTags, kindHint, fetchIdx, fetchUrl } = ctx
 
-    if (!fetchCache) return null
+    if (kindHint !== 'fetch') {
+      return null
+    }
 
     if (Date.now() < rateLimitedUntil) {
       if (this.debug) {
@@ -165,7 +159,7 @@ export default class FetchCache implements CacheHandler {
 
     let data = memoryCache?.get(key)
 
-    // memory cache data is only leveraged for up to 1 seconds
+    // memory cache data is only leveraged for up to 2 seconds
     // so that revalidation events can be pulled from source
     if (Date.now() - (data?.lastModified || 0) > 2000) {
       data = undefined
@@ -262,21 +256,9 @@ export default class FetchCache implements CacheHandler {
     return data || null
   }
 
-  public async set(
-    key: string,
-    data: CacheHandlerValue['value'],
-    {
-      fetchCache,
-      fetchIdx,
-      fetchUrl,
-      tags,
-    }: {
-      tags?: string[]
-      fetchCache?: boolean
-      fetchUrl?: string
-      fetchIdx?: number
-    }
-  ) {
+  public async set(...args: Parameters<CacheHandler['set']>) {
+    const [key, data, ctx] = args
+    const { fetchCache, fetchIdx, fetchUrl, tags } = ctx
     if (!fetchCache) return
 
     if (Date.now() < rateLimitedUntil) {

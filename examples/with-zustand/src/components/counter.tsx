@@ -1,15 +1,20 @@
-import { useStore } from '../lib/store'
+'use client'
 
-const useCounter = () => {
-  return useStore((store) => ({
-    count: store.count,
-    increment: store.increment,
-    decrement: store.decrement,
-    reset: store.reset,
-  }))
+import { useStore } from '../lib/store'
+import { useShallow } from 'zustand/react/shallow'
+
+function useCounter() {
+  return useStore(
+    useShallow((store) => ({
+      count: store.count,
+      increment: store.increment,
+      decrement: store.decrement,
+      reset: store.reset,
+    }))
+  )
 }
 
-const Counter = () => {
+function Counter() {
   const { count, increment, decrement, reset } = useCounter()
   return (
     <div>

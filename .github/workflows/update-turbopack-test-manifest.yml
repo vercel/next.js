@@ -3,13 +3,14 @@ name: Update Turbopack test manifest
 
 on:
   schedule:
-    # Every hour
-    - cron: '0 * * * *'
+    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 jobs:
   update_manifest:
     name: Update and upload Turbopack test manifest
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,12 +26,18 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
+      - run: corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
       - name: Create Pull Request
         shell: bash
         run: node scripts/automated-update-workflow.js
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
-          BRANCH_NAME: fonts-data
+          BRANCH_NAME: turbopack-manifest
           SCRIPT: test/build-turbopack-tests-manifest.js
           PR_TITLE: Update Turbopack test manifest
           PR_BODY: This auto-generated PR updates the integration test manifest used when testing Turbopack.

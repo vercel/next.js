@@ -30,6 +30,9 @@ custom_allocator = [
 serializable = []
 profile = []
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }

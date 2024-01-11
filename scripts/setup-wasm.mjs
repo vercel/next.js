@@ -1,6 +1,5 @@
 import path from 'path'
 import fs from 'fs'
-import { copy } from 'fs-extra'
 ;(async function () {
   try {
     let wasmDir = path.join(process.cwd(), 'packages/next-swc/crates/wasm')
@@ -22,10 +21,10 @@ import { copy } from 'fs-extra'
       JSON.stringify(wasmPkg, null, 2)
     )
 
-    await copy(
-      path.join(wasmDir, `${folderName}`),
+    fs.cpSync(
+      path.join(wasmDir, folderName),
       path.join(process.cwd(), `node_modules/@next/swc-wasm-${wasmTarget}`),
-      { overwrite: true }
+      { force: true, recursive: true }
     )
   } catch (e) {
     console.error(e)

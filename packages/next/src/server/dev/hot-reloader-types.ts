@@ -43,18 +43,20 @@ interface FinishBuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
 }
 
-interface SyncAction {
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {
@@ -148,11 +150,13 @@ export interface NextJsHotReloaderInterface {
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void>
 }

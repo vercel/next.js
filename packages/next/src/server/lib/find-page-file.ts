@@ -6,6 +6,7 @@ import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import type { PageExtensions } from '../../build/page-extensions-type'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
   const pageSegments = normalize(pagePath).split(sep).filter(Boolean)
@@ -30,7 +31,7 @@ async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
 export async function findPageFile(
   pagesDir: string,
   normalizedPagePath: string,
-  pageExtensions: string[],
+  pageExtensions: PageExtensions,
   isAppDir: boolean
 ): Promise<string | null> {
   const pagePaths = getPagePaths(normalizedPagePath, pageExtensions, isAppDir)
@@ -75,7 +76,7 @@ export async function findPageFile(
  *
  */
 export function createValidFileMatcher(
-  pageExtensions: string[],
+  pageExtensions: PageExtensions,
   appDirPath: string | undefined
 ) {
   const getExtensionRegexString = (extensions: string[]) =>
@@ -126,6 +127,10 @@ export function createValidFileMatcher(
     return validExtensionFileRegex.test(filePath) || isMetadataFile(filePath)
   }
 
+  function isDefaultSlot(filePath: string) {
+    return filePath.endsWith(`default.${pageExtensions[0]}`)
+  }
+
   function isRootNotFound(filePath: string) {
     if (!appDirPath) {
       return false
@@ -142,5 +147,6 @@ export function createValidFileMatcher(
     isAppRouterPage,
     isMetadataFile,
     isRootNotFound,
+    isDefaultSlot,
   }
 }
