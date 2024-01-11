@@ -730,28 +730,19 @@ export async function retry<T>(
 }
 
 export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
-  // Try to read the redbox for 7 seconds. If it wasn't there the redbox was not shown.
-  for (let i = 0; i < 7; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
           )
-      )
-    })
-
-    if (result) {
-      return true
-    }
-    await waitFor(1000)
-  }
-
-  // If it wasn't found after 7 seconds, it's not there.
-  return false
+        )
+    )
+  })
+  return result
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
