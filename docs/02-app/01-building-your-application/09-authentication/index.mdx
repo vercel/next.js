@@ -123,7 +123,7 @@ After the authentication provider processes the credentials, there are two possi
 - **Successful Authentication**: This outcome implies that the login was successful. Further actions, such as accessing protected routes and fetching user information, can then be initiated.
 - **Failed Authentication**: In cases where the credentials are incorrect or an error is encountered, the function returns a corresponding error message to indicate the authentication failure.
 
-Finally, in your login-form.tsx component, you can use React's `useFormState` to call the server action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
+Finally, in your `login-form.tsx` component, you can use React's `useFormState` to call the server action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
 
 ```tsx filename="/app/login/page.tsx" switcher
 'use client'
@@ -341,6 +341,25 @@ export async function GET() {
 }
 ```
 
+```js filename="app/api/route.js" switcher
+export async function GET() {
+  // User authentication and role verification
+  const session = await getSession()
+
+  // Check if the user is authenticated
+  if (!session) {
+    return new Response(null, { status: 401 }) // User is not authenticated
+  }
+
+  // Check if the user has the 'admin' role
+  if (session.user.role !== 'admin') {
+    return new Response(null, { status: 403 }) // User is authenticated but does not have the right permissions
+  }
+
+  // Data fetching for authorized users
+}
+```
+
 This example demonstrates a Route Handler with a two-tier security check for authentication and authorization. It first checks for an active session, and then verifies if the logged-in user is an 'admin'. This approach ensures secure access, limited to authenticated and authorized users, maintaining robust security for request processing.
 
 ### Authorization Using Server Components
@@ -352,6 +371,21 @@ In Server Components, a common practice is to conditionally render UI elements b
 **Example:**
 
 ```tsx filename="app/dashboard/page.tsx" switcher
+export default function Dashboard() => {
+  const session = await getSession()
+  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+
+  if (userRole === 'admin') {
+    return <AdminDashboard /> // Component for admin users
+  } else if (userRole === 'user') {
+    return <UserDashboard /> // Component for regular users
+  } else {
+    return <AccessDenied /> // Component shown for unauthorized access
+  }
+}
+```
+
+```jsx filename="app/dashboard/page.jsx" switcher
 export default function Dashboard() => {
   const session = await getSession()
   const userRole = session?.user?.role // Assuming 'role' is part of the session object
@@ -390,10 +424,25 @@ Setting a cookie in a Next.js project might look something like this:
 
 **Setting a cookie on the server:**
 
-```jsx
+```tsx filename="/app/page.tsx" switcher
 import { cookies } from 'next/headers'
 
-export function handleLogin(sessionData) {
+export async function handleLogin(sessionData) {
+  const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
+  cookies().set('session', encryptedSessionData, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7, // One week
+    path: '/',
+  })
+  // Redirect or handle the response after setting the cookie
+}
+```
+
+```jsx filename="/app/page.jsx" switcher
+import { cookies } from 'next/headers'
+
+export async function handleLogin(sessionData) {
   const encryptedSessionData = encrypt(sessionData) // Encrypt your session data
   cookies().set('session', encryptedSessionData, {
     httpOnly: true,
@@ -407,7 +456,16 @@ export function handleLogin(sessionData) {
 
 **Accessing the session data stored in the cookie in a server component:**
 
-```jsx
+```tsx filename="/app/page.tsx" switcher
+import { cookies } from 'next/headers'
+
+export async function getSessionData(req) {
+  const encryptedSessionData = cookies().get('session')?.value
+  return encryptedSessionData ? JSON.parse(decrypt(encryptedSessionData)) : null
+}
+```
+
+```jsx filename="/app/page.jsx" switcher
 import { cookies } from 'next/headers'
 
 export async function getSessionData(req) {
