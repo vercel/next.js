@@ -109,23 +109,24 @@ Here's how to implement middleware for authentication in Next.js:
 Example middleware file:
 
 ```ts filename="middleware.ts" switcher
+import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const currentUser = request.cookies.get('currentUser')?.value
 
   if (currentUser) {
-    return Response.redirect(new URL('/dashboard', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
-  return Response.redirect(new URL('/login', request.url))
+  return NextResponse.redirect(new URL('/login', request.url))
 }
 
 export const config = {
-  matcher: '/dashboard',
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 }
 ```
 
-This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for efficient, centralized access control. It handles redirects early in the request pipeline, making it efficient and ideal for broad strategies.
+This example uses [`NextResponse.redirect`](https://nextjs.org/docs/app/api-reference/functions/next-response#redirect) for efficient, centralized access control. It handles redirects early in the request pipeline, making it efficient and ideal for broad strategies.
 
 For specific redirection needs, the `redirect` function can be used in Server Components, Route Handlers, and Server Actions to provide more control. This is useful for role-based navigation or context-sensitive scenarios.
 
