@@ -13,14 +13,13 @@ function getOneMonthAgoDate() {
 function generateBlocks(issues) {
   const blocks = [
     { type: 'section', text: { type: 'mrkdwn', text: '*Top 15 issues:*' } },
-    { type: 'divider' },
   ]
   issues.forEach((issue) => {
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `• <${issue.html_url}|#${issue.number}>: ${issue.title}`,
+        text: `• ${issue.title}: <${issue.html_url}|#${issue.number}>`,
       },
     })
   })
@@ -40,7 +39,7 @@ async function run() {
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
-      q: `repo:${owner}/${repo}+is:issue+is:open+created:>=${oneMonthAgo}+sort:reactions-+1-desc`,
+      q: `repo:${owner}/${repo}+is:issue+is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
     })
 
     console.log('[test] res =', res)
