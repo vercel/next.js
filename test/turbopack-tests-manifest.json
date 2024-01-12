@@ -916,8 +916,8 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
-    "failed": ["ReactRefreshLogBox app scss syntax errors"],
-    "pending": [],
+    "failed": [],
+    "pending": ["ReactRefreshLogBox app scss syntax errors"],
     "flakey": [],
     "runtimeError": false
   },
