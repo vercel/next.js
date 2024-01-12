@@ -13,7 +13,10 @@ use turbopack_binding::turbopack::{
 
 use super::include_modules_module::IncludeModulesModule;
 use crate::{
-    next_client_reference::{ClientReferenceType, ClientReferenceTypes, ClientReferences},
+    next_client_reference::{
+        visit_client_reference::ClientReferenceGraphResult, ClientReferenceType,
+        ClientReferenceTypes,
+    },
     next_server_component::server_component_module::NextServerComponentModule,
 };
 
@@ -40,7 +43,7 @@ pub struct ClientReferencesChunks {
 /// type needs to load.
 #[turbo_tasks::function]
 pub async fn get_app_client_references_chunks(
-    app_client_references: Vc<ClientReferences>,
+    app_client_references: Vc<ClientReferenceGraphResult>,
     client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
     ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
 ) -> Result<Vc<ClientReferencesChunks>> {
@@ -50,6 +53,7 @@ pub async fn get_app_client_references_chunks(
         let app_client_references = app_client_references.await?;
         if separate_chunk_group_per_client_reference {
             let app_client_references_chunks: Vec<(_, (_, Option<_>))> = app_client_references
+                .client_references
                 .iter()
                 .map(|client_reference| async move {
                     let client_reference_ty = client_reference.ty();
@@ -104,7 +108,12 @@ pub async fn get_app_client_references_chunks(
         } else {
             let mut client_references_by_server_component: IndexMap<_, Vec<_>> = IndexMap::new();
             let mut framework_reference_types = Vec::new();
-            for client_reference in app_client_references {
+            for &server_component in app_client_references.server_component_entries.iter() {
+                client_references_by_server_component
+                    .entry(server_component)
+                    .or_default();
+            }
+            for client_reference in app_client_references.client_references.iter() {
                 if let Some(server_component) = client_reference.server_component() {
                     client_references_by_server_component
                         .entry(server_component)
@@ -175,7 +184,10 @@ pub async fn get_app_client_references_chunks(
                     base_ident.with_modifier(client_modules_modifier()),
                     client_modules,
                 );
-                let server_component_path = server_component.server_path().to_string().await?;
+                let server_path = server_component.server_path();
+                let is_layout = server_path.file_stem().await?.as_deref() == Some("layout");
+
+                let server_component_path = server_path.to_string().await?;
                 let client_chunk_group = {
                     let _span = tracing::info_span!(
                         "client side rendering",
@@ -201,23 +213,24 @@ pub async fn get_app_client_references_chunks(
                 let client_chunk_group = client_chunk_group.await?;
                 let ssr_chunk_group = ssr_chunk_group.await?;
 
-                current_client_availability_info = client_chunk_group.availability_info;
-                current_ssr_availability_info = ssr_chunk_group.availability_info;
+                let client_chunks = current_client_chunks.concatenate(client_chunk_group.assets);
+                let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
+                let client_chunks = client_chunks.resolve().await?;
+                let ssr_chunks = ssr_chunks.resolve().await?;
 
-                current_client_chunks =
-                    current_client_chunks.concatenate(client_chunk_group.assets);
-                current_ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
+                if is_layout {
+                    current_client_availability_info = client_chunk_group.availability_info;
+                    current_ssr_availability_info = ssr_chunk_group.availability_info;
+                    current_client_chunks = client_chunks;
+                    current_ssr_chunks = ssr_chunks;
+                }
 
-                current_client_chunks = current_client_chunks.resolve().await?;
-                current_ssr_chunks = current_ssr_chunks.resolve().await?;
-
-                layout_segment_client_chunks.insert(server_component, current_client_chunks);
+                layout_segment_client_chunks.insert(server_component, client_chunks);
 
                 for client_reference_ty in client_reference_types {
                     if let ClientReferenceType::EcmascriptClientReference(_) = client_reference_ty {
-                        client_component_ssr_chunks.insert(client_reference_ty, current_ssr_chunks);
-                        client_component_client_chunks
-                            .insert(client_reference_ty, current_client_chunks);
+                        client_component_ssr_chunks.insert(client_reference_ty, ssr_chunks);
+                        client_component_client_chunks.insert(client_reference_ty, client_chunks);
                     }
                 }
             }

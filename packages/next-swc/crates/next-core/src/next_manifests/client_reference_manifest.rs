@@ -15,7 +15,7 @@ use turbopack_binding::turbopack::{
 use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
-    next_client_reference::{ClientReferenceType, ClientReferences},
+    next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     util::NextRuntime,
 };
 
@@ -26,7 +26,7 @@ impl ClientReferenceManifest {
         node_root: Vc<FileSystemPath>,
         client_relative_path: Vc<FileSystemPath>,
         entry_name: String,
-        client_references: Vc<ClientReferences>,
+        client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
@@ -44,7 +44,7 @@ impl ClientReferenceManifest {
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
 
-        for app_client_reference in client_references.await?.iter() {
+        for app_client_reference in client_references.await?.client_references.iter() {
             let app_client_reference_ty = app_client_reference.ty();
 
             // An client component need to be emitted into the client reference manifest
