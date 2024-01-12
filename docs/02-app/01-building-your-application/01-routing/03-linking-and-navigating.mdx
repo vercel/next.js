@@ -353,3 +353,9 @@ Browsers perform a "hard navigation" when navigating between pages. The Next.js 
 ### 6. Back and Forward Navigation
 
 By default, Next.js will maintain the scroll position for backwards and forwards navigation, and re-use route segments in the [Router Cache](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating#caching-data).
+
+### 7. Routing between `pages/` and `app/`
+
+When incrementally migrating from `pages/` to `app/`, Next.js' router will automatically handle hard navigating between the two. To detect when going from `pages/` to `app/` there is a client router filter which uses probabilistic checking of `app` routes which can have occasional false positives. By default this should be very rare as we configure the false positive likelihood to be 0.01%. This can be customized via the `experimental.clientRouterFilterAllowedRate` `next.config.js` option.
+
+Alternatively if you would like to disable this handling completely and manage the routing between `pages/` and `app/` manually you can set `experimental.clientRouterFilter` to `false` in `next.config.js`.
