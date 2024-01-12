@@ -934,13 +934,13 @@
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
-      "ReactRefreshLogBox app turbo should strip whitespace correctly with newline"
+      "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
+      "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
-      "ReactRefreshLogBox app turbo css syntax errors",
-      "ReactRefreshLogBox app turbo unterminated JSX"
+      "ReactRefreshLogBox app turbo css syntax errors"
     ],
     "pending": [
       "ReactRefreshLogBox app default Call stack count is correct for client error",
@@ -979,8 +979,8 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshModule.test.ts": {
-    "passed": [],
-    "failed": ["ReactRefreshModule app should allow any variable names"],
+    "passed": ["ReactRefreshModule app should allow any variable names"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -990,12 +990,12 @@
       "ReactRefreshRegression app can fast refresh a page with static generation"
     ],
     "failed": [
-      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "pending": [
+      "ReactRefreshRegression app Turbopack skipped tests custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
     "flakey": [
@@ -1183,7 +1183,8 @@
   "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
     "passed": [
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
-      "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed"
+      "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
+      "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
     ],
     "failed": [
       "Error overlay - RSC runtime errors should show the userland code error trace when fetch failed error occurred"
@@ -1333,10 +1334,11 @@
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
-      "ReactRefreshRegression custom loader (mdx) should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error"
     ],
-    "pending": [],
+    "pending": [
+      "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1448,6 +1450,15 @@
   },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
     "passed": ["experimental-lightningcss should support css modules"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
+    "passed": [
+      "HMR Move File should work when moving a component to another directory"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -2371,6 +2382,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-basepath-custom-server/index.test.ts": {
+    "passed": [
+      "custom-app-server-action-redirect redirects with basepath properly when server action handler uses `redirect`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
@@ -2598,7 +2618,7 @@
   "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts": {
     "passed": [
       "app-prefetch-false-loading should not re-trigger loading state when navigating between pages that share a dynamic layout",
-      "app-prefetch-false-loading should render loading for the inital render"
+      "app-prefetch-false-loading should render loading for the initial render"
     ],
     "failed": [],
     "pending": [],
@@ -2794,6 +2814,7 @@
   },
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling Incremental cache limits should cache request if response data size is greater than 2MB in Dev mode",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
       "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
@@ -2823,7 +2844,6 @@
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should keep querystring on static page",
-      "app-dir static/dynamic handling should load large data only once when using custom cache handler and force-cache mode",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
       "app-dir static/dynamic handling should not cache non-ok statusCode",
@@ -2866,6 +2886,7 @@
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in Dev mode",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
@@ -3335,6 +3356,7 @@
     "passed": [
       "app dir - global error should catch metadata error in error boundary if presented",
       "app dir - global error should catch metadata error in global-error if no error boundary is presented",
+      "app dir - global error should catch the client error thrown in the nested routes",
       "app dir - global error should render global error for error in client components",
       "app dir - global error should render global error for error in server components",
       "app dir - global error should trigger error component when an error happens during rendering"
@@ -3908,6 +3930,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-route-not-found-params/parallel-route-not-found-params.test.ts": {
+    "passed": [
+      "parallel-route-not-found should behave correctly without any errors",
+      "parallel-route-not-found should handle the not found case correctly without any errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-route-not-found/parallel-route-not-found.test.ts": {
     "passed": [
       "parallel-route-not-found should not log any warnings for a regular not found page",
@@ -3917,6 +3949,16 @@
       "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
       "parallel-route-not-found should handle multiple missing parallel routes"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-and-interception-basepath/parallel-routes-and-interception-basepath.test.ts": {
+    "passed": [
+      "parallel-routes-and-interception-basepath should show normal route via direct link with basepath when parallel intercepted slot exist",
+      "parallel-routes-and-interception-basepath should show parallel intercepted slot with basepath"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4644,14 +4686,13 @@
   },
   "test/e2e/config-schema-check/index.test.ts": {
     "passed": [
-      "next.config.js schema validating - defaultConfig should validate against defaultConfig"
-    ],
-    "failed": [
+      "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
     "passed": [],
@@ -5838,14 +5879,14 @@
     "runtimeError": false
   },
   "test/e2e/nonce-head-manager/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "nonce head manager should not re-execute the script when re-rendering",
       "nonce head manager should not re-execute the script when re-rendering with CSP header"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/og-api/index.test.ts": {
     "passed": [

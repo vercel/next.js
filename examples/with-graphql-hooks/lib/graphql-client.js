@@ -1,19 +1,19 @@
-import { useMemo } from 'react'
-import { GraphQLClient } from 'graphql-hooks'
-import memCache from 'graphql-hooks-memcache'
+import { useMemo } from "react";
+import { GraphQLClient } from "graphql-hooks";
+import memCache from "graphql-hooks-memcache";
 
-let graphQLClient
+let graphQLClient;
 
 function createClient(initialState) {
   return new GraphQLClient({
-    ssrMode: typeof window === 'undefined',
-    url: 'https://nextjs-graphql-with-prisma-simple-foo.vercel.app/api', // Server URL (must be absolute)
+    ssrMode: typeof window === "undefined",
+    url: "https://nextjs-graphql-with-prisma-simple-foo.vercel.app/api", // Server URL (must be absolute)
     cache: memCache({ initialState }),
-  })
+  });
 }
 
 export function initializeGraphQL(initialState = null) {
-  const _graphQLClient = graphQLClient ?? createClient(initialState)
+  const _graphQLClient = graphQLClient ?? createClient(initialState);
 
   // After navigating to a page with an initial GraphQL state, create a new cache with the
   // current state merged with the incoming state and set it to the GraphQL client.
@@ -22,19 +22,19 @@ export function initializeGraphQL(initialState = null) {
     graphQLClient.cache = memCache({
       initialState: Object.assign(
         graphQLClient.cache.getInitialState(),
-        initialState
+        initialState,
       ),
-    })
+    });
   }
   // For SSG and SSR always create a new GraphQL Client
-  if (typeof window === 'undefined') return _graphQLClient
+  if (typeof window === "undefined") return _graphQLClient;
   // Create the GraphQL Client once in the client
-  if (!graphQLClient) graphQLClient = _graphQLClient
+  if (!graphQLClient) graphQLClient = _graphQLClient;
 
-  return _graphQLClient
+  return _graphQLClient;
 }
 
 export function useGraphQLClient(initialState) {
-  const store = useMemo(() => initializeGraphQL(initialState), [initialState])
-  return store
+  const store = useMemo(() => initializeGraphQL(initialState), [initialState]);
+  return store;
 }

@@ -79,5 +79,17 @@ createNextDescribe(
         )
       }
     })
+
+    it('should catch the client error thrown in the nested routes', async () => {
+      const browser = await next.browser('/nested/nested')
+      if (isNextDev) {
+        await testDev(browser, /Error: nested error/)
+      } else {
+        expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+        expect(await browser.elementByCss('#error').text()).toBe(
+          'Global error: nested error'
+        )
+      }
+    })
   }
 )

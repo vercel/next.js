@@ -1,7 +1,7 @@
-export {}
+export {};
 
 declare global {
   interface Window {
-    __user: any
+    __user: any;
   }
 }

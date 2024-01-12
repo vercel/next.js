@@ -1,39 +1,35 @@
-const { IncrementalCache } = require('@neshca/cache-handler')
-const { createHandler } = require('@neshca/cache-handler/redis-stack') // @neshca/cache-handler/redis-strings also available
-const { createClient } = require('redis')
+const { IncrementalCache } = require("@neshca/cache-handler");
+const createRedisCache = require("@neshca/cache-handler/redis-stack").default;
+const createLruCache = require("@neshca/cache-handler/local-lru").default;
+const { createClient } = require("redis");
 
-function createRedisClient(url) {
-  const client = createClient({
-    url,
-  })
+const client = createClient({
+  url: process.env.REDIS_URL ?? "redis://localhost:6379",
+});
 
-  client.on('error', (error) => {
-    console.error('Redis error:', error.message)
-  })
+client.on("error", (error) => {
+  console.error("Redis error:", error.message);
+});
 
-  return client
-}
+IncrementalCache.onCreation(async () => {
+  // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
+  const useTtl = true;
 
-async function connect(client) {
-  try {
-    await client.connect()
-  } catch (error) {
-    console.error('Redis connection error:', error.message)
-  }
-}
+  await client.connect();
 
-const client = createRedisClient(
-  process.env.REDIS_URL ?? 'redis://localhost:6379'
-)
-
-connect(client).then(() => {
-  console.log('Redis connected')
-})
-
-IncrementalCache.onCreation(
-  createHandler({
+  const redisCache = await createRedisCache({
     client,
-  })
-)
+    useTtl,
+  });
 
-module.exports = IncrementalCache
+  const localCache = createLruCache({
+    useTtl,
+  });
+
+  return {
+    cache: [redisCache, localCache],
+    useFileSystem: !useTtl,
+  };
+});
+
+module.exports = IncrementalCache;
