@@ -41,7 +41,7 @@ function Page() {
         Hash Link
       </Link>
       <br />
-      <div id="base-path">{routerObj.basePath}</div>
+      <div id="base-path">{router.basePath}</div>
       <div id="pathname">{routerObj.pathname}</div>
       <div
         id="trigger-error"
