@@ -7,7 +7,7 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    it('should render loading for the inital render', async () => {
+    it('should render loading for the initial render', async () => {
       const $ = await next.render$('/en/testing')
 
       expect($('#loading').text()).toBe('Loading...')

@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import { urlForImage } from '../lib/sanity'
+import Image from "next/image";
+import { urlForImage } from "../lib/sanity";
 
 export default function Avatar({ name, picture }) {
   return (
@@ -8,8 +8,8 @@ export default function Avatar({ name, picture }) {
         <Image
           src={
             picture?.asset?._ref
-              ? urlForImage(picture).height(96).width(96).fit('crop').url()
-              : 'https://source.unsplash.com/96x96/?face'
+              ? urlForImage(picture).height(96).width(96).fit("crop").url()
+              : "https://source.unsplash.com/96x96/?face"
           }
           className="rounded-full"
           height={96}
@@ -19,5 +19,5 @@ export default function Avatar({ name, picture }) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

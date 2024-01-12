@@ -11,5 +11,5 @@ export default function ErrorMessage({ message }) {
         }
       `}</style>
     </aside>
-  )
+  );
 }

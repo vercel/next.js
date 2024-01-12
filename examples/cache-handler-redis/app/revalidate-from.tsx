@@ -1,10 +1,10 @@
-'use client'
+"use client";
 
-import { useFormStatus } from 'react-dom'
-import revalidate from './server-actions'
+import { useFormStatus } from "react-dom";
+import revalidate from "./server-actions";
 
 function RevalidateButton() {
-  const { pending } = useFormStatus()
+  const { pending } = useFormStatus();
 
   return (
     <button
@@ -15,7 +15,7 @@ function RevalidateButton() {
     >
       Revalidate
     </button>
-  )
+  );
 }
 
 export function RevalidateFrom() {
@@ -23,5 +23,5 @@ export function RevalidateFrom() {
     <form className="revalidate-from" action={revalidate}>
       <RevalidateButton />
     </form>
-  )
+  );
 }

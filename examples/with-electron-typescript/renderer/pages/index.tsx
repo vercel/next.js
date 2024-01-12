@@ -1,22 +1,22 @@
-import { useEffect } from 'react'
-import Link from 'next/link'
-import Layout from '../components/Layout'
+import { useEffect } from "react";
+import Link from "next/link";
+import Layout from "../components/Layout";
 
 const IndexPage = () => {
   useEffect(() => {
-    const handleMessage = (_event, args) => alert(args)
+    const handleMessage = (_event, args) => alert(args);
 
     // listen to the 'message' channel
-    window.electron.receiveHello(handleMessage)
+    window.electron.receiveHello(handleMessage);
 
     return () => {
-      window.electron.stopReceivingHello(handleMessage)
-    }
-  }, [])
+      window.electron.stopReceivingHello(handleMessage);
+    };
+  }, []);
 
   const onSayHiClick = () => {
-    window.electron.sayHello()
-  }
+    window.electron.sayHello();
+  };
 
   return (
     <Layout title="Home | Next.js + TypeScript + Electron Example">
@@ -26,7 +26,7 @@ const IndexPage = () => {
         <Link href="/about">About</Link>
       </p>
     </Layout>
-  )
-}
+  );
+};
 
-export default IndexPage
+export default IndexPage;

@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import { PageTransition } from 'next-page-transitions'
+import Head from "next/head";
+import { PageTransition } from "next-page-transitions";
 
-import Loader from '../components/Loader'
+import Loader from "../components/Loader";
 
-const TIMEOUT = 400
+const TIMEOUT = 400;
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -52,7 +52,7 @@ function MyApp({ Component, pageProps }) {
         }
       `}</style>
     </>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

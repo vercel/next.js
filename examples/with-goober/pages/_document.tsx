@@ -1,21 +1,21 @@
-import { extractCss } from 'goober'
+import { extractCss } from "goober";
 import NextDocument, {
   DocumentContext,
   Head,
   Html,
   Main,
   NextScript,
-} from 'next/document'
+} from "next/document";
 
 type Props = {
-  css: string
-}
+  css: string;
+};
 
 class Document extends NextDocument<Props> {
   static async getInitialProps({ renderPage }: DocumentContext) {
-    const page = await renderPage()
-    const css = extractCss()
-    return { ...page, css }
+    const page = await renderPage();
+    const css = extractCss();
+    return { ...page, css };
   }
 
   render() {
@@ -23,9 +23,9 @@ class Document extends NextDocument<Props> {
       <Html>
         <Head>
           <style
-            id={'_goober'}
+            id={"_goober"}
             // And defined it in here
-            dangerouslySetInnerHTML={{ __html: ' ' + this.props.css }}
+            dangerouslySetInnerHTML={{ __html: " " + this.props.css }}
           />
         </Head>
         <body>
@@ -33,8 +33,8 @@ class Document extends NextDocument<Props> {
           <NextScript />
         </body>
       </Html>
-    )
+    );
   }
 }
 
-export default Document
+export default Document;
