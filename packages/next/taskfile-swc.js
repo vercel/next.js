@@ -56,7 +56,7 @@ module.exports = function (task) {
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -102,7 +102,7 @@ module.exports = function (task) {
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -189,6 +189,10 @@ function setNextVersion(code) {
     .replace(
       /process\.env\.__NEXT_VERSION/g,
       `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
+      `"${require('./package.json').engines.node.replace('>=', '')}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

@@ -1,15 +1,15 @@
-import Avatar from './avatar'
-import DateFormatter from './date-formatter'
-import CoverImage from './cover-image'
-import PostTitle from './post-title'
-import { Author } from '@/viewmodels/author'
+import Avatar from "./avatar";
+import DateFormatter from "./date-formatter";
+import CoverImage from "./cover-image";
+import PostTitle from "./post-title";
+import { Author } from "@/viewmodels/author";
 
 type PostHeaderType = {
-  title: string
-  coverImage: string
-  date: string | null
-  author: Author
-}
+  title: string;
+  coverImage: string;
+  date: string | null;
+  author: Author;
+};
 
 export default function PostHeader({
   title,
@@ -35,5 +35,5 @@ export default function PostHeader({
         </div>
       </div>
     </>
-  )
+  );
 }

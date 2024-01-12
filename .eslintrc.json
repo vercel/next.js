@@ -114,14 +114,6 @@
       }
     },
     {
-      "files": [
-        "test/**/*",
-        "examples/**/*",
-        "packages/create-next-app/templates/**/*"
-      ],
-      "rules": { "react/react-in-jsx-scope": "off" }
-    },
-    {
       "files": ["examples/**/*"],
       "rules": {
         "@typescript-eslint/no-use-before-define": [
@@ -351,7 +343,7 @@
     "react/no-direct-mutation-state": "warn",
     "react/no-is-mounted": "warn",
     "react/no-typos": "error",
-    "react/react-in-jsx-scope": "error",
+    "react/react-in-jsx-scope": "off",
     "react/require-render-return": "error",
     "react/style-prop-object": "warn",
     "react-hooks/rules-of-hooks": "error",

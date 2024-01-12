@@ -72,6 +72,9 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
   })
 
   it('should match literal protocol, hostname, port, pathname', () => {
@@ -100,6 +103,8 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://example.com/path/to/file?q=1'))).toBe(false)
     expect(m(p, new URL('http://example.com/path/to/file'))).toBe(false)
     expect(m(p, new URL('ftp://example.com/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file'))).toBe(false)
+    expect(m(p, new URL('https://example.com:81/path/to/file?q=1'))).toBe(false)
   })
 
   it('should match hostname pattern with single asterisk by itself', () => {

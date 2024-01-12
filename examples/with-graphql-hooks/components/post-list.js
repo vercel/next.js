@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import { useQuery } from 'graphql-hooks'
-import ErrorMessage from './error-message'
-import PostUpvoter from './post-upvoter'
-import Submit from './submit'
+import { useState } from "react";
+import { useQuery } from "graphql-hooks";
+import ErrorMessage from "./error-message";
+import PostUpvoter from "./post-upvoter";
+import Submit from "./submit";
 
 export const ALL_POSTS_QUERY = `
   query allPosts($first: Int!, $skip: Int!) {
@@ -17,7 +17,7 @@ export const ALL_POSTS_QUERY = `
       count
     }
   }
-`
+`;
 
 export const allPostsQueryOptions = (skip = 0) => ({
   variables: { skip, first: 10 },
@@ -27,26 +27,26 @@ export const allPostsQueryOptions = (skip = 0) => ({
       ? [...prevResult.allPosts, ...result.allPosts]
       : result.allPosts,
   }),
-})
+});
 
 export default function PostList() {
-  const [skip, setSkip] = useState(0)
+  const [skip, setSkip] = useState(0);
   const { loading, error, data, refetch } = useQuery(
     ALL_POSTS_QUERY,
-    allPostsQueryOptions(skip)
-  )
+    allPostsQueryOptions(skip),
+  );
 
-  if (error) return <ErrorMessage message="Error loading posts." />
-  if (!data) return <div>Loading</div>
+  if (error) return <ErrorMessage message="Error loading posts." />;
+  if (!data) return <div>Loading</div>;
 
-  const { allPosts, _allPostsMeta } = data
-  const areMorePosts = allPosts.length < _allPostsMeta.count
+  const { allPosts, _allPostsMeta } = data;
+  const areMorePosts = allPosts.length < _allPostsMeta.count;
 
   return (
     <>
       <Submit
         onSubmission={() => {
-          refetch({ variables: { skip: 0, first: allPosts.length } })
+          refetch({ variables: { skip: 0, first: allPosts.length } });
         }}
       />
       <section>
@@ -60,7 +60,7 @@ export default function PostList() {
                   id={post.id}
                   votes={post.votes}
                   onUpdate={() => {
-                    refetch({ variables: { skip: 0, first: allPosts.length } })
+                    refetch({ variables: { skip: 0, first: allPosts.length } });
                   }}
                 />
               </div>
@@ -69,13 +69,13 @@ export default function PostList() {
         </ul>
         {areMorePosts ? (
           <button className="more" onClick={() => setSkip(skip + 10)}>
-            {' '}
-            {loading && !data ? 'Loading...' : 'Show More'}{' '}
+            {" "}
+            {loading && !data ? "Loading..." : "Show More"}{" "}
           </button>
         ) : (
-          ''
+          ""
         )}
       </section>
     </>
-  )
+  );
 }

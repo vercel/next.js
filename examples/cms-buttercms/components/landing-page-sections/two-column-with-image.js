@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function TwoColumnWithImage({
   headline,
@@ -13,7 +13,7 @@ export default function TwoColumnWithImage({
     <section id={scrollAnchorId} className="cta-section">
       <div className="container">
         <div className="row">
-          {image && imagePosition === 'left' && (
+          {image && imagePosition === "left" && (
             <div className="col-lg-6 order-last order-lg-first">
               <div className="left-image cta-image ">
                 <Image
@@ -40,7 +40,7 @@ export default function TwoColumnWithImage({
               </a>
             </div>
           </div>
-          {image && imagePosition === 'right' && (
+          {image && imagePosition === "right" && (
             <div className="col-lg-6">
               <div className="right-image cta-image text-lg-end">
                 <Image
@@ -56,5 +56,5 @@ export default function TwoColumnWithImage({
         </div>
       </div>
     </section>
-  )
+  );
 }

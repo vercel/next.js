@@ -2,6 +2,7 @@ pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
+pub(crate) mod next_react_server_components;
 pub(crate) mod next_strip_page_exports;
 pub(crate) mod relay;
 pub(crate) mod server_actions;
@@ -56,16 +57,28 @@ pub fn get_next_image_rule() -> ModuleRule {
 }
 
 /// Returns a rule which applies the Next.js dynamic transform.
-pub(crate) fn module_rule_match_js_no_url() -> ModuleRuleCondition {
+pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCondition {
+    let mut conditions = vec![
+        ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+    ];
+
+    if enable_mdx_rs {
+        conditions.append(
+            vec![
+                ModuleRuleCondition::ResourcePathEndsWith(".md".to_string()),
+                ModuleRuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+            ]
+            .as_mut(),
+        );
+    }
+
     ModuleRuleCondition::all(vec![
         ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
             UrlReferenceSubType::Undefined,
         ))),
-        ModuleRuleCondition::any(vec![
-            ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-            ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-        ]),
+        ModuleRuleCondition::any(conditions),
     ])
 }

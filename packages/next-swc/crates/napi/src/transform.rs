@@ -37,7 +37,7 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_swc::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},

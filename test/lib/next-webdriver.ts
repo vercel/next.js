@@ -1,4 +1,4 @@
-import { getFullUrl } from 'next-test-utils'
+import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
@@ -68,6 +68,7 @@ export default async function webdriver(
     disableJavaScript?: boolean
     headless?: boolean
     ignoreHTTPSErrors?: boolean
+    cpuThrottleRate?: number
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -87,6 +88,7 @@ export default async function webdriver(
     disableJavaScript,
     ignoreHTTPSErrors,
     headless,
+    cpuThrottleRate,
   } = options
 
   // we import only the needed interface
@@ -94,7 +96,10 @@ export default async function webdriver(
     const { Selenium, quit } = await import('./browsers/selenium')
     CurrentInterface = Selenium
     browserQuit = quit
-  } else if (process.env.RECORD_REPLAY === 'true') {
+  } else if (
+    process.env.RECORD_REPLAY === 'true' ||
+    process.env.RECORD_REPLAY === '1'
+  ) {
     const { Replay, quit } = await require('./browsers/replay')
     CurrentInterface = Replay
     browserQuit = quit
@@ -124,7 +129,11 @@ export default async function webdriver(
 
   console.log(`\n> Loading browser with ${fullUrl}\n`)
 
-  await browser.loadPage(fullUrl, { disableCache, beforePageLoad })
+  await browser.loadPage(fullUrl, {
+    disableCache,
+    cpuThrottleRate,
+    beforePageLoad,
+  })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   // Wait for application to hydrate
@@ -176,6 +185,13 @@ export default async function webdriver(
     }
 
     console.log(`\n> Hydration complete for ${fullUrl}\n`)
+  }
+
+  // This is a temporary workaround for turbopack starting watching too late.
+  // So we delay file changes by 500ms to give it some time
+  // to connect the WebSocket and start watching.
+  if (process.env.TURBOPACK) {
+    await waitFor(1000)
   }
   return browser
 }

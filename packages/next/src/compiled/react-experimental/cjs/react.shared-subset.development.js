@@ -80,7 +80,7 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
 var ContextRegistry = {};
 
@@ -401,7 +401,7 @@ function taintObjectReference(message, object) {
   TaintRegistryObjects.set(object, message);
 }
 
-var ReactVersion = '18.3.0-experimental-0e352ea01-20231109';
+var ReactVersion = '18.3.0-experimental-f1039be4a-20240107';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1391,6 +1391,7 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
 
 function mapChildren(children, func, context) {
   if (children == null) {
+    // $FlowFixMe limitation refining abstract types in Flow
     return children;
   }
 

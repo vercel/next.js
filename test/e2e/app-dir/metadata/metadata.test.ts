@@ -359,6 +359,7 @@ createNextDescribe(
           'yandex-verification': 'yandex',
           me: ['my-email', 'my-link'],
         })
+        expect($('meta[name="me"]').length).toBe(2)
       })
 
       it('should support appLinks tags', async () => {

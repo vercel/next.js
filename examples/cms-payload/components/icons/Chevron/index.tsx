@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 
 export const Chevron: React.FC = () => {
   return (
@@ -15,5 +15,5 @@ export const Chevron: React.FC = () => {
         strokeWidth="2"
       />
     </svg>
-  )
-}
+  );
+};

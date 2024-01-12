@@ -1,7 +1,7 @@
-import Link from 'next/link'
-import Avatar from './avatar'
-import DateComponent from './date'
-import CoverImage from './cover-image'
+import Link from "next/link";
+import Avatar from "./avatar";
+import DateComponent from "./date";
+import CoverImage from "./cover-image";
 
 function PostPreview({
   title,
@@ -11,12 +11,12 @@ function PostPreview({
   author,
   slug,
 }: {
-  title: string
-  coverImage: any
-  date: string
-  excerpt: string
-  author: any
-  slug: string
+  title: string;
+  coverImage: any;
+  date: string;
+  excerpt: string;
+  author: any;
+  slug: string;
 }) {
   return (
     <div>
@@ -34,7 +34,7 @@ function PostPreview({
       <p className="text-lg leading-relaxed mb-4">{excerpt}</p>
       {author && <Avatar name={author.name} picture={author.picture} />}
     </div>
-  )
+  );
 }
 
 export default function MoreStories({ morePosts }: { morePosts: any[] }) {
@@ -57,5 +57,5 @@ export default function MoreStories({ morePosts }: { morePosts: any[] }) {
         ))}
       </div>
     </section>
-  )
+  );
 }
