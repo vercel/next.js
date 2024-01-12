@@ -31258,6 +31258,9 @@ var __webpack_exports__ = {}
       const o = new s.WebClient(process.env.SLACK_TOKEN)
       const { owner: A, repo: n } = e.context.repo
       const i = getOneMonthAgoDate()
+      console.log('[test] owner =', A)
+      console.log('[test] repo =', n)
+      console.log('[test] oneMonthAgo =', i)
       const a = await r.rest.search.issuesAndPullRequests({
         per_page: 15,
         q: `repo:${A}/${n} is:issue is:open created:>=${i} sort:reactions-+1-desc`,

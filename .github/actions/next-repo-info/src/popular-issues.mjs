@@ -38,6 +38,10 @@ async function run() {
     const { owner, repo } = context.repo
     const oneMonthAgo = getOneMonthAgoDate()
 
+    console.log('[test] owner =', owner)
+    console.log('[test] repo =', repo)
+    console.log('[test] oneMonthAgo =', oneMonthAgo)
+
     const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
       q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
