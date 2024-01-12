@@ -1,7 +1,8 @@
 'use client'
 
 import { instance } from 'cjs-modern-syntax'
-import { packageName } from 'test/e2e/app-dir/app-external/node_modules_bak/transpile-cjs-lib'
+import { packageName } from 'transpile-cjs-lib'
+
 export default function Page() {
   return (
     <>
