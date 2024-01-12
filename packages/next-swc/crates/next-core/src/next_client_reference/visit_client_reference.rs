@@ -30,12 +30,12 @@ pub struct ClientReference {
 }
 
 impl ClientReference {
-    pub fn server_component(&self) -> Option<&Vc<NextServerComponentModule>> {
-        self.server_component.as_ref()
+    pub fn server_component(&self) -> Option<Vc<NextServerComponentModule>> {
+        self.server_component
     }
 
-    pub fn ty(&self) -> &ClientReferenceType {
-        &self.ty
+    pub fn ty(&self) -> ClientReferenceType {
+        self.ty
     }
 }
 
@@ -106,7 +106,7 @@ impl ClientReferenceGraph {
                     // traversal.
                 }
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
-                    client_reference_types.insert(*client_reference.ty());
+                    client_reference_types.insert(client_reference.ty());
                 }
             }
         }
