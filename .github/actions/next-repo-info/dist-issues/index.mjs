@@ -31241,7 +31241,8 @@ var __webpack_exports__ = {}
     ]
     let s = ''
     e.forEach((e) => {
-      s += `• ${e.title}: <${e.html_url}|#${e.number}>\n`
+      console.log('[test] issue =', e)
+      s += `• <${e.html_url}|#${e.number}>: ${e.title}\n`
     })
     t.push({ type: 'section', text: { type: 'mrkdwn', text: s } })
     return t
@@ -31255,10 +31256,11 @@ var __webpack_exports__ = {}
       const { owner: A, repo: n } = e.context.repo
       const i = getOneMonthAgoDate()
       const a = await r.rest.search.issuesAndPullRequests({
+        order: 'desc',
         per_page: 15,
         q: `repo:${A}/${n} is:issue state:open created:>=${i}`,
+        sort: 'reactions-+1',
       })
-      console.log('[test] res =', a)
       if (a.data.items.length > 0) {
         await o.chat.postMessage({
           blocks: generateBlocks(a.data.items),
@@ -31267,8 +31269,9 @@ var __webpack_exports__ = {}
           username: 'GitHub',
         })
         ;(0, t.info)(`Posted to Slack!`)
+      } else {
+        ;(0, t.info)(`No popular issues`)
       }
-      ;(0, t.info)(`No popular issues`)
     } catch (e) {
       ;(0, t.setFailed)(e)
     }

@@ -19,7 +19,8 @@ function generateBlocks(issues) {
   ]
   let text = ''
   issues.forEach((issue) => {
-    text += `• ${issue.title}: <${issue.html_url}|#${issue.number}>\n`
+    console.log('[test] issue =', issue)
+    text += `• <${issue.html_url}|#${issue.number}>: ${issue.title}\n`
   })
   blocks.push({
     type: 'section',
@@ -43,13 +44,11 @@ async function run() {
     const oneMonthAgo = getOneMonthAgoDate()
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
+      order: 'desc',
       per_page: 15,
       q: `repo:${owner}/${repo} is:issue state:open created:>=${oneMonthAgo}`,
+      sort: 'reactions-+1',
     })
-
-    // repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc
-
-    console.log('[test] res =', res)
 
     if (res.data.items.length > 0) {
       await slackClient.chat.postMessage({
@@ -60,8 +59,9 @@ async function run() {
       })
 
       info(`Posted to Slack!`)
+    } else {
+      info(`No popular issues`)
     }
-    info(`No popular issues`)
   } catch (error) {
     setFailed(error)
   }
