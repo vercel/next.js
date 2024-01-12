@@ -1,8 +1,8 @@
-import Layout from './layout'
-import { MUX_HOME_PAGE_URL } from '../constants'
+import Layout from "./layout";
+import { MUX_HOME_PAGE_URL } from "../constants";
 
 interface UploadPageProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 export default function UploadPage({ children }: UploadPageProps) {
@@ -20,7 +20,7 @@ export default function UploadPage({ children }: UploadPageProps) {
               rel="noopener noreferrer"
             >
               Mux
-            </a>{' '}
+            </a>{" "}
             provides APIs for developers working with video. This example is
             useful if you want to build:
           </p>
@@ -33,7 +33,7 @@ export default function UploadPage({ children }: UploadPageProps) {
             <li>Video into your custom CMS</li>
           </ul>
           <p>
-            Uploading a video uses the Mux{' '}
+            Uploading a video uses the Mux{" "}
             <a href="https://docs.mux.com/docs/direct-upload">
               direct upload API
             </a>
@@ -41,7 +41,7 @@ export default function UploadPage({ children }: UploadPageProps) {
             and available for playback on a sharable URL.
           </p>
           <p>
-            To learn more,{' '}
+            To learn more,{" "}
             <a
               href="https://github.com/vercel/next.js/tree/canary/examples/with-mux-video"
               target="_blank"
@@ -68,5 +68,5 @@ export default function UploadPage({ children }: UploadPageProps) {
         }
       `}</style>
     </Layout>
-  )
+  );
 }
