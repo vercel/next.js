@@ -806,6 +806,15 @@ export default async function build(
         telemetry.record(events)
       )
 
+      // Always log next version first then start rest jobs
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        envInfo,
+        expFeatureInfo,
+      })
+
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
@@ -843,14 +852,6 @@ export default async function build(
       telemetry.record({
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: buildLintEvent,
-      })
-
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
-      logStartInfo({
-        networkUrl: null,
-        appUrl: null,
-        envInfo,
-        expFeatureInfo,
       })
 
       const validFileMatcher = createValidFileMatcher(
