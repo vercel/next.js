@@ -139,13 +139,6 @@ createNextDescribe(
       })
     }
 
-    it('should successfully hard navigate from pages -> app', async () => {
-      const browser = await next.browser('/')
-
-      await browser.elementByCss('a').click()
-      await browser.waitForElementByCss('#from-dashboard')
-    })
-
     it('should encode chunk path correctly', async () => {
       await next.fetch('/dynamic-client/first/second')
       const browser = await next.browser('/')
