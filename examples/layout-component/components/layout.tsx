@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import styles from './layout.module.css'
+import Head from "next/head";
+import styles from "./layout.module.css";
 
 type LayoutProps = {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 export default function Layout({ children }: LayoutProps) {
   return (
@@ -13,5 +13,5 @@ export default function Layout({ children }: LayoutProps) {
       </Head>
       <main className={styles.main}>{children}</main>
     </>
-  )
+  );
 }

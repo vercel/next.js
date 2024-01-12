@@ -125,12 +125,19 @@ function getAppPathRequiredChunks(
 // - app/foo/page -> app/foo
 // - app/(group)/@named/foo/page -> app/foo
 // - app/(.)foo/(..)bar/loading -> app/bar
+// - app/[...catchAll]/page -> app
+// - app/foo/@slot/[...catchAll]/page -> app/foo
 function entryNameToGroupName(entryName: string) {
   let groupName = entryName
     .slice(0, entryName.lastIndexOf('/'))
+    // Remove slots
     .replace(/\/@[^/]+/g, '')
     // Remove the group with lookahead to make sure it's not interception route
     .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+    // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
+    // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
+    // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
+    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
 
   // Interception routes
   groupName = groupName

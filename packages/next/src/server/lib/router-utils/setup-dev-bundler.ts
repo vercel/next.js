@@ -134,7 +134,9 @@ import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
+import { Span } from '../../../trace'
 
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
@@ -1348,7 +1350,19 @@ async function startWatcher(opts: SetupOpts) {
               case 'ping':
                 // Ping doesn't need additional handling in Turbopack.
                 break
-              case 'span-end':
+              case 'span-end': {
+                new Span({
+                  name: parsedData.spanName,
+                  startTime:
+                    BigInt(Math.floor(parsedData.startTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND),
+                  attrs: parsedData.attributes,
+                }).stop(
+                  BigInt(Math.floor(parsedData.endTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND)
+                )
+                break
+              }
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
@@ -2270,7 +2284,10 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
+        generateInterceptionRoutesRewrites(
+          Object.keys(appPaths),
+          opts.nextConfig.basePath
+        )?.map((item) =>
           buildCustomRoute(
             'before_files_rewrite',
             item,

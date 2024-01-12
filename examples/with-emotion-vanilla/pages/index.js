@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 import {
   basicStyles,
   otherStyles,
@@ -7,7 +7,7 @@ import {
   combinedAsArray,
   cxExample,
   keyframesExample,
-} from '../shared/styles'
+} from "../shared/styles";
 
 const Home = () => (
   <>
@@ -25,6 +25,6 @@ const Home = () => (
       <div className={keyframesExample} />
     </div>
   </>
-)
+);
 
-export default Home
+export default Home;

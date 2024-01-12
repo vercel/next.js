@@ -63,7 +63,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -996,19 +996,12 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        /** True if this error was a bailout to client side rendering error. */
-        const shouldBailoutToCSR = isBailoutToCSRError(err)
+        // True if this error was a bailout to client side rendering error.
+        const shouldBailoutToCSR = isBailoutCSRError(err)
         if (shouldBailoutToCSR) {
-          console.log()
-
-          if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
-            error(
-              `${err.message} should be wrapped in a suspense boundary at page "${pagePath}". https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
-            )
-            throw err
-          }
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
+            pagePath
           )
         }
 
@@ -1219,7 +1212,7 @@ async function renderToHTMLOrFlightImpl(
     renderOpts.experimental.ppr &&
     staticGenerationStore.postponeWasTriggered &&
     !metadata.postponed &&
-    (!response.err || !isBailoutToCSRError(response.err))
+    (!response.err || !isBailoutCSRError(response.err))
   ) {
     // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
     // as we won't be able to generate the static part
