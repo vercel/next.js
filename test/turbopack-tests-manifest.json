@@ -1040,10 +1040,10 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/component-stack.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Component Stack in error overlay should show a component stack on hydration error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
