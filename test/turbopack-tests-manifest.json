@@ -930,7 +930,6 @@
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
-      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
@@ -938,6 +937,7 @@
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
+      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors",
       "ReactRefreshLogBox app turbo unterminated JSX"
