@@ -102,7 +102,8 @@ createNextDescribe(
         },
       },
     ]) {
-      describe(env.name, () => {
+      // turbopack does not support experimental.instrumentationHook
+      ;(process.env.TURBOPACK ? describe.skip : describe)(env.name, () => {
         describe('app router', () => {
           it('should handle RSC with fetch', async () => {
             await next.fetch('/app/param/rsc-fetch', env.fetchInit)
@@ -528,7 +529,8 @@ createNextDescribe(
       await cleanTraces()
     })
 
-    describe('root context', () => {
+    // turbopack does not support experimental.instrumentationHook
+    ;(process.env.TURBOPACK ? describe.skip : describe)('root context', () => {
       describe('app router', () => {
         it('should handle RSC with fetch', async () => {
           await next.fetch('/app/param/rsc-fetch')
