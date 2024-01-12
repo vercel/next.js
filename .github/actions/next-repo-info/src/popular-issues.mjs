@@ -43,6 +43,8 @@ async function run() {
       q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
     })
 
+    console.log('[test] data.items =', data.items)
+
     if (data.items.length > 0) {
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
