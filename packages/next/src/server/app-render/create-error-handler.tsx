@@ -3,7 +3,6 @@ import { formatServerError } from '../../lib/format-server-error'
 import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
-import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export type ErrorHandler = (err: any) => string | undefined
 
@@ -34,9 +33,6 @@ export function createErrorHandler({
 }): ErrorHandler {
   return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
-
-    // A formatted error is already logged for this type of error
-    if (isBailoutToCSRError(err)) return
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.

@@ -77,8 +77,9 @@ import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { useFlightResponse } from './use-flight-response'
+import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -304,6 +305,23 @@ async function generateFlight(
   )
 
   return new FlightRenderResult(flightReadableStream)
+}
+
+type RenderToStreamResult = {
+  stream: RenderResultResponse
+  err?: unknown
+}
+
+type RenderToStreamOptions = {
+  /**
+   * This option is used to indicate that the page should be rendered as
+   * if it was not found. When it's enabled, instead of rendering the
+   * page component, it renders the not-found segment.
+   *
+   */
+  asNotFound: boolean
+  tree: LoaderTree
+  formState: any
 }
 
 /**
@@ -804,23 +822,6 @@ async function renderToHTMLOrFlightImpl(
   // response directly.
   const onHeadersFinished = new DetachedPromise<void>()
 
-  type RenderToStreamResult = {
-    stream: RenderResultResponse
-    err?: Error
-  }
-
-  type RenderToStreamOptions = {
-    /**
-     * This option is used to indicate that the page should be rendered as
-     * if it was not found. When it's enabled, instead of rendering the
-     * page component, it renders the not-found segment.
-     *
-     */
-    asNotFound: boolean
-    tree: LoaderTree
-    formState: any
-  }
-
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
     {
@@ -979,36 +980,43 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (err: any) {
+      } catch (err) {
         if (
-          err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
-          err.message?.includes(
-            'https://nextjs.org/docs/advanced-features/static-html-export'
-          )
+          isStaticGenBailoutError(err) ||
+          (typeof err === 'object' &&
+            err !== null &&
+            'message' in err &&
+            typeof err.message === 'string' &&
+            err.message.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            ))
         ) {
           // Ensure that "next dev" prints the red error overlay
           throw err
         }
 
-        if (isStaticGeneration && err.digest === DYNAMIC_ERROR_CODE) {
-          // ensure that DynamicUsageErrors bubble up during static generation
-          // as this will indicate that the page needs to be dynamically rendered
+        // If this is a static generation error, we need to throw it so that it
+        // can be handled by the caller if we're in static generation mode.
+        if (isStaticGeneration && isDynamicServerError(err)) {
           throw err
         }
 
-        /** True if this error was a bailout to client side rendering error. */
+        // If a bailout made it to this point, it means it wasn't wrapped inside
+        // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
           console.log()
 
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
             error(
-              `${err.message} should be wrapped in a suspense boundary at page "${pagePath}". https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
+              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
             )
+
             throw err
           }
+
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
           )
         }
 

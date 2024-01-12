@@ -142,7 +142,7 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
+  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
   postponed?: string
 }
 
