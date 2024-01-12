@@ -8,7 +8,7 @@ createNextDescribe(
       await expect(next.build()).resolves.toEqual({
         exitCode: 1,
         cliOutput: expect.stringContaining(
-          'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams.get`.'
+          'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`.'
         ),
       })
     })
