@@ -31259,7 +31259,7 @@ var __webpack_exports__ = {}
       const { owner: A, repo: n } = e.context.repo
       const i = getOneMonthAgoDate()
       const a = await r.rest.search.issuesAndPullRequests({
-        q: `repo:${A}/${n} is:issue is:open created:>=${i} sort:reactions-+1-desc`,
+        q: `repo:${A}/${n}+is:pr+is:open+review:approved -is:draft`,
       })
       console.log('[test] res =', a)
       if (a.data.items.length > 0) {
