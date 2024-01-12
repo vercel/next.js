@@ -31237,16 +31237,13 @@ var __webpack_exports__ = {}
   function generateBlocks(e) {
     const t = [
       { type: 'section', text: { type: 'mrkdwn', text: '*Top 15 issues:*' } },
+      { type: 'divider' },
     ]
+    let s = ''
     e.forEach((e) => {
-      t.push({
-        type: 'section',
-        text: {
-          type: 'mrkdwn',
-          text: `• ${e.title}: <${e.html_url}|#${e.number}>`,
-        },
-      })
+      s += `• ${e.title}: <${e.html_url}|#${e.number}>\n`
     })
+    t.push({ type: 'section', text: { type: 'mrkdwn', text: s } })
     return t
   }
   async function run() {
@@ -31259,7 +31256,7 @@ var __webpack_exports__ = {}
       const i = getOneMonthAgoDate()
       const a = await r.rest.search.issuesAndPullRequests({
         per_page: 15,
-        q: `repo:${A}/${n} is:issue`,
+        q: `repo:${A}/${n} is:issue created:>=${i}`,
       })
       console.log('[test] res =', a)
       if (a.data.items.length > 0) {
