@@ -55,18 +55,18 @@ pub async fn get_app_client_references_chunks(
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
                                 ClientReferenceChunks {
-                                    client_chunks: client_chunking_context.root_chunk_group(
+                                    client_chunks: client_chunking_context.root_chunk_group_assets(
                                         Vc::upcast(ecmascript_client_reference_ref.client_module),
                                     ),
-                                    ssr_chunks: ssr_chunking_context.root_chunk_group(Vc::upcast(
-                                        ecmascript_client_reference_ref.ssr_module,
-                                    )),
+                                    ssr_chunks: ssr_chunking_context.root_chunk_group_assets(
+                                        Vc::upcast(ecmascript_client_reference_ref.ssr_module),
+                                    ),
                                 }
                             }
                             ClientReferenceType::CssClientReference(css_client_reference) => {
                                 let css_client_reference_ref = css_client_reference.await?;
                                 ClientReferenceChunks {
-                                    client_chunks: client_chunking_context.root_chunk_group(
+                                    client_chunks: client_chunking_context.root_chunk_group_assets(
                                         Vc::upcast(css_client_reference_ref.client_module),
                                     ),
                                     ssr_chunks: OutputAssets::empty(),
@@ -128,11 +128,11 @@ pub async fn get_app_client_references_chunks(
             let global_entry_module = ClientReferenceChunks {
                 client_chunks: {
                     let _span = tracing::info_span!("client side rendering").entered();
-                    client_chunking_context.root_chunk_group(Vc::upcast(client_entry_module))
+                    client_chunking_context.root_chunk_group_assets(Vc::upcast(client_entry_module))
                 },
                 ssr_chunks: {
                     let _span = tracing::info_span!("server side rendering").entered();
-                    ssr_chunking_context.root_chunk_group(Vc::upcast(ssr_entry_module))
+                    ssr_chunking_context.root_chunk_group_assets(Vc::upcast(ssr_entry_module))
                 },
             };
 
