@@ -46,7 +46,7 @@ async function run() {
     if (data.items.length > 0) {
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
-        channel: '#next-js-repo-udpates',
+        channel: '#next-js-repo-updates',
         icon_emoji: ':github:',
         username: 'GitHub',
       })
