@@ -5,9 +5,19 @@ description: API Reference for the notFound function.
 
 The `notFound` function allows you to render the [`not-found file`](/docs/app/api-reference/file-conventions/not-found) within a route segment as well as inject a `<meta name="robots" content="noindex" />` tag.
 
-## `notFound()`
+## How It Works
 
 Invoking the `notFound()` function throws a `NEXT_NOT_FOUND` error and terminates rendering of the route segment in which it was thrown. Specifying a [**not-found** file](/docs/app/api-reference/file-conventions/not-found) allows you to gracefully handle such errors by rendering a Not Found UI within the segment.
+
+> **Good to know**: `notFound()` does not require you to use `return notFound()` due to using the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+
+### In Route Handlers
+
+When the `NEXT_NOT_FOUND` error is thrown, the Next.js server will catch it and generate a normal 404 HTTP response to the client.
+
+### In Components
+
+When the `NEXT_NOT_FOUND` error is thrown, Next.js will catch it in a special error boundary, where the router will display the `not-found` file (if present) or a default Not Found UI.
 
 ```jsx filename="app/user/[id]/page.js"
 import { notFound } from 'next/navigation'
@@ -29,7 +39,31 @@ export default async function Profile({ params }) {
 }
 ```
 
-> **Good to know**: `notFound()` does not require you to use `return notFound()` due to using the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+### Behaviour in Client Components
+
+Note that, because `NEXT_NOT_FOUND` has to trigger the special error boundary for the Not Found UI to be displayed, `notFound` can only work if you call it during the rendering step. It does not work in places like event handlers or `useEffect`, because in React, errors there do not trigger the error boundary.
+
+```jsx filename="components/handle-auth.js"
+'use client'
+
+import { notFound } from 'next/navigation'
+import { useState } from 'react'
+
+export default function HandleAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(true)
+  // notFound is called when the component is rendered, so it works fine here
+  if (!isAuthenticated) notFound()
+  return (
+    <button
+      onClick={() => {
+        setIsAuthenticated(false)
+      }}
+    >
+      Log out
+    </button>
+  )
+}
+```
 
 ## Version History
 

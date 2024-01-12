@@ -35,13 +35,21 @@ The `type` parameter has no effect when used in Server Components.
 
 `redirect` does not return any value.
 
-## Example
+## How It Works
 
 ### Server Component
 
 Invoking the `redirect()` function throws a `NEXT_REDIRECT` error and terminates rendering of the route segment in which it was thrown.
 
-> **Good to know**: If you need to programmatically redirect the user after a certain event in a Client Component, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
+> **Good to know**: `redirect` does not require you to use `return redirect()` as it uses the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+
+### In Route Handlers
+
+When the `NEXT_REDIRECT` error is thrown, the Next.js server will catch it and generate a normal 307 HTTP redirect response to the client.
+
+### In Components
+
+When the `NEXT_REDIRECT` error is thrown, Next.js will catch it in a special error boundary, where the router will perform a client-side navigation to the destination page.
 
 ```jsx filename="app/team/[id]/page.js"
 import { redirect } from 'next/navigation'
@@ -62,7 +70,56 @@ export default async function Profile({ params }) {
 }
 ```
 
-> **Good to know**: `redirect` does not require you to use `return redirect()` as it uses the TypeScript [`never`](https://www.typescriptlang.org/docs/handbook/2/functions.html#never) type.
+### Behaviour in Client Components
+
+Note that, because `NEXT_REDIRECT` has to trigger the special error boundary for the redirect to work, `redirect` can only work if you call it during the rendering step.
+
+```jsx filename="components/handle-auth.js"
+'use client'
+
+import { redirect } from 'next/navigation'
+import { useState } from 'react'
+
+export default function HandleAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(true)
+  if (!isAuthenticated) redirect('/login')
+  return (
+    <button
+      onClick={() => {
+        setIsAuthenticated(false)
+      }}
+    >
+      Log out
+    </button>
+  )
+}
+```
+
+It does not work in places like event handlers or `useEffect`, because in React, errors there do not trigger the error boundary. In such cases, use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook instead.
+
+```jsx filename="components/handle-auth.js"
+'use client'
+
+import { redirect, useRouter } from 'next/navigation'
+
+export default function HandleAuth() {
+  const router = useRouter()
+  return (
+    <button
+      onClick={() => {
+        // This doesn't work
+        // redirect('/login')
+        // but this does
+        router.push('/login')
+      }}
+    >
+      Log out
+    </button>
+  )
+}
+```
+
+## Version History
 
 ### Client Component
 
