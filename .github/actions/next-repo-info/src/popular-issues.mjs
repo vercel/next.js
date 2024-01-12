@@ -44,7 +44,7 @@ async function run() {
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
-      q: `repo:${owner}/${repo} is:issue created:>=${oneMonthAgo}`,
+      q: `repo:${owner}/${repo} is:issue state:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
     })
 
     // repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc
