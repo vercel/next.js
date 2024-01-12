@@ -1,4 +1,4 @@
-name: Notify about approved but still open PRs
+name: Notify about the top 15 issues (most reacted) in the last month
 
 on:
   schedule:
