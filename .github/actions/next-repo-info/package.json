@@ -2,9 +2,8 @@
   "private": true,
   "description": "Notify Next.js team about pending PRs and popular issues",
   "scripts": {
-    "build": "pnpm build-pr && pnpm build-issues",
-    "build-pr": "ncc build src/pr-approved.mjs -m -o dist-pr --license licenses.txt",
-    "build-issues": "ncc build src/popular-issues.mjs -m -o dist-issues --license licenses.txt"
+    "build-issues": "ncc build src/popular-issues.mjs -m -o dist-issues --license licenses.txt",
+    "build-prs": "ncc build src/pr-approved.mjs -m -o dist-pr --license licenses.txt"
   },
   "dependencies": {
     "@actions/core": "^1.10.1",
