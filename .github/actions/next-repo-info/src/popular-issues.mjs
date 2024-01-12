@@ -18,7 +18,10 @@ function generateBlocks(issues) {
   issues.forEach((issue) => {
     blocks.push({
       type: 'section',
-      text: { type: 'mrkdwn', text: `• <|#${issue.number}>: ${issue.title}` },
+      text: {
+        type: 'mrkdwn',
+        text: `• <${issue.html_url}|#${issue.number}>: ${issue.title}`,
+      },
     })
   })
   return blocks
