@@ -31262,6 +31262,7 @@ var __webpack_exports__ = {}
         per_page: 15,
         q: `repo:${A}/${n} is:issue is:open created:>=${i} sort:reactions-+1-desc`,
       })
+      console.log('[test] data.items =', a.items)
       if (a.items.length > 0) {
         await o.chat.postMessage({
           blocks: generateBlocks(a.items),
