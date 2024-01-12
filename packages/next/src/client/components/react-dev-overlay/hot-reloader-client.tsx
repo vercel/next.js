@@ -363,7 +363,7 @@ function processMessage(
       const isHotUpdate =
         obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
         (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-        isUpdateAvailable()
+        (isUpdateAvailable() || canApplyUpdates())
 
       // Attempt to apply hot updates or reload.
       if (isHotUpdate) {
