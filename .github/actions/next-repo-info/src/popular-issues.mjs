@@ -39,7 +39,8 @@ async function run() {
     const oneMonthAgo = getOneMonthAgoDate()
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
-      q: `repo:${owner}/${repo}+is:pr+is:open+review:approved -is:draft`,
+      per_page: 15,
+      q: `repo:${owner}/${repo}&is:issue&is:open&created:>=${oneMonthAgo}&sort:reactions-+1-desc`,
     })
 
     console.log('[test] res =', res)
