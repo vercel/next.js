@@ -1,0 +1,391 @@
+---
+title: Video Optimization
+nav_title: Videos
+description: This page contains recommendations and best practices for optimizing videos in your Next.js application.
+---
+
+# Optimizing Videos in Next.js Applications
+
+Optimizing videos is crucial in web development for maintaining site performance and enhancing user experience. This document delves into video optimization principles for Next.js web applications, highlighting effective storage and streaming methods to improve video delivery.
+
+## Using `<video>` and `<iframe>`
+
+Effectively embedding video content is crucial for a dynamic web experience. This involves using the HTML **`<video>`** tag for direct video files and **`<iframe>`** for external platform-hosted videos. Understanding their use in the context of Next.js's rendering capabilities ensures optimized performance and an enhanced user experience.
+
+### `<video>`
+
+In Next.js, the HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video) tag is essential for embedding video content directly into web pages. It's especially effective for self-hosted or directly served video files, allowing extensive control over playback and appearance. Integrating the `<video>` tag into your JSX code in Next.js enables a native video player experience on your web pages.
+
+Here's an example:
+
+```html
+<video width="320" height="240" controls preload="none">
+  <source src="/path/to/video.mp4" type="video/mp4" />
+  <track
+    src="/path/to/captions.vtt"
+    kind="subtitles"
+    srclang="en"
+    label="English"
+  />
+  Your browser does not support the video tag.
+</video>
+```
+
+To fully utilize the `<video>` tag, consider these aspects:
+
+- **Source and Type:** Choose the appropriate source and type of the video.
+- **Built-in Controls:** Implement controls for play, pause, and volume within the video player.
+- **Fallback Content:** Provide alternative content for browsers that do not support the `<video>` tag.
+- **Performance Enhancement:** Use the `preload="none"` attribute on video elements to prevent them from loading before the user interacts with them.
+
+When embedding videos, prioritize accessibility:
+
+- **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the `<track>` tag with your `<video>` elements to specify caption file sources.
+- **Accessible Controls:** Ensure video controls are navigable via keyboard and compatible with screen readers. This can be achieved by using standard HTML5 video controls or by creating custom controls that comply with ARIA (Accessible Rich Internet Applications) standards.
+
+### `<iframe>`
+
+When it comes to embedding videos from external platforms like YouTube or Vimeo, the `<iframe>` tag is the go-to choice in Next.js. This approach simplifies embedding videos from these platforms, as it allows you to utilize their platform-specific video players with a full range of features, including analytics, quality adjustments, and custom controls.
+
+Example of embedding a YouTube video:
+
+```html
+<iframe
+  src="https://www.youtube.com/watch?v=gfU1iZnjRZM"
+  frameborder="0"
+  allowfullscreen
+></iframe>
+```
+
+Using `<iframe>` is advantageous for videos hosted on these external platforms as it reduces the load on your server and ensures optimal performance by leveraging the platform's content delivery network.
+
+### Choosing Between `<video>` and `<iframe>`
+
+Deciding whether to use `<video>` or `<iframe>` in your Next.js application depends on the source of your video content and your specific requirements. For self-hosted or direct video files where you need more control over the player's functionality and appearance, the `<video>` tag is ideal. On the other hand, for embedding content from platforms like YouTube or Vimeo, which offer their own set of features and functionalities, `<iframe>` is the preferred choice.
+
+### Displaying Externally Hosted Videos in Next.js
+
+Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js involves combining appropriate embedding techniques with dynamic loading strategies. Using server components with a loading state managed by React Suspense optimizes page load times and enhances user experience. This ensures videos are loaded responsively, adapting to user interactions and network conditions.
+
+1. **Create a Server Component for Video Embedding**
+
+   The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will handle the logic of constructing the embed URL based on the video ID and platform, and render the iframe accordingly.
+
+   ```jsx filename="app/ui/video-component.jsx"
+   export const VideoComponent = () => {
+     const videoId = '1234'
+     const platform = 'youtube'
+     const embedUrl = getExternalVideoEmbedUrl(videoId, platform) // Function to get the right embed URL
+
+     return <iframe src={embedUrl} frameborder="0" allowfullscreen></iframe>
+   }
+   ```
+
+2. **Dynamically Load the Video Component Using React Suspense**
+
+   After creating the server component for video embedding, the next step is to [dynamically load](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming) this component. [React Suspense](https://react.dev/reference/react/Suspense) is used here to manage the loading state, showing a fallback while the video is being prepared for display.
+
+   ```jsx filename="app/page.jsx"
+   import { Suspense } from 'react'
+   import { VideoComponent } from '../ui/VideoComponent.server'
+
+   export default function Page() {
+     return (
+       <section>
+         <Suspense fallback={<p>Loading video...</p>}>
+           <VideoComponent />
+         </Suspense>
+         {/* Other content of the page */}
+       </section>
+     )
+   }
+   ```
+
+### Best Practices
+
+- **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
+- **Consider Data Usage**: Implement strategies for loading videos based on network conditions, especially for users with limited data plans.
+- **Accessibility Considerations**: Provide captions or alternative content for accessibility purposes.
+
+By integrating server components with React Suspense for loading, Next.js applications can efficiently handle externally hosted videos. This approach results in quicker load times and a smoother user experience. Such integration boosts both performance and engagement, ensuring an optimal video viewing experience on your site.
+
+## Self-Hosted Video Strategies in Next.js
+
+Self-hosting videos in Next.js may be preferable for several reasons, including control, trust, and customization. This approach is particularly beneficial when external services don't meet your specific needs or when you require complete command over video content.
+
+### Advantages of Self-Hosting Videos
+
+- **Complete Control**: Direct management of video content, offering precise control over playback and appearance.
+- **Independence**: Avoids reliance on external platforms, ensuring full ownership and control over the video data.
+- **Tailored Customization**: Ideal for unique requirements, such as embedding dynamic background videos in marketing materials, ensuring alignment with specific design and functional needs.
+
+### Selecting the Appropriate Video Storage Method
+
+- **Performance and Scalability**: Look for storage solutions that offer both high performance and scalability to accommodate growing traffic and content size.
+- **Cost-Effectiveness**: Consider the costs associated with storage and bandwidth, especially for larger video files.
+- **Ease of Integration**: Choose a storage method that integrates seamlessly with your Next.js application and overall tech stack.
+
+### Example: Using Vercel Blob for Video Hosting
+
+[Vercel Blob](https://vercel.com/docs/storage/vercel-blob) offers an efficient way to self-serve videos, providing a scalable cloud storage solution that's well-integrated with Next.js. Here's how you can host a video using Vercel Blob:
+
+**Step 1: Uploading a Video to Vercel Blob**
+
+Create a server-side function to upload your video:
+
+```ts filename="app/api/upload/route.ts" switcher
+import { put } from '@vercel/blob'
+
+export async function POST(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const filename = searchParams.get('filename')
+
+  const blob = await put(filename, request.body, {
+    access: 'public',
+  })
+
+  return Response.json(blob)
+}
+```
+
+```js filename="app/api/upload/route.js" switcher
+import { put } from '@vercel/blob'
+
+export async function POST(request) {
+  const { searchParams } = new URL(request.url)
+  const filename = searchParams.get('filename')
+
+  const blob = await put(filename, request.body, {
+    access: 'public',
+  })
+
+  return Response.json(blob)
+}
+```
+
+In this function, you're using the `put` method from `@vercel/blob` to upload a video file, making it publicly accessible.
+
+**Step 2: Displaying the Video in Next.js**
+
+Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense for dynamic loading:
+
+```jsx filename="app/page.jsx"
+import { Suspense } from 'react';
+
+export default function Page() {
+  const videoUrl = YOUR_VERCEL_BLOB_VIDEO_URL
+
+  return (
+    <Suspense fallback={<p>Loading video...</p>}>
+      <VideoComponent videoUrl={videoUrl} />
+    </Suspense>
+  );
+};
+
+function VideoComponent({ videoUrl }) {
+  return (
+    <video controls preload="none" aria-label="Video player">
+      <source src={videoUrl} type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  );
+};
+```
+
+In this approach, the page uses the video’s `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to handle the loading state, providing a fallback until the video URL is fetched and the video is ready to be displayed.
+
+By following this approach, you can effectively self-serve and integrate videos into your Next.js applications, offering a high degree of control and customization over your video content.
+
+## Video Optimization Techniques
+
+Enhancing performance and user experience involves strategic optimization of video content. Key techniques include video compression, selecting the appropriate format, and implementing adaptive streaming. Here’s a concise overview of the key techniques:
+
+1. **Understanding Video Formats and Codecs**:
+   - Select formats like MP4 (widely compatible, efficient), WebM (open-source, optimized for web), and AVI (high quality, larger file size) based on compatibility and quality needs.
+   - Choose codecs such as H.264 (high compression, quality) or VP9 (optimized for web streaming) for the best balance between quality and file size.
+2. **Video Compression**:
+   - Use tools such as [FFmpeg](https://www.ffmpeg.org/) to compress videos, reducing file size while maintaining acceptable quality.
+   - Experiment with compression settings to find the ideal balance between quality and file size, considering the intended audience and platform.
+3. **Resolution and Bitrate Adjustment**:
+   - Adjust resolution and bitrate based on the target platform: lower for mobile and higher for desktop or TV viewing.
+   - Lower bitrate and resolution for background videos to save bandwidth without noticeably affecting visual quality.
+4. **Consider Streaming**:
+   - Employ [streaming](https://www.smashingmagazine.com/2018/10/video-playback-on-the-web-part-2/) techniques that dynamically adjust video size and bandwidth based on user's network speed, akin to responsive images. This method ensures optimal video delivery for fast startup, reduced buffering, and seamless playback.
+5. **Content Delivery Networks (CDNs)**:
+   - Use a CDN to distribute video content, reducing latency and improving load times globally.
+   - CDNs help manage large traffic and enhance user experience by delivering content from the nearest server.
+6. **Responsive Video Embedding**:
+   - Implement responsive design for videos to ensure proper display on all devices, using CSS techniques for fluid sizing.
+   - Use CSS tricks to maintain aspect ratio and provide a seamless viewing experience across different screen sizes.
+7. **Lazy Loading of Videos**:
+   - Implement lazy loading to defer loading of videos until they are in view, improving initial page load times.
+
+By incorporating these techniques, you can significantly enhance the performance and accessibility of videos, leading to a better user experience and increased user engagement.
+
+## Advanced Video Optimization Techniques
+
+For complex Next.js applications, especially those with high traffic or advanced content requirements, advanced video optimization techniques are crucial. These techniques ensure smooth streaming, interactive features, and enhanced security.
+
+### Selecting Advanced Solutions for Complex Requirements
+
+In scenarios requiring high-quality streaming, interactive video elements, or stringent security measures, consider using advanced platforms like Cloudinary and Mux. These services offer functionalities such as adaptive bitrate streaming, viewer analytics, and secure content delivery, suited for complex video streaming needs at scale.
+
+### Practical Implementation in Next.js
+
+To integrate these advanced solutions into Next.js applications, you can reference specific examples and templates. These resources provide practical guidance for implementation:
+
+- **Cloudinary Integration**
+  - Official documentation and integration guides for using Cloudinary with Next.js can be found [here](https://support.cloudinary.com/hc/en-us/categories/200477762-Client-Libraries-and-Integration-Guides).
+  - A specific guide on integrating Cloudinary with Next.js is available [here](https://next.cloudinary.dev/nextjs-13).
+- **Mux Video API**
+  - Mux provides a starter template for creating a video course with Mux and Next.js, available on GitHub [here](https://github.com/muxinc/video-course-starter-kit).
+  - Detailed information about embedding a video player in Next.js applications using Mux is available [here](https://www.mux.com/).
+  - An example project demonstrating Mux with Next.js can be found [here](https://with-mux-video.vercel.app/).
+- **Fastly**
+  - Fastly offers solutions for video on demand and streaming media. Learn more about their offerings and how to integrate with Next.js [here](https://www.fastly.com/products/streaming-media/video-on-demand).
+
+### Example: Optimizing Video Loading with Mux
+
+Here's an example demonstrating how to use Mux for efficient video loading in a Next.js application:
+
+Server-side Rendering of Mux Video Component:
+
+```tsx filename="app/components/MuxVideo.tsx" switcher
+import { preload } from 'react-dom'
+import { unstable_getImgProps as getImgProps } from 'next/image'
+
+type Props = {
+  playbackId: string
+  loading: 'lazy' | 'eager'
+  resolution: 'SD' | 'HD'
+}
+
+export default function MuxVideo({ playbackId, loading, resolution }: Props) {
+  const mp4Url = `https://stream.mux.com/${playbackId}/${
+    resolution === 'SD' ? 'medium' : 'high'
+  }.mp4`
+  const webmUrl = `https://stream.mux.com/${playbackId}/${
+    resolution === 'SD' ? 'medium' : 'high'
+  }.webm`
+
+  // Convert video poster to WebP using `getImgProps`
+  const {
+    props: { src: poster },
+  } = getImgProps({
+    src: `https://image.mux.com/${playbackId}/thumbnail.webp?fit_mode=smartcrop&time=0`,
+    alt: '',
+    fill: true,
+  })
+
+  // Preload poster image
+  if (loading === 'eager') {
+    preload(poster, { as: 'image', fetchPriority: 'high' })
+  }
+
+  return (
+    <video autoPlay playsInline loop controls={false} muted preload="none">
+      <source src={mp4Url} type="video/mp4" />
+      <source src={webmUrl} type="video/webm" />
+    </video>
+  )
+}
+```
+
+```jsx filename="app/components/MuxVideo.jsx" switcher
+import { preload } from 'react-dom'
+import { unstable_getImgProps as getImgProps } from 'next/image'
+
+export default function MuxVideo({ playbackId, loading, resolution }) {
+  const mp4Url = `https://stream.mux.com/${playbackId}/${
+    resolution === 'SD' ? 'medium' : 'high'
+  }.mp4`
+  const webmUrl = `https://stream.mux.com/${playbackId}/${
+    resolution === 'SD' ? 'medium' : 'high'
+  }.webm`
+
+  // Convert video poster to WebP using `getImgProps`
+  const {
+    props: { src: poster },
+  } = getImgProps({
+    src: `https://image.mux.com/${playbackId}/thumbnail.webp?fit_mode=smartcrop&time=0`,
+    alt: '',
+    fill: true,
+  })
+
+  // Preload poster image
+  if (loading === 'eager') {
+    preload(poster, { as: 'image', fetchPriority: 'high' })
+  }
+
+  return (
+    <video autoPlay playsInline loop controls={false} muted preload="none">
+      <source src={mp4Url} type="video/mp4" />
+      <source src={webmUrl} type="video/webm" />
+    </video>
+  )
+}
+```
+
+Lazy-Loading Videos with Next.js:
+
+```tsx filename="app/components/LazyLoadedVideo.tsx" switcher
+'use client'
+
+import Image from 'next/image'
+import { useEffect, useState } from 'react'
+import useInView from '~/hooks/useInView'
+import Video, { VideoProps } from './Video'
+
+export default function LazyLoadedVideo(props: VideoProps) {
+  const { ref, inView } = useInView({ triggerOnce: true })
+
+  return (
+    <>
+      {!inView ? (
+        <Image
+          ref={ref as React.RefObject<HTMLImageElement>}
+          alt={'Video poster'}
+          src={props.poster ?? ''}
+          className={props.className}
+          style={props.style}
+          loading={'lazy'}
+          layout="fill"
+        />
+      ) : (
+        <Video {...props} />
+      )}
+    </>
+  )
+}
+```
+
+```jsx filename="app/components/LazyLoadedVideo.jsx" switcher
+'use client'
+import Image from 'next/image'
+import useInView from '~/hooks/useInView'
+import Video from './Video'
+
+export default function LazyLoadedVideo(props) {
+  const { ref, inView } = useInView({ triggerOnce: true })
+
+  return (
+    <>
+      {!inView ? (
+        <Image
+          ref={ref}
+          alt={'Video poster'}
+          src={props.poster ?? ''}
+          className={props.className}
+          style={props.style}
+          loading={'lazy'}
+          layout="fill"
+        />
+      ) : (
+        <Video {...props} />
+      )}
+    </>
+  )
+}
+```
+
+These examples showcase how Mux can be used in Next.js for server-side rendering of video components and lazy loading of videos to optimize performance and user experience.
