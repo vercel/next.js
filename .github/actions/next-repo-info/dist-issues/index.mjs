@@ -31258,14 +31258,14 @@ var __webpack_exports__ = {}
       const o = new s.WebClient(process.env.SLACK_TOKEN)
       const { owner: A, repo: n } = e.context.repo
       const i = getOneMonthAgoDate()
-      const { data: a } = await r.rest.search.issuesAndPullRequests({
+      const a = await r.rest.search.issuesAndPullRequests({
         per_page: 15,
-        q: `org:${A} repo:${n} is:issue is:open created:>=${i} sort:reactions-+1-desc`,
+        q: `repo:${A}/${n} is:issue is:open created:>=${i} sort:reactions-+1-desc`,
       })
-      console.log('[test] data.items =', a.items)
-      if (a.items.length > 0) {
+      console.log('[test] data.items =', a.data.items)
+      if (a.data.items.length > 0) {
         await o.chat.postMessage({
-          blocks: generateBlocks(a.items),
+          blocks: generateBlocks(a.data.items),
           channel: '#next-js-repo-updates',
           icon_emoji: ':github:',
           username: 'GitHub',

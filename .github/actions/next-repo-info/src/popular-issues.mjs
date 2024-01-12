@@ -38,16 +38,16 @@ async function run() {
     const { owner, repo } = context.repo
     const oneMonthAgo = getOneMonthAgoDate()
 
-    const { data } = await octoClient.rest.search.issuesAndPullRequests({
+    const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
-      q: `org:${owner} repo:${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
+      q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
     })
 
-    console.log('[test] data.items =', data.items)
+    console.log('[test] data.items =', res.data.items)
 
-    if (data.items.length > 0) {
+    if (res.data.items.length > 0) {
       await slackClient.chat.postMessage({
-        blocks: generateBlocks(data.items),
+        blocks: generateBlocks(res.data.items),
         channel: '#next-js-repo-updates',
         icon_emoji: ':github:',
         username: 'GitHub',
