@@ -195,7 +195,7 @@ See the [`redirects` API reference](/docs/app/api-reference/next-config-js/redir
 > **Good to know**:
 >
 > - `redirects` can return a 307 (Temporary Redirect) or 308 (Permanent Redirect) status code with the `permanent` option.
-> - `redirects` may have a limit on platforms. For example, on Vercel there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/building-your-application/routing/middleware).. See [Managing redirects at scale](#managing-redirects-at-scale-advanced) section.
+> - `redirects` may have a limit on platforms. For example, on Vercel, there's a limit of 1,024 redirects. To manage a large number of redirects (1000+), consider creating a custom solution using [Middleware](/docs/app/building-your-application/routing/middleware). See [managing redirects at scale](#managing-redirects-at-scale-advanced) for more.
 > - `redirects` runs **before** Middleware.
 
 ## `NextResponse.redirect` in Middleware
@@ -254,9 +254,9 @@ See the [Middleware](/docs/app/building-your-application/routing/middleware) doc
 
 ## Managing redirects at scale (Advanced)
 
-To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically on the [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) without having to redeploy your whole application.
+To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically without having to redeploy your application.
 
-When handling redirects at scale, some things to consider are:
+When handling a large number of redirects, you should consider:
 
 1. Creating and storing a redirect map.
 2. Optimizing data lookup performance.
@@ -280,7 +280,7 @@ Consider the following data structure:
 }
 ```
 
-In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/), and redirect the user based on the incoming request:
+In [Middleware](/docs/app/building-your-application/routing/middleware), you can read from a database such as Vercel's [Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), and redirect the user based on the incoming request:
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -292,19 +292,12 @@ type RedirectEntry = {
 }
 
 export async function middleware(request: NextRequest) {
-  // Get the path for the incoming request
   const pathname = request.nextUrl.pathname
-
-  // Fetch redirect data from database
   const redirectData = await get(pathname)
 
   if (redirectData && typeof redirectData === 'string') {
     const redirectEntry: RedirectEntry = JSON.parse(redirectData)
-
-    // Determine the status code
     const statusCode = redirectEntry.permanent ? 308 : 307
-
-    // Redirect to the destination
     return NextResponse.redirect(redirectEntry.destination, statusCode)
   }
 
@@ -318,19 +311,12 @@ import { NextResponse } from 'next/server'
 import { get } from '@vercel/edge-config'
 
 export async function middleware(request) {
-  // Get the path for the incoming request
   const pathname = request.nextUrl.pathname
-
-  // Fetch redirect data from database
   const redirectData = await get(pathname)
 
   if (redirectData) {
     const redirectEntry = JSON.parse(redirectData)
-
-    // Determine the status code
     const statusCode = redirectEntry.permanent ? 308 : 307
-
-    // Redirect to the destination
     return NextResponse.redirect(redirectEntry.destination, statusCode)
   }
 
@@ -343,10 +329,10 @@ export async function middleware(request) {
 
 Reading a large dataset for every incoming request can be slow and expensive. There are two ways you can optimize data lookup performance:
 
-- Use a database that is optimized for fast reads, such as [Edge Config](https://vercel.com/docs/storage/edge-config/get-started) or [Redis](https://redis.io/).
+- Use a database that is optimized for fast reads, such as [Vercel Edge Config](https://vercel.com/docs/storage/edge-config/get-started?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) or [Redis](https://vercel.com/docs/storage/vercel-kv?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
 - Use a data lookup strategy such as a [Bloom filter](https://en.wikipedia.org/wiki/Bloom_filter) to efficiently check if a redirect exists **before** reading the larger redirects file.
 
-Considering the previous example, you can import a generated Bloom Filter file into Middleware, then, check if the incoming request's pathname exists in the Bloom Filter.
+Considering the previous example, you can import a generated bloom filter file into Middleware, then, check if the incoming request pathname exists in the bloom filter.
 
 If it does, forward the request to a [Route Handler](/docs/app/building-your-application/routing/route-handlers) which will check the actual file and redirect the user to the appropriate URL. This avoids importing a large redirects file into Middleware, which can slow down every incoming request.
 
@@ -501,6 +487,5 @@ export function GET(request) {
 
 > **Good to know:**
 >
-> - To generate a Bloom filter, you can use a library like [bloom-filters](https://www.npmjs.com/package/bloom-filters).
+> - To generate a bloom filter, you can use a library like [`bloom-filters`](https://www.npmjs.com/package/bloom-filters).
 > - You should validate requests made to your Route Handler to prevent malicious requests.
-> - On Vercel, Middleware runs on the [Edge Network](https://vercel.com/docs/edge-network/overview), check the Vercel or your platform's [documentation for limits](https://vercel.com/docs/storage/edge-config/edge-config-limits).
