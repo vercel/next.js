@@ -16,7 +16,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: 'A list of the top 15 issues sorted by most :+1: reactions over the last 30 days.*\n_Note: This :github: workflow will run every Monday at 1PM UTC (9AM EST)._',
+        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 30 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
       },
     },
     {
@@ -24,8 +24,10 @@ function generateBlocks(issues) {
     },
   ]
   let text = ''
-  issues.forEach((issue) => {
-    text += `• <${issue.html_url}|#${issue.number}>: ${issue.title}\n`
+  issues.forEach((issue, i) => {
+    text += `${i + 1}. [<${issue.html_url}|#${issue.number}>, :+1: ${
+      issue.reactions['+1']
+    }]: ${issue.title}\n`
   })
   blocks.push({
     type: 'section',
@@ -57,7 +59,7 @@ async function run() {
     if (data.items.length > 0) {
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
-        channel: '#next-js-repo-updates',
+        channel: '#team-next-js',
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })
