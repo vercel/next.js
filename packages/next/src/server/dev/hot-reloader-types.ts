@@ -49,12 +49,14 @@ export interface SyncAction {
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {

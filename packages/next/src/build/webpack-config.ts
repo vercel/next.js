@@ -9,7 +9,11 @@ import semver from 'next/dist/compiled/semver'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
-import { isWebpackDefaultLayer, isWebpackServerLayer } from './utils'
+import {
+  isWebpackAppLayer,
+  isWebpackDefaultLayer,
+  isWebpackServerLayer,
+} from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -71,10 +75,14 @@ import {
   edgeConditionNames,
 } from './webpack-config-rules/resolve'
 import { OptionalPeerDependencyResolverPlugin } from './webpack/plugins/optional-peer-dependency-resolve-plugin'
-import { createWebpackAliases } from './create-compiler-aliases'
-import { createServerOnlyClientOnlyAliases } from './create-compiler-aliases'
-import { createRSCAliases } from './create-compiler-aliases'
-import { createServerComponentsNoopAliases } from './create-compiler-aliases'
+import {
+  createWebpackAliases,
+  createServerOnlyClientOnlyAliases,
+  createRSCAliases,
+  createNextApiEsmAliases,
+  createAppRouterApiAliases,
+} from './create-compiler-aliases'
+import { hasCustomExportOutput } from '../export/utils'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -141,14 +149,14 @@ const devtoolRevertWarning = execOnce(
 
 let loggedSwcDisabled = false
 let loggedIgnoredCompilerOptions = false
+const reactRefreshLoaderName =
+  'next/dist/compiled/@next/react-refresh-utils/dist/loader'
 
 export function attachReactRefresh(
   webpackConfig: webpack.Configuration,
   targetLoader: webpack.RuleSetUseItem
 ) {
   let injections = 0
-  const reactRefreshLoaderName =
-    'next/dist/compiled/@next/react-refresh-utils/dist/loader'
   const reactRefreshLoader = require.resolve(reactRefreshLoaderName)
   webpackConfig.module?.rules?.forEach((rule) => {
     if (rule && typeof rule === 'object' && 'use' in rule) {
@@ -352,6 +360,10 @@ export default async function getBaseWebpackConfig(
     : ''
 
   const babelConfigFile = getBabelConfigFile(dir)
+
+  if (hasCustomExportOutput(config)) {
+    config.distDir = '.next'
+  }
   const distDir = path.join(dir, config.distDir)
 
   let useSWCLoader = !babelConfigFile || config.experimental.forceSwcTransforms
@@ -440,18 +452,22 @@ export default async function getBaseWebpackConfig(
   // RSC loaders, prefer ESM, set `esm` to true
   const swcServerLayerLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: true,
+    bundleLayer: WEBPACK_LAYERS.reactServerComponents,
     esm: true,
   })
-  const swcClientLayerLoader = getSwcLoader({
+  const swcSSRLayerLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: false,
+    bundleLayer: WEBPACK_LAYERS.serverSideRendering,
+    esm: true,
+  })
+  const swcBrowserLayerLoader = getSwcLoader({
+    serverComponents: true,
+    bundleLayer: WEBPACK_LAYERS.appPagesBrowser,
     esm: true,
   })
   // Default swc loaders for pages doesn't prefer ESM.
   const swcDefaultLoader = getSwcLoader({
     serverComponents: true,
-    isReactServerLayer: false,
     esm: false,
   })
 
@@ -459,7 +475,7 @@ export default async function getBaseWebpackConfig(
     babel: useSWCLoader ? swcDefaultLoader : babelLoader!,
   }
 
-  const swcLoaderForServerLayer = hasAppDir
+  const appServerLayerLoaders = hasAppDir
     ? [
         // When using Babel, we will have to add the SWC loader
         // as an additional pass to handle RSC correctly.
@@ -470,31 +486,30 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean)
     : []
 
-  const swcLoaderForMiddlewareLayer = useSWCLoader
-    ? getSwcLoader({
-        serverComponents: false,
-        isReactServerLayer: false,
-      })
-    : // When using Babel, we will have to use SWC to do the optimization
-      // for middleware to tree shake the unused default optimized imports like "next/server".
-      // This will cause some performance overhead but
-      // acceptable as Babel will not be recommended.
-      [
-        getSwcLoader({
-          serverComponents: false,
-          isReactServerLayer: false,
-        }),
-      ]
+  const middlewareLayerLoaders = [
+    // When using Babel, we will have to use SWC to do the optimization
+    // for middleware to tree shake the unused default optimized imports like "next/server".
+    // This will cause some performance overhead but
+    // acceptable as Babel will not be recommended.
+    getSwcLoader({
+      serverComponents: false,
+      bundleLayer: WEBPACK_LAYERS.middleware,
+    }),
+    babelLoader,
+  ].filter(Boolean)
 
-  // client components layers: SSR + browser
-  const swcLoaderForClientLayer = [
-    ...(dev && isClient
-      ? [
-          require.resolve(
-            'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-          ),
-        ]
-      : []),
+  const reactRefreshLoaders =
+    dev && isClient ? [require.resolve(reactRefreshLoaderName)] : []
+
+  // client components layers: SSR or browser
+  const createClientLayerLoader = ({
+    isBrowserLayer,
+    reactRefresh,
+  }: {
+    isBrowserLayer: boolean
+    reactRefresh: boolean
+  }) => [
+    ...(reactRefresh ? reactRefreshLoaders : []),
     {
       // This loader handles actions and client entries
       // in the client layer.
@@ -506,20 +521,30 @@ export default async function getBaseWebpackConfig(
           // as an additional pass to handle RSC correctly.
           // This will cause some performance overhead but
           // acceptable as Babel will not be recommended.
-          swcClientLayerLoader,
+          isBrowserLayer ? swcBrowserLayerLoader : swcSSRLayerLoader,
           babelLoader,
         ].filter(Boolean)
       : []),
   ]
 
+  const appBrowserLayerLoaders = createClientLayerLoader({
+    isBrowserLayer: true,
+    // reactRefresh for browser layer is applied conditionally to user-land source
+    reactRefresh: false,
+  })
+  const appSSRLayerLoaders = createClientLayerLoader({
+    isBrowserLayer: false,
+    reactRefresh: true,
+  })
+
   // Loader for API routes needs to be differently configured as it shouldn't
   // have RSC transpiler enabled, so syntax checks such as invalid imports won't
   // be performed.
-  const loaderForAPIRoutes =
+  const apiRoutesLayerLoaders =
     hasAppDir && useSWCLoader
       ? getSwcLoader({
           serverComponents: false,
-          isReactServerLayer: false,
+          bundleLayer: WEBPACK_LAYERS.api,
         })
       : defaultLoaders.babel
 
@@ -727,9 +752,29 @@ export default async function getBaseWebpackConfig(
 
   const crossOrigin = config.crossOrigin
 
+  // The `serverComponentsExternalPackages` should not conflict with
+  // the `transpilePackages`.
+  if (
+    config.experimental.serverComponentsExternalPackages &&
+    config.transpilePackages
+  ) {
+    const externalPackageConflicts = config.transpilePackages.filter((pkg) =>
+      config.experimental.serverComponentsExternalPackages?.includes(pkg)
+    )
+    if (externalPackageConflicts.length > 0) {
+      throw new Error(
+        `The packages specified in the 'transpilePackages' conflict with the 'serverComponentsExternalPackages': ${externalPackageConflicts.join(
+          ', '
+        )}`
+      )
+    }
+  }
+
+  // For original request, such as `package name`
   const optOutBundlingPackages = EXTERNAL_PACKAGES.concat(
     ...(config.experimental.serverComponentsExternalPackages || [])
-  )
+  ).filter((pkg) => !config.transpilePackages?.includes(pkg))
+  // For resolved request, such as `absolute path/package name/foo/bar.js`
   const optOutBundlingPackageRegex = new RegExp(
     `[/\\\\]node_modules[/\\\\](${optOutBundlingPackages
       .map((p) => p.replace(/\//g, '[/\\\\]'))
@@ -738,6 +783,7 @@ export default async function getBaseWebpackConfig(
 
   const handleExternals = makeExternalHandler({
     config,
+    optOutBundlingPackages,
     optOutBundlingPackageRegex,
     dir,
   })
@@ -746,7 +792,7 @@ export default async function getBaseWebpackConfig(
     config.experimental.externalDir || !!config.transpilePackages
 
   const codeCondition = {
-    test: /\.(tsx|ts|js|cjs|mjs|jsx)$/,
+    test: { or: [/\.(tsx|ts|js|cjs|mjs|jsx)$/, /__barrel_optimize__/] },
     ...(shouldIncludeExternalDirs
       ? // Allowing importing TS/TSX files from outside of the root dir.
         {}
@@ -1124,37 +1170,6 @@ export default async function getBaseWebpackConfig(
     },
     module: {
       rules: [
-        {
-          // This loader rule works like a bridge between user's import and
-          // the target module behind a package's barrel file. It reads SWC's
-          // analysis result from the previous loader, and directly returns the
-          // code that only exports values that are asked by the user.
-          test: /__barrel_optimize__/,
-          use: ({ resourceQuery }: { resourceQuery: string }) => {
-            const names = (
-              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
-            ).split(',')
-
-            return [
-              {
-                loader: 'next-barrel-loader',
-                options: {
-                  names,
-                  swcCacheDir: path.join(
-                    dir,
-                    config?.distDir ?? '.next',
-                    'cache',
-                    'swc'
-                  ),
-                },
-                // This is part of the request value to serve as the module key.
-                // The barrel loader are no-op re-exported modules keyed by
-                // export names.
-                ident: 'next-barrel-loader:' + resourceQuery,
-              },
-            ]
-          },
-        },
         // Alias server-only and client-only to proper exports based on bundling layers
         {
           issuerLayer: {
@@ -1255,18 +1270,12 @@ export default async function getBaseWebpackConfig(
                 test: /next[\\/]dist[\\/](esm[\\/])?server[\\/]future[\\/]route-modules[\\/]app-page[\\/]module/,
               },
               {
-                // All app dir layers need to use this configured resolution logic
-                issuerLayer: {
-                  or: [
-                    WEBPACK_LAYERS.reactServerComponents,
-                    WEBPACK_LAYERS.serverSideRendering,
-                    WEBPACK_LAYERS.appPagesBrowser,
-                    WEBPACK_LAYERS.actionBrowser,
-                    WEBPACK_LAYERS.shared,
-                  ],
-                },
+                issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: createServerComponentsNoopAliases(),
+                  alias: {
+                    ...createNextApiEsmAliases(),
+                    ...createAppRouterApiAliases(),
+                  },
                 },
               },
             ]
@@ -1384,6 +1393,20 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+        // Do not apply react-refresh-loader to node_modules for app router browser layer
+        ...(hasAppDir && dev && isClient
+          ? [
+              {
+                test: codeCondition.test,
+                exclude: codeCondition.exclude,
+                issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                use: reactRefreshLoaders,
+                resolve: {
+                  mainFields: getMainField(compilerType, true),
+                },
+              },
+            ]
+          : []),
         {
           oneOf: [
             {
@@ -1393,12 +1416,12 @@ export default async function getBaseWebpackConfig(
                 // Switch back to normal URL handling
                 url: true,
               },
-              use: loaderForAPIRoutes,
+              use: apiRoutesLayerLoaders,
             },
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
-              use: swcLoaderForMiddlewareLayer,
+              use: middlewareLayerLoaders,
             },
             ...(hasAppDir
               ? [
@@ -1406,28 +1429,27 @@ export default async function getBaseWebpackConfig(
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
                     exclude: asyncStoragesRegex,
-                    use: swcLoaderForServerLayer,
+                    use: appServerLayerLoaders,
                   },
                   {
                     test: codeCondition.test,
                     resourceQuery: new RegExp(
                       WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                     ),
-                    use: swcLoaderForServerLayer,
+                    use: appServerLayerLoaders,
                   },
                   {
                     test: codeCondition.test,
-                    exclude: codeCondition.exclude,
-                    issuerLayer: [WEBPACK_LAYERS.appPagesBrowser],
-                    use: swcLoaderForClientLayer,
+                    issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                    use: appBrowserLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
                     test: codeCondition.test,
-                    issuerLayer: [WEBPACK_LAYERS.serverSideRendering],
-                    use: swcLoaderForClientLayer,
+                    issuerLayer: WEBPACK_LAYERS.serverSideRendering,
+                    use: appSSRLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
@@ -1436,18 +1458,11 @@ export default async function getBaseWebpackConfig(
               : []),
             {
               ...codeCondition,
-              use:
-                dev && isClient
-                  ? [
-                      require.resolve(
-                        'next/dist/compiled/@next/react-refresh-utils/dist/loader'
-                      ),
-                      defaultLoaders.babel,
-                    ]
-                  : defaultLoaders.babel,
+              use: [...reactRefreshLoaders, defaultLoaders.babel],
             },
           ],
         },
+
         ...(!config.images.disableStaticImages
           ? [
               {
@@ -1580,6 +1595,40 @@ export default async function getBaseWebpackConfig(
           test: /[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js/,
           sideEffects: false,
         },
+        {
+          // This loader rule should be before other rules, as it can output code
+          // that still contains `"use client"` or `"use server"` statements that
+          // needs to be re-transformed by the RSC compilers.
+          // This loader rule works like a bridge between user's import and
+          // the target module behind a package's barrel file. It reads SWC's
+          // analysis result from the previous loader, and directly returns the
+          // code that only exports values that are asked by the user.
+          test: /__barrel_optimize__/,
+          use: ({ resourceQuery }: { resourceQuery: string }) => {
+            const names = (
+              resourceQuery.match(/\?names=([^&]+)/)?.[1] || ''
+            ).split(',')
+
+            return [
+              {
+                loader: 'next-barrel-loader',
+                options: {
+                  names,
+                  swcCacheDir: path.join(
+                    dir,
+                    config?.distDir ?? '.next',
+                    'cache',
+                    'swc'
+                  ),
+                },
+                // This is part of the request value to serve as the module key.
+                // The barrel loader are no-op re-exported modules keyed by
+                // export names.
+                ident: 'next-barrel-loader:' + resourceQuery,
+              },
+            ]
+          },
+        },
       ],
     },
     plugins: [
@@ -1659,6 +1708,7 @@ export default async function getBaseWebpackConfig(
             outputFileTracingRoot: config.experimental.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
             turbotrace: config.experimental.turbotrace,
+            optOutBundlingPackages,
             traceIgnores: config.experimental.outputFileTracingIgnores || [],
           }
         ),
@@ -1717,7 +1767,7 @@ export default async function getBaseWebpackConfig(
           exportRuntime: true,
           appDirEnabled: hasAppDir,
         }),
-      new ProfilingPlugin({ runWebpackSpan }),
+      new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       config.optimizeFonts &&
         !dev &&
         isNodeServer &&

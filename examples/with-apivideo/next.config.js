@@ -6,13 +6,13 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'vod.api.video',
-        port: '',
-        pathname: '/my-account/**',
+        protocol: "https",
+        hostname: "vod.api.video",
+        port: "",
+        pathname: "/my-account/**",
       },
     ],
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

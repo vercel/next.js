@@ -17,7 +17,7 @@ use turbopack_binding::{
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin},
+        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
         node::execution_context::ExecutionContext,
         turbopack::{
@@ -115,6 +115,9 @@ pub async fn get_server_resolve_options_context(
         "dist/lib/server-external-packages.json".to_string(),
     )
     .await?;
+
+    let transpile_packages = next_config.transpile_packages().await?;
+    external_packages.retain(|item| !transpile_packages.contains(item));
 
     // Add the config's own list of external packages.
     external_packages.extend(
@@ -389,6 +392,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 esm_url_rewrite_behavior: url_rewrite_behavior,
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
 
@@ -458,6 +462,7 @@ pub async fn get_server_module_options_context(
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -543,6 +548,7 @@ pub async fn get_server_module_options_context(
                 custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 use_lightningcss,
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -582,6 +588,7 @@ pub async fn get_server_module_options_context(
         ServerContextType::AppRoute { .. } => {
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -630,6 +637,7 @@ pub async fn get_server_module_options_context(
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
+                tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -669,6 +677,7 @@ pub async fn get_server_module_options_context(
 pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
     ModuleOptionsContext {
         enable_typescript_transform: Some(Default::default()),
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     }
     .cell()

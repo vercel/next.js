@@ -220,7 +220,7 @@ async function exportPageImpl(
     // cache instance for this page.
     const incrementalCache =
       isAppDir && fetchCache
-        ? createIncrementalCache({
+        ? await createIncrementalCache({
             incrementalCacheHandlerPath,
             isrMemoryCacheSize,
             fetchCacheKeyPrefix,
@@ -263,7 +263,7 @@ async function exportPageImpl(
       optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,

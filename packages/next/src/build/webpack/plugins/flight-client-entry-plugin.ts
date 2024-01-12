@@ -33,6 +33,7 @@ import { traverseModules, forEachEntryModule } from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 interface Options {
   dev: boolean
@@ -193,7 +194,11 @@ export class FlightClientEntryPlugin {
         const modQuery = mod.resourceResolveData?.query || ''
         // query is already part of mod.resource
         // so it's only necessary to add it for matchResource or mod.resourceResolveData
-        const modResource = modPath ? modPath + modQuery : mod.resource
+        const modResource = modPath
+          ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
+            ? mod.resource
+            : modPath + modQuery
+          : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
@@ -710,7 +715,11 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
+      const pageKey = getEntryKey(
+        COMPILER_NAMES.client,
+        PAGE_TYPES.APP,
+        bundlePath
+      )
 
       if (!entries[pageKey]) {
         entries[pageKey] = {

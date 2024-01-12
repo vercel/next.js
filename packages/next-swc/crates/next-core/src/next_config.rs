@@ -9,7 +9,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::any_content_changed_of_module,
-            context::AssetContext,
+            context::{AssetContext, ProcessResult},
             file_source::FileSource,
             ident::AssetIdent,
             issue::{
@@ -849,19 +849,28 @@ async fn load_next_config_and_custom_routes_internal(
     );
     let config_asset = config_file.map(FileSource::new);
 
-    let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
+    let config_changed = if let Some(config_asset) = config_asset {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = context.process(
-            Vc::upcast(config_asset),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        );
-        any_content_changed_of_module(config_asset)
-    });
-    let load_next_config_asset = context.process(
-        next_asset("entry/config/next.js".to_string()),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    );
+        match *context
+            .process(
+                Vc::upcast(config_asset),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            )
+            .await?
+        {
+            ProcessResult::Module(module) => any_content_changed_of_module(module),
+            ProcessResult::Ignore => Completion::immutable(),
+        }
+    } else {
+        Completion::immutable()
+    };
+    let load_next_config_asset = context
+        .process(
+            next_asset("entry/config/next.js".to_string()),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+        .module();
     let config_value = evaluate(
         load_next_config_asset,
         project_path,

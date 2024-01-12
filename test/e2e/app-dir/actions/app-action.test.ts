@@ -410,6 +410,7 @@ createNextDescribe(
     })
 
     it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
       const res = await next.fetch('/non-existent-route', {
         method: 'POST',
         headers: {
@@ -418,6 +419,12 @@ createNextDescribe(
         body: 'foo=bar',
       })
 
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
       expect(res.status).toBe(404)
     })
 
@@ -1080,6 +1087,111 @@ createNextDescribe(
           expect(responseCodes).toEqual([Number(statusCode), 200])
         }
       )
+    })
+
+    describe('server actions render client components', () => {
+      describe('server component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/server/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+
+      // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported yet.
+      describe.skip('client component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/client/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+    })
+
+    describe('caching disabled by default', () => {
+      it('should use no-store as default for server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number changes on each click
+          expect(newNumber).not.toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      it('should not override force-cache in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/force-cache')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      // Implicit force-cache
+      it('should not override revalidate in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/revalidate')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
     })
   }
 )

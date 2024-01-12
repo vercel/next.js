@@ -190,6 +190,26 @@ export declare function Advent_Pro<
   subsets?: Array<'cyrillic' | 'cyrillic-ext' | 'greek' | 'latin' | 'latin-ext'>
   axes?: 'wdth'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Afacad<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic-ext' | 'latin' | 'latin-ext' | 'math' | 'symbols' | 'vietnamese'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Agbalumo<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -591,7 +611,7 @@ export declare function Alike<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alike_Angular<
   T extends CssVariable | undefined = undefined
@@ -603,7 +623,7 @@ export declare function Alike_Angular<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'latin'>
+  subsets?: Array<'latin' | 'latin-ext' | 'math' | 'symbols'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Alkalami<
   T extends CssVariable | undefined = undefined
@@ -9539,6 +9559,28 @@ export declare function Kalam<
   adjustFontFallback?: boolean
   subsets?: Array<'devanagari' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Kalnia<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | 'variable'
+    | Array<'100' | '200' | '300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'math'>
+  axes?: 'wdth'[]
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Kameron<
   T extends CssVariable | undefined = undefined
 >(options?: {
@@ -17163,6 +17205,8 @@ export declare function Open_Sans<
     | 'hebrew'
     | 'latin'
     | 'latin-ext'
+    | 'math'
+    | 'symbols'
     | 'vietnamese'
   >
   axes?: 'wdth'[]
@@ -19158,6 +19202,25 @@ export declare function Reggae_One<
   adjustFontFallback?: boolean
   subsets?: Array<'cyrillic' | 'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rethink_Sans<
+  T extends CssVariable | undefined = undefined
+>(options?: {
+  weight?:
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | 'variable'
+    | Array<'400' | '500' | '600' | '700' | '800'>
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Revalia<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -19651,6 +19714,26 @@ export declare function Rubik_Beastly<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Broken_Fax<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Bubbles<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -19707,6 +19790,46 @@ export declare function Rubik_Distressed<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Doodle_Shadow<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Doodle_Triangles<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Gemstones<
   T extends CssVariable | undefined = undefined
 >(options: {
@@ -19747,6 +19870,46 @@ export declare function Rubik_Iso<
   adjustFontFallback?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Lines<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Maps<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Marker_Hatch<
@@ -19843,6 +20006,26 @@ export declare function Rubik_Puddles<
   adjustFontFallback?: boolean
   subsets?: Array<
     'cyrillic' | 'cyrillic-ext' | 'hebrew' | 'latin' | 'latin-ext'
+  >
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Rubik_Scribble<
+  T extends CssVariable | undefined = undefined
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    | 'cyrillic'
+    | 'cyrillic-ext'
+    | 'hebrew'
+    | 'latin'
+    | 'latin-ext'
+    | 'math'
+    | 'symbols'
   >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Rubik_Spray_Paint<
