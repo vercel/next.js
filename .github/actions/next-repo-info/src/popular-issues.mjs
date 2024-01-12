@@ -39,8 +39,11 @@ async function run() {
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
-      q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
+      q: `repo:${owner}/${repo}+is:issue+is:open`,
     })
+
+    // https://github.com/search?q=+repo%3Avercel%2Fnext.js+is%3Aissue+is%3Aopen+created%3A%3E%3D2023-12-11+sort%3Areactions-%2B1-desc&type=issues
+    // ${owner}/${repo}+is:issue+is:open+created:>=${oneMonthAgo} sort:reactions-+1-desc
 
     console.log('[test] res =', res)
 
