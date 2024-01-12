@@ -1553,15 +1553,16 @@
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
       "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
-      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
-    "failed": [],
+    "failed": [
+      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
