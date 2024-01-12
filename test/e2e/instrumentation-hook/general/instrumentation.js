@@ -1,3 +1,6 @@
+// Unused, should not error
+import { headers } from 'next/headers'
+
 export function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {
     console.log('instrumentation hook on the edge')

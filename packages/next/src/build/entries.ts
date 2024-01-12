@@ -40,6 +40,7 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
   isInstrumentationHookFile,
+  isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -431,6 +432,15 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
+export function getInstrumentationEntry(opts: { absolutePagePath: string }) {
+  return {
+    import: opts.absolutePagePath,
+    // the '../' is needed to make sure the file is not chunked
+    filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
+    layer: WEBPACK_LAYERS.reactServerComponents,
+  }
+}
+
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
     import: `next-app-loader?${stringify(opts)}!`,
@@ -640,11 +650,10 @@ export async function createEntrypoints(
             isInstrumentationHookFile(page) &&
             pagesType === PAGE_TYPES.ROOT
           ) {
-            server[serverBundlePath.replace('src/', '')] = {
-              import: absolutePagePath,
-              // the '../' is needed to make sure the file is not chunked
-              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-            }
+            server[serverBundlePath.replace('src/', '')] =
+              getInstrumentationEntry({
+                absolutePagePath,
+              })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
@@ -766,6 +775,25 @@ export function finalizeEntrypoint({
       : value
 
   const isApi = name.startsWith('pages/api/')
+  const isInstrumentation = isInstrumentationHookFilename(name)
+  console.log('name', name)
+  if (isInstrumentation) {
+    console.log('instrument compilerType', compilerType)
+    if (compilerType === COMPILER_NAMES.server) {
+      const layer = isApi
+        ? WEBPACK_LAYERS.api
+        : isServerComponent || isInstrumentation
+        ? WEBPACK_LAYERS.reactServerComponents
+        : undefined
+      console.log('instrument server layer', layer)
+    } else if (compilerType === COMPILER_NAMES.edgeServer) {
+      const layer =
+        isMiddlewareFilename(name) || isApi || isInstrumentation
+          ? WEBPACK_LAYERS.middleware
+          : undefined
+      console.log('instrument edge layer', layer)
+    }
+  }
 
   switch (compilerType) {
     case COMPILER_NAMES.server: {
@@ -774,7 +802,7 @@ export function finalizeEntrypoint({
         runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
         layer: isApi
           ? WEBPACK_LAYERS.api
-          : isServerComponent
+          : isServerComponent || isInstrumentation
           ? WEBPACK_LAYERS.reactServerComponents
           : undefined,
         ...entry,
@@ -783,7 +811,7 @@ export function finalizeEntrypoint({
     case COMPILER_NAMES.edgeServer: {
       return {
         layer:
-          isMiddlewareFilename(name) || isApi
+          isMiddlewareFilename(name) || isApi || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },

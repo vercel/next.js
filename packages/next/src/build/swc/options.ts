@@ -79,7 +79,9 @@ function getBaseSWCOptions({
   bundleLayer?: WebpackLayerName
 }) {
   const isReactServerLayer =
-    bundleLayer === WEBPACK_LAYERS.reactServerComponents
+    bundleLayer === WEBPACK_LAYERS.reactServerComponents ||
+    bundleLayer === WEBPACK_LAYERS.middleware
+  // console.log('filename', filename, 'layer', bundleLayer, 'serverComponents', serverComponents, 'isReactServerLayer', isReactServerLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
