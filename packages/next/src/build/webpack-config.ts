@@ -1403,16 +1403,8 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && dev && isClient
           ? [
               {
-                test: {
-                  and: [
-                    codeCondition.test,
-                    {
-                      not: [transpilePackagesRegex],
-                    },
-                  ],
-                },
-
-                exclude: [codeCondition.exclude],
+                test: codeCondition.test,
+                exclude: [codeCondition.exclude, transpilePackagesRegex],
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 use: reactRefreshLoaders,
                 resolve: {
