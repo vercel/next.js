@@ -781,6 +781,12 @@ export default async function getBaseWebpackConfig(
       .join('|')})[/\\\\]`
   )
 
+  const transpilePackagesRegex = new RegExp(
+    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+      ?.map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
+  )
+
   const handleExternals = makeExternalHandler({
     config,
     optOutBundlingPackages,
@@ -1397,8 +1403,16 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && dev && isClient
           ? [
               {
-                test: codeCondition.test,
-                exclude: codeCondition.exclude,
+                test: {
+                  and: [
+                    codeCondition.test,
+                    {
+                      not: [transpilePackagesRegex],
+                    },
+                  ],
+                },
+
+                exclude: [codeCondition.exclude],
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 use: reactRefreshLoaders,
                 resolve: {
