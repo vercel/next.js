@@ -31242,7 +31242,10 @@ var __webpack_exports__ = {}
     e.forEach((e) => {
       t.push({
         type: 'section',
-        text: { type: 'mrkdwn', text: `• <|#${e.number}>: ${e.title}` },
+        text: {
+          type: 'mrkdwn',
+          text: `• <${e.html_url}|#${e.number}>: ${e.title}`,
+        },
       })
     })
     return t
@@ -31262,7 +31265,7 @@ var __webpack_exports__ = {}
       if (a.items.length > 0) {
         await o.chat.postMessage({
           blocks: generateBlocks(a.items),
-          channel: '#next-js-repo-udpates',
+          channel: '#next-js-repo-updates',
           icon_emoji: ':github:',
           username: 'GitHub',
         })
