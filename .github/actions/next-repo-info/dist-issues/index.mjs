@@ -31256,7 +31256,7 @@ var __webpack_exports__ = {}
       const i = getOneMonthAgoDate()
       const a = await r.rest.search.issuesAndPullRequests({
         per_page: 15,
-        q: `repo:${A}/${n} is:issue state:open created:>=${i} sort:reactions-+1-desc`,
+        q: `repo:${A}/${n} is:issue state:open created:>=${i}`,
       })
       console.log('[test] res =', a)
       if (a.data.items.length > 0) {
