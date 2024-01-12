@@ -12,18 +12,18 @@ async function run() {
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
     const { owner, repo } = context.repo
-    const prs = await octoClient.rest.search.issuesAndPullRequests({
+    const { data } = await octoClient.rest.search.issuesAndPullRequests({
       q: `repo:${owner}/${repo}+is:pr+is:open+review:approved -is:draft`,
     })
 
-    const pendingPRs = prs.data.total_count
+    const pendingPRs = data.total_count
 
     if (pendingPRs) {
       await slackClient.chat.postMessage({
-        channel: '#next-js-repo-udpates',
-        text: `Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved+-is%3Adraft|${prs.data.items.length} PRs> awaiting merge.`,
-        username: 'GitHub',
+        channel: '#next-js-repo-updates',
         icon_emoji: ':github:',
+        text: `Pending PRs for Next.js: There are <https://github.com/vercel/next.js/pulls?q=is%3Apr+is%3Aopen+review%3Aapproved+-is%3Adraft|${prs.data.items.length} PRs> awaiting merge.`,
+        username: 'Github Notifier',
       })
 
       info(`Posted to Slack: ${pendingPRs} pending PRs`)
