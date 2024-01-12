@@ -39,7 +39,7 @@ async function run() {
 
     const res = await octoClient.rest.search.issuesAndPullRequests({
       per_page: 15,
-      q: `repo:${owner}/${repo}+is:issue+is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
+      q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo} sort:reactions-+1-desc`,
     })
 
     console.log('[test] res =', res)
