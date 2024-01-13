@@ -181,8 +181,6 @@ describe('CSS Module client-side navigation', () => {
     })
     afterAll(async () => {
       proxyServer.close()
-      // something is hanging onto the process, so we need to SIGKILL
-      await killProcess(app.pid, 'SIGKILL')
       await killApp(app)
     })
 

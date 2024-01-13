@@ -4,7 +4,6 @@ import {
   fetchViaHTTP,
   findPort,
   initNextServerScript,
-  isAppRunning,
   killApp,
   launchApp,
   nextBuild,
@@ -131,7 +130,7 @@ function runTests(dev = false) {
       // yield event loop to kick off request before killing the app
       await waitFor(20)
       process.kill(app.pid, 'SIGTERM')
-      expect(isAppRunning(app)).toBe(true)
+      expect(app.exitCode).toBe(null)
 
       // `next dev` should kill the child immediately
       let start = Date.now()
@@ -139,11 +138,11 @@ function runTests(dev = false) {
       expect(Date.now() - start).toBeLessThan(LONG_RUNNING_MS)
 
       // `next dev` parent process is still running cleanup
-      expect(isAppRunning(app)).toBe(true)
+      expect(app.exitCode).toBe(null)
 
       // App finally shuts down
       await appKilledPromise
-      expect(isAppRunning(app)).toBe(false)
+      expect(app.exitCode).toBe(0)
     })
   } else {
     it('should wait for requests to complete before exiting', async () => {
@@ -160,11 +159,11 @@ function runTests(dev = false) {
       // yield event loop to kick off request before killing the app
       await waitFor(20)
       process.kill(app.pid, 'SIGTERM')
-      expect(isAppRunning(app)).toBe(true)
+      expect(app.exitCode).toBe(null)
 
       // Long running response should still be running after a bit
       await waitFor(LONG_RUNNING_MS / 2)
-      expect(isAppRunning(app)).toBe(true)
+      expect(app.exitCode).toBe(null)
       expect(responseResolved).toBe(false)
 
       // App responds as expected without being interrupted
@@ -174,12 +173,12 @@ function runTests(dev = false) {
       expect(await res.json()).toStrictEqual({ hello: 'world' })
 
       // App is still running briefly after response returns
-      expect(isAppRunning(app)).toBe(true)
+      expect(app.exitCode).toBe(null)
       expect(responseResolved).toBe(true)
 
       // App finally shuts down
       await appKilledPromise
-      expect(isAppRunning(app)).toBe(false)
+      expect(app.exitCode).toBe(0)
     })
 
     describe('should not accept new requests during shutdown cleanup', () => {
@@ -191,11 +190,11 @@ function runTests(dev = false) {
         // yield event loop to kick off request before killing the app
         await waitFor(20)
         process.kill(app.pid, 'SIGTERM')
-        expect(isAppRunning(app)).toBe(true)
+        expect(app.exitCode).toBe(null)
 
         // Long running response should still be running after a bit
         await waitFor(LONG_RUNNING_MS / 2)
-        expect(isAppRunning(app)).toBe(true)
+        expect(app.exitCode).toBe(null)
 
         // Second request should be rejected
         await expect(
@@ -209,18 +208,18 @@ function runTests(dev = false) {
         expect(await res.json()).toStrictEqual({ hello: 'world' })
 
         // App is still running briefly after response returns
-        expect(isAppRunning(app)).toBe(true)
+        expect(app.exitCode).toBe(null)
 
         // App finally shuts down
         await appKilledPromise
-        expect(isAppRunning(app)).toBe(false)
+        expect(app.exitCode).toBe(0)
       })
 
       it('when there is no activity', async () => {
         const appKilledPromise = once(app, 'exit')
 
         process.kill(app.pid, 'SIGTERM')
-        expect(isAppRunning(app)).toBe(true)
+        expect(app.exitCode).toBe(null)
 
         // yield event loop to allow server to start the shutdown process
         await waitFor(20)
@@ -230,7 +229,7 @@ function runTests(dev = false) {
 
         // App finally shuts down
         await appKilledPromise
-        expect(isAppRunning(app)).toBe(false)
+        expect(app.exitCode).toBe(0)
       })
     })
   }

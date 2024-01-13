@@ -498,7 +498,7 @@ export function buildTS(
 
 export async function killProcess(
   pid: number,
-  signal: string | number = 'SIGTERM'
+  signal: NodeJS.Signals | number = 'SIGTERM'
 ): Promise<void> {
   return await new Promise((resolve, reject) => {
     treeKill(pid, signal, (err) => {
@@ -524,23 +524,14 @@ export async function killProcess(
   })
 }
 
-export function isAppRunning(instance: ChildProcess) {
-  if (!instance?.pid) return false
-
-  try {
-    // 0 is a special signal that tests the existence of a process
-    process.kill(instance.pid, 0)
-    return true
-  } catch {
-    return false
-  }
-}
-
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
-  if (instance?.pid && isAppRunning(instance)) {
+export async function killApp(
+  instance: ChildProcess,
+  signal: NodeJS.Signals | number = 'SIGKILL'
+) {
+  if (instance?.pid && instance.exitCode === null) {
     const exitPromise = once(instance, 'exit')
-    await killProcess(instance.pid)
+    await killProcess(instance.pid, signal)
     await exitPromise
   }
 }

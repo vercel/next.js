@@ -28,6 +28,7 @@ import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
@@ -35,28 +36,20 @@ import {
 import os from 'os'
 import { once } from 'node:events'
 
-type Child = ReturnType<typeof fork>
-type KillSignal = Parameters<Child['kill']>[0]
-
 let dir: string
-let child: undefined | Child
+let child: undefined | ChildProcess
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (
-  signal: KillSignal | null,
-  childExited: boolean = false
-) => {
-  if (child) {
-    child.kill(signal ?? 0)
-  }
+const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+  if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  if (child && !childExited) {
+  if (child?.pid && child.exitCode === null) {
     await once(child, 'exit').catch(() => {})
   }
 
@@ -303,7 +296,7 @@ const nextDev: CliCommand = async (args) => {
           }
           return startServer(options)
         }
-        await handleSessionStop(signal, true)
+        await handleSessionStop(signal)
       })
     })
   }
