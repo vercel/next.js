@@ -105,7 +105,7 @@ function clearOutdatedErrors() {
 }
 
 // Successful compilation.
-function handleSuccess() {
+function handleSuccess(updatedModules?: ReadonlyArray<string>) {
   clearOutdatedErrors()
 
   if (MODE === 'webpack') {
@@ -120,6 +120,7 @@ function handleSuccess() {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
+    onFastRefresh(updatedModules)
     onBuildOk()
   }
 }
@@ -204,7 +205,7 @@ function onBeforeFastRefresh(updatedModules: string[]) {
   }
 }
 
-function onFastRefresh(updatedModules: string[]) {
+function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
   onBuildOk()
   if (updatedModules.length > 0) {
     // Only complete a pending state if we applied updates
@@ -290,7 +291,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           clientId: window.__nextDevClientId,
         })
       )
-      return handleSuccess()
+      return handleSuccess(obj.updatedModules)
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()

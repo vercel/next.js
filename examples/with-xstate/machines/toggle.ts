@@ -1,23 +1,23 @@
-import { createMachine } from 'xstate'
+import { createMachine } from "xstate";
 
 type ToggleContext = {
-  value: 'inactive' | 'active'
-}
+  value: "inactive" | "active";
+};
 
 type ToggleEvents = {
-  type: 'TOGGLE'
-}
+  type: "TOGGLE";
+};
 
 export const toggleMachine = createMachine<ToggleContext, ToggleEvents>({
   predictableActionArguments: true,
-  id: 'toggle',
-  initial: 'inactive',
+  id: "toggle",
+  initial: "inactive",
   states: {
     inactive: {
-      on: { TOGGLE: 'active' },
+      on: { TOGGLE: "active" },
     },
     active: {
-      on: { TOGGLE: 'inactive' },
+      on: { TOGGLE: "inactive" },
     },
   },
-})
+});

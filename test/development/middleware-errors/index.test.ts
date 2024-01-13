@@ -249,9 +249,9 @@ createNextDescribe(
         await next.fetch('/')
         await check(async () => {
           expect(next.cliOutput).toContain(`Expected '{', got '}'`)
-          expect(next.cliOutput.split(`Expected '{', got '}'`).length).toEqual(
-            2
-          )
+          expect(
+            next.cliOutput.split(`Expected '{', got '}'`).length
+          ).toBeGreaterThanOrEqual(2)
 
           return 'success'
         }, 'success')

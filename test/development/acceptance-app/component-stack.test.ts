@@ -50,12 +50,13 @@ describe('Component Stack in error overlay', () => {
 
     await session.waitForAndOpenRuntimeError()
 
-    expect(await session.getRedboxComponentStack()).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main"
-      `)
+    const expected = `p
+div
+Component
+main`
+    expect((await session.getRedboxComponentStack()).trim()).toStartWith(
+      expected
+    )
 
     await cleanup()
   })

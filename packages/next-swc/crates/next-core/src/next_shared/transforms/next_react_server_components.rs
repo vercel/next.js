@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use next_transform_react_server_components::{server_components, Config, Options};
+use next_custom_transforms::transforms::react_server_components::*;
 use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{

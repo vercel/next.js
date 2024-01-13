@@ -159,7 +159,6 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  windowHistorySupport?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -281,6 +280,35 @@ export interface ExperimentalConfig {
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
    */
   typedRoutes?: boolean
+
+  /**
+   * Runs the compilations for server and edge in parallel instead of in serial.
+   * This will make builds faster if there is enough server and edge functions
+   * in the application at the cost of more memory.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerCompiles?: boolean
+
+  /**
+   * Runs the logic to collect build traces for the server routes in parallel
+   * with other work during the compilation. This will increase the speed of
+   * the build at the cost of more memory. This option may incur some additional
+   * work compared to if the option was disabled since the work is started
+   * before data from the client compilation is available to potentially reduce
+   * the amount of code that needs to be traced. Despite that, this may still
+   * result in faster builds for some applications.
+   *
+   * Valid values are:
+   * - `true`: Collect the server build traces in parallel.
+   * - `false`: Do not collect the server build traces in parallel.
+   * - `undefined`: Collect server build traces in parallel only in the `experimental-compile` mode.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerBuildTraces?: boolean
 
   /**
    * Run the Webpack build in a separate process to optimize memory usage during build.
@@ -751,7 +779,6 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    windowHistorySupport: false,
     serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
@@ -801,6 +828,8 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    parallelServerCompiles: false,
+    parallelServerBuildTraces: false,
     ppr:
       // TODO: remove once we've made PPR default
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable

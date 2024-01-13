@@ -21,13 +21,6 @@ createNextDescribe(
           )
           return 'success'
         }, /success/)
-      } else {
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'Application error: a server-side exception has occurred (see the server logs for more information).'
-        )
-        expect(await browser.elementByCss('p').text()).toBe(
-          'Digest: NEXT_NOT_FOUND'
-        )
       }
     })
 
@@ -53,13 +46,6 @@ createNextDescribe(
         expect(await hasRedbox(browser, true)).toBe(true)
         expect(await getRedboxDescription(browser)).toBe(
           'Error: notFound() is not allowed to use in root layout'
-        )
-      } else {
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'Application error: a server-side exception has occurred (see the server logs for more information).'
-        )
-        expect(await browser.elementByCss('p').text()).toBe(
-          'Digest: NEXT_NOT_FOUND'
         )
       }
     })

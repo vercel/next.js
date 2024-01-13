@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function IndexPage() {
   return (
@@ -6,5 +6,5 @@ export default function IndexPage() {
       <Link href="/birds">Birds Example</Link>
       <Link href="/boxes">Boxes Example</Link>
     </div>
-  )
+  );
 }

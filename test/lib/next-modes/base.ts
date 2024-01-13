@@ -8,7 +8,7 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
@@ -433,7 +433,7 @@ export class NextInstance {
     // to connect the WebSocket and start watching.
     if (process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(500)
     }
   }
   private async handleDevWatchDelayAfterChange(filename: string) {
@@ -450,13 +450,21 @@ export class NextInstance {
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
   }
-  public async patchFile(filename: string, content: string) {
+  public async patchFile(
+    filename: string,
+    content: string | ((contents: string) => string)
+  ) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
     const newFile = !(await fs.pathExists(outputPath))
     await fs.ensureDir(path.dirname(outputPath))
-    await fs.writeFile(outputPath, content)
+    await fs.writeFile(
+      outputPath,
+      typeof content === 'function'
+        ? content(await this.readFile(filename))
+        : content
+    )
 
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)

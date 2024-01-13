@@ -1,32 +1,32 @@
-import { useEffect, useRef, useState } from 'react'
-import Script from 'next/script'
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 
-import s from '../styles/polyfill.module.css'
+import s from "../styles/polyfill.module.css";
 
 export default function Polyfill() {
-  const ref = useRef<HTMLSpanElement>(null)
-  const [lastIntersection, setIntersection] = useState(new Date())
+  const ref = useRef<HTMLSpanElement>(null);
+  const [lastIntersection, setIntersection] = useState(new Date());
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (intersections) => {
-        const isIntersecting = intersections[0]?.isIntersecting
+        const isIntersecting = intersections[0]?.isIntersecting;
 
         if (isIntersecting) {
-          setIntersection(new Date())
+          setIntersection(new Date());
         }
       },
       {
-        rootMargin: '45px',
-      }
-    )
+        rootMargin: "45px",
+      },
+    );
 
     if (ref.current) {
-      observer.observe(ref.current)
+      observer.observe(ref.current);
     }
 
-    return () => observer.disconnect()
-  }, [])
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <>
@@ -46,5 +46,5 @@ export default function Polyfill() {
         </section>
       </main>
     </>
-  )
+  );
 }
