@@ -526,11 +526,11 @@ export async function killProcess(
 
 // Kill a launched app
 export async function killApp(
-  instance: ChildProcess,
+  instance?: ChildProcess,
   signal: NodeJS.Signals | number = 'SIGKILL'
 ) {
   if (
-    instance.pid &&
+    instance?.pid &&
     instance.exitCode === null &&
     instance.signalCode === null
   ) {
