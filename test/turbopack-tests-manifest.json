@@ -1033,7 +1033,7 @@
   "test/development/acceptance-app/app-hmr-changes.test.ts": {
     "passed": [],
     "failed": [
-      "Error overlay - RSC build errors should handle successive HMR changes with errors correctly"
+      "Error overlay - RSC build errors Skipped in webpack should handle successive HMR changes with errors correctly"
     ],
     "pending": [],
     "flakey": [],
