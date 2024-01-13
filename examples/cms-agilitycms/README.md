@@ -87,6 +87,7 @@ To create an Author Content Definition in the Agility CMS Content Manager, follo
 5. Once you have added these fields, click on "Save & Close" to save your Author content definition.
 
 By following these steps, you will be able to define an Author Content Definition in the Agility CMS Content Manager.
+
 ### Step 3. Create a `List` based on your `Author` Content Definition
 
 From within the Agility CMS Content Manager, navigate to **Shared Content** and click the **+ (New)** button, then fill the form like so:
