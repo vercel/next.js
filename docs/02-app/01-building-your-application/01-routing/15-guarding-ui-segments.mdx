@@ -1,0 +1,49 @@
+---
+title: Guarding UI segments
+description: Learn how to protect route segments with shared and server-side executed guard functions.
+related:
+  description: Learn more about creating pages and layouts.
+  links:
+    - app/building-your-application/routing/pages-and-layouts
+---
+
+## Guarding UI segments
+
+UI segments (pages and its child pages) can be guarded by colocating `guard.js` files next to the routes.
+Whenever a valid page route is called and a page should be (re-)rendered, all guard functions will execute in order before rendering the page and all parent layouts.
+
+Guard functions are always executed in the server side react rendering context. They have the same capabilities as a RSC, but don't return any value.
+
+Contrary to the normal react rendering process which renders children before it's parents, guard functions of parent route segments are executed before any guard functions of it's children.
+
+You can define a guard function by `default` exporting a function from a `guard.js` file. The component can accept a `params` prop that will be populated with all route params (same behavior as in layout or page components).
+
+```ts filename="app/[projectId]/guard.ts" switcher
+export default function ProjectPagesGuard({
+  params,
+}: {
+  params: { projectId: string }
+}) {
+  if (params.projectId === 'invalid-project') {
+    // redirect the user to a valid fallback route
+  }
+}
+```
+
+```js filename="app/[projectId]/guard.js" switcher
+export default function ProjectPagesGuard({ params }) {
+  if (params.projectId === 'invalid-project') {
+    // redirect the user to a valid fallback route
+  }
+}
+```
+
+> **Good to know**:
+>
+> - Guard functions provide an easy way to conditionally disable certain functionalities of your app UI.
+> - Guard functions in a route are always nested (similar to [Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts)). The difference is the inverted execution order (parent route guard function executed first).
+> - Guard functions have access to the values of dynamic route segments.
+> - Guard functions can fetch data. View the [Data Fetching](/docs/app/building-your-application/data-fetching) section for more information.
+> - Passing data between a guard function and pages or layouts is not possible. However, you can fetch the same data in a route more than once, and React will [automatically dedupe the requests](/docs/app/building-your-application/caching#request-memoization) without affecting performance.
+> - `.js` or `.ts` file extensions can be used for guard functions.
+> - A `guard.js` and `page.js` file can be defined in the same folder. The guard function will also apply to the page colocated in the same folder.

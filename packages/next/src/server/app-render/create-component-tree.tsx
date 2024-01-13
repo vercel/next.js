@@ -11,6 +11,7 @@ import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import { RouteGuard, type Guard } from './route-guard'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -49,6 +50,7 @@ export async function createComponentTree({
   metadataOutlet,
   ctx,
   missingSlots,
+  parentGuards,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
@@ -62,6 +64,7 @@ export async function createComponentTree({
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
   missingSlots?: Set<string>
+  parentGuards?: Guard[]
 }): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -83,7 +86,14 @@ export async function createComponentTree({
   const { page, layoutOrPagePath, segment, components, parallelRoutes } =
     parseLoaderTree(tree)
 
-  const { layout, template, error, loading, 'not-found': notFound } = components
+  const {
+    layout,
+    template,
+    error,
+    loading,
+    'not-found': notFound,
+    guard,
+  } = components
 
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
@@ -98,6 +108,14 @@ export async function createComponentTree({
     injectedJS: injectedJSWithCurrentLayout,
     injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
   })
+
+  const currentGuard = guard
+    ? ((await interopDefault(await guard[0]())) as Guard)
+    : null
+
+  const currentGuards = currentGuard
+    ? [...(parentGuards ?? []), currentGuard]
+    : parentGuards
 
   const [Template, templateStyles, templateScripts] = template
     ? await createComponentStylesAndScripts({
@@ -415,6 +433,7 @@ export async function createComponentTree({
               metadataOutlet,
               ctx,
               missingSlots,
+              parentGuards: currentGuards,
             })
 
           currentStyles = childComponentStyles
@@ -545,6 +564,9 @@ export async function createComponentTree({
       actualSegment,
       parallelRouteCacheNodeSeedData,
       <>
+        {isPage && currentGuards ? (
+          <RouteGuard guards={currentGuards} params={currentParams} />
+        ) : null}
         {isPage ? metadataOutlet : null}
         {/* <Component /> needs to be the first element because we use `findDOMNode` in layout router to locate it. */}
         {isPage && isClientComponent ? (
