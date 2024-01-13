@@ -82,7 +82,8 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-  if (subrequests.includes(params.name)) {
+  const allowSubrequests = params.request.headers[`x-middleware-allow-subrequests`] === "true"
+  if (subrequests.includes(params.name) && !allowSubrequests) {
     return {
       waitUntil: Promise.resolve(),
       response: new runtime.context.Response(null, {
