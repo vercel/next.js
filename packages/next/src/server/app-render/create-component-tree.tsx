@@ -136,11 +136,9 @@ export async function createComponentTree({
   const [layoutOrPageMod] = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
-      spanName: 'resolve page modules',
-      attributes: {
-        'next.page': page?.[1],
-        'next.layout': layout?.[1],
-      },
+      hideSpan: !(isLayout || isPage),
+      spanName: 'resolve segment modules',
+      attributes: { 'next.segment': segment },
     },
     () => getLayoutOrPageModule(tree)
   )
