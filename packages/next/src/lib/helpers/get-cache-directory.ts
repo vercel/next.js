@@ -1,13 +1,10 @@
 import os from 'os'
 import path from 'path'
-import { fileExists } from '../file-exists'
+import fs from 'fs'
 
 // get platform specific cache directory adapted from playwright's handling
 // https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
-export async function getCacheDirectory(
-  fileDirectory: string,
-  envPath?: string
-) {
+export function getCacheDirectory(fileDirectory: string, envPath?: string) {
   let result
 
   if (envPath) {
@@ -29,7 +26,7 @@ export async function getCacheDirectory(
           path.join(os.homedir(), '.cache'),
           path.join(os.tmpdir()),
         ]) {
-          if (await fileExists(dir)) {
+          if (fs.existsSync(dir)) {
             systemCacheDirectory = dir
             break
           }

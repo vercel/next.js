@@ -1,48 +1,45 @@
-import '../node-polyfill-fetch'
+if (performance.getEntriesByName('next-start').length === 0) {
+  performance.mark('next-start')
+}
+import '../next'
 import '../require-hook'
 
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { SelfSignedCertificate } from '../../lib/mkcert'
+import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 
+import fs from 'fs'
+import v8 from 'v8'
+import path from 'path'
 import http from 'http'
 import https from 'https'
+import os from 'os'
+import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { getDebugPort } from './utils'
+import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import fs from 'fs'
-import {
-  WorkerRequestHandler,
-  WorkerUpgradeHandler,
-} from './setup-server-worker'
-import { checkIsNodeDebugging } from './is-node-debugging'
-import chalk from '../../lib/chalk'
+import { CONFIG_FILES } from '../../shared/lib/constants'
+import { getStartServerInfo, logStartInfo } from './app-info-log'
+import { validateTurboNextConfig } from '../../lib/turbopack-warning'
+import { type Span, trace, flushAllTraces } from '../../trace'
+import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
-
-if (process.env.NEXT_CPU_PROF) {
-  process.env.__NEXT_PRIVATE_CPU_PROFILE = `CPU.router`
-  require('./cpu-profile')
-}
+let startServerSpan: Span | undefined
 
 export interface StartServerOptions {
   dir: string
   port: number
-  logReady?: boolean
   isDev: boolean
   hostname: string
   allowRetry?: boolean
   customServer?: boolean
   minimalMode?: boolean
   keepAliveTimeout?: number
-  // logging info
-  envInfo?: string[]
-  expFeatureInfo?: string[]
   // this is dev-server only
-  selfSignedCertificate?: {
-    key: string
-    cert: string
-  }
+  selfSignedCertificate?: SelfSignedCertificate
   isExperimentalTestProxy?: boolean
 }
 
@@ -50,20 +47,24 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
+  server,
   hostname,
   minimalMode,
   isNodeDebugging,
   keepAliveTimeout,
   experimentalTestProxy,
+  experimentalHttpsServer,
 }: {
   dir: string
   port: number
   isDev: boolean
+  server?: import('http').Server
   hostname: string
   minimalMode?: boolean
   isNodeDebugging?: boolean
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
+  experimentalHttpsServer?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
     dir,
@@ -71,27 +72,31 @@ export async function getRequestHandlers({
     hostname,
     dev: isDev,
     minimalMode,
-    workerType: 'router',
+    server,
     isNodeDebugging: isNodeDebugging || false,
     keepAliveTimeout,
     experimentalTestProxy,
+    experimentalHttpsServer,
+    startServerSpan,
   })
 }
 
-export async function startServer({
-  dir,
-  port,
-  isDev,
-  hostname,
-  minimalMode,
-  allowRetry,
-  keepAliveTimeout,
-  isExperimentalTestProxy,
-  logReady = true,
-  selfSignedCertificate,
-  envInfo,
-  expFeatureInfo,
-}: StartServerOptions): Promise<void> {
+export async function startServer(
+  serverOptions: StartServerOptions
+): Promise<void> {
+  const {
+    dir,
+    isDev,
+    hostname,
+    minimalMode,
+    allowRetry,
+    keepAliveTimeout,
+    isExperimentalTestProxy,
+    selfSignedCertificate,
+  } = serverOptions
+  let { port } = serverOptions
+
+  process.title = 'next-server'
   let handlersReady = () => {}
   let handlersError = () => {}
 
@@ -142,6 +147,25 @@ export async function startServer({
       res.end('Internal Server Error')
       Log.error(`Failed to handle request for ${req.url}`)
       console.error(err)
+    } finally {
+      if (isDev) {
+        if (
+          v8.getHeapStatistics().used_heap_size >
+          0.8 * v8.getHeapStatistics().heap_size_limit
+        ) {
+          Log.warn(
+            `Server is approaching the used memory threshold, restarting...`
+          )
+          trace('server-restart-close-to-memory-threshold', undefined, {
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
+          }).stop()
+          await flushAllTraces()
+          process.exit(RESTART_EXIT_CODE)
+        }
+      }
     }
   }
 
@@ -189,7 +213,7 @@ export async function startServer({
     }
   })
 
-  const isNodeDebugging = checkIsNodeDebugging()
+  const nodeDebugType = checkNodeDebugType()
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
@@ -199,80 +223,73 @@ export async function startServer({
           ? addr?.address || hostname || 'localhost'
           : addr
       )
-
       const formattedHostname =
-        !hostname || hostname === '0.0.0.0'
+        !hostname || actualHostname === '0.0.0.0'
           ? 'localhost'
           : actualHostname === '[::]'
           ? '[::1]'
-          : actualHostname
+          : formatHostname(hostname)
 
       port = typeof addr === 'object' ? addr?.port || port : port
+
+      const networkUrl = hostname ? `http://${actualHostname}:${port}` : null
       const appUrl = `${
         selfSignedCertificate ? 'https' : 'http'
       }://${formattedHostname}:${port}`
 
-      if (isNodeDebugging) {
+      if (nodeDebugType) {
         const debugPort = getDebugPort()
         Log.info(
-          `the --inspect${
-            isNodeDebugging === 'brk' ? '-brk' : ''
-          } option was detected, the Next.js router server should be inspected at port ${debugPort}.`
+          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at port ${debugPort}.`
         )
       }
 
-      if (logReady) {
-        Log.bootstrap(
-          chalk.bold(
-            chalk.hex('#ad7fa8')(
-              ` ${`${Log.prefixes.ready} Next.js`} ${
-                process.env.__NEXT_VERSION
-              }`
-            )
-          )
-        )
-        Log.bootstrap(` - Local:        ${appUrl}`)
-        if (hostname) {
-          Log.bootstrap(
-            ` - Network:      ${actualHostname}${
-              (port + '').startsWith(':') ? '' : ':'
-            }${port}`
-          )
-        }
-        if (envInfo?.length)
-          Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
+      // expose the main port to render workers
+      process.env.PORT = port + ''
 
-        if (expFeatureInfo?.length) {
-          Log.bootstrap(` - Experiments (use at your own risk):`)
-          // only show maximum 3 flags
-          for (const exp of expFeatureInfo.slice(0, 3)) {
-            Log.bootstrap(`    · ${exp}`)
-          }
-          /* ${expFeatureInfo.length - 3} more */
-          if (expFeatureInfo.length > 3) {
-            Log.bootstrap(`    · ...`)
-          }
-        }
-        // expose the main port to render workers
-        process.env.PORT = port + ''
-
-        // New line after the bootstrap info
-        Log.info('')
+      // Only load env and config in dev to for logging purposes
+      let envInfo: string[] | undefined
+      let expFeatureInfo: string[] | undefined
+      if (isDev) {
+        const startServerInfo = await getStartServerInfo(dir)
+        envInfo = startServerInfo.envInfo
+        expFeatureInfo = startServerInfo.expFeatureInfo
       }
+      logStartInfo({
+        networkUrl,
+        appUrl,
+        envInfo,
+        expFeatureInfo,
+        maxExperimentalFeatures: 3,
+      })
 
       try {
-        const cleanup = () => {
+        const cleanup = (code: number | null) => {
           debug('start-server process cleanup')
           server.close()
-          process.exit(0)
+          process.exit(code ?? 0)
         }
         const exception = (err: Error) => {
+          if (isPostpone(err)) {
+            // React postpones that are unhandled might end up logged here but they're
+            // not really errors. They're just part of rendering.
+            return
+          }
+
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', cleanup)
-        process.on('SIGINT', cleanup)
-        process.on('SIGTERM', cleanup)
+        process.on('exit', (code) => cleanup(code))
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          // callback value is signal string, exit with 0
+          process.on('SIGINT', () => cleanup(0))
+          process.on('SIGTERM', () => cleanup(0))
+        }
+        process.on('rejectionHandled', () => {
+          // It is ok to await a Promise late in Next.js as it allows for better
+          // prefetching patterns to avoid waterfalls. We ignore loggining these.
+          // We should've already errored in anyway unhandledRejection.
+        })
         process.on('uncaughtException', exception)
         process.on('unhandledRejection', exception)
 
@@ -280,15 +297,39 @@ export async function startServer({
           dir,
           port,
           isDev,
+          server,
           hostname,
           minimalMode,
-          isNodeDebugging: Boolean(isNodeDebugging),
+          isNodeDebugging: Boolean(nodeDebugType),
           keepAliveTimeout,
           experimentalTestProxy: !!isExperimentalTestProxy,
+          experimentalHttpsServer: !!selfSignedCertificate,
         })
         requestHandler = initResult[0]
         upgradeHandler = initResult[1]
+
+        const startServerProcessDuration =
+          performance.mark('next-start-end') &&
+          performance.measure(
+            'next-start-duration',
+            'next-start',
+            'next-start-end'
+          ).duration
+
         handlersReady()
+        const formatDurationText =
+          startServerProcessDuration > 2000
+            ? `${Math.round(startServerProcessDuration / 100) / 10}s`
+            : `${Math.round(startServerProcessDuration)}ms`
+
+        Log.event(`Ready in ${formatDurationText}`)
+
+        if (process.env.TURBOPACK) {
+          await validateTurboNextConfig({
+            ...serverOptions,
+            isDev: true,
+          })
+        }
       } catch (err) {
         // fatal error if we can't setup
         handlersError()
@@ -300,4 +341,61 @@ export async function startServer({
     })
     server.listen(port, hostname)
   })
+
+  if (isDev) {
+    function watchConfigFiles(
+      dirToWatch: string,
+      onChange: (filename: string) => void
+    ) {
+      const wp = new Watchpack()
+      wp.watch({
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
+      })
+      wp.on('change', onChange)
+    }
+    watchConfigFiles(dir, async (filename) => {
+      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
+        Log.info(
+          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
+        )
+        return
+      }
+
+      Log.warn(
+        `Found a change in ${path.basename(
+          filename
+        )}. Restarting the server to apply the changes...`
+      )
+      process.exit(RESTART_EXIT_CODE)
+    })
+  }
+}
+
+if (process.env.NEXT_PRIVATE_WORKER && process.send) {
+  process.addListener('message', async (msg: any) => {
+    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+      startServerSpan = trace('start-dev-server', undefined, {
+        cpus: String(os.cpus().length),
+        platform: os.platform(),
+        'memory.freeMem': String(os.freemem()),
+        'memory.totalMem': String(os.totalmem()),
+        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+      })
+      await startServerSpan.traceAsyncFn(() =>
+        startServer(msg.nextWorkerOptions)
+      )
+      const memoryUsage = process.memoryUsage()
+      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan.setAttribute(
+        'memory.heapTotal',
+        String(memoryUsage.heapTotal)
+      )
+      startServerSpan.setAttribute(
+        'memory.heapUsed',
+        String(memoryUsage.heapUsed)
+      )
+      process.send({ nextServerReady: true })
+    }
+  })
+  process.send({ nextWorkerReady: true })
 }

@@ -226,6 +226,67 @@ describe('Error overlay - RSC build errors', () => {
     await cleanup()
   })
 
+  const invalidReactServerApis = [
+    'Component',
+    'createContext',
+    'createFactory',
+    'PureComponent',
+    'useDeferredValue',
+    'useEffect',
+    'useImperativeHandle',
+    'useInsertionEffect',
+    'useLayoutEffect',
+    'useReducer',
+    'useRef',
+    'useState',
+    'useSyncExternalStore',
+    'useTransition',
+    'useOptimistic',
+  ]
+  for (const api of invalidReactServerApis) {
+    it(`should error when ${api} from react is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-apis/${api.toLowerCase()}`
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        // `Component` has a custom error message
+        api === 'Component'
+          ? `You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+          : `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+
+      await cleanup()
+    })
+  }
+
+  const invalidReactDomServerApis = [
+    'findDOMNode',
+    'flushSync',
+    'unstable_batchedUpdates',
+    'useFormStatus',
+    'useFormState',
+  ]
+  for (const api of invalidReactDomServerApis) {
+    it(`should error when ${api} from react-dom is used in server component`, async () => {
+      const { session, cleanup } = await sandbox(
+        next,
+        undefined,
+        `/server-with-errors/react-dom-apis/${api.toLowerCase()}`
+      )
+
+      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs ${api}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components`
+      )
+
+      await cleanup()
+    })
+  }
+
   it('should allow to use and handle rsc poisoning server-only', async () => {
     const { session, cleanup } = await sandbox(
       next,
@@ -287,25 +348,29 @@ describe('Error overlay - RSC build errors', () => {
     )
 
     expect(await session.hasRedbox(true)).toBe(true)
-    await check(() => session.getRedboxSource(), /must be a Client Component/)
+    await check(
+      () => session.getRedboxSource(),
+      /must be a Client \n| Component/
+    )
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./app/server-with-errors/error-file/error.js
-        ReactServerComponentsError:
+      `
+      "./app/server-with-errors/error-file/error.js
+      Error: 
+        x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
+        | of the file to resolve this issue.
+        | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+        | 
+        | 
+         ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+       1 | export default function Error() {}
+         : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         \`----
 
-        ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-
-           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-         1 | export default function Error() {}
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-           \`----
-
-        Import path:
-        ./app/server-with-errors/error-file/error.js"
-      `)
+      Import trace for requested module:
+      ./app/server-with-errors/error-file/error.js"
+    `
     )
 
     await cleanup()
@@ -330,7 +395,7 @@ describe('Error overlay - RSC build errors', () => {
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
-    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the \\"use client\\" directive the top of the file to resolve this issue.
+    //   ./app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
 
     //      ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
     //    1 |
@@ -375,65 +440,6 @@ describe('Error overlay - RSC build errors', () => {
 
     expect(await session.getRedboxDescription()).toContain(
       'Cannot add property x, object is not extensible'
-    )
-
-    await cleanup()
-  })
-
-  it('should show which import caused an error in node_modules', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          'node_modules/client-package/module2.js',
-          "import { useState } from 'react'",
-        ],
-        ['node_modules/client-package/module1.js', "import './module2.js'"],
-        ['node_modules/client-package/index.js', "import './module1.js'"],
-        [
-          'node_modules/client-package/package.json',
-          outdent`
-            {
-              "name": "client-package",
-              "version": "0.0.1"
-            }
-          `,
-        ],
-        ['app/Component.js', "import 'client-package'"],
-        [
-          'app/page.js',
-          outdent`
-            import './Component.js'
-            export default function Page() {
-              return <p>Hello world</p>
-            }
-          `,
-        ],
-      ])
-    )
-
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
-        "./app/Component.js
-        ReactServerComponentsError:
-
-        You're importing a component that needs useState. It only works in a Client Component but none of its parents are marked with \\"use client\\", so they're Server Components by default.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials
-
-           ,-[TEST_DIR/node_modules/client-package/module2.js:1:1]
-         1 | import { useState } from 'react'
-           :          ^^^^^^^^
-           \`----
-
-        The error was caused by importing 'client-package/index.js' in './app/Component.js'.
-
-        Maybe one of these should be marked as a client entry with \\"use client\\":
-          ./app/Component.js
-          ./app/page.js"
-      `)
     )
 
     await cleanup()

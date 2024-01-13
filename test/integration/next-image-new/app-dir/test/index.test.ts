@@ -357,6 +357,15 @@ function runTests(mode) {
       () => browser.eval(`document.getElementById("msg9").textContent`),
       'loaded 1 img9 with dimensions 400x400'
     )
+
+    if (mode === 'dev') {
+      const warnings = (await browser.log('browser'))
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).toMatch(
+        /Image with src "(.*)" is using deprecated "onLoadingComplete" property/gm
+      )
+    }
   })
 
   it('should callback native onLoad with sythetic event', async () => {
@@ -1517,8 +1526,7 @@ describe('Image Component Default Tests', () => {
 
     runTests('dev')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

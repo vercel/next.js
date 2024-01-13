@@ -5,6 +5,8 @@ import { describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
+const IS_TURBOPACK = Boolean(process.env.TURBOPACK)
+
 describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -211,7 +213,18 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     const source = await session.getRedboxSource()
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      next.normalizeSnapshot(
+        IS_TURBOPACK
+          ? `
+      "./index.js:7:1
+      Parsing ecmascript source code failed
+        5 |     div
+        6 |   )
+      > 7 | }
+          |  ^
+      Unexpected eof"
+    `
+          : `
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -237,7 +250,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Import trace for requested module:
         ./index.js
         ./pages/index.js"
-      `)
+      `
+      )
     )
 
     await cleanup()
@@ -335,13 +349,18 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await session.patch('index.module.css', `.button {`)
     expect(await session.hasRedbox(true)).toBe(true)
     const source = await session.getRedboxSource()
-    expect(source).toMatch('./index.module.css:1:1')
-    expect(source).toMatch('Syntax error: ')
-    expect(source).toMatch('Unclosed block')
+    expect(source).toMatch(
+      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+    )
+    if (!IS_TURBOPACK) {
+      expect(source).toMatch('Syntax error: ')
+      expect(source).toMatch('Unclosed block')
+    }
     expect(source).toMatch('> 1 | .button {')
-    expect(source).toMatch('    | ^')
+    expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
 
-    // Not local error
+    // Checks for selectors that can't be prefixed.
+    // Selector "button" is not pure (pure selectors must contain at least one local class or id)
     await session.patch('index.module.css', `button {}`)
     expect(await session.hasRedbox(true)).toBe(true)
     const source2 = await session.getRedboxSource()
@@ -631,7 +650,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     expect(await session.hasRedbox(true)).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: {\\"a\\":1,\\"b\\":\\"x\\"}"`
+      `"Error: {"a":1,"b":"x"}"`
     )
 
     // fix previous error

@@ -18,7 +18,7 @@ createNextDescribe(
   ({ next }) => {
     it('should warn if @next/font is in deps', async () => {
       await next.start()
-      await check(() => next.cliOutput, /ready/)
+      await check(() => next.cliOutput, /ready/i)
       await check(
         () => next.cliOutput,
         new RegExp('please use the built-in `next/font` instead')
@@ -35,7 +35,7 @@ createNextDescribe(
       await next.patchFile('package.json', JSON.stringify(packageJson))
 
       await next.start()
-      await check(() => next.cliOutput, /ready/)
+      await check(() => next.cliOutput, /ready/i)
       expect(next.cliOutput).not.toInclude(
         'please use the built-in `next/font` instead'
       )

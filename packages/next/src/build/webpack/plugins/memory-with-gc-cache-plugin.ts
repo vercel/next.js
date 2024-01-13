@@ -32,7 +32,8 @@ The default for max generations is 5, so 1/5th of the modules would be marked fo
 This plugin instead always checks the cache and decreases the time to live of all entries. That way memory is cleaned up earlier.
 */
 
-import { type Compiler, webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { Compiler } from 'next/dist/compiled/webpack/webpack'
 
 // Webpack doesn't expose Etag as a type so get it this way instead.
 type Etag = Parameters<typeof webpack.Cache.prototype.get>[1]

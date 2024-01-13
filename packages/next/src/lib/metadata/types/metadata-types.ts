@@ -105,7 +105,7 @@ export type IconDescriptor = {
   rel?: string
   media?: string
   /**
-   * @see https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority
+   * @see https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority
    */
   fetchPriority?: 'high' | 'low' | 'auto'
 }

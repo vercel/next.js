@@ -34,10 +34,33 @@ function readFinalStringChunk(decoder, buffer) {
   return decoder.decode(buffer);
 }
 
-// eslint-disable-next-line no-unused-vars
+// This is the parsed shape of the wire format which is why it is
+// condensed to only the essentialy information
+var ID = 0;
+var CHUNKS = 1;
+var NAME = 2; // export const ASYNC = 3;
+// This logic is correct because currently only include the 4th tuple member
+// when the module is async. If that changes we will need to actually assert
+// the value is true. We don't index into the 4th slot because flow does not
+// like the potential out of bounds access
+
+function isAsyncImport(metadata) {
+  return metadata.length === 4;
+}
+
+// The reason this function needs to defined here in this file instead of just
+// being exported directly from the WebpackDestination... file is because the
+// ClientReferenceMetadata is opaque and we can't unwrap it there.
+// This should get inlined and we could also just implement an unwrapping function
+// though that risks it getting used in places it shouldn't be. This is unfortunate
+// but currently it seems to be the best option we have.
+
+function prepareDestinationForModule(moduleLoading, nonce, metadata) {
+  prepareDestinationWithChunks(moduleLoading, metadata[CHUNKS], nonce);
+}
 function resolveClientReference(bundlerConfig, metadata) {
-  var moduleExports = bundlerConfig[metadata.id];
-  var resolvedModuleData = moduleExports[metadata.name];
+  var moduleExports = bundlerConfig[metadata[ID]];
+  var resolvedModuleData = moduleExports[metadata[NAME]];
   var name;
 
   if (resolvedModuleData) {
@@ -48,16 +71,16 @@ function resolveClientReference(bundlerConfig, metadata) {
     resolvedModuleData = moduleExports['*'];
 
     if (!resolvedModuleData) {
-      throw new Error('Could not find the module "' + metadata.id + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
+      throw new Error('Could not find the module "' + metadata[ID] + '" in the React SSR Manifest. ' + 'This is probably a bug in the React Server Components bundler.');
     }
 
-    name = metadata.name;
+    name = metadata[NAME];
   }
 
   return {
     specifier: resolvedModuleData.specifier,
     name: name,
-    async: metadata.async
+    async: isAsyncImport(metadata)
   };
 }
 var asyncModuleCache = new Map();
@@ -124,7 +147,24 @@ function requireModule(metadata) {
   return moduleExports[metadata.name];
 }
 
+function prepareDestinationWithChunks(moduleLoading, // Chunks are double-indexed [..., idx, filenamex, idy, filenamey, ...]
+chunks, nonce) {
+  if (moduleLoading !== null) {
+    for (var i = 1; i < chunks.length; i += 2) {
+      preinitScriptForSSR(moduleLoading.prefix + chunks[i], nonce, moduleLoading.crossOrigin);
+    }
+  }
+}
+
 var ReactDOMSharedInternals = ReactDOM.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
+
+function getCrossOriginString(input) {
+  if (typeof input === 'string') {
+    return input === 'use-credentials' ? input : '';
+  }
+
+  return undefined;
+}
 
 // This client file is in the shared folder because it applies to both SSR and browser contexts.
 var ReactDOMCurrentDispatcher = ReactDOMSharedInternals.Dispatcher;
@@ -132,62 +172,130 @@ function dispatchHint(code, model) {
   var dispatcher = ReactDOMCurrentDispatcher.current;
 
   if (dispatcher) {
-    var href, options;
-
-    if (typeof model === 'string') {
-      href = model;
-    } else {
-      href = model[0];
-      options = model[1];
-    }
-
     switch (code) {
       case 'D':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          dispatcher.prefetchDNS(href, options);
+          var refined = refineModel(code, model);
+          var href = refined;
+          dispatcher.prefetchDNS(href);
           return;
         }
 
       case 'C':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          dispatcher.preconnect(href, options);
+          var _refined = refineModel(code, model);
+
+          if (typeof _refined === 'string') {
+            var _href = _refined;
+            dispatcher.preconnect(_href);
+          } else {
+            var _href2 = _refined[0];
+            var crossOrigin = _refined[1];
+            dispatcher.preconnect(_href2, crossOrigin);
+          }
+
           return;
         }
 
       case 'L':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preload(href, options);
+          var _refined2 = refineModel(code, model);
+
+          var _href3 = _refined2[0];
+          var as = _refined2[1];
+
+          if (_refined2.length === 3) {
+            var options = _refined2[2];
+            dispatcher.preload(_href3, as, options);
+          } else {
+            dispatcher.preload(_href3, as);
+          }
+
           return;
         }
 
       case 'm':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preloadModule(href, options);
+          var _refined3 = refineModel(code, model);
+
+          if (typeof _refined3 === 'string') {
+            var _href4 = _refined3;
+            dispatcher.preloadModule(_href4);
+          } else {
+            var _href5 = _refined3[0];
+            var _options = _refined3[1];
+            dispatcher.preloadModule(_href5, _options);
+          }
+
           return;
         }
 
-      case 'I':
+      case 'S':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preinit(href, options);
+          var _refined4 = refineModel(code, model);
+
+          if (typeof _refined4 === 'string') {
+            var _href6 = _refined4;
+            dispatcher.preinitStyle(_href6);
+          } else {
+            var _href7 = _refined4[0];
+            var precedence = _refined4[1] === 0 ? undefined : _refined4[1];
+
+            var _options2 = _refined4.length === 3 ? _refined4[2] : undefined;
+
+            dispatcher.preinitStyle(_href7, precedence, _options2);
+          }
+
+          return;
+        }
+
+      case 'X':
+        {
+          var _refined5 = refineModel(code, model);
+
+          if (typeof _refined5 === 'string') {
+            var _href8 = _refined5;
+            dispatcher.preinitScript(_href8);
+          } else {
+            var _href9 = _refined5[0];
+            var _options3 = _refined5[1];
+            dispatcher.preinitScript(_href9, _options3);
+          }
+
           return;
         }
 
       case 'M':
         {
-          // $FlowFixMe[prop-missing] options are not refined to their types by code
-          // $FlowFixMe[incompatible-call] options are not refined to their types by code
-          dispatcher.preinitModule(href, options);
+          var _refined6 = refineModel(code, model);
+
+          if (typeof _refined6 === 'string') {
+            var _href10 = _refined6;
+            dispatcher.preinitModuleScript(_href10);
+          } else {
+            var _href11 = _refined6[0];
+            var _options4 = _refined6[1];
+            dispatcher.preinitModuleScript(_href11, _options4);
+          }
+
           return;
         }
     }
+  }
+} // Flow is having trouble refining the HintModels so we help it a bit.
+// This should be compiled out in the production build.
+
+function refineModel(code, model) {
+  return model;
+}
+function preinitScriptForSSR(href, nonce, crossOrigin) {
+  var dispatcher = ReactDOMCurrentDispatcher.current;
+
+  if (dispatcher) {
+    dispatcher.preinitScript(href, {
+      crossOrigin: getCrossOriginString(crossOrigin),
+      nonce: nonce
+    });
   }
 }
 
@@ -236,6 +344,7 @@ function printWarning(level, format, args) {
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -264,6 +373,8 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
+var getPrototypeOf = Object.getPrototypeOf;
+
 // in case they error.
 
 var jsxPropsParents = new WeakMap();
@@ -282,7 +393,7 @@ function isObjectPrototype(object) {
   // still just a plain simple object.
 
 
-  if (Object.getPrototypeOf(object)) {
+  if (getPrototypeOf(object)) {
     return false;
   }
 
@@ -298,7 +409,7 @@ function isObjectPrototype(object) {
 }
 
 function isSimpleObject(object) {
-  if (!isObjectPrototype(Object.getPrototypeOf(object))) {
+  if (!isObjectPrototype(getPrototypeOf(object))) {
     return false;
   }
 
@@ -574,6 +685,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   return '\n  ' + str;
 }
 
+var ObjectPrototype = Object.prototype;
 var knownServerReferences = new WeakMap(); // Serializable values
 // Thenable<ReactServerValue>
 // function serializeByValueID(id: number): string {
@@ -702,6 +814,11 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           reject(reason);
         });
         return serializePromiseID(promiseId);
+      }
+
+      if (isArray(value)) {
+        // $FlowFixMe[incompatible-return]
+        return value;
       } // TODO: Should we the Object.prototype.toString.call() to test for cross-realm objects?
 
 
@@ -748,33 +865,35 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         return serializeSetID(setId);
       }
 
-      if (!isArray(value)) {
-        var iteratorFn = getIteratorFn(value);
+      var iteratorFn = getIteratorFn(value);
 
-        if (iteratorFn) {
-          return Array.from(value);
-        }
+      if (iteratorFn) {
+        return Array.from(value);
+      } // Verify that this is a simple plain object.
+
+
+      var proto = getPrototypeOf(value);
+
+      if (proto !== ObjectPrototype && (proto === null || getPrototypeOf(proto) !== null)) {
+        throw new Error('Only plain objects, and a few built-ins, can be passed to Server Actions. ' + 'Classes or null prototypes are not supported.');
       }
 
       {
-        if (value !== null && !isArray(value)) {
-          // Verify that this is a simple plain object.
-          if (value.$$typeof === REACT_ELEMENT_TYPE) {
-            error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-          } else if (value.$$typeof === REACT_LAZY_TYPE) {
-            error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-          } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
-            error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-          } else if (objectName(value) !== 'Object') {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
-          } else if (!isSimpleObject(value)) {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
-          } else if (Object.getOwnPropertySymbols) {
-            var symbols = Object.getOwnPropertySymbols(value);
+        if (value.$$typeof === REACT_ELEMENT_TYPE) {
+          error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
+        } else if (value.$$typeof === REACT_LAZY_TYPE) {
+          error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
+        } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
+          error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
+        } else if (objectName(value) !== 'Object') {
+          error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
+        } else if (!isSimpleObject(value)) {
+          error('Only plain objects can be passed to Server Functions from the Client. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
+        } else if (Object.getOwnPropertySymbols) {
+          var symbols = Object.getOwnPropertySymbols(value);
 
-            if (symbols.length > 0) {
-              error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
-            }
+          if (symbols.length > 0) {
+            error('Only plain objects can be passed to Server Functions from the Client. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
           }
         }
       } // $FlowFixMe[incompatible-return]
@@ -946,20 +1065,127 @@ function encodeFormAction(identifierPrefix) {
     data: data
   };
 }
+
+function isSignatureEqual(referenceId, numberOfBoundArgs) {
+  var reference = knownServerReferences.get(this);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  if (reference.id !== referenceId) {
+    // These are different functions.
+    return false;
+  } // Now check if the number of bound arguments is the same.
+
+
+  var boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    // No bound arguments.
+    return numberOfBoundArgs === 0;
+  } // Unwrap the bound arguments array by suspending, if necessary. As with
+  // encodeFormData, this means isSignatureEqual can only be called while React
+  // is rendering.
+
+
+  switch (boundPromise.status) {
+    case 'fulfilled':
+      {
+        var boundArgs = boundPromise.value;
+        return boundArgs.length === numberOfBoundArgs;
+      }
+
+    case 'pending':
+      {
+        throw boundPromise;
+      }
+
+    case 'rejected':
+      {
+        throw boundPromise.reason;
+      }
+
+    default:
+      {
+        if (typeof boundPromise.status === 'string') ; else {
+          var pendingThenable = boundPromise;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(function (boundArgs) {
+            var fulfilledThenable = boundPromise;
+            fulfilledThenable.status = 'fulfilled';
+            fulfilledThenable.value = boundArgs;
+          }, function (error) {
+            var rejectedThenable = boundPromise;
+            rejectedThenable.status = 'rejected';
+            rejectedThenable.reason = error;
+          });
+        }
+
+        throw boundPromise;
+      }
+  }
+}
+
+function registerServerReference(proxy, reference) {
+  // Expose encoder for use by SSR, as well as a special bind that can be used to
+  // keep server capabilities.
+  {
+    // Only expose this in builds that would actually use it. Not needed on the client.
+    Object.defineProperties(proxy, {
+      $$FORM_ACTION: {
+        value: encodeFormAction
+      },
+      $$IS_SIGNATURE_EQUAL: {
+        value: isSignatureEqual
+      },
+      bind: {
+        value: bind
+      }
+    });
+  }
+
+  knownServerReferences.set(proxy, reference);
+} // $FlowFixMe[method-unbinding]
+
+var FunctionBind = Function.prototype.bind; // $FlowFixMe[method-unbinding]
+
+var ArraySlice = Array.prototype.slice;
+
+function bind() {
+  // $FlowFixMe[unsupported-syntax]
+  var newFn = FunctionBind.apply(this, arguments);
+  var reference = knownServerReferences.get(this);
+
+  if (reference) {
+    var args = ArraySlice.call(arguments, 1);
+    var boundPromise = null;
+
+    if (reference.bound !== null) {
+      boundPromise = Promise.resolve(reference.bound).then(function (boundArgs) {
+        return boundArgs.concat(args);
+      });
+    } else {
+      boundPromise = Promise.resolve(args);
+    }
+
+    registerServerReference(newFn, {
+      id: reference.id,
+      bound: boundPromise
+    });
+  }
+
+  return newFn;
+}
+
 function createServerReference$1(id, callServer) {
   var proxy = function () {
     // $FlowFixMe[method-unbinding]
     var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
-  }; // Expose encoder for use by SSR.
+  };
 
-
-  {
-    // Only expose this in builds that would actually use it. Not needed on the client.
-    proxy.$$FORM_ACTION = encodeFormAction;
-  }
-
-  knownServerReferences.set(proxy, {
+  registerServerReference(proxy, {
     id: id,
     bound: null
   });
@@ -969,8 +1195,49 @@ function createServerReference$1(id, callServer) {
 var ContextRegistry = ReactSharedInternals.ContextRegistry;
 function getOrCreateServerContext(globalName) {
   if (!ContextRegistry[globalName]) {
-    ContextRegistry[globalName] = React.createServerContext(globalName, // $FlowFixMe[incompatible-call] function signature doesn't reflect the symbol value
-    REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED);
+    var context = {
+      $$typeof: REACT_SERVER_CONTEXT_TYPE,
+      // As a workaround to support multiple concurrent renderers, we categorize
+      // some renderers as primary and others as secondary. We only expect
+      // there to be two concurrent renderers at most: React Native (primary) and
+      // Fabric (secondary); React DOM (primary) and React ART (secondary).
+      // Secondary renderers store their context values on separate fields.
+      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
+      // Used to track how many concurrent renderers this context currently
+      // supports within in a single renderer. Such as parallel server rendering.
+      _threadCount: 0,
+      // These are circular
+      Provider: null,
+      Consumer: null,
+      _globalName: globalName
+    };
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      var hasWarnedAboutUsingConsumer;
+      context._currentRenderer = null;
+      context._currentRenderer2 = null;
+      Object.defineProperties(context, {
+        Consumer: {
+          get: function () {
+            if (!hasWarnedAboutUsingConsumer) {
+              error('Consumer pattern is not supported by ReactServerContext');
+
+              hasWarnedAboutUsingConsumer = true;
+            }
+
+            return null;
+          }
+        }
+      });
+    }
+
+    ContextRegistry[globalName] = context;
   }
 
   return ContextRegistry[globalName];
@@ -983,6 +1250,7 @@ var ROW_CHUNK_BY_NEWLINE = 3;
 var ROW_CHUNK_BY_LENGTH = 4;
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
+var CYCLIC = 'cyclic';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
@@ -1020,6 +1288,7 @@ Chunk.prototype.then = function (resolve, reject) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       if (resolve) {
         if (chunk.value === null) {
           chunk.value = [];
@@ -1064,6 +1333,7 @@ function readChunk(chunk) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       // eslint-disable-next-line no-throw-literal
       throw chunk;
 
@@ -1107,6 +1377,7 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       chunk.value = resolveListeners;
       chunk.reason = rejectListeners;
       break;
@@ -1199,9 +1470,17 @@ function initializeModelChunk(chunk) {
   var prevBlocked = initializingChunkBlockedModel;
   initializingChunk = chunk;
   initializingChunkBlockedModel = null;
+  var resolvedModel = chunk.value; // We go to the CYCLIC state until we've fully resolved this.
+  // We do this before parsing in case we try to initialize the same chunk
+  // while parsing the model. Such as in a cyclic reference.
+
+  var cyclicChunk = chunk;
+  cyclicChunk.status = CYCLIC;
+  cyclicChunk.value = null;
+  cyclicChunk.reason = null;
 
   try {
-    var value = parseModel(chunk._response, chunk.value);
+    var value = parseModel(chunk._response, resolvedModel);
 
     if (initializingChunkBlockedModel !== null && initializingChunkBlockedModel.deps > 0) {
       initializingChunkBlockedModel.value = value; // We discovered new dependencies on modules that are not yet resolved.
@@ -1212,9 +1491,14 @@ function initializeModelChunk(chunk) {
       blockedChunk.value = null;
       blockedChunk.reason = null;
     } else {
+      var resolveListeners = cyclicChunk.value;
       var initializedChunk = chunk;
       initializedChunk.status = INITIALIZED;
       initializedChunk.value = value;
+
+      if (resolveListeners !== null) {
+        wakeChunk(resolveListeners, value);
+      }
     }
   } catch (error) {
     var erroredChunk = chunk;
@@ -1315,15 +1599,18 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
     blocked = initializingChunkBlockedModel;
-    blocked.deps++;
+
+    if (!cyclic) {
+      blocked.deps++;
+    }
   } else {
     blocked = initializingChunkBlockedModel = {
-      deps: 1,
+      deps: cyclic ? 0 : 1,
       value: null
     };
   }
@@ -1377,15 +1664,9 @@ function createServerReferenceProxy(response, metaData) {
     return Promise.resolve(p).then(function (bound) {
       return callServer(metaData.id, bound.concat(args));
     });
-  }; // Expose encoder for use by SSR.
+  };
 
-
-  {
-    // Only expose this in builds that would actually use it. Not needed on the client.
-    proxy.$$FORM_ACTION = encodeFormAction;
-  }
-
-  knownServerReferences.set(proxy, metaData);
+  registerServerReference(proxy, metaData);
   return proxy;
 }
 
@@ -1550,9 +1831,10 @@ function parseModelString(response, parentObject, key, value) {
 
             case PENDING:
             case BLOCKED:
+            case CYCLIC:
               var parentChunk = initializingChunk;
 
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk2.then(createModelResolver(parentChunk, parentObject, key, _chunk2.status === CYCLIC), createModelReject(parentChunk));
 
               return null;
 
@@ -1582,11 +1864,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, callServer) {
+function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
+    _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
     _fromJSON: null,
@@ -1623,7 +1907,8 @@ function resolveModule(response, id, model) {
   var chunks = response._chunks;
   var chunk = chunks.get(id);
   var clientReferenceMetadata = parseModel(response, model);
-  var clientReference = resolveClientReference(response._bundlerConfig, clientReferenceMetadata); // TODO: Add an option to encode modules that are lazy loaded.
+  var clientReference = resolveClientReference(response._bundlerConfig, clientReferenceMetadata);
+  prepareDestinationForModule(response._moduleLoading, response._nonce, clientReferenceMetadata); // TODO: Add an option to encode modules that are lazy loaded.
   // For now we preload all modules as early as possible since it's likely
   // that we'll need them.
 
@@ -1916,8 +2201,8 @@ function createServerReference(id, callServer) {
   return createServerReference$1(id, noServerCall);
 }
 
-function createFromNodeStream(stream, moduleMap) {
-  var response = createResponse(moduleMap, noServerCall);
+function createFromNodeStream(stream, ssrManifest, options) {
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

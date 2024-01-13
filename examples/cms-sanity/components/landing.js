@@ -1,13 +1,13 @@
-import Layout from './layout'
-import Head from 'next/head'
-import { CMS_NAME } from '../lib/constants'
-import Container from './container'
-import Intro from './intro'
-import HeroPost from './hero-post'
-import MoreStories from './more-stories'
+import Layout from "./layout";
+import Head from "next/head";
+import { CMS_NAME } from "../lib/constants";
+import Container from "./container";
+import Intro from "./intro";
+import HeroPost from "./hero-post";
+import MoreStories from "./more-stories";
 
 export default function Landing({ allPosts, preview }) {
-  const [heroPost, ...morePosts] = allPosts || []
+  const [heroPost, ...morePosts] = allPosts || [];
   return (
     <>
       <Layout preview={preview}>
@@ -30,5 +30,5 @@ export default function Landing({ allPosts, preview }) {
         </Container>
       </Layout>
     </>
-  )
+  );
 }

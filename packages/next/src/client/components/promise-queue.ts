@@ -7,7 +7,10 @@
 export class PromiseQueue {
   #maxConcurrency: number
   #runningCount: number
-  #queue: Array<{ promiseFn: Promise<any>; task: () => void }>
+  #queue: Array<{
+    promiseFn: Promise<any>
+    task: () => void
+  }>
 
   constructor(maxConcurrency = 5) {
     this.#maxConcurrency = maxConcurrency

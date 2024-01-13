@@ -14,6 +14,7 @@ app.prepare().then(() => {
   server.use(express.json({ limit: '5mb' }))
 
   server.all('*', (req, res) => {
+    req.fromCustomServer = true
     handleNextRequests(req, res)
   })
 

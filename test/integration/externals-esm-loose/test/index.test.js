@@ -15,29 +15,31 @@ let appPort
 let app
 
 describe("Handle ESM externals with esmExternals: 'loose'", () => {
-  beforeAll(async () => {
-    await fs.remove(join(appDir, '.next'))
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await fs.remove(join(appDir, '.next'))
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(() => killApp(app))
 
-  const expected =
-    /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
+    const expected =
+      /Hello <!-- -->World<!-- -->\+<!-- -->World<!-- -->\+<!-- -->World/
 
-  it('should render the static page', async () => {
-    const html = await renderViaHTTP(appPort, '/static')
-    expect(html).toMatch(expected)
-  })
+    it('should render the static page', async () => {
+      const html = await renderViaHTTP(appPort, '/static')
+      expect(html).toMatch(expected)
+    })
 
-  it('should render the ssr page', async () => {
-    const html = await renderViaHTTP(appPort, '/ssr')
-    expect(html).toMatch(expected)
-  })
+    it('should render the ssr page', async () => {
+      const html = await renderViaHTTP(appPort, '/ssr')
+      expect(html).toMatch(expected)
+    })
 
-  it('should render the ssg page', async () => {
-    const html = await renderViaHTTP(appPort, '/ssg')
-    expect(html).toMatch(expected)
+    it('should render the ssg page', async () => {
+      const html = await renderViaHTTP(appPort, '/ssg')
+      expect(html).toMatch(expected)
+    })
   })
 })

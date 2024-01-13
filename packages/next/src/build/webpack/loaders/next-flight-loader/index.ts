@@ -73,14 +73,14 @@ const __default__ = proxy.default;
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = proxy[''];`
+          esmSource += `\nexports[''] = createProxy(String.raw\`${this.resourcePath}#\`);`
         } else if (ref === 'default') {
           esmSource += `
 export { __esModule, $$typeof };
 export default __default__;`
         } else {
           esmSource += `
-const e${cnt} = proxy["${ref}"];
+const e${cnt} = createProxy(String.raw\`${this.resourcePath}#${ref}\`);
 export { e${cnt++} as ${ref} };`
         }
       }

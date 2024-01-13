@@ -5,34 +5,28 @@ import type {
 } from '../../../build'
 import type { NextConfigComplete } from '../../config-shared'
 import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
+import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 
 import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import loadCustomRoutes from '../../../lib/load-custom-routes'
+import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
-import {
-  PatchMatcher,
-  getPathMatch,
-} from '../../../shared/lib/router/utils/path-match'
+import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
 import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-
-import {
-  MiddlewareRouteMatch,
-  getMiddlewareRouteMatcher,
-} from '../../../shared/lib/router/utils/middleware-route-matcher'
-
+import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -43,6 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
 
 export type FsOutput = {
   type:
@@ -249,7 +246,7 @@ export async function setupFsCheck(opts: {
               ? new RegExp(
                   route.dataRouteRegex.replace(
                     `/${escapedBuildId}/`,
-                    `/${escapedBuildId}/(?<nextLocale>.+?)/`
+                    `/${escapedBuildId}/(?<nextLocale>[^/]+?)/`
                   )
                 )
               : new RegExp(route.dataRouteRegex),
@@ -371,6 +368,18 @@ export async function setupFsCheck(opts: {
 
   let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
+  const normalizers = {
+    // Because we can't know if the app directory is enabled or not at this
+    // stage, we assume that it is.
+    rsc: new RSCPathnameNormalizer(),
+    prefetchRSC: opts.config.experimental.ppr
+      ? new PrefetchRSCPathnameNormalizer()
+      : undefined,
+    postponed: opts.config.experimental.ppr
+      ? new PostponedPathnameNormalizer()
+      : undefined,
+  }
+
   return {
     headers,
     rewrites,
@@ -386,7 +395,7 @@ export async function setupFsCheck(opts: {
 
     interceptionRoutes: undefined as
       | undefined
-      | ReturnType<typeof buildCustomRoute>[],
+      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -406,18 +415,24 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      // handle minimal mode case with .rsc output path (this is
-      // mostly for testings)
-      if (opts.minimalMode && itemPath.endsWith('.rsc')) {
-        itemPath = itemPath.substring(0, itemPath.length - '.rsc'.length)
-      }
-
       const { basePath } = opts.config
 
       if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
       itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Simulate minimal mode requests by normalizing RSC and postponed
+      // requests.
+      if (opts.minimalMode) {
+        if (normalizers.prefetchRSC?.match(itemPath)) {
+          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
+        } else if (normalizers.rsc.match(itemPath)) {
+          itemPath = normalizers.rsc.normalize(itemPath, true)
+        } else if (normalizers.postponed?.match(itemPath)) {
+          itemPath = normalizers.postponed.normalize(itemPath, true)
+        }
+      }
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)
@@ -517,11 +532,25 @@ export async function setupFsCheck(opts: {
           } catch {}
         }
 
+        let matchedItem = items.has(curItemPath)
+
         // check decoded variant as well
-        if (!items.has(curItemPath) && !opts.dev) {
-          curItemPath = curDecodedItemPath
+        if (!matchedItem && !opts.dev) {
+          matchedItem = items.has(curItemPath)
+          if (matchedItem) curItemPath = curDecodedItemPath
+          else {
+            // x-ref: https://github.com/vercel/next.js/issues/54008
+            // There're cases that urls get decoded before requests, we should support both encoded and decoded ones.
+            // e.g. nginx could decode the proxy urls, the below ones should be treated as the same:
+            // decoded version: `/_next/static/chunks/pages/blog/[slug]-d4858831b91b69f6.js`
+            // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
+            try {
+              // encode the special characters in the path and retrieve again to determine if path exists.
+              const encodedCurItemPath = encodeURI(curItemPath)
+              matchedItem = items.has(encodedCurItemPath)
+            } catch {}
+          }
         }
-        const matchedItem = items.has(curItemPath)
 
         if (matchedItem || opts.dev) {
           let fsPath: string | undefined

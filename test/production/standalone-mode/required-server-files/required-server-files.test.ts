@@ -15,7 +15,7 @@ import {
   waitFor,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files', () => {
   let next: NextInstance
   let server
   let appPort

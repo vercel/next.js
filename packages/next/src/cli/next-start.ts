@@ -1,27 +1,15 @@
 #!/usr/bin/env node
-
-import arg from 'next/dist/compiled/arg/index.js'
+import '../server/lib/cpu-profile'
 import { startServer } from '../server/lib/start-server'
 import { getPort, printAndExit } from '../server/lib/utils'
 import { getProjectDir } from '../lib/get-project-dir'
-import { CliCommand } from '../lib/commands'
-import { getValidatedArgs } from '../lib/get-validated-args'
+import type { CliCommand } from '../lib/commands'
+import {
+  getReservedPortExplanation,
+  isPortIsReserved,
+} from '../lib/helpers/get-reserved-port'
 
-const nextStart: CliCommand = async (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--port': Number,
-    '--hostname': String,
-    '--keepAliveTimeout': Number,
-    '--experimental-test-proxy': Boolean,
-
-    // Aliases
-    '-h': '--help',
-    '-p': '--port',
-    '-H': '--hostname',
-  }
-  const args = getValidatedArgs(validArgs, argv)
+const nextStart: CliCommand = async (args) => {
   if (args['--help']) {
     console.log(`
       Description
@@ -46,6 +34,10 @@ const nextStart: CliCommand = async (argv) => {
   const dir = getProjectDir(args._[0])
   const host = args['--hostname']
   const port = getPort(args)
+
+  if (isPortIsReserved(port)) {
+    printAndExit(getReservedPortExplanation(port), 1)
+  }
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 

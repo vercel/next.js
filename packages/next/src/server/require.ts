@@ -13,6 +13,7 @@ import { PageNotFoundError, MissingStaticPage } from '../shared/lib/utils'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { loadManifest } from './load-manifest'
 import { promises } from 'fs'
+import type { FontManifest } from './font-utils'
 
 const isDev = process.env.NODE_ENV === 'development'
 const pagePathCache = !isDev
@@ -41,7 +42,7 @@ export function getMaybePagePath(
     appPathsManifest = loadManifest(
       path.join(serverBuildPath, APP_PATHS_MANIFEST),
       !isDev
-    )
+    ) as PagesManifest
   }
   const pagesManifest = loadManifest(
     path.join(serverBuildPath, PAGES_MANIFEST),
@@ -116,14 +117,24 @@ export function requirePage(
     })
   }
 
-  return process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(pagePath)
-    : require(pagePath)
+  // since require is synchronous we can set the specific runtime
+  // we are requiring for the require-hook and then clear after
+  try {
+    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = isAppPath ? 'app' : 'pages'
+    const mod = process.env.NEXT_MINIMAL
+      ? // @ts-ignore
+        __non_webpack_require__(pagePath)
+      : require(pagePath)
+    return mod
+  } finally {
+    process.env.__NEXT_PRIVATE_RUNTIME_TYPE = ''
+  }
 }
 
 export function requireFontManifest(distDir: string) {
   const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
-  const fontManifest = loadManifest(path.join(serverBuildPath, FONT_MANIFEST))
+  const fontManifest = loadManifest(
+    path.join(serverBuildPath, FONT_MANIFEST)
+  ) as FontManifest
   return fontManifest
 }

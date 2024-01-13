@@ -3,8 +3,8 @@ import type { UrlObject } from 'url'
 import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
-import type { RouteMatch } from '../future/route-matches/route-match'
-import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type { Project, Update as TurbopackUpdate } from '../../build/swc'
 import type { VersionInfo } from './parse-version-info'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
@@ -13,10 +13,12 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   RELOAD_PAGE = 'reloadPage',
   SERVER_COMPONENT_CHANGES = 'serverComponentChanges',
   MIDDLEWARE_CHANGES = 'middlewareChanges',
+  CLIENT_CHANGES = 'clientChanges',
   SERVER_ONLY_CHANGES = 'serverOnlyChanges',
   SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
+  FINISH_BUILDING = 'finishBuilding',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
@@ -28,27 +30,33 @@ interface ServerErrorAction {
   errorJSON: string
 }
 
-interface TurboPackMessageAction {
+export interface TurbopackMessageAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
-  data: TurbopackUpdate
+  data: TurbopackUpdate | TurbopackUpdate[]
 }
 
 interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
-interface SyncAction {
+interface FinishBuildingAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
+}
+
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<unknown>
   warnings: ReadonlyArray<unknown>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {
@@ -73,6 +81,10 @@ interface MiddlewareChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
+interface ClientChangesAction {
+  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+}
+
 interface ServerOnlyChangesAction {
   event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
@@ -87,25 +99,29 @@ interface DevPagesManifestUpdateAction {
   ]
 }
 
-export interface TurboPackConnectedAction {
+export interface TurbopackConnectedAction {
   type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
 export type HMR_ACTION_TYPES =
-  | TurboPackMessageAction
+  | TurbopackMessageAction
+  | TurbopackConnectedAction
   | BuildingAction
+  | FinishBuildingAction
   | SyncAction
   | BuiltAction
   | AddedPageAction
   | RemovedPageAction
   | ReloadPageAction
   | ServerComponentChangesAction
+  | ClientChangesAction
   | MiddlewareChangesAction
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
 
 export interface NextJsHotReloaderInterface {
+  turbopackProject?: Project
   activeWebpackConfigs?: Array<Awaited<ReturnType<typeof getBaseWebpackConfig>>>
   serverStats: webpack.Stats | null
   edgeServerStats: webpack.Stats | null
@@ -132,13 +148,15 @@ export interface NextJsHotReloaderInterface {
     page,
     clientOnly,
     appPaths,
-    match,
+    definition,
     isApp,
+    url,
   }: {
     page: string
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     isApp?: boolean
-    match?: RouteMatch
+    definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void>
 }

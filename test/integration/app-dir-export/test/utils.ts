@@ -30,7 +30,8 @@ const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
-  '_next/static/media/test.3f1a293b.png',
+  // Turbopack and plain next.js have different hash output for the file name
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   '_next/static/test-build-id/_ssgManifest.js',
   'another/first/index.html',
@@ -53,7 +54,7 @@ export const expectedWhenTrailingSlashTrue = [
 
 const expectedWhenTrailingSlashFalse = [
   '404.html',
-  '_next/static/media/test.3f1a293b.png',
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   '_next/static/test-build-id/_ssgManifest.js',
   'another.html',
@@ -98,7 +99,7 @@ export async function runTests({
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client'
+  generateStaticParamsOpt?: 'set noop' | 'set client' | 'set empty'
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -123,6 +124,11 @@ export async function runTests({
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {
     slugPage.prepend('"use client"\n')
+  } else if (generateStaticParamsOpt === 'set empty') {
+    slugPage.replace(
+      "return [{ slug: 'first' }, { slug: 'second' }]",
+      'return []'
+    )
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)

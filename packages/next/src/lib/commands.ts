@@ -1,4 +1,6 @@
-export type CliCommand = (argv?: string[]) => void
+import type { getValidatedArgs } from './get-validated-args'
+
+export type CliCommand = (args: ReturnType<typeof getValidatedArgs>) => void
 
 export const commands: { [command: string]: () => Promise<CliCommand> } = {
   build: () => Promise.resolve(require('../cli/next-build').nextBuild),

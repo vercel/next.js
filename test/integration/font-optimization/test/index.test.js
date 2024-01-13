@@ -178,150 +178,186 @@ describe('Font Optimization', () => {
         })
 
         // Re-run build to check if it works when build is cached
-        it('should work when build is cached', async () => {
-          await nextBuild(appDir)
-          const testJson = JSON.parse(
-            await fs.readFile(builtPage('font-manifest.json'), {
-              encoding: 'utf-8',
-            })
-          )
-          expect(testJson.length).toBeGreaterThan(0)
-        })
+        ;(process.env.TURBOPACK ? it.skip : it)(
+          'should work when build is cached',
+          async () => {
+            await nextBuild(appDir)
+            const testJson = JSON.parse(
+              await fs.readFile(builtPage('font-manifest.json'), {
+                encoding: 'utf-8',
+              })
+            )
+            expect(testJson.length).toBeGreaterThan(0)
+          }
+        )
       }
 
       describe('Font optimization for SSR apps', () => {
-        beforeAll(async () => {
-          if (fs.pathExistsSync(join(appDir, '.next'))) {
-            await fs.remove(join(appDir, '.next'))
+        ;(process.env.TURBOPACK ? describe.skip : describe)(
+          'production mode',
+          () => {
+            beforeAll(async () => {
+              if (fs.pathExistsSync(join(appDir, '.next'))) {
+                await fs.remove(join(appDir, '.next'))
+              }
+              await nextBuild(appDir)
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+              builtServerPagesDir = join(appDir, '.next', 'server')
+              builtPage = (file) => join(builtServerPagesDir, file)
+            })
+            afterAll(() => killApp(app))
+            runTests()
           }
-          await nextBuild(appDir)
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'server')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(() => killApp(app))
-        runTests()
+        )
       })
 
       describe('Font optimization for unreachable font definitions.', () => {
-        beforeAll(async () => {
-          await nextBuild(appDir)
-          await fs.writeFile(
-            join(appDir, '.next', 'server', 'font-manifest.json'),
-            '[]',
-            'utf8'
-          )
-          appPort = await findPort()
-          app = await nextStart(appDir, appPort)
-          builtServerPagesDir = join(appDir, '.next', 'server')
-          builtPage = (file) => join(builtServerPagesDir, file)
-        })
-        afterAll(() => killApp(app))
-        it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
-          const html = await renderViaHTTP(appPort, '/stars')
-          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).toContain(`<link rel="stylesheet" href="${starsFont}"/>`)
-        })
-        it('should not inline multiple fallback link tag', async () => {
-          await renderViaHTTP(appPort, '/stars')
-          // second render to make sure that the page is requested more than once.
-          const html = await renderViaHTTP(appPort, '/stars')
-          expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
-          expect(html).not.toContain(
-            `<link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/><link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/>`
-          )
-        })
+        ;(process.env.TURBOPACK ? describe.skip : describe)(
+          'production mode',
+          () => {
+            beforeAll(async () => {
+              await nextBuild(appDir)
+              await fs.writeFile(
+                join(appDir, '.next', 'server', 'font-manifest.json'),
+                '[]',
+                'utf8'
+              )
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+              builtServerPagesDir = join(appDir, '.next', 'server')
+              builtPage = (file) => join(builtServerPagesDir, file)
+            })
+            afterAll(() => killApp(app))
+            it('should fallback to normal stylesheet if the contents of the fonts are unreachable', async () => {
+              const html = await renderViaHTTP(appPort, '/stars')
+              expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+              expect(html).toContain(
+                `<link rel="stylesheet" href="${starsFont}"/>`
+              )
+            })
+            it('should not inline multiple fallback link tag', async () => {
+              await renderViaHTTP(appPort, '/stars')
+              // second render to make sure that the page is requested more than once.
+              const html = await renderViaHTTP(appPort, '/stars')
+              expect(await fsExists(builtPage('font-manifest.json'))).toBe(true)
+              expect(html).not.toContain(
+                `<link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/><link rel="stylesheet" href="${staticFont}"/><link rel="stylesheet" href="${starsFont}"/>`
+              )
+            })
+          }
+        )
       })
     }
   )
-
-  test('Spread operator regression on <link>', async () => {
-    const appDir = join(fixturesDir, 'spread-operator-regression')
-    const { code } = await nextBuild(appDir)
-    expect(code).toBe(0)
-  })
-
-  test('makeStylesheetInert regression', async () => {
-    const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
-    const { code } = await nextBuild(appDir)
-    expect(code).toBe(0)
-  })
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'Spread operator regression on <link>',
+    async () => {
+      const appDir = join(fixturesDir, 'spread-operator-regression')
+      const { code } = await nextBuild(appDir)
+      // eslint-disable-next-line
+      expect(code).toBe(0)
+    }
+  )
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'makeStylesheetInert regression',
+    async () => {
+      const appDir = join(fixturesDir, 'make-stylesheet-inert-regression')
+      const { code } = await nextBuild(appDir)
+      // eslint-disable-next-line
+      expect(code).toBe(0)
+    }
+  )
 
   describe('font override', () => {
-    let app, appPort
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let app, appPort
 
-    beforeAll(async () => {
-      const appDir = join(fixturesDir, 'font-override')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    it('should inline font-override values', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      const $ = cheerio.load(html)
-      const inlineStyle = $(
-        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
-      )
-      const inlineStyleMultiple = $(
-        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
-      )
-      expect(inlineStyle.length).toBe(1)
-      expect(inlineStyle.html()).toContain(
-        '@font-face{font-family:"Roboto Fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
-      )
-      expect(inlineStyleMultiple.length).toBe(1)
-      expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
-      )
-      expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Open Sans Fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
-      )
-    })
+        beforeAll(async () => {
+          const appDir = join(fixturesDir, 'font-override')
+          await nextBuild(appDir)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
+        it('should inline font-override values', async () => {
+          const html = await renderViaHTTP(appPort, '/')
+          const $ = cheerio.load(html)
+          const inlineStyle = $(
+            'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+          )
+          const inlineStyleMultiple = $(
+            'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+          )
+          expect(inlineStyle.length).toBe(1)
+          expect(inlineStyle.html()).toContain(
+            '@font-face{font-family:"Roboto Fallback";ascent-override:92.77%;descent-override:24.41%;line-gap-override:0.00%;src:local("Arial")}'
+          )
+          expect(inlineStyleMultiple.length).toBe(1)
+          expect(inlineStyleMultiple.html()).toContain(
+            '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:97.00%;descent-override:27.00%;line-gap-override:0.00%;src:local("Times New Roman")}'
+          )
+          expect(inlineStyleMultiple.html()).toContain(
+            '@font-face{font-family:"Open Sans Fallback";ascent-override:106.88%;descent-override:29.30%;line-gap-override:0.00%;src:local("Arial")}'
+          )
+        })
+      }
+    )
   })
 
   describe('font override with size adjust', () => {
-    let app, appPort
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        let app, appPort
 
-    beforeAll(async () => {
-      const appDir = join(fixturesDir, 'font-override-size-adjust')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-    it('should inline font-override values', async () => {
-      const html = await renderViaHTTP(appPort, '/')
-      const $ = cheerio.load(html)
-      const inlineStyle = $(
-        'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
-      )
-      const inlineStyleMultiple = $(
-        'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
-      )
-      expect(inlineStyle.length).toBe(1)
-      expect(inlineStyle.html()).toContain(
-        '@font-face{font-family:"Roboto Fallback";ascent-override:92.67%;descent-override:24.39%;line-gap-override:0.00%;size-adjust:100.11%;src:local("Arial")}'
-      )
-      expect(inlineStyleMultiple.length).toBe(1)
-      expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:75.76%;descent-override:21.09%;line-gap-override:0.00%;size-adjust:128.03%;src:local("Times New Roman")}'
-      )
-      expect(inlineStyleMultiple.html()).toContain(
-        '@font-face{font-family:"Open Sans Fallback";ascent-override:101.18%;descent-override:27.73%;line-gap-override:0.00%;size-adjust:105.64%;src:local("Arial")}'
-      )
-    })
+        beforeAll(async () => {
+          const appDir = join(fixturesDir, 'font-override-size-adjust')
+          await nextBuild(appDir)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
+        it('should inline font-override values', async () => {
+          const html = await renderViaHTTP(appPort, '/')
+          const $ = cheerio.load(html)
+          const inlineStyle = $(
+            'style[data-href="https://fonts.googleapis.com/css2?family=Roboto&display=swap"]'
+          )
+          const inlineStyleMultiple = $(
+            'style[data-href="https://fonts.googleapis.com/css2?family=Open+Sans&family=Libre+Baskerville&display=swap"]'
+          )
+          expect(inlineStyle.length).toBe(1)
+          expect(inlineStyle.html()).toContain(
+            '@font-face{font-family:"Roboto Fallback";ascent-override:92.67%;descent-override:24.39%;line-gap-override:0.00%;size-adjust:100.11%;src:local("Arial")}'
+          )
+          expect(inlineStyleMultiple.length).toBe(1)
+          expect(inlineStyleMultiple.html()).toContain(
+            '@font-face{font-family:"Libre Baskerville Fallback";ascent-override:75.76%;descent-override:21.09%;line-gap-override:0.00%;size-adjust:128.03%;src:local("Times New Roman")}'
+          )
+          expect(inlineStyleMultiple.html()).toContain(
+            '@font-face{font-family:"Open Sans Fallback";ascent-override:101.18%;descent-override:27.73%;line-gap-override:0.00%;size-adjust:105.64%;src:local("Arial")}'
+          )
+        })
+      }
+    )
   })
   describe('invalid configuration', () => {
-    it('should show a proper error if assetPrefix starts with .', async () => {
-      const appDir = join(fixturesDir, 'invalid-assertprefix')
-      const { stderr } = await nextBuild(appDir, undefined, {
-        stderr: true,
-      })
-      expect(stderr).toContain(
-        'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
-      )
-    })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('should show a proper error if assetPrefix starts with .', async () => {
+          const appDir = join(fixturesDir, 'invalid-assertprefix')
+          const { stderr } = await nextBuild(appDir, undefined, {
+            stderr: true,
+          })
+          expect(stderr).toContain(
+            'assetPrefix must start with a leading slash or be an absolute URL(http:// or https://)'
+          )
+        })
+      }
+    )
   })
 })

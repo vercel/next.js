@@ -1,5 +1,5 @@
-import { StackFrame } from 'stacktrace-parser'
-import { OriginalStackFrameResponse } from '../../middleware'
+import type { StackFrame } from 'stacktrace-parser'
+import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
   | {

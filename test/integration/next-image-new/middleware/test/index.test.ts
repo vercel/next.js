@@ -32,7 +32,7 @@ describe('Image with middleware in edge func', () => {
         Attempted import error: 'preload' is not exported from 'react-dom' (imported as 'preload').
        */
       await webdriver(appPort, '/')
-      await check(() => output, /compiled \//)
+      await check(() => output, /compiled \//i)
       expect(output).not.toContain(`'preload' is not exported from 'react-dom'`)
     })
   })

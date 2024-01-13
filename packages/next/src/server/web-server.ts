@@ -1,38 +1,42 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
-import type { RenderOpts } from './render'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
-import type { PayloadOptions } from './send-payload'
 import type { LoadComponentsReturnType } from './load-components'
-import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PrerenderManifest } from '../build'
-
-import { byteLength } from './api-utils/web'
-import BaseServer, {
+import type {
+  LoadedRenderOpts,
   MiddlewareRoutingItem,
-  NoFallbackError,
   NormalizedRouteManifest,
   Options,
+  RouteHandler,
 } from './base-server'
+import type { Revalidate } from './lib/revalidate'
+
+import { byteLength } from './api-utils/web'
+import BaseServer, { NoFallbackError } from './base-server'
 import { generateETag } from './lib/etag'
 import { addRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
 import { isAPIRoute } from '../lib/is-api-route'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { interpolateDynamicPath, normalizeVercelUrl } from './server-utils'
+import {
+  interpolateDynamicPath,
+  normalizeVercelUrl,
+  normalizeDynamicRouteParams,
+} from './server-utils'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
+import type { PAGE_TYPES } from '../lib/page-types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
-    normalizedPage: string
-    pagesType: 'app' | 'pages' | 'root'
-    loadComponent: (
-      pathname: string
-    ) => Promise<LoadComponentsReturnType | null>
+    pathname: string
+    pagesType: PAGE_TYPES
+    loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
     renderToHTML:
@@ -51,7 +55,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
@@ -64,7 +68,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      appDir: this.hasAppDir,
+      pagesDir: this.enabledDirectories.pages,
+      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -75,6 +80,8 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,
       getPrerenderManifest: () => this.getPrerenderManifest(),
+      // PPR is not supported in the edge runtime.
+      experimental: { ppr: false },
     })
   }
   protected getResponseCache() {
@@ -89,15 +96,18 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.buildId
   }
 
-  protected getHasAppDir() {
-    return this.serverOptions.webServerConfig.pagesType === 'app'
+  protected getEnabledDirectories() {
+    return {
+      app: this.serverOptions.webServerConfig.pagesType === 'app',
+      pages: this.serverOptions.webServerConfig.pagesType === 'pages',
+    }
   }
 
   protected getPagesManifest() {
     return {
       // keep same theme but server path doesn't need to be accurate
       [this.serverOptions.webServerConfig
-        .normalizedPage]: `server${this.serverOptions.webServerConfig.page}.js`,
+        .pathname]: `server${this.serverOptions.webServerConfig.page}.js`,
     }
   }
 
@@ -112,7 +122,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     req: WebNextRequest,
     parsedUrl: NextUrlWithParsedQuery
   ) {
-    addRequestMeta(req, '__NEXT_INIT_QUERY', { ...parsedUrl.query })
+    addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
   }
 
   protected getPrerenderManifest() {
@@ -135,11 +145,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return this.serverOptions.webServerConfig.extendRenderOpts.nextFontManifest
   }
 
-  protected async handleCatchallRenderRequest(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    parsedUrl: NextUrlWithParsedQuery
-  ): Promise<{ finished: boolean }> {
+  protected handleCatchallRenderRequest: RouteHandler = async (
+    req,
+    res,
+    parsedUrl
+  ) => {
     let { pathname, query } = parsedUrl
     if (!pathname) {
       throw new Error('pathname is undefined')
@@ -147,14 +157,32 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
     // interpolate query information into page for dynamic route
     // so that rewritten paths are handled properly
-    const normalizedPage = this.serverOptions.webServerConfig.normalizedPage
+    const normalizedPage = this.serverOptions.webServerConfig.pathname
 
     if (pathname !== normalizedPage) {
       pathname = normalizedPage
 
       if (isDynamicRoute(pathname)) {
         const routeRegex = getNamedRouteRegex(pathname, false)
-        pathname = interpolateDynamicPath(pathname, query, routeRegex)
+        const dynamicRouteMatcher = getRouteMatcher(routeRegex)
+        const defaultRouteMatches = dynamicRouteMatcher(
+          pathname
+        ) as NextParsedUrlQuery
+        const paramsResult = normalizeDynamicRouteParams(
+          query,
+          false,
+          routeRegex,
+          defaultRouteMatches
+        )
+        const normalizedParams = paramsResult.hasValidParams
+          ? paramsResult.params
+          : query
+
+        pathname = interpolateDynamicPath(
+          pathname,
+          normalizedParams,
+          routeRegex
+        )
         normalizeVercelUrl(
           req,
           true,
@@ -184,14 +212,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
 
-      return {
-        finished: true,
-      }
+      return true
     } catch (err) {
       if (err instanceof NoFallbackError && bubbleNoFallback) {
-        return {
-          finished: false,
-        }
+        return false
       }
       throw err
     }
@@ -202,7 +226,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     res: WebNextResponse,
     pathname: string,
     query: NextParsedUrlQuery,
-    renderOpts: RenderOpts
+    renderOpts: LoadedRenderOpts
   ): Promise<RenderResult> {
     const { renderToHTML } = this.serverOptions.webServerConfig
     if (!renderToHTML) {
@@ -236,7 +260,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      options?: PayloadOptions | undefined
+      revalidate: Revalidate | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
@@ -258,31 +282,11 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       )
     }
 
+    let promise: Promise<void> | undefined
     if (options.result.isDynamic) {
-      const writer = res.transformStream.writable.getWriter()
-
-      let innerClose: undefined | (() => void)
-      const target = {
-        write: (chunk: Uint8Array) => writer.write(chunk),
-        end: () => writer.close(),
-
-        on(_event: 'close', cb: () => void) {
-          innerClose = cb
-        },
-        off(_event: 'close', _cb: () => void) {
-          innerClose = undefined
-        },
-      }
-      const onClose = () => {
-        innerClose?.()
-      }
-      // No, this cannot be replaced with `finally`, because early cancelling
-      // the stream will create a rejected promise, and finally will create an
-      // unhandled rejection.
-      writer.closed.then(onClose, onClose)
-      options.result.pipe(target)
+      promise = options.result.pipeTo(res.transformStream.writable)
     } else {
-      const payload = await options.result.toUnchunkedString()
+      const payload = options.result.toUnchunkedString()
       res.setHeader('Content-Length', String(byteLength(payload)))
       if (options.generateEtags) {
         res.setHeader('ETag', generateETag(payload))
@@ -291,21 +295,24 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     }
 
     res.send()
+
+    // If we have a promise, wait for it to resolve.
+    if (promise) await promise
   }
 
   protected async findPageComponents({
-    pathname,
+    page,
     query,
     params,
+    url: _url,
   }: {
-    pathname: string
+    page: string
     query: NextParsedUrlQuery
     params: Params | null
     isAppPath: boolean
+    url?: string
   }) {
-    const result = await this.serverOptions.webServerConfig.loadComponent(
-      pathname
-    )
+    const result = await this.serverOptions.webServerConfig.loadComponent(page)
     if (!result) return null
 
     return {
@@ -361,7 +368,9 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // The web server does not support web sockets.
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
+  protected async getFallbackErrorComponents(
+    _url?: string
+  ): Promise<LoadComponentsReturnType | null> {
     // The web server does not need to handle fallback errors in production.
     return null
   }

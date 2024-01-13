@@ -1,10 +1,10 @@
 import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
-import { IncomingMessage, ServerResponse } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 import type { NullableMappedPosition, RawSourceMap } from 'source-map'
 import { SourceMapConsumer } from 'source-map'
-import { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -321,7 +321,8 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       if (
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
-            frame.file?.startsWith('file://')) &&
+            frame.file?.startsWith('file://') ||
+            frame.file?.startsWith('webpack:///')) &&
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
@@ -331,11 +332,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const moduleId: string = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/)/,
+        /webpack-internal:(\/)+|file:\/\//,
         ''
       )
       const modulePath = frame.file.replace(
-        /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
+        /webpack-internal:(\/)+|file:\/\/(\(.*\)\/)?/,
         ''
       )
 

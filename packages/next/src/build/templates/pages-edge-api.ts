@@ -1,10 +1,11 @@
-import '../../server/web/globals'
 import type { AdapterOptions } from '../../server/web/adapter'
+
+import '../../server/web/globals'
+
 import { adapter } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 // Import the userland code.
-// @ts-expect-error - replaced by webpack/turbopack loader
 import handler from 'VAR_USERLAND'
 
 const page = 'VAR_DEFINITION_PAGE'

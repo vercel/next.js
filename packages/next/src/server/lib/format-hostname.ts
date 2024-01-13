@@ -6,7 +6,6 @@ import { isIPv6 } from './is-ipv6'
  * @param hostname
  * @returns
  */
-
 export function formatHostname(hostname: string): string {
   return isIPv6(hostname) ? `[${hostname}]` : hostname
 }

@@ -40,16 +40,11 @@ export const test = base.test.extend<
   ],
 
   next: [
-    async (
-      { nextOptions, _nextWorker, page, extraHTTPHeaders },
-      use,
-      testInfo
-    ) => {
+    async ({ nextOptions, _nextWorker, page }, use, testInfo) => {
       await applyNextFixture(use, {
         testInfo,
         nextWorker: _nextWorker,
         page,
-        extraHTTPHeaders,
         nextOptions,
       })
     },

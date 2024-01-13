@@ -1,86 +1,86 @@
-import { useEffect, useRef, useState } from 'react'
-import Router from 'next/router'
-import * as UpChunk from '@mux/upchunk'
-import useSwr from 'swr'
-import Button from './button'
-import Spinner from './spinner'
-import ErrorMessage from './error-message'
+import { useEffect, useRef, useState } from "react";
+import Router from "next/router";
+import * as UpChunk from "@mux/upchunk";
+import useSwr from "swr";
+import Button from "./button";
+import Spinner from "./spinner";
+import ErrorMessage from "./error-message";
 
 const fetcher = (url: string) => {
-  return fetch(url).then((res) => res.json())
-}
+  return fetch(url).then((res) => res.json());
+};
 
 const UploadForm = () => {
-  const [isUploading, setIsUploading] = useState(false)
-  const [isPreparing, setIsPreparing] = useState(false)
-  const [uploadId, setUploadId] = useState(null)
-  const [progress, setProgress] = useState<Number | null>(null)
-  const [errorMessage, setErrorMessage] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
+  const [uploadId, setUploadId] = useState(null);
+  const [progress, setProgress] = useState<Number | null>(null);
+  const [errorMessage, setErrorMessage] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const { data, error } = useSwr(
     () => (isPreparing ? `/api/upload/${uploadId}` : null),
     fetcher,
-    { refreshInterval: 5000 }
-  )
+    { refreshInterval: 5000 },
+  );
 
-  const upload = data && data.upload
+  const upload = data && data.upload;
 
   useEffect(() => {
     if (upload && upload.asset_id) {
       Router.push({
         pathname: `/asset/${upload.asset_id}`,
-      })
+      });
     }
-  }, [upload])
+  }, [upload]);
 
-  if (error) return <ErrorMessage message="Error fetching api" />
-  if (data && data.error) return <ErrorMessage message={data.error} />
+  if (error) return <ErrorMessage message="Error fetching api" />;
+  if (data && data.error) return <ErrorMessage message={data.error} />;
 
   const createUpload = async () => {
     try {
-      return fetch('/api/upload', {
-        method: 'POST',
+      return fetch("/api/upload", {
+        method: "POST",
       })
         .then((res) => res.json())
         .then(({ id, url }) => {
-          setUploadId(id)
-          return url
-        })
+          setUploadId(id);
+          return url;
+        });
     } catch (e) {
-      console.error('Error in createUpload', e)
-      setErrorMessage('Error creating upload')
+      console.error("Error in createUpload", e);
+      setErrorMessage("Error creating upload");
     }
-  }
+  };
 
   const startUpload = () => {
-    setIsUploading(true)
+    setIsUploading(true);
 
-    const files = inputRef.current?.files
+    const files = inputRef.current?.files;
     if (!files) {
-      setErrorMessage('An unexpected issue occurred')
-      return
+      setErrorMessage("An unexpected issue occurred");
+      return;
     }
 
     const upload = UpChunk.createUpload({
       endpoint: createUpload,
       file: files[0],
-    })
+    });
 
-    upload.on('error', (err: any) => {
-      setErrorMessage(err.detail.message)
-    })
+    upload.on("error", (err: any) => {
+      setErrorMessage(err.detail.message);
+    });
 
-    upload.on('progress', (progress: any) => {
-      setProgress(Math.floor(progress.detail))
-    })
+    upload.on("progress", (progress: any) => {
+      setProgress(Math.floor(progress.detail));
+    });
 
-    upload.on('success', () => {
-      setIsPreparing(true)
-    })
-  }
+    upload.on("success", () => {
+      setIsPreparing(true);
+    });
+  };
 
-  if (errorMessage) return <ErrorMessage message={errorMessage} />
+  if (errorMessage) return <ErrorMessage message={errorMessage} />;
 
   return (
     <>
@@ -90,7 +90,7 @@ const UploadForm = () => {
             {isPreparing ? (
               <div>Preparing..</div>
             ) : (
-              <div>Uploading...{progress ? `${progress}%` : ''}</div>
+              <div>Uploading...{progress ? `${progress}%` : ""}</div>
             )}
             <Spinner />
           </>
@@ -109,7 +109,7 @@ const UploadForm = () => {
         }
       `}</style>
     </>
-  )
-}
+  );
+};
 
-export default UploadForm
+export default UploadForm;

@@ -10,6 +10,19 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
+/**
+ * Headers that are set by the Next.js server and should be stripped from the
+ * request headers going to the user's application.
+ */
+export const INTERNAL_HEADERS = [
+  'x-invoke-error',
+  'x-invoke-output',
+  'x-invoke-path',
+  'x-invoke-query',
+  'x-invoke-status',
+  'x-middleware-invoke',
+] as const
+
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -53,6 +66,7 @@ export const CLIENT_PUBLIC_FILES_PATH = 'public'
 export const CLIENT_STATIC_FILES_PATH = 'static'
 export const STRING_LITERAL_DROP_BUNDLE = '__NEXT_DROP_CLIENT_FILE__'
 export const NEXT_BUILTIN_DOCUMENT = '__NEXT_BUILTIN_DOCUMENT__'
+export const BARREL_OPTIMIZATION_PREFIX = '__barrel_optimize__'
 
 // server/[entry]/page_client-reference-manifest.js
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
@@ -81,11 +95,8 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
-export const TEMPORARY_REDIRECT_STATUS = 307
-export const PERMANENT_REDIRECT_STATUS = 308
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
 export const OPTIMIZED_FONT_PROVIDERS = [
   { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-import chalk from 'next/dist/compiled/chalk'
+import { cyan, green, red } from '../../../../../lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
@@ -278,22 +278,20 @@ function guessEditor(): string[] {
 function printInstructions(fileName: string, errorMessage: string | null) {
   console.log()
   console.log(
-    chalk.red('Could not open ' + path.basename(fileName) + ' in the editor.')
+    red('Could not open ' + path.basename(fileName) + ' in the editor.')
   )
   if (errorMessage) {
     if (errorMessage[errorMessage.length - 1] !== '.') {
       errorMessage += '.'
     }
-    console.log(
-      chalk.red('The editor process exited with an error: ' + errorMessage)
-    )
+    console.log(red('The editor process exited with an error: ' + errorMessage))
   }
   console.log()
   console.log(
     'To set up the editor integration, add something like ' +
-      chalk.cyan('REACT_EDITOR=atom') +
+      cyan('REACT_EDITOR=atom') +
       ' to the ' +
-      chalk.green('.env.local') +
+      green('.env.local') +
       ' file in your project folder ' +
       'and restart the development server.'
   )
@@ -353,7 +351,7 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
   ) {
     console.log()
     console.log(
-      chalk.red('Could not open ' + path.basename(fileName) + ' in the editor.')
+      red('Could not open ' + path.basename(fileName) + ' in the editor.')
     )
     console.log()
     console.log(

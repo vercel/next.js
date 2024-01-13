@@ -3,21 +3,16 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "packages/next-swc/crates/core",
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
   "packages/next-swc/crates/next-api",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-dev",
-  "packages/next-swc/crates/next-dev-tests",
-  "packages/next-swc/crates/next-transform-font",
-  "packages/next-swc/crates/next-transform-dynamic",
-  "packages/next-swc/crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/next-custom-transforms",
 ]
 
-[profile.dev.package.swc_css_prefixer]
-opt-level = 2
+[workspace.lints.clippy]
+too_many_arguments = "allow"
 
 # This is a workaround for wasm timeout issue
 [profile.dev.package."*"]
@@ -29,28 +24,24 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
-next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
-next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
-next-dev = { path = "packages/next-swc/crates/next-dev", default-features = false, features = [
-  "serializable",
-] }
-next-dev-tests = { path = "packages/next-swc/crates/next-dev-tests" }
-next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
-next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
-next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
+next-api = { path = "packages/next-swc/crates/next-api" }
+next-build = { path = "packages/next-swc/crates/next-build" }
+next-core = { path = "packages/next-swc/crates/next-core" }
+next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-# Keep consistent with preset_env_base through swc_core
-swc_core = { version = "0.82.11" }
-testing = { version = "0.34.1" }
+swc_core = { version = "0.87.16", features = [
+  "ecma_loader_lru",
+  "ecma_loader_parking_lot",
+] }
+testing = { version = "0.35.14" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230901.3" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240110.4" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230901.3" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240110.4" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-230901.3" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240110.4" }
 
 # General Deps
 
@@ -94,7 +85,7 @@ dialoguer = "0.10.3"
 dunce = "1.0.3"
 futures = "0.3.26"
 futures-retry = "0.6.0"
-httpmock = { version = "0.6.7", default-features = false }
+httpmock = { version = "0.6.8", default-features = false }
 indexmap = "1.9.2"
 indicatif = "0.17.3"
 indoc = "2.0.0"
@@ -128,7 +119,7 @@ shadow-rs = { version = "0.23.0", default-features = false, features = [
 ] }
 syn = "1.0.107"
 tempfile = "3.3.0"
-thiserror = "1.0.38"
+thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
 tokio = "1.25.0"
 tokio-util = { version = "0.7.7", features = ["io"] }
@@ -138,3 +129,4 @@ url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
+

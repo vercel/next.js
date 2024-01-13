@@ -5,7 +5,7 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { join } from 'path'
 
-describe('should set-up next', () => {
+describe('next/head', () => {
   let next: NextInstance
 
   beforeAll(async () => {

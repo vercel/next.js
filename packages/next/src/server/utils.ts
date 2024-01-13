@@ -1,7 +1,7 @@
 import { BLOCKED_PAGES } from '../shared/lib/constants'
 
-export function isBlockedPage(pathname: string): boolean {
-  return BLOCKED_PAGES.includes(pathname)
+export function isBlockedPage(page: string): boolean {
+  return BLOCKED_PAGES.includes(page)
 }
 
 export function cleanAmpPath(pathname: string): string {

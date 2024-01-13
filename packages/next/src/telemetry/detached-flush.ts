@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { Telemetry, TelemetryEvent } from './storage'
+import type { TelemetryEvent } from './storage'
+import { Telemetry } from './storage'
 import loadConfig from '../server/config'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
@@ -20,13 +21,7 @@ import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
   }
   dir = getProjectDir(dir)
 
-  const config = await loadConfig(
-    PHASE_DEVELOPMENT_SERVER,
-    dir,
-    undefined,
-    undefined,
-    true
-  )
+  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
   const distDir = path.join(dir, config.distDir || '.next')
   const eventsPath = path.join(distDir, '_events.json')
 

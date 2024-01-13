@@ -40,24 +40,24 @@ export default function Page() {
 Here's a summary of the props available for the Image Component:
 
 <div style={{ overflowX: 'auto', width: '100%' }}>
-| Prop                                      | Example                              | Type            | Required |
-| ----------------------------------------- | ------------------------------------ | --------------- | -------- |
-| [`src`](#src)                             | `src="/profile.png"`                 | String          | Yes      |
-| [`width`](#width)                         | `width={500}`                        | Integer (px)    | Yes      |
-| [`height`](#height)                       | `height={500}`                       | Integer (px)    | Yes      |
-| [`alt`](#alt)                             | `alt="Picture of the author"`        | String          | Yes      |
-| [`loader`](#loader)                       | `loader={imageLoader}`               | Function        | -        |
-| [`fill`](#fill)                           | `fill={true}`                        | Boolean         | -        |
-| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw"`   | String          | -        |
-| [`quality`](#quality)                     | `quality={80}`                       | Integer (1-100) | -        |
-| [`priority`](#priority)                   | `priority={true}`                    | Boolean         | -        |
-| [`placeholder`](#placeholder)             | `placeholder="blur"`                 | String          | -        |
-| [`style`](#style)                         | `style={{objectFit: "contain"}}`     | Object          | -        |
-| [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}` | Function        | -        |
-| [`onLoad`](#onload)                       | `onLoad={event => done())}`          | Function        | -        |
-| [`onError`](#onerror)                     | `onError(event => fail()}`           | Function        | -        |
-| [`loading`](#loading)                     | `loading="lazy"`                     | String          | -        |
-| [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`   | String          | -        |
+| Prop                                      | Example                                  | Type            | Status     |
+| ----------------------------------------- | ---------------------------------------- | --------------- | ---------- |
+| [`src`](#src)                             | `src="/profile.png"`                     | String          | Required   |
+| [`width`](#width)                         | `width={500}`                            | Integer (px)    | Required   |
+| [`height`](#height)                       | `height={500}`                           | Integer (px)    | Required   |
+| [`alt`](#alt)                             | `alt="Picture of the author"`            | String          | Required   |
+| [`loader`](#loader)                       | `loader={imageLoader}`                   | Function        | -          |
+| [`fill`](#fill)                           | `fill={true}`                            | Boolean         | -          |
+| [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 33vw"` | String          | -          |
+| [`quality`](#quality)                     | `quality={80}`                           | Integer (1-100) | -          |
+| [`priority`](#priority)                   | `priority={true}`                        | Boolean         | -          |
+| [`placeholder`](#placeholder)             | `placeholder="blur"`                     | String          | -          |
+| [`style`](#style)                         | `style={{objectFit: "contain"}}`         | Object          | -          |
+| [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}`     | Function        | Deprecated |
+| [`onLoad`](#onload)                       | `onLoad={event => done())}`              | Function        | -          |
+| [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
+| [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
+| [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
 </div>
 
 ## Required Props
@@ -152,7 +152,7 @@ export default function Page() {
 
 <AppOnly>
 
-> **Good to know**: Using props like `loader`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `loader`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -176,9 +176,9 @@ Alternatively, `object-fit: "cover"` will cause the image to fill the entire con
 
 For more information, see also:
 
-- [`position`](https://developer.mozilla.org/en-US/docs/Web/CSS/position)
-- [`object-fit`](https://developer.mozilla.org/en-US/docs/Web/CSS/object-fit)
-- [`object-position`](https://developer.mozilla.org/en-US/docs/Web/CSS/object-position)
+- [`position`](https://developer.mozilla.org/docs/Web/CSS/position)
+- [`object-fit`](https://developer.mozilla.org/docs/Web/CSS/object-fit)
+- [`object-position`](https://developer.mozilla.org/docs/Web/CSS/object-position)
 
 ### `sizes`
 
@@ -212,7 +212,7 @@ This example `sizes` could have a dramatic effect on performance metrics. Withou
 Learn more about `srcset` and `sizes`:
 
 - [web.dev](https://web.dev/learn/design/responsive-images/#sizes)
-- [mdn](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-sizes)
+- [mdn](https://developer.mozilla.org/docs/Web/HTML/Element/img#sizes)
 
 ### `quality`
 
@@ -247,7 +247,7 @@ When `blur`, the [`blurDataURL`](#blurdataurl) property will be used as the plac
 
 For dynamic images, you must provide the [`blurDataURL`](#blurdataurl) property. Solutions such as [Plaiceholder](https://github.com/joe-bell/plaiceholder) can help with `base64` generation.
 
-When `data:image/...`, the [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) will be used as the placeholder while the image is loading.
+When `data:image/...`, the [Data URL](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) will be used as the placeholder while the image is loading.
 
 When `empty`, there will be no placeholder while the image is loading, only empty space.
 
@@ -286,13 +286,15 @@ Remember that the required width and height props can interact with your styling
 <Image onLoadingComplete={(img) => console.log(img.naturalWidth)} />
 ```
 
+> **Warning**: Deprecated since Next.js 14 in favor of [`onLoad`](#onload).
+
 A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
 The callback function will be called with one argument, a reference to the underlying `<img>` element.
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoadingComplete`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoadingComplete`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -302,13 +304,13 @@ The callback function will be called with one argument, a reference to the under
 <Image onLoad={(e) => console.log(e.target.naturalWidth)} />
 ```
 
-A callback function that is invoked when the image is loaded.
+A callback function that is invoked once the image is completely loaded and the [placeholder](#placeholder) has been removed.
 
-The load event might occur before the image placeholder is removed and the image is fully decoded. If you want to wait until the image has fully loaded, use [`onLoadingComplete`](#onloadingcomplete) instead.
+The callback function will be called with one argument, the Event which has a `target` that references the underlying `<img>` element.
 
 <AppOnly>
 
-> **Good to know**: Using props like `onLoad`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onLoad`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -322,7 +324,7 @@ A callback function that is invoked if the image fails to load.
 
 <AppOnly>
 
-> **Good to know**: Using props like `onError`, which accept a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Using props like `onError`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -341,11 +343,11 @@ the viewport.
 
 When `eager`, load the image immediately.
 
-Learn more about the [`loading` attribute](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/img#attr-loading).
+Learn more about the [`loading` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
 
 ### `blurDataURL`
 
-A [Data URL](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
+A [Data URL](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs) to
 be used as a placeholder image before the `src` image successfully loads. Only takes effect when combined
 with [`placeholder="blur"`](#placeholder).
 
@@ -428,13 +430,14 @@ module.exports = {
       {
         protocol: 'https',
         hostname: '**.example.com',
+        port: '',
       },
     ],
   },
 }
 ```
 
-> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol or unmatched hostname will respond with 400 Bad Request.
+> **Good to know**: The example above will ensure the `src` property of `next/image` must start with `https://img1.example.com` or `https://me.avatar.example.com` or any number of subdomains. Any other protocol, port, or unmatched hostname will respond with 400 Bad Request.
 
 Wildcard patterns can be used for both `pathname` and `hostname` and have the following syntax:
 
@@ -443,9 +446,11 @@ Wildcard patterns can be used for both `pathname` and `hostname` and have the fo
 
 The `**` syntax does not work in the middle of the pattern.
 
+> **Good to know**: When omitting `protocol`, `port` or `pathname`, then the wildcard `**` is implied. This is not recommended because it may allow malicious actors to optimize urls you did not intend.
+
 ### `domains`
 
-> **Warning**: We recommend configuring strict [`remotePatterns`](#remotepatterns) instead of `domains` in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
+> **Warning**: Deprecated since Next.js 14 in favor of strict [`remotePatterns`](#remotepatterns) in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
 
 Similar to [`remotePatterns`](#remotepatterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images.
 
@@ -492,7 +497,7 @@ Examples:
 
 <AppOnly>
 
-> **Good to know**: Customizing the image loader file, which accepts a function, require using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
+> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
 
 </AppOnly>
 
@@ -516,7 +521,7 @@ module.exports = {
 
 ### `imageSizes`
 
-You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#devicesizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/srcset)s.
+You can specify a list of image widths using the `images.imageSizes` property in your `next.config.js` file. These widths are concatenated with the array of [device sizes](#devicesizes) to form the full array of sizes used to generate image [srcset](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/srcset)s.
 
 The reason there are two separate lists is that imageSizes is only used for images which provide a [`sizes`](#sizes) prop, which indicates that the image is less than the full width of the screen. **Therefore, the sizes in imageSizes should all be smaller than the smallest size in deviceSizes.**
 
@@ -576,7 +581,7 @@ The cache status of an image can be determined by reading the value of the `x-ne
 The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](#minimumcachettl) configuration or the upstream image `Cache-Control` header, whichever is larger. Specifically, the `max-age` value of the `Cache-Control` header is used. If both `s-maxage` and `max-age` are found, then `s-maxage` is preferred. The `max-age` is also passed-through to any downstream clients including CDNs and browsers.
 
 - You can configure [`minimumCacheTTL`](#minimumcachettl) to increase the cache duration when the upstream image does not include `Cache-Control` header or the value is very low.
-- You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#devicesizes) to reduce the total number of possible generated images.
+- You can configure [`deviceSizes`](#devicesizes) and [`imageSizes`](#imagesizes) to reduce the total number of possible generated images.
 - You can configure [formats](#formats) to disable multiple formats in favor of a single image format.
 
 ### `minimumCacheTTL`
@@ -599,7 +604,7 @@ There is no mechanism to invalidate the cache at this time, so its best to keep 
 
 ### `disableStaticImages`
 
-The default behavior allows you to import static files such as `import icon from './icon.png` and then pass that to the `src` property.
+The default behavior allows you to import static files such as `import icon from './icon.png'` and then pass that to the `src` property.
 
 In some cases, you may wish to disable this feature if it conflicts with other plugins that expect the import to behave differently.
 
@@ -782,7 +787,7 @@ const ThemeImage = (props) => {
 }
 ```
 
-> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLImageElement/fetchPriority).
+> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).
 
 Try it out:
 
@@ -803,6 +808,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `v13.2.0`  | `contentDispositionType` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v13.0.6`  | `ref` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |

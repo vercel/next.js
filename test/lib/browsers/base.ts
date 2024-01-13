@@ -54,6 +54,7 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     browserName: string,
     locale: string,
     javaScriptEnabled: boolean,
+    ignoreHttpsErrors: boolean,
     headless: boolean
   ): Promise<void> {}
   async close(): Promise<void> {}
@@ -124,7 +125,15 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   off(event: Event, cb: (...args: any[]) => void) {}
   async loadPage(
     url: string,
-    { disableCache: boolean, beforePageLoad: Function }
+    {
+      disableCache,
+      cpuThrottleRate,
+      beforePageLoad,
+    }: {
+      disableCache?: boolean
+      cpuThrottleRate?: number
+      beforePageLoad?: Function
+    }
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
 

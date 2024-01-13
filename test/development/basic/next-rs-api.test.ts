@@ -2,11 +2,13 @@ import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/src/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import {
+  createDefineEnv,
   Diagnostics,
   Entrypoints,
   Issue,
   loadBindings,
   Project,
+  StyledString,
   TurbopackResult,
   UpdateInfo,
 } from 'next/src/build/swc'
@@ -22,11 +24,29 @@ function normalizePath(path: string) {
     )
 }
 
+function styledStringToMarkdown(styled: StyledString): string {
+  switch (styled.type) {
+    case 'text':
+      return styled.value
+    case 'strong':
+      return '**' + styled.value + '**'
+    case 'code':
+      return '`' + styled.value + '`'
+    case 'line':
+      return styled.value.map(styledStringToMarkdown).join('')
+    case 'stack':
+      return styled.value.map(styledStringToMarkdown).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', styled)
+  }
+}
+
 function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
-      detail: issue.detail && normalizePath(issue.detail),
+      detail:
+        issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
       filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
@@ -140,7 +160,8 @@ describe('next.rs api', () => {
           'app/app/page.ts': appPageCode('hello world'),
           'app/app/client.ts':
             '"use client";\nexport default () => <div>hello world</div>',
-          // 'app/app-edge/page.ts': 'export default () => <div>hello world</div>\nexport const runtime = "edge"',
+          'app/app-edge/page.ts':
+            'export default () => <div>hello world</div>\nexport const runtime = "edge"',
           'app/app-nodejs/page.ts':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
@@ -172,6 +193,24 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
+      serverAddr: `127.0.0.1:3000`,
+      defineEnv: createDefineEnv({
+        isTurbopack: true,
+        allowedRevalidateHeaderKeys: undefined,
+        clientRouterFilters: undefined,
+        config: nextConfig,
+        dev: true,
+        distDir: path.join(
+          process.env.NEXT_SKIP_ISOLATE
+            ? path.resolve(__dirname, '../../..')
+            : next.testDir,
+          '.next'
+        ),
+        fetchCacheKeyPrefix: undefined,
+        hasRewrites: false,
+        middlewareMatchers: undefined,
+        previewModeId: undefined,
+      }),
     })
     projectUpdateSubscription = project.updateInfoSubscribe()
   })
@@ -186,8 +225,7 @@ describe('next.rs api', () => {
       '/api/edge',
       '/api/nodejs',
       '/app',
-      // TODO app edge pages are not supported yet
-      // '/app-edge',
+      '/app-edge',
       '/app-nodejs',
       '/page-edge',
       '/page-nodejs',
@@ -223,14 +261,13 @@ describe('next.rs api', () => {
       runtime: 'nodejs',
       config: {},
     },
-    // TODO app edge pages are not supported yet
-    // {
-    //   name: 'app edge page',
-    //   path: '/app-edge',
-    //   type: 'app-page',
-    //   runtime: 'edge',
-    //   config: {},
-    // },
+    {
+      name: 'app edge page',
+      path: '/app-edge',
+      type: 'app-page',
+      runtime: 'edge',
+      config: {},
+    },
     {
       name: 'app Node.js page',
       path: '/app-nodejs',
@@ -352,8 +389,7 @@ describe('next.rs api', () => {
       file: 'pages/index.js',
       content: pagesIndexCode('hello world2'),
       expectedUpdate: '/pages/index.js',
-      // TODO(sokra) this should be false, but source maps change on server side
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a page',
@@ -380,8 +416,7 @@ describe('next.rs api', () => {
       file: 'app/app/client.ts',
       content: '"use client";\nexport default () => <div>hello world2</div>',
       expectedUpdate: '/app/app/client.ts',
-      // TODO(sokra) this should be false, not sure why it's true
-      expectedServerSideChange: true,
+      expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a app page',
@@ -423,12 +458,16 @@ describe('next.rs api', () => {
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.dataEndpoint.changed()
+            serverSideSubscription = await route.dataEndpoint.serverChanged(
+              false
+            )
             break
           }
           case 'app-page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.rscEndpoint.changed()
+            serverSideSubscription = await route.rscEndpoint.serverChanged(
+              false
+            )
             break
           }
           default: {
@@ -545,4 +584,56 @@ describe('next.rs api', () => {
         }
       })
   }
+
+  it.skip('should allow to make many HMR updates', async () => {
+    console.log('start')
+    await new Promise((r) => setTimeout(r, 1000))
+    const entrypointsSubscribtion = project.entrypointsSubscribe()
+    const entrypoints: TurbopackResult<Entrypoints> = (
+      await entrypointsSubscribtion.next()
+    ).value
+    const route = entrypoints.routes.get('/')
+    entrypointsSubscribtion.return()
+
+    if (route.type !== 'page') throw new Error('unknown route type')
+    await route.htmlEndpoint.writeToDisk()
+
+    const result = await project.hmrIdentifiersSubscribe().next()
+    expect(result.done).toBe(false)
+    const identifiers = result.value.identifiers
+
+    const subscriptions = identifiers.map((identifier) =>
+      project.hmrEvents(identifier)
+    )
+    await Promise.all(
+      subscriptions.map(async (subscription) => {
+        const result = await subscription.next()
+        expect(result.done).toBe(false)
+        expect(result.value).toHaveProperty('resource', expect.toBeObject())
+        expect(result.value).toHaveProperty('type', 'issues')
+        expect(result.value).toHaveProperty('diagnostics', expect.toBeEmpty())
+      })
+    )
+    const merged = raceIterators(subscriptions)
+
+    const file = 'pages/index.js'
+    let currentContent = await next.readFile(file)
+    let nextContent = pagesIndexCode('hello world2')
+
+    const count = process.env.CI ? 300 : 1000
+    for (let i = 0; i < count; i++) {
+      await next.patchFileFast(file, nextContent)
+      const content = currentContent
+      currentContent = nextContent
+      nextContent = content
+
+      while (true) {
+        const { value, done } = await merged.next()
+        expect(done).toBe(false)
+        if (value.type === 'partial') {
+          break
+        }
+      }
+    }
+  }, 300000)
 })

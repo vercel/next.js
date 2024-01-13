@@ -356,9 +356,21 @@ async fn get_font_css_properties(
         font_family: Vc::cell(font_families.join(", ")),
         weight: Vc::cell(match &options.weights {
             FontWeights::Variable => None,
-            FontWeights::Fixed(weights) => weights.first().map(|w| w.to_string()),
+            FontWeights::Fixed(weights) => {
+                if weights.len() > 1 {
+                    // Don't set a rule for weight if multiple are requested
+                    None
+                } else {
+                    weights.first().map(|w| w.to_string())
+                }
+            }
         }),
-        style: Vc::cell(options.styles.first().cloned()),
+        style: Vc::cell(if options.styles.len() > 1 {
+            // Don't set a rule for style if multiple are requested
+            None
+        } else {
+            options.styles.first().cloned()
+        }),
         variable: Vc::cell(options.variable.clone()),
     }))
 }
@@ -431,24 +443,28 @@ async fn get_mock_stylesheet(
         project_path: _,
         chunking_context,
     } = *execution_context.await?;
-    let context = node_evaluate_asset_context(execution_context, None, None);
+    let context =
+        node_evaluate_asset_context(execution_context, None, None, "next_font".to_string());
     let loader_path = mock_fs.root().join("loader.js".to_string());
-    let mocked_response_asset = context.process(
-        Vc::upcast(VirtualSource::new(
-            loader_path,
-            AssetContent::file(
-                File::from(format!(
-                    "import data from './{}'; export default function load() {{ return data; }};",
-                    response_path
-                        .file_name()
-                        .context("Must exist")?
-                        .to_string_lossy(),
-                ))
-                .into(),
-            ),
-        )),
-        Value::new(ReferenceType::Internal(InnerAssets::empty())),
-    );
+    let mocked_response_asset = context
+        .process(
+            Vc::upcast(VirtualSource::new(
+                loader_path,
+                AssetContent::file(
+                    File::from(format!(
+                        "import data from './{}'; export default function load() {{ return data; \
+                         }};",
+                        response_path
+                            .file_name()
+                            .context("Must exist")?
+                            .to_string_lossy(),
+                    ))
+                    .into(),
+                ),
+            )),
+            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+        )
+        .module();
 
     let root = mock_fs.root();
     let val = evaluate(

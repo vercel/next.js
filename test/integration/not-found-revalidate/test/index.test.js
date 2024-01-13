@@ -194,7 +194,7 @@ const runTests = () => {
 }
 
 describe('SSG notFound revalidate', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await fs.remove(join(appDir, '.next'))
       await nextBuild(appDir, undefined, {

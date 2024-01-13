@@ -39,6 +39,13 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (startArgs[0] === 'yarn') {
+        startArgs[0] = 'pnpm'
+      }
+    }
+
     console.log('running', startArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
@@ -79,6 +86,7 @@ export class NextDevInstance extends NextInstance {
             )
           }
         })
+
         const readyCb = (msg) => {
           const resolveServer = () => {
             try {
@@ -95,8 +103,6 @@ export class NextDevInstance extends NextInstance {
 
           const colorStrippedMsg = stripAnsi(msg)
           if (colorStrippedMsg.includes('- Local:')) {
-            // turbo devserver emits stdout in rust directly, can contain unexpected chars with color codes
-            // strip out again for the safety
             this._url = msg
               .split('\n')
               .find((line) => line.includes('- Local:'))
@@ -108,7 +114,7 @@ export class NextDevInstance extends NextInstance {
             msg.includes('started server on') &&
             msg.includes('url:')
           ) {
-            this._url = msg.split('url: ').pop().split(/\s/)[0].trim()
+            this._url = msg.split('url: ').pop().split(/\s/, 1)[0].trim()
             resolveServer()
           }
         }

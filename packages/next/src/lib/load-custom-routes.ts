@@ -1,7 +1,7 @@
 import type { NextConfig } from '../server/config'
 import type { Token } from 'next/dist/compiled/path-to-regexp'
 
-import chalk from './chalk'
+import { bold, yellow } from './picocolors'
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
@@ -678,7 +678,7 @@ export default async function loadCustomRoutes(
 
   if (totalRoutes > 1000) {
     console.warn(
-      chalk.bold.yellow(`Warning: `) +
+      bold(yellow(`Warning: `)) +
         `total number of custom routes exceeds 1000, this can reduce performance. Route counts:\n` +
         `headers: ${headers.length}\n` +
         `rewrites: ${totalRewrites}\n` +

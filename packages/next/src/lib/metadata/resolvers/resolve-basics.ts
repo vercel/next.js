@@ -9,10 +9,8 @@ import type {
   FieldResolverExtraArgs,
   MetadataContext,
 } from '../types/resolvers'
-import type { Viewport } from '../types/extra-types'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
 import { resolveAbsoluteUrlWithPathname } from './resolve-url'
-import { ViewPortKeys } from '../constants'
 
 function resolveAlternateUrl(
   url: string | URL,
@@ -42,26 +40,6 @@ export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
   })
 
   return themeColorDescriptors
-}
-
-export const resolveViewport: FieldResolver<'viewport'> = (viewport) => {
-  let resolved: ResolvedMetadata['viewport'] = null
-
-  if (typeof viewport === 'string') {
-    resolved = viewport
-  } else if (viewport) {
-    resolved = ''
-    for (const viewportKey_ in ViewPortKeys) {
-      const viewportKey = viewportKey_ as keyof Viewport
-      if (viewportKey in viewport) {
-        let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-        if (resolved) resolved += ', '
-        resolved += `${ViewPortKeys[viewportKey]}=${value}`
-      }
-    }
-  }
-  return resolved
 }
 
 function resolveUrlValuesOfObject(
