@@ -198,7 +198,7 @@ async function createTreeCodeFromPath(
   const pages: string[] = []
 
   let rootLayout: string | undefined
-  let globalError: string = defaultGlobalErrorPath
+  let globalError: string | undefined
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -356,18 +356,18 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath) {
+        if (isDefaultNotFound && !layoutPath && !rootLayout) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
+      }
 
-        if (layoutPath) {
-          const resolvedGlobalErrorPath = await resolver(
-            `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
-          )
-          if (resolvedGlobalErrorPath) {
-            globalError = resolvedGlobalErrorPath
-          }
+      if (!globalError) {
+        const resolvedGlobalErrorPath = await resolver(
+          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
+        )
+        if (resolvedGlobalErrorPath) {
+          globalError = resolvedGlobalErrorPath
         }
       }
 
@@ -468,7 +468,7 @@ async function createTreeCodeFromPath(
     treeCode: `${treeCode}.children;`,
     pages: `${JSON.stringify(pages)};`,
     rootLayout,
-    globalError,
+    globalError: globalError ?? defaultGlobalErrorPath,
   }
 }
 

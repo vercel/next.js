@@ -5,8 +5,8 @@ createNextDescribe(
   'production - app dir - build output',
   {
     files: {
-      'app/page.js': `export default function Page() { return null }`,
-      'app/layout.js': `export default function Layout({ children }) {
+      'app/page.tsx': `export default function Page() { return null }`,
+      'app/layout.tsx': `export default function Layout({ children }) {
         return (
           <html><body>{children}</body></html>
         )
@@ -14,15 +14,30 @@ createNextDescribe(
     },
   },
   ({ next }) => {
+    let output = ''
+    beforeAll(() => {
+      output = stripAnsi(next.cliOutput)
+    })
+
     it('should only log app routes', async () => {
-      const output = next.cliOutput
       expect(output).toContain('Route (app)')
       expect(output).not.toContain('Route (pages)')
       expect(output).not.toContain('/favicon.ico')
     })
 
+    it('should always log version first then the rest jobs', async () => {
+      const indexOfVersion = output.indexOf('▲ Next.js')
+      const indexOfStartCompiling = output.indexOf(
+        'Creating an optimized production build'
+      )
+      const indexOfLinting = output.indexOf(
+        'Linting and checking validity of types'
+      )
+      expect(indexOfVersion).toBeLessThan(indexOfLinting)
+      expect(indexOfStartCompiling).toBeLessThan(indexOfLinting)
+    })
+
     it('should match the expected output format', async () => {
-      const output = stripAnsi(next.cliOutput)
       expect(output).toContain('Size')
       expect(output).toContain('First Load JS')
       expect(output).toContain('+ First Load JS shared by all')

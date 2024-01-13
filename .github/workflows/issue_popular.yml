@@ -1,12 +1,12 @@
-name: Notify about approved but still open PRs
+name: Notify about the top 15 issues (most reacted) in the last month
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Once a day
+    - cron: '0 13 * * 1' # Every Monday at 1PM UTC (9AM EST)
   workflow_dispatch:
 
 jobs:
-  pr-approved-open:
+  popular-issues:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
@@ -16,7 +16,7 @@ jobs:
           node-version: 18
       - run: corepack enable
       - name: 'Send notification to Slack'
-        run: node ./.github/actions/pr-approved-open/index.mjs
+        run: node ./.github/actions/next-repo-info/dist/issues/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}

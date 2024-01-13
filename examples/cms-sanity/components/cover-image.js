@@ -1,13 +1,13 @@
-import cn from 'classnames'
-import Image from 'next/image'
-import Link from 'next/link'
-import { urlForImage } from '../lib/sanity'
+import cn from "classnames";
+import Image from "next/image";
+import Link from "next/link";
+import { urlForImage } from "../lib/sanity";
 
 export default function CoverImage({ title, slug, image: source, priority }) {
   const image = source?.asset?._ref ? (
     <div
-      className={cn('shadow-small', {
-        'hover:shadow-medium transition-shadow duration-200': slug,
+      className={cn("shadow-small", {
+        "hover:shadow-medium transition-shadow duration-200": slug,
       })}
     >
       <Image
@@ -21,8 +21,8 @@ export default function CoverImage({ title, slug, image: source, priority }) {
       />
     </div>
   ) : (
-    <div style={{ paddingTop: '50%', backgroundColor: '#ddd' }} />
-  )
+    <div style={{ paddingTop: "50%", backgroundColor: "#ddd" }} />
+  );
 
   return (
     <div className="sm:mx-0">
@@ -34,5 +34,5 @@ export default function CoverImage({ title, slug, image: source, priority }) {
         image
       )}
     </div>
-  )
+  );
 }
