@@ -49,7 +49,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (sessionStopHandled) return
   sessionStopHandled = true
 
-  if (child?.pid && child.exitCode === null) {
+  if (child?.pid && child.exitCode === null && child.signalCode === null) {
     await once(child, 'exit').catch(() => {})
   }
 

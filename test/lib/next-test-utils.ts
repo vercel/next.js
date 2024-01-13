@@ -529,7 +529,11 @@ export async function killApp(
   instance: ChildProcess,
   signal: NodeJS.Signals | number = 'SIGKILL'
 ) {
-  if (instance?.pid && instance.exitCode === null) {
+  if (
+    instance.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
     const exitPromise = once(instance, 'exit')
     await killProcess(instance.pid, signal)
     await exitPromise
