@@ -29,8 +29,7 @@ const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
 const dirEslintIgnore = join(__dirname, '../eslint-ignore')
 const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
-const dirPageDirNoConfig = join(__dirname, '../no-config')
-const dirAppDirNoConfig = join(__dirname, '../app-dir/no-config')
+const dirNoConfig = join(__dirname, '../no-config')
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
@@ -42,7 +41,7 @@ describe('Next Lint', () => {
     async function nextLintTemp(setupCallback, isApp = false) {
       const folder = join(os.tmpdir(), Math.random().toString(36).substring(2))
       await fs.mkdirp(folder)
-      await fs.copy(isApp ? dirAppDirNoConfig : dirPageDirNoConfig, folder)
+      await fs.copy(join(dirNoConfig, isApp ? 'app' : ''), folder)
       await setupCallback?.(folder)
 
       try {
@@ -89,7 +88,7 @@ describe('Next Lint', () => {
       { packageManger: 'pnpm', lockFile: 'pnpm-lock.yaml' },
       { packageManger: 'npm', lockFile: 'package-lock.json' },
     ]) {
-      test(`Page Router - installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
+      test(`installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
         const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
           await fs.writeFile(join(folder, lockFile), '')
         })
@@ -102,54 +101,54 @@ describe('Next Lint', () => {
         expect(stdout).toContain(packageManger)
         expect(pkgJson.devDependencies).toHaveProperty('eslint')
         expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
-      })
 
-      test(`App Router - installs eslint and eslint-config-next as devDependencies if missing with ${packageManger}`, async () => {
-        const { stdout, pkgJson } = await nextLintTemp(async (folder) => {
-          await fs.writeFile(join(folder, lockFile), '')
-        }, true)
+        // App Router
+        const { stdout: appStdout, pkgJson: appPkgJson } = await nextLintTemp(
+          async (folder) => {
+            await fs.writeFile(join(folder, lockFile), '')
+          },
+          true
+        )
 
-        expect(stdout).toContain(
+        expect(appStdout).toContain(
           `Installing devDependencies (${packageManger}):`
         )
-        expect(stdout).toContain('eslint')
-        expect(stdout).toContain('eslint-config-next')
-        expect(stdout).toContain(packageManger)
-        expect(pkgJson.devDependencies).toHaveProperty('eslint')
-        expect(pkgJson.devDependencies).toHaveProperty('eslint-config-next')
+        expect(appStdout).toContain('eslint')
+        expect(appStdout).toContain('eslint-config-next')
+        expect(appStdout).toContain(packageManger)
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint')
+        expect(appPkgJson.devDependencies).toHaveProperty('eslint-config-next')
       })
     }
 
-    test('Page Router - creates .eslintrc.json file with a default configuration', async () => {
+    test('creates .eslintrc.json file with a default configuration', async () => {
       const { stdout, eslintrcJson } = await nextLintTemp()
 
       expect(stdout).toContain(
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
-    })
 
-    test('App Router - creates .eslintrc.json file with a default configuration', async () => {
-      const { stdout, eslintrcJson } = await nextLintTemp(undefined, true)
+      // App Router
+      const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
+        await nextLintTemp(null, true)
 
-      expect(stdout).toContain(
+      expect(appStdout).toContain(
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
-      expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+      expect(appEslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
     })
 
-    test('Page Router - shows a successful message when completed', async () => {
+    test('shows a successful message when completed', async () => {
       const { stdout } = await nextLintTemp()
 
       expect(stdout).toContain(
         'ESLint has successfully been configured. Run next lint again to view warnings and errors'
       )
-    })
 
-    test('App Router - shows a successful message when completed', async () => {
-      const { stdout } = await nextLintTemp(undefined, true)
-
-      expect(stdout).toContain(
+      // App Router
+      const { stdout: appStdout } = await nextLintTemp(null, true)
+      expect(appStdout).toContain(
         'ESLint has successfully been configured. Run next lint again to view warnings and errors'
       )
     })
