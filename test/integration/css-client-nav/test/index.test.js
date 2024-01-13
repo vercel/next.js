@@ -7,7 +7,6 @@ import { remove } from 'fs-extra'
 import {
   findPort,
   killApp,
-  killProcess,
   launchApp,
   nextBuild,
   nextStart,
