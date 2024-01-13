@@ -531,8 +531,8 @@ createNextDescribe(
 
     // turbopack does not support experimental.instrumentationHook
     ;(process.env.TURBOPACK ? describe.skip : describe)('root context', () => {
-      describe('app router', () => {
-        it('should handle RSC with fetch', async () => {
+      describe('app router with disabled fetch', () => {
+        it('should handle RSC with disabled fetch', async () => {
           await next.fetch('/app/param/rsc-fetch')
 
           await check(async () => {
