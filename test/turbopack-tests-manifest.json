@@ -2395,6 +2395,7 @@
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
+      "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
@@ -3865,6 +3866,7 @@
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
+      "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
@@ -4163,8 +4165,29 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
-    "passed": ["ppr-navigations prefetching is disabled in dev"],
+  "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
+    "passed": ["avoid-popstate-flash ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
+    "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
+    "passed": ["search-params ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
+    "passed": ["stale-prefetch-entry ppr is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
