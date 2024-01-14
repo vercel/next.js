@@ -387,8 +387,11 @@ export function patchFetch({
           } else if (isDefaultNoStore) {
             revalidate = 0
             cacheReason = 'fetchCache = default-no-store'
+          } else if (isUsingNoStore) {
+            revalidate = 0
+            cacheReason = 'noStore call'
           } else {
-            cacheReason = isUsingNoStore ? 'noStore call' : 'auto cache'
+            cacheReason = 'auto cache'
             revalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
