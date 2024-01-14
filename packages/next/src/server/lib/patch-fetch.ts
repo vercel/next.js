@@ -287,6 +287,7 @@ export function patchFetch({
           staticGenerationStore.fetchCache === 'only-no-store'
         const isForceNoStore =
           staticGenerationStore.fetchCache === 'force-no-store'
+        const isUsingNoStore = !!staticGenerationStore.isUnstableNoStore
 
         let _cache = getRequestMeta('cache')
         let cacheReason = ''
@@ -387,7 +388,7 @@ export function patchFetch({
             revalidate = 0
             cacheReason = 'fetchCache = default-no-store'
           } else {
-            cacheReason = 'auto cache'
+            cacheReason = isUsingNoStore ? 'noStore call' : 'auto cache'
             revalidate =
               typeof staticGenerationStore.revalidate === 'boolean' ||
               typeof staticGenerationStore.revalidate === 'undefined'
