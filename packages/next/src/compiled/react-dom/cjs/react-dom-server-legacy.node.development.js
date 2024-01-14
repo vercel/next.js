@@ -18,7 +18,7 @@ var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 var stream = require('stream');
 
-var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
+var ReactVersion = '18.3.0-canary-60a927d04-20240113';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -6636,8 +6636,9 @@ function getWrappedName(outerType, innerType, wrapperName) {
 
 function getContextName(type) {
   return type.displayName || 'Context';
-} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+}
 
+var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
 
 function getComponentNameFromType(type) {
   if (type == null) {
@@ -6645,13 +6646,12 @@ function getComponentNameFromType(type) {
     return null;
   }
 
-  {
-    if (typeof type.tag === 'number') {
-      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
-    }
-  }
-
   if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
     return type.displayName || type.name || null;
   }
 
@@ -6686,6 +6686,12 @@ function getComponentNameFromType(type) {
   }
 
   if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
     switch (type.$$typeof) {
       case REACT_CONTEXT_TYPE:
         var context = type;
@@ -9334,7 +9340,8 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
       errorDigest = logRecoverableError(request, error, thrownInfo);
     }
 
-    encodeErrorForBoundary(newBoundary, errorDigest, error, thrownInfo); // We don't need to decrement any task numbers because we didn't spawn any new task.
+    encodeErrorForBoundary(newBoundary, errorDigest, error, thrownInfo);
+    untrackBoundary(request, newBoundary); // We don't need to decrement any task numbers because we didn't spawn any new task.
     // We don't need to schedule any task because we know the parent has written yet.
     // We do need to fallthrough to create the fallback though.
   } finally {
@@ -10381,6 +10388,36 @@ function renderChildrenArray(request, task, children, childIndex) {
   task.treeContext = prevTreeContext;
   task.keyPath = prevKeyPath;
 }
+// resume it.
+
+
+function untrackBoundary(request, boundary) {
+  var trackedPostpones = request.trackedPostpones;
+
+  if (trackedPostpones === null) {
+    return;
+  }
+
+  var boundaryKeyPath = boundary.trackedContentKeyPath;
+
+  if (boundaryKeyPath === null) {
+    return;
+  }
+
+  var boundaryNode = trackedPostpones.workingMap.get(boundaryKeyPath);
+
+  if (boundaryNode === undefined) {
+    return;
+  } // Downgrade to plain ReplayNode since we won't replay through it.
+  // $FlowFixMe[cannot-write]: We intentionally downgrade this to the other tuple.
+
+
+  boundaryNode.length = 4; // Remove any resumable slots.
+
+  boundaryNode[2] = [];
+  boundaryNode[3] = null; // TODO: We should really just remove the boundary from all parent paths too so
+  // we don't replay the path to it.
+}
 
 function spawnNewSuspendedReplayTask(request, task, thenableState, x) {
   var newTask = createReplayTask(request, thenableState, task.replay, task.node, task.childIndex, task.blockedBoundary, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
@@ -10549,7 +10586,8 @@ function erroredTask(request, boundary, error, errorInfo) {
 
     if (boundary.status !== CLIENT_RENDERED) {
       boundary.status = CLIENT_RENDERED;
-      encodeErrorForBoundary(boundary, errorDigest, error, errorInfo); // Regardless of what happens next, this boundary won't be displayed,
+      encodeErrorForBoundary(boundary, errorDigest, error, errorInfo);
+      untrackBoundary(request, boundary); // Regardless of what happens next, this boundary won't be displayed,
       // so we can flush it, if the parent already flushed.
 
       if (boundary.parentFlushed) {
@@ -10713,6 +10751,7 @@ function abortTask(task, request, error) {
       }
 
       encodeErrorForBoundary(boundary, _errorDigest, errorMessage, _errorInfo);
+      untrackBoundary(request, boundary);
 
       if (boundary.parentFlushed) {
         request.clientRenderedBoundaries.push(boundary);
