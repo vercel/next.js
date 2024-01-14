@@ -1,6 +1,6 @@
-import { ContentBlocks } from './content-blocks'
-import DateComponent from './date'
-import Avatar from './avatar'
+import { ContentBlocks } from "./content-blocks";
+import DateComponent from "./date";
+import Avatar from "./avatar";
 
 export default function PostBody({ content }) {
   return (
@@ -14,7 +14,7 @@ export default function PostBody({ content }) {
         ) : null}
       </div>
       <div className="mb-6 text-lg">
-        {content.postingDate !== 'now' ? (
+        {content.postingDate !== "now" ? (
           <div className="mb-6 text-lg">
             Posted <DateComponent dateString={content.postingDate} />
           </div>
@@ -22,5 +22,5 @@ export default function PostBody({ content }) {
       </div>
       <ContentBlocks content={content.blogContent.json.content} />
     </div>
-  )
+  );
 }

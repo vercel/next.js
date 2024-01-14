@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, shouldRunTurboDevTest } from 'next-test-utils'
+import { check, hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -229,6 +229,10 @@ createNextDescribe(
     it('should emit cjs helpers for external cjs modules when compiled', async () => {
       const $ = await next.render$('/cjs/client')
       expect($('#private-prop').text()).toBe('prop')
+      expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
+
+      const browser = await next.browser('/cjs/client')
+      expect(await hasRedbox(browser)).toBe(false)
     })
 
     it('should export client module references in esm', async () => {
@@ -262,12 +266,7 @@ createNextDescribe(
         browser.elementByCss('#dual-pkg-outout button').click()
         await check(async () => {
           const text = await browser.elementByCss('#dual-pkg-outout p').text()
-          if (process.env.TURBOPACK) {
-            // The prefer esm won't effect turbopack resolving
-            expect(text).toBe('dual-pkg-optout:mjs')
-          } else {
-            expect(text).toBe('dual-pkg-optout:cjs')
-          }
+          expect(text).toBe('dual-pkg-optout:cjs')
           return 'success'
         }, /success/)
       })

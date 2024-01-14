@@ -804,6 +804,23 @@ async function renderToHTMLOrFlightImpl(
   // response directly.
   const onHeadersFinished = new DetachedPromise<void>()
 
+  type RenderToStreamResult = {
+    stream: RenderResultResponse
+    err?: Error
+  }
+
+  type RenderToStreamOptions = {
+    /**
+     * This option is used to indicate that the page should be rendered as
+     * if it was not found. When it's enabled, instead of rendering the
+     * page component, it renders the not-found segment.
+     *
+     */
+    asNotFound: boolean
+    tree: LoaderTree
+    formState: any
+  }
+
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
     {
@@ -816,17 +833,7 @@ async function renderToHTMLOrFlightImpl(
       asNotFound,
       tree,
       formState,
-    }: {
-      /**
-       * This option is used to indicate that the page should be rendered as
-       * if it was not found. When it's enabled, instead of rendering the
-       * page component, it renders the not-found segment.
-       *
-       */
-      asNotFound: boolean
-      tree: LoaderTree
-      formState: any
-    }) => {
+    }: RenderToStreamOptions): Promise<RenderToStreamResult> => {
       const polyfills: JSX.IntrinsicElements['script'][] =
         buildManifest.polyfillFiles
           .filter(
@@ -946,7 +953,7 @@ async function renderToHTMLOrFlightImpl(
 
           // We don't need to "continue" this stream now as it's continued when
           // we resume the stream.
-          return stream
+          return { stream }
         }
 
         const options: ContinueStreamOptions = {
@@ -966,10 +973,12 @@ async function renderToHTMLOrFlightImpl(
         }
 
         if (renderOpts.postponed) {
-          return await continuePostponedFizzStream(stream, options)
+          stream = await continuePostponedFizzStream(stream, options)
+        } else {
+          stream = await continueFizzStream(stream, options)
         }
 
-        return await continueFizzStream(stream, options)
+        return { stream }
       } catch (err: any) {
         if (
           err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
@@ -987,8 +996,9 @@ async function renderToHTMLOrFlightImpl(
           throw err
         }
 
-        const isBailoutCSR = isBailoutCSRError(err)
-        if (isBailoutCSR) {
+        // True if this error was a bailout to client side rendering error.
+        const shouldBailoutToCSR = isBailoutCSRError(err)
+        if (shouldBailoutToCSR) {
           warn(
             `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
             pagePath
@@ -1019,7 +1029,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError && !isBailoutCSR) {
+        if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
           res.statusCode = 500
         }
 
@@ -1077,14 +1087,19 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          return await continueFizzStream(fizzStream, {
-            inlinedDataStream: errorInlinedDataTransformStream.readable,
-            isStaticGeneration,
-            getServerInsertedHTML: () => getServerInsertedHTML([]),
-            serverInsertedHTMLToHead: true,
-            validateRootLayout,
-            suffix: undefined,
-          })
+          return {
+            // Returning the error that was thrown so it can be used to handle
+            // the response in the caller.
+            err,
+            stream: await continueFizzStream(fizzStream, {
+              inlinedDataStream: errorInlinedDataTransformStream.readable,
+              isStaticGeneration,
+              getServerInsertedHTML: () => getServerInsertedHTML([]),
+              serverInsertedHTMLToHead: true,
+              validateRootLayout,
+              suffix: undefined,
+            }),
+          }
         } catch (finalErr: any) {
           if (
             process.env.NODE_ENV === 'development' &&
@@ -1117,14 +1132,13 @@ async function renderToHTMLOrFlightImpl(
   if (actionRequestResult) {
     if (actionRequestResult.type === 'not-found') {
       const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-      return new RenderResult(
-        await renderToStream({
-          asNotFound: true,
-          tree: notFoundLoaderTree,
-          formState,
-        }),
-        { metadata }
-      )
+      const response = await renderToStream({
+        asNotFound: true,
+        tree: notFoundLoaderTree,
+        formState,
+      })
+
+      return new RenderResult(response.stream, { metadata })
     } else if (actionRequestResult.type === 'done') {
       if (actionRequestResult.result) {
         actionRequestResult.result.assignMetadata(metadata)
@@ -1139,7 +1153,7 @@ async function renderToHTMLOrFlightImpl(
     metadata,
   }
 
-  let response: RenderResultResponse = await renderToStream({
+  let response = await renderToStream({
     asNotFound: isNotFoundPath,
     tree: loaderTree,
     formState,
@@ -1159,7 +1173,7 @@ async function renderToHTMLOrFlightImpl(
   }
 
   // Create the new render result for the response.
-  const result = new RenderResult(response, options)
+  const result = new RenderResult(response.stream, options)
 
   // If we aren't performing static generation, we can return the result now.
   if (!isStaticGeneration) {
@@ -1168,7 +1182,7 @@ async function renderToHTMLOrFlightImpl(
 
   // If this is static generation, we should read this in now rather than
   // sending it back to be sent to the client.
-  response = await result.toUnchunkedString(true)
+  response.stream = await result.toUnchunkedString(true)
 
   // Timeout after 1.5 seconds for the headers to write. If it takes
   // longer than this it's more likely that the stream has stalled and
@@ -1190,13 +1204,15 @@ async function renderToHTMLOrFlightImpl(
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
 
+  // If PPR is enabled and the postpone was triggered but lacks the postponed
+  // state information then we should error out unless the client side rendering
+  // bailout error was also emitted which indicates that part of the stream was
+  // not rendered.
   if (
-    // if PPR is enabled
     renderOpts.experimental.ppr &&
-    // and a call to `postpone` happened
     staticGenerationStore.postponeWasTriggered &&
-    // but there's no postpone state
-    !metadata.postponed
+    !metadata.postponed &&
+    (!response.err || !isBailoutCSRError(response.err))
   ) {
     // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
     // as we won't be able to generate the static part
@@ -1258,7 +1274,7 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  return new RenderResult(response, options)
+  return new RenderResult(response.stream, options)
 }
 
 export type AppPageRender = (

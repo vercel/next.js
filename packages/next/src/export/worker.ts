@@ -263,7 +263,7 @@ async function exportPageImpl(
       optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,

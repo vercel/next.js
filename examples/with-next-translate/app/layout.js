@@ -1,18 +1,18 @@
-import useTranslation from 'next-translate/useTranslation'
-import './style.css'
+import useTranslation from "next-translate/useTranslation";
+import "./style.css";
 
 export const metadata = {
-  title: 'Next.js',
-}
+  title: "Next.js",
+};
 
 export default function Layout(props) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   return (
     <div className="container">
       {props.children}
       <footer>
-        <span>{t('common:powered')} </span>
+        <span>{t("common:powered")} </span>
         <a href="https://vercel.com" target="_blank" rel="noopener noreferrer">
           ▲ vercel
         </a>
@@ -26,5 +26,5 @@ export default function Layout(props) {
         </a>
       </footer>
     </div>
-  )
+  );
 }

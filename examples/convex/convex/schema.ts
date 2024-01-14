@@ -1,5 +1,5 @@
-import { defineSchema, defineTable } from 'convex/server'
-import { v } from 'convex/values'
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
 
 export default defineSchema(
   {
@@ -13,5 +13,5 @@ export default defineSchema(
     schemaValidation: false,
     // This option allows you to read and write tables not specified here.
     // strictTableNameTypes: false,
-  }
-)
+  },
+);

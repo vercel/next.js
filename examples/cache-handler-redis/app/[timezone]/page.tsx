@@ -1,36 +1,36 @@
-import { notFound } from 'next/navigation'
-import { CacheStateWatcher } from '../cache-state-watcher'
-import { Suspense } from 'react'
-import { RevalidateFrom } from '../revalidate-from'
-import Link from 'next/link'
+import { notFound } from "next/navigation";
+import { CacheStateWatcher } from "../cache-state-watcher";
+import { Suspense } from "react";
+import { RevalidateFrom } from "../revalidate-from";
+import Link from "next/link";
 
 type TimeData = {
-  unixtime: number
-  datetime: string
-  timezone: string
-}
+  unixtime: number;
+  datetime: string;
+  timezone: string;
+};
 
-const timeZones = ['cet', 'gmt']
+const timeZones = ["cet", "gmt"];
 
-export const revalidate = 10
+export const revalidate = 10;
 
 export async function generateStaticParams() {
-  return timeZones.map((timezone) => ({ timezone }))
+  return timeZones.map((timezone) => ({ timezone }));
 }
 
 export default async function Page({ params: { timezone } }) {
   const data = await fetch(
     `https://worldtimeapi.org/api/timezone/${timezone}`,
     {
-      next: { tags: ['time-data'] },
-    }
-  )
+      next: { tags: ["time-data"] },
+    },
+  );
 
   if (!data.ok) {
-    notFound()
+    notFound();
   }
 
-  const timeData: TimeData = await data.json()
+  const timeData: TimeData = await data.json();
 
   return (
     <>
@@ -64,5 +64,5 @@ export default async function Page({ params: { timezone } }) {
         </Link>
       </footer>
     </>
-  )
+  );
 }

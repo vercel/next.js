@@ -95,7 +95,6 @@ const handleSessionStop = async (signal: string | null) => {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
-      isTurboSession,
       projectDir: dir,
       distDir: config.distDir,
     })
@@ -283,7 +282,6 @@ const nextDev: CliCommand = async (args) => {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
-              isTurboSession,
               projectDir: dir,
               distDir: config.distDir,
               sync: true,
