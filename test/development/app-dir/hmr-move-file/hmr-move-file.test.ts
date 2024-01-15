@@ -18,7 +18,7 @@ createNextDescribe(
         content.replace('./button', './button2')
       )
 
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
 
       expect(await browser.elementByCss('#hello-world-button').text()).toBe(
         'hello world'

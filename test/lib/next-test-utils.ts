@@ -739,26 +739,20 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
           )
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
+        )
+    )
+  })
+  return result
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
