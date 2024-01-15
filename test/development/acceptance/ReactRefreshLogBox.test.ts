@@ -222,6 +222,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         6 |   )
       > 7 | }
           |  ^
+
       Unexpected eof"
     `
           : `
