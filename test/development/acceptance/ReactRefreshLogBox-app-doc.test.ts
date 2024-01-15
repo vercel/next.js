@@ -93,7 +93,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      next.normalizeSnapshot(
+        process.env.TURBOPACK
+          ? `
+      "./pages/_app.js:2:11
+      Parsing ecmascript source code failed
+        1 | function MyApp({ Component, pageProps }) {
+      > 2 |   return <<Component {...pageProps} />;
+          |            ^^^^^^^^^
+        3 | }
+        4 | export default MyApp
+
+      Expression expected"
+    `
+          : `
         "./pages/_app.js
         Error: 
           x Expression expected
@@ -116,7 +129,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         Caused by:
             Syntax Error"
-      `)
+      `
+      )
     )
 
     await session.patch(
@@ -169,7 +183,22 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      next.normalizeSnapshot(
+        process.env.TURBOPACK
+          ? `
+      "./pages/_document.js:3:35
+      Parsing ecmascript source code failed
+        1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+        2 |
+      > 3 | class MyDocument extends Document {{
+          |                                    ^
+        4 |   static async getInitialProps(ctx) {
+        5 |     const initialProps = await Document.getInitialProps(ctx)
+        6 |     return { ...initialProps }
+
+      Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key"
+    `
+          : `
         "./pages/_document.js
         Error: 
           x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
@@ -185,7 +214,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
         Caused by:
             Syntax Error"
-      `)
+      `
+      )
     )
 
     await session.patch(
