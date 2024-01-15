@@ -208,8 +208,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
-
-    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    const content = await session.getRedboxSource()
+    console.log({ content })
+    const source = next.normalizeTestDirContent(content)
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
         "./index.js:7:1
