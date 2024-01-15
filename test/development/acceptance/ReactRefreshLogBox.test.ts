@@ -211,8 +211,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
-      expect(source).toMatchInlineSnapshot(
-        next.normalizeSnapshot(`"./index.js:7:1
+      expect(source).toMatchInlineSnapshot(`"./index.js:7:1
 Parsing ecmascript source code failed
   5 |     div
   6 |   )
@@ -220,10 +219,8 @@ Parsing ecmascript source code failed
     |  ^
 
 Unexpected eof"`)
-      )
     } else {
-      expect(source).toMatchInlineSnapshot(
-        next.normalizeSnapshot(`"./index.js
+      expect(source).toMatchInlineSnapshot(`"./index.js
 Error: 
   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
     ,-[TEST_DIR/index.js:4:1]
@@ -248,7 +245,6 @@ Caused by:
 Import trace for requested module:
 ./index.js
 ./pages/index.js"`)
-      )
     }
 
     await cleanup()
