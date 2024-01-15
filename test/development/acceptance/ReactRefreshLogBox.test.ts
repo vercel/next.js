@@ -212,39 +212,41 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`"./index.js:7:1
-Parsing ecmascript source code failed
-  5 |     div
-  6 |   )
-> 7 | }
-    |  ^
+        Parsing ecmascript source code failed
+          5 |     div
+          6 |   )
+        > 7 | }
+            |  ^
 
-Unexpected eof"`)
+      Unexpected eof"`)
     } else {
-      expect(source).toMatchInlineSnapshot(`"./index.js
-Error: 
-  x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-    ,-[TEST_DIR/index.js:4:1]
-  4 |       <p>lol</p>
-  5 |     div
-  6 |   )
-  7 | }
-    : ^
-    \`----
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js
+        Error: 
+          x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+           ,-[4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
+           : ^
+           \`----
 
-  x Unexpected eof
-    ,-[TEST_DIR/index.js:4:1]
-  4 |       <p>lol</p>
-  5 |     div
-  6 |   )
-  7 | }
-    \`----
+          x Unexpected eof
+           ,-[4:1]
+         4 |       <p>lol</p>
+         5 |     div
+         6 |   )
+         7 | }
+           \`----
 
-Caused by:
-    Syntax Error
+        Caused by:
+            Syntax Error
 
-Import trace for requested module:
-./index.js
-./pages/index.js"`)
+        Import trace for requested module:
+        ./index.js
+        ./pages/index.js"
+      `)
     }
 
     await cleanup()
