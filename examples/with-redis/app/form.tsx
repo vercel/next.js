@@ -25,7 +25,7 @@ function Item({
 }) {
   let upvoteWithId = upvote.bind(null, feature);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let [pending, startTransition] = useTransition();
+  let [isPending, startTransition] = useTransition();
 
   return (
     <form
@@ -117,7 +117,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
   };
   let saveWithNewFeature = saveFeature.bind(null, featureStub);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  let [pending, startTransition] = useTransition();
+  let [isPending, startTransition] = useTransition();
 
   return (
     <>
