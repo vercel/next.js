@@ -1239,10 +1239,10 @@
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
       "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
-      "ReactRefreshLogBox _app _document turbo empty _document shows logbox",
-      "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox"
+      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
     ],
     "failed": [
+      "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox"
     ],
     "pending": [
