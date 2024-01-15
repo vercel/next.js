@@ -209,6 +209,13 @@ const nextDev: CliCommand = async (args) => {
     traceUploadUrl = args['--experimental-upload-trace']
   }
 
+  // TODO: remove in the next major version
+  if (config.analyticsId) {
+    Log.warnOnce(
+      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
+    )
+  }
+
   const devServerOptions: StartServerOptions = {
     dir,
     port,
