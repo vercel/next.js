@@ -916,8 +916,8 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
-    "failed": [],
-    "pending": ["ReactRefreshLogBox app scss syntax errors"],
+    "failed": ["ReactRefreshLogBox app scss syntax errors"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -930,6 +930,7 @@
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
+      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
@@ -938,7 +939,6 @@
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
-      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors"
     ],
@@ -1033,7 +1033,7 @@
   "test/development/acceptance-app/app-hmr-changes.test.ts": {
     "passed": [],
     "failed": [
-      "Error overlay - RSC build errors Skipped in webpack should handle successive HMR changes with errors correctly"
+      "Error overlay - RSC build errors should handle successive HMR changes with errors correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -1084,7 +1084,8 @@
     "passed": [
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
-      "Error recovery app turbo render error not shown right after syntax error"
+      "Error recovery app turbo render error not shown right after syntax error",
+      "Error recovery app turbo stuck error"
     ],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
@@ -1092,7 +1093,6 @@
       "Error recovery app turbo displays build error on initial page load",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
-      "Error recovery app turbo stuck error",
       "Error recovery app turbo syntax > runtime error"
     ],
     "pending": [
@@ -1104,6 +1104,7 @@
       "Error recovery app default render error not shown right after syntax error",
       "Error recovery app default server component can recover from a component error",
       "Error recovery app default server component can recover from syntax error",
+      "Error recovery app default stuck error",
       "Error recovery app default syntax > runtime error"
     ],
     "flakey": [],
@@ -1377,13 +1378,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -1391,6 +1392,7 @@
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
       "ReactRefreshLogBox default logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox default render error not shown right after syntax error",
+      "ReactRefreshLogBox default stuck error",
       "ReactRefreshLogBox default syntax > runtime error"
     ],
     "flakey": [],
@@ -1552,16 +1554,15 @@
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
       "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
+      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
-    "failed": [
-      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1954,8 +1955,8 @@
   "test/development/next-font/build-errors.test.ts": {
     "passed": [],
     "failed": [
-      "build-errors Skipped in webpack should show a module not found error if local font file can' be resolved",
-      "build-errors Skipped in webpack should show a next/font error when input is wrong"
+      "build-errors should show a module not found error if local font file can' be resolved",
+      "build-errors should show a next/font error when input is wrong"
     ],
     "pending": [],
     "flakey": [],
@@ -2394,6 +2395,7 @@
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
+      "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
@@ -3550,6 +3552,7 @@
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should only log requests in dev mode",
+      "app-dir - logging with fetches default logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
@@ -3557,6 +3560,7 @@
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should only log requests in dev mode",
+      "app-dir - logging with fetches verbose logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
@@ -3864,6 +3868,7 @@
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
+      "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
@@ -4162,8 +4167,29 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
-    "passed": ["ppr-navigations prefetching is disabled in dev"],
+  "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
+    "passed": ["avoid-popstate-flash ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
+    "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
+    "passed": ["search-params ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
+    "passed": ["stale-prefetch-entry ppr is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
