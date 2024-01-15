@@ -24,7 +24,7 @@ function Item({
   mutate: any;
 }) {
   let upvoteWithId = upvote.bind(null, feature);
-  let [_pending, startTransition] = useTransition();
+  let [_, startTransition] = useTransition();
 
   return (
     <form
@@ -115,7 +115,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
     score: "1",
   };
   let saveWithNewFeature = saveFeature.bind(null, featureStub);
-  let [_pending, startTransition] = useTransition();
+  let [_, startTransition] = useTransition();
 
   return (
     <>
