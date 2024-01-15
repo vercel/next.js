@@ -13,7 +13,7 @@ createNextDescribe(
         const browser = await next.browser('/object')
 
         // Error should show up
-        expect(await hasRedbox(browser, true)).toBeTrue()
+        expect(await hasRedbox(browser)).toBeTrue()
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
         )
@@ -43,7 +43,7 @@ createNextDescribe(
         const browser = await next.browser('/string')
 
         // Error should show up
-        expect(await hasRedbox(browser, true)).toBeTrue()
+        expect(await hasRedbox(browser)).toBeTrue()
         expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
           `"Error: Dynamic href \`/object/[slug]\` found in <Link> while using the \`/app\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href"`
         )
