@@ -898,13 +898,12 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
-    "failed": [
       "ReactRefreshLogBox app turbo Module not found",
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshLogBox app default Module not found",
       "ReactRefreshLogBox app default Module not found empty import trace",
@@ -1239,30 +1238,30 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo empty _app shows logbox",
-      "ReactRefreshLogBox turbo empty _document shows logbox"
+      "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
+      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
     ],
     "failed": [
-      "ReactRefreshLogBox turbo _app syntax error shows logbox",
-      "ReactRefreshLogBox turbo _document syntax error shows logbox"
+      "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
+      "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox"
     ],
     "pending": [
-      "ReactRefreshLogBox default _app syntax error shows logbox",
-      "ReactRefreshLogBox default _document syntax error shows logbox",
-      "ReactRefreshLogBox default empty _app shows logbox",
-      "ReactRefreshLogBox default empty _document shows logbox"
+      "ReactRefreshLogBox _app _document default _app syntax error shows logbox",
+      "ReactRefreshLogBox _app _document default _document syntax error shows logbox",
+      "ReactRefreshLogBox _app _document default empty _app shows logbox",
+      "ReactRefreshLogBox _app _document default empty _document shows logbox"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo Module not found (empty import trace)"
+      "ReactRefreshLogBox turbo Module not found",
+      "ReactRefreshLogBox turbo Module not found (empty import trace)",
+      "ReactRefreshLogBox turbo Node.js builtins"
     ],
     "failed": [
-      "ReactRefreshLogBox turbo Module not found",
-      "ReactRefreshLogBox turbo Module not found (missing global CSS)",
-      "ReactRefreshLogBox turbo Node.js builtins"
+      "ReactRefreshLogBox turbo Module not found (missing global CSS)"
     ],
     "pending": [
       "ReactRefreshLogBox default Module not found",
@@ -1286,12 +1285,10 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
-      "ReactRefreshLogBox turbo should strip whitespace correctly with newline"
-    ],
-    "failed": [
-      "ReactRefreshLogBox turbo css syntax errors",
+      "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
+    "failed": ["ReactRefreshLogBox turbo css syntax errors"],
     "pending": [
       "ReactRefreshLogBox default boundaries",
       "ReactRefreshLogBox default conversion to class component (1)",
