@@ -898,13 +898,12 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
-    "failed": [
       "ReactRefreshLogBox app turbo Module not found",
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshLogBox app default Module not found",
       "ReactRefreshLogBox app default Module not found empty import trace",
