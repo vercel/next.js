@@ -53,12 +53,11 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "./node_modules/my-package/index.js:1:12
       Module not found: Can't resolve 'dns'
+      > 1 | const dns = require('dns')
+          |             ^^^^^^^^^^^^^^
+        2 | module.exports = dns
 
-      https://nextjs.org/docs/messages/module-not-found
-
-      Import trace for requested module:
-      ./index.js
-      ./app/page.js"
+      https://nextjs.org/docs/messages/module-not-found"
     `)
 
     await cleanup()
@@ -88,14 +87,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       "./index.js:1:0
       Module not found: Can't resolve 'b'
       > 1 | import Comp from 'b'
+          | ^^^^^^^^^^^^^^^^^^^^
         2 | export default function Oops() {
         3 |   return (
         4 |     <div>
 
-      https://nextjs.org/docs/messages/module-not-found
-
-      Import trace for requested module:
-      ./app/page.js"
+      https://nextjs.org/docs/messages/module-not-found"
     `)
 
     await cleanup()
