@@ -202,7 +202,7 @@ describe.each(['default', 'turbo'])(
         "./pages/_document.js
         Error: 
           x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
-           ,-[1:1]
+           ,-[TEST_DIR/pages/_document.js:1:1]
          1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
          2 | 
          3 | class MyDocument extends Document {{
