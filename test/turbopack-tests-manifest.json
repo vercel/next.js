@@ -1286,12 +1286,10 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
-      "ReactRefreshLogBox turbo should strip whitespace correctly with newline"
-    ],
-    "failed": [
-      "ReactRefreshLogBox turbo css syntax errors",
+      "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
+    "failed": ["ReactRefreshLogBox turbo css syntax errors"],
     "pending": [
       "ReactRefreshLogBox default boundaries",
       "ReactRefreshLogBox default conversion to class component (1)",
