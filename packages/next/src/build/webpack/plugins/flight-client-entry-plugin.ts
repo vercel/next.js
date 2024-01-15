@@ -196,7 +196,7 @@ export class FlightClientEntryPlugin {
         // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath
           ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
-            ? mod.resource
+            ? mod.resource + '@' + modPath
             : modPath + modQuery
           : mod.resource
 

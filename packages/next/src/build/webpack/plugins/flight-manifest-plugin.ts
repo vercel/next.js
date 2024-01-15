@@ -8,6 +8,7 @@
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
+  BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
@@ -277,7 +278,7 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
-        const resource =
+        let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
@@ -285,6 +286,14 @@ export class ClientReferenceManifestPlugin {
 
         if (!resource) {
           return
+        }
+
+        // An extra query param is added to the resource key when it's optimized
+        // through the Barrel Loader. That's because the same file might be created
+        // as multiple modules (depending on what you import from it).
+        // See also: webpack/loaders/next-flight-loader/index.ts.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          resource += '@' + mod.matchResource
         }
 
         const moduleReferences = manifest.clientModules
