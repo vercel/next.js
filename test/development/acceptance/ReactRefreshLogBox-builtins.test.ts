@@ -44,7 +44,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "./node_modules/my-package/index.js:1:0
       Module not found: Can't resolve 'dns'
@@ -77,7 +77,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     expect(source).toMatchInlineSnapshot(`
@@ -115,7 +115,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
@@ -170,7 +170,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     expect(source).toMatchInlineSnapshot(`
@@ -192,7 +192,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')

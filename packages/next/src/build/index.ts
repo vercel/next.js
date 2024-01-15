@@ -128,9 +128,7 @@ import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownCrashReporter,
-  loadBindings,
   teardownHeapProfiler,
-  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -700,7 +698,6 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
   const isCompileMode = buildMode === 'experimental-compile'
@@ -1344,48 +1341,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild() {
-        const turboNextBuildStart = process.hrtime()
-
-        const turboJson = findUp.sync('turbo.json', { cwd: dir })
-        // eslint-disable-next-line no-shadow
-        const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings(config?.experimental?.useWasmBinary)
-
-        let root =
-          turboNextBuildRoot ??
-          (turboJson
-            ? path.dirname(turboJson)
-            : packagePath
-            ? path.dirname(packagePath)
-            : undefined)
-
-        const hasRewrites =
-          rewrites.beforeFiles.length > 0 ||
-          rewrites.afterFiles.length > 0 ||
-          rewrites.fallback.length > 0
-
-        await binding.turbo.nextBuild({
-          ...NextBuildContext,
-          root,
-          distDir: config.distDir,
-          defineEnv: createDefineEnv({
-            isTurbopack: turboNextBuild,
-            allowedRevalidateHeaderKeys:
-              config.experimental.allowedRevalidateHeaderKeys,
-            clientRouterFilters: NextBuildContext.clientRouterFilters,
-            config,
-            dev: false,
-            distDir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            middlewareMatchers: undefined,
-            previewModeId: undefined,
-          }),
-        })
-
-        const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: undefined }
+      async function turbopackBuild(): Promise<never> {
+        throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined

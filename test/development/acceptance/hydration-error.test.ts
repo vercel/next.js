@@ -34,7 +34,7 @@ describe('Error overlay for hydration errors', () => {
       ])
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.

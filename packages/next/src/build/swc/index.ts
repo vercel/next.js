@@ -1347,12 +1347,6 @@ function loadNative(importPath?: string) {
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        nextBuild: (options: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
-
-          return ret
-        },
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
           const ret = (customBindings ?? bindings).runTurboTracing(
