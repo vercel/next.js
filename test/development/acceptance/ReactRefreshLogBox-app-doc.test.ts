@@ -90,27 +90,59 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       ])
     )
     expect(await session.hasRedbox()).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(
-        process.env.TURBOPACK
-          ? `
-      "./pages/_app.js:2:11
-      Parsing ecmascript source code failed
-        1 | function MyApp({ Component, pageProps }) {
-      > 2 |   return <<Component {...pageProps} />;
-          |            ^^^^^^^^^
-        3 | }
-        4 | export default MyApp
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`"./pages/_app.js:2:11
+Parsing ecmascript source code failed
+  1 | function MyApp({ Component, pageProps }) {
+> 2 |   return <<Component {...pageProps} />;
+    |            ^^^^^^^^^
+  3 | }
+  4 | export default MyApp
 
-      Expression expected"
-    `
-          : `
+Expression expected"`),
+        `
+        "./pages/_app.js:2:11
+        Parsing ecmascript source code failed
+          1 | function MyApp({ Component, pageProps }) {
+        > 2 |   return <<Component {...pageProps} />;
+            |            ^^^^^^^^^
+          3 | }
+          4 | export default MyApp
+
+        Expression expected"
+      `
+      )
+    } else {
+      expect(source).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`"./pages/_app.js
+Error: 
+  x Expression expected
+    ,-[TEST_DIR/pages/_app.js:1:1]
+  1 | function MyApp({ Component, pageProps }) {
+  2 |   return <<Component {...pageProps} />;
+    :           ^
+  3 | }
+  4 | export default MyApp
+    \`----
+
+  x Expression expected
+    ,-[TEST_DIR/pages/_app.js:1:1]
+  1 | function MyApp({ Component, pageProps }) {
+  2 |   return <<Component {...pageProps} />;
+    :            ^^^^^^^^^
+  3 | }
+  4 | export default MyApp
+    \`----
+
+Caused by:
+    Syntax Error"`),
+        `
         "./pages/_app.js
         Error: 
           x Expression expected
-           ,-[TEST_DIR/pages/_app.js:1:1]
+           ,-[1:1]
          1 | function MyApp({ Component, pageProps }) {
          2 |   return <<Component {...pageProps} />;
            :           ^
@@ -119,7 +151,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
            \`----
 
           x Expression expected
-           ,-[TEST_DIR/pages/_app.js:1:1]
+           ,-[1:1]
          1 | function MyApp({ Component, pageProps }) {
          2 |   return <<Component {...pageProps} />;
            :            ^^^^^^^^^
@@ -131,7 +163,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             Syntax Error"
       `
       )
-    )
+    }
 
     await session.patch(
       'pages/_app.js',
@@ -180,29 +212,56 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       ])
     )
     expect(await session.hasRedbox()).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(
-        process.env.TURBOPACK
-          ? `
-      "./pages/_document.js:3:35
-      Parsing ecmascript source code failed
-        1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
-        2 |
-      > 3 | class MyDocument extends Document {{
-          |                                    ^
-        4 |   static async getInitialProps(ctx) {
-        5 |     const initialProps = await Document.getInitialProps(ctx)
-        6 |     return { ...initialProps }
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`"./pages/_document.js:3:35
+Parsing ecmascript source code failed
+  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+  2 |
+> 3 | class MyDocument extends Document {{
+    |                                    ^
+  4 |   static async getInitialProps(ctx) {
+  5 |     const initialProps = await Document.getInitialProps(ctx)
+  6 |     return { ...initialProps }
 
-      Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key"
-    `
-          : `
+Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key"`),
+        `
+        "./pages/_document.js:3:35
+        Parsing ecmascript source code failed
+          1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+          2 |
+        > 3 | class MyDocument extends Document {{
+            |                                    ^
+          4 |   static async getInitialProps(ctx) {
+          5 |     const initialProps = await Document.getInitialProps(ctx)
+          6 |     return { ...initialProps }
+
+        Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key"
+      `
+      )
+    } else {
+      expect(source).toMatchInlineSnapshot(
+        next.normalizeSnapshot(`"./pages/_document.js
+Error: 
+  x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
+    ,-[TEST_DIR/pages/_document.js:1:1]
+  1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+  2 | 
+  3 | class MyDocument extends Document {{
+    :                                    ^
+  4 |   static async getInitialProps(ctx) {
+  5 |     const initialProps = await Document.getInitialProps(ctx)
+  6 |     return { ...initialProps }
+    \`----
+
+Caused by:
+    Syntax Error"`),
+        `
         "./pages/_document.js
         Error: 
           x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
-           ,-[TEST_DIR/pages/_document.js:1:1]
+           ,-[1:1]
          1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
          2 | 
          3 | class MyDocument extends Document {{
@@ -216,7 +275,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
             Syntax Error"
       `
       )
-    )
+    }
 
     await session.patch(
       'pages/_document.js',
