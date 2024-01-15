@@ -26,7 +26,7 @@ import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { Revalidate } from './lib/revalidate'
 
 import fs from 'fs'
-import { join, resolve, isAbsolute } from 'path'
+import { join, resolve } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { addRequestMeta, getRequestMeta } from './request-meta'
 import {
@@ -100,11 +100,21 @@ import { RouteModuleLoader } from './future/helpers/module-loader/route-module-l
 import { loadManifest } from './load-manifest'
 import { lazyRenderAppPage } from './future/route-modules/app-page/module.render'
 import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
+import { interopDefault } from '../lib/interop-default'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
 
 export * from './base-server'
 
 declare const __non_webpack_require__: NodeRequire
 
+// For module that can be both CJS or ESM
+const dynamicImportEsmDefault = process.env.NEXT_MINIMAL
+  ? (id: string) =>
+      import(/* webpackIgnore: true */ id).then((mod) => mod.default || mod)
+  : (id: string) => import(id).then((mod) => mod.default || mod)
+
+// For module that will be compiled to CJS, e.g. instrument
 const dynamicRequire = process.env.NEXT_MINIMAL
   ? __non_webpack_require__
   : require
@@ -231,7 +241,10 @@ export default class NextNodeServer extends BaseServer {
 
     // Intercept fetch and other testmode apis.
     if (this.serverOptions.experimentalTestProxy) {
-      const { interceptTestApis } = require('../experimental/testmode/server')
+      process.env.NEXT_PRIVATE_TEST_PROXY = 'true'
+      const {
+        interceptTestApis,
+      } = require('next/dist/experimental/testmode/server')
       interceptTestApis()
     }
 
@@ -286,7 +299,7 @@ export default class NextNodeServer extends BaseServer {
     )
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
   }: {
@@ -298,12 +311,11 @@ export default class NextNodeServer extends BaseServer {
     const { incrementalCacheHandlerPath } = this.nextConfig.experimental
 
     if (incrementalCacheHandlerPath) {
-      CacheHandler = dynamicRequire(
-        isAbsolute(incrementalCacheHandlerPath)
-          ? incrementalCacheHandlerPath
-          : join(this.distDir, incrementalCacheHandlerPath)
+      CacheHandler = interopDefault(
+        await dynamicImportEsmDefault(
+          formatDynamicImportPath(this.distDir, incrementalCacheHandlerPath)
+        )
       )
-      CacheHandler = CacheHandler.default || CacheHandler
     }
 
     // incremental-cache is request specific
@@ -344,13 +356,17 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
-    return loadManifest(join(this.serverDistDir, PAGES_MANIFEST))
+    return loadManifest(
+      join(this.serverDistDir, PAGES_MANIFEST)
+    ) as PagesManifest
   }
 
   protected getAppPathsManifest(): PagesManifest | undefined {
     if (!this.enabledDirectories.app) return undefined
 
-    return loadManifest(join(this.serverDistDir, APP_PATHS_MANIFEST))
+    return loadManifest(
+      join(this.serverDistDir, APP_PATHS_MANIFEST)
+    ) as PagesManifest
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
@@ -736,10 +752,10 @@ export default class NextNodeServer extends BaseServer {
     return requireFontManifest(this.distDir)
   }
 
-  protected getNextFontManifest() {
+  protected getNextFontManifest(): NextFontManifest | undefined {
     return loadManifest(
       join(this.distDir, 'server', NEXT_FONT_MANIFEST + '.json')
-    )
+    ) as NextFontManifest
   }
 
   protected getFallback(page: string): Promise<string> {
@@ -1036,7 +1052,7 @@ export default class NextNodeServer extends BaseServer {
     if (this.serverOptions.experimentalTestProxy) {
       const {
         wrapRequestHandlerNode,
-      } = require('../experimental/testmode/server')
+      } = require('next/dist/experimental/testmode/server')
       return wrapRequestHandlerNode(handler)
     }
     return handler
@@ -1058,7 +1074,7 @@ export default class NextNodeServer extends BaseServer {
 
       const loggingFetchesConfig = this.nextConfig.logging?.fetches
       const enabledVerboseLogging = !!loggingFetchesConfig
-      const shouldTruncateUrl = loggingFetchesConfig?.fullUrl
+      const shouldTruncateUrl = !loggingFetchesConfig?.fullUrl
 
       if (this.renderOpts.dev) {
         const { bold, green, yellow, red, gray, white } =
@@ -1732,14 +1748,16 @@ export default class NextNodeServer extends BaseServer {
       return this._cachedPreviewManifest
     }
 
-    const manifest = loadManifest(join(this.distDir, PRERENDER_MANIFEST))
+    const manifest = loadManifest(
+      join(this.distDir, PRERENDER_MANIFEST)
+    ) as PrerenderManifest
 
     return (this._cachedPreviewManifest = manifest)
   }
 
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(NextNodeServerSpan.getRoutesManifest, () => {
-      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST))
+      const manifest = loadManifest(join(this.distDir, ROUTES_MANIFEST)) as any
 
       let rewrites = manifest.rewrites ?? {
         beforeFiles: [],

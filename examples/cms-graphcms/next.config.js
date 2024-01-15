@@ -3,11 +3,11 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'media.graphcms.com',
-        port: '',
-        pathname: '/my-account/**',
+        protocol: "https",
+        hostname: "media.graphcms.com",
+        port: "",
+        pathname: "/my-account/**",
       },
     ],
   },
-}
+};

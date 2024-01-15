@@ -1,5 +1,5 @@
-import P from '../components/paragraph'
-import Post from '../components/post'
+import P from "../components/paragraph";
+import Post from "../components/post";
 
 export default function Home() {
   return (
@@ -38,10 +38,10 @@ export default function Home() {
         }
 
         hr::before {
-          content: '***';
+          content: "***";
           color: #ccc;
         }
       `}</style>
     </div>
-  )
+  );
 }

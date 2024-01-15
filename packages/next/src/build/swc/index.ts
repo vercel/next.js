@@ -12,6 +12,7 @@ import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -545,9 +546,34 @@ export interface Entrypoints {
   pagesErrorEndpoint: Endpoint
 }
 
-export interface Update {
-  update: unknown
+interface BaseUpdate {
+  resource: {
+    headers: unknown
+    path: string
+  }
+  diagnostics: unknown[]
+  issues: unknown[]
 }
+
+interface IssuesUpdate extends BaseUpdate {
+  type: 'issues'
+}
+
+interface EcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  chunks: { [moduleName: string]: { type: 'partial' } }
+  entries: { [moduleName: string]: { code: string; map: string; url: string } }
+}
+
+interface PartialUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'ChunkListUpdate'
+    merged: EcmascriptMergedUpdate[] | undefined
+  }
+}
+
+export type Update = IssuesUpdate | PartialUpdate
 
 export interface HmrIdentifiers {
   identifiers: string[]
@@ -1147,7 +1173,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[],
+              pageExtensions: PageExtensions,
               callbackFn: (err: Error, entrypoints: any) => void
             ) => {
               return bindings.streamEntrypoints(
@@ -1162,7 +1188,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[]
+              pageExtensions: PageExtensions
             ) => {
               return bindings.getEntrypoints(
                 turboTasks,
@@ -1321,12 +1347,6 @@ function loadNative(importPath?: string) {
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        nextBuild: (options: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
-
-          return ret
-        },
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
           const ret = (customBindings ?? bindings).runTurboTracing(
@@ -1342,7 +1362,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[],
+            pageExtensions: PageExtensions,
             fn: (entrypoints: any) => void
           ) => {
             return (customBindings ?? bindings).streamEntrypoints(
@@ -1357,7 +1377,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[]
+            pageExtensions: PageExtensions
           ) => {
             return (customBindings ?? bindings).getEntrypoints(
               turboTasks,

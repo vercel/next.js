@@ -161,29 +161,24 @@ export async function copy_babel_runtime(task, opts) {
 
 externals['@vercel/og'] = 'next/dist/compiled/@vercel/og'
 export async function copy_vercel_og(task, opts) {
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        '{./dist/*.+(js|ttf|wasm),LICENSE}'
+  function copy_og_asset(globPattern) {
+    return task
+      .source(
+        join(
+          relative(
+            __dirname,
+            dirname(require.resolve('@vercel/og/package.json'))
+          ),
+          globPattern
+        )
       )
-    )
-    .target('src/compiled/@vercel/og')
+      .target('src/compiled/@vercel/og')
+  }
 
-  await task
-    .source(
-      join(
-        relative(
-          __dirname,
-          dirname(require.resolve('@vercel/og/package.json'))
-        ),
-        './dist/index.*.js'
-      )
-    )
-    .target('src/compiled/@vercel/og')
+  await copy_og_asset('./dist/*.ttf')
+  await copy_og_asset('./dist/*.wasm')
+  await copy_og_asset('LICENSE')
+  await copy_og_asset('./dist/index.*.js')
 
   // Types are not bundled, include satori types here
   await task
@@ -574,7 +569,13 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'watchpack'
+externals['watchpack'] = 'next/dist/compiled/watchpack'
+export async function ncc_watchpack(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('watchpack')))
+    .ncc({ packageName: 'watchpack', externals })
+    .target('src/compiled/watchpack')
+}
 
 // eslint-disable-next-line camelcase
 externals['jest-worker'] = 'next/dist/compiled/jest-worker'
@@ -1297,14 +1298,6 @@ export async function ncc_devalue(task, opts) {
     .target('src/compiled/devalue')
 }
 
-// eslint-disable-next-line camelcase
-externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
-export async function ncc_find_cache_dir(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('find-cache-dir')))
-    .ncc({ packageName: 'find-cache-dir', externals })
-    .target('src/compiled/find-cache-dir')
-}
 // eslint-disable-next-line camelcase
 externals['find-up'] = 'next/dist/compiled/find-up'
 export async function ncc_find_up(task, opts) {
@@ -2281,7 +2274,6 @@ export async function ncc(task, opts) {
         'ncc_cross_spawn',
         'ncc_debug',
         'ncc_devalue',
-        'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
         'ncc_glob',
@@ -2326,6 +2318,7 @@ export async function ncc(task, opts) {
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
+        'ncc_watchpack',
         'ncc_web_vitals',
         'ncc_web_vitals_attribution',
         'ncc_webpack_bundle5',
@@ -2372,9 +2365,11 @@ export async function next_compile(task, opts) {
       'bin',
       'server',
       'server_esm',
+      'api_esm',
       'nextbuild',
       'nextbuildjest',
       'nextbuildstatic',
+      'nextbuildstatic_esm',
       'nextbuild_esm',
       'pages',
       'pages_esm',
@@ -2456,6 +2451,16 @@ export async function server_esm(task, opts) {
     .target('dist/esm/server')
 }
 
+// Provide ESM entry files for Next.js apis,
+// Remain in ESM both for dist/ and dist/esm
+export async function api_esm(task, opts) {
+  await task
+    .source('src/api/**/*.+(js|mts|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/api')
+    .target('dist/esm/api')
+}
+
 export async function nextbuild(task, opts) {
   await task
     .source('src/build/**/*.+(js|ts|tsx)', {
@@ -2520,6 +2525,14 @@ export async function nextbuildstatic(task, opts) {
     .source('src/export/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/export')
+}
+
+// export is a reserved keyword for functions
+export async function nextbuildstatic_esm(task, opts) {
+  await task
+    .source('src/export/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev, esm: true })
+    .target('dist/esm/export')
 }
 
 export async function pages_app(task, opts) {
@@ -2635,12 +2648,14 @@ export default async function (task) {
   await task.watch('src/bin', 'bin', opts)
   await task.watch('src/pages', 'pages', opts)
   await task.watch('src/server', ['server', 'server_esm', 'server_wasm'], opts)
+  await task.watch('src/api', 'api_esm', opts)
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
     opts
   )
   await task.watch('src/export', 'nextbuildstatic', opts)
+  await task.watch('src/export', 'nextbuildstatic_esm', opts)
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/lib', 'lib', opts)
