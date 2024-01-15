@@ -43,7 +43,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     await session.patch('index.js', `export default () => <div/`)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       'export default () => <div/'
     )
@@ -66,7 +66,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await check(
       () => session.evaluate(() => document.querySelector('p').textContent),
@@ -93,7 +93,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
             return <p>Hello world</p>
         `
       )
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.hasRedbox()).toBe(true)
 
       // Fix syntax error
       await session.patch(
@@ -173,7 +173,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(await session.hasErrorToast()).toBe(false)
 
     expect(
@@ -184,7 +184,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(await session.hasErrorToast()).toBe(false)
 
     await cleanup()
@@ -235,7 +235,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         `
       )
 
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.hasRedbox()).toBe(true)
       expect(await session.getRedboxSource()).toInclude(
         'export default function Child()'
       )
@@ -252,7 +252,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
       // TODO-APP: re-enable when error recovery doesn't reload the page.
       // expect(didNotReload).toBe(true)
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       expect(
         await session.evaluate(() => document.querySelector('p').textContent)
       ).toBe('Hello')
@@ -313,14 +313,14 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       "Expected '}', got '<eof>'"
     )
 
     // Test that runtime error does not take over:
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       "Expected '}', got '<eof>'"
     )
@@ -371,7 +371,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toInclude(
       "return React.createElement('h1', null, 'Foo');"
     )
@@ -388,7 +388,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     // Expected: this fixes the problem
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -431,7 +431,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     // Now change the code to introduce a runtime error without fixing the syntax error:
     await session.patch(
@@ -449,7 +449,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     // Now fix the syntax error:
     await session.patch(
@@ -467,7 +467,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     await check(async () => {
       const source = await session.getRedboxSource()
@@ -487,7 +487,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       new Map([['app/page.js', '{{{']])
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await check(() => session.getRedboxSource(true), /Failed to compile/)
 
     await cleanup()

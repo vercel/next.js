@@ -15,7 +15,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       next,
       new Map([['pages/_app.js', ``]])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: The default export is not a React Component in page: "/_app""`
     )
@@ -29,7 +29,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default MyApp
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await cleanup()
   })
 
@@ -38,7 +38,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       next,
       new Map([['pages/_document.js', ``]])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: The default export is not a React Component in page: "/_document""`
     )
@@ -70,7 +70,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default MyDocument
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await cleanup()
   })
 
@@ -89,7 +89,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
@@ -128,7 +128,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default MyApp
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await cleanup()
   })
 
@@ -165,7 +165,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
@@ -215,7 +215,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default MyDocument
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await cleanup()
   })
 })
