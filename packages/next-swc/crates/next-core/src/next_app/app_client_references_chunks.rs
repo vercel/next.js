@@ -141,6 +141,11 @@ pub async fn get_app_client_references_chunks(
                 client_references_by_server_component.into_iter()
             {
                 let base_ident = server_component.ident();
+
+                let server_path = server_component.server_path();
+                let is_layout = server_path.file_stem().await?.as_deref() == Some("layout");
+                let server_component_path = server_path.to_string().await?;
+
                 let ssr_modules = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
@@ -157,10 +162,23 @@ pub async fn get_app_client_references_chunks(
                     })
                     .try_flat_join()
                     .await?;
-                let ssr_entry_module = IncludeModulesModule::new(
-                    base_ident.with_modifier(client_modules_ssr_modifier()),
-                    ssr_modules,
-                );
+                let ssr_chunk_group = if !ssr_modules.is_empty() {
+                    let ssr_entry_module = IncludeModulesModule::new(
+                        base_ident.with_modifier(client_modules_ssr_modifier()),
+                        ssr_modules,
+                    );
+                    let _span = tracing::info_span!(
+                        "server side rendering",
+                        layout_segment = display(&server_component_path),
+                    )
+                    .entered();
+                    Some(ssr_chunking_context.chunk_group(
+                        Vc::upcast(ssr_entry_module),
+                        Value::new(current_ssr_availability_info),
+                    ))
+                } else {
+                    None
+                };
                 let client_modules = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
@@ -180,57 +198,66 @@ pub async fn get_app_client_references_chunks(
                     })
                     .try_join()
                     .await?;
-                let client_entry_module = IncludeModulesModule::new(
-                    base_ident.with_modifier(client_modules_modifier()),
-                    client_modules,
-                );
-                let server_path = server_component.server_path();
-                let is_layout = server_path.file_stem().await?.as_deref() == Some("layout");
+                let client_chunk_group = if !client_modules.is_empty() {
+                    let client_entry_module = IncludeModulesModule::new(
+                        base_ident.with_modifier(client_modules_modifier()),
+                        client_modules,
+                    );
 
-                let server_component_path = server_path.to_string().await?;
-                let client_chunk_group = {
                     let _span = tracing::info_span!(
                         "client side rendering",
                         layout_segment = display(&server_component_path),
                     )
                     .entered();
-                    client_chunking_context.chunk_group(
+                    Some(client_chunking_context.chunk_group(
                         Vc::upcast(client_entry_module),
                         Value::new(current_client_availability_info),
-                    )
+                    ))
+                } else {
+                    None
                 };
-                let ssr_chunk_group = {
-                    let _span = tracing::info_span!(
-                        "server side rendering",
-                        layout_segment = display(&server_component_path),
-                    )
-                    .entered();
-                    ssr_chunking_context.chunk_group(
-                        Vc::upcast(ssr_entry_module),
-                        Value::new(current_ssr_availability_info),
-                    )
-                };
-                let client_chunk_group = client_chunk_group.await?;
-                let ssr_chunk_group = ssr_chunk_group.await?;
 
-                let client_chunks = current_client_chunks.concatenate(client_chunk_group.assets);
-                let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
-                let client_chunks = client_chunks.resolve().await?;
-                let ssr_chunks = ssr_chunks.resolve().await?;
+                if let Some(client_chunk_group) = client_chunk_group {
+                    let client_chunk_group = client_chunk_group.await?;
 
-                if is_layout {
-                    current_client_availability_info = client_chunk_group.availability_info;
-                    current_ssr_availability_info = ssr_chunk_group.availability_info;
-                    current_client_chunks = client_chunks;
-                    current_ssr_chunks = ssr_chunks;
+                    let client_chunks =
+                        current_client_chunks.concatenate(client_chunk_group.assets);
+                    let client_chunks = client_chunks.resolve().await?;
+
+                    if is_layout {
+                        current_client_availability_info = client_chunk_group.availability_info;
+                        current_client_chunks = client_chunks;
+                    }
+
+                    layout_segment_client_chunks.insert(server_component, client_chunks);
+
+                    for &client_reference_ty in client_reference_types.iter() {
+                        if let ClientReferenceType::EcmascriptClientReference(_) =
+                            client_reference_ty
+                        {
+                            client_component_client_chunks
+                                .insert(client_reference_ty, client_chunks);
+                        }
+                    }
                 }
 
-                layout_segment_client_chunks.insert(server_component, client_chunks);
+                if let Some(ssr_chunk_group) = ssr_chunk_group {
+                    let ssr_chunk_group = ssr_chunk_group.await?;
 
-                for client_reference_ty in client_reference_types {
-                    if let ClientReferenceType::EcmascriptClientReference(_) = client_reference_ty {
-                        client_component_ssr_chunks.insert(client_reference_ty, ssr_chunks);
-                        client_component_client_chunks.insert(client_reference_ty, client_chunks);
+                    let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
+                    let ssr_chunks = ssr_chunks.resolve().await?;
+
+                    if is_layout {
+                        current_ssr_availability_info = ssr_chunk_group.availability_info;
+                        current_ssr_chunks = ssr_chunks;
+                    }
+
+                    for &client_reference_ty in client_reference_types.iter() {
+                        if let ClientReferenceType::EcmascriptClientReference(_) =
+                            client_reference_ty
+                        {
+                            client_component_ssr_chunks.insert(client_reference_ty, ssr_chunks);
+                        }
                     }
                 }
             }
