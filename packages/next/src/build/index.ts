@@ -13,6 +13,7 @@ import { bold, yellow, green } from '../lib/picocolors'
 import crypto from 'crypto'
 import { makeRe } from 'next/dist/compiled/micromatch'
 import { existsSync, promises as fs } from 'fs'
+import { Server } from 'http'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
@@ -703,6 +704,7 @@ export default async function build(
   const isCompileMode = buildMode === 'experimental-compile'
   const isGenerateMode = buildMode === 'experimental-generate'
 
+  let incrementalCacheIpcServer: Server | undefined
   try {
     const nextBuildSpan = trace('next-build', undefined, {
       buildMode: buildMode,
@@ -1561,6 +1563,7 @@ export default async function build(
 
         incrementalCacheIpcPort = cacheInitialization.ipcPort
         incrementalCacheIpcValidationKey = cacheInitialization.ipcValidationKey
+        incrementalCacheIpcServer = cacheInitialization.ipcServer
       }
 
       const pagesStaticWorkers = createStaticWorker(
@@ -3190,5 +3193,7 @@ export default async function build(
     teardownTraceSubscriber()
     teardownHeapProfiler()
     teardownCrashReporter()
+
+    incrementalCacheIpcServer?.close()
   }
 }
