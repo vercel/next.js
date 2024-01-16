@@ -31,7 +31,7 @@ Selecting an authentication strategy should align with your application's specif
 In this section, we'll explore the process of adding basic email-password authentication to a web application. While this method provides a fundamental level of security, it's worth considering more advanced options like OAuth or passwordless logins for enhanced protection against common security threats. The authentication flow we'll discuss is as follows:
 
 1. The user submits their credentials via a login form.
-2. The form calls a server action.
+2. The form calls a Server Action.
 3. Upon successful verification, the process is completed, indicating the user's successful authentication.
 4. If verification is unsuccessful, an error message is shown.
 
@@ -123,7 +123,7 @@ After the authentication provider processes the credentials, there are two possi
 - **Successful Authentication**: This outcome implies that the login was successful. Further actions, such as accessing protected routes and fetching user information, can then be initiated.
 - **Failed Authentication**: In cases where the credentials are incorrect or an error is encountered, the function returns a corresponding error message to indicate the authentication failure.
 
-Finally, in your `login-form.tsx` component, you can use React's `useFormState` to call the server action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
+Finally, in your `login-form.tsx` component, you can use React's `useFormState` to call the Server Action and handle form errors, and use `useFormStatus` to handle the pending state of the form:
 
 ```tsx filename="/app/login/page.tsx" switcher
 'use client'
@@ -131,23 +131,28 @@ Finally, in your `login-form.tsx` component, you can use React's `useFormState` 
 import { authenticate } from '@/app/lib/actions'
 import { useFormState, useFormStatus } from 'react-dom'
 
-const LoginPage = () => {
+export default function LoginPage() {
   const [errorMessage, dispatch] = useFormState(authenticate, undefined)
-  const { pending } = useFormStatus()
 
   return (
     <form action={dispatch}>
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
       <div>{errorMessage && <p>{errorMessage}</p>}</div>
-      <button aria-disabled={pending} type="submit">
-        Login
-      </button>
+      <LoginButton />
     </form>
   )
 }
 
-export default LoginPage
+function LoginButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button aria-disabled={pending} type="submit">
+      Login
+    </button>
+  )
+}
 ```
 
 ```jsx filename="/app/login/page.jsx" switcher
@@ -156,23 +161,28 @@ export default LoginPage
 import { authenticate } from '@/app/lib/actions'
 import { useFormState, useFormStatus } from 'react-dom'
 
-const LoginPage = () => {
+export default function LoginPage() {
   const [errorMessage, dispatch] = useFormState(authenticate, undefined)
-  const { pending } = useFormStatus()
 
   return (
     <form action={dispatch}>
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
       <div>{errorMessage && <p>{errorMessage}</p>}</div>
-      <button aria-disabled={pending} type="submit">
-        Login
-      </button>
+      <LoginButton />
     </form>
   )
 }
 
-export default LoginPage
+function LoginButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button aria-disabled={pending} type="submit">
+      Login
+    </button>
+  )
+}
 ```
 
 For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#authentication-solutions).
@@ -268,9 +278,15 @@ export default function Page() {
 }
 ```
 
-This flexibility is crucial for role-specific redirections post-authentication. For example, an admin user can be redirected to an admin dashboard, while a regular user might be sent to a different page. It's also useful for conditional navigation, like redirecting users to complete their profile if necessary.
+After successful authentication, it's important to manage user navigation based on their roles. For example, an admin user might be redirected to an admin dashboard, while a regular user is sent to a different page. This flexibility is crucial for role-specific experiences and conditional navigation, such as prompting users to complete their profile if needed.
 
-When setting up authorization, it's important to make sure the main security checks happen where your app accesses or changes data. Middleware can help by doing a first check, but it shouldn't be the only thing keeping your data safe. Always check if a user has the right access when you're actually getting or changing the data. This way, even if someone gets past the first check, your data is still secure at the most important step - when it's being accessed.
+When setting up authorization, it's important to ensure that the main security checks happen where your app accesses or changes data. While middleware can be useful for initial validation, it should not be the sole line of defense in protecting your data. The bulk of security checks should be performed in the Data Access Layer (DAL). This approach, highlighted in [this security blog](https://nextjs.org/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. Such a strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance. To ensure comprehensive security, consider the following key areas:
+
+- Server Actions: Implement security checks in server-side processes, especially for sensitive operations.
+- Route Handlers: Manage incoming requests with security measures to ensure access is limited to authorized users.
+- Data Access Layer (DAL): Directly interacts with the database and is crucial for validating and authorizing data transactions. It’s vital to perform critical checks within the DAL to secure data at its most crucial interaction point—access or modification.
+
+For a detailed guide on securing the DAL, including example code snippets and advanced security practices, refer to our [Data Access Layer section](https://nextjs.org/blog/security-nextjs-server-components-actions#data-access-layer) of the security guide.
 
 ### Protecting Server Actions
 
@@ -318,7 +334,7 @@ export async function serverAction() {
 
 ### Protecting Route Handlers
 
-Route Handlers in Next.js play a vital role in managing incoming requests. Just like server actions, they should be secured to ensure that only authorized users can access certain functionalities. This often involves verifying the user's authentication status and their permissions.
+Route Handlers in Next.js play a vital role in managing incoming requests. Just like Server Actions, they should be secured to ensure that only authorized users can access certain functionalities. This often involves verifying the user's authentication status and their permissions.
 
 Here's an example of securing a Route Handler:
 
@@ -408,8 +424,7 @@ In this example, the Dashboard component renders different UIs for 'admin', 'use
 - **Dynamic Role Management**: Use a flexible system for user roles to easily adjust to changes in permissions and roles, avoiding hardcoded roles.
 - **Security-First Approach**: In all aspects of authorization logic, prioritize security to safeguard user data and maintain the integrity of your application. This includes thorough testing and considering potential security vulnerabilities.
 
-
-By following these best practices and utilizing the features of server components and server actions, you can create a robust, efficient, and secure authorization system in your Next.js application.
+By following these best practices and utilizing the features of server components and Server Actions, you can create a robust, efficient, and secure authorization system in your Next.js application.
 
 ## Session Management
 
@@ -417,13 +432,15 @@ Effective session management is essential for maintaining a secure and continuou
 
 ### Cookie-Based Sessions
 
-Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency. However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Additionally, while individual cookies are limited in size (typically around 4KB), techniques like cookie-chunking can overcome this limitation by dividing large session data into multiple cookies.
+Cookie-based sessions manage user data by storing encrypted session information directly in browser cookies. Upon user login, this encrypted data is stored in the cookie. Each subsequent server request includes this cookie, minimizing the need for repeated server queries and enhancing client-side efficiency. However, this method requires careful encryption to protect sensitive data, as cookies are susceptible to client-side security risks. Encrypting session data in cookies is key to safeguarding user information from unauthorized access. It ensures that even if a cookie is stolen, the data inside remains unreadable. Additionally, while individual cookies are limited in size (typically around 4KB), techniques like cookie-chunking can overcome this limitation by dividing large session data into multiple cookies.
 
 Setting a cookie in a Next.js project might look something like this:
 
 **Setting a cookie on the server:**
 
-```tsx filename="/app/page.tsx" switcher
+```ts filename="/app/actions.ts" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 
 export async function handleLogin(sessionData) {
@@ -438,7 +455,9 @@ export async function handleLogin(sessionData) {
 }
 ```
 
-```jsx filename="/app/page.jsx" switcher
+```js filename="/app/actions.js" switcher
+'use server'
+
 import { cookies } from 'next/headers'
 
 export async function handleLogin(sessionData) {
