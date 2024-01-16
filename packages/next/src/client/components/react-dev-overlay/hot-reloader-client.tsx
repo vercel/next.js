@@ -91,8 +91,16 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-// Is there a newer version of this code available?
+/**
+ * Is there a newer version of this code available?
+ * For webpack: Check if the hash changed compared to __webpack_hash__
+ * For Turbopack: Always true because it doesn't have __webpack_hash__
+ */
 function isUpdateAvailable() {
+  if (process.env.TURBOPACK) {
+    return true
+  }
+
   /* globals __webpack_hash__ */
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
@@ -326,9 +334,6 @@ function processMessage(
           })
         )
 
-        // Compilation with warnings (e.g. ESLint).
-        const isHotUpdate = obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC
-
         // Print warnings to the console.
         const formattedMessages = formatWebpackMessages({
           warnings: warnings,
@@ -346,11 +351,7 @@ function processMessage(
           console.warn(stripAnsi(formattedMessages.warnings[i]))
         }
 
-        // Attempt to apply hot updates or reload.
-        if (isHotUpdate) {
-          handleHotUpdate(obj.updatedModules)
-        }
-        return
+        // No early return here as we need to apply modules in the same way between warnings only and compiles without warnings
       }
 
       sendMessage(
@@ -360,13 +361,8 @@ function processMessage(
         })
       )
 
-      const isHotUpdate =
-        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
-        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-        isUpdateAvailable()
-
-      // Attempt to apply hot updates or reload.
-      if (isHotUpdate) {
+      if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+        // Handle hot updates
         handleHotUpdate(obj.updatedModules)
       }
       return

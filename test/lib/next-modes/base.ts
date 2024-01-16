@@ -301,20 +301,6 @@ export class NextInstance {
       new RegExp(escapeStringRegexp(this.testDir), 'g'),
       'TEST_DIR'
     )
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/,----/, ',-[1:1]')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
-    return content
-  }
-
-  // the dev binary for next-swc is missing file references
-  // so this normalizes to allow snapshots to match
-  public normalizeSnapshot(content) {
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/TEST_DIR.*?:/g, '')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
     return content
   }
 
