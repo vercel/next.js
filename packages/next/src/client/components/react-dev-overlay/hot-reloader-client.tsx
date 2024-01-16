@@ -92,7 +92,15 @@ function handleAvailableHash(hash: string) {
 }
 
 // Is there a newer version of this code available?
+/**
+ * For webpack: Check if the hash changed compared to __webpack_hash__
+ * For Turbopack: Always true
+ */
 function isUpdateAvailable() {
+  if (process.env.TURBOPACK) {
+    return true
+  }
+
   /* globals __webpack_hash__ */
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
@@ -363,9 +371,15 @@ function processMessage(
         })
       )
 
+      const isBuiltEvent = obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+      // TODO: Maybe this check is no longer needed.
+      const isAppRouter = !window.__NEXT_DATA__
+      const isPagesUnderscoreError =
+        !isAppRouter && window.__NEXT_DATA__.page !== '/_error'
+
       const isHotUpdate =
-        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
-        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+        isBuiltEvent &&
+        (isAppRouter || isPagesUnderscoreError) &&
         (isHashAlreadyChanged || isUpdateAvailable())
 
       // Attempt to apply hot updates or reload.
