@@ -19,7 +19,10 @@ use turbopack_binding::{
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
-        node::execution_context::ExecutionContext,
+        node::{
+            execution_context::ExecutionContext,
+            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+        },
         turbopack::{
             condition::ContextCondition,
             module_options::{
@@ -282,6 +285,7 @@ pub async fn get_server_module_options_context(
         foreign_code_context_condition(next_config, project_path).await?;
     let postcss_transform_options = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
+        config_location: PostCssConfigLocation::ProjectPathOrLocalPath..Default::default(),
         ..Default::default()
     });
 
@@ -395,6 +399,14 @@ pub async fn get_server_module_options_context(
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
+
+            let postcss_foreign_transform_options = Some(PostCssTransformOptions {
+                // For node_modules we don't want to resolve postcss config relative to the file
+                // being compiled, instead it only uses the project root postcss
+                // config.
+                config_location: PostCssConfigLocation::ProjectPath,
+                ..postcss_transform_options
+            });
 
             let foreign_code_module_options_context = ModuleOptionsContext {
                 custom_rules: internal_custom_rules.clone(),

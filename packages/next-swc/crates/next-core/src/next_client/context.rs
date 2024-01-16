@@ -18,13 +18,16 @@ use turbopack_binding::{
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
         ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
-        node::execution_context::ExecutionContext,
+        node::{
+            execution_context::ExecutionContext,
+            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+        },
         turbopack::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::ModuleOptionsContext, CustomEcmascriptTransformPlugins,
-                JsxTransformOptions, MdxTransformModuleOptions, PostCssTransformOptions,
-                TypescriptTransformOptions, WebpackLoadersOptions,
+                JsxTransformOptions, MdxTransformModuleOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -260,6 +263,7 @@ pub async fn get_client_module_options_context(
 
     let postcss_transform_options = Some(PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
+        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
     });
 
@@ -268,13 +272,22 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        enable_postcss_transform: postcss_transform_options,
         ..Default::default()
     };
 
+    let postcss_foreign_transform_options = Some(PostCssTransformOptions {
+        // For node_modules we don't want to resolve postcss config relative to the file being
+        // compiled, instead it only uses the project root postcss config.
+        config_location: PostCssConfigLocation::ProjectPath,
+        ..postcss_transform_options
+    });
+
+    // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_webpack_loaders: foreign_webpack_loaders,
+        enable_postcss_transform: postcss_foreign_transform_options,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-        enable_postcss_transform: postcss_transform_options.clone(),
         ..module_options_context.clone()
     };
 
@@ -284,7 +297,6 @@ pub async fn get_client_module_options_context(
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
         enable_webpack_loaders,
-        enable_postcss_transform: postcss_transform_options,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs,
         decorators: Some(decorators_options),
