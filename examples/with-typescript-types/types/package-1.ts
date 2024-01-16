@@ -1,3 +1,3 @@
 export type TypeA = {
-  name: string
-}
+  name: string;
+};

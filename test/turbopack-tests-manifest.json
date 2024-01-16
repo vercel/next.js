@@ -898,13 +898,12 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
-      "ReactRefreshLogBox app turbo Module not found empty import trace",
-      "ReactRefreshLogBox app turbo Module not found missing global CSS"
-    ],
-    "failed": [
       "ReactRefreshLogBox app turbo Module not found",
+      "ReactRefreshLogBox app turbo Module not found empty import trace",
+      "ReactRefreshLogBox app turbo Module not found missing global CSS",
       "ReactRefreshLogBox app turbo Node.js builtins"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshLogBox app default Module not found",
       "ReactRefreshLogBox app default Module not found empty import trace",
@@ -916,8 +915,8 @@
   },
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
-    "failed": ["ReactRefreshLogBox app scss syntax errors"],
-    "pending": [],
+    "failed": [],
+    "pending": ["ReactRefreshLogBox app scss syntax errors"],
     "flakey": [],
     "runtimeError": false
   },
@@ -930,17 +929,17 @@
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
-      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
-      "ReactRefreshLogBox app turbo should strip whitespace correctly with newline"
+      "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
+      "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
+      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
-      "ReactRefreshLogBox app turbo css syntax errors",
-      "ReactRefreshLogBox app turbo unterminated JSX"
+      "ReactRefreshLogBox app turbo css syntax errors"
     ],
     "pending": [
       "ReactRefreshLogBox app default Call stack count is correct for client error",
@@ -979,8 +978,8 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshModule.test.ts": {
-    "passed": [],
-    "failed": ["ReactRefreshModule app should allow any variable names"],
+    "passed": ["ReactRefreshModule app should allow any variable names"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -990,12 +989,12 @@
       "ReactRefreshRegression app can fast refresh a page with static generation"
     ],
     "failed": [
-      "ReactRefreshRegression app custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "pending": [
+      "ReactRefreshRegression app Turbopack skipped tests custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app styled-components hydration mismatch"
     ],
     "flakey": [
@@ -1033,17 +1032,17 @@
   "test/development/acceptance-app/app-hmr-changes.test.ts": {
     "passed": [],
     "failed": [
-      "Error overlay - RSC build errors should handle successive HMR changes with errors correctly"
+      "Error overlay - RSC build errors Skipped in webpack should handle successive HMR changes with errors correctly"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance-app/component-stack.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Component Stack in error overlay should show a component stack on hydration error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1084,8 +1083,7 @@
     "passed": [
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
-      "Error recovery app turbo render error not shown right after syntax error",
-      "Error recovery app turbo stuck error"
+      "Error recovery app turbo render error not shown right after syntax error"
     ],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
@@ -1093,6 +1091,7 @@
       "Error recovery app turbo displays build error on initial page load",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
+      "Error recovery app turbo stuck error",
       "Error recovery app turbo syntax > runtime error"
     ],
     "pending": [
@@ -1104,7 +1103,6 @@
       "Error recovery app default render error not shown right after syntax error",
       "Error recovery app default server component can recover from a component error",
       "Error recovery app default server component can recover from syntax error",
-      "Error recovery app default stuck error",
       "Error recovery app default syntax > runtime error"
     ],
     "flakey": [],
@@ -1240,30 +1238,30 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo empty _app shows logbox",
-      "ReactRefreshLogBox turbo empty _document shows logbox"
+      "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
+      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
     ],
     "failed": [
-      "ReactRefreshLogBox turbo _app syntax error shows logbox",
-      "ReactRefreshLogBox turbo _document syntax error shows logbox"
+      "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
+      "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox"
     ],
     "pending": [
-      "ReactRefreshLogBox default _app syntax error shows logbox",
-      "ReactRefreshLogBox default _document syntax error shows logbox",
-      "ReactRefreshLogBox default empty _app shows logbox",
-      "ReactRefreshLogBox default empty _document shows logbox"
+      "ReactRefreshLogBox _app _document default _app syntax error shows logbox",
+      "ReactRefreshLogBox _app _document default _document syntax error shows logbox",
+      "ReactRefreshLogBox _app _document default empty _app shows logbox",
+      "ReactRefreshLogBox _app _document default empty _document shows logbox"
     ],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBox-builtins.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo Module not found (empty import trace)"
+      "ReactRefreshLogBox turbo Module not found",
+      "ReactRefreshLogBox turbo Module not found (empty import trace)",
+      "ReactRefreshLogBox turbo Node.js builtins"
     ],
     "failed": [
-      "ReactRefreshLogBox turbo Module not found",
-      "ReactRefreshLogBox turbo Module not found (missing global CSS)",
-      "ReactRefreshLogBox turbo Node.js builtins"
+      "ReactRefreshLogBox turbo Module not found (missing global CSS)"
     ],
     "pending": [
       "ReactRefreshLogBox default Module not found",
@@ -1287,12 +1285,10 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
-      "ReactRefreshLogBox turbo should strip whitespace correctly with newline"
-    ],
-    "failed": [
-      "ReactRefreshLogBox turbo css syntax errors",
+      "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
+    "failed": ["ReactRefreshLogBox turbo css syntax errors"],
     "pending": [
       "ReactRefreshLogBox default boundaries",
       "ReactRefreshLogBox default conversion to class component (1)",
@@ -1334,10 +1330,11 @@
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
     "failed": [
-      "ReactRefreshRegression custom loader (mdx) should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error"
     ],
-    "pending": [],
+    "pending": [
+      "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1377,13 +1374,13 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
-      "ReactRefreshLogBox turbo stuck error"
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
+      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -1391,7 +1388,6 @@
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
       "ReactRefreshLogBox default logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox default render error not shown right after syntax error",
-      "ReactRefreshLogBox default stuck error",
       "ReactRefreshLogBox default syntax > runtime error"
     ],
     "flakey": [],
@@ -1553,15 +1549,16 @@
       "GS(S)P Server-Side Change Reloading should not reload page when client-side is changed too GSSP",
       "GS(S)P Server-Side Change Reloading should refresh data when server import is updated",
       "GS(S)P Server-Side Change Reloading should show indicator when re-fetching data",
-      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
-      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps",
       "GS(S)P Server-Side Change Reloading should update page when getServerSideProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticPaths is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /another/index",
       "GS(S)P Server-Side Change Reloading should update page when getStaticProps is changed only for /index"
     ],
-    "failed": [],
+    "failed": [
+      "GS(S)P Server-Side Change Reloading should update on props error in getStaticProps",
+      "GS(S)P Server-Side Change Reloading should update on thrown error in getStaticProps"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1954,8 +1951,8 @@
   "test/development/next-font/build-errors.test.ts": {
     "passed": [],
     "failed": [
-      "build-errors should show a module not found error if local font file can' be resolved",
-      "build-errors should show a next/font error when input is wrong"
+      "build-errors Skipped in webpack should show a module not found error if local font file can' be resolved",
+      "build-errors Skipped in webpack should show a next/font error when input is wrong"
     ],
     "pending": [],
     "flakey": [],
@@ -2381,6 +2378,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-basepath-custom-server/index.test.ts": {
+    "passed": [
+      "custom-app-server-action-redirect redirects with basepath properly when server action handler uses `redirect`"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
@@ -2608,7 +2614,7 @@
   "test/e2e/app-dir/app-prefetch-false-loading/app-prefetch-false-loading.test.ts": {
     "passed": [
       "app-prefetch-false-loading should not re-trigger loading state when navigating between pages that share a dynamic layout",
-      "app-prefetch-false-loading should render loading for the inital render"
+      "app-prefetch-false-loading should render loading for the initial render"
     ],
     "failed": [],
     "pending": [],
@@ -2861,6 +2867,7 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
+      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -2937,6 +2944,7 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
+      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -3344,6 +3352,7 @@
     "passed": [
       "app dir - global error should catch metadata error in error boundary if presented",
       "app dir - global error should catch metadata error in global-error if no error boundary is presented",
+      "app dir - global error should catch the client error thrown in the nested routes",
       "app dir - global error should render global error for error in client components",
       "app dir - global error should render global error for error in server components",
       "app dir - global error should trigger error component when an error happens during rendering"
@@ -4481,13 +4490,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-search-params/use-search-params.test.ts": {
-    "passed": ["use-search-params skip test for dev mode"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts": {
     "passed": [
       "useSelectedLayoutSegment(s) should correctly update when changing catchall segment",
@@ -4680,14 +4682,13 @@
   },
   "test/e2e/config-schema-check/index.test.ts": {
     "passed": [
-      "next.config.js schema validating - defaultConfig should validate against defaultConfig"
-    ],
-    "failed": [
+      "next.config.js schema validating - defaultConfig should validate against defaultConfig",
       "next.config.js schema validating - invalid config should warn the invalid next config"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/conflicting-app-page-error/index.test.ts": {
     "passed": [],
@@ -5874,14 +5875,14 @@
     "runtimeError": false
   },
   "test/e2e/nonce-head-manager/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "nonce head manager should not re-execute the script when re-rendering",
       "nonce head manager should not re-execute the script when re-rendering with CSP header"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/og-api/index.test.ts": {
     "passed": [

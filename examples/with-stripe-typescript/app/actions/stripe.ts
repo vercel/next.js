@@ -1,12 +1,12 @@
-'use server'
+"use server";
 
-import type { Stripe } from 'stripe'
+import type { Stripe } from "stripe";
 
 import { headers } from 'next/headers'
 
-import { CURRENCY } from '@/config'
-import { formatAmountForStripe } from '@/utils/stripe-helpers'
-import { stripe } from '@/lib/stripe'
+import { CURRENCY } from "@/config";
+import { formatAmountForStripe } from "@/utils/stripe-helpers";
+import { stripe } from "@/lib/stripe";
 
 export async function createCheckoutSession(
   data: FormData
@@ -17,19 +17,19 @@ export async function createCheckoutSession(
 
   const checkoutSession: Stripe.Checkout.Session =
     await stripe.checkout.sessions.create({
-      mode: 'payment',
-      submit_type: 'donate',
+      mode: "payment",
+      submit_type: "donate",
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: CURRENCY,
             product_data: {
-              name: 'Custom amount donation',
+              name: "Custom amount donation",
             },
             unit_amount: formatAmountForStripe(
-              Number(data.get('customDonation') as string),
-              CURRENCY
+              Number(data.get("customDonation") as string),
+              CURRENCY,
             ),
           },
         },
@@ -55,17 +55,17 @@ export async function createCheckoutSession(
 }
 
 export async function createPaymentIntent(
-  data: FormData
+  data: FormData,
 ): Promise<{ client_secret: string }> {
   const paymentIntent: Stripe.PaymentIntent =
     await stripe.paymentIntents.create({
       amount: formatAmountForStripe(
-        Number(data.get('customDonation') as string),
-        CURRENCY
+        Number(data.get("customDonation") as string),
+        CURRENCY,
       ),
       automatic_payment_methods: { enabled: true },
       currency: CURRENCY,
-    })
+    });
 
-  return { client_secret: paymentIntent.client_secret as string }
+  return { client_secret: paymentIntent.client_secret as string };
 }

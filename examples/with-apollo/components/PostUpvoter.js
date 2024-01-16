@@ -1,4 +1,4 @@
-import { gql, useMutation } from '@apollo/client'
+import { gql, useMutation } from "@apollo/client";
 
 const UPDATE_POST_MUTATION = gql`
   mutation votePost($id: String!) {
@@ -8,10 +8,10 @@ const UPDATE_POST_MUTATION = gql`
       __typename
     }
   }
-`
+`;
 
 export default function PostUpvoter({ votes, id }) {
-  const [updatePost] = useMutation(UPDATE_POST_MUTATION)
+  const [updatePost] = useMutation(UPDATE_POST_MUTATION);
 
   const upvotePost = () => {
     updatePost({
@@ -19,15 +19,15 @@ export default function PostUpvoter({ votes, id }) {
         id,
       },
       optimisticResponse: {
-        __typename: 'Mutation',
+        __typename: "Mutation",
         votePost: {
-          __typename: 'Post',
+          __typename: "Post",
           id,
           votes: votes + 1,
         },
       },
-    })
-  }
+    });
+  };
 
   return (
     <button onClick={() => upvotePost()}>
@@ -46,12 +46,12 @@ export default function PostUpvoter({ votes, id }) {
           border-color: transparent transparent #000000 transparent;
           border-style: solid;
           border-width: 0 4px 6px 4px;
-          content: '';
+          content: "";
           height: 0;
           margin-right: 5px;
           width: 0;
         }
       `}</style>
     </button>
-  )
+  );
 }

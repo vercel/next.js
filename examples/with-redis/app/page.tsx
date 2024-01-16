@@ -1,12 +1,12 @@
-import { kv } from '@vercel/kv'
-import { saveEmail } from './actions'
-import FeatureForm from './form'
-import { Feature } from './types'
+import { kv } from "@vercel/kv";
+import { saveEmail } from "./actions";
+import FeatureForm from "./form";
+import { Feature } from "./types";
 
 export let metadata = {
-  title: 'Next.js and Redis Example',
-  description: 'Feature roadmap example with Next.js with Redis.',
-}
+  title: "Next.js and Redis Example",
+  description: "Feature roadmap example with Next.js with Redis.",
+};
 
 function VercelLogo(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -26,35 +26,40 @@ function VercelLogo(props: React.SVGProps<SVGSVGElement>) {
         strokeWidth="1.5"
       />
     </svg>
-  )
+  );
 }
 
 async function getFeatures() {
-  let itemIds = await kv.zrange('items_by_score', 0, 100, {
-    rev: true,
-  })
+  try {
+    let itemIds = await kv.zrange("items_by_score", 0, 100, {
+      rev: true,
+    });
 
-  if (!itemIds.length) {
-    return []
-  }
-
-  let multi = kv.multi()
-  itemIds.forEach((id) => {
-    multi.hgetall(`item:${id}`)
-  })
-
-  let items: Feature[] = await multi.exec()
-  return items.map((item) => {
-    return {
-      ...item,
-      score: item.score,
-      created_at: item.created_at,
+    if (!itemIds.length) {
+      return [];
     }
-  })
+
+    let multi = kv.multi();
+    itemIds.forEach((id) => {
+      multi.hgetall(`item:${id}`);
+    });
+
+    let items: Feature[] = await multi.exec();
+    return items.map((item) => {
+      return {
+        ...item,
+        score: item.score,
+        created_at: item.created_at,
+      };
+    });
+  } catch (error) {
+    console.error(error);
+    return [];
+  }
 }
 
 export default async function Page() {
-  let features = await getFeatures()
+  let features = await getFeatures();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen py-2">
@@ -115,5 +120,5 @@ export default async function Page() {
         </div>
       </main>
     </div>
-  )
+  );
 }

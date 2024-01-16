@@ -1,4 +1,4 @@
-import PostPlug from './post-plug'
+import PostPlug from "./post-plug";
 
 export default function MoreStories({ posts }) {
   return (
@@ -20,5 +20,5 @@ export default function MoreStories({ posts }) {
         ))}
       </div>
     </section>
-  )
+  );
 }

@@ -1,10 +1,10 @@
-import { useRouter } from 'next/router'
-import Link from 'next/link'
-import styles from '../../styles.module.css'
-import Code from '../../components/Code'
+import { useRouter } from "next/router";
+import Link from "next/link";
+import styles from "../../styles.module.css";
+import Code from "../../components/Code";
 
 export default function News() {
-  const { asPath } = useRouter()
+  const { asPath } = useRouter();
 
   return (
     <div className={styles.container}>
@@ -12,7 +12,7 @@ export default function News() {
         <h1>Path: {asPath}</h1>
         <hr className={styles.hr} />
         <p>
-          The response contains a custom header{' '}
+          The response contains a custom header{" "}
           <Code>X-News-Custom-Header</Code> : <Code>news_header_value</Code>.
         </p>
         <p>
@@ -22,5 +22,5 @@ export default function News() {
         <Link href="/">&larr; Back home</Link>
       </div>
     </div>
-  )
+  );
 }

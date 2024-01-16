@@ -1,11 +1,11 @@
-'use client'
+"use client";
 
 import type Stripe from 'stripe'
 
 import React, { useState } from 'react'
 
-import CustomDonationInput from '@/components/CustomDonationInput'
-import StripeTestCards from '@/components/StripeTestCards'
+import CustomDonationInput from "@/components/CustomDonationInput";
+import StripeTestCards from "@/components/StripeTestCards";
 
 import { formatAmountForDisplay } from '@/utils/stripe-helpers'
 import * as config from '@/config'
@@ -28,12 +28,12 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
   const [clientSecret, setClientSecret] = useState<string | null>(null)
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
-    e
+    e,
   ): void =>
     setInput({
       ...input,
       [e.currentTarget.name]: e.currentTarget.value,
-    })
+    });
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (
     e

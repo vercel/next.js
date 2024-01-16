@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "description": "Notify Next.js team about pending PRs and popular issues",
+  "scripts": {
+    "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.1",
+    "@actions/github": "6.0.0",
+    "@slack/web-api": "^6.11.2"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.1"
+  }
+}
