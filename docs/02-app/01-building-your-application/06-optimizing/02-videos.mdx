@@ -222,17 +222,16 @@ If you have subtitles for your video, you can easily add them using the `<track>
 
 ```jsx filename="app/page.jsx"
 async function VideoComponent({ fileName }) {
-  const options = {
+  const {blobs} = await list({
     prefix: fileName,
     limit: 2
-  };
-  const {blobs} = await list(options);
-  const videoUrl = blobs[0].url;
-  const captionsUrl = blobs[1].url;
+  });
+  const { url } = blobs[0];
+  const { url: captionsUrl } = blobs[1];
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={videoUrl} type="video/mp4">
+      <source src={url} type="video/mp4">
       <track
         src={captionsUrl}
         kind="subtitles"
