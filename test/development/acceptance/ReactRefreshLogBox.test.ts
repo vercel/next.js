@@ -5,8 +5,6 @@ import { describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-const IS_TURBOPACK = Boolean(process.env.TURBOPACK)
-
 describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -210,21 +208,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(await session.hasRedbox()).toBe(true)
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:7:1
+        Parsing ecmascript source code failed
+          5 |     div
+          6 |   )
+        > 7 | }
+            |  ^
 
-    const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(
-        IS_TURBOPACK
-          ? `
-      "./index.js:7:1
-      Parsing ecmascript source code failed
-        5 |     div
-        6 |   )
-      > 7 | }
-          |  ^
-      Unexpected eof"
-    `
-          : `
+        Unexpected eof"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -250,9 +247,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Import trace for requested module:
         ./index.js
         ./pages/index.js"
-      `
-      )
-    )
+      `)
+    }
 
     await cleanup()
   })
@@ -350,14 +346,21 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+      process.env.TURBOPACK
+        ? './index.module.css:1:8'
+        : './index.module.css:1:1'
     )
-    if (!IS_TURBOPACK) {
+    if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
     }
-    expect(source).toMatch('> 1 | .button {')
-    expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
+    if (process.env.TURBOPACK) {
+      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('    |         ^')
+    } else {
+      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('    | ^')
+    }
 
     // Checks for selectors that can't be prefixed.
     // Selector "button" is not pure (pure selectors must contain at least one local class or id)

@@ -37,8 +37,7 @@ describe('Error overlay - RSC build errors', () => {
     await cleanup()
   })
 
-  // TODO: The error overlay is not closed when restoring the working code.
-  it.skip('should throw an error when metadata export is used in client components', async () => {
+  it('should throw an error when metadata export is used in client components', async () => {
     const { session, cleanup } = await sandbox(
       next,
       undefined,
@@ -73,6 +72,10 @@ describe('Error overlay - RSC build errors', () => {
     expect(await session.getRedboxSource()).toInclude(
       'You are attempting to export "generateMetadata" from a component marked with "use client", which is disallowed.'
     )
+
+    // Fix the error again to test error overlay works with hmr rebuild
+    await session.patch(pageFile, content)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -392,7 +395,7 @@ describe('Error overlay - RSC build errors', () => {
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-    //   .toMatchInlineSnapshot(next.normalizeSnapshot(`
+    //   .toMatchInlineSnapshot(n`
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
@@ -405,7 +408,7 @@ describe('Error overlay - RSC build errors', () => {
 
     //   Import path:
     //   ./app/server-with-errors/error-file/error.js"
-    // `))
+    // `)
 
     await cleanup()
   })
