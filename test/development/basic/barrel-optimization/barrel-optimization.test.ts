@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from 'next-test-utils'
+import { hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
 
 createNextDescribe(
   'optimizePackageImports',
@@ -130,15 +130,19 @@ createNextDescribe(
       expect(html).toContain('<linearGradient')
     })
 
-    it('should support MUI', async () => {
+    it.only('should support MUI', async () => {
       let logs = ''
       next.on('stdout', (log) => {
         logs += log
       })
 
       // Ensure that MUI is working
-      const html = await next.render('/mui')
-      expect(html).toContain('test_mui')
+      const $ = await next.render$('/mui')
+      expect(await $('#button').text()).toContain('button')
+      expect(await $('#typography').text()).toContain('typography')
+
+      const browser = await next.browser('/mui')
+      expect(await hasRedbox(browser)).toBe(false)
 
       const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
       expect(modules.length).toBeGreaterThanOrEqual(1)
