@@ -1,22 +1,20 @@
 ---
 title: Video Optimization
 nav_title: Videos
-description: This page contains recommendations and best practices for optimizing videos in your Next.js application.
+description: Recommendations and best practices for optimizing videos in your Next.js application.
 ---
 
 # Optimizing Videos in Next.js Applications
 
-Optimizing videos is crucial in web development for maintaining site performance and enhancing user experience. This document dives into video optimization principles for Next.js web applications, highlighting effective storage and streaming methods to improve video delivery.
+Optimizing videos is important to maintain performance and enhance the user experience. This page outlines how to use videos with Next.js applications, showing how to storage and display video files without affecting performance.
 
 ## Using `<video>` and `<iframe>`
 
-Effectively embedding video content is crucial for a dynamic web experience. This involves using the HTML **`<video>`** tag for direct video files and **`<iframe>`** for external platform-hosted videos. Understanding their use in the context of Next.js's rendering capabilities ensures optimized performance and an enhanced user experience.
+Videos can be embedded on the page using the HTML **`<video>`** tag for direct video files and **`<iframe>`** for external platform-hosted videos.
 
 ### `<video>`
 
-In Next.js, the HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video) tag is essential for embedding video content directly into web pages. It's especially effective for self-hosted or directly served video files, allowing extensive control over playback and appearance. Integrating the `<video>` tag into your JSX code in Next.js enables a native video player experience on your web pages.
-
-Here's an example:
+The HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video) tag is essential for embedding self-hosted or directly served video content, allowing full control over the playback and appearance.
 
 ```html
 <video width="320" height="240" controls preload="none">
@@ -50,20 +48,18 @@ For a comprehensive list of video attributes, refer to the MDN documentation [he
 
 - **Fallback Content:** Provide alternative content for browsers that do not support the `<video>` tag.
 - **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the `<track>` tag with your `<video>` elements to specify caption file sources.
-- **Accessible Controls:** Ensure video controls are navigable via keyboard and compatible with screen readers. This can be achieved by using standard HTML5 video controls or by creating custom controls that comply with ARIA (Accessible Rich Internet Applications) standards.
+- **Accessible Controls:** Ensure navigation with video controls works with keyboard and compatible with screen readers. This can be achieved by using standard HTML5 video controls or by creating custom controls that comply with ARIA (Accessible Rich Internet Applications) standards.
 
 ### `<iframe>`
 
-When it comes to embedding videos from external platforms like YouTube or Vimeo, the `<iframe>` tag is the go-to choice in Next.js. This approach simplifies embedding videos from these platforms, as it reduces the load on your server and ensures optimal performance by leveraging the platform's content delivery network.
-
-Example of embedding a YouTube video:
+The HTML `<iframe>` tag allows you to embed videos from external platforms like YouTube or Vimeo.
 
 ```html
 <iframe
   src="https://www.youtube.com/watch?v=gfU1iZnjRZM"
   frameborder="0"
   allowfullscreen
-></iframe>
+/>
 ```
 
 ### Common `<iframe>` Tag Attributes
@@ -91,7 +87,7 @@ Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js in
 
 1. **Create a Server Component for Video Embedding**
 
-   The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will handle the logic of constructing the embed URL based on the video ID and platform, and render the iframe accordingly.
+   The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will fetch the source URL for the video and render the iframe.
 
    ```jsx filename="app/ui/video-component.jsx"
    export const async function VideoComponent(){
@@ -192,22 +188,21 @@ export default function Page() {
   const fileName = 'my-video.mp4';
   return (
     <Suspense fallback={<p>Loading video...</p>}>
-      <VideoComponent videoUrl={fileName} />
+      <VideoComponent fileName={fileName} />
     </Suspense>
   );
 };
 
 async function VideoComponent({ fileName }) {
-  const options = {
+  const {blobs} = await list({
     prefix: fileName,
     limit: 1
-  };
-  const {blobs} = await list(options);
-  const videoUrl = blobs[0].url;
+  });
+  const { url } = blobs[0];
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={videoUrl} type="video/mp4">
+      <source src={url} type="video/mp4">
       Your browser does not support the video tag.
     </video>
   );
