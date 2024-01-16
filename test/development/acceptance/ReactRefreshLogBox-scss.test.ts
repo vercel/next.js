@@ -3,9 +3,7 @@ import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
-// TODO: figure out why snapshots mismatch on GitHub actions
-// specifically but work in docker and locally
-describe.skip('ReactRefreshLogBox scss', () => {
+describe('ReactRefreshLogBox scss', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
