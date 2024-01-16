@@ -1025,12 +1025,12 @@ importers:
       '@types/lru-cache':
         specifier: 5.1.0
         version: 5.1.0
-      '@types/micromatch':
-        specifier: 4.0.2
-        version: 4.0.2
       '@types/path-to-regexp':
         specifier: 1.7.0
         version: 1.7.0
+      '@types/picomatch':
+        specifier: 2.3.3
+        version: 2.3.3
       '@types/platform':
         specifier: 1.3.4
         version: 1.3.4
@@ -1244,9 +1244,6 @@ importers:
       lru-cache:
         specifier: 5.1.1
         version: 5.1.1
-      micromatch:
-        specifier: 4.0.4
-        version: 4.0.4
       mini-css-extract-plugin:
         specifier: 2.4.3
         version: 2.4.3(webpack@5.86.0)
@@ -1280,6 +1277,9 @@ importers:
       path-to-regexp:
         specifier: 6.1.0
         version: 6.1.0
+      picomatch:
+        specifier: 3.0.1
+        version: 3.0.1
       platform:
         specifier: 1.3.6
         version: 1.3.6
@@ -6744,10 +6744,6 @@ packages:
       '@types/node': 20.2.5
     dev: true
 
-  /@types/braces@3.0.1:
-    resolution: {integrity: sha512-+euflG6ygo4bn0JHtn4pYqcXwRtLvElQ7/nnjDu7iYG56H0+OhCd7d6Ug0IE3WcFpZozBKW2+80FUbv5QGk5AQ==}
-    dev: true
-
   /@types/btoa-lite@1.0.0:
     resolution: {integrity: sha512-wJsiX1tosQ+J5+bY5LrSahHxr2wT+uME5UDwdN1kg4frt40euqA+wzECkmq4t5QbveHiJepfdThgQrPw6KiSlg==}
     dev: true
@@ -7007,12 +7003,6 @@ packages:
   /@types/mdx@2.0.3:
     resolution: {integrity: sha512-IgHxcT3RC8LzFLhKwP3gbMPeaK7BM9eBH46OdapPA7yvuIUJ8H6zHZV53J8hGZcTSnt95jANt+rTBNUUc22ACQ==}
 
-  /@types/micromatch@4.0.2:
-    resolution: {integrity: sha512-oqXqVb0ci19GtH0vOA/U2TmHTcRY9kuZl4mqUxe0QmJAlIW13kzhuK5pi1i9+ngav8FjpSb9FVS/GE00GLX1VA==}
-    dependencies:
-      '@types/braces': 3.0.1
-    dev: true
-
   /@types/mime@2.0.1:
     resolution: {integrity: sha512-FwI9gX75FgVBJ7ywgnq/P7tw+/o1GUbtP0KzbtusLigAOgIgNISRK0ZPl4qertvXSIE8YbsVJueQ90cDt9YYyw==}
     dev: true
@@ -7060,6 +7050,10 @@ packages:
     deprecated: This is a stub types definition for path-to-regexp (https://github.com/pillarjs/path-to-regexp). path-to-regexp provides its own type definitions, so you don't need @types/path-to-regexp installed!
     dependencies:
       path-to-regexp: 6.1.0
+    dev: true
+
+  /@types/picomatch@2.3.3:
+    resolution: {integrity: sha512-Yll76ZHikRFCyz/pffKGjrCwe/le2CDwOP5F210KQo27kpRE46U2rDnzikNlVn6/ezH3Mhn46bJMTfeVTtcYMg==}
     dev: true
 
   /@types/platform@1.3.4:
@@ -17690,7 +17684,7 @@ packages:
     engines: {node: '>=8.6'}
     dependencies:
       braces: 3.0.2
-      picomatch: 2.2.3
+      picomatch: 2.3.1
     dev: true
 
   /micromatch@4.0.5:
@@ -19316,14 +19310,14 @@ packages:
   /picocolors@1.0.0:
     resolution: {integrity: sha512-1fygroTLlHu66zi26VoTDv8yRgm0Fccecssto+MhsZ0D/DGW2sm8E8AjW7NU5VVTRt5GxbeZ5qBuJr+HyLYkjQ==}
 
-  /picomatch@2.2.3:
-    resolution: {integrity: sha512-KpELjfwcCDUb9PeigTs2mBJzXUPzAuP2oPcA989He8Rte0+YUAjw1JVedDhuTKPkHjSYzMN3npC9luThGYEKdg==}
-    engines: {node: '>=8.6'}
-    dev: true
-
   /picomatch@2.3.1:
     resolution: {integrity: sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==}
     engines: {node: '>=8.6'}
+
+  /picomatch@3.0.1:
+    resolution: {integrity: sha512-I3EurrIQMlRc9IaAZnqRR044Phh2DXY+55o7uJ0V+hYZAcQYSuFWsc9q5PvyDHUSCe1Qxn/iBz+78s86zWnGag==}
+    engines: {node: '>=10'}
+    dev: true
 
   /pidtree@0.3.0:
     resolution: {integrity: sha512-9CT4NFlDcosssyg8KVFltgokyKZIFjoBxw8CTGy+5F38Y1eQWrt8tRayiUOXE+zVKQnYu5BR8JjCtvK3BcnBhg==}
