@@ -795,6 +795,31 @@ Try it out:
 
 - [Demo light/dark mode theme detection](https://image-component.nextjs.gallery/theme)
 
+## getImgProps
+
+For more advanced use cases, you can call `getImgProps()` to get the props that would be passed to the underlying `<img>` element, and instead pass to them to another component, style, canvas, etc.
+
+This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
+
+### Picture
+
+The example below uses the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
+
+```jsx filename="app/page.js"
+import { getImgProps } from 'next/image'
+
+export default function Page() {
+  const common = { alt: 'Example', width: 800, height: 400 }
+  const { props: { srcSet: dark } } = getImgProps({ ...common, src: '/dark.png' })
+  const { props: { srcSet: light, ...rest } } = getImgProps({ ...common, src: '/light.png' })
+
+  return (<picture>
+    <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+    <source media="(prefers-color-scheme: light)" srcSet={light} />
+  <img {...rest} />
+</picture>)
+```
+
 ## Known Browser Bugs
 
 This `next/image` component uses browser native [lazy loading](https://caniuse.com/loading-lazy-attr), which may fallback to eager loading for older browsers before Safari 15.4. When using the blur-up placeholder, older browsers before Safari 12 will fallback to empty placeholder. When using styles with `width`/`height` of `auto`, it is possible to cause [Layout Shift](https://web.dev/cls/) on older browsers before Safari 15 that don't [preserve the aspect ratio](https://caniuse.com/mdn-html_elements_img_aspect_ratio_computed_from_attributes). For more details, see [this MDN video](https://www.youtube.com/watch?v=4-d_SoCHeWE).
@@ -810,6 +835,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v14.1.0`  | `getImgProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `v13.2.0`  | `contentDispositionType` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |

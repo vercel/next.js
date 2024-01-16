@@ -1,4 +1,4 @@
-import { unstable_getImgProps as getImgProps } from 'next/image'
+import { getImgProps } from 'next/image'
 
 function loader({ src, width, quality }) {
   return `${src}?wid=${width}&qual=${quality || 35}`

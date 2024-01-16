@@ -1,4 +1,4 @@
-import { unstable_getImgProps as getImgProps } from 'next/image'
+import { getImgProps } from 'next/image'
 
 export default function Page() {
   const common = { alt: 'Hero', width: 400, height: 400, priority: true }

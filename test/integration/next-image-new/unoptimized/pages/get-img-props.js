@@ -1,5 +1,5 @@
 import React from 'react'
-import { unstable_getImgProps as getImgProps } from 'next/image'
+import { getImgProps } from 'next/image'
 import testJpg from '../public/test.jpg'
 
 const Page = () => {
