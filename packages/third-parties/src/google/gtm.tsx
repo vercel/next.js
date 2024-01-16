@@ -1,14 +1,22 @@
 'use client'
+
 // TODO: Evaluate import 'client only'
 import React, { useEffect } from 'react'
-import Script from 'next/script'
 
 import type { GTMParams } from '../types/google'
+import Script from 'next/script'
 
 let currDataLayerName: string | undefined = undefined
 
 export function GoogleTagManager(props: GTMParams) {
-  const { gtmId, dataLayerName = 'dataLayer', auth, preview, dataLayer } = props
+  const {
+    gtmId,
+    dataLayerName = 'dataLayer',
+    auth,
+    preview,
+    dataLayer,
+    scriptStrategy = 'afterInteractive',
+  } = props
 
   if (currDataLayerName === undefined) {
     currDataLayerName = dataLayerName
@@ -43,6 +51,7 @@ export function GoogleTagManager(props: GTMParams) {
         ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
       })(window,'${dataLayerName}');`,
         }}
+        strategy={scriptStrategy}
       />
       <Script
         id="_next-gtm"
