@@ -900,7 +900,7 @@ describe.each([[''], ['/docs']])(
           expect(
             next.normalizeTestDirContent(redboxSource)
           ).toMatchInlineSnapshot(
-            next.normalizeSnapshot(`
+            `
               "./components/parse-error.js
               Error: 
                 x Expression expected
@@ -912,7 +912,7 @@ describe.each([[''], ['/docs']])(
                4 | invalid
                5 | js
                  "
-            `)
+            `
           )
 
           await next.patchFile(aboutPage, aboutContent)
@@ -930,10 +930,6 @@ describe.each([[''], ['/docs']])(
               () => getBrowserBodyText(browser),
               /This is the about page/
             )
-          }
-
-          if (!process.env.NEXT_SWC_DEV_BIN) {
-            throw err
           }
         } finally {
           if (browser) {
