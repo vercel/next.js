@@ -156,7 +156,7 @@ const enum TabId {
   RootLayoutError = 'root-layout-error',
   ServerErrors = 'server-errors',
   RuntimeErrors = 'runtime-errors',
-  RuntimeWarnings = 'runtime-warnings',
+  // RuntimeWarnings = 'runtime-warnings',
 }
 
 function isClientError(error: ReadyRuntimeError) {
@@ -167,15 +167,15 @@ function isServerError(error: ReadyRuntimeError) {
   return ['server', 'edge-server'].includes(getErrorSource(error.error) || '')
 }
 
-function isRuntimeWarning(error: ReadyRuntimeError) {
-  return [
-    'Text content does not match server-rendered HTML.',
-    'This Suspense boundary received an update before it finished hydrating.',
-    'Hydration failed because the initial UI does not match what was rendered on the server.',
-    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
-    'There was an error while hydrating this Suspense boundary. Switched to client rendering.',
-  ].some((message) => error.error.message.includes(message))
-}
+// function isRuntimeWarning(error: ReadyRuntimeError) {
+//   return [
+//     'Text content does not match server-rendered HTML.',
+//     'This Suspense boundary received an update before it finished hydrating.',
+//     'Hydration failed because the initial UI does not match what was rendered on the server.',
+//     'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+//     'There was an error while hydrating this Suspense boundary. Switched to client rendering.',
+//   ].some((message) => error.error.message.includes(message))
+// }
 
 interface TabBase {
   id: TabId
@@ -262,34 +262,35 @@ const TABS: TabConfig[] = [
     },
     message: <>Unhandled Runtime Error</>,
     items: ({ readyErrors }) => {
-      return readyErrors.filter((e) => isClientError(e) && !isRuntimeWarning(e))
+      // return readyErrors.filter((e) => isClientError(e) && !isRuntimeWarning(e))
+      return readyErrors.filter((e) => isClientError(e))
     },
     severity: 'error',
     autoOpen: true,
     as: RuntimeErrorsDialogBody,
   },
-  {
-    id: TabId.RuntimeWarnings,
-    icon: <AlertOctagon />,
-    title: {
-      one: 'Runtime Warnings',
-      many: 'Runtime Warnings',
-      short: 'Warn',
-    },
-    message: (
-      <>
-        Unhandled errors reported when running the application.
-        <br />
-        The application might work partially, but that's unlikely.
-      </>
-    ),
-    items: ({ readyErrors }) => {
-      return readyErrors.filter((e) => isClientError(e) && isRuntimeWarning(e))
-    },
-    severity: 'warning',
-    autoOpen: false,
-    as: RuntimeErrorsDialogBody,
-  },
+  // {
+  //   id: TabId.RuntimeWarnings,
+  //   icon: <AlertOctagon />,
+  //   title: {
+  //     one: 'Runtime Warnings',
+  //     many: 'Runtime Warnings',
+  //     short: 'Warn',
+  //   },
+  //   message: (
+  //     <>
+  //       Unhandled errors reported when running the application.
+  //       <br />
+  //       The application might work partially, but that's unlikely.
+  //     </>
+  //   ),
+  //   items: ({ readyErrors }) => {
+  //     return readyErrors.filter((e) => isClientError(e) && isRuntimeWarning(e))
+  //   },
+  //   severity: 'warning',
+  //   autoOpen: false,
+  //   as: RuntimeErrorsDialogBody,
+  // },
 ]
 
 interface OverlayTab extends TabBase {
