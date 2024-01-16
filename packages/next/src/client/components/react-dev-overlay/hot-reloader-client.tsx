@@ -299,10 +299,7 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
-      let isHashAlreadyChanged = false
       if (obj.hash) {
-        // Check if hash has changed before apply hot updates
-        isHashAlreadyChanged = isUpdateAvailable()
         handleAvailableHash(obj.hash)
       }
 
