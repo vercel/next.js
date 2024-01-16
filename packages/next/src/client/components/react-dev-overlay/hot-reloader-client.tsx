@@ -364,19 +364,8 @@ function processMessage(
         })
       )
 
-      const isBuiltEvent = obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT
-      // TODO: Maybe this check is no longer needed.
-      const isAppRouter = !window.__NEXT_DATA__
-      const isPagesUnderscoreError =
-        !isAppRouter && window.__NEXT_DATA__.page !== '/_error'
-
-      const isHotUpdate =
-        isBuiltEvent &&
-        (isAppRouter || isPagesUnderscoreError) &&
-        (isHashAlreadyChanged || isUpdateAvailable())
-
-      // Attempt to apply hot updates or reload.
-      if (isHotUpdate) {
+      if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+        // Handle hot updates
         handleHotUpdate(obj.updatedModules)
       }
       return
