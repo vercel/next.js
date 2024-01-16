@@ -138,7 +138,9 @@ export async function createComponentTree({
     {
       hideSpan: !(isLayout || isPage),
       spanName: 'resolve segment modules',
-      attributes: { 'next.segment': segment },
+      attributes: {
+        'next.segment': segment,
+      },
     },
     () => getLayoutOrPageModule(tree)
   )
