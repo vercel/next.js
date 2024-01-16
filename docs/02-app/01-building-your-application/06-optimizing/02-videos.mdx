@@ -87,7 +87,7 @@ Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js in
 
 1. **Create a Server Component for Video Embedding**
 
-   The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will handle the logic of constructing the embed URL based on the video ID and platform, and render the iframe accordingly.
+   The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will fetch the source URL for the video and render the iframe.
 
    ```jsx filename="app/ui/video-component.jsx"
    export const async function VideoComponent(){
