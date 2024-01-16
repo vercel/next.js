@@ -141,11 +141,12 @@ export interface MiddlewareRoutingItem {
   matchers?: MiddlewareMatcher[]
 }
 
-export type RouteHandler = (
+export type RouteHandler<T = boolean> = (
   req: BaseNextRequest,
   res: BaseNextResponse,
   parsedUrl: NextUrlWithParsedQuery
-) => PromiseLike<boolean> | boolean
+) => PromiseLike<T> | T
+
 
 /**
  * The normalized route manifest is the same as the route manifest, but with
@@ -626,13 +627,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return false
   }
 
-  private handleNextDataRequest: RouteHandler = async (req, res, parsedUrl) => {
+  private handleNextDataRequest: RouteHandler<[boolean, boolean]> = async (req, res, parsedUrl) => {
     const middleware = this.getMiddleware()
     const params = matchNextDataPathname(parsedUrl.pathname)
 
     // ignore for non-next data URLs
     if (!params || !params.path) {
-      return false
+      return [true]
     }
 
     if (params.path[0] !== this.buildId) {
@@ -641,12 +642,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        return false
+        return [false, true]
       }
 
       // Make sure to 404 if the buildId isn't correct
       await this.render404(req, res, parsedUrl)
-      return true
+      return [true, true]
     }
 
     // remove buildId from URL
@@ -657,7 +658,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // show 404 if it doesn't end with .json
     if (typeof lastParam !== 'string' || !lastParam.endsWith('.json')) {
       await this.render404(req, res, parsedUrl)
-      return true
+      return [true, false]
     }
 
     // re-create page's pathname
@@ -716,7 +717,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     parsedUrl.pathname = pathname
     parsedUrl.query.__nextDataReq = '1'
 
-    return false
+    return [false, false]
   }
 
   protected handleNextImageRequest: RouteHandler = () => false
@@ -1183,7 +1184,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
 
-          finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
+          [finished] = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {
           if (err instanceof DecodeError || err instanceof NormalizeError) {
@@ -1347,8 +1348,9 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
 
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
+        let [finished, buildIdMismatch] = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
+        if (!finished && buildIdMismatch) return
 
         await this.handleCatchallRenderRequest(req, res, parsedUrl)
         return
@@ -1358,7 +1360,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         process.env.NEXT_RUNTIME !== 'edge' &&
         req.headers['x-middleware-invoke']
       ) {
-        finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
+        [finished] = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
         if (finished) return
 
         finished = await this.handleCatchallMiddlewareRequest(
@@ -1453,16 +1455,17 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     return pathname
   }
 
-  private normalizeAndAttachMetadata: RouteHandler = async (req, res, url) => {
+  private normalizeAndAttachMetadata: RouteHandler<[boolean, boolean]> = async (req, res, url) => {
+    let buildIdMismatch = undefined;
     let finished = await this.handleNextImageRequest(req, res, url)
-    if (finished) return true
+    if (finished) return [true, buildIdMismatch]
 
     if (this.enabledDirectories.pages) {
-      finished = await this.handleNextDataRequest(req, res, url)
-      if (finished) return true
+      let [finished, buildIdMismatch] = await this.handleNextDataRequest(req, res, url)
+      if (finished) return [true, buildIdMismatch]
     }
 
-    return false
+    return [false, buildIdMismatch]
   }
 
   /**
