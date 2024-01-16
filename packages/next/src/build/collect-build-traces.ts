@@ -683,7 +683,7 @@ export async function collectBuildTraces({
         const combinedIncludes = new Set<string>()
         const combinedExcludes = new Set<string>()
         for (const curGlob of includeGlobKeys) {
-          const isMatch = picomatch([curGlob], { dot: true, contains: true })
+          const isMatch = picomatch(curGlob, { dot: true, contains: true })
           if (isMatch(route)) {
             for (const include of outputFileTracingIncludes[curGlob]) {
               combinedIncludes.add(include.replace(/\\/g, '/'))
@@ -692,7 +692,7 @@ export async function collectBuildTraces({
         }
 
         for (const curGlob of excludeGlobKeys) {
-          const isMatch = picomatch([curGlob], { dot: true, contains: true })
+          const isMatch = picomatch(curGlob, { dot: true, contains: true })
           if (isMatch(route)) {
             for (const exclude of outputFileTracingExcludes[curGlob]) {
               combinedExcludes.add(exclude)
