@@ -1,7 +1,4 @@
 {
-  "files.associations": {
-    "*.mdx": "markdown"
-  },
   // Formatting using Prettier by default for all languages
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   // Formatting using Prettier for JavaScript, overrides VSCode default.
