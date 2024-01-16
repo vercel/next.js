@@ -19,6 +19,7 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { formatBarrelOptimizedResource } from '../utils'
 
 interface Options {
   dev: boolean
@@ -319,8 +320,11 @@ export class ClientReferenceManifestPlugin {
         // as multiple modules (depending on what you import from it).
         // See also: webpack/loaders/next-flight-loader/index.ts.
         if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          ssrNamedModuleId += '@' + mod.matchResource
-          resource += '@' + mod.matchResource
+          ssrNamedModuleId = formatBarrelOptimizedResource(
+            ssrNamedModuleId,
+            mod.matchResource
+          )
+          resource = formatBarrelOptimizedResource(resource, mod.matchResource)
         }
 
         function addClientReference() {

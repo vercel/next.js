@@ -5,6 +5,7 @@ import {
 } from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
+import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
@@ -41,7 +42,10 @@ export default function transformSource(
   // differentiate them.
   let resourceKey: string = this.resourcePath
   if (this._module?.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-    resourceKey += '@' + this._module.matchResource
+    resourceKey = formatBarrelOptimizedResource(
+      resourceKey,
+      this._module.matchResource
+    )
   }
 
   // A client boundary.
