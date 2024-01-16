@@ -5653,11 +5653,28 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/module-layer/index.test.ts": {
-    "passed": [],
+  "test/e2e/module-layer/module-layer.test.ts": {
+    "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed"
+    ],
     "failed": [
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors"
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge"
     ],
     "pending": [],
     "flakey": [],

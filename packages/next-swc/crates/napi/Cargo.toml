@@ -97,17 +97,6 @@ turbopack-binding = { workspace = true, features = [
 url = {workspace = true}
 urlencoding = {workspace = true}
 
-# There are few build targets we can't use native-tls which default features rely on,
-# allow to specify alternative (rustls) instead via features.
-# Note to opt in rustls default-features should be disabled
-# (--no-default-features --features sentry_rustls)
-sentry = { version = "0.27.0", default-features = false, features = [
-  "backtrace",
-  "contexts",
-  "panic",
-  "reqwest",
-], optional = true }
-
 [build-dependencies]
 napi-build = "2"
 serde = "1"

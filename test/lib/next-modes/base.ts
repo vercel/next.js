@@ -10,6 +10,7 @@ import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
 import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
 import escapeStringRegexp from 'escape-string-regexp'
 
@@ -59,7 +60,7 @@ export class NextInstance {
   public testDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
-  protected childProcess: ChildProcess
+  protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
@@ -331,13 +332,7 @@ export class NextInstance {
   public async stop(): Promise<void> {
     this.isStopping = true
     if (this.childProcess) {
-      let exitResolve
-      const exitPromise = new Promise((resolve) => {
-        exitResolve = resolve
-      })
-      this.childProcess.addListener('exit', () => {
-        exitResolve()
-      })
+      const exitPromise = once(this.childProcess, 'exit')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
