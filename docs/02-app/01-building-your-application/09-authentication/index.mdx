@@ -386,7 +386,7 @@ export default function Dashboard() {
 ```
 
 ```jsx filename="app/dashboard/page.jsx" switcher
-export default function Dashboard() => {
+export default function Dashboard() {
   const session = await getSession()
   const userRole = session?.user?.role // Assuming 'role' is part of the session object
 
