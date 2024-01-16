@@ -360,14 +360,18 @@ function processMessage(
         })
       )
 
-      const isHotUpdate =
-        obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
-        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-        isUpdateAvailable()
+      if (process.env.TURBOPACK) {
+        handleHotUpdate()
+      } else {
+        const isHotUpdate =
+          obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC &&
+          (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
+          isUpdateAvailable()
 
-      // Attempt to apply hot updates or reload.
-      if (isHotUpdate) {
-        handleHotUpdate(obj.updatedModules)
+        // Attempt to apply hot updates or reload.
+        if (isHotUpdate) {
+          handleHotUpdate()
+        }
       }
       return
     }
@@ -390,12 +394,7 @@ function processMessage(
         dispatcher.onRefresh()
       })
 
-      if (process.env.__NEXT_TEST_MODE) {
-        if (self.__NEXT_HMR_CB) {
-          self.__NEXT_HMR_CB()
-          self.__NEXT_HMR_CB = null
-        }
-      }
+      serverComponentRenderInProgress = true
 
       return
     }
@@ -440,6 +439,8 @@ function processMessage(
   }
 }
 
+let serverComponentRenderInProgress = false
+
 export default function HotReload({
   assetPrefix,
   children,
@@ -470,6 +471,19 @@ export default function HotReload({
       },
     }
   }, [dispatch])
+
+  useEffect(() => {
+    if (process.env.__NEXT_TEST_MODE) {
+      if (serverComponentRenderInProgress) {
+        serverComponentRenderInProgress = false
+        if (self.__NEXT_HMR_CB) {
+          self.__NEXT_HMR_CB()
+          self.__NEXT_HMR_CB = null
+        }
+      }
+    }
+    // currentHmrObj will change when ACTION_REFRESH is dispatched.
+  }, [state.currentHmrObj])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
     // Component stack is added to the error in use-error-handler in case there was a hydration errror

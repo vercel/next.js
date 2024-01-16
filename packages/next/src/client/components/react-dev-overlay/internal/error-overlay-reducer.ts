@@ -12,6 +12,7 @@ export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_VERSION_INFO = 'version-info'
 export const INITIAL_OVERLAY_STATE: OverlayState = {
   nextId: 1,
+  currentHmrObj: {},
   buildError: null,
   errors: [],
   notFound: false,
@@ -60,6 +61,7 @@ export type FastRefreshState =
     }
 
 export interface OverlayState {
+  currentHmrObj: {}
   nextId: number
   buildError: string | null
   errors: SupportedErrorEvent[]
@@ -109,6 +111,9 @@ export const errorOverlayReducer: React.Reducer<
     case ACTION_REFRESH: {
       return {
         ...state,
+        // Create a new hmrObj to track when a HMR was applied, this ensures the HMR callback `useEffect` will be called.
+        // Uses an object as the identity is unique, so anytime it changes it will trigger a new run of the effect.
+        currentHmrObj: {},
         buildError: null,
         errors:
           // Errors can come in during updates. In this case, UNHANDLED_ERROR
