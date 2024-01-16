@@ -28,7 +28,7 @@ createNextDescribe(
       '@heroicons/react': '2.0.18',
       '@visx/visx': '3.3.0',
       'recursive-barrel': '1.0.0',
-      '@mui/material': '5.14.19',
+      '@mui/material': '5.15.4',
       '@emotion/styled': '11.11.0',
       '@emotion/react': '11.11.1',
     },
