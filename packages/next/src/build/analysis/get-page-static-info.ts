@@ -259,8 +259,7 @@ export async function getPageStaticInfo(params: {
   const pageStaticInfo = await binding.analysis.getPageStaticInfo(params)
 
   if (pageStaticInfo) {
-    const { exportsInfo, extractedValues, rscInfo, warnings } =
-      await binding.analysis.getPageStaticInfo(params)
+    const { exportsInfo, extractedValues, rscInfo, warnings } = pageStaticInfo
 
     const {
       ssg,
