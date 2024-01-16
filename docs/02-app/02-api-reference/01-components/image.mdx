@@ -809,15 +809,84 @@ The example below uses the [`<picture>`](https://developer.mozilla.org/docs/Web/
 import { getImgProps } from 'next/image'
 
 export default function Page() {
-  const common = { alt: 'Example', width: 800, height: 400 }
+  const common = { alt: 'Theme Example', width: 800, height: 400 }
   const { props: { srcSet: dark } } = getImgProps({ ...common, src: '/dark.png' })
   const { props: { srcSet: light, ...rest } } = getImgProps({ ...common, src: '/light.png' })
 
-  return (<picture>
+  return (
+  <picture>
     <source media="(prefers-color-scheme: dark)" srcSet={dark} />
     <source media="(prefers-color-scheme: light)" srcSet={light} />
-  <img {...rest} />
-</picture>)
+    <img {...rest} />
+  </picture>
+)
+```
+
+### Art Direction
+
+Similarly, you can implement [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction) with different `src` images.
+
+```jsx filename="app/page.js"
+import { getImgProps } from 'next/image'
+
+export default function Home() {
+  const common = { alt: 'Art Direction Example', sizes: '100vw' }
+  const { props: desktop } = getImgProps({
+    ...common,
+    width: 1440,
+    height: 875,
+    quality: 80,
+    src: '/desktop.jpg',
+  })
+  const { props: mobile } = getImgProps({
+    ...common,
+    width: 750,
+    height: 1334,
+    quality: 70,
+    src: '/mobile.jpg',
+  })
+
+  return (
+    <picture>
+      <source media="(min-width: 1000px)" {...desktop} />
+      <source media="(min-width: 500px)" {...mobile} />
+      <img {...mobile} style={{ width: '100%', height: 'auto' }} />
+    </picture>
+  )
+}
+```
+
+### Background CSS
+
+You can even convert the `srcSet` string to the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set) CSS function to optimize a background image.
+
+```jsx filename="app/page.js"
+import { getImgProps } from 'next/image'
+
+function getBackgroundImage(srcSet = '') {
+  const imageSet = srcSet
+    .split(', ')
+    .map((str) => {
+      const [url, dpi] = str.split(' ')
+      return `url("${url}") ${dpi}`
+    })
+    .join(', ')
+  return `image-set(${imageSet})`
+}
+
+export default function Home() {
+  const {
+    props: { srcSet },
+  } = getImgProps({ alt: '', width: 128, height: 128, src: '/img.png' })
+  const backgroundImage = getBackgroundImage(srcSet)
+  const style = { height: '100vh', width: '100vw', backgroundImage }
+
+  return (
+    <main style={style}>
+      <h1>Hello World</h1>
+    </main>
+  )
+}
 ```
 
 ## Known Browser Bugs
