@@ -392,7 +392,7 @@ describe('Error overlay - RSC build errors', () => {
 
     // TODO: investigate flakey snapshot due to spacing below
     // expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-    //   .toMatchInlineSnapshot(next.normalizeSnapshot(`
+    //   .toMatchInlineSnapshot(n`
     //   "./app/server-with-errors/error-file/error.js
     //   ReactServerComponentsError:
 
@@ -405,7 +405,7 @@ describe('Error overlay - RSC build errors', () => {
 
     //   Import path:
     //   ./app/server-with-errors/error-file/error.js"
-    // `))
+    // `)
 
     await cleanup()
   })

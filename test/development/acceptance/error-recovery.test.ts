@@ -421,10 +421,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
     expect(await session.hasRedbox()).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      .toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
@@ -443,7 +441,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./index.js
         ./pages/index.js"
       `)
-    )
 
     // Test that runtime error does not take over:
     await new Promise((resolve) => setTimeout(resolve, 2000))
@@ -451,7 +448,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(
       next.normalizeTestDirContent(await session.getRedboxSource())
     ).toMatchInlineSnapshot(
-      next.normalizeSnapshot(`
+      `
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
@@ -469,7 +466,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Import trace for requested module:
         ./index.js
         ./pages/index.js"
-      `)
+      `
     )
 
     await cleanup()
