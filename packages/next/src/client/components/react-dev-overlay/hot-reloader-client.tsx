@@ -337,9 +337,6 @@ function processMessage(
           })
         )
 
-        // Compilation with warnings (e.g. ESLint).
-        const isHotUpdate = obj.action !== HMR_ACTIONS_SENT_TO_BROWSER.SYNC
-
         // Print warnings to the console.
         const formattedMessages = formatWebpackMessages({
           warnings: warnings,
@@ -357,11 +354,7 @@ function processMessage(
           console.warn(stripAnsi(formattedMessages.warnings[i]))
         }
 
-        // Attempt to apply hot updates or reload.
-        if (isHotUpdate) {
-          handleHotUpdate(obj.updatedModules)
-        }
-        return
+        // No early return here as we need to apply modules in the same way between warnings only and compiles without warnings
       }
 
       sendMessage(
