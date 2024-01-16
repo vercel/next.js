@@ -91,10 +91,10 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-// Is there a newer version of this code available?
 /**
+ * Is there a newer version of this code available?
  * For webpack: Check if the hash changed compared to __webpack_hash__
- * For Turbopack: Always true
+ * For Turbopack: Always true because it doesn't have __webpack_hash__
  */
 function isUpdateAvailable() {
   if (process.env.TURBOPACK) {
