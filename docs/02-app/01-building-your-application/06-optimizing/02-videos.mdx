@@ -194,12 +194,11 @@ export default function Page() {
 };
 
 async function VideoComponent({ fileName }) {
-  const options = {
+  const {blobs} = await list({
     prefix: fileName,
     limit: 1
-  };
-  const {blobs} = await list(options);
-  const videoUrl = blobs[0].url;
+  });
+  const { url } = blobs[0];
 
   return (
     <video controls preload="none" aria-label="Video player">
