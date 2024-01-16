@@ -288,14 +288,6 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
-        // An extra query param is added to the resource key when it's optimized
-        // through the Barrel Loader. That's because the same file might be created
-        // as multiple modules (depending on what you import from it).
-        // See also: webpack/loaders/next-flight-loader/index.ts.
-        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
-          resource += '@' + mod.matchResource
-        }
-
         const moduleReferences = manifest.clientModules
         const moduleIdMapping = manifest.ssrModuleMapping
         const edgeModuleIdMapping = manifest.edgeSSRModuleMapping
@@ -321,6 +313,15 @@ export class ClientReferenceManifestPlugin {
               '/next/dist/esm/'.replace(/\//g, path.sep)
             )
           : null
+
+        // An extra query param is added to the resource key when it's optimized
+        // through the Barrel Loader. That's because the same file might be created
+        // as multiple modules (depending on what you import from it).
+        // See also: webpack/loaders/next-flight-loader/index.ts.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          ssrNamedModuleId += '@' + mod.matchResource
+          resource += '@' + mod.matchResource
+        }
 
         function addClientReference() {
           const exportName = resource
