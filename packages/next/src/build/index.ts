@@ -123,6 +123,7 @@ import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
   lockfilePatchPromise,
+  loadBindings,
   teardownTraceSubscriber,
   teardownHeapProfiler,
 } from './swc'
