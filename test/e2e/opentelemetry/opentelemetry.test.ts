@@ -114,8 +114,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 5) {
-                return `not enough traces, expected 5, but got ${traces.length}`
+              if (traces.length < 8) {
+                return `not enough traces, expected 8, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -173,6 +173,48 @@ createNextDescribe(
                   },
                   {
                     "attributes": {
+                      "next.route": "/app/[param]/rsc-fetch",
+                      "next.span_name": "resolve page components",
+                      "next.span_type": "NextNodeServer.findPageComponents",
+                    },
+                    "kind": 0,
+                    "name": "resolve page components",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
+                      "next.segment": "[param]",
+                      "next.span_name": "resolve segment modules",
+                      "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                    },
+                    "kind": 0,
+                    "name": "resolve segment modules",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
+                      "next.segment": "__PAGE__",
+                      "next.span_name": "resolve segment modules",
+                      "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                    },
+                    "kind": 0,
+                    "name": "resolve segment modules",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
                       "next.page": "/app/[param]/layout",
                       "next.span_name": "generateMetadata /app/[param]/layout",
                       "next.span_type": "ResolveMetadata.generateMetadata",
@@ -212,8 +254,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 2) {
-                return `not enough traces, expected 2, but got ${traces.length}`
+              if (traces.length < 3) {
+                return `not enough traces, expected 3, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -253,6 +295,20 @@ createNextDescribe(
                     },
                     "traceId": "${env.span.traceId}",
                   },
+                  {
+                    "attributes": {
+                      "next.route": "/api/app/[param]/data",
+                      "next.span_name": "resolve page components",
+                      "next.span_type": "NextNodeServer.findPageComponents",
+                    },
+                    "kind": 0,
+                    "name": "resolve page components",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
                 ]
               `)
               return 'success'
@@ -268,8 +324,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 3) {
-                return `not enough traces, expected 3, but got ${traces.length}`
+              if (traces.length < 4) {
+                return `not enough traces, expected 4, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -290,6 +346,20 @@ createNextDescribe(
                         ? `"${env.span.rootParentId}"`
                         : undefined
                     },
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
+                      "next.route": "/pages/[param]/getServerSideProps",
+                      "next.span_name": "resolve page components",
+                      "next.span_type": "NextNodeServer.findPageComponents",
+                    },
+                    "kind": 0,
+                    "name": "resolve page components",
+                    "parentId": "[parent-id]",
                     "status": {
                       "code": 0,
                     },
@@ -337,8 +407,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 3) {
-                return `not enough traces, expected 3, but got ${traces.length}`
+              if (traces.length < 4) {
+                return `not enough traces, expected 4, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -359,6 +429,20 @@ createNextDescribe(
                         ? `"${env.span.rootParentId}"`
                         : undefined
                     },
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
+                      "next.route": "/pages/[param]/getStaticProps${v}",
+                      "next.span_name": "resolve page components",
+                      "next.span_type": "NextNodeServer.findPageComponents",
+                    },
+                    "kind": 0,
+                    "name": "resolve page components",
+                    "parentId": "[parent-id]",
                     "status": {
                       "code": 0,
                     },
@@ -573,6 +657,48 @@ createNextDescribe(
                     "kind": 1,
                     "name": "GET /app/[param]/rsc-fetch",
                     "parentId": undefined,
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.route": "/app/[param]/rsc-fetch",
+                      "next.span_name": "resolve page components",
+                      "next.span_type": "NextNodeServer.findPageComponents",
+                    },
+                    "kind": 0,
+                    "name": "resolve page components",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.segment": "[param]",
+                      "next.span_name": "resolve segment modules",
+                      "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                    },
+                    "kind": 0,
+                    "name": "resolve segment modules",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.segment": "__PAGE__",
+                      "next.span_name": "resolve segment modules",
+                      "next.span_type": "NextNodeServer.getLayoutOrPageModule",
+                    },
+                    "kind": 0,
+                    "name": "resolve segment modules",
+                    "parentId": "[parent-id]",
                     "status": {
                       "code": 0,
                     },
