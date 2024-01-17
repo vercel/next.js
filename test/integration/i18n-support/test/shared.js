@@ -83,6 +83,23 @@ export function runTests(ctx) {
     }
   })
 
+  it('should serve public file on locale domain', async () => {
+    for (const host of ['example.do', 'example.com', 'localhost:3000']) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || '/'}files/texts/file.txt`,
+        undefined,
+        {
+          headers: {
+            host,
+          },
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('hello from file.txt')
+    }
+  })
+
   it('should 404 for locale prefixed public folder files', async () => {
     for (const locale of locales) {
       const res = await fetchViaHTTP(
