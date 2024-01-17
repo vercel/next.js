@@ -148,7 +148,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  process.exit(1)
+  process.exit(code)
 }
 
 const isMatchingPattern = (pattern, file) => {
