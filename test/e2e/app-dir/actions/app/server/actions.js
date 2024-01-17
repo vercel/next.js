@@ -16,8 +16,6 @@ export async function redirectAction(formData) {
   redirect(
     '/header?name=' +
       formData.get('name') +
-      '&constructor=' +
-      formData.constructor.name +
       '&hidden-info=' +
       formData.get('hidden-info')
   )
