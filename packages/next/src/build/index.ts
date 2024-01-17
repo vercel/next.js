@@ -1260,9 +1260,9 @@ export default async function build(
                     compress: false,
                   }
                 : {}),
-              // cacheHandler: cacheHandler
-              //   ? path.relative(distDir, cacheHandler)
-              //   : undefined,
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
               experimental: {
                 ...config.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
