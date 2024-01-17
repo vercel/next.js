@@ -19,7 +19,14 @@ export function y(p, [p1, { p2 }], ...p3) {
     if (true) {
         const f8 = 1;
     }
-    function action() {}
+    var action = createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+        f2,
+        f11,
+        p,
+        p1,
+        p2,
+        p3
+    ]));
     return <Button action={createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         f2,
         f11,
