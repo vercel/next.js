@@ -12,7 +12,7 @@ createNextDescribe(
       async function validateDomNodes(selector: string) {
         expect(await $(`${selector} .img`).prop('tagName')).toBe('IMG')
         expect(await $(`${selector} .link`).prop('tagName')).toBe('A')
-        expect(await $(`${selector} .typeof-getImgProps`).text()).toContain(
+        expect(await $(`${selector} .typeof-getImageProps`).text()).toContain(
           'function'
         )
       }

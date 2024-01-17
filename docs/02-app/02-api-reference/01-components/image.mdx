@@ -795,9 +795,9 @@ Try it out:
 
 - [Demo light/dark mode theme detection](https://image-component.nextjs.gallery/theme)
 
-## getImgProps
+## getImageProps
 
-For more advanced use cases, you can call `getImgProps()` to get the props that would be passed to the underlying `<img>` element, and instead pass to them to another component, style, canvas, etc.
+For more advanced use cases, you can call `getImageProps()` to get the props that would be passed to the underlying `<img>` element, and instead pass to them to another component, style, canvas, etc.
 
 This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
 
@@ -806,12 +806,12 @@ This also avoid calling React `useState()` so it can lead to better performance,
 The example below uses the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
 
 ```jsx filename="app/page.js"
-import { getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
 export default function Page() {
   const common = { alt: 'Theme Example', width: 800, height: 400 }
-  const { props: { srcSet: dark } } = getImgProps({ ...common, src: '/dark.png' })
-  const { props: { srcSet: light, ...rest } } = getImgProps({ ...common, src: '/light.png' })
+  const { props: { srcSet: dark } } = getImageProps({ ...common, src: '/dark.png' })
+  const { props: { srcSet: light, ...rest } } = getImageProps({ ...common, src: '/light.png' })
 
   return (
   <picture>
@@ -827,18 +827,18 @@ export default function Page() {
 Similarly, you can implement [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction) with different `src` images.
 
 ```jsx filename="app/page.js"
-import { getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
 export default function Home() {
   const common = { alt: 'Art Direction Example', sizes: '100vw' }
-  const { props: desktop } = getImgProps({
+  const { props: desktop } = getImageProps({
     ...common,
     width: 1440,
     height: 875,
     quality: 80,
     src: '/desktop.jpg',
   })
-  const { props: mobile } = getImgProps({
+  const { props: mobile } = getImageProps({
     ...common,
     width: 750,
     height: 1334,
@@ -861,7 +861,7 @@ export default function Home() {
 You can even convert the `srcSet` string to the [`image-set()`](https://developer.mozilla.org/en-US/docs/Web/CSS/image/image-set) CSS function to optimize a background image.
 
 ```jsx filename="app/page.js"
-import { getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
 function getBackgroundImage(srcSet = '') {
   const imageSet = srcSet
@@ -877,7 +877,7 @@ function getBackgroundImage(srcSet = '') {
 export default function Home() {
   const {
     props: { srcSet },
-  } = getImgProps({ alt: '', width: 128, height: 128, src: '/img.png' })
+  } = getImageProps({ alt: '', width: 128, height: 128, src: '/img.png' })
   const backgroundImage = getBackgroundImage(srcSet)
   const style = { height: '100vh', width: '100vw', backgroundImage }
 
@@ -904,7 +904,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v14.1.0`  | `getImgProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `v14.1.0`  | `getImageProps()` is stable.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `v14.0.0`  | `onLoadingComplete` prop and `domains` config deprecated.                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v13.4.14` | `placeholder` prop support for `data:/image...`                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | `v13.2.0`  | `contentDispositionType` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
