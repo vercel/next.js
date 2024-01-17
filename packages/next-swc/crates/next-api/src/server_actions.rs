@@ -1,4 +1,4 @@
-use std::{io::Write, iter::once};
+use std::{collections::BTreeMap, io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
@@ -6,13 +6,13 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::{get_asset_prefix_from_pathname, NextRuntime},
 };
-use next_swc::server_actions::parse_server_actions;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
+    swc::core::{common::comments::Comments, ecma::ast::Program},
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
@@ -265,6 +265,30 @@ async fn get_referenced_modules(
     primary_referenced_modules(module)
         .await
         .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
+}
+
+/// Parses the Server Actions comment for all exported action function names.
+///
+/// Action names are stored in a leading BlockComment prefixed by
+/// `__next_internal_action_entry_do_not_use__`.
+pub fn parse_server_actions<C: Comments>(
+    program: &Program,
+    comments: C,
+) -> Option<BTreeMap<String, String>> {
+    let byte_pos = match program {
+        Program::Module(m) => m.span.lo,
+        Program::Script(s) => s.span.lo,
+    };
+    comments.get_leading(byte_pos).and_then(|comments| {
+        comments.iter().find_map(|c| {
+            c.text
+                .split_once("__next_internal_action_entry_do_not_use__")
+                .and_then(|(_, actions)| match serde_json::from_str(actions) {
+                    Ok(v) => Some(v),
+                    Err(_) => None,
+                })
+        })
+    })
 }
 
 /// Inspects the comments inside [module] looking for the magic actions comment.

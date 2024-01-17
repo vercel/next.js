@@ -1,3 +1,3 @@
 export default function RightHalf() {
-  return <span>Imports</span>
+  return <span>Imports</span>;
 }

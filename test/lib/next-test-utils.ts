@@ -17,6 +17,7 @@ import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+import { once } from 'events'
 
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
@@ -497,7 +498,7 @@ export function buildTS(
 
 export async function killProcess(
   pid: number,
-  signal: string | number = 'SIGTERM'
+  signal: NodeJS.Signals | number = 'SIGTERM'
 ): Promise<void> {
   return await new Promise((resolve, reject) => {
     treeKill(pid, signal, (err) => {
@@ -524,9 +525,18 @@ export async function killProcess(
 }
 
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
-  if (instance && instance.pid) {
-    await killProcess(instance.pid)
+export async function killApp(
+  instance?: ChildProcess,
+  signal: NodeJS.Signals | number = 'SIGKILL'
+) {
+  if (
+    instance?.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
+    const exitPromise = once(instance, 'exit')
+    await killProcess(instance.pid, signal)
+    await exitPromise
   }
 }
 
@@ -729,26 +739,20 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
           )
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
+        )
+    )
+  })
+  return result
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {

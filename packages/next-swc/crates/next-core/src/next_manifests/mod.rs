@@ -4,6 +4,7 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
@@ -236,10 +237,10 @@ pub struct ClientReferenceManifest {
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<String, Vec<String>>,
+    pub entry_css_files: HashMap<String, IndexSet<String>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: HashMap<String, Vec<String>>,
+    pub entry_js_files: HashMap<String, IndexSet<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]

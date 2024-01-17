@@ -28,26 +28,30 @@ import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
+import { once } from 'node:events'
 
 let dir: string
-let child: undefined | ReturnType<typeof fork>
+let child: undefined | ChildProcess
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: string | null) => {
-  if (child) {
-    child.kill((signal as any) || 0)
-  }
+const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+  if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+    await once(child, 'exit').catch(() => {})
+  }
 
   try {
     const { eventCliSessionStopped } =
@@ -95,7 +99,6 @@ const handleSessionStop = async (signal: string | null) => {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
-      isTurboSession,
       projectDir: dir,
       distDir: config.distDir,
     })
@@ -108,8 +111,11 @@ const handleSessionStop = async (signal: string | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+
+// exit event must be synchronous
+process.on('exit', () => child?.kill('SIGKILL'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -283,7 +289,6 @@ const nextDev: CliCommand = async (args) => {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
-              isTurboSession,
               projectDir: dir,
               distDir: config.distDir,
               sync: true,
@@ -336,17 +341,5 @@ const nextDev: CliCommand = async (args) => {
 
   await runDevServer(false)
 }
-
-function cleanup() {
-  if (!child) {
-    return
-  }
-
-  child.kill('SIGTERM')
-}
-
-process.on('exit', cleanup)
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
 
 export { nextDev }

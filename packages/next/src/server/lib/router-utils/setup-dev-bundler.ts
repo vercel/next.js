@@ -36,7 +36,7 @@ import fs from 'fs'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
-import Watchpack from 'watchpack'
+import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
@@ -133,7 +133,10 @@ import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-u
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
+import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
+import { Span } from '../../../trace'
 
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
@@ -525,6 +528,9 @@ async function startWatcher(opts: SetupOpts) {
         hash: String(++hmrHash),
         errors: [...errors.values()],
         warnings: [],
+        updatedModules: [
+          ...extractModulesFromTurbopackMessage(turbopackUpdates),
+        ],
       })
       hmrBuilding = false
 
@@ -1344,11 +1350,24 @@ async function startWatcher(opts: SetupOpts) {
               case 'ping':
                 // Ping doesn't need additional handling in Turbopack.
                 break
-              case 'span-end':
+              case 'span-end': {
+                new Span({
+                  name: parsedData.spanName,
+                  startTime:
+                    BigInt(Math.floor(parsedData.startTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND),
+                  attrs: parsedData.attributes,
+                }).stop(
+                  BigInt(Math.floor(parsedData.endTime)) *
+                    BigInt(MILLISECONDS_IN_NANOSECOND)
+                )
+                break
+              }
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
@@ -1870,7 +1889,7 @@ async function startWatcher(opts: SetupOpts) {
         const watchTimeChange =
           watchTime === undefined ||
           (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta.timestamp)
+        fileWatchTimes.set(fileName, meta?.timestamp)
 
         if (envFiles.includes(fileName)) {
           if (watchTimeChange) {
@@ -2265,7 +2284,10 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
+        generateInterceptionRoutesRewrites(
+          Object.keys(appPaths),
+          opts.nextConfig.basePath
+        )?.map((item) =>
           buildCustomRoute(
             'before_files_rewrite',
             item,
