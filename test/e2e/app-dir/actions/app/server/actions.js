@@ -2,10 +2,6 @@
 
 import { redirect } from 'next/navigation'
 
-export async function inc(value) {
-  return value + 1
-}
-
 export async function slowInc(value) {
   await new Promise((resolve) => setTimeout(resolve, 10000))
   return value + 1
