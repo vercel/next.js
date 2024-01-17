@@ -472,7 +472,13 @@ export async function setupFsCheck(opts: {
             itemPath,
             // legacy behavior allows visiting static assets under
             // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+            isDynamicOutput
+              ? undefined
+              : [
+                  i18n?.defaultLocale,
+                  // default locales from domains need to be matched too
+                  ...(i18n.domains?.map((item) => item.defaultLocale) || []),
+                ]
           )
 
           if (localeResult.pathname !== curItemPath) {
