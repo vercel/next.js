@@ -105,7 +105,7 @@ Choose the embedding method that aligns with your application's requirements and
 
 ### Embedding externally hosted videos
 
-To embed videos from platforms like YouTube or Vimeo, you can use React Suspense to stream the video component once ready. 
+To embed videos from platforms like YouTube or Vimeo, you can use React Suspense to stream the video component once ready.
 
 1. **Create a Server Component for Video Embedding**
 
@@ -125,7 +125,7 @@ To embed videos from platforms like YouTube or Vimeo, you can use React Suspense
 
    ```jsx filename="app/page.jsx"
    import { Suspense } from 'react'
-   import { VideoComponent } from '../ui/VideoComponent.server'
+   import VideoComponent from '../ui/VideoComponent.jsx'
 
    export default function Page() {
      return (
@@ -142,15 +142,30 @@ To embed videos from platforms like YouTube or Vimeo, you can use React Suspense
 > **Good to know**: When embedding videos from external platforms, consider the following best practices:
 >
 > - **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
-> - **Consider Data Usage**: Implement strategies for loading videos based on network conditions, especially for users with limited data plans.
+> - **Consider Data Usage**: Implement [strategies for loading videos](https://yoast.com/site-speed-tips-for-faster-video/) based on network conditions, especially for users with limited data plans.
 
-This approach results in a btter user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. 
+This approach results in a better user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. For a more engaging and informative loading experience, consider using a loading skeleton as the fallback UI. So isntead of showing a simple loading message, you can show a skeleton that resembles the video player like this:
+
+```jsx filename="app/page.jsx"
+import { Suspense } from 'react'
+import VideoComponent from '../ui/VideoComponent.jsx'
+import VideoSkeleton from '../ui/VideoSkeleton.jsx'
+
+export default function Page() {
+  return (
+    <section>
+      <Suspense fallback={<VideoSkeleton />}>
+        <VideoComponent />
+      </Suspense>
+      {/* Other content of the page */}
+    </section>
+  )
+}
+```
 
 ## Self-hosted videos
 
-Self-hosting videos may be preferable for several reasons, including control, trust, and customization. This approach is beneficial when external services don't meet your specific needs or when you require complete customization. 
-
-### Video Storage Considerations
+Self-hosting videos may be preferable for several reasons:
 
 - **Complete Control and Independence**: Self-hosting gives you direct management over your video content, from playback to appearance, ensuring full ownership and control, free from external platform constraints.
 - **Customization for Specific Needs**: Ideal for unique requirements, like dynamic background videos, it allows for tailored customization to align with design and functional needs.
@@ -163,7 +178,7 @@ Self-hosting videos may be preferable for several reasons, including control, tr
 
 **Step 1: Uploading a Video to Vercel Blob**
 
-Create a server-side function to upload your video:
+Create a Route Handler to upload your video:
 
 ```ts filename="app/api/upload/route.ts" switcher
 import { put } from '@vercel/blob'
@@ -195,7 +210,11 @@ export async function POST(request) {
 }
 ```
 
-In this function, you're using the [`put`](https://vercel.com/docs/storage/vercel-blob/using-blob-sdk#put) method from `@vercel/blob` to upload a video file, making it publicly accessible.
+In this function, you're using the [`put`](https://vercel.com/docs/storage/vercel-blob/using-blob-sdk#put) method from `@vercel/blob` to upload a video file, making it publicly accessible. For more details on server uploads, see the Vercel documentation [here](https://vercel.com/docs/storage/vercel-blob/server-upload).
+
+Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload), which might be more suitable for certain applications.
+
+> Good to know: Ensure to [add the necessary hostname](https://vercel.com/docs/storage/vercel-blob/server-upload) to your `next.config.js` to configure the domain from where the video files will be served.
 
 **Step 2: Displaying the Video in Next.js**
 
@@ -265,26 +284,12 @@ By following this approach, you can effectively self-host and integrate videos i
 
 To continue learning more about video optimization and best practices, please refer to the following resources:
 
+- **Understanding Video Formats and Codecs**: Choose the right format and codec, like MP4 for compatibility or WebM for web optimization, for your video needs. For more details, see [Mozilla's guide on video codecs](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs).
+- **Video Compression**: Use tools like FFmpeg to effectively compress videos, balancing quality with file size. Learn about compression techniques at [FFmpeg's official website](https://www.ffmpeg.org/).
+- **Resolution and Bitrate Adjustment**: Adjust resolution and bitrate based on the viewing platform, with lower settings for mobile devices. For an in-depth understanding, read [DaCast’s guide](https://www.dacast.com/blog/bitrate-vs-resolution/#:~:text=The%20two%20measure%20different%20aspects,yield%20different%20qualities%20of%20video) on bitrate and resolution.
+- **Content Delivery Networks (CDNs)**: Utilize a CDN to enhance video delivery speed and manage high traffic. Find out more about CDNs and their benefits here.
 
-Enhancing performance and user experience involves strategic optimization of video content. Key techniques include video compression, selecting the appropriate format, and implementing adaptive streaming. Here’s a concise overview of the key techniques:
-
-1. **Understanding Video Formats and Codecs**:
-   - Select formats like MP4 (widely compatible, efficient), WebM (open-source, optimized for web), and AVI (high quality, larger file size) based on compatibility and quality needs.
-   - Choose codecs such as H.264 (high compression, quality) or VP9 (optimized for web streaming) for the best balance between quality and file size.
-2. **Video Compression**:
-   - Use tools such as [FFmpeg](https://www.ffmpeg.org/) to compress videos, reducing file size while maintaining acceptable quality.
-   - Experiment with compression settings to find the ideal balance between quality and file size, considering the intended audience and platform.
-3. **Resolution and Bitrate Adjustment**:
-   - Adjust resolution and bitrate based on the target platform: lower for mobile and higher for desktop or TV viewing.
-   - Lower bitrate and resolution for background videos to save bandwidth without noticeably affecting visual quality.
-4. **Content Delivery Networks (CDNs)**:
-   - Use a CDN to distribute video content, reducing latency and improving load times globally.
-   - CDNs help manage large traffic and enhance user experience by delivering content from the nearest server.
-5. **Lazy Loading of Videos**:
-   - Implement lazy loading to defer loading of videos until they are in view, improving initial page load times.
-
-By incorporating these techniques, you can significantly enhance the performance and accessibility of videos, leading to a better user experience and increased user engagement.
-
+Explore these video streaming platforms for integrating video into your Next.js projects:
 
 - **Next-Video.dev**
 
