@@ -41,6 +41,10 @@ pub async fn get_next_server_transforms_rules(
 
     let (is_server_components, pages_dir) = match context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
+            rules.push(get_next_disallow_export_all_in_page_rule(
+                mdx_rs,
+                pages_dir.await?,
+            ));
             (false, Some(pages_dir))
         }
         ServerContextType::PagesData { pages_dir } => {
@@ -48,6 +52,10 @@ pub async fn get_next_server_transforms_rules(
                 get_next_pages_transforms_rule(pages_dir, ExportFilter::StripDefaultExport, mdx_rs)
                     .await?,
             );
+            rules.push(get_next_disallow_export_all_in_page_rule(
+                mdx_rs,
+                pages_dir.await?,
+            ));
             (false, Some(pages_dir))
         }
         ServerContextType::AppSSR { .. } => {
@@ -90,10 +98,6 @@ pub async fn get_next_server_transforms_rules(
 
     rules.push(get_next_amp_attr_rule(mdx_rs));
     rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-    rules.push(get_next_disallow_export_all_in_page_rule(
-        mdx_rs,
-        pages_dir.is_some(),
-    ));
     rules.push(get_next_pure_rule(mdx_rs));
 
     // [NOTE]: this rule only works in prod config
