@@ -37,7 +37,8 @@ function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
   reasons: NodeFileTraceReasons,
-  cachedIgnoreFiles: Map<string, boolean>
+  cachedIgnoreFiles: Map<string, boolean>,
+  children: Set<string> = new Set()
 ) {
   if (cachedIgnoreFiles.has(file)) {
     return cachedIgnoreFiles.get(file)
@@ -47,6 +48,7 @@ function shouldIgnore(
     cachedIgnoreFiles.set(file, true)
     return true
   }
+  children.add(file)
 
   const reason = reasons.get(file)
   if (!reason || reason.parents.size === 0 || reason.type.includes('initial')) {
@@ -54,17 +56,30 @@ function shouldIgnore(
     return false
   }
 
-  if (
-    [...reason.parents.values()].every((parent) =>
-      shouldIgnore(parent, serverIgnoreFn, reasons, cachedIgnoreFiles)
-    )
-  ) {
-    cachedIgnoreFiles.set(file, true)
-    return true
+  // if all parents are ignored the child file
+  // should be ignored as well
+  let allParentsIgnored = true
+
+  for (const parent of reason.parents.values()) {
+    if (!children.has(parent)) {
+      children.add(parent)
+      if (
+        !shouldIgnore(
+          parent,
+          serverIgnoreFn,
+          reasons,
+          cachedIgnoreFiles,
+          children
+        )
+      ) {
+        allParentsIgnored = false
+        break
+      }
+    }
   }
 
-  cachedIgnoreFiles.set(file, false)
-  return false
+  cachedIgnoreFiles.set(file, allParentsIgnored)
+  return allParentsIgnored
 }
 
 export async function collectBuildTraces({
@@ -265,6 +280,17 @@ export async function collectBuildTraces({
         }
       }
 
+      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
+        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+          return true
+        }
+
+        return isMatch(pathname, ignores, {
+          contains: true,
+          dot: true,
+        })
+      }
+
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
@@ -298,8 +324,11 @@ export async function collectBuildTraces({
         '**/*.d.ts',
         '**/*.map',
         '**/next/dist/pages/**/*',
-        ...(ciEnvironment.hasNextSupport ? ['**/node_modules/sharp/**/*'] : []),
+        ...(ciEnvironment.hasNextSupport
+          ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
+          : []),
       ].filter(nonNullable)
+      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -307,6 +336,7 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
+      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
@@ -318,16 +348,8 @@ export async function collectBuildTraces({
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
-        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-          return true
-        }
+      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-        return isMatch(pathname, ignores, {
-          contains: true,
-          dot: true,
-        })
-      }
       const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
@@ -379,10 +401,10 @@ export async function collectBuildTraces({
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
             if (
-              !makeIgnoreFn(
+              !(
                 set === minimalServerTracedFiles
-                  ? minimalServerIgnores
-                  : serverIgnores
+                  ? minimalServerIgnoreFn
+                  : serverIgnoreFn
               )(path.join(traceContext, file))
             ) {
               addToTracedFiles(traceContext, file, set)
@@ -465,11 +487,9 @@ export async function collectBuildTraces({
               if (
                 !shouldIgnore(
                   curFile,
-                  makeIgnoreFn(
-                    tracedFiles === minimalServerTracedFiles
-                      ? minimalServerIgnores
-                      : serverIgnores
-                  ),
+                  tracedFiles === minimalServerTracedFiles
+                    ? minimalServerIgnoreFn
+                    : serverIgnoreFn,
                   reasons,
                   tracedFiles === minimalServerTracedFiles
                     ? cachedLookupIgnoreMinimal
@@ -529,7 +549,7 @@ export async function collectBuildTraces({
                 if (
                   !shouldIgnore(
                     curFile,
-                    makeIgnoreFn(routesIgnores),
+                    routeIgnoreFn,
                     reasons,
                     cachedLookupIgnoreRoutes
                   )
@@ -574,7 +594,7 @@ export async function collectBuildTraces({
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
-          if (!makeIgnoreFn(serverIgnores)(itemPath)) {
+          if (!serverIgnoreFn(itemPath)) {
             addToTracedFiles(root, itemPath, serverTracedFiles)
             addToTracedFiles(root, itemPath, minimalServerTracedFiles)
           }
