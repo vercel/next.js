@@ -1,12 +1,12 @@
 use anyhow::{Context, Result};
 use indexmap::IndexSet;
-use turbo_tasks::{TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkType, ChunkableModule,
+        ChunkingContext, ChunkingContextExt, EvaluatableAssets,
     },
     ident::AssetIdent,
     introspect::{
@@ -138,17 +138,18 @@ impl ChunkGroupFilesChunkItem {
         let chunks = if let Some(ecma) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(inner.module).await?
         {
-            inner.chunking_context.evaluated_chunk_group(
+            inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
                 inner
                     .runtime_entries
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(Vc::upcast(ecma)),
+                Value::new(AvailabilityInfo::Root),
             )
         } else {
             inner
                 .chunking_context
-                .root_chunk_group(Vc::upcast(inner.module))
+                .root_chunk_group_assets(Vc::upcast(inner.module))
         };
         Ok(chunks)
     }

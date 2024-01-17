@@ -11,6 +11,12 @@ use crate::{
     output::{OutputAsset, OutputAssets},
 };
 
+#[turbo_tasks::value(shared)]
+pub struct ChunkGroupResult {
+    pub assets: Vc<OutputAssets>,
+    pub availability_info: AvailabilityInfo,
+}
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -62,13 +68,14 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<OutputAssets>;
+    ) -> Vc<ChunkGroupResult>;
 
     fn evaluated_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-    ) -> Vc<OutputAssets>;
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<ChunkGroupResult>;
 
     async fn chunk_item_id_from_ident(
         self: Vc<Self>,
@@ -83,13 +90,105 @@ pub trait ChunkingContext {
 }
 
 pub trait ChunkingContextExt {
-    fn root_chunk_group(self: Vc<Self>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<OutputAssets>
+    fn root_chunk_group(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<ChunkGroupResult>
+    where
+        Self: Send;
+
+    fn root_chunk_group_assets(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<OutputAssets>
+    where
+        Self: Send;
+
+    fn evaluated_chunk_group_assets(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<OutputAssets>
+    where
+        Self: Send;
+
+    fn chunk_group_assets(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<OutputAssets>
     where
         Self: Send;
 }
 
 impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingContextExt for T {
-    fn root_chunk_group(self: Vc<Self>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<OutputAssets> {
+    fn root_chunk_group(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<ChunkGroupResult> {
         self.chunk_group(module, Value::new(AvailabilityInfo::Root))
     }
+
+    fn root_chunk_group_assets(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<OutputAssets> {
+        root_chunk_group_assets(Vc::upcast(self), module)
+    }
+
+    fn evaluated_chunk_group_assets(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<OutputAssets> {
+        evaluated_chunk_group_assets(
+            Vc::upcast(self),
+            ident,
+            evaluatable_assets,
+            availability_info,
+        )
+    }
+
+    fn chunk_group_assets(
+        self: Vc<Self>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<OutputAssets> {
+        chunk_group_assets(Vc::upcast(self), module, availability_info)
+    }
+}
+
+#[turbo_tasks::function]
+async fn root_chunk_group_assets(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: Vc<Box<dyn ChunkableModule>>,
+) -> Result<Vc<OutputAssets>> {
+    Ok(chunking_context.root_chunk_group(module).await?.assets)
+}
+
+#[turbo_tasks::function]
+async fn evaluated_chunk_group_assets(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ident: Vc<AssetIdent>,
+    evaluatable_assets: Vc<EvaluatableAssets>,
+    availability_info: Value<AvailabilityInfo>,
+) -> Result<Vc<OutputAssets>> {
+    Ok(chunking_context
+        .evaluated_chunk_group(ident, evaluatable_assets, availability_info)
+        .await?
+        .assets)
+}
+
+#[turbo_tasks::function]
+async fn chunk_group_assets(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: Vc<Box<dyn ChunkableModule>>,
+    availability_info: Value<AvailabilityInfo>,
+) -> Result<Vc<OutputAssets>> {
+    Ok(chunking_context
+        .chunk_group(module, availability_info)
+        .await?
+        .assets)
 }

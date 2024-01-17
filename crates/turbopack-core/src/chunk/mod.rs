@@ -32,7 +32,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 use self::availability_info::AvailabilityInfo;
 pub use self::{
-    chunking_context::{ChunkingContext, ChunkingContextExt},
+    chunking_context::{ChunkGroupResult, ChunkingContext, ChunkingContextExt},
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     passthrough_asset::PassthroughModule,

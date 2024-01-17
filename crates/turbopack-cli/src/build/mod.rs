@@ -14,7 +14,9 @@ use turbopack_build::{BuildChunkingContext, MinifyType};
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
-    chunk::{ChunkableModule, ChunkingContextExt, EvaluatableAssets},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt, EvaluatableAssets,
+    },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
@@ -245,31 +247,34 @@ async fn build_internal(
                 if let Some(ecmascript) =
                     Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(entry_module).await?
                 {
-                    Vc::cell(vec![Vc::try_resolve_downcast_type::<BuildChunkingContext>(
-                        chunking_context,
-                    )
-                    .await?
-                    .unwrap()
-                    .entry_chunk_group(
-                        build_output_root
-                            .join(
-                                ecmascript
-                                    .ident()
-                                    .path()
-                                    .file_stem()
-                                    .await?
-                                    .as_deref()
-                                    .unwrap()
-                                    .to_string(),
+                    Vc::cell(vec![
+                        Vc::try_resolve_downcast_type::<BuildChunkingContext>(chunking_context)
+                            .await?
+                            .unwrap()
+                            .entry_chunk_group(
+                                build_output_root
+                                    .join(
+                                        ecmascript
+                                            .ident()
+                                            .path()
+                                            .file_stem()
+                                            .await?
+                                            .as_deref()
+                                            .unwrap()
+                                            .to_string(),
+                                    )
+                                    .with_extension("entry.js".to_string()),
+                                Vc::upcast(ecmascript),
+                                EvaluatableAssets::one(Vc::upcast(ecmascript)),
+                                Value::new(AvailabilityInfo::Root),
                             )
-                            .with_extension("entry.js".to_string()),
-                        Vc::upcast(ecmascript),
-                        EvaluatableAssets::one(Vc::upcast(ecmascript)),
-                    )])
+                            .await?
+                            .asset,
+                    ])
                 } else if let Some(chunkable) =
                     Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
                 {
-                    chunking_context.root_chunk_group(chunkable)
+                    chunking_context.root_chunk_group_assets(chunkable)
                 } else {
                     // TODO convert into a serve-able asset
                     bail!(

@@ -10,12 +10,13 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        Chunk, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets, ModuleId,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
+        ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::OutputAsset,
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunk, EcmascriptChunkPlaceable, EcmascriptChunkingContext},
@@ -141,6 +142,12 @@ impl BuildChunkingContext {
     }
 }
 
+#[turbo_tasks::value]
+pub struct EntryChunkGroupResult {
+    pub asset: Vc<Box<dyn OutputAsset>>,
+    pub availability_info: AvailabilityInfo,
+}
+
 #[turbo_tasks::value_impl]
 impl BuildChunkingContext {
     #[turbo_tasks::function]
@@ -163,10 +170,14 @@ impl BuildChunkingContext {
         path: Vc<FileSystemPath>,
         module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let availability_info = AvailabilityInfo::Root;
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<EntryChunkGroupResult>> {
+        let availability_info = availability_info.into_value();
 
-        let MakeChunkGroupResult { chunks } = make_chunk_group(
+        let MakeChunkGroupResult {
+            chunks,
+            availability_info,
+        } = make_chunk_group(
             Vc::upcast(self),
             once(Vc::upcast(module)).chain(
                 evaluatable_assets
@@ -191,7 +202,11 @@ impl BuildChunkingContext {
             module,
         ));
 
-        Ok(asset)
+        Ok(EntryChunkGroupResult {
+            asset,
+            availability_info,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -312,10 +327,13 @@ impl ChunkingContext for BuildChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Vc<OutputAssets>> {
+    ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", module = *module.ident().to_string().await?);
         async move {
-            let MakeChunkGroupResult { chunks } = make_chunk_group(
+            let MakeChunkGroupResult {
+                chunks,
+                availability_info,
+            } = make_chunk_group(
                 Vc::upcast(self),
                 [Vc::upcast(module)],
                 availability_info.into_value(),
@@ -332,18 +350,23 @@ impl ChunkingContext for BuildChunkingContext {
                 *asset = asset.resolve().await?;
             }
 
-            Ok(Vc::cell(assets))
+            Ok(ChunkGroupResult {
+                assets: Vc::cell(assets),
+                availability_info,
+            }
+            .cell())
         }
         .instrument(span)
         .await
     }
 
     #[turbo_tasks::function]
-    async fn evaluated_chunk_group(
+    fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
-    ) -> Result<Vc<OutputAssets>> {
+        _availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<ChunkGroupResult>> {
         // TODO(alexkirsz) This method should be part of a separate trait that is
         // only implemented for client/edge runtimes.
         bail!("the build chunking context does not support evaluated chunk groups")

@@ -2,7 +2,9 @@ use anyhow::{Context, Result};
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+    },
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
@@ -54,7 +56,7 @@ impl ManifestAsyncModule {
         let this = self.await?;
         Ok(this
             .chunking_context
-            .chunk_group(Vc::upcast(this.inner), Value::new(this.availability_info)))
+            .chunk_group_assets(Vc::upcast(this.inner), Value::new(this.availability_info)))
     }
 
     #[turbo_tasks::function]
@@ -62,7 +64,7 @@ impl ManifestAsyncModule {
         let this = self.await?;
         Ok(this
             .chunking_context
-            .chunk_group(Vc::upcast(self), Value::new(this.availability_info)))
+            .chunk_group_assets(Vc::upcast(self), Value::new(this.availability_info)))
     }
 
     #[turbo_tasks::function]

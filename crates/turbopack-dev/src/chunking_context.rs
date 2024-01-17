@@ -6,7 +6,8 @@ use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
-        Chunk, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets, ModuleId,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAssets,
+        ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -316,10 +317,13 @@ impl ChunkingContext for DevChunkingContext {
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Result<Vc<OutputAssets>> {
+    ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", module = *module.ident().to_string().await?);
         async move {
-            let MakeChunkGroupResult { chunks } = make_chunk_group(
+            let MakeChunkGroupResult {
+                chunks,
+                availability_info,
+            } = make_chunk_group(
                 Vc::upcast(self),
                 [Vc::upcast(module)],
                 availability_info.into_value(),
@@ -343,7 +347,11 @@ impl ChunkingContext for DevChunkingContext {
                 *asset = asset.resolve().await?;
             }
 
-            Ok(Vc::cell(assets))
+            Ok(ChunkGroupResult {
+                assets: Vc::cell(assets),
+                availability_info,
+            }
+            .cell())
         }
         .instrument(span)
         .await
@@ -354,13 +362,14 @@ impl ChunkingContext for DevChunkingContext {
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-    ) -> Result<Vc<OutputAssets>> {
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Result<Vc<ChunkGroupResult>> {
         let span = {
             let ident = ident.to_string().await?;
             tracing::info_span!("chunking", chunking_type = "evaluated", ident = *ident)
         };
         async move {
-            let availability_info = AvailabilityInfo::Root;
+            let availability_info = availability_info.into_value();
 
             let evaluatable_assets_ref = evaluatable_assets.await?;
 
@@ -371,8 +380,10 @@ impl ChunkingContext for DevChunkingContext {
                 .map(|&evaluatable| Vc::upcast(evaluatable))
                 .collect::<Vec<_>>();
 
-            let MakeChunkGroupResult { chunks } =
-                make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
+            let MakeChunkGroupResult {
+                chunks,
+                availability_info,
+            } = make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
 
             let mut assets: Vec<Vc<Box<dyn OutputAsset>>> = chunks
                 .iter()
@@ -395,7 +406,11 @@ impl ChunkingContext for DevChunkingContext {
                 *asset = asset.resolve().await?;
             }
 
-            Ok(Vc::cell(assets))
+            Ok(ChunkGroupResult {
+                assets: Vc::cell(assets),
+                availability_info,
+            }
+            .cell())
         }
         .instrument(span)
         .await
