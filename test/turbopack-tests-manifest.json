@@ -916,7 +916,10 @@
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["ReactRefreshLogBox app scss syntax errors"],
+    "pending": [
+      "ReactRefreshLogBox scss app scss module pure selector error",
+      "ReactRefreshLogBox scss app scss syntax errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -937,7 +940,6 @@
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
-      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors"
     ],
@@ -950,7 +952,6 @@
       "ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app default Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app default boundaries",
-      "ReactRefreshLogBox app default client component can recover from error thrown in the module",
       "ReactRefreshLogBox app default conversion to class component (1)",
       "ReactRefreshLogBox app default css syntax errors",
       "ReactRefreshLogBox app default internal package errors",
@@ -1103,6 +1104,7 @@
       "Error recovery app default render error not shown right after syntax error",
       "Error recovery app default server component can recover from a component error",
       "Error recovery app default server component can recover from syntax error",
+      "Error recovery app default stuck error",
       "Error recovery app default syntax > runtime error"
     ],
     "flakey": [],
@@ -1275,7 +1277,10 @@
   "test/development/acceptance/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["ReactRefreshLogBox scss syntax errors"],
+    "pending": [
+      "ReactRefreshLogBox scss scss module pure selector error",
+      "ReactRefreshLogBox scss scss syntax errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1364,23 +1369,23 @@
     "runtimeError": false
   },
   "test/development/acceptance/component-stack.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Component Stack in error overlay should show a component stack on hydration error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
       "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -1388,6 +1393,7 @@
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
       "ReactRefreshLogBox default logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox default render error not shown right after syntax error",
+      "ReactRefreshLogBox default stuck error",
       "ReactRefreshLogBox default syntax > runtime error"
     ],
     "flakey": [],
@@ -2391,6 +2397,7 @@
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
+      "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
@@ -3547,6 +3554,7 @@
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should only log requests in dev mode",
+      "app-dir - logging with fetches default logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
@@ -3554,6 +3562,7 @@
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should only log requests in dev mode",
+      "app-dir - logging with fetches verbose logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
@@ -3861,6 +3870,7 @@
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
+      "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
@@ -4159,8 +4169,29 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
-    "passed": ["ppr-navigations prefetching is disabled in dev"],
+  "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
+    "passed": ["avoid-popstate-flash ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
+    "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
+    "passed": ["search-params ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
+    "passed": ["stale-prefetch-entry ppr is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5655,20 +5686,20 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed"
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
     "failed": [
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
@@ -5928,7 +5959,8 @@
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context pages should handle api routes in pages",
       "opentelemetry root context pages should handle getServerSideProps",
-      "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'"
+      "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
+      "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "flakey": [],
     "runtimeError": false
