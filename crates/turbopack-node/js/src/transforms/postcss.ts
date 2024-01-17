@@ -23,6 +23,11 @@ const transform = async (ipc: Ipc, cssContent: string, name: string) => {
   if (typeof config === "function") {
     config = await config({ env: "development" });
   }
+  if (typeof config === "undefined") {
+    throw new Error(
+      "PostCSS config is undefined (make sure to export an function or object from config file)"
+    );
+  }
   let plugins: any[];
   if (Array.isArray(config.plugins)) {
     plugins = config.plugins.map((plugin: [string, any] | string | any) => {
