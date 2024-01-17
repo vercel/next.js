@@ -83,7 +83,6 @@ import {
   RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -101,10 +100,7 @@ import { BaseServerSpan } from './lib/trace/constants'
 import { I18NProvider } from './future/helpers/i18n-provider'
 import { sendResponse } from './send-response'
 import { handleInternalServerErrorResponse } from './future/route-modules/helpers/response-handlers'
-import {
-  fromNodeOutgoingHttpHeaders,
-  toNodeOutgoingHttpHeaders,
-} from './web/utils'
+import { toNodeOutgoingHttpHeaders } from './web/utils'
 import {
   CACHE_ONE_YEAR,
   NEXT_CACHE_TAGS_HEADER,
@@ -2695,6 +2691,36 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     cacheEntry.revalidate = revalidate
 
+    // If the cache entry produced headers, we should append them to the
+    // response.
+    if (
+      cacheEntry.value &&
+      'headers' in cacheEntry.value &&
+      cacheEntry.value.headers
+    ) {
+      for (const [key, value] of Object.entries(cacheEntry.value.headers)) {
+        // If the value is undefined, then we can't append it.
+        if (typeof value === 'undefined') {
+          continue
+        }
+
+        // We should only send the cache tags header when we're in minimal
+        // mode and this is a SSG request.
+        if (key === NEXT_CACHE_TAGS_HEADER && (!this.minimalMode || !isSSG)) {
+          continue
+        }
+
+        // Otherwise, we should append the header.
+        if (Array.isArray(value)) {
+          value.forEach((v) => res.appendHeader(key, v))
+        } else if (typeof value === 'number') {
+          res.appendHeader(key, value.toString())
+        } else {
+          res.appendHeader(key, value)
+        }
+      }
+    }
+
     // If there's a callback for `onCacheEntry`, call it with the cache entry
     // and the revalidate options.
     const onCacheEntry = getRequestMeta(req, 'onCacheEntry')
@@ -2743,17 +2769,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         return null
       }
     } else if (cachedData.kind === 'ROUTE') {
-      const headers = { ...cachedData.headers }
-
-      if (!(this.minimalMode && isSSG)) {
-        delete headers[NEXT_CACHE_TAGS_HEADER]
-      }
-
       await sendResponse(
         req,
         res,
         new Response(cachedData.body, {
-          headers: fromNodeOutgoingHttpHeaders(headers),
           status: cachedData.status || 200,
         })
       )
@@ -2767,47 +2786,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      if (cachedData.headers) {
-        const headers = { ...cachedData.headers }
-
-        if (!this.minimalMode || !isSSG) {
-          delete headers[NEXT_CACHE_TAGS_HEADER]
-        }
-
-        for (let [key, value] of Object.entries(headers)) {
-          if (typeof value === 'undefined') continue
-
-          if (Array.isArray(value)) {
-            for (const v of value) {
-              res.appendHeader(key, v)
-            }
-          } else if (typeof value === 'number') {
-            value = value.toString()
-            res.appendHeader(key, value)
-          } else {
-            res.appendHeader(key, value)
-          }
-        }
-      }
-
-      if (
-        this.minimalMode &&
-        isSSG &&
-        cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
-      ) {
-        res.setHeader(
-          NEXT_CACHE_TAGS_HEADER,
-          cachedData.headers[NEXT_CACHE_TAGS_HEADER] as string
-        )
-      }
-
       if (cachedData.status) {
         res.statusCode = cachedData.status
-      }
-
-      // Mark that the request did postpone if this is a data request.
-      if (cachedData.postponed && isRSCRequest) {
-        res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
       if (isDataReq) {

@@ -160,6 +160,12 @@ createNextDescribe(
             } else {
               expect(res.headers.get('x-nextjs-cache')).toEqual(null)
             }
+
+            if (dynamic === true || dynamic === 'force-dynamic') {
+              expect(res.headers.get('x-nextjs-postponed')).toEqual('1')
+            } else {
+              expect(res.headers.get('x-nextjs-postponed')).toEqual('0')
+            }
           })
 
           if (dynamic === true) {
@@ -258,46 +264,59 @@ createNextDescribe(
 
     if (!isNextDev) {
       describe('Prefetch RSC Response', () => {
-        describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {
-          it('should have correct headers', async () => {
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
-            })
-            expect(res.status).toEqual(200)
-            expect(res.headers.get('content-type')).toEqual('text/x-component')
-
-            // cache header handling is different when in minimal mode
-            const cache = res.headers.get('cache-control')
-            if (isNextDeploy) {
-              expect(cache).toEqual('public, max-age=0, must-revalidate')
-            } else {
-              expect(cache).toEqual(
-                `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
+        describe.each(pages)(
+          'for $pathname',
+          ({ pathname, dynamic, revalidate }) => {
+            it('should have correct headers', async () => {
+              const res = await next.fetch(pathname, {
+                headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+              })
+              expect(res.status).toEqual(200)
+              expect(res.headers.get('content-type')).toEqual(
+                'text/x-component'
               )
-            }
 
-            if (!isNextDeploy) {
-              expect(res.headers.get('x-nextjs-cache')).toEqual('HIT')
-            } else {
-              expect(res.headers.get('x-nextjs-cache')).toEqual(null)
-            }
-          })
+              // cache header handling is different when in minimal mode
+              const cache = res.headers.get('cache-control')
+              if (isNextDeploy) {
+                expect(cache).toEqual('public, max-age=0, must-revalidate')
+              } else {
+                expect(cache).toEqual(
+                  `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
+                )
+              }
 
-          it('should not contain dynamic content', async () => {
-            const unexpected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: {
-                RSC: '1',
-                'Next-Router-Prefetch': '1',
-                'X-Test-Input': unexpected,
-              },
+              if (!isNextDeploy) {
+                expect(res.headers.get('x-nextjs-cache')).toEqual('HIT')
+              } else {
+                expect(res.headers.get('x-nextjs-cache')).toEqual(null)
+              }
+
+              if (dynamic === true || dynamic === 'force-dynamic') {
+                expect(res.headers.get('x-nextjs-postponed')).toEqual('1')
+              } else {
+                expect(res.headers.get('x-nextjs-postponed')).toEqual('0')
+              }
             })
-            expect(res.status).toEqual(200)
-            expect(res.headers.get('content-type')).toEqual('text/x-component')
-            const text = await res.text()
-            expect(text).not.toContain(unexpected)
-          })
-        })
+
+            it('should not contain dynamic content', async () => {
+              const unexpected = `${Date.now()}:${Math.random()}`
+              const res = await next.fetch(pathname, {
+                headers: {
+                  RSC: '1',
+                  'Next-Router-Prefetch': '1',
+                  'X-Test-Input': unexpected,
+                },
+              })
+              expect(res.status).toEqual(200)
+              expect(res.headers.get('content-type')).toEqual(
+                'text/x-component'
+              )
+              const text = await res.text()
+              expect(text).not.toContain(unexpected)
+            })
+          }
+        )
       })
 
       describe('Dynamic RSC Response', () => {
