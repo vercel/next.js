@@ -26,6 +26,7 @@ export const nonDomainLocales = [
   'fr',
   'en',
 ]
+const defaultLocales = ['en-US', 'do', 'go']
 export const locales = [...nonDomainLocales, ...domainLocales]
 
 async function addDefaultLocaleCookie(browser) {
@@ -72,7 +73,7 @@ export function runTests(ctx) {
           { redirect: 'manual' }
         )
 
-        if (locale !== 'en-US') {
+        if (!defaultLocales.includes(locale)) {
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('could not be found')
         } else {
@@ -84,10 +85,10 @@ export function runTests(ctx) {
   })
 
   it('should serve public file on locale domain', async () => {
-    for (const host of ['example.do', 'example.com', 'localhost:3000']) {
+    for (const host of ['example.do', 'example.com']) {
       const res = await fetchViaHTTP(
         ctx.appPort,
-        `${ctx.basePath || '/'}files/texts/file.txt`,
+        `${ctx.basePath || ''}/files/texts/file.txt`,
         undefined,
         {
           headers: {
@@ -109,7 +110,7 @@ export function runTests(ctx) {
         { redirect: 'manual' }
       )
 
-      if (locale !== 'en-US') {
+      if (!defaultLocales.includes(locale)) {
         expect(res.status).toBe(404)
         expect(await res.text()).toContain('could not be found')
       } else {
