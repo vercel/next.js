@@ -53,7 +53,7 @@ We have a list of **good first issues** that contain bugs that have a relatively
 
 # Authors
 
-A list of the people who co-authored Next.js and bought this amazing framework to life!
+A list of the original co-authors of Next.js that helped bring this amazing framework to life!
 
 - Tim Neutkens ([@timneutkens](https://twitter.com/timneutkens))
 - Naoyuki Kanezawa ([@nkzawa](https://twitter.com/nkzawa))
