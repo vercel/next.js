@@ -1,26 +1,26 @@
-import { Suspense, useMemo } from 'react'
-import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
-import Bird from '../components/Bird'
+import { Suspense, useMemo } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls } from "@react-three/drei";
+import Bird from "../components/Bird";
 
 export default function BirdsPage() {
   const birds = useMemo(
     () =>
       new Array(10).fill().map((_, index) => {
         const x =
-          (15 + Math.random() * 30) * (Math.round(Math.random()) ? -1 : 1)
-        const y = -10 + Math.random() * 20
-        const z = -5 + Math.random() * 10
-        const bird = ['stork', 'parrot', 'flamingo'][
+          (15 + Math.random() * 30) * (Math.round(Math.random()) ? -1 : 1);
+        const y = -10 + Math.random() * 20;
+        const z = -5 + Math.random() * 10;
+        const bird = ["stork", "parrot", "flamingo"][
           Math.round(Math.random() * 2)
-        ]
-        const speed = bird === 'stork' ? 0.5 : bird === 'flamingo' ? 2 : 5
+        ];
+        const speed = bird === "stork" ? 0.5 : bird === "flamingo" ? 2 : 5;
         const factor =
-          bird === 'stork'
+          bird === "stork"
             ? 0.5 + Math.random()
-            : bird === 'flamingo'
+            : bird === "flamingo"
             ? 0.25 + Math.random()
-            : 1 + Math.random() - 0.5
+            : 1 + Math.random() - 0.5;
 
         return {
           key: index,
@@ -29,10 +29,10 @@ export default function BirdsPage() {
           speed,
           factor,
           url: `/glb/${bird}.glb`,
-        }
+        };
       }),
-    []
-  )
+    [],
+  );
 
   return (
     <Canvas camera={{ position: [0, 0, 35] }}>
@@ -45,5 +45,5 @@ export default function BirdsPage() {
         ))}
       </Suspense>
     </Canvas>
-  )
+  );
 }

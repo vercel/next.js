@@ -1,12 +1,25 @@
+import type { AppConfigDynamic } from '../../build/utils'
+
 import { DynamicServerError } from './hooks-server-context'
-import { maybePostpone } from './maybe-postpone'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
+const NEXT_STATIC_GEN_BAILOUT = 'NEXT_STATIC_GEN_BAILOUT'
+
 class StaticGenBailoutError extends Error {
-  code = 'NEXT_STATIC_GEN_BAILOUT'
+  public readonly code = NEXT_STATIC_GEN_BAILOUT
 }
 
-type BailoutOpts = { dynamic?: string; link?: string }
+export function isStaticGenBailoutError(
+  error: unknown
+): error is StaticGenBailoutError {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false
+  }
+
+  return error.code === NEXT_STATIC_GEN_BAILOUT
+}
+
+type BailoutOpts = { dynamic?: AppConfigDynamic; link?: string }
 
 export type StaticGenerationBailout = (
   reason: string,
@@ -23,7 +36,7 @@ function formatErrorMessage(reason: string, opts?: BailoutOpts) {
 
 export const staticGenerationBailout: StaticGenerationBailout = (
   reason,
-  opts
+  { dynamic, link } = {}
 ) => {
   const staticGenerationStore = staticGenerationAsyncStorage.getStore()
   if (!staticGenerationStore) return false
@@ -34,28 +47,23 @@ export const staticGenerationBailout: StaticGenerationBailout = (
 
   if (staticGenerationStore.dynamicShouldError) {
     throw new StaticGenBailoutError(
-      formatErrorMessage(reason, { ...opts, dynamic: opts?.dynamic ?? 'error' })
+      formatErrorMessage(reason, { link, dynamic: dynamic ?? 'error' })
     )
   }
 
   const message = formatErrorMessage(reason, {
-    ...opts,
+    dynamic,
     // this error should be caught by Next to bail out of static generation
     // in case it's uncaught, this link provides some additional context as to why
     link: 'https://nextjs.org/docs/messages/dynamic-server-error',
   })
 
-  maybePostpone(staticGenerationStore, message)
+  // If postpone is available, we should postpone the render.
+  staticGenerationStore.postpone?.(reason)
 
   // As this is a bailout, we don't want to revalidate, so set the revalidate
   // to 0.
   staticGenerationStore.revalidate = 0
-
-  if (!opts?.dynamic) {
-    // we can statically prefetch pages that opt into dynamic,
-    // but not things like headers/cookies
-    staticGenerationStore.staticPrefetchBailout = true
-  }
 
   if (staticGenerationStore.isStaticGeneration) {
     const err = new DynamicServerError(message)

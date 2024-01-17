@@ -10,6 +10,10 @@ export function unstable_noStore() {
     return
   }
 
+  // Mark the static generation context has unstable_noStore
+  if (staticGenerationStore) {
+    staticGenerationStore.isUnstableNoStore = true
+  }
   staticGenerationBailout('unstable_noStore', {
     link: 'https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering',
   })

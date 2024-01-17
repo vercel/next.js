@@ -18,7 +18,7 @@ describe('font-loader-in-document-error', () => {
 
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
-    expect(await hasRedbox(browser, true)).toBeTrue()
+    expect(await hasRedbox(browser)).toBeTrue()
     expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
       "pages/_document.js
       \`next/font\` error:

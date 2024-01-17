@@ -209,9 +209,20 @@ function bind() {
 
   if (this.$$typeof === SERVER_REFERENCE_TAG) {
     var args = ArraySlice.call(arguments, 1);
-    newFn.$$typeof = SERVER_REFERENCE_TAG;
-    newFn.$$id = this.$$id;
-    newFn.$$bound = this.$$bound ? this.$$bound.concat(args) : args;
+    return Object.defineProperties(newFn, {
+      $$typeof: {
+        value: SERVER_REFERENCE_TAG
+      },
+      $$id: {
+        value: this.$$id
+      },
+      $$bound: {
+        value: this.$$bound ? this.$$bound.concat(args) : args
+      },
+      bind: {
+        value: bind
+      }
+    });
   }
 
   return newFn;
@@ -670,8 +681,36 @@ function createHints() {
   return new Set();
 }
 
+// We do this globally since the async work can potentially eagerly
+// start before the first request and once requests start they can interleave.
+// In theory we could enable and disable using a ref count of active requests
+// but given that typically this is just a live server, it doesn't really matter.
+
+function initAsyncDebugInfo() {
+  {
+    createAsyncHook({
+      init: function (asyncId, type, triggerAsyncId) {// TODO
+      },
+      promiseResolve: function (asyncId) {
+        // TODO
+        executionAsyncId();
+      },
+      destroy: function (asyncId) {// TODO
+      }
+    }).enable();
+  }
+}
+
 var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
-var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null; // We use the Node version but get access to async_hooks from a global.
+
+var createAsyncHook = typeof async_hooks === 'object' ? async_hooks.createHook : function () {
+  return {
+    enable: function () {},
+    disable: function () {}
+  };
+};
+var executionAsyncId = typeof async_hooks === 'object' ? async_hooks.executionAsyncId : null;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1555,6 +1594,7 @@ function binaryToComparableString(view) {
   return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
 }
 
+initAsyncDebugInfo();
 var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>
@@ -1737,11 +1777,19 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1;
-    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
+    if (typeof reason === 'object' && reason !== null && reason.$$typeof === REACT_POSTPONE_TYPE) {
+      var _postponeInstance = reason;
+      logPostpone(request, _postponeInstance.message);
+      emitPostponeChunk(request, newTask.id, _postponeInstance);
+    } else {
+      newTask.status = ERRORED$1;
 
-    var digest = logRecoverableError(request, reason);
-    emitErrorChunk(request, newTask.id, digest, reason);
+      var _digest = logRecoverableError(request, reason);
+
+      emitErrorChunk(request, newTask.id, _digest, reason);
+    }
+
+    request.abortableTasks.delete(newTask);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);

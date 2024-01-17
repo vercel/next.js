@@ -12,6 +12,7 @@ import type { NextConfigComplete, TurboRule } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
+import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -136,7 +137,6 @@ let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
 let swcHeapProfilerFlushGuard: any
-let swcCrashReporterFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
@@ -171,7 +171,6 @@ export interface Binding {
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
   teardownHeapProfiler?: any
-  teardownCrashReporter?: any
 }
 
 export async function loadBindings(
@@ -473,20 +472,44 @@ export interface TurboEngineOptions {
   memoryLimit?: number
 }
 
+export type StyledString =
+  | {
+      type: 'text'
+      value: string
+    }
+  | {
+      type: 'code'
+      value: string
+    }
+  | {
+      type: 'strong'
+      value: string
+    }
+  | {
+      type: 'stack'
+      value: StyledString[]
+    }
+  | {
+      type: 'line'
+      value: StyledString[]
+    }
+
 export interface Issue {
   severity: string
   category: string
   filePath: string
-  title: string
-  description: string
-  detail: string
+  title: StyledString
+  description?: StyledString
+  detail?: StyledString
   source?: {
     source: {
       ident: string
       content?: string
     }
-    start: { line: number; column: number }
-    end: { line: number; column: number }
+    range?: {
+      start: { line: number; column: number }
+      end: { line: number; column: number }
+    }
   }
   documentationLink: string
   subIssues: Issue[]
@@ -507,17 +530,48 @@ export interface Middleware {
   endpoint: Endpoint
 }
 
+export interface Instrumentation {
+  nodeJs: Endpoint
+  edge: Endpoint
+}
+
 export interface Entrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
+  instrumentation?: Instrumentation
   pagesDocumentEndpoint: Endpoint
   pagesAppEndpoint: Endpoint
   pagesErrorEndpoint: Endpoint
 }
 
-export interface Update {
-  update: unknown
+interface BaseUpdate {
+  resource: {
+    headers: unknown
+    path: string
+  }
+  diagnostics: unknown[]
+  issues: unknown[]
 }
+
+interface IssuesUpdate extends BaseUpdate {
+  type: 'issues'
+}
+
+interface EcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  chunks: { [moduleName: string]: { type: 'partial' } }
+  entries: { [moduleName: string]: { code: string; map: string; url: string } }
+}
+
+interface PartialUpdate extends BaseUpdate {
+  type: 'partial'
+  instruction: {
+    type: 'ChunkListUpdate'
+    merged: EcmascriptMergedUpdate[] | undefined
+  }
+}
+
+export type Update = IssuesUpdate | PartialUpdate
 
 export interface HmrIdentifiers {
   identifiers: string[]
@@ -624,10 +678,8 @@ export type WrittenEndpoint =
     }
   | {
       type: 'edge'
-      files: string[]
       /** All server paths that has been written for the endpoint. */
       serverPaths: ServerPath[]
-      globalVarName: string
       config: EndpointConfig
     }
 
@@ -773,6 +825,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       type NapiEntrypoints = {
         routes: NapiRoute[]
         middleware?: NapiMiddleware
+        instrumentation?: NapiInstrumentation
         pagesDocumentEndpoint: NapiEndpoint
         pagesAppEndpoint: NapiEndpoint
         pagesErrorEndpoint: NapiEndpoint
@@ -782,6 +835,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
         endpoint: NapiEndpoint
         runtime: 'nodejs' | 'edge'
         matcher?: string[]
+      }
+
+      type NapiInstrumentation = {
+        nodeJs: NapiEndpoint
+        edge: NapiEndpoint
       }
 
       type NapiRoute = {
@@ -870,9 +928,19 @@ function bindingToApi(binding: any, _wasm: boolean) {
           const middleware = entrypoints.middleware
             ? napiMiddlewareToMiddleware(entrypoints.middleware)
             : undefined
+          const napiInstrumentationToInstrumentation = (
+            instrumentation: NapiInstrumentation
+          ) => ({
+            nodeJs: new EndpointImpl(instrumentation.nodeJs),
+            edge: new EndpointImpl(instrumentation.edge),
+          })
+          const instrumentation = entrypoints.instrumentation
+            ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+            : undefined
           yield {
             routes,
             middleware,
+            instrumentation,
             pagesDocumentEndpoint: new EndpointImpl(
               entrypoints.pagesDocumentEndpoint
             ),
@@ -1103,7 +1171,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[],
+              pageExtensions: PageExtensions,
               callbackFn: (err: Error, entrypoints: any) => void
             ) => {
               return bindings.streamEntrypoints(
@@ -1118,7 +1186,7 @@ async function loadWasm(importPath = '') {
               turboTasks: any,
               rootDir: string,
               applicationDir: string,
-              pageExtensions: string[]
+              pageExtensions: PageExtensions
             ) => {
               return bindings.getEntrypoints(
                 turboTasks,
@@ -1202,18 +1270,6 @@ function loadNative(importPath?: string) {
   }
 
   if (bindings) {
-    // Initialize crash reporter, as earliest as possible from any point of import.
-    // The first-time import to next-swc is not predicatble in the import tree of next.js, which makes
-    // we can't rely on explicit manual initialization as similar to trace reporter.
-    if (!swcCrashReporterFlushGuard) {
-      // Crash reports in next-swc should be treated in the same way we treat telemetry to opt out.
-      /* TODO: temporarily disable initialization while confirming logistics.
-      let telemetry = new Telemetry({ distDir: process.cwd() })
-      if (telemetry.isEnabled) {
-        swcCrashReporterFlushGuard = bindings.initCrashReporter?.()
-      }*/
-    }
-
     nativeBindings = {
       isWasm: false,
       transform(src: string, options: any) {
@@ -1275,14 +1331,7 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
-      teardownCrashReporter: bindings.teardownCrashReporter,
       turbo: {
-        nextBuild: (options: unknown) => {
-          initHeapProfiler()
-          const ret = (customBindings ?? bindings).nextBuild(options)
-
-          return ret
-        },
         startTrace: (options = {}, turboTasks: unknown) => {
           initHeapProfiler()
           const ret = (customBindings ?? bindings).runTurboTracing(
@@ -1298,7 +1347,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[],
+            pageExtensions: PageExtensions,
             fn: (entrypoints: any) => void
           ) => {
             return (customBindings ?? bindings).streamEntrypoints(
@@ -1313,7 +1362,7 @@ function loadNative(importPath?: string) {
             turboTasks: any,
             rootDir: string,
             applicationDir: string,
-            pageExtensions: string[]
+            pageExtensions: PageExtensions
           ) => {
             return (customBindings ?? bindings).getEntrypoints(
               turboTasks,
@@ -1474,23 +1523,6 @@ export const teardownTraceSubscriber = (() => {
         let bindings = loadNative()
         if (swcTraceFlushGuard) {
           bindings.teardownTraceSubscriber(swcTraceFlushGuard)
-        }
-      } catch (e) {
-        // Suppress exceptions, this fn allows to fail to load native bindings
-      }
-    }
-  }
-})()
-
-export const teardownCrashReporter = (() => {
-  let flushed = false
-  return (): void => {
-    if (!flushed) {
-      flushed = true
-      try {
-        let bindings = loadNative()
-        if (swcCrashReporterFlushGuard) {
-          bindings.teardownCrashReporter(swcCrashReporterFlushGuard)
         }
       } catch (e) {
         // Suppress exceptions, this fn allows to fail to load native bindings

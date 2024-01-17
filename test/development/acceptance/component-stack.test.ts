@@ -12,15 +12,16 @@ createNextDescribe(
     it('should show a component stack on hydration error', async () => {
       const browser = await next.browser('/')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
-      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main
-        Mismatch"
-      `)
+      const expected = `p
+div
+Component
+main
+Mismatch`
+      expect((await getRedboxComponentStack(browser)).trim()).toStartWith(
+        expected
+      )
     })
   }
 )

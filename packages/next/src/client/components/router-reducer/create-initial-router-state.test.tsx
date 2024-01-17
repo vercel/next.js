@@ -1,6 +1,5 @@
 import React from 'react'
 import type { FlightRouterState } from '../../../server/app-render/types'
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from './create-initial-router-state'
 
@@ -37,7 +36,7 @@ describe('createInitialRouterState', () => {
       buildId,
       initialTree,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -48,7 +47,7 @@ describe('createInitialRouterState', () => {
       buildId,
       initialTree,
       initialCanonicalUrl,
-      children,
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
@@ -56,9 +55,9 @@ describe('createInitialRouterState', () => {
     })
 
     const expectedCache: CacheNode = {
-      status: CacheStates.READY,
-      data: null,
-      subTreeData: children,
+      lazyData: null,
+      rsc: children,
+      prefetchRsc: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -66,7 +65,6 @@ describe('createInitialRouterState', () => {
             [
               'linking',
               {
-                status: CacheStates.LAZY_INITIALIZED,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -74,9 +72,9 @@ describe('createInitialRouterState', () => {
                       [
                         '',
                         {
-                          status: CacheStates.LAZY_INITIALIZED,
-                          data: null,
-                          subTreeData: null,
+                          lazyData: null,
+                          rsc: null,
+                          prefetchRsc: null,
                           parallelRoutes: new Map(),
                           head: <title>Test</title>,
                         },
@@ -84,8 +82,9 @@ describe('createInitialRouterState', () => {
                     ]),
                   ],
                 ]),
-                data: null,
-                subTreeData: null,
+                lazyData: null,
+                rsc: null,
+                prefetchRsc: null,
               },
             ],
           ]),
@@ -98,7 +97,11 @@ describe('createInitialRouterState', () => {
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map(),
-      pushRef: { pendingPush: false, mpaNavigation: false },
+      pushRef: {
+        pendingPush: false,
+        mpaNavigation: false,
+        preserveCustomHistoryState: true,
+      },
       focusAndScrollRef: {
         apply: false,
         onlyHashChange: false,

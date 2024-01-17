@@ -8,6 +8,23 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next, isNextDev, isNextStart }) => {
+    it("should propagate notFound errors past a segment's error boundary", async () => {
+      let browser = await next.browser('/error-boundary')
+      await browser.elementByCss('button').click()
+      expect(await browser.elementByCss('h1').text()).toBe('Root Not Found')
+
+      browser = await next.browser('/error-boundary/nested/nested-2')
+      await browser.elementByCss('button').click()
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Not Found (error-boundary/nested)'
+      )
+
+      browser = await next.browser('/error-boundary/nested/trigger-not-found')
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Not Found (error-boundary/nested)'
+      )
+    })
+
     if (isNextStart) {
       it('should include not found client reference manifest in the file trace', async () => {
         const fileTrace = JSON.parse(

@@ -8,7 +8,7 @@ import {
   buildStaticPaths,
   collectGenerateParams,
 } from '../../build/utils'
-import type { GenerateParams } from '../../build/utils'
+import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
@@ -83,7 +83,7 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
+    const generateParams: GenerateParamsResults =
       routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {

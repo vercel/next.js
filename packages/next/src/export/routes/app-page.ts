@@ -1,6 +1,5 @@
 import type { ExportRouteResult, FileWriter } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
-import type { OutgoingHttpHeaders } from 'http'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
 
@@ -8,69 +7,23 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import {
-  RSC_HEADER,
-  NEXT_URL,
-  NEXT_ROUTER_PREFETCH_HEADER,
-} from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
   FLIGHT = 'FLIGHT',
+  PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
   META = 'META',
   POSTPONED = 'POSTPONED',
-}
-
-async function generatePrefetchRsc(
-  req: MockedRequest,
-  path: string,
-  res: MockedResponse,
-  pathname: string,
-  htmlFilepath: string,
-  renderOpts: RenderOpts,
-  fileWriter: FileWriter
-) {
-  // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
-  // attempting to generate a prefetch RSC is an error.
-  if (renderOpts.experimental.ppr) {
-    throw new Error(
-      'Invariant: explicit prefetch RSC cannot be generated with PPR enabled'
-    )
-  }
-
-  req.headers[RSC_HEADER.toLowerCase()] = '1'
-  req.headers[NEXT_URL.toLowerCase()] = path
-  req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-
-  renderOpts.supportsDynamicHTML = true
-  renderOpts.isPrefetch = true
-  delete renderOpts.isRevalidate
-
-  const prefetchRenderResult = await lazyRenderAppPage(
-    req,
-    res,
-    pathname,
-    {},
-    renderOpts
-  )
-
-  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
-
-  if ((renderOpts as any).store.staticPrefetchBailout) return
-
-  await fileWriter(
-    ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-    prefetchRscData
-  )
 }
 
 export async function exportAppPage(
@@ -84,7 +37,6 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  isAppPrefetch: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
@@ -93,20 +45,6 @@ export async function exportAppPage(
   }
 
   try {
-    if (isAppPrefetch) {
-      await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        htmlFilepath,
-        renderOpts,
-        fileWriter
-      )
-
-      return { revalidate: 0 }
-    }
-
     const result = await lazyRenderAppPage(
       req,
       res,
@@ -117,10 +55,8 @@ export async function exportAppPage(
 
     const html = result.toUnchunkedString()
 
-    const {
-      metadata: { pageData, revalidate = false, postponed, fetchTags },
-    } = result
     const { metadata } = result
+    const { flightData, revalidate = false, postponed, fetchTags } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
     if (postponed && !renderOpts.experimental.ppr) {
@@ -133,36 +69,22 @@ export async function exportAppPage(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
         )
       }
-
-      if (!(renderOpts as any).store.staticPrefetchBailout) {
-        await generatePrefetchRsc(
-          req,
-          path,
-          res,
-          pathname,
-          htmlFilepath,
-          renderOpts,
-          fileWriter
-        )
-      }
-
       const { staticBailoutInfo = {} } = metadata
 
       if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
-        const err = new Error(
-          `Static generation failed due to dynamic usage on ${path}, reason: ${staticBailoutInfo.description}`
-        )
-
-        // Update the stack if it was provided via the bailout info.
-        const { stack } = staticBailoutInfo
-        if (stack) {
-          err.stack = err.message + stack.substring(stack.indexOf('\n'))
-        }
-
-        console.warn(err)
+        logDynamicUsageWarning({
+          path,
+          description: staticBailoutInfo.description,
+          stack: staticBailoutInfo.stack,
+        })
       }
 
       return { revalidate: 0 }
+    }
+    // If page data isn't available, it means that the page couldn't be rendered
+    // properly.
+    else if (!flightData) {
+      throw new Error(`Invariant: failed to get page data for ${path}`)
     }
     // If PPR is enabled, we want to emit a prefetch rsc file for the page
     // instead of the standard rsc. This is because the standard rsc will
@@ -171,22 +93,23 @@ export async function exportAppPage(
       // If PPR is enabled, we should emit the flight data as the prefetch
       // payload.
       await fileWriter(
-        ExportedAppPageFiles.FLIGHT,
+        ExportedAppPageFiles.PREFETCH_FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-        pageData
+        flightData
       )
     } else {
       // Writing the RSC payload to a file if we don't have PPR enabled.
       await fileWriter(
         ExportedAppPageFiles.FLIGHT,
         htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
-        pageData
+        flightData
       )
     }
 
-    let headers: OutgoingHttpHeaders | undefined
+    const headers = { ...metadata.headers }
+
     if (fetchTags) {
-      headers = { [NEXT_CACHE_TAGS_HEADER]: fetchTags }
+      headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
 
     // Writing static HTML to a file.
@@ -206,7 +129,7 @@ export async function exportAppPage(
 
     await fileWriter(
       ExportedAppPageFiles.META,
-      htmlFilepath.replace(/\.html$/, '.meta'),
+      htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
     )
 
@@ -217,11 +140,51 @@ export async function exportAppPage(
       hasPostponed: Boolean(postponed),
       revalidate,
     }
-  } catch (err: any) {
+  } catch (err) {
     if (!isDynamicUsageError(err)) {
       throw err
     }
 
+    // If enabled, we should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (
+      renderOpts.experimental.missingSuspenseWithCSRBailout &&
+      isBailoutToCSRError(err)
+    ) {
+      throw err
+    }
+
+    if (debugOutput) {
+      const { dynamicUsageDescription, dynamicUsageStack } = (renderOpts as any)
+        .store
+
+      logDynamicUsageWarning({
+        path,
+        description: dynamicUsageDescription,
+        stack: dynamicUsageStack,
+      })
+    }
+
     return { revalidate: 0 }
   }
+}
+
+function logDynamicUsageWarning({
+  path,
+  description,
+  stack,
+}: {
+  path: string
+  description: string
+  stack?: string
+}) {
+  const errMessage = new Error(
+    `Static generation failed due to dynamic usage on ${path}, reason: ${description}`
+  )
+
+  if (stack) {
+    errMessage.stack = errMessage.message + stack.substring(stack.indexOf('\n'))
+  }
+
+  console.warn(errMessage)
 }

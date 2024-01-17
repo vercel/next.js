@@ -14,7 +14,11 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
+import {
+  deserializePageInfos,
+  type PageInfos,
+  type SerializedPageInfos,
+} from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -33,7 +37,8 @@ function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
   reasons: NodeFileTraceReasons,
-  cachedIgnoreFiles: Map<string, boolean>
+  cachedIgnoreFiles: Map<string, boolean>,
+  children: Set<string> = new Set()
 ) {
   if (cachedIgnoreFiles.has(file)) {
     return cachedIgnoreFiles.get(file)
@@ -43,6 +48,7 @@ function shouldIgnore(
     cachedIgnoreFiles.set(file, true)
     return true
   }
+  children.add(file)
 
   const reason = reasons.get(file)
   if (!reason || reason.parents.size === 0 || reason.type.includes('initial')) {
@@ -50,24 +56,36 @@ function shouldIgnore(
     return false
   }
 
-  if (
-    [...reason.parents.values()].every((parent) =>
-      shouldIgnore(parent, serverIgnoreFn, reasons, cachedIgnoreFiles)
-    )
-  ) {
-    cachedIgnoreFiles.set(file, true)
-    return true
+  // if all parents are ignored the child file
+  // should be ignored as well
+  let allParentsIgnored = true
+
+  for (const parent of reason.parents.values()) {
+    if (!children.has(parent)) {
+      children.add(parent)
+      if (
+        !shouldIgnore(
+          parent,
+          serverIgnoreFn,
+          reasons,
+          cachedIgnoreFiles,
+          children
+        )
+      ) {
+        allParentsIgnored = false
+        break
+      }
+    }
   }
 
-  cachedIgnoreFiles.set(file, false)
-  return false
+  cachedIgnoreFiles.set(file, allParentsIgnored)
+  return allParentsIgnored
 }
 
 export async function collectBuildTraces({
   dir,
   config,
   distDir,
-  pageKeys,
   pageInfos,
   staticPages,
   nextBuildSpan = new Span({ name: 'build' }),
@@ -77,14 +95,11 @@ export async function collectBuildTraces({
 }: {
   dir: string
   distDir: string
-  pageKeys: {
-    app?: string[]
-    pages: string[]
-  }
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  // pageInfos is serialized when this function runs in a worker.
+  pageInfos: PageInfos | SerializedPageInfos
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -191,6 +206,7 @@ export async function collectBuildTraces({
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
     config.experimental
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
+  const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
   await nextBuildSpan
     .traceChild('node-file-trace-build', {
@@ -264,6 +280,17 @@ export async function collectBuildTraces({
         }
       }
 
+      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
+        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+          return true
+        }
+
+        return isMatch(pathname, ignores, {
+          contains: true,
+          dot: true,
+        })
+      }
+
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
@@ -297,8 +324,11 @@ export async function collectBuildTraces({
         '**/*.d.ts',
         '**/*.map',
         '**/next/dist/pages/**/*',
-        ...(ciEnvironment.hasNextSupport ? ['**/node_modules/sharp/**/*'] : []),
+        ...(ciEnvironment.hasNextSupport
+          ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
+          : []),
       ].filter(nonNullable)
+      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -306,23 +336,20 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
+      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
+        // server chunks are provided via next-trace-entrypoints-plugin plugin
+        // as otherwise all chunks are traced here and included for all pages
+        // whether they are needed or not
+        '**/.next/server/chunks/**',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
-        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-          return true
-        }
+      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-        return isMatch(pathname, ignores, {
-          contains: true,
-          dot: true,
-        })
-      }
       const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
@@ -374,10 +401,10 @@ export async function collectBuildTraces({
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
             if (
-              !makeIgnoreFn(
+              !(
                 set === minimalServerTracedFiles
-                  ? minimalServerIgnores
-                  : serverIgnores
+                  ? minimalServerIgnoreFn
+                  : serverIgnoreFn
               )(path.join(traceContext, file))
             ) {
               addToTracedFiles(traceContext, file, set)
@@ -460,11 +487,9 @@ export async function collectBuildTraces({
               if (
                 !shouldIgnore(
                   curFile,
-                  makeIgnoreFn(
-                    tracedFiles === minimalServerTracedFiles
-                      ? minimalServerIgnores
-                      : serverIgnores
-                  ),
+                  tracedFiles === minimalServerTracedFiles
+                    ? minimalServerIgnoreFn
+                    : serverIgnoreFn,
                   reasons,
                   tracedFiles === minimalServerTracedFiles
                     ? cachedLookupIgnoreMinimal
@@ -492,7 +517,6 @@ export async function collectBuildTraces({
             const isApp = entryName.startsWith('app/')
             const isPages = entryName.startsWith('pages/')
             let route = entryName
-
             if (isApp) {
               route = normalizeAppPath(route.substring('app'.length))
             }
@@ -525,7 +549,7 @@ export async function collectBuildTraces({
                 if (
                   !shouldIgnore(
                     curFile,
-                    makeIgnoreFn(routesIgnores),
+                    routeIgnoreFn,
                     reasons,
                     cachedLookupIgnoreRoutes
                   )
@@ -570,7 +594,7 @@ export async function collectBuildTraces({
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
-          if (!makeIgnoreFn(serverIgnores)(itemPath)) {
+          if (!serverIgnoreFn(itemPath)) {
             addToTracedFiles(root, itemPath, serverTracedFiles)
             addToTracedFiles(root, itemPath, minimalServerTracedFiles)
           }
@@ -603,10 +627,8 @@ export async function collectBuildTraces({
       ])
     })
 
+  // apply outputFileTracingIncludes/outputFileTracingExcludes after runTurbotrace
   const includeExcludeSpan = nextBuildSpan.traceChild('apply-include-excludes')
-  const resolvedTraceIncludes = new Map<string, string[]>()
-  const includeGlobKeys = Object.keys(outputFileTracingIncludes)
-
   await includeExcludeSpan.traceAsyncFn(async () => {
     const globOrig =
       require('next/dist/compiled/glob') as typeof import('next/dist/compiled/glob')
@@ -625,87 +647,110 @@ export async function collectBuildTraces({
       })
     }
 
-    for (let page of pageKeys.pages) {
-      // edge routes have no trace files
-      const [, pageInfo] = pageInfos.find((item) => item[0] === page) || []
-      if (pageInfo?.runtime === 'edge') {
-        continue
-      }
+    const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+    const infos =
+      pageInfos instanceof Map ? pageInfos : deserializePageInfos(pageInfos)
 
-      const combinedIncludes = new Set<string>()
-      const combinedExcludes = new Set<string>()
+    await Promise.all(
+      [
+        ...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map()),
+      ].map(async ([entryName]) => {
+        const isApp = entryName.startsWith('app/')
+        const isPages = entryName.startsWith('pages/')
+        let route = entryName
+        if (isApp) {
+          route = normalizeAppPath(entryName)
+        }
+        if (isPages) {
+          route = normalizePagePath(entryName)
+        }
 
-      page = normalizePagePath(page)
+        if (staticPages.includes(route)) {
+          return
+        }
 
-      for (const curGlob of includeGlobKeys) {
-        if (isMatch(page, [curGlob], { dot: true, contains: true })) {
-          for (const include of outputFileTracingIncludes[curGlob]) {
-            combinedIncludes.add(include.replace(/\\/g, '/'))
+        // edge routes have no trace files
+        const pageInfo = infos.get(route)
+        if (pageInfo?.runtime === 'edge') {
+          return
+        }
+
+        const combinedIncludes = new Set<string>()
+        const combinedExcludes = new Set<string>()
+        for (const curGlob of includeGlobKeys) {
+          if (isMatch(route, [curGlob], { dot: true, contains: true })) {
+            for (const include of outputFileTracingIncludes[curGlob]) {
+              combinedIncludes.add(include.replace(/\\/g, '/'))
+            }
           }
         }
-      }
 
-      for (const curGlob of excludeGlobKeys) {
-        if (isMatch(page, [curGlob], { dot: true, contains: true })) {
-          for (const exclude of outputFileTracingExcludes[curGlob]) {
-            combinedExcludes.add(exclude)
+        for (const curGlob of excludeGlobKeys) {
+          if (isMatch(route, [curGlob], { dot: true, contains: true })) {
+            for (const exclude of outputFileTracingExcludes[curGlob]) {
+              combinedExcludes.add(exclude)
+            }
           }
         }
-      }
 
-      if (!combinedIncludes?.size && !combinedExcludes?.size) {
-        continue
-      }
+        if (!combinedIncludes?.size && !combinedExcludes?.size) {
+          return
+        }
 
-      const traceFile = path.join(
-        distDir,
-        'server/pages',
-        `${page}.js.nft.json`
-      )
-      const pageDir = path.dirname(traceFile)
-      const traceContent = JSON.parse(await fs.readFile(traceFile, 'utf8'))
-      const includes: string[] = []
+        const traceFile = path.join(
+          distDir,
+          `server`,
+          `${entryName}.js.nft.json`
+        )
+        const pageDir = path.dirname(traceFile)
+        const traceContent = JSON.parse(await fs.readFile(traceFile, 'utf8'))
+        const includes: string[] = []
+        const resolvedTraceIncludes = new Map<string, string[]>()
 
-      if (combinedIncludes?.size) {
-        await Promise.all(
-          [...combinedIncludes].map(async (includeGlob) => {
-            const results = await glob(includeGlob)
-            const resolvedInclude = resolvedTraceIncludes.get(includeGlob) || [
-              ...results.map((file) => {
-                return path.relative(pageDir, path.join(dir, file))
-              }),
-            ]
-            includes.push(...resolvedInclude)
-            resolvedTraceIncludes.set(includeGlob, resolvedInclude)
+        if (combinedIncludes?.size) {
+          await Promise.all(
+            [...combinedIncludes].map(async (includeGlob) => {
+              const results = await glob(includeGlob)
+              const resolvedInclude = resolvedTraceIncludes.get(
+                includeGlob
+              ) || [
+                ...results.map((file) => {
+                  return path.relative(pageDir, path.join(dir, file))
+                }),
+              ]
+              includes.push(...resolvedInclude)
+              resolvedTraceIncludes.set(includeGlob, resolvedInclude)
+            })
+          )
+        }
+        const combined = new Set([...traceContent.files, ...includes])
+
+        if (combinedExcludes?.size) {
+          const resolvedGlobs = [...combinedExcludes].map((exclude) =>
+            path.join(dir, exclude)
+          )
+          combined.forEach((file) => {
+            if (
+              isMatch(path.join(pageDir, file), resolvedGlobs, {
+                dot: true,
+                contains: true,
+              })
+            ) {
+              combined.delete(file)
+            }
+          })
+        }
+
+        // overwrite trace file with custom includes/excludes
+        await fs.writeFile(
+          traceFile,
+          JSON.stringify({
+            version: traceContent.version,
+            files: [...combined],
           })
         )
-      }
-      const combined = new Set([...traceContent.files, ...includes])
-
-      if (combinedExcludes?.size) {
-        const resolvedGlobs = [...combinedExcludes].map((exclude) =>
-          path.join(dir, exclude)
-        )
-        combined.forEach((file) => {
-          if (
-            isMatch(path.join(pageDir, file), resolvedGlobs, {
-              dot: true,
-              contains: true,
-            })
-          ) {
-            combined.delete(file)
-          }
-        })
-      }
-
-      await fs.writeFile(
-        traceFile,
-        JSON.stringify({
-          version: traceContent.version,
-          files: [...combined],
-        })
-      )
-    }
+      })
+    )
   })
 
   debug(`finished build tracing ${Date.now() - startTime}ms`)

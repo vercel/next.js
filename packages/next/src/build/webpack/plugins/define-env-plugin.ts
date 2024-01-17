@@ -95,6 +95,7 @@ export function getDefineEnv({
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : ''
     ),
     'process.env.NEXT_MINIMAL': JSON.stringify(''),
+    'process.env.__NEXT_PPR': JSON.stringify(config.experimental.ppr === true),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
