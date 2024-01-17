@@ -504,7 +504,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
    */
-  cacheHandler?: string
+  cacheHandler?: string | undefined
 
   /**
    * Configure the in-memory cache size in bytes. Defaults to 50 MB.

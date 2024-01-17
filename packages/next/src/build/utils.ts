@@ -1304,8 +1304,8 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  cacheHandler,
   requestHeaders,
+  cacheHandler,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
   ppr,
@@ -1318,6 +1318,7 @@ export async function buildAppStaticPaths({
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
+  cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   ppr: boolean
@@ -1329,9 +1330,9 @@ export async function buildAppStaticPaths({
 
   if (cacheHandler) {
     CacheHandler = interopDefault(
-      await import(
-        formatDynamicImportPath(dir, cacheHandler)
-      ).then((mod) => mod.default || mod)
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
     )
   }
 

@@ -260,6 +260,11 @@ function assignDefaults(
     )
   }
 
+  const userCacheHandler = config.cacheHandler
+  if (userCacheHandler) {
+    config.cacheHandler = relative(config.distDir, userCacheHandler)
+  }
+
   const result = { ...defaultConfig, ...config }
 
   if (

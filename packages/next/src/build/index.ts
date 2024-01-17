@@ -1260,12 +1260,12 @@ export default async function build(
                     compress: false,
                   }
                 : {}),
+              // cacheHandler: cacheHandler
+              //   ? path.relative(distDir, cacheHandler)
+              //   : undefined,
               experimental: {
                 ...config.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-                cacheHandler: cacheHandler
-                  ? path.relative(distDir, cacheHandler)
-                  : undefined,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
@@ -1525,9 +1525,9 @@ export default async function build(
         let CacheHandler
         if (cacheHandler) {
           CacheHandler = interopDefault(
-            await import(
-              formatDynamicImportPath(dir, cacheHandler)
-            ).then((mod) => mod.default || mod)
+            await import(formatDynamicImportPath(dir, cacheHandler)).then(
+              (mod) => mod.default || mod
+            )
           )
         }
 
