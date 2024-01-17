@@ -46,9 +46,7 @@ createNextDescribe(
       })
 
       it('does not emit errors related to bailing out of client side rendering', async () => {
-        const browser = await next.browser('/dynamic', {
-          pushErrorAsConsoleLog: true,
-        })
+        const browser = await next.browser('/dynamic')
 
         try {
           await browser.waitForElementByCss('#dynamic')

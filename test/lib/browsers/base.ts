@@ -129,12 +129,10 @@ export abstract class BrowserInterface implements PromiseLike<any> {
       disableCache,
       cpuThrottleRate,
       beforePageLoad,
-      pushErrorAsConsoleLog,
     }: {
       disableCache?: boolean
       cpuThrottleRate?: number
       beforePageLoad?: Function
-      pushErrorAsConsoleLog?: boolean
     }
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
