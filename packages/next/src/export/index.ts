@@ -506,7 +506,11 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    experimental: { ppr: nextConfig.experimental.ppr === true },
+    experimental: {
+      ppr: nextConfig.experimental.ppr === true,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+    },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
