@@ -1,8 +1,15 @@
 pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
+pub(crate) mod next_amp_attributes;
+pub(crate) mod next_cjs_optimizer;
+pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
 pub(crate) mod next_font;
+pub(crate) mod next_optimize_server_react;
+pub(crate) mod next_page_config;
+pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
+pub(crate) mod next_shake_exports;
 pub(crate) mod next_strip_page_exports;
 pub(crate) mod relay;
 pub(crate) mod server_actions;
