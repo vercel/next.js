@@ -23,7 +23,9 @@ use turbopack_ecmascript_plugins::transform::{
     styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
     styled_jsx::StyledJsxTransformer,
 };
-use turbopack_node::execution_context::ExecutionContext;
+use turbopack_node::{
+    execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
+};
 
 #[turbo_tasks::value(shared)]
 pub enum NodeEnv {
@@ -139,7 +141,7 @@ async fn get_client_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         enable_jsx,
-        enable_postcss_transform: Some(Default::default()),
+        enable_postcss_transform: Some(PostCssTransformOptions::default().cell()),
         enable_typescript_transform: Some(Default::default()),
         rules: vec![(
             foreign_code_context_condition().await?,
