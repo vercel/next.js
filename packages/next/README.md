@@ -33,7 +33,7 @@ Visit this [link](https://nextjs.org/learn) to get started with Next.js.
 
 # Documentation
 
-Next.js has a comphrehensive documentation to help you. To get started, click [here](https://nextjs.org/docs).
+Visit [https://nextjs.org/docs](https://nextjs.org/docs) to view the full documentation.
 
 # Community
 
