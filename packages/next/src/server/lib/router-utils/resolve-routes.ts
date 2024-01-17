@@ -78,7 +78,7 @@ export function getResolveRoutes(
 
     // we check exact matches on fs before continuing to
     // after files rewrites
-    { match: () => ({}), name: 'check_fs', internal: true },
+    { match: () => ({}), name: 'check_fs' },
 
     ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
@@ -405,17 +405,19 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          if (invokedOutputs?.has(curPathname) || checkLocaleApi(curPathname)) {
+          const pathname = parsedUrl.pathname || ''
+
+          if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
           }
-          const output = await fsChecker.getItem(curPathname)
+          const output = await fsChecker.getItem(pathname)
 
           if (
             output &&
             !(
               config.i18n &&
               initialLocaleResult?.detectedLocale &&
-              pathHasPrefix(curPathname, '/api')
+              pathHasPrefix(pathname, '/api')
             )
           ) {
             if (
