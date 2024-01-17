@@ -6,7 +6,7 @@ description: Recommendations and best practices for optimizing videos in your Ne
 
 # Optimizing Videos in Next.js Applications
 
-Optimizing videos is important to maintain performance and enhance the user experience. This page outlines how to use videos with Next.js applications, showing how to storage and display video files without affecting performance.
+Optimizing videos is important to maintain performance and enhance the user experience. This page outlines how to use videos with Next.js applications, showing how to store and display video files without affecting performance.
 
 ## Using `<video>` and `<iframe>`
 
@@ -16,17 +16,21 @@ Videos can be embedded on the page using the HTML **`<video>`** tag for direct v
 
 The HTML [`<video>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video) tag is essential for embedding self-hosted or directly served video content, allowing full control over the playback and appearance.
 
-```html
-<video width="320" height="240" controls preload="none">
-  <source src="/path/to/video.mp4" type="video/mp4" />
-  <track
-    src="/path/to/captions.vtt"
-    kind="subtitles"
-    srclang="en"
-    label="English"
-  />
-  Your browser does not support the video tag.
-</video>
+```jsx filename="app/page.jsx"
+export default function Page() {
+  return (
+    <video width="320" height="240" controls preload="none">
+      <source src="/path/to/video.mp4" type="video/mp4" />
+      <track
+        src="/path/to/captions.vtt"
+        kind="subtitles"
+        srclang="en"
+        label="English"
+      />
+      Your browser does not support the video tag.
+    </video>
+  )
+}
 ```
 
 ### Common `<video>` Tag Attributes
@@ -53,20 +57,24 @@ For a comprehensive list of video attributes, refer to the MDN documentation [he
 
 ### Accessibility Considerations
 
-- **Fallback Content:** Provide alternative content for browsers that do not support the `<video>` tag.
-- **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the `<track>` tag with your `<video>` elements to specify caption file sources.
-- **Accessible Controls:** Ensure navigation with video controls works with keyboard and compatible with screen readers. This can be achieved by using standard HTML5 video controls or by creating custom controls that comply with ARIA (Accessible Rich Internet Applications) standards.
+- **Fallback Content:** When using the `<video>` tag, include fallback content inside the tag to support browsers that do not support video playback.
+- **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the [`<track>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track) tag with your `<video>` elements to specify caption file sources.
+- **Accessible Controls:** Standard HTML5 video controls are recommended for keyboard navigation and screen reader compatibility. For advanced needs, consider third-party players like [react-player](https://github.com/cookpete/react-player) or [video.js](https://videojs.com/), which offer accessible controls and consistent browser experience.
 
 ### `<iframe>`
 
 The HTML `<iframe>` tag allows you to embed videos from external platforms like YouTube or Vimeo.
 
-```html
-<iframe
-  src="https://www.youtube.com/watch?v=gfU1iZnjRZM"
-  frameborder="0"
-  allowfullscreen
-/>
+```jsx filename="app/page.jsx"
+export default function Page() {
+  return (
+    <iframe
+      src="https://www.youtube.com/watch?v=gfU1iZnjRZM"
+      frameborder="0"
+      allowfullscreen
+    />
+  )
+}
 ```
 
 ### Common `<iframe>` Tag Attributes
@@ -84,9 +92,16 @@ The HTML `<iframe>` tag allows you to embed videos from external platforms like 
 
 For a comprehensive list of iframe attributes, refer to the MDN documentation [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attributes).
 
-### Choosing Between `<video>` and `<iframe>`
+### Choosing a Video Embedding Method
 
-Deciding whether to use `<video>` or `<iframe>` in your Next.js application depends on the source of your video content and your specific requirements. For self-hosted or direct video files where you need more control over the player's functionality and appearance, the `<video>` tag is ideal. On the other hand, for embedding content from platforms like YouTube or Vimeo, which offer their own set of features and functionalities, `<iframe>` is the preferred choice.
+When integrating video content into your Next.js application, consider how your choice of video hosting impacts the embedding method.
+
+- **Self-Hosted or Direct Video Files:**
+  Embed self-hosted videos using the `<video>` tag for scenarios requiring detailed control over the player's functionality and appearance. This integration method within Next.js allows for customization and control of your video content.
+- **Using Video Hosting Services (YouTube, Vimeo, etc.):**
+  For video hosting services like YouTube or Vimeo, you'll embed their iframe-based players using the `<iframe>` tag. While this method limits some control over the player, it offers ease of use and features provided by these platforms.
+
+Choose the embedding method that aligns with your application's requirements and the user experience you aim to deliver.
 
 ### Displaying Externally Hosted Videos in Next.js
 
@@ -128,7 +143,6 @@ Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js in
 >
 > - **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
 > - **Consider Data Usage**: Implement strategies for loading videos based on network conditions, especially for users with limited data plans.
-> - **Accessibility Considerations**: Provide captions or alternative content for accessibility purposes.
 
 By integrating server components with React Suspense for loading, Next.js applications can efficiently handle externally hosted videos. This approach results in quicker load times and a smoother user experience. Such integration boosts both performance and engagement, ensuring an optimal video viewing experience on your site.
 
@@ -270,12 +284,19 @@ By incorporating these techniques, you can significantly enhance the performance
 
 ## Examples
 
+- **Next-Video.dev**
+
+  - Provides a `<Video>` component for Next.js, compatible with various hosting services including Vercel Blob, S3, Backblaze, and Mux.
+  - Detailed documentation for using `next-video.dev` with different hosting services [here](https://next-video.dev/docs).
+
 - **Cloudinary Integration**
   - Official documentation and integration guides for using Cloudinary with Next.js can be found [here](https://support.cloudinary.com/hc/en-us/categories/200477762-Client-Libraries-and-Integration-Guides).
   - A specific guide on integrating Cloudinary with Next.js is available [here](https://next.cloudinary.dev/nextjs-13).
 - **Mux Video API**
+
   - Mux provides a starter template for creating a video course with Mux and Next.js, available on GitHub [here](https://github.com/muxinc/video-course-starter-kit).
-  - Detailed information about embedding a video player in Next.js applications using Mux is available [here](https://www.mux.com/for/nextjs). Additionally, Mux offers a Next.js specific `<Video>` component, which simplifies video embedding in Next.js applications. More information about this component can be found at [next-video.dev](https://next-video.dev/).
-  - An example project demonstrating Mux with Next.js can be found [here](https://with-mux-video.vercel.app/).
+  - Learn about embedding a video player in Next.js applications using Mux [here](https://www.mux.com/for/nextjs).
+  - Explore an example project demonstrating Mux with Next.js [here](https://with-mux-video.vercel.app/).
+
 - **Fastly**
   - Fastly offers solutions for video on demand and streaming media. Learn more about their offerings and how to integrate with Next.js [here](https://www.fastly.com/products/streaming-media/video-on-demand).
