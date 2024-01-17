@@ -1337,4 +1337,19 @@ describe('required server files', () => {
 
     expect(res.status).toBe(404)
   })
+
+  it('should correctly handle a mismatch in buildIds when normalizing next data with middleware', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${nanoid()}/rewrite-me/index.json`,
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/[teamSlug]/[project]/[id]/[suffix]',
+        },
+      }
+    )
+
+    expect(res.status).toBe(404)
+  })
 })

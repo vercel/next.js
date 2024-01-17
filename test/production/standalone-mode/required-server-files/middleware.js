@@ -9,5 +9,9 @@ export async function middleware(req) {
       height: 600,
     })
   }
+  if (req.nextUrl.pathname.startsWith('/rewrite-me')) {
+    // strip the leading `/rewrite-me` from the path
+    return NextResponse.rewrite(`/${req.nextUrl.pathname.substr(11)}`)
+  }
   return NextResponse.next()
 }
