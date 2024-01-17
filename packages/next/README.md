@@ -5,7 +5,6 @@
       <img src="https://assets.vercel.com/image/upload/v1662130559/nextjs/Icon_light_background.png" height="128">
     </picture>
     <h1 align="center">Next.js</h1>
-    <p align="center">The React Framework</p>
   </a>
 </p>
 
