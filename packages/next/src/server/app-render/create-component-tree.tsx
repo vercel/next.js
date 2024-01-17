@@ -11,6 +11,8 @@ import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import { getTracer } from '../lib/trace/tracer'
+import { NextNodeServerSpan } from '../lib/trace/constants'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -131,7 +133,17 @@ export async function createComponentTree({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
+  const [layoutOrPageMod] = await getTracer().trace(
+    NextNodeServerSpan.getLayoutOrPageModule,
+    {
+      hideSpan: !(isLayout || isPage),
+      spanName: 'resolve segment modules',
+      attributes: {
+        'next.segment': segment,
+      },
+    },
+    () => getLayoutOrPageModule(tree)
+  )
 
   /**
    * Checks if the current segment is a root layout.
