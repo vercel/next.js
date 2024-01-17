@@ -55,7 +55,7 @@ export default function Page() {
 
 For a comprehensive list of video attributes, refer to the MDN documentation [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attributes).
 
-### Accessibility Considerations
+### Video best practices
 
 - **Fallback Content:** When using the `<video>` tag, include fallback content inside the tag to support browsers that do not support video playback.
 - **Subtitles or Captions:** Include subtitles or captions for users who are deaf or hard of hearing. Utilize the [`<track>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/track) tag with your `<video>` elements to specify caption file sources.
@@ -103,9 +103,9 @@ When integrating video content into your Next.js application, consider how your 
 
 Choose the embedding method that aligns with your application's requirements and the user experience you aim to deliver.
 
-### Displaying Externally Hosted Videos in Next.js
+### Embedding externally hosted videos
 
-Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js involves combining appropriate embedding techniques with dynamic loading strategies. Using server components with a loading state managed by React Suspense optimizes page load times and enhances user experience. This ensures videos are loaded responsively, adapting to user interactions and network conditions.
+To embed videos from platforms like YouTube or Vimeo, you can use React Suspense to stream the video component once ready. 
 
 1. **Create a Server Component for Video Embedding**
 
@@ -119,9 +119,9 @@ Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js in
    }
    ```
 
-2. **Dynamically Load the Video Component Using React Suspense**
+2. **Stream the Video Component Using React Suspense**
 
-   After creating the server component for video embedding, the next step is to [dynamically load](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming) this component. [React Suspense](https://react.dev/reference/react/Suspense) is used to manage the loading fallback, showing a fallback while the video is being fetched.
+   After creating the Server Component to embed the video, the next step is to [stream](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming) the component using [React Suspense](https://react.dev/reference/react/Suspense).
 
    ```jsx filename="app/page.jsx"
    import { Suspense } from 'react'
@@ -144,11 +144,11 @@ Efficiently displaying videos from platforms like YouTube or Vimeo in Next.js in
 > - **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
 > - **Consider Data Usage**: Implement strategies for loading videos based on network conditions, especially for users with limited data plans.
 
-By integrating server components with React Suspense for loading, Next.js applications can efficiently handle externally hosted videos. This approach results in quicker load times and a smoother user experience. Such integration boosts both performance and engagement, ensuring an optimal video viewing experience on your site.
+This approach results in a btter user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. 
 
-## Self-Hosted Video Strategies in Next.js
+## Self-hosted videos
 
-Self-hosting videos in Next.js may be preferable for several reasons, including control, trust, and customization. This approach is particularly beneficial when external services don't meet your specific needs or when you require complete command over video content.
+Self-hosting videos may be preferable for several reasons, including control, trust, and customization. This approach is beneficial when external services don't meet your specific needs or when you require complete customization. 
 
 ### Video Storage Considerations
 
@@ -195,11 +195,11 @@ export async function POST(request) {
 }
 ```
 
-In this function, you're using the `put` method from `@vercel/blob` to upload a video file, making it publicly accessible.
+In this function, you're using the [`put`](https://vercel.com/docs/storage/vercel-blob/using-blob-sdk#put) method from `@vercel/blob` to upload a video file, making it publicly accessible.
 
 **Step 2: Displaying the Video in Next.js**
 
-Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense for dynamic loading:
+Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense:
 
 ```jsx filename="app/page.jsx"
 import { Suspense } from 'react';
@@ -230,7 +230,7 @@ async function VideoComponent({ fileName }) {
 };
 ```
 
-In this approach, the page uses the video’s `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to handle the loading state, providing a fallback until the video URL is fetched and the video is ready to be displayed.
+In this approach, the page uses the video’s `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to show a fallback until the video URL is fetched and the video is ready to be displayed.
 
 ### Adding Subtitles to Your Video
 
@@ -259,9 +259,12 @@ async function VideoComponent({ fileName }) {
 };
 ```
 
-By following this approach, you can effectively self-serve and integrate videos into your Next.js applications, offering a high degree of control and customization over your video content.
+By following this approach, you can effectively self-host and integrate videos into your Next.js applications.
 
-## Video Optimization Techniques
+## Resources
+
+To continue learning more about video optimization and best practices, please refer to the following resources:
+
 
 Enhancing performance and user experience involves strategic optimization of video content. Key techniques include video compression, selecting the appropriate format, and implementing adaptive streaming. Here’s a concise overview of the key techniques:
 
@@ -282,7 +285,6 @@ Enhancing performance and user experience involves strategic optimization of vid
 
 By incorporating these techniques, you can significantly enhance the performance and accessibility of videos, leading to a better user experience and increased user engagement.
 
-## Examples
 
 - **Next-Video.dev**
 
