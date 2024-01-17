@@ -44,9 +44,10 @@ use turbopack_binding::{
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     },
     turbopack::{
+        build::EntryChunkGroupResult,
         core::{
             asset::{Asset, AssetContent},
-            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -844,9 +845,10 @@ impl AppEndpoint {
                 server_assets.push(manifest);
                 evaluatable_assets.push(loader);
 
-                let files = chunking_context.evaluated_chunk_group(
+                let files = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
                     Vc::cell(evaluatable_assets.clone()),
+                    Value::new(AvailabilityInfo::Root),
                 );
                 let files_value = files.await?;
 
@@ -976,7 +978,9 @@ impl AppEndpoint {
                 server_assets.push(manifest);
                 evaluatable_assets.push(loader);
 
-                let rsc_chunk = this
+                let EntryChunkGroupResult {
+                    asset: rsc_chunk, ..
+                } = *this
                     .app_project
                     .project()
                     .server_chunking_context()
@@ -987,7 +991,9 @@ impl AppEndpoint {
                         )),
                         app_entry.rsc_entry,
                         Vc::cell(evaluatable_assets),
-                    );
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                    .await?;
                 server_assets.push(rsc_chunk);
 
                 let app_paths_manifest_output = create_app_paths_manifest(
