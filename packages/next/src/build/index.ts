@@ -127,7 +127,6 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
-  teardownCrashReporter,
   teardownHeapProfiler,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -3189,6 +3188,5 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
-    teardownCrashReporter()
   }
 }

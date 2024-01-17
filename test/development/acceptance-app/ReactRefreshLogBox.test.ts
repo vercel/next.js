@@ -222,9 +222,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     const source = await session.getRedboxSource()
     expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(
-        IS_TURBOPACK
-          ? `
+      IS_TURBOPACK
+        ? `
       "./index.js:7:1
       Parsing ecmascript source code failed
         5 |     div
@@ -234,7 +233,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
       Unexpected eof"
     `
-          : `
+        : `
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -261,7 +260,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ./index.js
         ./app/page.js"
       `
-      )
     )
 
     await cleanup()
