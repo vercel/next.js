@@ -137,7 +137,20 @@ async function loadWebAssemblyModule(
 
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = chunkUrl;
+
+        if (navigator.userAgent.includes("Firefox")) {
+          // Firefox won't reload CSS files that were previously loaded on the current page,
+          // we need to add a query param to make sure CSS is actually reloaded from the server.
+          //
+          // I believe this is this issue: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+          //
+          // Safari has a similar issue, but only if you have a `<link rel=preload ... />` tag
+          // pointing to the same URL as the stylesheet: https://bugs.webkit.org/show_bug.cgi?id=187726
+          link.href = `${chunkUrl}?ts=${Date.now()}`;
+        } else {
+          link.href = chunkUrl;
+        }
+
         link.onerror = () => {
           reject();
         };
