@@ -5,7 +5,9 @@
 pub(crate) mod chunking_context;
 pub(crate) mod ecmascript;
 
-pub use chunking_context::{BuildChunkingContext, BuildChunkingContextBuilder, MinifyType};
+pub use chunking_context::{
+    BuildChunkingContext, BuildChunkingContextBuilder, EntryChunkGroupResult, MinifyType,
+};
 
 pub fn register() {
     turbo_tasks::register();

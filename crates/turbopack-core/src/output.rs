@@ -1,3 +1,4 @@
+use anyhow::Result;
 use indexmap::IndexSet;
 use turbo_tasks::Vc;
 
@@ -26,6 +27,13 @@ impl OutputAssets {
     #[turbo_tasks::function]
     pub fn new(assets: Vec<Vc<Box<dyn OutputAsset>>>) -> Vc<Self> {
         Vc::cell(assets)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate(self: Vc<Self>, other: Vc<Self>) -> Result<Vc<Self>> {
+        let mut assets: IndexSet<_> = self.await?.iter().copied().collect();
+        assets.extend(other.await?.iter().copied());
+        Ok(Vc::cell(assets.into_iter().collect()))
     }
 }
 

@@ -14,6 +14,7 @@ use crate::{module::Module, output::OutputAssets, reference::ModuleReference};
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<Vc<Box<dyn Chunk>>>,
+    pub availability_info: AvailabilityInfo,
 }
 
 /// Creates a chunk group from a set of entries.
@@ -100,35 +101,30 @@ pub async fn make_chunk_group(
         );
     }
 
-    // Insert async chunk loaders for every referenced async module
-    let async_loaders = if async_modules.is_empty() {
-        vec![]
-    } else {
-        // Compute new [AvailabilityInfo]
-        let inner_availability_info = {
-            let map = chunk_items
-                .iter()
-                .map(|(&chunk_item, async_info)| {
-                    (
-                        chunk_item,
-                        AvailableChunkItemInfo {
-                            is_async: async_info.is_some(),
-                        },
-                    )
-                })
-                .collect();
-            let map = Vc::cell(map);
-            availability_info.with_chunk_items(map).await?
-        };
-
-        async_modules
-            .into_iter()
-            .map(|module| {
-                chunking_context
-                    .async_loader_chunk_item(module, Value::new(inner_availability_info))
+    // Compute new [AvailabilityInfo]
+    let availability_info = {
+        let map = chunk_items
+            .iter()
+            .map(|(&chunk_item, async_info)| {
+                (
+                    chunk_item,
+                    AvailableChunkItemInfo {
+                        is_async: async_info.is_some(),
+                    },
+                )
             })
-            .collect::<Vec<_>>()
+            .collect();
+        let map = Vc::cell(map);
+        availability_info.with_chunk_items(map).await?
     };
+
+    // Insert async chunk loaders for every referenced async module
+    let async_loaders = async_modules
+        .into_iter()
+        .map(|module| {
+            chunking_context.async_loader_chunk_item(module, Value::new(availability_info))
+        })
+        .collect::<Vec<_>>();
     let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| (chunk_item, None));
 
     // And also add output assets referenced by async chunk loaders
@@ -165,7 +161,10 @@ pub async fn make_chunk_group(
     // concatenate chunks
     chunks.extend(async_loader_chunks);
 
-    Ok(MakeChunkGroupResult { chunks })
+    Ok(MakeChunkGroupResult {
+        chunks,
+        availability_info,
+    })
 }
 
 async fn references_to_output_assets(

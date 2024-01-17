@@ -1,11 +1,14 @@
 use anyhow::{anyhow, Result};
 use mime_guess::mime::TEXT_HTML_UTF_8;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt, EvaluatableAssets},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAssets,
+    },
     ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
@@ -140,10 +143,13 @@ impl DevHtmlAsset {
                     } else {
                         runtime_entries
                     };
-                    chunking_context
-                        .evaluated_chunk_group(chunkable_module.ident(), runtime_entries)
+                    chunking_context.evaluated_chunk_group_assets(
+                        chunkable_module.ident(),
+                        runtime_entries,
+                        Value::new(AvailabilityInfo::Root),
+                    )
                 } else {
-                    chunking_context.root_chunk_group(Vc::upcast(chunkable_module))
+                    chunking_context.root_chunk_group_assets(Vc::upcast(chunkable_module))
                 };
 
                 assets.await
