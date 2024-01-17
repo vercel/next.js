@@ -30,6 +30,16 @@ export type Scalars = {
   ObjectId: { input: string; output: string }
 }
 
+export type AddCommentInput = {
+  contentMarkdown: Scalars['String']['input']
+  postId: Scalars['ID']['input']
+}
+
+export type AddCommentPayload = {
+  __typename?: 'AddCommentPayload'
+  comment?: Maybe<Comment>
+}
+
 export type AddPostToSeriesInput = {
   /** The ID of the post to be added to the series. */
   postId: Scalars['ObjectId']['input']
@@ -41,6 +51,16 @@ export type AddPostToSeriesPayload = {
   __typename?: 'AddPostToSeriesPayload'
   /** The series to which the post was added. */
   series?: Maybe<Series>
+}
+
+export type AddReplyInput = {
+  commentId: Scalars['ID']['input']
+  contentMarkdown: Scalars['String']['input']
+}
+
+export type AddReplyPayload = {
+  __typename?: 'AddReplyPayload'
+  reply?: Maybe<Reply>
 }
 
 /**
@@ -228,6 +248,18 @@ export type CoverImageOptionsInput = {
   stickCoverToBottom?: InputMaybe<Scalars['Boolean']['input']>
 }
 
+export type CreateWebhookInput = {
+  events: Array<WebhookEvent>
+  publicationId: Scalars['ID']['input']
+  secret: Scalars['String']['input']
+  url: Scalars['String']['input']
+}
+
+export type CreateWebhookPayload = {
+  __typename?: 'CreateWebhookPayload'
+  webhook?: Maybe<Webhook>
+}
+
 export type CustomCss = {
   __typename?: 'CustomCSS'
   /** Custom CSS that will be applied on the publication homepage. */
@@ -261,6 +293,11 @@ export type DarkModePreferences = {
   enabled?: Maybe<Scalars['Boolean']['output']>
   /** The custom dark mode logo of the publication. */
   logo?: Maybe<Scalars['String']['output']>
+}
+
+export type DeleteWebhookPayload = {
+  __typename?: 'DeleteWebhookPayload'
+  webhook?: Maybe<Webhook>
 }
 
 /** Contains the publication's domain information. */
@@ -545,25 +582,26 @@ export type IUser = {
   badges: Array<Badge>
   /** The bio of the user. Visible in about me section of the user's profile. */
   bio?: Maybe<Content>
-  /**
-   * The bio of the user. Visible in about me section of the user's profile.
-   * @deprecated Will be removed on 26/10/2023. Use bio instead of bioV2
-   */
-  bioV2?: Maybe<Content>
   /** The date the user joined Hashnode. */
   dateJoined?: Maybe<Scalars['DateTime']['output']>
   /** Whether or not the user is deactivated. */
   deactivated: Scalars['Boolean']['output']
+  /** The users who are following this user */
+  followers: UserConnection
   /** The number of users that follow the requested user. Visible in the user's profile. */
   followersCount: Scalars['Int']['output']
   /** The number of users that this user is following. Visible in the user's profile. */
   followingsCount: Scalars['Int']['output']
+  /** The users which this user is following */
+  follows: UserConnection
   /** The ID of the user. It can be used to identify the user. */
   id: Scalars['ID']['output']
   /** The location of the user. */
   location?: Maybe<Scalars['String']['output']>
   /** The name of the user. */
   name: Scalars['String']['output']
+  /** Returns the list of posts the user has published. */
+  posts: UserPostConnection
   /** The URL to the profile picture of the user. */
   profilePicture?: Maybe<Scalars['String']['output']>
   /** Publications associated with the user. Includes personal and team publications. */
@@ -579,10 +617,50 @@ export type IUser = {
 }
 
 /** Basic information about a user on Hashnode. */
+export type IUserFollowersArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/** Basic information about a user on Hashnode. */
+export type IUserFollowsArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/** Basic information about a user on Hashnode. */
+export type IUserPostsArgs = {
+  filter?: InputMaybe<UserPostConnectionFilter>
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+  sortBy?: InputMaybe<UserPostsSort>
+}
+
+/** Basic information about a user on Hashnode. */
 export type IUserPublicationsArgs = {
   after?: InputMaybe<Scalars['String']['input']>
   filter?: InputMaybe<UserPublicationsConnectionFilter>
   first: Scalars['Int']['input']
+}
+
+export type LikeCommentInput = {
+  commentId: Scalars['ID']['input']
+  likesCount?: InputMaybe<Scalars['Int']['input']>
+}
+
+export type LikeCommentPayload = {
+  __typename?: 'LikeCommentPayload'
+  comment?: Maybe<Comment>
+}
+
+export type LikePostInput = {
+  likesCount?: InputMaybe<Scalars['Int']['input']>
+  postId: Scalars['ID']['input']
+}
+
+export type LikePostPayload = {
+  __typename?: 'LikePostPayload'
+  post?: Maybe<Post>
 }
 
 /** Contains information about meta tags of the post. Used for SEO purpose. */
@@ -597,12 +675,34 @@ export type MetaTagsInput = {
 
 export type Mutation = {
   __typename?: 'Mutation'
+  /** Adds a comment to a post. */
+  addComment: AddCommentPayload
   /** Adds a post to a series. */
   addPostToSeries: AddPostToSeriesPayload
+  /** Adds a reply to a comment. */
+  addReply: AddReplyPayload
+  createWebhook: CreateWebhookPayload
+  deleteWebhook: DeleteWebhookPayload
+  /** Likes a comment. */
+  likeComment: LikeCommentPayload
+  /** Likes a post. */
+  likePost: LikePostPayload
   /** Creates a new post. */
   publishPost: PublishPostPayload
-  /** Reschedule a post. */
+  recommendPublications: RecommendPublicationsPayload
+  /** Removes a comment from a post. */
+  removeComment: RemoveCommentPayload
+  /** Removes a post. */
+  removePost: RemovePostPayload
+  removeRecommendation: RemoveRecommendationPayload
+  /** Removes a reply from a comment. */
+  removeReply: RemoveReplyPayload
+  /**
+   * Reschedule a post.
+   * @deprecated Use rescheduleDraft instead. Will be taken down on 2024-02-1
+   */
   reschedulePost?: Maybe<ScheduledPostPayload>
+  resendWebhookRequest: ResendWebhookRequestPayload
   subscribeToNewsletter: SubscribeToNewsletterPayload
   /**
    * Update the follow state for the user that is provided via id or username.
@@ -611,20 +711,74 @@ export type Mutation = {
    * Only available to the authenticated user.
    */
   toggleFollowUser: ToggleFollowUserPayload
+  triggerWebhookTest: TriggerWebhookTestPayload
   unsubscribeFromNewsletter: UnsubscribeFromNewsletterPayload
+  /** Updates a comment on a post. */
+  updateComment: UpdateCommentPayload
   updatePost: UpdatePostPayload
+  /** Updates a reply */
+  updateReply: UpdateReplyPayload
+  updateWebhook: UpdateWebhookPayload
+}
+
+export type MutationAddCommentArgs = {
+  input: AddCommentInput
 }
 
 export type MutationAddPostToSeriesArgs = {
   input: AddPostToSeriesInput
 }
 
+export type MutationAddReplyArgs = {
+  input: AddReplyInput
+}
+
+export type MutationCreateWebhookArgs = {
+  input: CreateWebhookInput
+}
+
+export type MutationDeleteWebhookArgs = {
+  id: Scalars['ID']['input']
+}
+
+export type MutationLikeCommentArgs = {
+  input: LikeCommentInput
+}
+
+export type MutationLikePostArgs = {
+  input: LikePostInput
+}
+
 export type MutationPublishPostArgs = {
   input: PublishPostInput
 }
 
+export type MutationRecommendPublicationsArgs = {
+  input: RecommendPublicationsInput
+}
+
+export type MutationRemoveCommentArgs = {
+  input: RemoveCommentInput
+}
+
+export type MutationRemovePostArgs = {
+  input: RemovePostInput
+}
+
+export type MutationRemoveRecommendationArgs = {
+  input: RemoveRecommendationInput
+}
+
+export type MutationRemoveReplyArgs = {
+  input: RemoveReplyInput
+}
+
 export type MutationReschedulePostArgs = {
   input: ReschedulePostInput
+}
+
+export type MutationResendWebhookRequestArgs = {
+  input: ResendWebhookRequestInput
 }
 
 export type MutationSubscribeToNewsletterArgs = {
@@ -636,12 +790,28 @@ export type MutationToggleFollowUserArgs = {
   username?: InputMaybe<Scalars['String']['input']>
 }
 
+export type MutationTriggerWebhookTestArgs = {
+  input: TriggerWebhookTestInput
+}
+
 export type MutationUnsubscribeFromNewsletterArgs = {
   input: UnsubscribeFromNewsletterInput
 }
 
+export type MutationUpdateCommentArgs = {
+  input: UpdateCommentInput
+}
+
 export type MutationUpdatePostArgs = {
   input: UpdatePostInput
+}
+
+export type MutationUpdateReplyArgs = {
+  input: UpdateReplyInput
+}
+
+export type MutationUpdateWebhookArgs = {
+  input: UpdateWebhookInput
 }
 
 /**
@@ -653,7 +823,7 @@ export type MyUser = IUser &
     __typename?: 'MyUser'
     /**
      * Whether or not the user is an ambassador.
-     * @deprecated Ambassadors program no longer active
+     * @deprecated Ambassadors program no longer active. Will be removed after 02/01/2024
      */
     ambassador: Scalars['Boolean']['output']
     /** The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile. */
@@ -664,27 +834,28 @@ export type MyUser = IUser &
     betaFeatures: Array<BetaFeature>
     /** The bio of the user. Visible in about me section of the user's profile. */
     bio?: Maybe<Content>
-    /**
-     * The bio of the user. Visible in about me section of the user's profile.
-     * @deprecated Will be removed on 26/10/2023. Use bio instead of bio.V2
-     */
-    bioV2?: Maybe<Content>
     /** The date the user joined Hashnode. */
     dateJoined?: Maybe<Scalars['DateTime']['output']>
     /** Whether or not the user is deactivated. */
     deactivated: Scalars['Boolean']['output']
     /** Email address of the user. Only available to the authenticated user. */
     email?: Maybe<Scalars['String']['output']>
+    /** The users who are following this user */
+    followers: UserConnection
     /** The number of users that follow the requested user. Visible in the user's profile. */
     followersCount: Scalars['Int']['output']
     /** The number of users that this user is following. Visible in the user's profile. */
     followingsCount: Scalars['Int']['output']
+    /** The users which this user is following */
+    follows: UserConnection
     /** The ID of the user. It can be used to identify the user. */
     id: Scalars['ID']['output']
     /** The location of the user. */
     location?: Maybe<Scalars['String']['output']>
     /** The name of the user. */
     name: Scalars['String']['output']
+    /** Returns the list of posts the user has published. */
+    posts: UserPostConnection
     /** The URL to the profile picture of the user. */
     profilePicture?: Maybe<Scalars['String']['output']>
     provider?: Maybe<Scalars['String']['output']>
@@ -701,6 +872,35 @@ export type MyUser = IUser &
     /** The username of the user. It is unique and tied with user's profile URL. Example - https://hashnode.com/@username */
     username: Scalars['String']['output']
   }
+
+/**
+ * Basic information about the authenticated user.
+ * User must be authenticated to use this type.
+ */
+export type MyUserFollowersArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/**
+ * Basic information about the authenticated user.
+ * User must be authenticated to use this type.
+ */
+export type MyUserFollowsArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/**
+ * Basic information about the authenticated user.
+ * User must be authenticated to use this type.
+ */
+export type MyUserPostsArgs = {
+  filter?: InputMaybe<UserPostConnectionFilter>
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+  sortBy?: InputMaybe<UserPostsSort>
+}
 
 /**
  * Basic information about the authenticated user.
@@ -743,11 +943,42 @@ export type Node = {
   id: Scalars['ID']['output']
 }
 
+/** Contains information to help in pagination for page based pagination. */
+export type OffsetPageInfo = {
+  __typename?: 'OffsetPageInfo'
+  /** Indicates if there are more pages. */
+  hasNextPage?: Maybe<Scalars['Boolean']['output']>
+  /** Indicates if there are previous pages */
+  hasPreviousPage?: Maybe<Scalars['Boolean']['output']>
+  /**
+   * The page after the current page.
+   * Use it to build page navigation
+   */
+  nextPage?: Maybe<Scalars['Int']['output']>
+  /**
+   * The page before the current page.
+   * Use it to build page navigation
+   */
+  previousPage?: Maybe<Scalars['Int']['output']>
+}
+
 /** Information to help in open graph related meta tags. */
 export type OpenGraphMetaData = {
   __typename?: 'OpenGraphMetaData'
   /** The image used in og:image tag for SEO purposes. */
   image?: Maybe<Scalars['String']['output']>
+}
+
+/**
+ * A Connection for page based pagination to get a list of items.
+ * Returns a list of nodes which contains the items.
+ * This is a common interface for all page connections.
+ */
+export type PageConnection = {
+  /** A list of edges of items connection. */
+  nodes: Array<Node>
+  /** Information to aid in pagination. */
+  pageInfo: OffsetPageInfo
 }
 
 /** Contains information to help in pagination. */
@@ -934,6 +1165,14 @@ export type PostLikedByArgs = {
   after?: InputMaybe<Scalars['String']['input']>
   filter?: InputMaybe<PostLikerFilter>
   first: Scalars['Int']['input']
+}
+
+/** The author type of a post from a user's perspective */
+export enum PostAuthorType {
+  /** The user has authored the post. */
+  Author = 'AUTHOR',
+  /** The user is a co-author of post. */
+  CoAuthor = 'CO_AUTHOR',
 }
 
 export type PostBadge = Node & {
@@ -1128,7 +1367,7 @@ export type Publication = Node & {
   author: User
   /** The canonical URL of the publication. */
   canonicalURL: Scalars['String']['output']
-  /** The description of the publication, used in og:description meta tag. */
+  /** The description of the publication, used in og:description meta tag. Fall backs to Publication.about.text if no SEO description is provided. */
   descriptionSEO?: Maybe<Scalars['String']['output']>
   /** The title of the publication. Shown in blog home page. */
   displayTitle?: Maybe<Scalars['String']['output']>
@@ -1150,8 +1389,13 @@ export type Publication = Node & {
   headerColor?: Maybe<Scalars['String']['output']>
   /** The ID of the publication. */
   id: Scalars['ID']['output']
-  /** Summary of the contact information and information related to copyrights, usually used in German-speaking countries. */
+  /**
+   * Summary of the contact information and information related to copyrights, usually used in German-speaking countries.
+   * @deprecated Use `imprintV2` instead. Will be removed after 16/12/2023.
+   */
   imprint?: Maybe<Scalars['String']['output']>
+  /** Summary of the contact information and information related to copyrights, usually used in German-speaking countries. */
+  imprintV2?: Maybe<Content>
   /** The integrations connected to the publication. */
   integrations?: Maybe<PublicationIntegrations>
   /** Returns true if GitHub backup is configured and active and false otherwise. */
@@ -1174,6 +1418,10 @@ export type Publication = Node & {
   posts: PublicationPostConnection
   /** The publication preferences around layout, theme and other personalisations. */
   preferences: Preferences
+  /** Publications that are recommended by this publication. */
+  recommendedPublications: Array<UserRecommendedPublicationEdge>
+  /** Publications that are recommending this publication. */
+  recommendingPublications: PublicationUserRecommendingPublicationConnection
   /** Configured redirection rules for the publication. */
   redirectionRules: Array<RedirectionRule>
   /** Returns the scheduled drafts of the publication. */
@@ -1195,6 +1443,8 @@ export type Publication = Node & {
    * Title is used as logo if logo is not provided.
    */
   title: Scalars['String']['output']
+  /** The total amount of recommended publications by this publication. */
+  totalRecommendedPublications: Scalars['Int']['output']
   /** The domain of the publication. Used to access publication. Example https://johndoe.com */
   url: Scalars['String']['output']
   /** Determines the structure of the post URLs. */
@@ -1227,6 +1477,15 @@ export type PublicationPostsArgs = {
   after?: InputMaybe<Scalars['String']['input']>
   filter?: InputMaybe<PublicationPostConnectionFilter>
   first: Scalars['Int']['input']
+}
+
+/**
+ * Contains basic information about the publication.
+ * A publication is a blog that can be created for a user or a team.
+ */
+export type PublicationRecommendingPublicationsArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
 }
 
 /**
@@ -1323,6 +1582,8 @@ export type PublicationIntegrations = {
   fathomSiteID?: Maybe<Scalars['String']['output']>
   /** FB Pixel ID for integration with Facebook Pixel. */
   fbPixelID?: Maybe<Scalars['String']['output']>
+  /** Google Tag Manager ID for integration with Google Tag Manager. */
+  gTagManagerID?: Maybe<Scalars['String']['output']>
   /** Google Analytics Tracking ID for integration with Google Analytics. */
   gaTrackingID?: Maybe<Scalars['String']['output']>
   /** Hotjar Site ID for integration with Hotjar. */
@@ -1455,6 +1716,19 @@ export type PublicationSponsorship = {
   stripe?: Maybe<StripeConfiguration>
 }
 
+export type PublicationUserRecommendingPublicationConnection =
+  PageConnection & {
+    __typename?: 'PublicationUserRecommendingPublicationConnection'
+    /** A list of edges containing Post information */
+    edges: Array<UserRecommendingPublicationEdge>
+    /** Publications recommending this publication. */
+    nodes: Array<Publication>
+    /** Information for page based pagination in Post connection. */
+    pageInfo: OffsetPageInfo
+    /** The total number of documents in the connection. */
+    totalDocuments: Scalars['Int']['output']
+  }
+
 /** Contains information about the post to be published. */
 export type PublishPostInput = {
   /** Ids of the co-authors of the post. */
@@ -1465,8 +1739,6 @@ export type PublishPostInput = {
   coverImageOptions?: InputMaybe<CoverImageOptionsInput>
   /** A flag to indicate if the comments are disabled for the post. */
   disableComments?: InputMaybe<Scalars['Boolean']['input']>
-  /** The ID of the draft to be published. */
-  draftId: Scalars['ObjectId']['input']
   /** Information about the meta tags added to the post, used for SEO purpose. */
   metaTags?: InputMaybe<MetaTagsInput>
   /** The URL of the original article if the post is imported from an external source. */
@@ -1621,6 +1893,16 @@ export type ReadTimeFeature = Feature & {
   isEnabled: Scalars['Boolean']['output']
 }
 
+export type RecommendPublicationsInput = {
+  recommendedPublicationIds: Array<Scalars['ID']['input']>
+  recommendingPublicationId: Scalars['ID']['input']
+}
+
+export type RecommendPublicationsPayload = {
+  __typename?: 'RecommendPublicationsPayload'
+  recommendedPublications?: Maybe<Array<UserRecommendedPublicationEdge>>
+}
+
 /** Contains a publication and a cursor for pagination. */
 export type RecommendedPublicationEdge = Edge & {
   __typename?: 'RecommendedPublicationEdge'
@@ -1638,6 +1920,46 @@ export type RedirectionRule = {
   source: Scalars['String']['output']
   /** The type of the redirection rule. */
   type: HttpRedirectionType
+}
+
+export type RemoveCommentInput = {
+  id: Scalars['ID']['input']
+}
+
+export type RemoveCommentPayload = {
+  __typename?: 'RemoveCommentPayload'
+  comment?: Maybe<Comment>
+}
+
+export type RemovePostInput = {
+  /** The ID of the post to remove. */
+  id: Scalars['ID']['input']
+}
+
+export type RemovePostPayload = {
+  __typename?: 'RemovePostPayload'
+  /** The deleted post. */
+  post?: Maybe<Post>
+}
+
+export type RemoveRecommendationInput = {
+  recommendedPublicationId: Scalars['ID']['input']
+  recommendingPublicationId: Scalars['ID']['input']
+}
+
+export type RemoveRecommendationPayload = {
+  __typename?: 'RemoveRecommendationPayload'
+  recommendedPublication: Publication
+}
+
+export type RemoveReplyInput = {
+  commentId: Scalars['ID']['input']
+  replyId: Scalars['ID']['input']
+}
+
+export type RemoveReplyPayload = {
+  __typename?: 'RemoveReplyPayload'
+  reply?: Maybe<Reply>
 }
 
 /**
@@ -1670,6 +1992,16 @@ export type ReschedulePostInput = {
   draftId: Scalars['ObjectId']['input']
   /** New scheduled date for the post to be rescheduled. */
   scheduledDate: Scalars['DateTime']['input']
+}
+
+export type ResendWebhookRequestInput = {
+  webhookId: Scalars['ID']['input']
+  webhookMessageId: Scalars['ID']['input']
+}
+
+export type ResendWebhookRequestPayload = {
+  __typename?: 'ResendWebhookRequestPayload'
+  webhookMessage?: Maybe<WebhookMessage>
 }
 
 /** Information to help in seo related meta tags. */
@@ -1716,10 +2048,18 @@ export enum Scope {
   CreatePro = 'create_pro',
   ImportSubscribersToPublication = 'import_subscribers_to_publication',
   PublicationAdmin = 'publication_admin',
+  PublishComment = 'publish_comment',
   PublishDraft = 'publish_draft',
+  PublishPost = 'publish_post',
+  PublishReply = 'publish_reply',
   RecommendPublications = 'recommend_publications',
+  RemoveComment = 'remove_comment',
+  RemoveReply = 'remove_reply',
   Signup = 'signup',
+  TeamHashnode = 'team_hashnode',
+  UpdateComment = 'update_comment',
   UpdatePost = 'update_post',
+  UpdateReply = 'update_reply',
   WebhookAdmin = 'webhook_admin',
   WritePost = 'write_post',
   WriteSeries = 'write_series',
@@ -2009,6 +2349,15 @@ export type ToggleFollowUserPayload = {
   user?: Maybe<User>
 }
 
+export type TriggerWebhookTestInput = {
+  webhookId: Scalars['ID']['input']
+}
+
+export type TriggerWebhookTestPayload = {
+  __typename?: 'TriggerWebhookTestPayload'
+  webhook?: Maybe<Webhook>
+}
+
 export type UnsubscribeFromNewsletterInput = {
   /** The email that is currently subscribed. */
   email: Scalars['String']['input']
@@ -2019,6 +2368,16 @@ export type UnsubscribeFromNewsletterInput = {
 export type UnsubscribeFromNewsletterPayload = {
   __typename?: 'UnsubscribeFromNewsletterPayload'
   status?: Maybe<NewsletterUnsubscribeStatus>
+}
+
+export type UpdateCommentInput = {
+  contentMarkdown: Scalars['String']['input']
+  id: Scalars['ID']['input']
+}
+
+export type UpdateCommentPayload = {
+  __typename?: 'UpdateCommentPayload'
+  comment?: Maybe<Comment>
 }
 
 export type UpdatePostInput = {
@@ -2079,6 +2438,29 @@ export type UpdatePostSettingsInput = {
   pinToBlog?: InputMaybe<Scalars['Boolean']['input']>
 }
 
+export type UpdateReplyInput = {
+  commentId: Scalars['ID']['input']
+  contentMarkdown: Scalars['String']['input']
+  replyId: Scalars['ID']['input']
+}
+
+export type UpdateReplyPayload = {
+  __typename?: 'UpdateReplyPayload'
+  reply?: Maybe<Reply>
+}
+
+export type UpdateWebhookInput = {
+  events?: InputMaybe<Array<WebhookEvent>>
+  id: Scalars['ID']['input']
+  secret?: InputMaybe<Scalars['String']['input']>
+  url?: InputMaybe<Scalars['String']['input']>
+}
+
+export type UpdateWebhookPayload = {
+  __typename?: 'UpdateWebhookPayload'
+  webhook?: Maybe<Webhook>
+}
+
 export enum UrlPattern {
   /** Post URLs contain the slug (for example `my slug`) and a random id (like `1234`) , e.g. "/my-slug-1234". */
   Default = 'DEFAULT',
@@ -2092,7 +2474,7 @@ export type User = IUser &
     __typename?: 'User'
     /**
      * Whether or not the user is an ambassador.
-     * @deprecated Ambassadors program no longer active
+     * @deprecated Ambassadors program no longer active. Will be removed after 02/01/2024
      */
     ambassador: Scalars['Boolean']['output']
     /** The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile. */
@@ -2110,6 +2492,8 @@ export type User = IUser &
     dateJoined?: Maybe<Scalars['DateTime']['output']>
     /** Whether or not the user is deactivated. */
     deactivated: Scalars['Boolean']['output']
+    /** The users who are following this user */
+    followers: UserConnection
     /** The number of users that follow the requested user. Visible in the user's profile. */
     followersCount: Scalars['Int']['output']
     /**
@@ -2119,6 +2503,8 @@ export type User = IUser &
     following: Scalars['Boolean']['output']
     /** The number of users that this user is following. Visible in the user's profile. */
     followingsCount: Scalars['Int']['output']
+    /** The users which this user is following */
+    follows: UserConnection
     /**
      * Wether or not this user follows the authenticated user.
      * Returns false if the authenticated user this user.
@@ -2132,6 +2518,8 @@ export type User = IUser &
     location?: Maybe<Scalars['String']['output']>
     /** The name of the user. */
     name: Scalars['String']['output']
+    /** Returns the list of posts the user has published. */
+    posts: UserPostConnection
     /** The URL to the profile picture of the user. */
     profilePicture?: Maybe<Scalars['String']['output']>
     /** Publications associated with the user. Includes personal and team publications. */
@@ -2147,10 +2535,45 @@ export type User = IUser &
   }
 
 /** Basic information about a user on Hashnode. */
+export type UserFollowersArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/** Basic information about a user on Hashnode. */
+export type UserFollowsArgs = {
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+}
+
+/** Basic information about a user on Hashnode. */
+export type UserPostsArgs = {
+  filter?: InputMaybe<UserPostConnectionFilter>
+  page: Scalars['Int']['input']
+  pageSize: Scalars['Int']['input']
+  sortBy?: InputMaybe<UserPostsSort>
+}
+
+/** Basic information about a user on Hashnode. */
 export type UserPublicationsArgs = {
   after?: InputMaybe<Scalars['String']['input']>
   filter?: InputMaybe<UserPublicationsConnectionFilter>
   first: Scalars['Int']['input']
+}
+
+/**
+ * Connection for users to another user. Contains a list of nodes.
+ * Each node is a user.
+ * Page info contains information about pagination like hasNextPage and endCursor.
+ */
+export type UserConnection = PageConnection & {
+  __typename?: 'UserConnection'
+  /** A list of users */
+  nodes: Array<User>
+  /** Information for page based pagination in users connection. */
+  pageInfo: OffsetPageInfo
+  /** The total number of documents in the connection. */
+  totalDocuments: Scalars['Int']['output']
 }
 
 /** Contains a node of type user and cursor for pagination. */
@@ -2160,6 +2583,69 @@ export type UserEdge = Edge & {
   cursor: Scalars['String']['output']
   /** The node containing User information */
   node: User
+}
+
+/**
+ * Connection for posts written by a single user. Contains a list of edges containing nodes.
+ * Each node is a post.
+ * Page info contains information about pagination like hasNextPage and endCursor.
+ */
+export type UserPostConnection = PageConnection & {
+  __typename?: 'UserPostConnection'
+  /** A list of edges containing Post information */
+  edges: Array<UserPostEdge>
+  /** A list of posts */
+  nodes: Array<Post>
+  /** Information for page based pagination in Post connection. */
+  pageInfo: OffsetPageInfo
+  /** The total number of documents in the connection. */
+  totalDocuments: Scalars['Int']['output']
+}
+
+/** Filter for the posts of a user. */
+export type UserPostConnectionFilter = {
+  /** Filtering by author status. Either all posts the user has authored or co-authored are returned or the authored posts only. */
+  authorType?: InputMaybe<UserPostsAuthorTypeFilter>
+  /** Filtering by publication IDs will return posts from the author within the publication. */
+  publications?: InputMaybe<Array<Scalars['ID']['input']>>
+  /**
+   * Only include posts that reference the provided tag slugs.
+   *
+   * Filtering by `tags` and `tagSlugs` will filter posts that match either of those two filters.
+   */
+  tagSlugs?: InputMaybe<Array<Scalars['String']['input']>>
+  /**
+   * Only include posts that reference the provided tag IDs.
+   *
+   *
+   * Filtering by `tags` and `tagSlugs` will filter posts that match either of those two filters.
+   */
+  tags?: InputMaybe<Array<Scalars['ID']['input']>>
+}
+
+/** Contains a post and the author status. */
+export type UserPostEdge = {
+  __typename?: 'UserPostEdge'
+  /** Indicates weather the user is the author or co-author of the post. */
+  authorType: PostAuthorType
+  /** The node holding the Post information. */
+  node: Post
+}
+
+/** Filter for the posts of a user. */
+export enum UserPostsAuthorTypeFilter {
+  /** Only posts that are authored by the user. */
+  AuthorOnly = 'AUTHOR_ONLY',
+  /** Only posts that are co-authored by the user. */
+  CoAuthorOnly = 'CO_AUTHOR_ONLY',
+}
+
+/** Sorting for the posts of a user. */
+export enum UserPostsSort {
+  /** Oldest posts first. */
+  DatePublishedAsc = 'DATE_PUBLISHED_ASC',
+  /** Newest posts first. */
+  DatePublishedDesc = 'DATE_PUBLISHED_DESC',
 }
 
 /** The role of the user in the publication. */
@@ -2208,6 +2694,22 @@ export type UserPublicationsEdge = Edge & {
   role: UserPublicationRole
 }
 
+export type UserRecommendedPublicationEdge = {
+  __typename?: 'UserRecommendedPublicationEdge'
+  /** The publication that is recommended by the publication this connection originates from. */
+  node: Publication
+  /** The amount of followers the publication referenced in `node` has gained by recommendations from the publication. */
+  totalFollowersGained: Scalars['Int']['output']
+}
+
+export type UserRecommendingPublicationEdge = {
+  __typename?: 'UserRecommendingPublicationEdge'
+  /** The publication that is recommending the publication this connection originates from. */
+  node: Publication
+  /** The amount of followers the publication has gained by recommendations from the publication referenced in `node`. */
+  totalFollowersGained: Scalars['Int']['output']
+}
+
 /**
  * Contains the flag indicating if the view count feature is enabled or not.
  * User can enable or disable the view count feature from the publication settings.
@@ -2245,6 +2747,9 @@ export enum WebhookEvent {
   PostDeleted = 'POST_DELETED',
   PostPublished = 'POST_PUBLISHED',
   PostUpdated = 'POST_UPDATED',
+  StaticPageDeleted = 'STATIC_PAGE_DELETED',
+  StaticPageEdited = 'STATIC_PAGE_EDITED',
+  StaticPagePublished = 'STATIC_PAGE_PUBLISHED',
 }
 
 export type WebhookMessage = Node & {

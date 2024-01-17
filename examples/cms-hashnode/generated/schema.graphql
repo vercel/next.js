@@ -11,6 +11,15 @@ directive @private on FIELD_DEFINITION | OBJECT
 
 directive @requireAuth(scopes: [Scope!]) on FIELD_DEFINITION | OBJECT
 
+input AddCommentInput {
+  contentMarkdown: String!
+  postId: ID!
+}
+
+type AddCommentPayload {
+  comment: Comment
+}
+
 input AddPostToSeriesInput {
   """The ID of the post to be added to the series."""
   postId: ObjectId!
@@ -21,6 +30,15 @@ input AddPostToSeriesInput {
 type AddPostToSeriesPayload {
   """The series to which the post was added."""
   series: Series
+}
+
+input AddReplyInput {
+  commentId: ID!
+  contentMarkdown: String!
+}
+
+type AddReplyPayload {
+  reply: Reply
 }
 
 """
@@ -211,6 +229,17 @@ input CoverImageOptionsInput {
   stickCoverToBottom: Boolean
 }
 
+input CreateWebhookInput {
+  events: [WebhookEvent!]!
+  publicationId: ID!
+  secret: String!
+  url: String!
+}
+
+type CreateWebhookPayload {
+  webhook: Webhook
+}
+
 type CustomCSS {
   """Custom CSS that will be applied on the publication homepage."""
   home: String
@@ -249,6 +278,10 @@ type DarkModePreferences {
 A date-time string at UTC, such as 2007-12-03T10:15:30Z, compliant with the `date-time` format outlined in section 5.6 of the RFC 3339 profile of the ISO 8601 standard for representation of dates and times using the Gregorian calendar.
 """
 scalar DateTime
+
+type DeleteWebhookPayload {
+  webhook: Webhook
+}
 
 """Contains the publication's domain information."""
 type DomainInfo {
@@ -551,14 +584,17 @@ interface IUser {
   The bio of the user. Visible in about me section of the user's profile.
   """
   bio: Content
-  """
-  The bio of the user. Visible in about me section of the user's profile.
-  """
-  bioV2: Content @deprecated(reason: "Will be removed on 26/10/2023. Use bio instead of bioV2")
   """The date the user joined Hashnode."""
   dateJoined: DateTime
   """Whether or not the user is deactivated."""
   deactivated: Boolean!
+  """The users who are following this user"""
+  followers(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of users to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """
   The number of users that follow the requested user. Visible in the user's profile.
   """
@@ -567,12 +603,30 @@ interface IUser {
   The number of users that this user is following. Visible in the user's profile.
   """
   followingsCount: Int!
+  """The users which this user is following"""
+  follows(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of users to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """The ID of the user. It can be used to identify the user."""
   id: ID!
   """The location of the user."""
   location: String
   """The name of the user."""
   name: String!
+  """Returns the list of posts the user has published."""
+  posts(
+    """The filters to be applied to the post list."""
+    filter: UserPostConnectionFilter
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+    """The sort direction for the posts."""
+    sortBy: UserPostsSort = DATE_PUBLISHED_DESC
+  ): UserPostConnection!
   """The URL to the profile picture of the user."""
   profilePicture: String
   """
@@ -598,6 +652,24 @@ interface IUser {
   username: String!
 }
 
+input LikeCommentInput {
+  commentId: ID!
+  likesCount: Int = 1
+}
+
+type LikeCommentPayload {
+  comment: Comment
+}
+
+input LikePostInput {
+  likesCount: Int = 1
+  postId: ID!
+}
+
+type LikePostPayload {
+  post: Post
+}
+
 """
 Contains information about meta tags of the post. Used for SEO purpose.
 """
@@ -611,15 +683,34 @@ input MetaTagsInput {
 }
 
 type Mutation {
+  """Adds a comment to a post."""
+  addComment(input: AddCommentInput!): AddCommentPayload!
   """Adds a post to a series."""
   addPostToSeries(input: AddPostToSeriesInput!): AddPostToSeriesPayload!
+  """Adds a reply to a comment."""
+  addReply(input: AddReplyInput!): AddReplyPayload!
+  createWebhook(input: CreateWebhookInput!): CreateWebhookPayload!
+  deleteWebhook(id: ID!): DeleteWebhookPayload!
+  """Likes a comment."""
+  likeComment(input: LikeCommentInput!): LikeCommentPayload!
+  """Likes a post."""
+  likePost(input: LikePostInput!): LikePostPayload!
   """Creates a new post."""
   publishPost(
     """Information about the post to be published."""
     input: PublishPostInput!
   ): PublishPostPayload!
+  recommendPublications(input: RecommendPublicationsInput!): RecommendPublicationsPayload!
+  """Removes a comment from a post."""
+  removeComment(input: RemoveCommentInput!): RemoveCommentPayload!
+  """Removes a post."""
+  removePost(input: RemovePostInput!): RemovePostPayload!
+  removeRecommendation(input: RemoveRecommendationInput!): RemoveRecommendationPayload!
+  """Removes a reply from a comment."""
+  removeReply(input: RemoveReplyInput!): RemoveReplyPayload!
   """Reschedule a post."""
-  reschedulePost(input: ReschedulePostInput!): ScheduledPostPayload
+  reschedulePost(input: ReschedulePostInput!): ScheduledPostPayload @deprecated(reason: "Use rescheduleDraft instead. Will be taken down on 2024-02-1")
+  resendWebhookRequest(input: ResendWebhookRequestInput!): ResendWebhookRequestPayload!
   subscribeToNewsletter(input: SubscribeToNewsletterInput!): SubscribeToNewsletterPayload!
   """
   Update the follow state for the user that is provided via id or username.
@@ -628,8 +719,14 @@ type Mutation {
   Only available to the authenticated user.
   """
   toggleFollowUser(id: ID, username: String): ToggleFollowUserPayload!
+  triggerWebhookTest(input: TriggerWebhookTestInput!): TriggerWebhookTestPayload!
   unsubscribeFromNewsletter(input: UnsubscribeFromNewsletterInput!): UnsubscribeFromNewsletterPayload!
+  """Updates a comment on a post."""
+  updateComment(input: UpdateCommentInput!): UpdateCommentPayload!
   updatePost(input: UpdatePostInput!): UpdatePostPayload!
+  """Updates a reply"""
+  updateReply(input: UpdateReplyInput!): UpdateReplyPayload!
+  updateWebhook(input: UpdateWebhookInput!): UpdateWebhookPayload!
 }
 
 """
@@ -638,7 +735,7 @@ User must be authenticated to use this type.
 """
 type MyUser implements IUser & Node {
   """Whether or not the user is an ambassador."""
-  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active")
+  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active. Will be removed after 02/01/2024")
   """
   The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile.
   """
@@ -655,16 +752,19 @@ type MyUser implements IUser & Node {
   The bio of the user. Visible in about me section of the user's profile.
   """
   bio: Content
-  """
-  The bio of the user. Visible in about me section of the user's profile.
-  """
-  bioV2: Content @deprecated(reason: "Will be removed on 26/10/2023. Use bio instead of bio.V2")
   """The date the user joined Hashnode."""
   dateJoined: DateTime
   """Whether or not the user is deactivated."""
   deactivated: Boolean!
   """Email address of the user. Only available to the authenticated user."""
   email: String
+  """The users who are following this user"""
+  followers(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """
   The number of users that follow the requested user. Visible in the user's profile.
   """
@@ -673,12 +773,30 @@ type MyUser implements IUser & Node {
   The number of users that this user is following. Visible in the user's profile.
   """
   followingsCount: Int!
+  """The users which this user is following"""
+  follows(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """The ID of the user. It can be used to identify the user."""
   id: ID!
   """The location of the user."""
   location: String
   """The name of the user."""
   name: String!
+  """Returns the list of posts the user has published."""
+  posts(
+    """The filters to be applied to the post list."""
+    filter: UserPostConnectionFilter
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+    """The sort direction for the posts based on the publish dates."""
+    sortBy: UserPostsSort = DATE_PUBLISHED_DESC
+  ): UserPostConnection!
   """The URL to the profile picture of the user."""
   profilePicture: String
   provider: String
@@ -746,10 +864,40 @@ A field whose value conforms with the standard mongodb object Id as described he
 """
 scalar ObjectId
 
+"""Contains information to help in pagination for page based pagination."""
+type OffsetPageInfo {
+  """Indicates if there are more pages."""
+  hasNextPage: Boolean
+  """Indicates if there are previous pages"""
+  hasPreviousPage: Boolean
+  """
+  The page after the current page.
+  Use it to build page navigation
+  """
+  nextPage: Int
+  """
+  The page before the current page.
+  Use it to build page navigation
+  """
+  previousPage: Int
+}
+
 """Information to help in open graph related meta tags."""
 type OpenGraphMetaData {
   """The image used in og:image tag for SEO purposes."""
   image: String
+}
+
+"""
+A Connection for page based pagination to get a list of items.
+Returns a list of nodes which contains the items.
+This is a common interface for all page connections.
+"""
+interface PageConnection {
+  """A list of edges of items connection."""
+  nodes: [Node!]!
+  """Information to aid in pagination."""
+  pageInfo: OffsetPageInfo!
 }
 
 """Contains information to help in pagination."""
@@ -959,6 +1107,14 @@ type Post implements Node {
   views: Int!
 }
 
+"""The author type of a post from a user's perspective"""
+enum PostAuthorType {
+  """The user has authored the post."""
+  AUTHOR
+  """The user is a co-author of post."""
+  CO_AUTHOR
+}
+
 type PostBadge implements Node {
   """Unique identifier."""
   id: ID!
@@ -1161,7 +1317,9 @@ type Publication implements Node {
   author: User!
   """The canonical URL of the publication."""
   canonicalURL: String!
-  """The description of the publication, used in og:description meta tag."""
+  """
+  The description of the publication, used in og:description meta tag. Fall backs to Publication.about.text if no SEO description is provided.
+  """
   descriptionSEO: String
   """The title of the publication. Shown in blog home page."""
   displayTitle: String
@@ -1197,7 +1355,11 @@ type Publication implements Node {
   """
   Summary of the contact information and information related to copyrights, usually used in German-speaking countries.
   """
-  imprint: String
+  imprint: String @deprecated(reason: "Use `imprintV2` instead. Will be removed after 16/12/2023.")
+  """
+  Summary of the contact information and information related to copyrights, usually used in German-speaking countries.
+  """
+  imprintV2: Content
   """The integrations connected to the publication."""
   integrations: PublicationIntegrations
   """
@@ -1233,6 +1395,15 @@ type Publication implements Node {
   The publication preferences around layout, theme and other personalisations.
   """
   preferences: Preferences!
+  """Publications that are recommended by this publication."""
+  recommendedPublications: [UserRecommendedPublicationEdge!]!
+  """Publications that are recommending this publication."""
+  recommendingPublications(
+    """Page number."""
+    page: Int!
+    """Size of the page."""
+    pageSize: Int!
+  ): PublicationUserRecommendingPublicationConnection!
   """Configured redirection rules for the publication."""
   redirectionRules: [RedirectionRule!]!
   """Returns the scheduled drafts of the publication."""
@@ -1281,6 +1452,8 @@ type Publication implements Node {
   Title is used as logo if logo is not provided.
   """
   title: String!
+  """The total amount of recommended publications by this publication."""
+  totalRecommendedPublications: Int!
   """
   The domain of the publication. Used to access publication. Example https://johndoe.com
   """
@@ -1333,6 +1506,8 @@ type PublicationIntegrations {
   fathomSiteID: String
   """FB Pixel ID for integration with Facebook Pixel."""
   fbPixelID: String
+  """Google Tag Manager ID for integration with Google Tag Manager."""
+  gTagManagerID: String
   """Google Analytics Tracking ID for integration with Google Analytics."""
   gaTrackingID: String
   """Hotjar Site ID for integration with Hotjar."""
@@ -1465,6 +1640,17 @@ type PublicationSponsorship {
   stripe: StripeConfiguration
 }
 
+type PublicationUserRecommendingPublicationConnection implements PageConnection {
+  """A list of edges containing Post information"""
+  edges: [UserRecommendingPublicationEdge!]!
+  """Publications recommending this publication."""
+  nodes: [Publication!]!
+  """Information for page based pagination in Post connection."""
+  pageInfo: OffsetPageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
 """Contains information about the post to be published."""
 input PublishPostInput {
   """Ids of the co-authors of the post."""
@@ -1475,8 +1661,6 @@ input PublishPostInput {
   coverImageOptions: CoverImageOptionsInput
   """A flag to indicate if the comments are disabled for the post."""
   disableComments: Boolean
-  """The ID of the draft to be published."""
-  draftId: ObjectId!
   """
   Information about the meta tags added to the post, used for SEO purpose.
   """
@@ -1639,6 +1823,15 @@ type ReadTimeFeature implements Feature {
   isEnabled: Boolean!
 }
 
+input RecommendPublicationsInput {
+  recommendedPublicationIds: [ID!]!
+  recommendingPublicationId: ID!
+}
+
+type RecommendPublicationsPayload {
+  recommendedPublications: [UserRecommendedPublicationEdge!]
+}
+
 """Contains a publication and a cursor for pagination."""
 type RecommendedPublicationEdge implements Edge {
   """A cursor for use in pagination."""
@@ -1654,6 +1847,42 @@ type RedirectionRule {
   source: String!
   """The type of the redirection rule."""
   type: HttpRedirectionType!
+}
+
+input RemoveCommentInput {
+  id: ID!
+}
+
+type RemoveCommentPayload {
+  comment: Comment
+}
+
+input RemovePostInput {
+  """The ID of the post to remove."""
+  id: ID!
+}
+
+type RemovePostPayload {
+  """The deleted post."""
+  post: Post
+}
+
+input RemoveRecommendationInput {
+  recommendedPublicationId: ID!
+  recommendingPublicationId: ID!
+}
+
+type RemoveRecommendationPayload {
+  recommendedPublication: Publication!
+}
+
+input RemoveReplyInput {
+  commentId: ID!
+  replyId: ID!
+}
+
+type RemoveReplyPayload {
+  reply: Reply
 }
 
 """
@@ -1689,6 +1918,15 @@ input ReschedulePostInput {
   draftId: ObjectId!
   """New scheduled date for the post to be rescheduled."""
   scheduledDate: DateTime!
+}
+
+input ResendWebhookRequestInput {
+  webhookId: ID!
+  webhookMessageId: ID!
+}
+
+type ResendWebhookRequestPayload {
+  webhookMessage: WebhookMessage
 }
 
 """Information to help in seo related meta tags."""
@@ -1738,10 +1976,18 @@ enum Scope {
   create_pro
   import_subscribers_to_publication
   publication_admin
+  publish_comment
   publish_draft
+  publish_post
+  publish_reply
   recommend_publications
+  remove_comment
+  remove_reply
   signup
+  team_hashnode
+  update_comment
   update_post
+  update_reply
   webhook_admin
   write_post
   write_series
@@ -2038,6 +2284,14 @@ type ToggleFollowUserPayload {
   user: User
 }
 
+input TriggerWebhookTestInput {
+  webhookId: ID!
+}
+
+type TriggerWebhookTestPayload {
+  webhook: Webhook
+}
+
 input UnsubscribeFromNewsletterInput {
   """The email that is currently subscribed."""
   email: String!
@@ -2047,6 +2301,15 @@ input UnsubscribeFromNewsletterInput {
 
 type UnsubscribeFromNewsletterPayload {
   status: NewsletterUnsubscribeStatus
+}
+
+input UpdateCommentInput {
+  contentMarkdown: String!
+  id: ID!
+}
+
+type UpdateCommentPayload {
+  comment: Comment
 }
 
 input UpdatePostInput {
@@ -2114,6 +2377,27 @@ input UpdatePostSettingsInput {
   pinToBlog: Boolean
 }
 
+input UpdateReplyInput {
+  commentId: ID!
+  contentMarkdown: String!
+  replyId: ID!
+}
+
+type UpdateReplyPayload {
+  reply: Reply
+}
+
+input UpdateWebhookInput {
+  events: [WebhookEvent!]
+  id: ID!
+  secret: String
+  url: String
+}
+
+type UpdateWebhookPayload {
+  webhook: Webhook
+}
+
 enum UrlPattern {
   """
   Post URLs contain the slug (for example `my slug`) and a random id (like `1234`) , e.g. "/my-slug-1234".
@@ -2126,7 +2410,7 @@ enum UrlPattern {
 """Basic information about a user on Hashnode."""
 type User implements IUser & Node {
   """Whether or not the user is an ambassador."""
-  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active")
+  ambassador: Boolean! @deprecated(reason: "Ambassadors program no longer active. Will be removed after 02/01/2024")
   """
   The availability of the user based on tech stack and interests. Shown on the "I am available for" section in user's profile.
   """
@@ -2147,6 +2431,13 @@ type User implements IUser & Node {
   dateJoined: DateTime
   """Whether or not the user is deactivated."""
   deactivated: Boolean!
+  """The users who are following this user"""
+  followers(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """
   The number of users that follow the requested user. Visible in the user's profile.
   """
@@ -2160,6 +2451,13 @@ type User implements IUser & Node {
   The number of users that this user is following. Visible in the user's profile.
   """
   followingsCount: Int!
+  """The users which this user is following"""
+  follows(
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+  ): UserConnection!
   """
   Wether or not this user follows the authenticated user.
   Returns false if the authenticated user this user.
@@ -2173,6 +2471,17 @@ type User implements IUser & Node {
   location: String
   """The name of the user."""
   name: String!
+  """Returns the list of posts the user has published."""
+  posts(
+    """The filters to be applied to the post list."""
+    filter: UserPostConnectionFilter
+    """The page number that should be returned."""
+    page: Int!
+    """The number of posts to return on a single page."""
+    pageSize: Int!
+    """The sort direction for the posts based on the publish dates."""
+    sortBy: UserPostsSort = DATE_PUBLISHED_DESC
+  ): UserPostConnection!
   """The URL to the profile picture of the user."""
   profilePicture: String
   """
@@ -2198,12 +2507,91 @@ type User implements IUser & Node {
   username: String!
 }
 
+"""
+Connection for users to another user. Contains a list of nodes.
+Each node is a user.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type UserConnection implements PageConnection {
+  """A list of users"""
+  nodes: [User!]!
+  """Information for page based pagination in users connection."""
+  pageInfo: OffsetPageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
 """Contains a node of type user and cursor for pagination."""
 type UserEdge implements Edge {
   """The cursor for use in pagination."""
   cursor: String!
   """The node containing User information"""
   node: User!
+}
+
+"""
+Connection for posts written by a single user. Contains a list of edges containing nodes.
+Each node is a post.
+Page info contains information about pagination like hasNextPage and endCursor.
+"""
+type UserPostConnection implements PageConnection {
+  """A list of edges containing Post information"""
+  edges: [UserPostEdge!]!
+  """A list of posts"""
+  nodes: [Post!]!
+  """Information for page based pagination in Post connection."""
+  pageInfo: OffsetPageInfo!
+  """The total number of documents in the connection."""
+  totalDocuments: Int!
+}
+
+"""Filter for the posts of a user."""
+input UserPostConnectionFilter {
+  """
+  Filtering by author status. Either all posts the user has authored or co-authored are returned or the authored posts only.
+  """
+  authorType: UserPostsAuthorTypeFilter
+  """
+  Filtering by publication IDs will return posts from the author within the publication.
+  """
+  publications: [ID!]
+  """
+  Only include posts that reference the provided tag slugs.
+  
+  Filtering by `tags` and `tagSlugs` will filter posts that match either of those two filters.
+  """
+  tagSlugs: [String!]
+  """
+  Only include posts that reference the provided tag IDs.
+  
+  
+  Filtering by `tags` and `tagSlugs` will filter posts that match either of those two filters.
+  """
+  tags: [ID!]
+}
+
+"""Contains a post and the author status."""
+type UserPostEdge {
+  """Indicates weather the user is the author or co-author of the post."""
+  authorType: PostAuthorType!
+  """The node holding the Post information."""
+  node: Post!
+}
+
+"""Filter for the posts of a user."""
+enum UserPostsAuthorTypeFilter {
+  """Only posts that are authored by the user."""
+  AUTHOR_ONLY
+  """Only posts that are co-authored by the user."""
+  CO_AUTHOR_ONLY
+}
+
+"""Sorting for the posts of a user."""
+enum UserPostsSort {
+  """Oldest posts first."""
+  DATE_PUBLISHED_ASC
+  """Newest posts first."""
+  DATE_PUBLISHED_DESC
 }
 
 """The role of the user in the publication."""
@@ -2258,6 +2646,28 @@ type UserPublicationsEdge implements Edge {
   role: UserPublicationRole!
 }
 
+type UserRecommendedPublicationEdge {
+  """
+  The publication that is recommended by the publication this connection originates from.
+  """
+  node: Publication!
+  """
+  The amount of followers the publication referenced in `node` has gained by recommendations from the publication.
+  """
+  totalFollowersGained: Int!
+}
+
+type UserRecommendingPublicationEdge {
+  """
+  The publication that is recommending the publication this connection originates from.
+  """
+  node: Publication!
+  """
+  The amount of followers the publication has gained by recommendations from the publication referenced in `node`.
+  """
+  totalFollowersGained: Int!
+}
+
 """
 Contains the flag indicating if the view count feature is enabled or not.
 User can enable or disable the view count feature from the publication settings.
@@ -2293,6 +2703,9 @@ enum WebhookEvent {
   POST_DELETED
   POST_PUBLISHED
   POST_UPDATED
+  STATIC_PAGE_DELETED
+  STATIC_PAGE_EDITED
+  STATIC_PAGE_PUBLISHED
 }
 
 type WebhookMessage implements Node {
