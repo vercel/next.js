@@ -795,7 +795,7 @@ function runTests(mode) {
     }
   })
 
-  it('should render picture via getImgProps', async () => {
+  it('should render picture via getImageProps', async () => {
     const browser = await webdriver(appPort, '/picture')
     // Wait for image to load:
     await check(async () => {
