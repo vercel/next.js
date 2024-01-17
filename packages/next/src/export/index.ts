@@ -701,11 +701,10 @@ export async function exportAppImpl(
           parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
-          isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
           fetchCache: true,
           fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          incrementalCacheHandlerPath:
-            nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
           enabledDirectories,
         })

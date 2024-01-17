@@ -695,11 +695,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
