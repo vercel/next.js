@@ -261,32 +261,33 @@ pub async fn get_client_module_options_context(
         },
     ));
 
-    let postcss_transform_options = Some(PostCssTransformOptions {
+    let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
         config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
-    });
+    };
+    let postcss_foreign_transform_options = PostCssTransformOptions {
+        // For node_modules we don't want to resolve postcss config relative to the file being
+        // compiled, instead it only uses the project root postcss config.
+        config_location: PostCssConfigLocation::ProjectPath,
+        ..postcss_transform_options.clone()
+    };
+    let enable_postcss_transform = Some(postcss_transform_options.cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-        enable_postcss_transform: postcss_transform_options,
+        enable_postcss_transform,
         ..Default::default()
     };
-
-    let postcss_foreign_transform_options = Some(PostCssTransformOptions {
-        // For node_modules we don't want to resolve postcss config relative to the file being
-        // compiled, instead it only uses the project root postcss config.
-        config_location: PostCssConfigLocation::ProjectPath,
-        ..postcss_transform_options
-    });
 
     // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_webpack_loaders: foreign_webpack_loaders,
-        enable_postcss_transform: postcss_foreign_transform_options,
+        enable_postcss_transform: enable_foreign_postcss_transform,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
         ..module_options_context.clone()
     };
