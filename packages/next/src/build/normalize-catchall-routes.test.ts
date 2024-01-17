@@ -114,6 +114,7 @@ describe('normalizeCatchallRoutes', () => {
     }
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+    normalizeCatchAllRoutes(appPaths)
 
     expect(appPaths).toMatchObject(initialAppPaths)
   })
