@@ -5,8 +5,6 @@ async function action(formData) {
   redirect(
     '/header?name=' +
       formData.get('name') +
-      '&constructor=' +
-      formData.constructor.name +
       '&hidden-info=' +
       formData.get('hidden-info')
   )
