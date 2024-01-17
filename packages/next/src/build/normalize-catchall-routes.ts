@@ -13,7 +13,6 @@ export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
   normalizer = new AppPathnameNormalizer()
 ) {
-  console.log({ appPaths })
   const catchAllRoutes = [
     ...new Set(
       Object.values(appPaths)
@@ -33,7 +32,6 @@ export function normalizeCatchAllRoutes(
 
   for (const appPath of filteredAppPaths) {
     for (const catchAllRoute of catchAllRoutes) {
-      console.log(`${appPath} vs ${catchAllRoute}`)
       const normalizedCatchAllRoute = normalizer.normalize(catchAllRoute)
       const normalizedCatchAllRouteBasePath = normalizedCatchAllRoute.slice(
         0,
@@ -43,32 +41,23 @@ export function normalizeCatchAllRoutes(
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
         // check if there's not already a slot value that could match the catch-all
-        !appPaths[appPath].some((path) => {
-          const output = hasMatchedSlots(path, catchAllRoute)
-          console.log(`hasMatchedSlots: ${path} - ${catchAllRoute}: ${output}`)
-          return output
-        }) &&
+        !appPaths[appPath].some((path) =>
+          hasMatchedSlots(path, catchAllRoute)
+        ) &&
         // check if the catch-all is not already matched by a default route or page route
         !appPaths[`${appPath}/default`] &&
-        // check if the appPath's end with a dynamic route
-        !endsInDynamic(appPath)
+        // check if appPath does not ends with a dynamic segment that is not a catch-all (with endsWithDynamic) AND is more specific than the catch-all
+        !(endsWithDynamic(appPath) && isMoreSpecific(appPath, catchAllRoute))
       ) {
-        console.log('✅')
         appPaths[appPath].push(catchAllRoute)
-      } else {
-        console.log('❌')
       }
     }
   }
-
-  console.log({ normalizedPaths: appPaths })
 }
 
 function hasMatchedSlots(path1: string, path2: string): boolean {
   const slots1 = path1.split('/').filter(isMatchableSlot)
   const slots2 = path2.split('/').filter(isMatchableSlot)
-
-  console.log({ slots1, slots2 })
 
   // if the catch-all route does not have the same number of slots as the app path, it can't match
   if (slots1.length !== slots2.length) return false
@@ -96,7 +85,15 @@ function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')
 }
 
-function endsInDynamic(pathname: string): boolean {
+function endsWithDynamic(pathname: string): boolean {
   const pathnameParts = pathname.split('/')
-  return isDynamicRoute(`/${pathnameParts[pathnameParts.length - 1]}`)
+  const endPath = `/${pathnameParts[pathnameParts.length - 1]}`
+
+  return isDynamicRoute(endPath) && !isCatchAllRoute(endPath)
+}
+
+function isMoreSpecific(pathname: string, catchAllRoute: string): boolean {
+  const pathnameDepth = pathname.split('/').length
+  const catchAllRouteDepth = catchAllRoute.split('/').length - 1
+  return pathnameDepth > catchAllRouteDepth
 }
