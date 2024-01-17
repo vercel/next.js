@@ -35,6 +35,7 @@ import { createIncrementalCache } from './helpers/create-incremental-cache'
 import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
+import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -318,9 +319,11 @@ async function exportPageImpl(
     // if this is a postpone error, it's logged elsewhere, so no need to log it again here
     if (!isMissingPostponeDataError(err)) {
       console.error(
-        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n` +
-          (isError(err) && err.stack ? err.stack : err)
+        `\nError occurred prerendering page "${path}". Read more: https://nextjs.org/docs/messages/prerender-error\n`
       )
+      if (!isBailoutToCSRError(err)) {
+        console.error(isError(err) && err.stack ? err.stack : err)
+      }
     }
 
     return { error: true }
