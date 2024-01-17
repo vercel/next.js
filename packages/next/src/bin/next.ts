@@ -108,12 +108,11 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// Make sure commands gracefully respect termination signals (e.g. from Docker)
-// Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
+if (command === 'build') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
+
 async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)

@@ -12,7 +12,7 @@ createNextDescribe(
     it('should show a component stack on hydration error', async () => {
       const browser = await next.browser('/')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
         "p

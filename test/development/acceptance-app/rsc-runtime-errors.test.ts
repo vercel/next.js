@@ -42,7 +42,7 @@ createNextDescribe(
       const browser = await next.browser('/server')
 
       await check(
-        async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+        async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
         /success/
       )
       const errorDescription = await getRedboxDescription(browser)
@@ -68,7 +68,7 @@ createNextDescribe(
       const browser = await next.browser('/client')
 
       await check(
-        async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+        async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
         /success/
       )
       const errorDescription = await getRedboxDescription(browser)
@@ -90,7 +90,7 @@ createNextDescribe(
 
       const browser = await next.browser('/server')
       await check(
-        async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+        async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
         /success/
       )
 
@@ -111,7 +111,7 @@ createNextDescribe(
       )
       const browser = await next.browser('/server')
       await check(
-        async () => ((await hasRedbox(browser, true)) ? 'success' : 'fail'),
+        async () => ((await hasRedbox(browser)) ? 'success' : 'fail'),
         /success/
       )
 

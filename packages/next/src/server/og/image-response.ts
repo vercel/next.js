@@ -52,11 +52,3 @@ export class ImageResponse extends Response {
     })
   }
 }
-
-export async function experimental_FigmaImageResponse(
-  props: Parameters<OgModule['experimental_FigmaImageResponse']>[0]
-) {
-  const originExperimentalFigmaImageResponse = (await importModule())
-    .experimental_FigmaImageResponse
-  return originExperimentalFigmaImageResponse(props)
-}

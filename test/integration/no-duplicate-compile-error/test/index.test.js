@@ -33,21 +33,18 @@ describe('no duplicate compile error output', () => {
 
     try {
       // Wait for compile error:
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
 
       await browser.refresh()
 
       // Wait for compile error to re-appear:
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
     } finally {
       f.restore()
     }
 
     // Wait for compile error to disappear:
-    await check(
-      () => hasRedbox(browser, false).then((r) => (r ? 'yes' : 'no')),
-      /no/
-    )
+    await check(() => hasRedbox(browser).then((r) => (r ? 'yes' : 'no')), /no/)
     await browser.waitForElementByCss('#a')
 
     function getRegexCount(str, regex) {

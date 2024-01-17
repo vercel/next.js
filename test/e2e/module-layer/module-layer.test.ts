@@ -7,28 +7,28 @@ createNextDescribe(
   },
   ({ next, isNextStart }) => {
     function runTests() {
-      it('should render routes marked with restriction marks without errors', async () => {
-        const routes = [
-          // app client components pages
-          '/app/client',
-          '/app/client-edge',
-          // app sever components pages
-          '/app/server',
-          '/app/server-edge',
-          // app routes
-          '/app/route',
-          '/app/route-edge',
-          // pages/api
-          '/api/hello',
-          '/api/hello-edge',
-          '/api/mixed',
-        ]
+      const routes = [
+        // app client components pages
+        '/app/client',
+        '/app/client-edge',
+        // app sever components pages
+        '/app/server',
+        '/app/server-edge',
+        // app routes
+        '/app/route',
+        '/app/route-edge',
+        // pages/api
+        '/api/hello',
+        '/api/hello-edge',
+        '/api/mixed',
+      ]
 
-        for (const route of routes) {
+      for (const route of routes) {
+        it(`should render routes marked with restriction marks without errors ${route}`, async () => {
           const { status } = await next.fetch(route)
           expect([route, status]).toEqual([route, 200])
-        }
-      })
+        })
+      }
 
       if (isNextStart) {
         it('should log the build info properly', async () => {
