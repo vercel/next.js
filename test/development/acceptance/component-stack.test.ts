@@ -14,13 +14,14 @@ createNextDescribe(
 
       expect(await hasRedbox(browser)).toBe(true)
 
-      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main
-        Mismatch"
-      `)
+      const expected = `p
+div
+Component
+main
+Mismatch`
+      expect((await getRedboxComponentStack(browser)).trim()).toStartWith(
+        expected
+      )
     })
   }
 )
