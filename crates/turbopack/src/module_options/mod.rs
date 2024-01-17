@@ -397,6 +397,7 @@ impl ModuleOptions {
             ]);
         } else {
             if let Some(options) = enable_postcss_transform {
+                let options = options.await?;
                 let execution_context = execution_context
                     .context("execution_context is required for the postcss_transform")?;
 
@@ -417,6 +418,7 @@ impl ModuleOptions {
                                 "postcss".to_string(),
                             ),
                             execution_context,
+                            options.config_location,
                         )),
                     ]))],
                 ));
