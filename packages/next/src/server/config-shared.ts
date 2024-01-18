@@ -387,7 +387,7 @@ export interface ExperimentalConfig {
    *
    * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
    *
-   * @note This flag will be deprecated in Next.js 15.
+   * @note This flag will be removed in Next.js 15.
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
