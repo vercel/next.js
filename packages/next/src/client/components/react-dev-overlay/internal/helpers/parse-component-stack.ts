@@ -55,6 +55,7 @@ function parseStackFrameLocation(
         column: column ? Number(column) : undefined,
       }
     // When the location is a URL we only show the file
+    // TODO: Resolve http(s) URLs through sourcemaps
     case LocationType.HTTP:
     case LocationType.PROTOCOL_RELATIVE:
     case LocationType.UNKNOWN:
