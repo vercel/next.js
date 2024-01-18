@@ -129,6 +129,7 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1271,6 +1272,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             | 'http'
             | 'https',
         })
+        incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
@@ -2140,6 +2142,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'http'
           | 'https',
       }))
+
+    incrementalCache?.resetRequestCache()
 
     const { routeModule } = components
 
