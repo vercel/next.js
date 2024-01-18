@@ -1366,14 +1366,6 @@ export default async function build(
       nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
       if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
-      if (
         !useBuildWorker &&
         (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
       ) {
