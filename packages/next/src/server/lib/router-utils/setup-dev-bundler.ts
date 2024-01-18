@@ -558,12 +558,12 @@ async function startWatcher(opts: SetupOpts) {
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       hmrPayloads.set(`${key}:${id}`, payload)
-      hmrBuilding = true
+      hmrEventHappened = true
     }
 
     function sendTurbopackMessage(payload: TurbopackUpdate) {
       turbopackUpdates.push(payload)
-      hmrBuilding = true
+      hmrEventHappened = true
       sendHmrDebounce()
     }
 

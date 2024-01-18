@@ -208,8 +208,6 @@ function onBeforeFastRefresh(updatedModules: string[]) {
 function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
   onBuildOk()
   if (updatedModules.length === 0) {
-    // Only complete a pending state if we applied updates
-    // (cf. onBeforeFastRefresh)
     return
   }
 
