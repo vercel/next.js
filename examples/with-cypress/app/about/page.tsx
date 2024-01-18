@@ -1,5 +1,5 @@
-import AboutComponent from '../../components/about-component'
-import styles from '../../styles/Home.module.css'
+import AboutComponent from "../../components/about-component";
+import styles from "../../styles/Home.module.css";
 
 export default function About() {
   return (
@@ -8,5 +8,5 @@ export default function About() {
         <AboutComponent />
       </main>
     </div>
-  )
+  );
 }

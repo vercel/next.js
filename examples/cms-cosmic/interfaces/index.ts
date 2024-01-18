@@ -1,24 +1,24 @@
 export type ImgixType = {
-  url: string
-  imgix_url: string
-}
+  url: string;
+  imgix_url: string;
+};
 
 export type AuthorType = {
-  title: string
+  title: string;
   metadata: {
-    picture: ImgixType
-  }
-}
+    picture: ImgixType;
+  };
+};
 
 export type PostType = {
-  title: string
-  slug: string
-  content: string
-  created_at: string
+  title: string;
+  slug: string;
+  content: string;
+  created_at: string;
   metadata: {
-    cover_image: ImgixType
-    author: AuthorType
-    excerpt: string
-    content: string
-  }
-}
+    cover_image: ImgixType;
+    author: AuthorType;
+    excerpt: string;
+    content: string;
+  };
+};

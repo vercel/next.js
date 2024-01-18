@@ -11,8 +11,10 @@ describe('normalizeCatchallRoutes', () => {
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
 
@@ -36,8 +38,10 @@ describe('normalizeCatchallRoutes', () => {
       ],
     }
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject({
       '/parallel-nested-catchall': ['/parallel-nested-catchall/page'],
       '/parallel-nested-catchall/[...catchAll]': [
@@ -73,8 +77,10 @@ describe('normalizeCatchallRoutes', () => {
       '/foo/[...catchAll]': ['/@slot/foo/[...catchAll]/page'],
     }
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject({
       '/': [
         '/page',
@@ -95,5 +101,46 @@ describe('normalizeCatchallRoutes', () => {
         '/[...catchAll]/page', //inserted
       ],
     })
+  })
+
+  it('should not add the catch-all route to segments that have a more specific default', () => {
+    const appPaths = {
+      '/': ['/page'],
+      '/[[...catchAll]]': ['/[[...catchAll]]/page'],
+      '/nested/[foo]/[bar]/default': [
+        '/nested/[foo]/[bar]/default',
+        '/nested/[foo]/[bar]/@slot/default',
+      ],
+      '/nested/[foo]/[bar]': ['/nested/[foo]/[bar]/@slot/page'],
+      '/nested/[foo]/[bar]/[baz]/default': [
+        '/nested/[foo]/[bar]/@slot/[baz]/default',
+        '/[[...catchAll]]/page',
+      ],
+      '/nested/[foo]/[bar]/[baz]': ['/nested/[foo]/[bar]/@slot/[baz]/page'],
+    }
+
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    // normalize appPaths against catchAlls
+    normalizeCatchAllRoutes(appPaths)
+
+    // ensure values are correct after normalizing
+    expect(appPaths).toMatchObject(initialAppPaths)
+  })
+
+  it('should not add the catch-all route to a path that has a @children slot', async () => {
+    const appPaths = {
+      '/': ['/@children/page', '/@slot/page'],
+      '/[...slug]': ['/[...slug]/page'],
+      '/nested': ['/nested/@children/page'],
+    }
+
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    // normalize appPaths against catchAlls
+    normalizeCatchAllRoutes(appPaths)
+
+    // ensure values are correct after normalizing
+    expect(appPaths).toMatchObject(initialAppPaths)
   })
 })

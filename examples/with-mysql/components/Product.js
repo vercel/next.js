@@ -1,7 +1,7 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Product({ product }) {
-  const { name, description, price, image, category } = product
+  const { name, description, price, image, category } = product;
 
   return (
     <div
@@ -27,5 +27,5 @@ export default function Product({ product }) {
         </span>
       </div>
     </div>
-  )
+  );
 }

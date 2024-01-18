@@ -1,8 +1,6 @@
 # Next.js Redis Cache Integration Example
 
-This repository provides a production-ready example of how to enhance the caching capabilities of Next.js and use Redis to share the cache for multiple instances of your app. It's made possible by the [`@neshca/cache-handler`](https://github.com/caching-tools/next-shared-cache/tree/canary/packages/cache-handler) package, which replaces the default Next.js cache handler while preserving the original functionality of reading pre-rendered pages from the file system.
-
-This particular example is designed to be self-hosted.
+This example is tailored for self-hosted setups and demonstrates how to use Redis as a shared cache. It is built on the principles of the `@neshca/cache-handler` package, which replaces the default Next.js cache handler and adds advanced caching features.
 
 ## How to use
 
@@ -29,51 +27,28 @@ docker-compose up -d
 
 Then, build and start the Next.js app as usual.
 
-## Notes
+## Documentation
 
-- **Handlers:** The `@neshca/cache-handler` package now includes new [Handlers](https://caching-tools.github.io/next-shared-cache/redis-stack) for Redis, making it almost zero-config.
+For detailed information on configuration and usage, please refer to our comprehensive [Documentation ↗](https://caching-tools.github.io/next-shared-cache).
 
-- **Think different:** Ensure that your Redis server is operational and accessible before starting your Next.js application to prevent any connection errors. Remember to flush the cache or use namespacing if you preserve the Redis instance between builds.
+## Key Features and Considerations
 
-- **Configure:** Add your Redis credentials to the provided `cache-handler-redis*` files. Learn more about connecting to Redis with Node.js [here](https://redis.io/docs/connect/clients/nodejs/).
+- **Handlers:** The `@neshca/cache-handler` package includes [Handlers](https://caching-tools.github.io/next-shared-cache/redis-stack) for seamless integration with Redis.
 
-- **Opt out of Redis during build if needed:**
-  To build your Next.js app without connecting to Redis, wrap the `onCreation` callback with a condition as shown below:
+- **Redis Server Setup:** Ensure your Redis server is running and properly configured before starting your Next.js application.
 
-  ```js
-  if (process.env.SERVER_STARTED) {
-    IncrementalCache.onCreation(() => {
-      // Your code here
-    })
-  }
+- **Configure Redis Credentials:** Update the `cache-handler-redis*` files with your Redis credentials. Connection details can be found [here](https://redis.io/docs/connect/clients/nodejs/).
+
+- **Building Without Redis:** To build the app without connecting to Redis, conditionally create the Handler. Check the [documentation](https://caching-tools.github.io/next-shared-cache/configuration/opt-out-cache-on-build) for more details.
+
+## Development and Production Considerations
+
+- The provided `docker-compose.yml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
+
+- **Clearing Redis Cache:** To clear the Redis cache, use RedisInsight Workbench or the following CLI command:
+
+  ```bash
+  docker exec -it redis-stack redis-cli
+  127.0.0.1:6379> flushall
+  OK
   ```
-
-  This condition helps avoid potential issues if your Redis server is deployed concurrently with the app build.
-
-- **Opt out file system reads, writes or both:**
-  By default, the `@neshca/cache-handler` uses the file system to preserve the original behavior of Next.js, for instance, reading pre-rendered pages from the Pages dir. To opt out of this functionality, add the `diskAccessMode` option:
-
-  ```js
-  IncrementalCache.onCreation(() => {
-    return {
-      diskAccessMode: 'read-no/write-no', // Default is 'read-yes/write-yes'
-      cache: {
-        // The same cache configuration as in the example
-      },
-    }
-  })
-  ```
-
-  This may be useful if you use only App dir and don't mind if Redis instance fails.
-
-Provided `docker-compose.yml` is for local development only. It is not suitable for production use. Read more about [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) before deploying your application to production.
-
-### How to clear the Redis cache
-
-If you need to clear the Redis cache, use RedisInsight Workbench or run the following command:
-
-```bash
-docker exec -it redis-stack redis-cli
-127.0.0.1:6379> flushall
-OK
-```

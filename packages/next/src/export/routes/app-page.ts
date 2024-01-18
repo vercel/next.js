@@ -16,6 +16,7 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -139,8 +140,17 @@ export async function exportAppPage(
       hasPostponed: Boolean(postponed),
       revalidate,
     }
-  } catch (err: any) {
+  } catch (err) {
     if (!isDynamicUsageError(err)) {
+      throw err
+    }
+
+    // If enabled, we should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (
+      renderOpts.experimental.missingSuspenseWithCSRBailout &&
+      isBailoutToCSRError(err)
+    ) {
       throw err
     }
 

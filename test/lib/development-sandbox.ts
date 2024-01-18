@@ -1,4 +1,5 @@
 import {
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
@@ -106,8 +107,8 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox(expected = false) {
-        return hasRedbox(browser, expected)
+      async hasRedbox() {
+        return hasRedbox(browser)
       },
       async hasErrorToast() {
         return browser.eval(() => {
@@ -131,18 +132,7 @@ export async function sandbox(
         return source
       },
       async getRedboxComponentStack() {
-        await browser.waitForElementByCss(
-          '[data-nextjs-component-stack-frame]',
-          30000
-        )
-        const componentStackFrameElements = await browser.elementsByCss(
-          '[data-nextjs-component-stack-frame]'
-        )
-        const componentStackFrameTexts = await Promise.all(
-          componentStackFrameElements.map((f) => f.innerText())
-        )
-
-        return componentStackFrameTexts.join('\n')
+        return getRedboxComponentStack(browser)
       },
       async waitForAndOpenRuntimeError() {
         return browser.waitForElementByCss('[data-nextjs-toast]').click()

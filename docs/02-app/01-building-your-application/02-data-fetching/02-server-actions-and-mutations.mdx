@@ -170,7 +170,7 @@ export default function Page() {
 > **Good to know:**
 >
 > - Example: [Form with Loading & Error States](https://github.com/vercel/next.js/tree/canary/examples/next-forms)
-> - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/entries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
+> - When working with forms that have many fields, you may want to consider using the [`entries()`](https://developer.mozilla.org/en-US/docs/Web/API/FormData/entries) method with JavaScript's [`Object.fromEntries()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/fromEntries). For example: `const rawFormData = Object.fromEntries(formData.entries())`
 > - See [React `<form>` documentation](https://react.dev/reference/react-dom/components/form#handle-form-submission-with-a-server-action) to learn more.
 
 #### Passing Additional Arguments
@@ -393,7 +393,7 @@ import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: null,
+  message: '',
 }
 
 export function Signup() {
@@ -420,7 +420,7 @@ import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: null,
+  message: '',
 }
 
 export function Signup() {
@@ -524,6 +524,56 @@ export function Thread({ messages }) {
 You can invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
 
 This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for more information.
+
+#### Programmatic form submission
+
+You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
+
+```tsx filename="app/entry.tsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+```jsx filename="app/entry.jsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
 
 ### Non-form Elements
 
@@ -653,7 +703,7 @@ export async function createTodo(prevState, formData) {
 
 > **Good to know:**
 >
-> - Aside from throwing the error, you can also return an object to be handled by `useFormStatus`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
+> - Aside from throwing the error, you can also return an object to be handled by `useFormState`. See [Server-side validation and error handling](#server-side-validation-and-error-handling).
 
 ### Revalidating data
 

@@ -34,9 +34,9 @@ export function createErrorHandler({
   return (err) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
-    if (isDynamicUsageError(err)) {
-      return err.digest
-    }
+    // These errors are expected. We return the digest
+    // so that they can be properly handled.
+    if (isDynamicUsageError(err)) return err.digest
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return

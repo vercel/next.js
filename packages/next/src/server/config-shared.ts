@@ -159,7 +159,6 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
-  windowHistorySupport?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -179,8 +178,6 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
-  // custom path to a cache handler to use
-  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -204,12 +201,6 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
-  /**
-   * In-memory cache size in bytes.
-   *
-   * If `isrMemoryCacheSize: 0` disables in-memory caching.
-   */
-  isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -283,6 +274,35 @@ export interface ExperimentalConfig {
   typedRoutes?: boolean
 
   /**
+   * Runs the compilations for server and edge in parallel instead of in serial.
+   * This will make builds faster if there is enough server and edge functions
+   * in the application at the cost of more memory.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerCompiles?: boolean
+
+  /**
+   * Runs the logic to collect build traces for the server routes in parallel
+   * with other work during the compilation. This will increase the speed of
+   * the build at the cost of more memory. This option may incur some additional
+   * work compared to if the option was disabled since the work is started
+   * before data from the client compilation is available to potentially reduce
+   * the amount of code that needs to be traced. Despite that, this may still
+   * result in faster builds for some applications.
+   *
+   * Valid values are:
+   * - `true`: Collect the server build traces in parallel.
+   * - `false`: Do not collect the server build traces in parallel.
+   * - `undefined`: Collect server build traces in parallel only in the `experimental-compile` mode.
+   *
+   * NOTE: This option is only valid when the build process can use workers. See
+   * the documentation for `webpackBuildWorker` for more details.
+   */
+  parallelServerBuildTraces?: boolean
+
+  /**
    * Run the Webpack build in a separate process to optimize memory usage during build.
    * Valid values are:
    * - `false`: Disable the Webpack build worker
@@ -351,6 +371,16 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of swc_css
    */
   useLightningcss?: boolean
+
+  /**
+   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
+   * if they are not wrapped in a suspense boundary.
+   *
+   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
+   *
+   * @default false
+   */
+  missingSuspenseWithCSRBailout?: boolean
 }
 
 export type ExportPathMap = {
@@ -450,7 +480,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
    */
-  env?: Record<string, string>
+  env?: Record<string, string | undefined>
 
   /**
    * Destination directory (defaults to `.next`)
@@ -468,6 +498,21 @@ export interface NextConfig extends Record<string, any> {
    * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
    */
   assetPrefix?: string
+
+  /**
+   * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   */
+  cacheHandler?: string | undefined
+
+  /**
+   * Configure the in-memory cache size in bytes. Defaults to 50 MB.
+   * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching).
+   */
+  cacheMaxMemorySize?: number
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
@@ -711,6 +756,9 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
+  cacheHandler: undefined,
+  // default to 50MB limit
+  cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -751,7 +799,6 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
-    windowHistorySupport: false,
     serverMinification: true,
     serverSourceMaps: false,
     caseSensitiveRoutes: false,
@@ -782,9 +829,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    // default to 50MB limit
-    isrMemoryCacheSize: 50 * 1024 * 1024,
-    incrementalCacheHandlerPath: undefined,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
@@ -801,6 +845,8 @@ export const defaultConfig: NextConfig = {
     typedRoutes: false,
     instrumentationHook: false,
     bundlePagesExternals: false,
+    parallelServerCompiles: false,
+    parallelServerBuildTraces: false,
     ppr:
       // TODO: remove once we've made PPR default
       // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
@@ -811,6 +857,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
+    missingSuspenseWithCSRBailout: false,
   },
 }
 
