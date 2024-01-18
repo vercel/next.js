@@ -10,6 +10,8 @@ Certain methods like `useSearchParams()` opt Next.js into client-side rendering.
 
 Make sure that the method is wrapped in a suspense boundary. This way Next.js will only opt the component into client-side rendering up to the suspense boundary.
 
+> Note: There's an option `experimental.missingSuspenseWithCSRBailout` to disable the bailout behavior while you are investigating the missing suspense boundary. But it will be removed in next major version as this is a performance de-opt.
+
 ### Useful Links
 
 - [`useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)
