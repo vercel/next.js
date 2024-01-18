@@ -23,7 +23,8 @@ pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
 pub use relay::get_relay_transform_plugin;
 pub use server_actions::get_server_actions_transform_rule;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ReadRef, Value, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
@@ -63,8 +64,7 @@ pub fn get_next_image_rule() -> ModuleRule {
     )
 }
 
-/// Returns a rule which applies the Next.js dynamic transform.
-pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCondition {
+fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
     let mut conditions = vec![
         ModuleRuleCondition::ResourcePathEndsWith(".js".to_string()),
         ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -81,11 +81,32 @@ pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCond
             .as_mut(),
         );
     }
+    conditions
+}
+
+/// Returns a rule which applies the Next.js dynamic transform.
+pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCondition {
+    let conditions = match_js_extension(enable_mdx_rs);
 
     ModuleRuleCondition::all(vec![
         ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
             UrlReferenceSubType::Undefined,
         ))),
+        ModuleRuleCondition::any(conditions),
+    ])
+}
+
+pub(crate) fn module_rule_match_pages_page_file(
+    enable_mdx_rs: bool,
+    pages_directory: ReadRef<FileSystemPath>,
+) -> ModuleRuleCondition {
+    let conditions = match_js_extension(enable_mdx_rs);
+
+    ModuleRuleCondition::all(vec![
+        ModuleRuleCondition::not(ModuleRuleCondition::ReferenceType(ReferenceType::Url(
+            UrlReferenceSubType::Undefined,
+        ))),
+        ModuleRuleCondition::ResourcePathInExactDirectory(pages_directory),
         ModuleRuleCondition::any(conditions),
     ])
 }

@@ -56,6 +56,10 @@ pub fn server_actions<C: Comments>(
         exported_idents: Default::default(),
         inlined_action_closure_idents: Default::default(),
 
+        // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
+        rewrite_fn_decl_to_proxy_decl: None,
+        rewrite_default_fn_expr_to_proxy_expr: None,
+
         annotations: Default::default(),
         extra_items: Default::default(),
         export_actions: Default::default(),
@@ -91,6 +95,10 @@ struct ServerActions<C: Comments> {
     closure_idents: Vec<Id>,
     action_closure_idents: Vec<Name>,
     inlined_action_closure_idents: Vec<(Id, Id)>,
+
+    // This flag allows us to rewrite `function foo() {}` to `const foo = createProxy(...)`.
+    rewrite_fn_decl_to_proxy_decl: Option<VarDecl>,
+    rewrite_default_fn_expr_to_proxy_expr: Option<Box<Expr>>,
 
     // (ident, export name)
     exported_idents: Vec<(Id, String)>,
@@ -144,7 +152,7 @@ impl<C: Comments> ServerActions<C> {
         ident: &Ident,
         function: Option<&mut Box<Function>>,
         arrow: Option<&mut ArrowExpr>,
-    ) -> Option<Box<Expr>> {
+    ) -> (Option<Box<Expr>>, Option<Box<Expr>>) {
         let action_name: JsWord = gen_ident(&mut self.ident_cnt);
         let action_ident = private_ident!(action_name.clone());
 
@@ -153,11 +161,7 @@ impl<C: Comments> ServerActions<C> {
                 .push((ident.to_id(), action_ident.to_id()));
         }
 
-        let export_name: JsWord = if self.in_default_export_decl {
-            "default".into()
-        } else {
-            action_name
-        };
+        let export_name: JsWord = action_name;
 
         self.has_action = true;
         self.export_actions.push(export_name.to_string());
@@ -196,7 +200,7 @@ impl<C: Comments> ServerActions<C> {
                 });
 
                 self.replaced_action_proxies
-                    .push((ident.clone(), Box::new(register_action_expr)));
+                    .push((ident.clone(), Box::new(register_action_expr.clone())));
             }
 
             // export const $ACTION_myAction = async () => {}
@@ -305,7 +309,10 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 })));
 
-            return Some(Box::new(Expr::Ident(ident.clone())));
+            return (
+                Some(Box::new(Expr::Ident(ident.clone()))),
+                Some(Box::new(register_action_expr)),
+            );
         } else if let Some(f) = function {
             let register_action_expr = annotate_ident_as_action(
                 action_ident.clone(),
@@ -323,7 +330,7 @@ impl<C: Comments> ServerActions<C> {
             });
 
             self.replaced_action_proxies
-                .push((ident.clone(), Box::new(register_action_expr)));
+                .push((ident.clone(), Box::new(register_action_expr.clone())));
 
             // export async function $ACTION_myAction () {}
             let mut new_params: Vec<Param> = vec![];
@@ -404,10 +411,13 @@ impl<C: Comments> ServerActions<C> {
                     .into(),
                 })));
 
-            return Some(Box::new(Expr::Ident(ident.clone())));
+            return (
+                Some(Box::new(Expr::Ident(ident.clone()))),
+                Some(Box::new(register_action_expr)),
+            );
         }
 
-        None
+        (None, None)
     }
 }
 
@@ -424,6 +434,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_default = self.in_default_export_decl;
         self.in_export_decl = true;
         self.in_default_export_decl = true;
+        self.rewrite_default_fn_expr_to_proxy_expr = None;
         decl.decl.visit_mut_with(self);
         self.in_export_decl = old;
         self.in_default_export_decl = old_default;
@@ -475,6 +486,38 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         }
+
+        if !self.in_action_file && self.in_default_export_decl {
+            // This function expression is also the default export:
+            // `export default async function() {}`
+            // In this case, we need to collect the action and hoist, because this specific
+            // case (default export) isn't handled by `visit_mut_expr`.
+            let ident = match f.ident.as_mut() {
+                None => {
+                    let action_name = gen_ident(&mut self.ident_cnt);
+                    let ident = Ident::new(action_name, DUMMY_SP);
+                    f.ident.insert(ident)
+                }
+                Some(i) => i,
+            };
+
+            let (_, register_action_expr) =
+                self.maybe_hoist_and_create_proxy(ident, Some(&mut f.function), None);
+
+            // Replace the original function expr with a action proxy expr.
+            self.rewrite_default_fn_expr_to_proxy_expr = register_action_expr;
+        }
+    }
+
+    fn visit_mut_decl(&mut self, d: &mut Decl) {
+        self.rewrite_fn_decl_to_proxy_decl = None;
+        d.visit_mut_children_with(self);
+
+        if let Some(decl) = &self.rewrite_fn_decl_to_proxy_decl {
+            *d = (*decl).clone().into();
+        }
+
+        self.rewrite_fn_decl_to_proxy_decl = None;
     }
 
     fn visit_mut_fn_decl(&mut self, f: &mut FnDecl) {
@@ -513,21 +556,21 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     .emit();
             });
         } else if !self.in_action_file {
-            self.maybe_hoist_and_create_proxy(&f.ident, Some(&mut f.function), None);
+            let (_, register_action_expr) =
+                self.maybe_hoist_and_create_proxy(&f.ident, Some(&mut f.function), None);
 
-            // Make the original function declaration empty, as we have hoisted it already.
-            f.function = Box::new(Function {
-                params: vec![],
-                decorators: vec![],
+            // Replace the original function declaration with a action proxy declaration
+            // expr.
+            self.rewrite_fn_decl_to_proxy_decl = Some(VarDecl {
                 span: DUMMY_SP,
-                body: Some(BlockStmt {
+                kind: VarDeclKind::Var,
+                declare: false,
+                decls: vec![VarDeclarator {
                     span: DUMMY_SP,
-                    stmts: vec![],
-                }),
-                is_generator: false,
-                is_async: false,
-                type_params: None,
-                return_type: None,
+                    name: Pat::Ident(f.ident.clone().into()),
+                    init: register_action_expr,
+                    definite: false,
+                }],
             });
         }
     }
@@ -663,7 +706,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 let action_name = gen_ident(&mut self.ident_cnt);
                 let ident = private_ident!(action_name);
 
-                let maybe_new_expr = self.maybe_hoist_and_create_proxy(&ident, None, Some(a));
+                let (maybe_new_expr, _) = self.maybe_hoist_and_create_proxy(&ident, None, Some(a));
 
                 *n = if let Some(new_expr) = maybe_new_expr {
                     *new_expr
@@ -686,7 +729,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     Some(i) => i,
                 };
 
-                let maybe_new_expr =
+                let (maybe_new_expr, _) =
                     self.maybe_hoist_and_create_proxy(ident, Some(&mut f.function), None);
 
                 if let Some(new_expr) = maybe_new_expr {
@@ -865,8 +908,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             stmt.visit_mut_with(self);
 
+            let mut new_stmt = stmt;
+
+            if let Some(expr) = &self.rewrite_default_fn_expr_to_proxy_expr {
+                // If this happens, we need to replace the statement with a default export expr.
+                new_stmt =
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
+                        span: DUMMY_SP,
+                        expr: expr.clone(),
+                    }));
+                self.rewrite_default_fn_expr_to_proxy_expr = None;
+            }
+
             if self.config.is_react_server_layer || !self.in_action_file {
-                new.push(stmt);
+                new.push(new_stmt);
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
                 new.append(&mut self.extra_items);
             }
