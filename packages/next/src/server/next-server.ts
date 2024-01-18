@@ -308,12 +308,12 @@ export default class NextNodeServer extends BaseServer {
   }) {
     const dev = !!this.renderOpts.dev
     let CacheHandler: any
-    const { incrementalCacheHandlerPath } = this.nextConfig.experimental
+    const { cacheHandler } = this.nextConfig
 
-    if (incrementalCacheHandlerPath) {
+    if (cacheHandler) {
       CacheHandler = interopDefault(
         await dynamicImportEsmDefault(
-          formatDynamicImportPath(this.distDir, incrementalCacheHandlerPath)
+          formatDynamicImportPath(this.distDir, cacheHandler)
         )
       )
     }
@@ -334,7 +334,7 @@ export default class NextNodeServer extends BaseServer {
       serverDistDir: this.serverDistDir,
       fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:
         !this.minimalMode && this.nextConfig.experimental.isrFlushToDisk,
       getPrerenderManifest: () => this.getPrerenderManifest(),
