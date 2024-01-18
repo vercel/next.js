@@ -236,8 +236,7 @@ export function patchFetch({
           typeof (input as Request).method === 'string'
 
         const getRequestMeta = (field: string) => {
-          // If request input is present but init is not, retrieve from input first.
-          const value = isRequestInput && !init ? (input as any)[field] : null
+          let value = isRequestInput ? (input as any)[field] : null
           return value || (init as any)?.[field]
         }
 
