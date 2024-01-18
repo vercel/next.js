@@ -1366,14 +1366,6 @@ export default async function build(
       nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
       if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
-      if (
         !useBuildWorker &&
         (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
       ) {
@@ -1895,19 +1887,15 @@ export default async function build(
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               !!workerResult.prerenderRoutes?.length
-                            const isEmptyGenerateStaticParams =
-                              workerResult.prerenderRoutes?.length === 0
 
-                            if (config.output === 'export' && isDynamic) {
-                              if (isEmptyGenerateStaticParams) {
-                                throw new Error(
-                                  `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
-                                )
-                              } else if (!hasGenerateStaticParams) {
-                                throw new Error(
-                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                                )
-                              }
+                            if (
+                              config.output === 'export' &&
+                              isDynamic &&
+                              !hasGenerateStaticParams
+                            ) {
+                              throw new Error(
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                              )
                             }
 
                             if (

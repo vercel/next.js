@@ -5,15 +5,15 @@ description: Learn how to implement authentication in Next.js, covering best pra
 
 To implement authentication in Next.js, familiarize yourself with three foundational concepts:
 
-- **[Authentication](#authentication)** verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as username and password.
-- **[Session Management](#session-management)** tracks the user’s state (e.g. logged in) across multiple requests.
-- **[Authorization](#authorization)** decides what parts of the application the user is allowed to access.
+- **[Authentication](#authentication)** verifies if the user is who they say they are. It requires the user to prove their identity with something they have, such as a username and password.
+- **[Session Management](#session-management)** tracks the user's state (e.g. logged in) across multiple requests.
+- **[Authorization](#authorization)** decides what parts of the application the user is allowed to access.
 
-This page demonstrates how to use Next.js features to implement common authentication, authorization and session management patterns, so you can choose the best solutions based on your application’s needs.
+This page demonstrates how to use Next.js features to implement common authentication, authorization, and session management patterns so you can choose the best solutions based on your application's needs.
 
 ## Authentication
 
-Authentication verifies a user's identity. This happens when a user logs in, either with a username and password or through a service like Google. It's all about confirming that users are really who they claim to be, protecting both the user's personal data and the application from unauthorized access or fraudulent activities.
+Authentication verifies a user's identity. This happens when a user logs in, either with a username and password or through a service like Google. It's all about confirming that users are really who they claim to be, protecting both the user's data and the application from unauthorized access or fraudulent activities.
 
 ### Authentication Strategies
 
@@ -185,19 +185,19 @@ function LoginButton() {
 }
 ```
 
-For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#authentication-solutions).
+For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#examples).
 
 This approach ensures a secure and efficient authentication process, laying the foundation for a reliable and user-friendly web application.
 
 ## Authorization
 
-Once a user is authenticated, you’ll need to ensure the user is allowed to visit certain routes, and perform operations such as mutating data with Server Actions and calling Route Handlers.
+Once a user is authenticated, you'll need to ensure the user is allowed to visit certain routes, and perform operations such as mutating data with Server Actions and calling Route Handlers.
 
 ### Protecting Routes with Middleware
 
-[Middleware](/docs/app/building-your-application/routing/middleware) in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard safe, while letting everyone see public pages like those for marketing. It's recommended to apply middleware across all routes and specifying exclusions for public access.
+[Middleware](/docs/app/building-your-application/routing/middleware) in Next.js helps you control who can access different parts of your website. This is important for keeping areas like the user dashboard protected while having other pages like marketing pages be public. It's recommended to apply Middleware across all routes and specify exclusions for public access.
 
-Here's how to implement middleware for authentication in Next.js:
+Here's how to implement Middleware for authentication in Next.js:
 
 1. **Setting Up Middleware:**
    - Create a `middleware.ts` or `.js` file in your project's root directory.
@@ -278,13 +278,13 @@ export default function Page() {
 }
 ```
 
-After successful authentication, it's important to manage user navigation based on their roles. For example, an admin user might be redirected to an admin dashboard, while a regular user is sent to a different page. This flexibility is crucial for role-specific experiences and conditional navigation, such as prompting users to complete their profile if needed.
+After successful authentication, it's important to manage user navigation based on their roles. For example, an admin user might be redirected to an admin dashboard, while a regular user is sent to a different page. This is important for role-specific experiences and conditional navigation, such as prompting users to complete their profile if needed.
 
 When setting up authorization, it's important to ensure that the main security checks happen where your app accesses or changes data. While middleware can be useful for initial validation, it should not be the sole line of defense in protecting your data. The bulk of security checks should be performed in the Data Access Layer (DAL). This approach, highlighted in [this security blog](https://nextjs.org/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. Such a strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance. To ensure comprehensive security, consider the following key areas:
 
 - Server Actions: Implement security checks in server-side processes, especially for sensitive operations.
 - Route Handlers: Manage incoming requests with security measures to ensure access is limited to authorized users.
-- Data Access Layer (DAL): Directly interacts with the database and is crucial for validating and authorizing data transactions. It’s vital to perform critical checks within the DAL to secure data at its most crucial interaction point—access or modification.
+- Data Access Layer (DAL): Directly interacts with the database and is crucial for validating and authorizing data transactions. It's vital to perform critical checks within the DAL to secure data at its most crucial interaction point—access or modification.
 
 For a detailed guide on securing the DAL, including example code snippets and advanced security practices, refer to our [Data Access Layer section](https://nextjs.org/blog/security-nextjs-server-components-actions#data-access-layer) of the security guide.
 
@@ -494,16 +494,16 @@ export async function getSessionData(req) {
 
 ### Database Sessions
 
-Database session management involves storing session data on the server, with the user’s browser only receiving a session ID. This ID references the session data stored server-side, without containing the data itself. This method enhances security, as it keeps sensitive session data away from the client-side environment, reducing the risk of exposure to client-side attacks. Database sessions are also more scalable, accommodating larger data storage needs.
+Database session management involves storing session data on the server, with the user's browser only receiving a session ID. This ID references the session data stored server-side, without containing the data itself. This method enhances security, as it keeps sensitive session data away from the client-side environment, reducing the risk of exposure to client-side attacks. Database sessions are also more scalable, accommodating larger data storage needs.
 
-However, this approach has its trade-offs. It can increase performance overhead due to the need for database lookups at each user interaction. Strategies like session data caching can help mitigate this. Additionally, reliance on the database means that session management is as reliable as the database’s performance and availability.
+However, this approach has its trade-offs. It can increase performance overhead due to the need for database lookups at each user interaction. Strategies like session data caching can help mitigate this. Additionally, reliance on the database means that session management is as reliable as the database's performance and availability.
 
 Here's a simplified example of implementing database sessions in a Next.js application:
 
 **Creating a Session on the Server**:
 
 ```js
-import db from 'path/to/databaseModule'
+import db from './lib/db'
 
 export async function createSession(user) {
   const sessionId = generateSessionId() // Generate a unique session ID
@@ -516,10 +516,10 @@ export async function createSession(user) {
 
 ```js
 import { cookies } from 'next/headers'
-import db from 'path/to/databaseModule'
+import db from './lib/db'
 
 export async function getSession() {
-  const sessionId = cookies().get('sessionId')?.value // Assuming session ID is stored in a cookie
+  const sessionId = cookies().get('sessionId')?.value
   return sessionId ? await db.findSession(sessionId) : null
 }
 ```
@@ -528,24 +528,25 @@ export async function getSession() {
 
 Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
 
-With [authentication solutions](#authentication-solutions) such as NextAuth.js, session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
+With [authentication solutions](#examples) such as NextAuth.js, session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
 
 Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
 
-## Authentication Solutions
+## Examples
 
 Here are authentication solutions compatible with Next.js, please refer to the quickstart guides below to learn how to configure them in your Next.js application:
 
+{/* TODO: Change link to authjs.dev when new documentation is ready */}
+
 - [AuthO](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
-   <!-- TODO: Change link to authjs.dev when new documentation is ready  -->
 - [NextAuth.js](https://next-auth.js.org/configuration/initialization#route-handlers-app)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
 
 ## Further Reading
 
-To continue learning about authentication and security, checkout the following resources:
+To continue learning about authentication and security, check out the following resources:
 
 - [Understanding XSS Attacks](https://vercel.com/guides/understanding-xss-attacks)
 - [Understanding CSRF Attacks](https://vercel.com/guides/understanding-csrf-attacks)
