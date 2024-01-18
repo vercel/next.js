@@ -58,7 +58,7 @@ async function webpackBuildWithWorker(
     }[]) {
       worker._child.on('exit', (code, signal) => {
         if (code || (signal && signal !== 'SIGINT')) {
-          console.error(
+          debug(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
         }
