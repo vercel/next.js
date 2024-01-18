@@ -1028,7 +1028,7 @@ export async function getRedboxComponentStack(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
-  return componentStackFrameTexts.join('\n')
+  return componentStackFrameTexts.join('\n').trim()
 }
 
 /**
