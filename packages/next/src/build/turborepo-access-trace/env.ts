@@ -1,6 +1,13 @@
-import type { EnvVars } from './types'
+import type { EnvVars, RestoreOriginalFunction } from './types'
 
-export function envProxy(envVars: EnvVars): () => void {
+/**
+ * Proxy the environment to track environment variables keys that
+ * are accessed during the build.
+ *
+ * @param envVars A set to track environment variable keys that are accessed.
+ * @returns A function that restores the original environment.
+ */
+export function envProxy(envVars: EnvVars): RestoreOriginalFunction {
   const newEnv = new Proxy(process.env, {
     get: (target, key) => {
       envVars.add(key)
@@ -17,6 +24,8 @@ export function envProxy(envVars: EnvVars): () => void {
 
   const oldEnv = process.env
   process.env = newEnv
+
+  // Return a function that restores the original environment.
   return () => {
     process.env = oldEnv
   }

@@ -14,7 +14,7 @@ describe('build with proxy trace', () => {
         stderr: true,
         stdout: true,
         env: {
-          NEXT_TURBOREPO_TRACE_FILE: 'dist/turborepo-trace.json',
+          TURBOREPO_TRACE_FILE: 'dist/turborepo-trace.json',
           SSG_ROUTE_ENV_VAR_HEADER_TEXT: 'Welcome',
         },
       })
@@ -29,8 +29,7 @@ describe('build with proxy trace', () => {
         'SSG_ROUTE_ENV_VAR_HEADER_TEXT'
       )
       expect(accessTrace.access.accessedNetwork).toBeFalse()
-      expect(accessTrace.access.paths.checked).toBeArray()
-      expect(accessTrace.access.paths.checked).toBeArray()
+      expect(accessTrace.access.accessedFilePaths).toBeArray()
     })
   })
 })

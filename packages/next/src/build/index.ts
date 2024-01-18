@@ -82,7 +82,11 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
-import { withAccessProxy, AccessProxy } from './turborepo-access-trace'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+  writeTurborepoAccessTraceResult,
+} from './turborepo-access-trace'
 
 import {
   eventBuildOptimize,
@@ -723,27 +727,17 @@ export default async function build(
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
-      const configLoadTrace = new AccessProxy()
-      const configTraceFile = process.env.NEXT_TURBOREPO_TRACE_FILE
-      const isTurborepoTraceEnabled = configTraceFile !== undefined
-      const accessTrace = isTurborepoTraceEnabled
-        ? async (f: () => Promise<NextConfigComplete>) => {
-            const [config, configTrace]: [NextConfigComplete, AccessProxy] =
-              await withAccessProxy(f)
-
-            configLoadTrace.merge(configTrace)
-            return config
-          }
-        : (f: () => Promise<NextConfigComplete>) => f()
-
+      const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() =>
-          accessTrace(() =>
-            loadConfig(PHASE_PRODUCTION_BUILD, dir, {
-              // Log for next.config loading process
-              silent: false,
-            })
+          turborepoTraceAccess(
+            () =>
+              loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+                // Log for next.config loading process
+                silent: false,
+              }),
+            turborepoAccessTraceResult
           )
         )
 
@@ -2437,7 +2431,6 @@ export default async function build(
             silent: false,
             buildExport: true,
             debugOutput,
-            isExportTraceEnabled: isTurborepoTraceEnabled,
             threads: config.experimental.cpus,
             pages: combinedPages,
             outdir: path.join(distDir, 'export'),
@@ -2461,30 +2454,13 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
-          // merge the traces, and write the file
-          try {
-            if (isTurborepoTraceEnabled) {
-              // build public trace
-              for (let eTrace of exportResult.exportTrace.values()) {
-                configLoadTrace.merge(eTrace)
-              }
-
-              // make sure the directory exists
-              await fs.mkdir(path.dirname(configTraceFile), { recursive: true })
-              await fs.writeFile(
-                configTraceFile,
-                JSON.stringify({
-                  outputs: [
-                    `${config.distDir}/**`,
-                    `!${config.distDir}/cache/**`,
-                  ],
-                  access: configLoadTrace.toPublicTrace(),
-                })
-              )
-            }
-          } catch (err) {
-            console.error(err)
-          }
+          writeTurborepoAccessTraceResult({
+            distDir: config.distDir,
+            traces: [
+              turborepoAccessTraceResult,
+              ...exportResult.turborepoAccessTraceResults.values(),
+            ],
+          })
 
           ssgNotFoundPaths = Array.from(exportResult.ssgNotFoundPaths)
 

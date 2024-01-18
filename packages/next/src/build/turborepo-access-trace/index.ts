@@ -1,3 +1,6 @@
-export type { SerializableAccessProxy } from './types'
-export { withAccessProxy } from './with-access-proxy'
-export { AccessProxy } from './result'
+export type { SerializableTurborepoAccessTraceResult } from './types'
+export {
+  turborepoTraceAccess,
+  writeTurborepoAccessTraceResult,
+} from './helpers'
+export { TurborepoAccessTraceResult } from './result'

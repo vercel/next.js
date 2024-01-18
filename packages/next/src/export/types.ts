@@ -10,8 +10,8 @@ import type { Span } from '../trace'
 import type { Revalidate } from '../server/lib/revalidate'
 import type { NextEnabledDirectories } from '../server/base-server'
 import type {
-  SerializableAccessProxy,
-  AccessProxy,
+  SerializableTurborepoAccessTraceResult,
+  TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
 
 export interface AmpValidation {
@@ -64,7 +64,6 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   enabledDirectories: NextEnabledDirectories
-  isExportTraceEnabled?: boolean
 }
 
 export type ExportedPageFile = {
@@ -91,7 +90,7 @@ export type ExportRouteResult =
 export type ExportPageResult = ExportRouteResult & {
   files: ExportedPageFile[]
   duration: number
-  traceResult?: SerializableAccessProxy
+  turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
 }
 
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
@@ -110,7 +109,6 @@ export interface ExportAppOptions {
   silent?: boolean
   threads?: number
   debugOutput?: boolean
-  isExportTraceEnabled?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
@@ -171,7 +169,7 @@ export type ExportAppResult = {
   /**
    * Traced dependencies for each page.
    */
-  exportTrace: Map<string, AccessProxy>
+  turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
 }
 
 export type ExportAppWorker = (
