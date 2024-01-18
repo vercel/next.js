@@ -17,7 +17,9 @@ export async function $$ACTION_1($$ACTION_CLOSURE_BOUND) {
     await deleteFromDb($$ACTION_ARG_1);
 }
 const f = (x)=>{
-    function g() {}
+    var g = createActionProxy("9878bfa39811ca7650992850a8751f9591b6a557", $$ACTION_2).bind(null, encryptActionBoundArgs("9878bfa39811ca7650992850a8751f9591b6a557", [
+        x
+    ]));
 };
 export async function $$ACTION_2($$ACTION_CLOSURE_BOUND, y, ...z) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("9878bfa39811ca7650992850a8751f9591b6a557", $$ACTION_CLOSURE_BOUND);

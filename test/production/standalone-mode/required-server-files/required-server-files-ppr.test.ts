@@ -39,8 +39,8 @@ describe('required server files app router', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        cacheHandler: './cache-handler.js',
         experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
           ppr: true,
         },
         eslint: {

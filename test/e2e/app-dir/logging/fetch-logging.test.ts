@@ -141,6 +141,16 @@ createNextDescribe(
               expect(output).toContain('Cache missed reason: (noStore call)')
             })
           })
+
+          it('should respect request.init.cache when use with fetch input is instance', async () => {
+            const logLength = next.cliOutput.length
+            await next.fetch('/fetch-no-store')
+
+            await retry(() => {
+              const output = stripAnsi(next.cliOutput.slice(logLength))
+              expect(output).toContain('Cache missed reason: (cache: no-store)')
+            })
+          })
         }
       } else {
         // No fetches logging enabled
