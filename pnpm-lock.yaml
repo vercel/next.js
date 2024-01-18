@@ -6,8 +6,8 @@ settings:
 
 overrides:
   webpack: 5.86.0
-  browserslist: 4.20.2
-  caniuse-lite: 1.0.30001406
+  browserslist: 4.22.2
+  caniuse-lite: 1.0.30001579
   '@types/node': 20.2.5
   '@babel/core': 7.22.5
   '@babel/parser': 7.22.5
@@ -204,8 +204,8 @@ importers:
         specifier: 3.0.1
         version: 3.0.1
       browserslist:
-        specifier: 4.20.2
-        version: 4.20.2
+        specifier: 4.22.2
+        version: 4.22.2
       buffer:
         specifier: 5.6.0
         version: 5.6.0
@@ -747,7 +747,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -809,7 +809,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.2
@@ -818,8 +818,8 @@ importers:
         specifier: 1.6.0
         version: 1.6.0
       caniuse-lite:
-        specifier: 1.0.30001406
-        version: 1.0.30001406
+        specifier: 1.0.30001579
+        version: 1.0.30001579
       graceful-fs:
         specifier: ^4.2.11
         version: 4.2.11
@@ -933,19 +933,19 @@ importers:
         specifier: 1.1.0
         version: 1.1.0
       '@next/polyfill-module':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../next-polyfill-nomodule
       '@next/react-dev-overlay':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../react-dev-overlay
       '@next/react-refresh-utils':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1110,8 +1110,8 @@ importers:
         specifier: 0.2.0
         version: 0.2.0
       browserslist:
-        specifier: 4.20.2
-        version: 4.20.2
+        specifier: 4.22.2
+        version: 4.22.2
       buffer:
         specifier: 5.6.0
         version: 5.6.0
@@ -1599,7 +1599,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.0.5-canary.65
+        specifier: 14.0.5-canary.68
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -1832,7 +1832,7 @@ packages:
       '@babel/compat-data': 7.22.3
       '@babel/core': 7.22.5
       '@babel/helper-validator-option': 7.21.0
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -1842,7 +1842,7 @@ packages:
     dependencies:
       '@babel/compat-data': 7.22.20
       '@babel/helper-validator-option': 7.22.15
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -8441,8 +8441,8 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
     dependencies:
-      browserslist: 4.20.2
-      caniuse-lite: 1.0.30001406
+      browserslist: 4.22.2
+      caniuse-lite: 1.0.30001579
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -8900,16 +8900,15 @@ packages:
       pako: 1.0.11
     dev: true
 
-  /browserslist@4.20.2:
-    resolution: {integrity: sha512-CQOBCqp/9pDvDbx3xfMi+86pr4KXIf2FDkTTdeuYw8OxS9t898LA1Khq57gtufFILXpfgsSx5woNgsBgvGjpsA==}
+  /browserslist@4.22.2:
+    resolution: {integrity: sha512-0UgcrvQmBDvZHFGdYUehrCNIazki7/lUP3kkoi/r3YB2amZbFM9J43ZRkJTXBUZK4gmx56+Sqk9+Vs9mwZx9+A==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
     dependencies:
-      caniuse-lite: 1.0.30001406
-      electron-to-chromium: 1.4.118
-      escalade: 3.1.1
-      node-releases: 2.0.3
-      picocolors: 1.0.0
+      caniuse-lite: 1.0.30001579
+      electron-to-chromium: 1.4.637
+      node-releases: 2.0.14
+      update-browserslist-db: 1.0.13(browserslist@4.22.2)
 
   /bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
@@ -9151,14 +9150,14 @@ packages:
   /caniuse-api@3.0.0:
     resolution: {integrity: sha512-bsTwuIg/BZZK/vreVTYYbSWoe2F+71P7K5QGEX+pT250DZbfU1MQ5prOKpPR+LL6uWKK3KMwMCAS74QB3Um1uw==}
     dependencies:
-      browserslist: 4.20.2
-      caniuse-lite: 1.0.30001406
+      browserslist: 4.22.2
+      caniuse-lite: 1.0.30001579
       lodash.memoize: 4.1.2
       lodash.uniq: 4.5.0
     dev: true
 
-  /caniuse-lite@1.0.30001406:
-    resolution: {integrity: sha512-bWTlaXUy/rq0BBtYShc/jArYfBPjEV95euvZ8JVtO43oQExEN/WquoqpufFjNu4kSpi5cy5kMbNvzztWDfv1Jg==}
+  /caniuse-lite@1.0.30001579:
+    resolution: {integrity: sha512-u5AUVkixruKHJjw/pj9wISlcMpgFWzSrczLZbrqBSxukQixmg0SJ5sZTpvaFvxU0HoQKd4yoyAogyrAz9pzJnA==}
 
   /capital-case@1.0.4:
     resolution: {integrity: sha512-ds37W8CytHgwnhGGTi88pcPyR15qoNkOpYwmMMfnWqqWgESapLqvDx6huFjQ5vqWSn2Z06173XNA7LtMOeUh1A==}
@@ -9965,7 +9964,7 @@ packages:
   /core-js-compat@3.30.2:
     resolution: {integrity: sha512-nriW1nuJjUgvkEjIot1Spwakz52V9YkYHZAQG6A1eCgC8AA1p0zngrQEP9R0+V6hji5XilWKG1Bd0YRppmGimA==}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
 
   /core-js@3.6.5:
     resolution: {integrity: sha512-vZVEEwZoIsI+vPEuoF9Iqf5H7/M3eeQqWlQnYa8FSKKePuYTf5MWnxb5SDAzCa60b3JBRS5g9b+Dq7b1y/RCrA==}
@@ -10452,7 +10451,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.1
     dependencies:
-      caniuse-lite: 1.0.30001406
+      caniuse-lite: 1.0.30001579
       postcss: 8.2.13
     dev: true
 
@@ -11279,8 +11278,8 @@ packages:
       jake: 10.8.5
     dev: true
 
-  /electron-to-chromium@1.4.118:
-    resolution: {integrity: sha512-maZIKjnYDvF7Fs35nvVcyr44UcKNwybr93Oba2n3HkKDFAtk0svERkLN/HyczJDS3Fo4wU9th9fUQd09ZLtj1w==}
+  /electron-to-chromium@1.4.637:
+    resolution: {integrity: sha512-G7j3UCOukFtxVO1vWrPQUoDk3kL70mtvjc/DC/k2o7lE0wAdq+Vwp1ipagOow+BH0uVztFysLWbkM/RTIrbK3w==}
 
   /elegant-spinner@1.0.1:
     resolution: {integrity: sha512-B+ZM+RXvRqQaAmkMlO/oSe5nMUOaUnyfGYCEHoR8wrXsZR2mA0XVibsxV1bvTwxdRWah1PkQqso2EzhILGHtEQ==}
@@ -18271,8 +18270,8 @@ packages:
       upper-case: 2.0.2
     dev: true
 
-  /node-releases@2.0.3:
-    resolution: {integrity: sha512-maHFz6OLqYxz+VQyCAtA3PTX4UP/53pa05fyDNc9CwjvJ0yEh6+xBwKsgCxMNhS8taUKBFYxfuiaD9U/55iFaw==}
+  /node-releases@2.0.14:
+    resolution: {integrity: sha512-y10wOWt8yZpqXmOgRo77WaHEmhYQYGNA6y421PKsKYWEK8aW+cqAphborZDhqfyKrbZEN92CN1X2KbafY2s7Yw==}
 
   /node-version@1.1.3:
     resolution: {integrity: sha512-rEwE51JWn0yN3Wl5BXeGn5d52OGbSXzWiiXRjAQeuyvcGKyvuSILW2rb3G7Xh+nexzLwhTpek6Ehxd6IjvHePg==}
@@ -19380,7 +19379,7 @@ packages:
     resolution: {integrity: sha512-ugJ4Imy92u55zeznaN/5d7iqOBIZjZ7q10/T+dcd0IuFtbLlsGDvAUabFu1cafER+G9f0T1WtTqvzm4KAdcDgQ==}
     engines: {node: '>=4.0.0', npm: '>=1.2.10'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 7.0.32
       reduce-css-calc: 2.1.7
     dev: true
@@ -19549,7 +19548,7 @@ packages:
     resolution: {integrity: sha512-WyQFAdDZpExQh32j0U0feWisZ0dmOtPl44qYmJKkq9xFWY3p+4qnRzCHeNrkeRhwPHz9bQ3mo0/yVkaply0MNw==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       color: 3.1.3
       has: 1.0.3
       postcss: 7.0.32
@@ -19562,7 +19561,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       caniuse-api: 3.0.0
       colord: 2.9.3
       postcss: 8.4.31
@@ -19583,7 +19582,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
     dev: true
@@ -19876,7 +19875,7 @@ packages:
     resolution: {integrity: sha512-U7e3r1SbvYzO0Jr3UT/zKBVgYYyhAz0aitvGIYOYK5CPmkNih+WDSsS5tvPrJ8YMQYlEMvsZIiqmn7HdFUaeEQ==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       caniuse-api: 3.0.0
       cssnano-util-same-parent: 4.0.1
       postcss: 7.0.32
@@ -19890,7 +19889,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       caniuse-api: 3.0.0
       cssnano-utils: 3.1.0(postcss@8.4.31)
       postcss: 8.4.31
@@ -19942,7 +19941,7 @@ packages:
     engines: {node: '>=6.9.0'}
     dependencies:
       alphanum-sort: 1.0.2
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       cssnano-util-get-arguments: 4.0.0
       postcss: 7.0.32
       postcss-value-parser: 3.3.1
@@ -19955,7 +19954,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       cssnano-utils: 3.1.0(postcss@8.4.31)
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
@@ -20182,7 +20181,7 @@ packages:
     resolution: {integrity: sha512-od18Uq2wCYn+vZ/qCOeutvHjB5jm57ToxRaMeNuf0nWVHaP9Hua56QyMF6fs/4FSUnVIw0CBPsU0K4LnBPwYwg==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 7.0.32
       postcss-value-parser: 3.3.1
     dev: true
@@ -20193,7 +20192,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 8.4.31
       postcss-value-parser: 4.2.0
     dev: true
@@ -20304,7 +20303,7 @@ packages:
       '@csstools/postcss-oklab-function': 1.1.0(postcss@8.4.31)
       '@csstools/postcss-progressive-custom-properties': 1.3.0(postcss@8.4.31)
       autoprefixer: 10.4.4(postcss@8.4.31)
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       css-blank-pseudo: 3.0.3(postcss@8.4.31)
       css-has-pseudo: 3.0.4(postcss@8.4.31)
       css-prefers-color-scheme: 6.0.3(postcss@8.4.31)
@@ -20361,7 +20360,7 @@ packages:
     resolution: {integrity: sha512-gKWmR5aUulSjbzOfD9AlJiHCGH6AEVLaM0AV+aSioxUDd16qXP1PCh8d1/BGVvpdWn8k/HiK7n6TjeoXN1F7DA==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       caniuse-api: 3.0.0
       has: 1.0.3
       postcss: 7.0.32
@@ -20373,7 +20372,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       caniuse-api: 3.0.0
       postcss: 8.4.31
     dev: true
@@ -23411,7 +23410,7 @@ packages:
     resolution: {integrity: sha512-7GlLk9JwlElY4Y6a/rmbH2MhVlTyVmiJd1PfTCqFaIBEGMYNsrO/v3SeGTdhBThLg4Z+NbOk/qFMwCa+J+3p/g==}
     engines: {node: '>=6.9.0'}
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 7.0.32
       postcss-selector-parser: 3.1.1
     dev: true
@@ -23422,7 +23421,7 @@ packages:
     peerDependencies:
       postcss: ^8.2.15
     dependencies:
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       postcss: 8.4.31
       postcss-selector-parser: 6.0.11
     dev: true
@@ -24701,6 +24700,16 @@ packages:
     engines: {node: '>=4'}
     dev: true
 
+  /update-browserslist-db@1.0.13(browserslist@4.22.2):
+    resolution: {integrity: sha512-xebP81SNcPuNpPP3uzeW1NYXxI3rxyJzF3pD6sH4jE7o/IX+WtSpwnVU+qIsDPyk0d3hmFQ7mjqc6AtV604hbg==}
+    hasBin: true
+    peerDependencies:
+      browserslist: 4.22.2
+    dependencies:
+      browserslist: 4.22.2
+      escalade: 3.1.1
+      picocolors: 1.0.0
+
   /update-check@1.3.2:
     resolution: {integrity: sha512-0iGt63gXrsU4VTw4tIGVVk14H6KLHI7ExNPuSmdDdwUrUAQTBnh1hQcRpnoBWetb3/Ab4YyXK1iDWXP7D0VHTQ==}
     dependencies:
@@ -25145,7 +25154,7 @@ packages:
       '@webassemblyjs/wasm-parser': 1.11.6
       acorn: 8.8.2
       acorn-import-assertions: 1.9.0(acorn@8.8.2)
-      browserslist: 4.20.2
+      browserslist: 4.22.2
       chrome-trace-event: 1.0.2
       enhanced-resolve: 5.14.1
       es-module-lexer: 1.2.1

@@ -13495,12 +13495,11 @@
   "test/integration/next-image-new/loader-config-default-loader-with-file/test/index.test.ts": {
     "passed": [
       "Image Loader Config dev mode - component should work with loader prop",
-      "Image Loader Config dev mode - getImageProps should work with loader prop"
-    ],
-    "failed": [
       "Image Loader Config dev mode - component should work with loaderFile config, leaving default image optimization enabled",
+      "Image Loader Config dev mode - getImageProps should work with loader prop",
       "Image Loader Config dev mode - getImageProps should work with loaderFile config, leaving default image optimization enabled"
     ],
+    "failed": [],
     "pending": [
       "Image Loader Config production mode - component should work with loader prop",
       "Image Loader Config production mode - component should work with loaderFile config, leaving default image optimization enabled",
