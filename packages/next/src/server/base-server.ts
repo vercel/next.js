@@ -129,7 +129,6 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
-import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
