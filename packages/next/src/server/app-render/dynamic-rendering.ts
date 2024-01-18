@@ -51,9 +51,9 @@ export function markCurrentScopeAsDynamic(
     )
   } else if (
     // We are in a prerender (PPR enabled, during build)
-    store.prerenderState &&
-    hasPostpone
+    store.prerenderState
   ) {
+    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
@@ -63,7 +63,7 @@ export function markCurrentScopeAsDynamic(
     store.revalidate = 0
 
     if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page We need to bail out of static generation
+      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
         `Page couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
       )
@@ -90,7 +90,7 @@ export function trackDynamicDataAccessed(
 ): void {
   if (store.isUnstableCacheCallback) {
     throw new Error(
-      `used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" oustide the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+      `used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" oustide of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
     )
   } else if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
@@ -98,9 +98,9 @@ export function trackDynamicDataAccessed(
     )
   } else if (
     // We are in a prerender (PPR enabled, during build)
-    store.prerenderState &&
-    hasPostpone
+    store.prerenderState
   ) {
+    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
@@ -110,7 +110,7 @@ export function trackDynamicDataAccessed(
     store.revalidate = 0
 
     if (store.isStaticGeneration) {
-      // We aren't prerendering but we are generating a static page We need to bail out of static generation
+      // We aren't prerendering but we are generating a static page. We need to bail out of static generation
       const err = new DynamicServerError(
         `Page couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
       )
@@ -122,6 +122,17 @@ export function trackDynamicDataAccessed(
   }
 }
 
+/**
+ * This component will call `React.postpone` that throws the postponed error.
+ */
+type PostponeProps = {
+  reason: string
+}
+export function Postpone({ reason }: PostponeProps): never {
+  assertPostpone()
+  return React.unstable_postpone(reason)
+}
+
 // @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
 // is too explicit about postponing if we are in a prerender and patch-fetch contains a lot of logic for determining
 // what makes the fetch "dynamic". It also doesn't handle Non PPR cases so it is isn't as consistent with the other
@@ -130,7 +141,8 @@ export function trackDynamicFetch(
   store: StaticGenerationStore,
   expression: string
 ) {
-  if (store.prerenderState && hasPostpone) {
+  if (store.prerenderState) {
+    assertPostpone()
     store.prerenderState.hasDynamic = true
     React.unstable_postpone(createPostponeReason(expression))
   }
@@ -142,4 +154,12 @@ function createPostponeReason(expression: string) {
     `React throws this special object to indicate where. It should not be caught by ` +
     `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
   )
+}
+
+function assertPostpone() {
+  if (!hasPostpone) {
+    throw new Error(
+      `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
+    )
+  }
 }

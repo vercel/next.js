@@ -16,7 +16,7 @@ export function headers() {
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
-      // When we are forcings static we don't mark this as a Dynamic read and we return an empty headers object
+      // When we are forcing static we don't mark this as a Dynamic read and we return an empty headers object
       return HeadersAdapter.seal(new Headers({}))
     } else {
       // We will return a real headers object below so we mark this call as reading from a dynamic data source
@@ -34,7 +34,7 @@ export function cookies() {
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
-      // When we are forcings static we don't mark this as a Dynamic read and we return an empty cookies object
+      // When we are forcing static we don't mark this as a Dynamic read and we return an empty cookies object
       return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
     } else {
       // We will return a real headers object below so we mark this call as reading from a dynamic data source

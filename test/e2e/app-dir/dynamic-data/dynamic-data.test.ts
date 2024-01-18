@@ -8,13 +8,9 @@ createNextDescribe(
   {
     files: __dirname + '/fixtures/main',
     skipStart: true,
+    skipDeployment: true,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
-    if (isNextDeploy) {
-      it.skip('should not run in next deploy', () => {})
-      return
-    }
-
+  ({ next, isNextDev }) => {
     beforeAll(async () => {
       await next.start()
       // This will update the __TEST_SENTINEL value to "run"
@@ -36,7 +32,7 @@ createNextDescribe(
         // in dev we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
         // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
@@ -48,7 +44,7 @@ createNextDescribe(
         // in static generation we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       }
 
@@ -72,12 +68,11 @@ createNextDescribe(
         // in dev we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-        // in PPR with force
         // @TODO this should actually be build but there is a bug in how we do segment level dynamic in PPR at the moment
-        // see not in create-component-tree
+        // see note in create-component-tree
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
         // we expect there to be a suspense boundary in fallback state
@@ -86,7 +81,7 @@ createNextDescribe(
         // in static generation we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       }
 
@@ -110,7 +105,7 @@ createNextDescribe(
         // in dev we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('run')
         expect($('#page').text()).toBe('run')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       } else if (process.env.__NEXT_EXPERIMENTAL_PPR) {
         // in PPR we expect the shell to be rendered at build and the page to be rendered at runtime
@@ -122,7 +117,7 @@ createNextDescribe(
         // in static generation we expect the entire page to be rendered at runtime
         expect($('#layout').text()).toBe('build')
         expect($('#page').text()).toBe('build')
-        // we expect there to be no susupense boundary in fallback state
+        // we expect there to be no suspense boundary in fallback state
         expect($('#boundary').html()).toBeNull()
       }
 

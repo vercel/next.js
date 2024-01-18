@@ -562,9 +562,9 @@ async function createComponentTreeInternal({
     process.env.NODE_ENV === 'development' &&
     'params' in parallelRouteProps
   ) {
-    // @TODO consider making this an error and runnign the check in build as well
+    // @TODO consider making this an error and running the check in build as well
     console.error(
-      `The prop name "params" is reserved in Layouts and Pages and cannot be used as the name of a parallel routes in ${segment}.`
+      `"params" is a reserved prop in Layouts and Pages and cannot be used as the name of a parallel route in ${segment}`
     )
   }
   props.params = currentParams
@@ -572,19 +572,9 @@ async function createComponentTreeInternal({
   let segmentElement: React.ReactNode
   if (isPage) {
     // Assign searchParams to props if this is a page
-    if (
-      process.env.NODE_ENV === 'development' &&
-      'searchParams' in parallelRouteProps
-    ) {
-      // @TODO consider making this an error and runnign the check in build as well
-      console.error(
-        `The prop name "searchParams" is reserved in Layouts and Pages and cannot be used as the name of a parallel routes in ${segment}.`
-      )
-    }
-
     if (isClientComponent) {
-      // When we are passing searchParams to a client component Page we don't want to try the access
-      // dynamically here in the RSC layer because the serialization will trigger a dynamic API usage.
+      // When we are passing searchParams to a client component Page we don't want to track the dynamic access
+      // here in the RSC layer because the serialization will trigger a dynamic API usage.
       // Instead we pass the searchParams untracked but we wrap the Page in a root client component
       // which can among other things adds the dynamic tracking before rendering the page.
       // @TODO make the root wrapper part of next-app-loader so we don't need the extra client component

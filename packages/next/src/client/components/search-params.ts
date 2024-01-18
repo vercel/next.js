@@ -43,7 +43,7 @@ export function createDynamicallyTrackedSearchParams(
     return {}
   } else if (!store.isStaticGeneration && !store.dynamicShouldError) {
     // during dynamic renders we don't actually have to track anything so we just return
-    // the searchParams directly. However if we dynamic data access should error then we
+    // the searchParams directly. However if dynamic data access should error then we
     // still want to track access. This covers the case in Dev where all renders are dynamic
     // but we still want to error if you use a dynamic data source because it will fail the build
     // or revalidate if you do.

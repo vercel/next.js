@@ -1224,7 +1224,6 @@ async function renderToHTMLOrFlightImpl(
   if (
     staticGenerationStore.prerenderState &&
     staticGenerationStore.prerenderState.hasDynamic &&
-    // but there's no postpone state
     !metadata.postponed &&
     (!response.err || !isBailoutToCSRError(response.err))
   ) {
