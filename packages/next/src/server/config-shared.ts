@@ -178,8 +178,6 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
-  // custom path to a cache handler to use
-  incrementalCacheHandlerPath?: string
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -203,12 +201,6 @@ export interface ExperimentalConfig {
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
-  /**
-   * In-memory cache size in bytes.
-   *
-   * If `isrMemoryCacheSize: 0` disables in-memory caching.
-   */
-  isrMemoryCacheSize?: number
   fullySpecified?: boolean
   urlImports?: NonNullable<webpack.Configuration['experiments']>['buildHttp']
   outputFileTracingRoot?: string
@@ -379,6 +371,16 @@ export interface ExperimentalConfig {
    * Use lightningcss instead of swc_css
    */
   useLightningcss?: boolean
+
+  /**
+   * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
+   * if they are not wrapped in a suspense boundary.
+   *
+   * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
+   *
+   * @default false
+   */
+  missingSuspenseWithCSRBailout?: boolean
 }
 
 export type ExportPathMap = {
@@ -496,6 +498,21 @@ export interface NextConfig extends Record<string, any> {
    * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
    */
   assetPrefix?: string
+
+  /**
+   * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   */
+  cacheHandler?: string | undefined
+
+  /**
+   * Configure the in-memory cache size in bytes. Defaults to 50 MB.
+   * If `cacheMaxMemorySize: 0`, this disables in-memory caching entirely.
+   *
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching).
+   */
+  cacheMaxMemorySize?: number
 
   /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
@@ -739,6 +756,9 @@ export const defaultConfig: NextConfig = {
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
+  cacheHandler: undefined,
+  // default to 50MB limit
+  cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -809,9 +829,6 @@ export const defaultConfig: NextConfig = {
     gzipSize: true,
     craCompat: false,
     esmExternals: true,
-    // default to 50MB limit
-    isrMemoryCacheSize: 50 * 1024 * 1024,
-    incrementalCacheHandlerPath: undefined,
     fullySpecified: false,
     outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
     swcTraceProfiling: false,
@@ -840,6 +857,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
+    missingSuspenseWithCSRBailout: false,
   },
 }
 

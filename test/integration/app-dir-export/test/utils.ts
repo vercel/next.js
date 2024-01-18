@@ -158,7 +158,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
       } else {
         await check(() => result.stderr, /error/i)

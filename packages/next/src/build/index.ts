@@ -127,10 +127,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
-  teardownCrashReporter,
-  loadBindings,
   teardownHeapProfiler,
-  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -700,7 +697,6 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
   const isCompileMode = buildMode === 'experimental-compile'
@@ -1249,7 +1245,7 @@ export default async function build(
         PAGES_MANIFEST
       )
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -1264,12 +1260,12 @@ export default async function build(
                     compress: false,
                   }
                 : {}),
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
               experimental: {
                 ...config.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-                incrementalCacheHandlerPath: incrementalCacheHandlerPath
-                  ? path.relative(distDir, incrementalCacheHandlerPath)
-                  : undefined,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
@@ -1344,48 +1340,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild() {
-        const turboNextBuildStart = process.hrtime()
-
-        const turboJson = findUp.sync('turbo.json', { cwd: dir })
-        // eslint-disable-next-line no-shadow
-        const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings(config?.experimental?.useWasmBinary)
-
-        let root =
-          turboNextBuildRoot ??
-          (turboJson
-            ? path.dirname(turboJson)
-            : packagePath
-            ? path.dirname(packagePath)
-            : undefined)
-
-        const hasRewrites =
-          rewrites.beforeFiles.length > 0 ||
-          rewrites.afterFiles.length > 0 ||
-          rewrites.fallback.length > 0
-
-        await binding.turbo.nextBuild({
-          ...NextBuildContext,
-          root,
-          distDir: config.distDir,
-          defineEnv: createDefineEnv({
-            isTurbopack: turboNextBuild,
-            allowedRevalidateHeaderKeys:
-              config.experimental.allowedRevalidateHeaderKeys,
-            clientRouterFilters: NextBuildContext.clientRouterFilters,
-            config,
-            dev: false,
-            distDir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            middlewareMatchers: undefined,
-            previewModeId: undefined,
-          }),
-        })
-
-        const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: undefined }
+      async function turbopackBuild(): Promise<never> {
+        throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1409,14 +1365,6 @@ export default async function build(
       )
       nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
-      if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
       if (
         !useBuildWorker &&
         (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
@@ -1567,11 +1515,11 @@ export default async function build(
 
       if (config.experimental.staticWorkerRequestDeduping) {
         let CacheHandler
-        if (incrementalCacheHandlerPath) {
+        if (cacheHandler) {
           CacheHandler = interopDefault(
-            await import(
-              formatDynamicImportPath(dir, incrementalCacheHandlerPath)
-            ).then((mod) => mod.default || mod)
+            await import(formatDynamicImportPath(dir, cacheHandler)).then(
+              (mod) => mod.default || mod
+            )
           )
         }
 
@@ -1586,7 +1534,7 @@ export default async function build(
             : config.experimental.isrFlushToDisk,
           serverDistDir: path.join(distDir, 'server'),
           fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: config.cacheMaxMemorySize,
           getPrerenderManifest: () => ({
             version: -1 as any, // letting us know this doesn't conform to spec
             routes: {},
@@ -1884,13 +1832,11 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            incrementalCacheHandlerPath:
-                              config.experimental.incrementalCacheHandlerPath,
+                            cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize:
-                              config.experimental.isrMemoryCacheSize,
+                            maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             ppr: config.experimental.ppr === true,
                           })
@@ -3232,6 +3178,5 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
-    teardownCrashReporter()
   }
 }

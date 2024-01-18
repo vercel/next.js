@@ -5,6 +5,7 @@ import type {
   RestoreAction,
 } from '../router-reducer-types'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
+import { updateCacheNodeOnPopstateRestoration } from '../ppr-navigations'
 
 export function restoreReducer(
   state: ReadonlyReducerState,
@@ -12,6 +13,15 @@ export function restoreReducer(
 ): ReducerState {
   const { url, tree } = action
   const href = createHrefFromUrl(url)
+
+  const oldCache = state.cache
+  const newCache = process.env.__NEXT_PPR
+    ? // When PPR is enabled, we update the cache to drop the prefetch
+      // data for any segment whose dynamic data was already received. This
+      // prevents an unnecessary flash back to PPR state during a
+      // back/forward navigation.
+      updateCacheNodeOnPopstateRestoration(oldCache, tree)
+    : oldCache
 
   return {
     buildId: state.buildId,
@@ -24,7 +34,7 @@ export function restoreReducer(
       preserveCustomHistoryState: true,
     },
     focusAndScrollRef: state.focusAndScrollRef,
-    cache: state.cache,
+    cache: newCache,
     prefetchCache: state.prefetchCache,
     // Restore provided tree
     tree: tree,

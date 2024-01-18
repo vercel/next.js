@@ -5,8 +5,6 @@ import { describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-const IS_TURBOPACK = Boolean(process.env.TURBOPACK)
-
 describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -37,7 +35,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     await session.evaluate(() => document.querySelector('a').click())
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -82,7 +80,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await cleanup()
@@ -143,7 +141,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `export default function FunctionDefault() { throw new Error('no'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
     expect(
       await session.evaluate(() => document.querySelector('h2').textContent)
@@ -167,7 +165,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     // We internally only check the script path, not including the line number
     // and error message because the error comes from an external library.
     // This test ensures that the errored script path is correctly resolved.
@@ -194,7 +192,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await session.patch(
       'index.js',
@@ -209,22 +207,21 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:7:1
+        Parsing ecmascript source code failed
+          5 |     div
+          6 |   )
+        > 7 | }
+            |  ^
 
-    const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      next.normalizeSnapshot(
-        IS_TURBOPACK
-          ? `
-      "./index.js:7:1
-      Parsing ecmascript source code failed
-        5 |     div
-        6 |   )
-      > 7 | }
-          |  ^
-      Unexpected eof"
-    `
-          : `
+        Unexpected eof"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -250,9 +247,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Import trace for requested module:
         ./index.js
         ./pages/index.js"
-      `
-      )
-    )
+      `)
+    }
 
     await cleanup()
   })
@@ -285,7 +281,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello')
@@ -302,7 +298,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchSnapshot()
 
     await session.patch(
@@ -317,7 +313,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('hello new')
@@ -343,26 +339,33 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
     await session.patch('index.module.css', `.button {`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+      process.env.TURBOPACK
+        ? './index.module.css:1:8'
+        : './index.module.css:1:1'
     )
-    if (!IS_TURBOPACK) {
+    if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
     }
-    expect(source).toMatch('> 1 | .button {')
-    expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
+    if (process.env.TURBOPACK) {
+      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('    |         ^')
+    } else {
+      expect(source).toMatch('> 1 | .button {')
+      expect(source).toMatch('    | ^')
+    }
 
     // Checks for selectors that can't be prefixed.
     // Selector "button" is not pure (pure selectors must contain at least one local class or id)
     await session.patch('index.module.css', `button {}`)
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     const source2 = await session.getRedboxSource()
     expect(source2).toMatchSnapshot()
 
@@ -390,9 +393,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const header = await session.getRedboxDescription()
     expect(header).toMatchSnapshot()
@@ -436,9 +439,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -482,9 +485,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -528,9 +531,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toMatchInlineSnapshot(
@@ -588,9 +591,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.evaluate(() => document.querySelector('button').click())
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const header5 = await session.getRedboxDescription()
     expect(header5).toMatchInlineSnapshot(
@@ -648,7 +651,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: {"a":1,"b":"x"}"`
     )
@@ -664,7 +667,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.patch(
       'index.js',
       outdent`
@@ -678,7 +681,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toContain(
       `Error: class Hello {`
     )
@@ -694,7 +697,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.patch(
       'index.js',
       outdent`
@@ -706,7 +709,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: string error"`
     )
@@ -722,7 +725,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
     await session.patch(
       'index.js',
       outdent`
@@ -734,7 +737,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxDescription()).toContain(
       `Error: A null error was thrown`
     )

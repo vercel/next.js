@@ -17,7 +17,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::ChunkingContext,
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -99,8 +99,11 @@ impl MiddlewareEndpoint {
 
         let edge_chunking_context = self.project.edge_chunking_context();
 
-        let edge_files = edge_chunking_context
-            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
+        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+            module.ident(),
+            Vc::cell(evaluatable_assets),
+            Value::new(AvailabilityInfo::Root),
+        );
 
         Ok(edge_files)
     }
