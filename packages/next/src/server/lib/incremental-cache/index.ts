@@ -216,7 +216,7 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   resetRequestCache() {
-    this.cacheHandler?.resetRequestCache()
+    this.cacheHandler?.resetRequestCache?.()
   }
 
   async unlock(cacheKey: string) {
