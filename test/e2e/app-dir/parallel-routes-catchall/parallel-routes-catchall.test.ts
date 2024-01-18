@@ -29,11 +29,19 @@ createNextDescribe(
       // so we'd expect to see the catch-all slot & the page content
       await check(() => browser.elementById('children').text(), /bar/)
       await check(() => browser.elementById('slot').text(), /slot catchall/)
+      await check(
+        () => browser.elementById('slot').text(),
+        /catchall slot client component/
+      )
     })
 
     it('should match correctly when defining an explicit slot but no page', async () => {
       const browser = await next.browser('/')
       await check(() => browser.elementById('slot').text(), /slot catchall/)
+      await check(
+        () => browser.elementById('slot').text(),
+        /catchall slot client component/
+      )
 
       await browser.elementByCss('[href="/baz"]').click()
 
@@ -46,12 +54,19 @@ createNextDescribe(
     it('should match both the catch-all page & slot', async () => {
       const browser = await next.browser('/')
       await check(() => browser.elementById('slot').text(), /slot catchall/)
-
+      await check(
+        () => browser.elementById('slot').text(),
+        /catchall slot client component/
+      )
       await browser.elementByCss('[href="/quux"]').click()
 
       // quux doesn't have a page or slot defined. It should use the catch-all for both
       await check(() => browser.elementById('children').text(), /main catchall/)
       await check(() => browser.elementById('slot').text(), /slot catchall/)
+      await check(
+        () => browser.elementById('slot').text(),
+        /catchall slot client component/
+      )
     })
   }
 )

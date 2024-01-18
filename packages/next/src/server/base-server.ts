@@ -258,7 +258,7 @@ type BaseRenderOpts = {
   appDirDevErrorLogger?: (err: any) => Promise<void>
   strictNextHead: boolean
   isExperimentalCompile?: boolean
-  experimental: { ppr: boolean }
+  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -387,7 +387,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getIncrementalCache(options: {
     requestHeaders: Record<string, undefined | string | string[]>
     requestProtocol: 'http' | 'https'
-  }): import('./lib/incremental-cache').IncrementalCache
+  }): Promise<import('./lib/incremental-cache').IncrementalCache>
 
   protected abstract getResponseCache(options: {
     dev: boolean
@@ -548,6 +548,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ppr:
           this.enabledDirectories.app &&
           this.nextConfig.experimental.ppr === true,
+        missingSuspenseWithCSRBailout:
+          this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
       },
     }
 
@@ -1263,7 +1265,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           protocol = parsedFullUrl.protocol as 'https:' | 'http:'
         } catch {}
 
-        const incrementalCache = this.getIncrementalCache({
+        const incrementalCache = await this.getIncrementalCache({
           requestHeaders: Object.assign({}, req.headers),
           requestProtocol: protocol.substring(0, protocol.length - 1) as
             | 'http'
@@ -1794,7 +1796,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths?.includes(resolvedWithoutSlash)) {
+        if (!staticPaths || staticPaths.length === 0) {
+          throw new Error(
+            `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
+          )
+        }
+        if (!staticPaths.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
@@ -2127,12 +2134,12 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     // use existing incrementalCache instance if available
     const incrementalCache =
       (globalThis as any).__incrementalCache ||
-      this.getIncrementalCache({
+      (await this.getIncrementalCache({
         requestHeaders: Object.assign({}, req.headers),
         requestProtocol: protocol.substring(0, protocol.length - 1) as
           | 'http'
           | 'https',
-      })
+      }))
 
     const { routeModule } = components
 

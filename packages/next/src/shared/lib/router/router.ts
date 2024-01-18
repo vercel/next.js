@@ -1319,13 +1319,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1365,6 +1358,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&

@@ -1,12 +1,12 @@
-import Avatar from './avatar'
-import DateFormatter from './date-formatter'
-import CoverImage from './cover-image'
-import Link from 'next/link'
-import { Post } from '@/viewmodels/post'
+import Avatar from "./avatar";
+import DateFormatter from "./date-formatter";
+import CoverImage from "./cover-image";
+import Link from "next/link";
+import { Post } from "@/viewmodels/post";
 
 type PostPreviewProps = {
-  post: Post
-}
+  post: Post;
+};
 
 export default function PostPreview({ post }: PostPreviewProps) {
   return (
@@ -25,5 +25,5 @@ export default function PostPreview({ post }: PostPreviewProps) {
       <p className="text-lg leading-relaxed mb-4">{post.excerpt}</p>
       <Avatar name={post.author.name} picture={post.author.picture} />
     </div>
-  )
+  );
 }

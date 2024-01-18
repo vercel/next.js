@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -410,6 +410,7 @@ createNextDescribe(
     })
 
     it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
       const res = await next.fetch('/non-existent-route', {
         method: 'POST',
         headers: {
@@ -418,6 +419,12 @@ createNextDescribe(
         body: 'foo=bar',
       })
 
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
       expect(res.status).toBe(404)
     })
 
@@ -458,7 +465,7 @@ createNextDescribe(
     if (isNextDev) {
       describe('HMR', () => {
         it('should support updating the action', async () => {
-          const filePath = 'app/server/actions.js'
+          const filePath = 'app/server/actions-3.js'
           const origContent = await next.readFile(filePath)
 
           try {
@@ -1112,6 +1119,78 @@ createNextDescribe(
               .text()
           ).toBe('Hello World')
         })
+      })
+    })
+
+    describe('caching disabled by default', () => {
+      it('should use no-store as default for server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number changes on each click
+          expect(newNumber).not.toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      it('should not override force-cache in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/force-cache')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      // Implicit force-cache
+      it('should not override revalidate in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/revalidate')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
       })
     })
   }

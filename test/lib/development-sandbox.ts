@@ -106,8 +106,8 @@ export async function sandbox(
           )
         }
       },
-      async hasRedbox(expected = false) {
-        return hasRedbox(browser, expected)
+      async hasRedbox() {
+        return hasRedbox(browser)
       },
       async hasErrorToast() {
         return browser.eval(() => {

@@ -211,10 +211,12 @@ export function patchFetch({
     // Do create a new span trace for internal fetches in the
     // non-verbose mode.
     const isInternal = (init?.next as any)?.internal === true
+    const hideSpan = process.env.NEXT_OTEL_FETCH_DISABLED === '1'
 
     return await getTracer().trace(
       isInternal ? NextNodeServerSpan.internalFetch : AppRenderSpan.fetch,
       {
+        hideSpan,
         kind: SpanKind.CLIENT,
         spanName: ['fetch', method, fetchUrl].filter(Boolean).join(' '),
         attributes: {
@@ -287,6 +289,7 @@ export function patchFetch({
           staticGenerationStore.fetchCache === 'only-no-store'
         const isForceNoStore =
           staticGenerationStore.fetchCache === 'force-no-store'
+        const isUsingNoStore = !!staticGenerationStore.isUnstableNoStore
 
         let _cache = getRequestMeta('cache')
         let cacheReason = ''
@@ -386,6 +389,9 @@ export function patchFetch({
           } else if (isDefaultNoStore) {
             revalidate = 0
             cacheReason = 'fetchCache = default-no-store'
+          } else if (isUsingNoStore) {
+            revalidate = 0
+            cacheReason = 'noStore call'
           } else {
             cacheReason = 'auto cache'
             revalidate =

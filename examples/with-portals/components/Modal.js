@@ -1,8 +1,8 @@
-import { useState } from 'react'
-import ClientOnlyPortal from './ClientOnlyPortal'
+import { useState } from "react";
+import ClientOnlyPortal from "./ClientOnlyPortal";
 
 export default function Modal() {
-  const [open, setOpen] = useState()
+  const [open, setOpen] = useState();
 
   return (
     <>
@@ -14,7 +14,7 @@ export default function Modal() {
           <div className="backdrop">
             <div className="modal">
               <p>
-                This modal is rendered using{' '}
+                This modal is rendered using{" "}
                 <a
                   href="https://react.dev/reference/react-dom/createPortal"
                   target="_blank"
@@ -56,5 +56,5 @@ export default function Modal() {
         </ClientOnlyPortal>
       )}
     </>
-  )
+  );
 }

@@ -1,11 +1,11 @@
-import { ParsedUrlQuery } from 'querystring'
-import * as plugins from 'temp/extract-path-plugins'
+import { ParsedUrlQuery } from "querystring";
+import * as plugins from "temp/extract-path-plugins";
 
 export interface Plugin {
   /**
    * A function which will be called during path extraction
    */
-  exec(path: string): string
+  exec(path: string): string;
 }
 
 export class PathExtractor {
@@ -15,24 +15,24 @@ export class PathExtractor {
    */
   public extract(params: ParsedUrlQuery | undefined): string {
     if (params === undefined) {
-      return '/'
+      return "/";
     }
     let path = Array.isArray(params.path)
-      ? params.path.join('/')
-      : params.path ?? '/'
+      ? params.path.join("/")
+      : params.path ?? "/";
 
     // Ensure leading '/'
-    if (!path.startsWith('/')) {
-      path = '/' + path
+    if (!path.startsWith("/")) {
+      path = "/" + path;
     }
 
     const extractedPath = (Object.values(plugins) as Plugin[]).reduce(
       (resultPath, plugin) => plugin.exec(resultPath),
-      path
-    )
+      path,
+    );
 
-    return extractedPath
+    return extractedPath;
   }
 }
 
-export const pathExtractor = new PathExtractor()
+export const pathExtractor = new PathExtractor();

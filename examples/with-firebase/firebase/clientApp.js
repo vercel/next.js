@@ -1,5 +1,5 @@
-import { initializeApp, getApps } from 'firebase/app'
-import { getAnalytics } from 'firebase/analytics'
+import { initializeApp, getApps } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
 export const createFirebaseApp = () => {
   const clientCredentials = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -10,17 +10,17 @@ export const createFirebaseApp = () => {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-  }
+  };
 
   if (getApps().length <= 0) {
-    const app = initializeApp(clientCredentials)
+    const app = initializeApp(clientCredentials);
     // Check that `window` is in scope for the analytics module!
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // Enable analytics. https://firebase.google.com/docs/analytics/get-started
-      if ('measurementId' in clientCredentials) {
-        getAnalytics()
+      if ("measurementId" in clientCredentials) {
+        getAnalytics();
       }
     }
-    return app
+    return app;
   }
-}
+};

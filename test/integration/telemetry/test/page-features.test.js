@@ -100,7 +100,7 @@ describe('page features telemetry', () => {
         await renderViaHTTP(port, '/hello')
 
         if (app) {
-          await killApp(app)
+          await killApp(app, 'SIGTERM')
         }
         await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
 
@@ -141,7 +141,7 @@ describe('page features telemetry', () => {
         await renderViaHTTP(port, '/hello')
 
         if (app) {
-          await killApp(app)
+          await killApp(app, 'SIGTERM')
         }
 
         await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
