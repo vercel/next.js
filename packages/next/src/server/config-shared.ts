@@ -178,6 +178,15 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * @deprecated use config.cacheHandler instead
+   */
+  incrementalCacheHandlerPath?: string
+  /**
+   * @deprecated use config.cacheMaxMemorySize instead
+   *
+   */
+  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
