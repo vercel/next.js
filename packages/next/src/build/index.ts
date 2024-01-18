@@ -127,10 +127,7 @@ import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
   lockfilePatchPromise,
   teardownTraceSubscriber,
-  teardownCrashReporter,
-  loadBindings,
   teardownHeapProfiler,
-  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -163,6 +160,8 @@ import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isDefaultRoute } from '../lib/is-default-route'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -698,7 +697,6 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  turboNextBuildRoot = null,
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 ): Promise<void> {
   const isCompileMode = buildMode === 'experimental-compile'
@@ -804,6 +802,15 @@ export default async function build(
         telemetry.record(events)
       )
 
+      // Always log next version first then start rest jobs
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      logStartInfo({
+        networkUrl: null,
+        appUrl: null,
+        envInfo,
+        expFeatureInfo,
+      })
+
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
       const shouldLint = !ignoreESLint && runLint
 
@@ -841,14 +848,6 @@ export default async function build(
       telemetry.record({
         eventName: EVENT_BUILD_FEATURE_USAGE,
         payload: buildLintEvent,
-      })
-
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
-      logStartInfo({
-        networkUrl: null,
-        appUrl: null,
-        envInfo,
-        expFeatureInfo,
       })
 
       const validFileMatcher = createValidFileMatcher(
@@ -1019,7 +1018,9 @@ export default async function build(
 
       const appPaths = Array.from(appPageKeys)
       // Interception routes are modelled as beforeFiles rewrites
-      rewrites.beforeFiles.push(...generateInterceptionRoutesRewrites(appPaths))
+      rewrites.beforeFiles.push(
+        ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
+      )
 
       const totalAppPagesCount = appPaths.length
 
@@ -1244,7 +1245,7 @@ export default async function build(
         PAGES_MANIFEST
       )
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -1259,12 +1260,12 @@ export default async function build(
                     compress: false,
                   }
                 : {}),
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
               experimental: {
                 ...config.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-                incrementalCacheHandlerPath: incrementalCacheHandlerPath
-                  ? path.relative(distDir, incrementalCacheHandlerPath)
-                  : undefined,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
@@ -1339,48 +1340,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild() {
-        const turboNextBuildStart = process.hrtime()
-
-        const turboJson = findUp.sync('turbo.json', { cwd: dir })
-        // eslint-disable-next-line no-shadow
-        const packagePath = findUp.sync('package.json', { cwd: dir })
-        let binding = await loadBindings(config?.experimental?.useWasmBinary)
-
-        let root =
-          turboNextBuildRoot ??
-          (turboJson
-            ? path.dirname(turboJson)
-            : packagePath
-            ? path.dirname(packagePath)
-            : undefined)
-
-        const hasRewrites =
-          rewrites.beforeFiles.length > 0 ||
-          rewrites.afterFiles.length > 0 ||
-          rewrites.fallback.length > 0
-
-        await binding.turbo.nextBuild({
-          ...NextBuildContext,
-          root,
-          distDir: config.distDir,
-          defineEnv: createDefineEnv({
-            isTurbopack: turboNextBuild,
-            allowedRevalidateHeaderKeys:
-              config.experimental.allowedRevalidateHeaderKeys,
-            clientRouterFilters: NextBuildContext.clientRouterFilters,
-            config,
-            dev: false,
-            distDir,
-            fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-            hasRewrites,
-            middlewareMatchers: undefined,
-            previewModeId: undefined,
-          }),
-        })
-
-        const [duration] = process.hrtime(turboNextBuildStart)
-        return { duration, buildTraceContext: undefined }
+      async function turbopackBuild(): Promise<never> {
+        throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1391,6 +1352,12 @@ export default async function build(
         config.experimental.webpackBuildWorker ||
         (config.experimental.webpackBuildWorker === undefined &&
           !config.webpack)
+      const runServerAndEdgeInParallel =
+        config.experimental.parallelServerCompiles
+      const collectServerBuildTracesInParallel =
+        config.experimental.parallelServerBuildTraces ||
+        (config.experimental.parallelServerBuildTraces === undefined &&
+          isCompileMode)
 
       nextBuildSpan.setAttribute(
         'has-custom-webpack-config',
@@ -1406,45 +1373,67 @@ export default async function build(
           'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
         )
       }
+      if (
+        !useBuildWorker &&
+        (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
+      ) {
+        throw new Error(
+          'The "parallelServerBuildTraces" and "parallelServerCompiles" options may only be used when build workers can be used. Read more: https://nextjs.org/docs/messages/parallel-build-without-worker'
+        )
+      }
 
       Log.info('Creating an optimized production build ...')
 
       if (!isGenerateMode) {
-        if (isCompileMode && useBuildWorker) {
+        if (runServerAndEdgeInParallel || collectServerBuildTracesInParallel) {
           let durationInSeconds = 0
 
-          await webpackBuild(useBuildWorker, ['server']).then((res) => {
+          const serverBuildPromise = webpackBuild(useBuildWorker, [
+            'server',
+          ]).then((res) => {
             buildTraceContext = res.buildTraceContext
             durationInSeconds += res.duration
-            const buildTraceWorker = new Worker(
-              require.resolve('./collect-build-traces'),
-              {
-                numWorkers: 1,
-                exposedMethods: ['collectBuildTraces'],
-              }
-            ) as Worker & typeof import('./collect-build-traces')
 
-            buildTracesPromise = buildTraceWorker
-              .collectBuildTraces({
-                dir,
-                config,
-                distDir,
-                // Serialize Map as this is sent to the worker.
-                pageInfos: serializePageInfos(new Map()),
-                staticPages: [],
-                hasSsrAmpPages: false,
-                buildTraceContext,
-                outputFileTracingRoot,
-              })
-              .catch((err) => {
-                console.error(err)
-                process.exit(1)
-              })
+            if (collectServerBuildTracesInParallel) {
+              const buildTraceWorker = new Worker(
+                require.resolve('./collect-build-traces'),
+                {
+                  numWorkers: 1,
+                  exposedMethods: ['collectBuildTraces'],
+                }
+              ) as Worker & typeof import('./collect-build-traces')
+
+              buildTracesPromise = buildTraceWorker
+                .collectBuildTraces({
+                  dir,
+                  config,
+                  distDir,
+                  // Serialize Map as this is sent to the worker.
+                  pageInfos: serializePageInfos(new Map()),
+                  staticPages: [],
+                  hasSsrAmpPages: false,
+                  buildTraceContext,
+                  outputFileTracingRoot,
+                })
+                .catch((err) => {
+                  console.error(err)
+                  process.exit(1)
+                })
+            }
           })
+          if (!runServerAndEdgeInParallel) {
+            await serverBuildPromise
+          }
 
-          await webpackBuild(useBuildWorker, ['edge-server']).then((res) => {
+          const edgeBuildPromise = webpackBuild(useBuildWorker, [
+            'edge-server',
+          ]).then((res) => {
             durationInSeconds += res.duration
           })
+          if (runServerAndEdgeInParallel) {
+            await serverBuildPromise
+          }
+          await edgeBuildPromise
 
           await webpackBuild(useBuildWorker, ['client']).then((res) => {
             durationInSeconds += res.duration
@@ -1534,12 +1523,10 @@ export default async function build(
 
       if (config.experimental.staticWorkerRequestDeduping) {
         let CacheHandler
-        if (incrementalCacheHandlerPath) {
+        if (cacheHandler) {
           CacheHandler = interopDefault(
-            await import(
-              path.isAbsolute(incrementalCacheHandlerPath)
-                ? incrementalCacheHandlerPath
-                : path.join(dir, incrementalCacheHandlerPath)
+            await import(formatDynamicImportPath(dir, cacheHandler)).then(
+              (mod) => mod.default || mod
             )
           )
         }
@@ -1555,7 +1542,7 @@ export default async function build(
             : config.experimental.isrFlushToDisk,
           serverDistDir: path.join(distDir, 'server'),
           fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: config.cacheMaxMemorySize,
           getPrerenderManifest: () => ({
             version: -1 as any, // letting us know this doesn't conform to spec
             routes: {},
@@ -1853,13 +1840,11 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            incrementalCacheHandlerPath:
-                              config.experimental.incrementalCacheHandlerPath,
+                            cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize:
-                              config.experimental.isrMemoryCacheSize,
+                            maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             ppr: config.experimental.ppr === true,
                           })
@@ -2515,6 +2500,7 @@ export default async function build(
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
+              if (isDefaultRoute(page)) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,
@@ -3200,6 +3186,5 @@ export default async function build(
     await flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
-    teardownCrashReporter()
   }
 }

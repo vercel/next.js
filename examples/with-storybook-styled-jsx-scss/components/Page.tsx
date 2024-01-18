@@ -1,12 +1,12 @@
-import React from 'react'
-import Link from 'next/link'
-import { Header } from './Header'
+import React from "react";
+import Link from "next/link";
+import { Header } from "./Header";
 
 export interface PageProps {
-  user?: {}
-  onLogin: () => void
-  onLogout: () => void
-  onCreateAccount: () => void
+  user?: {};
+  onLogin: () => void;
+  onLogout: () => void;
+  onCreateAccount: () => void;
 }
 
 export const Page: React.FC<PageProps> = ({
@@ -70,7 +70,7 @@ export const Page: React.FC<PageProps> = ({
           index.js file.
         </p>
         <p>
-          You might also want to check out the{' '}
+          You might also want to check out the{" "}
           <Link
             href="https://github.com/vercel/styled-jsx#styles-outside-of-components"
             legacyBehavior
@@ -90,14 +90,14 @@ export const Page: React.FC<PageProps> = ({
           <i>(From the storybook demo setup)</i>
         </p>
         <p>
-          We recommend building UIs with a{' '}
+          We recommend building UIs with a{" "}
           <a
             href="https://componentdriven.org"
             target="_blank"
             rel="noopener noreferrer"
           >
             <strong>component-driven</strong>
-          </a>{' '}
+          </a>{" "}
           process starting with atomic components and ending with pages.
         </p>
         <p>
@@ -116,7 +116,7 @@ export const Page: React.FC<PageProps> = ({
           </li>
         </ul>
         <p>
-          Get a guided tutorial on component-driven development at{' '}
+          Get a guided tutorial on component-driven development at{" "}
           <a
             href="https://www.learnstorybook.com"
             target="_blank"
@@ -124,7 +124,7 @@ export const Page: React.FC<PageProps> = ({
           >
             Learn Storybook
           </a>
-          . Read more in the{' '}
+          . Read more in the{" "}
           <a
             href="https://storybook.js.org/docs"
             target="_blank"
@@ -136,7 +136,7 @@ export const Page: React.FC<PageProps> = ({
         </p>
         <div className="tip-wrapper">
           <span className="tip">Tip</span> Adjust the width of the canvas with
-          the{' '}
+          the{" "}
           <svg
             width="10"
             height="10"
@@ -157,7 +157,7 @@ export const Page: React.FC<PageProps> = ({
     </article>
     <style jsx>{`
       section {
-        font-family: 'Nunito Sans', 'Helvetica Neue', Helvetica, Arial,
+        font-family: "Nunito Sans", "Helvetica Neue", Helvetica, Arial,
           sans-serif;
         font-size: 14px;
         line-height: 24px;
@@ -220,4 +220,4 @@ export const Page: React.FC<PageProps> = ({
       }
     `}</style>
   </>
-)
+);

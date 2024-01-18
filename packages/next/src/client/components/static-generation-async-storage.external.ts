@@ -51,6 +51,7 @@ export interface StaticGenerationStore {
   fetchMetrics?: FetchMetrics
 
   isDraftMode?: boolean
+  isUnstableNoStore?: boolean
 }
 
 export type StaticGenerationAsyncStorage =
