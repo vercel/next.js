@@ -144,7 +144,7 @@ To embed videos from platforms like YouTube or Vimeo, you can use React Suspense
 > - **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
 > - **Consider Data Usage**: Implement [strategies for loading videos](https://yoast.com/site-speed-tips-for-faster-video/) based on network conditions, especially for users with limited data plans.
 
-This approach results in a better user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. For a more engaging and informative loading experience, consider using a loading skeleton as the fallback UI. So isntead of showing a simple loading message, you can show a skeleton that resembles the video player like this:
+This approach results in a better user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. For a more engaging and informative loading experience, consider using a loading skeleton as the fallback UI. So instead of showing a simple loading message, you can show a skeleton that resembles the video player like this:
 
 ```jsx filename="app/page.jsx"
 import { Suspense } from 'react'
