@@ -556,12 +556,15 @@ async function startWatcher(opts: SetupOpts) {
       }
     }, 2)
 
-    function enqueueHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
+    function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       hmrPayloads.set(`${key}:${id}`, payload)
+      hmrBuilding = true
     }
 
-    function enqueueTurbopackMessage(payload: TurbopackUpdate) {
+    function sendTurbopackMessage(payload: TurbopackUpdate) {
       turbopackUpdates.push(payload)
+      hmrBuilding = true
+      sendHmrDebounce()
     }
 
     async function loadPartialManifest<T>(
@@ -700,7 +703,7 @@ async function startWatcher(opts: SetupOpts) {
         processIssues(page, change)
         const payload = await makePayload(page, change)
         if (payload) {
-          enqueueHmr('endpoint-change', key, payload)
+          sendHmr('endpoint-change', key, payload)
         }
       }
     }
@@ -1068,7 +1071,7 @@ async function startWatcher(opts: SetupOpts) {
 
         for await (const data of subscription) {
           processIssues(id, data)
-          enqueueTurbopackMessage(data)
+          sendTurbopackMessage(data)
         }
       } catch (e) {
         // The client might be using an HMR session from a previous server, tell them
@@ -1140,12 +1143,12 @@ async function startWatcher(opts: SetupOpts) {
           if (prevMiddleware === true && !middleware) {
             // Went from middleware to no middleware
             await clearChangeSubscription('middleware', 'server')
-            enqueueHmr('entrypoint-change', 'middleware', {
+            sendHmr('entrypoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           } else if (prevMiddleware === false && middleware) {
             // Went from no middleware to middleware
-            enqueueHmr('endpoint-change', 'middleware', {
+            sendHmr('endpoint-change', 'middleware', {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
