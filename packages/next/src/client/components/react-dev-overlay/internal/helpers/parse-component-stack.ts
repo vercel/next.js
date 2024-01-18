@@ -1,4 +1,5 @@
 export type ComponentStackFrame = {
+  canOpenInEditor: boolean
   component: string
   file?: string
   lineNumber?: number
@@ -48,6 +49,7 @@ function parseStackFrameLocation(
     case LocationType.FILE:
     case LocationType.WEBPACK_INTERNAL:
       return {
+        canOpenInEditor: true,
         file,
         lineNumber: lineNumber ? Number(lineNumber) : undefined,
         column: column ? Number(column) : undefined,
@@ -55,11 +57,11 @@ function parseStackFrameLocation(
     // When the location is a URL we only show the file
     case LocationType.HTTP:
     case LocationType.PROTOCOL_RELATIVE:
-      return {}
     case LocationType.UNKNOWN:
-      return {}
     default: {
-      return {}
+      return {
+        canOpenInEditor: false,
+      }
     }
   }
 }
@@ -77,6 +79,7 @@ export function parseComponentStack(
 
       if (!location) {
         componentStackFrames.push({
+          canOpenInEditor: false,
           component,
         })
         continue
