@@ -95,7 +95,7 @@
     "@next/env": "14.0.5-canary.66",
     "@swc/helpers": "0.5.2",
     "busboy": "1.6.0",
-    "caniuse-lite": "^1.0.30001406",
+    "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.1"
@@ -205,7 +205,7 @@
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
     "browserify-zlib": "0.2.0",
-    "browserslist": "4.20.2",
+    "browserslist": "4.22.2",
     "buffer": "5.6.0",
     "bytes": "3.1.1",
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
