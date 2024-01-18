@@ -35,5 +35,11 @@ createNextDescribe(
       )
       expect(await $('.root').text()).toContain('pages')
     })
+
+    it('should support next/og image', async () => {
+      const res = await next.fetch('/opengraph-image')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toBe('image/png')
+    })
   }
 )
