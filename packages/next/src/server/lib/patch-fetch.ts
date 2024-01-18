@@ -237,8 +237,8 @@ export function patchFetch({
 
         const getRequestMeta = (field: string) => {
           // If request input is present but init is not, retrieve from input first.
-          const value = isRequestInput && !init ? (input as any)[field] : null
-          return value || (init as any)?.[field]
+          const value = (init as any)?.[field]
+          return value || (isRequestInput ? (input as any)[field] : null)
         }
 
         // If the staticGenerationStore is not available, we can't do any
