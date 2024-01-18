@@ -7,7 +7,7 @@ import {
 } from '../../../lib/constants'
 
 let rateLimitedUntil = 0
-export let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
+let memoryCache: LRUCache<string, CacheHandlerValue> | undefined
 
 interface NextFetchCacheParams {
   internal?: boolean
