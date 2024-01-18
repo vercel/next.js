@@ -12,7 +12,7 @@ import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableAccessProxy,
   AccessProxy,
-} from '../build/access-proxy'
+} from '../build/turborepo-access-trace'
 
 export interface AmpValidation {
   page: string

@@ -3,7 +3,7 @@ import type { Paths, Addresses, EnvVars } from './types'
 import { envProxy } from './env'
 import { tcpProxy } from './tcp'
 import { fsProxy } from './fs'
-import { AccessProxy } from './access-proxy'
+import { AccessProxy } from './result'
 
 export async function withAccessProxy<T>(
   f: () => T | Promise<T>

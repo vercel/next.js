@@ -82,7 +82,7 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
-import { withAccessProxy, AccessProxy } from './access-proxy'
+import { withAccessProxy, AccessProxy } from './turborepo-access-trace'
 
 import {
   eventBuildOptimize,

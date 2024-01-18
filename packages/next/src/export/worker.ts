@@ -36,7 +36,7 @@ import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
-import { withAccessProxy, AccessProxy } from '../build/access-proxy'
+import { withAccessProxy, AccessProxy } from '../build/turborepo-access-trace'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
