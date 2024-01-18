@@ -1,5 +1,5 @@
 export function GET() {
-  return { name: 'John Doe' }
+  return new Response(JSON.stringify({ name: 'John Doe' }))
 }
 
 export const dynamic = 'force-dynamic'
