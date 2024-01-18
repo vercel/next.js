@@ -10,28 +10,21 @@ Reading search parameters through `useSearchParams()` without a Suspense boundar
 
 Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
 
-```tsx title="app/page.tsx"
-import { SearchBar } from './search'
-import { Suspense } from 'react'
-
-export default function Page() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <SearchBar />
-    </Suspense>
-  )
-}
-```
-
-```jsx title="app/search.tsx"
+```jsx title="app/search.js"
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
 export function Search() {
   const searchParams = useSearchParams()
 
-  return '...'
+  return (
+    // You could have a loading skeleton as the fallback too
+    <Suspense fallback={null}>
+      <SearchBar />
+    </Suspense>
+  )
 }
 ```
 
