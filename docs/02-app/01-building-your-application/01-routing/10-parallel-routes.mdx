@@ -1,6 +1,9 @@
 ---
 title: Parallel Routes
 description: Simultaneously render one or more pages in the same view that can be navigated independently. A pattern for highly dynamic applications.
+related:
+  links:
+    - app/api-reference/file-conventions/default
 ---
 
 Parallel Routes allows you to simultaneously or conditionally render one or more pages within the same layout. They are useful for highly dynamic sections of an app, such as dashboards and feeds on social sites.
@@ -15,31 +18,9 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
   height="952"
 />
 
-## Behavior
+## Slots
 
-Parallel Routes can be streamed independently, allowing you to define independent error and loading states for each route:
-
-<Image
-  alt="Parallel routes enable custom error and loading states"
-  srcLight="/docs/light/parallel-routes-cinematic-universe.png"
-  srcDark="/docs/dark/parallel-routes-cinematic-universe.png"
-  width="1600"
-  height="1218"
-/>
-
-Parallel Routes also allows you to conditionally render a slot based on certain conditions, such as authentication state. For example, you can render a `/dashboard` or `/login` page depending on whether the user is logged in:
-
-<Image
-  alt="Conditional routes diagram"
-  srcLight="/docs/light/conditional-routes-ui.png"
-  srcDark="/docs/dark/conditional-routes-ui.png"
-  width="1600"
-  height="898"
-/>
-
-## Convention
-
-Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two explicit slots: `@analytics` and `@team`:
+Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
 
 <Image
   alt="Parallel Routes File-system Structure"
@@ -49,7 +30,7 @@ Parallel routes are created using named **slots**. Slots are defined with the `@
   height="687"
 />
 
-Slots are passed as props to the shared. parent layout. For the example above, the component in `app/layout.js` now accepts the `@analytics` and `@team` slots props, and can render them in parallel alongside the `children` prop:
+Slots are passed as props to the shared parent layout. For the example above, the component in `app/layout.js` now accepts the `@analytics` and `@team` slots props, and can render them in parallel alongside the `children` prop:
 
 ```tsx filename="app/layout.tsx" switcher
 export default function Layout(props: {
@@ -85,12 +66,12 @@ However, slots are **not** [route segments](/docs/app/building-your-application/
 >
 > - The `children` prop is an implicit slot that does not need to be mapped to a folder. This means `app/page.js` is equivalent to `app/@children/page.js`.
 
-## Slot active state and navigation
+## Active state and navigation
 
-By default, Next.js keeps track of the active _state_ (subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
+By default, Next.js keeps track of the active _state_ (or subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
 
 - [**Soft Navigation**](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation): During client-side navigation, Next.js will perform a [partial render](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), changing the subpage within the slot, while maintaining the other slot's active subpages, even if they don't match the current URL.
-- **Hard Navigation**: Since Next.js cannot recover the active state of a slot after a full page load, Next.js will render the [`default.js`](#defaultjs) file for the other slots, or `404` if `default.js` doesn't exist.
+- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state of slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
 
 > **Good to know**:
 >
@@ -98,9 +79,9 @@ By default, Next.js keeps track of the active _state_ (subpage) for each slot. H
 
 ### `default.js`
 
-You can define a `default.js` file to render as a fallback when Next.js cannot recover a slot's active state after a full page refresh.
+You can define a `default.js` file to render as a fallback for unmatched slots during the initial load or full-page reload.
 
-Consider the following folder structure. The `@team` slot has a `settings` directory, but `@analytics` does not.
+Consider the following folder structure. The `@team` slot has a `settings` page, but `@analytics` does not.
 
 <Image
   alt="Parallel Routes unmatched routes"
@@ -112,7 +93,9 @@ Consider the following folder structure. The `@team` slot has a `settings` direc
 
 When navigating to `/dashboard/settings`, the `@team` slot will render the `settings` page while maintaining the currently active page for the `@analytics` slot.
 
-On refresh, Next.js will first try to render the unmatched slot's `default.js` file for `@analytics`. If that's not available, a 404 gets rendered.
+On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, a `404` is rendered instead.
+
+Additionally, since `children` is an implicit slot, you also need to create a `default.js` file to render a fallback for `children` when Next.js cannot recover the active state of the parent page.
 
 ### `useSelectedLayoutSegment(s)`
 
@@ -143,7 +126,7 @@ export default function Layout(props) {
 }
 ```
 
-When a user navigates to `@auth/login` (or `/login` in the URL bar), `loginSegments` will be equal to the string `"login"`.
+When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginSegments` will be equal to the string `"login"`.
 
 ## Examples
 
@@ -292,6 +275,16 @@ export default function CatchAll() {
 
 ### Conditional Routes
 
+Parallel Routes also allows you to conditionally render a slot based on certain conditions, such as authentication state. For example, you can render a `/dashboard` or `/login` page depending on whether the user is logged in:
+
+<Image
+  alt="Conditional routes diagram"
+  srcLight="/docs/light/conditional-routes-ui.png"
+  srcDark="/docs/dark/conditional-routes-ui.png"
+  width="1600"
+  height="898"
+/>
+
 Parallel Routes can be used to implement conditional routing. For example, you can render a `@dashboard` or `@login` route depending on the authentication state.
 
 ```tsx filename="app/layout.tsx" switcher
@@ -324,4 +317,16 @@ export default function Layout({ dashboard, login }) {
   srcDark="/docs/dark/conditional-routes-ui.png"
   width="1600"
   height="898"
+/>
+
+### Streaming
+
+Parallel Routes can be streamed independently, allowing you to define independent error and loading states for each route:
+
+<Image
+  alt="Parallel routes enable custom error and loading states"
+  srcLight="/docs/light/parallel-routes-cinematic-universe.png"
+  srcDark="/docs/dark/parallel-routes-cinematic-universe.png"
+  width="1600"
+  height="1218"
 />
