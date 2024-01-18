@@ -185,7 +185,7 @@ function LoginButton() {
 }
 ```
 
-For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#authentication-solutions).
+For a more streamlined authentication setup in Next.js projects, especially when offering multiple login methods, consider using a comprehensive [authentication solution](#examples).
 
 This approach ensures a secure and efficient authentication process, laying the foundation for a reliable and user-friendly web application.
 
@@ -528,7 +528,7 @@ export async function getSession() {
 
 Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
 
-With [authentication solutions](#authentication-solutions) such as NextAuth.js, session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
+With [authentication solutions](#examples) such as NextAuth.js, session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
 
 Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
 
