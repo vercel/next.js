@@ -807,7 +807,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
     return {
       ...options,
       nextConfig:
-        options.nextConfig && (await serializeNextConfig(options.nextConfig)),
+        options.nextConfig &&
+        (await serializeNextConfig(options.nextConfig, options.projectPath!)),
       jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
       defineEnv: options.defineEnv,
@@ -821,7 +822,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       this._nativeProject = nativeProject
     }
 
-    async update(options: ProjectOptions) {
+    async update(options: Partial<ProjectOptions>) {
       await withErrorCause(async () =>
         binding.projectUpdate(
           this._nativeProject,
@@ -1052,7 +1053,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
   }
 
   async function serializeNextConfig(
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigComplete,
+    projectPath: string
   ): Promise<string> {
     let nextConfigSerializable = nextConfig as any
 
@@ -1087,6 +1089,12 @@ function bindingToApi(binding: any, _wasm: boolean) {
             )
           )
         : undefined
+
+    // loaderFile is an absolute path, we need it to be relative for turbopack.
+    if (nextConfig.images.loaderFile) {
+      nextConfig.images.loaderFile =
+        './' + path.relative(projectPath, nextConfig.images.loaderFile)
+    }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
   }

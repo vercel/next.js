@@ -178,6 +178,15 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * @deprecated use config.cacheHandler instead
+   */
+  incrementalCacheHandlerPath?: string
+  /**
+   * @deprecated use config.cacheMaxMemorySize instead
+   *
+   */
+  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -378,7 +387,8 @@ export interface ExperimentalConfig {
    *
    * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
    *
-   * @default false
+   * @note This flag will be removed in Next.js 15.
+   * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
 }
@@ -857,7 +867,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: false,
+    missingSuspenseWithCSRBailout: true,
   },
 }
 
