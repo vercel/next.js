@@ -21,5 +21,3 @@ class MultiReporter implements Reporter {
 
 // JSON is always reported to allow for diagnostics
 export const reporter = new MultiReporter([reportToJson, reportToTelemetry])
-
-setInterval(() => reportToJson.flushAll(), 300)
