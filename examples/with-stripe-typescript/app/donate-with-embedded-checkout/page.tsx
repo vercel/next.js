@@ -1,10 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata } from "next";
 
-import CheckoutForm from '@/components/CheckoutForm'
+import CheckoutForm from "@/components/CheckoutForm";
 
 export const metadata: Metadata = {
-  title: 'Donate with embedded Checkout | Next.js + TypeScript Example',
-}
+  title: "Donate with embedded Checkout | Next.js + TypeScript Example",
+};
 
 export default function DonatePage(): JSX.Element {
   return (
@@ -13,5 +13,5 @@ export default function DonatePage(): JSX.Element {
       <p>Donate to our project 💖</p>
       <CheckoutForm uiMode="embedded" />
     </div>
-  )
+  );
 }

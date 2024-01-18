@@ -1,31 +1,31 @@
 "use client";
 
-import type Stripe from 'stripe'
+import type Stripe from "stripe";
 
-import React, { useState } from 'react'
+import React, { useState } from "react";
 
 import CustomDonationInput from "@/components/CustomDonationInput";
 import StripeTestCards from "@/components/StripeTestCards";
 
-import { formatAmountForDisplay } from '@/utils/stripe-helpers'
-import * as config from '@/config'
-import { createCheckoutSession } from '@/actions/stripe'
-import getStripe from '@/utils/get-stripejs'
+import { formatAmountForDisplay } from "@/utils/stripe-helpers";
+import * as config from "@/config";
+import { createCheckoutSession } from "@/actions/stripe";
+import getStripe from "@/utils/get-stripejs";
 import {
   EmbeddedCheckout,
   EmbeddedCheckoutProvider,
-} from '@stripe/react-stripe-js'
+} from "@stripe/react-stripe-js";
 
 interface CheckoutFormProps {
-  uiMode: Stripe.Checkout.SessionCreateParams.UiMode
+  uiMode: Stripe.Checkout.SessionCreateParams.UiMode;
 }
 
 export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
-  const [loading] = useState<boolean>(false)
+  const [loading] = useState<boolean>(false);
   const [input, setInput] = useState<{ customDonation: number }>({
     customDonation: Math.round(config.MAX_AMOUNT / config.AMOUNT_STEP),
-  })
-  const [clientSecret, setClientSecret] = useState<string | null>(null)
+  });
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
   const handleInputChange: React.ChangeEventHandler<HTMLInputElement> = (
     e,
@@ -36,24 +36,24 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
     });
 
   const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (
-    e
+    e,
   ): Promise<void> => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (props.uiMode === 'hosted') {
+    if (props.uiMode === "hosted") {
       const { url } = await createCheckoutSession(
-        new FormData(e.target as HTMLFormElement)
-      )
+        new FormData(e.target as HTMLFormElement),
+      );
 
-      window.location.assign(url as string)
+      window.location.assign(url as string);
     }
 
     const { client_secret } = await createCheckoutSession(
-      new FormData(e.target as HTMLFormElement)
-    )
+      new FormData(e.target as HTMLFormElement),
+    );
 
-    setClientSecret(client_secret)
-  }
+    setClientSecret(client_secret);
+  };
 
   return (
     <React.Fragment>
@@ -87,5 +87,5 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
         </EmbeddedCheckoutProvider>
       ) : null}
     </React.Fragment>
-  )
+  );
 }
