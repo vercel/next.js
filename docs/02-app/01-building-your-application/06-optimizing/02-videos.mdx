@@ -4,7 +4,7 @@ nav_title: Videos
 description: Recommendations and best practices for optimizing videos in your Next.js application.
 ---
 
-# Optimizing Videos in Next.js Applications
+# Optimizing videos in Next.js applications
 
 Optimizing videos is important to maintain performance and enhance the user experience. This page outlines how to use videos with Next.js applications, showing how to store and display video files without affecting performance.
 
@@ -33,7 +33,7 @@ export function Video() {
 }
 ```
 
-### Common `<video>` Tag Attributes
+### Common `<video>` tag attributes
 
 | Attribute     | Description                                                                                               | Example Value                              |
 | ------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------ |
@@ -53,7 +53,7 @@ export function Video() {
 > <video autoplay muted playsInline></video>
 > ```
 
-For a comprehensive list of video attributes, refer to the MDN documentation [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attributes).
+For a comprehensive list of video attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/video#attributes).
 
 ### Video best practices
 
@@ -77,7 +77,7 @@ export default function Page() {
 }
 ```
 
-### Common `<iframe>` Tag Attributes
+### Common `<iframe>` tag attributes
 
 | Attribute         | Description                                                            | Example Value                                 |
 | ----------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
@@ -90,14 +90,14 @@ export default function Page() {
 | `loading`         | Optimize loading behavior (e.g., lazy loading).                        | `<iframe loading="lazy"></iframe>`            |
 | `title`           | Provides a title for the iframe to support accessibility.              | `<iframe title="Description"></iframe>`       |
 
-For a comprehensive list of iframe attributes, refer to the MDN documentation [here](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attributes).
+For a comprehensive list of iframe attributes, refer to the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/iframe#attributes).
 
-### Choosing a Video Embedding Method
+### Choosing a video embedding method
 
 There are two ways you can embed videos in your Next.js application:
 
-- **Self-Hosted or Direct Video Files:** Embed self-hosted videos using the `<video>` tag for scenarios requiring detailed control over the player's functionality and appearance. This integration method within Next.js allows for customization and control of your video content.
-- **Using Video Hosting Services (YouTube, Vimeo, etc.):** For video hosting services like YouTube or Vimeo, you'll embed their iframe-based players using the `<iframe>` tag. While this method limits some control over the player, it offers ease of use and features provided by these platforms.
+- **Self-hosted or direct video files:** Embed self-hosted videos using the `<video>` tag for scenarios requiring detailed control over the player's functionality and appearance. This integration method within Next.js allows for customization and control of your video content.
+- **Using video hosting services (YouTube, Vimeo, etc.):** For video hosting services like YouTube or Vimeo, you'll embed their iframe-based players using the `<iframe>` tag. While this method limits some control over the player, it offers ease of use and features provided by these platforms.
 
 Choose the embedding method that aligns with your application's requirements and the user experience you aim to deliver.
 
@@ -105,19 +105,19 @@ Choose the embedding method that aligns with your application's requirements and
 
 To embed videos from platforms like YouTube or Vimeo, you can use React Suspense to stream the video component once ready.
 
-1. **Create a Server Component for Video Embedding**
+1. **Create a Server Component for video embedding**
 
    The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will fetch the source URL for the video and render the iframe.
 
    ```jsx filename="app/ui/video-component.jsx"
-   export const async function VideoComponent(){
+   export const async function VideoComponent (){
      const src = await getVideoSrc()
 
      return <iframe src={src} frameborder="0" allowfullscreen />
    }
    ```
 
-2. **Stream the Video Component Using React Suspense**
+2. **Stream the video component using React Suspense**
 
    After creating the Server Component to embed the video, the next step is to [stream](https://nextjs.org/docs/app/building-your-application/routing/loading-ui-and-streaming) the component using [React Suspense](https://react.dev/reference/react/Suspense).
 
@@ -139,8 +139,8 @@ To embed videos from platforms like YouTube or Vimeo, you can use React Suspense
 
 > **Good to know**: When embedding videos from external platforms, consider the following best practices:
 >
-> - **Responsive Embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
-> - **Consider Data Usage**: Implement [strategies for loading videos](https://yoast.com/site-speed-tips-for-faster-video/) based on network conditions, especially for users with limited data plans.
+> - **Responsive embedding**: Ensure the video embeds are responsive. Use CSS to make the iframe or video player adapt to different screen sizes.
+> - **Consider data usage**: Implement [strategies for loading videos](https://yoast.com/site-speed-tips-for-faster-video/) based on network conditions, especially for users with limited data plans.
 
 This approach results in a better user experience as it prevents the page from blocking, meaning the user can interact with the page while the video component streams in. For a more engaging and informative loading experience, consider using a loading skeleton as the fallback UI. So instead of showing a simple loading message, you can show a skeleton that resembles the video player like this:
 
@@ -165,56 +165,24 @@ export default function Page() {
 
 Self-hosting videos may be preferable for several reasons:
 
-- **Complete Control and Independence**: Self-hosting gives you direct management over your video content, from playback to appearance, ensuring full ownership and control, free from external platform constraints.
-- **Customization for Specific Needs**: Ideal for unique requirements, like dynamic background videos, it allows for tailored customization to align with design and functional needs.
-- **Performance and Scalability Considerations**: Choose storage solutions that are both high-performing and scalable, to support increasing traffic and content size effectively.
-- **Cost and Integration**: Balance the costs of storage and bandwidth with the need for easy integration into your Next.js framework and broader tech ecosystem.
+- **Complete control and independence**: Self-hosting gives you direct management over your video content, from playback to appearance, ensuring full ownership and control, free from external platform constraints.
+- **Customization for specific needs**: Ideal for unique requirements, like dynamic background videos, it allows for tailored customization to align with design and functional needs.
+- **Performance and scalability considerations**: Choose storage solutions that are both high-performing and scalable, to support increasing traffic and content size effectively.
+- **Cost and integration**: Balance the costs of storage and bandwidth with the need for easy integration into your Next.js framework and broader tech ecosystem.
 
-### Example: Using Vercel Blob for Video Hosting
+### Using Vercel Blob for video hosting
 
 [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) offers an efficient way to self-serve videos, providing a scalable cloud storage solution that's well-integrated with Next.js. Here's how you can host a video using Vercel Blob:
 
-**Step 1: Uploading a Video to Vercel Blob**
+**1. Uploading a video to Vercel Blob**
 
-Create a Route Handler to upload your video:
+In your Vercel dashboard, navigate to the "Storage" tab and select your Vercel Blob database. In the Blob table's upper-right corner, find and click the "Upload" button. Then, choose the video file you wish to upload. After the upload completes, the video file will appear in the Blob table.
 
-```ts filename="app/api/upload/route.ts" switcher
-import { put } from '@vercel/blob'
-
-export async function POST(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const filename = searchParams.get('filename')
-
-  const blob = await put(filename, request.body, {
-    access: 'public',
-  })
-
-  return Response.json(blob)
-}
-```
-
-```js filename="app/api/upload/route.js" switcher
-import { put } from '@vercel/blob'
-
-export async function POST(request) {
-  const { searchParams } = new URL(request.url)
-  const filename = searchParams.get('filename')
-
-  const blob = await put(filename, request.body, {
-    access: 'public',
-  })
-
-  return Response.json(blob)
-}
-```
-
-In this function, you're using the [`put`](https://vercel.com/docs/storage/vercel-blob/using-blob-sdk#put) method from `@vercel/blob` to upload a video file, making it publicly accessible. For more details on server uploads, see the Vercel documentation [here](https://vercel.com/docs/storage/vercel-blob/server-upload).
-
-Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload), which might be more suitable for certain applications.
+Alternatively, you can upload your video using a server action. For detailed instructions, refer to the Vercel documentation on [server-side uploads](https://vercel.com/docs/storage/vercel-blob/server-upload). Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload). This method may be preferable for certain use cases.
 
 > Good to know: Ensure to [add the necessary hostname](https://vercel.com/docs/storage/vercel-blob/server-upload) to your `next.config.js` to configure the domain from where the video files will be served.
 
-**Step 2: Displaying the Video in Next.js**
+**2. Displaying the video in Next.js**
 
 Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense:
 
@@ -249,7 +217,7 @@ async function VideoComponent({ fileName }) {
 
 In this approach, the page uses the video’s `@vercel/blob` URL to display the video using the `VideoComponent`. React Suspense is used to show a fallback until the video URL is fetched and the video is ready to be displayed.
 
-### Adding Subtitles to Your Video
+### Adding subtitles to your video
 
 If you have subtitles for your video, you can easily add them using the `<track>` element inside your `<video>` tag. You can fetch the subtitle file from Vercel Blob in a similar way as the video file. Here's how you can update the VideoComponent to include subtitles
 
@@ -282,26 +250,22 @@ By following this approach, you can effectively self-host and integrate videos i
 
 To continue learning more about video optimization and best practices, please refer to the following resources:
 
-- **Understanding Video Formats and Codecs**: Choose the right format and codec, like MP4 for compatibility or WebM for web optimization, for your video needs. For more details, see [Mozilla's guide on video codecs](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs).
-- **Video Compression**: Use tools like FFmpeg to effectively compress videos, balancing quality with file size. Learn about compression techniques at [FFmpeg's official website](https://www.ffmpeg.org/).
-- **Resolution and Bitrate Adjustment**: Adjust resolution and bitrate based on the viewing platform, with lower settings for mobile devices. For an in-depth understanding, read [DaCast’s guide](https://www.dacast.com/blog/bitrate-vs-resolution/#:~:text=The%20two%20measure%20different%20aspects,yield%20different%20qualities%20of%20video) on bitrate and resolution.
-- **Content Delivery Networks (CDNs)**: Utilize a CDN to enhance video delivery speed and manage high traffic. Find out more about CDNs and their benefits here.
+- **Understanding video formats and codecs**: Choose the right format and codec, like MP4 for compatibility or WebM for web optimization, for your video needs. For more details, see [Mozilla's guide on video codecs](https://developer.mozilla.org/en-US/docs/Web/Media/Formats/Video_codecs).
+- **Video compression**: Use tools like FFmpeg to effectively compress videos, balancing quality with file size. Learn about compression techniques at [FFmpeg's official website](https://www.ffmpeg.org/).
+- **Resolution and bitrate adjustment**: Adjust resolution and bitrate based on the viewing platform, with lower settings for mobile devices. For an in-depth understanding, read [DaCast’s guide](https://www.dacast.com/blog/bitrate-vs-resolution/#:~:text=The%20two%20measure%20different%20aspects,yield%20different%20qualities%20of%20video) on bitrate and resolution.
+- **Content Delivery Networks (CDNs)**: Utilize a CDN to enhance video delivery speed and manage high traffic. When using some storage solutions, such as Vercel Blob, CDN functionality is automatically handled for you. [Learn more](https://www.maestro.io/blog/video-cdn/) about CDNs and their benefits.
 
 Explore these video streaming platforms for integrating video into your Next.js projects:
 
-- **Next-Video.dev**
-
+- **Open source `next-video` component**
   - Provides a `<Video>` component for Next.js, compatible with various hosting services including Vercel Blob, S3, Backblaze, and Mux.
-  - Detailed documentation for using `next-video.dev` with different hosting services [here](https://next-video.dev/docs).
-
+  - [Detailed documentation](https://next-video.dev/docs) for using `next-video.dev` with different hosting services.
 - **Cloudinary Integration**
-  - Official documentation and integration guides for using Cloudinary with Next.js can be found [here](https://support.cloudinary.com/hc/en-us/categories/200477762-Client-Libraries-and-Integration-Guides).
-  - A specific guide on integrating Cloudinary with Next.js is available [here](https://next.cloudinary.dev/nextjs-13).
+  - Official [documentation and integration guides](https://support.cloudinary.com/hc/en-us/categories/200477762-Client-Libraries-and-Integration-Guides) for using Cloudinary with Next.js.
+  - A [specific guide](https://next.cloudinary.dev/nextjs-13) on integrating Cloudinary with Next.js.
 - **Mux Video API**
-
-  - Mux provides a starter template for creating a video course with Mux and Next.js, available on GitHub [here](https://github.com/muxinc/video-course-starter-kit).
-  - Learn about embedding a video player in Next.js applications using Mux [here](https://www.mux.com/for/nextjs).
-  - Explore an example project demonstrating Mux with Next.js [here](https://with-mux-video.vercel.app/).
-
+  - Mux provides a [starter template](https://github.com/muxinc/video-course-starter-kit) for creating a video course with Mux and Next.js.
+  - Learn about Mux's recommendations for embedding [high-performance video for your Next.js application](https://www.mux.com/for/nextjs).
+  - Explore an [example project](https://with-mux-video.vercel.app/) demonstrating Mux with Next.js.
 - **Fastly**
-  - Fastly offers solutions for video on demand and streaming media. Learn more about their offerings and how to integrate with Next.js [here](https://www.fastly.com/products/streaming-media/video-on-demand).
+  - Learn more about integrating Fastly's solutions for [video on demand](https://www.fastly.com/products/streaming-media/video-on-demand) and streaming media into Next.js.
