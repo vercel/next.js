@@ -22,7 +22,7 @@ use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
-use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, UpdateMessage, Vc};
+use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{FileContent, FileSystem},
@@ -694,6 +694,11 @@ pub fn project_hmr_identifiers_subscribe(
             }])
         },
     )
+}
+
+enum UpdateMessage {
+    Start,
+    End(UpdateInfo),
 }
 
 #[napi(object)]
