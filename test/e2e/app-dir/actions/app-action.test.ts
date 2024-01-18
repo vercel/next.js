@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -465,7 +465,7 @@ createNextDescribe(
     if (isNextDev) {
       describe('HMR', () => {
         it('should support updating the action', async () => {
-          const filePath = 'app/server/actions.js'
+          const filePath = 'app/server/actions-3.js'
           const origContent = await next.readFile(filePath)
 
           try {
