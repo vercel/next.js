@@ -1797,12 +1797,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths || staticPaths.length === 0) {
-          throw new Error(
-            `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
-          )
-        }
-        if (!staticPaths.includes(resolvedWithoutSlash)) {
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
