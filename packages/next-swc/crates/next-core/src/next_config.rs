@@ -78,6 +78,13 @@ pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
 
+    /// In-memory cache size in bytes.
+    ///
+    /// If `cache_max_memory_size: 0` disables in-memory caching.
+    pub cache_max_memory_size: Option<f64>,
+    /// custom path to a cache handler to use
+    pub cache_handler: Option<String>,
+
     pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
@@ -416,10 +423,6 @@ pub struct ExperimentalConfig {
     pub client_router_filter_allowed_rate: Option<f64>,
     pub client_router_filter_redirects: Option<bool>,
     pub fetch_cache_key_prefix: Option<String>,
-    /// In-memory cache size in bytes.
-    ///
-    /// If `isr_memory_cache_size: 0` disables in-memory caching.
-    pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
@@ -470,8 +473,7 @@ pub struct ExperimentalConfig {
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
-    /// custom path to a cache handler to use
-    incremental_cache_handler_path: Option<String>,
+
     instrumentation_hook: Option<bool>,
     large_page_data_bytes: Option<f64>,
     logging: Option<serde_json::Value>,
