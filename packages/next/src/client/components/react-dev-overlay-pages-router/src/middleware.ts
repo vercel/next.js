@@ -4,7 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 import type { RawSourceMap } from 'next/dist/compiled/source-map'
 import { SourceMapConsumer } from 'next/dist/compiled/source-map'
-import type { StackFrame } from 'stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
