@@ -214,6 +214,7 @@ function getArgumentsForLineNumber(
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
+    // @ts-ignore
     return shellQuote.parse(process.env.REACT_EDITOR)
   }
 
