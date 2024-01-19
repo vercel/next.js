@@ -509,6 +509,7 @@ impl Module for EcmascriptModuleAsset {
                 ident.add_asset(Vc::cell(name.clone()), asset.ident());
             }
             ident.add_modifier(modifier());
+            ident.layer = Some(self.asset_context.layer());
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
             Ok(self
