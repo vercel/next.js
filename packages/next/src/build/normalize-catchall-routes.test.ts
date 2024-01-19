@@ -1,22 +1,22 @@
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 
 describe('normalizeCatchallRoutes', () => {
-  // it('should not add the catch-all to the interception route', () => {
-  //   const appPaths = {
-  //     '/': ['/page'],
-  //     '/[...slug]': ['/[...slug]/page'],
-  //     '/things/[...ids]': ['/things/[...ids]/page'],
-  //     '/(.)things/[...ids]': ['/@modal/(.)things/[...ids]/page'],
-  //   }
+  it('should not add the catch-all to the interception route', () => {
+    const appPaths = {
+      '/': ['/page'],
+      '/[...slug]': ['/[...slug]/page'],
+      '/things/[...ids]': ['/things/[...ids]/page'],
+      '/(.)things/[...ids]': ['/@modal/(.)things/[...ids]/page'],
+    }
 
-  //   const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+    const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
-  //   // normalize appPaths against catchAlls
-  //   normalizeCatchAllRoutes(appPaths)
+    // normalize appPaths against catchAlls
+    normalizeCatchAllRoutes(appPaths)
 
-  //   // ensure values are correct after normalizing
-  //   expect(appPaths).toMatchObject(initialAppPaths)
-  // })
+    // ensure values are correct after normalizing
+    expect(appPaths).toMatchObject(initialAppPaths)
+  })
 
   it('should add the catch-all route to all matched paths when nested', () => {
     const appPaths = {
