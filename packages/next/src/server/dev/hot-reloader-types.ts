@@ -43,19 +43,26 @@ interface FinishBuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
 }
 
+export interface CompilationError {
+  moduleName?: string
+  message: string
+  details?: string
+  moduleTrace?: Array<{ moduleName?: string }>
+  stack?: string
+}
 export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
   updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
   updatedModules?: ReadonlyArray<string>
 }
 
