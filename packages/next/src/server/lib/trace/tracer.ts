@@ -141,6 +141,7 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
@@ -284,13 +285,19 @@ class NextTracerImpl implements NextTracer {
             }
 
             const result = fn(span)
-
             if (isPromise(result)) {
-              result
-                .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
-                )
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  return res
+                })
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
                 .finally(onCleanup)
             } else {
               span.end()

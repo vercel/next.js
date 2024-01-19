@@ -21,11 +21,23 @@ let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
+// loose global to register teardown functions before quitting the browser instance.
+// This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
+// which can create corrupted state by terminating the context.
+// [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
+const pendingTeardown = []
 export async function quit() {
+  await Promise.all(pendingTeardown.map((fn) => fn()))
   await context?.close()
   await browser?.close()
   context = undefined
   browser = undefined
+}
+
+async function teardown(tearDownFn: () => Promise<void>) {
+  pendingTeardown.push(tearDownFn)
+  await tearDownFn()
+  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
 }
 
 interface ElementHandleExt extends ElementHandle {
@@ -37,6 +49,59 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+  }
+  private async initContextTracing(
+    url: string,
+    page: Page,
+    context: BrowserContext
+  ) {
+    if (!tracePlaywright) {
+      return
+    }
+
+    try {
+      // Clean up if any previous traces are still active
+      await teardown(this.teardownTracing.bind(this))
+
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      })
+      this.activeTrace = encodeURIComponent(url)
+
+      page.on('close', async () => {
+        await teardown(this.teardownTracing.bind(this))
+      })
+    } catch (e) {
+      this.activeTrace = undefined
+    }
+  }
+
+  private async teardownTracing() {
+    if (!tracePlaywright || !this.activeTrace) {
+      return
+    }
+
+    try {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing.stop({
+        path: traceOutputPath,
+      })
+    } catch (e) {
+      require('console').warn('Failed to teardown playwright tracing', e)
+    } finally {
+      this.activeTrace = undefined
+    }
   }
 
   on(event: Event, cb: (...args: any[]) => void) {
@@ -75,6 +140,7 @@ export class Playwright extends BrowserInterface {
     if (browser) {
       if (contextHasJSEnabled !== javaScriptEnabled) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
+        await teardown(this.teardownTracing.bind(this))
         await context?.close()
         context = await browser.newContext({
           locale,
@@ -131,32 +197,17 @@ export class Playwright extends BrowserInterface {
     opts?: {
       disableCache: boolean
       cpuThrottleRate: number
+      pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (...args: any[]) => void
     }
   ) {
-    if (this.activeTrace) {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
-          .replace(/\//g, '-')}`,
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
-
-      await fs.remove(traceOutputPath)
-      await context.tracing
-        .stop({
-          path: traceOutputPath,
-        })
-        .catch((err) => console.error('failed to write playwright trace', err))
-    }
-
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
+
     page = await context.newPage()
+    await this.initContextTracing(url, page, context)
 
     // in development compilation can take longer due to
     // lower CPU availability in GH actions
@@ -175,6 +226,10 @@ export class Playwright extends BrowserInterface {
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
+
+      if (opts?.pushErrorAsConsoleLog) {
+        pageLogs.push({ source: 'error', message: error.message })
+      }
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
@@ -219,13 +274,6 @@ export class Playwright extends BrowserInterface {
 
     opts?.beforePageLoad?.(page)
 
-    if (tracePlaywright) {
-      await context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-      })
-      this.activeTrace = encodeURIComponent(url)
-    }
     await page.goto(url, { waitUntil: 'load' })
   }
 

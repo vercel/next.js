@@ -1,19 +1,19 @@
-import { createUseStyles } from 'react-jss'
+import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
   container: {
     marginTop: 100,
-    textAlign: 'center',
+    textAlign: "center",
   },
 
   header: {
     fontSize: 24,
     lineHeight: 1.25,
   },
-})
+});
 
 export default function IndexPage() {
-  const classes = useStyles()
+  const classes = useStyles();
 
   return (
     <div className={classes.container}>
@@ -21,5 +21,5 @@ export default function IndexPage() {
         Example on how to use react-jss with Next.js
       </h1>
     </div>
-  )
+  );
 }

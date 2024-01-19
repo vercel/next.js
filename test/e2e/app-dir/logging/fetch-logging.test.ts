@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs'
 import stripAnsi from 'strip-ansi'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 function parseLogsFromCli(cliOutput: string) {
@@ -56,18 +56,12 @@ createNextDescribe(
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
 
-          await check(() => {
+          await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
             const hasLogs = logs.includes('GET /default-cache 200')
 
-            if (isNextDev && hasLogs) {
-              return 'success'
-            }
-
-            if (!isNextDev && !hasLogs) {
-              return 'success'
-            }
-          }, 'success')
+            expect(isNextDev ? hasLogs : !hasLogs).toBe(true)
+          })
         })
 
         if (isNextDev) {
@@ -75,7 +69,7 @@ createNextDescribe(
             const outputIndex = next.cliOutput.length
             await next.fetch('/default-cache')
 
-            await check(() => {
+            await retry(() => {
               const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
               const logEntry = logs.find((log) =>
@@ -86,26 +80,22 @@ createNextDescribe(
                 !withFullUrlFetches
               )
 
-              if (logEntry?.cache === 'cache: no-cache') {
-                return 'success'
-              }
-            }, 'success')
+              expect(logEntry?.cache).toBe('cache: no-cache')
+            })
           })
 
           it("should log 'skip' cache status with a reason when revalidate: 0 is used", async () => {
             const outputIndex = next.cliOutput.length
             await next.fetch('/default-cache')
-            await check(() => {
+            await retry(() => {
               const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
               const logEntry = logs.find((log) =>
                 log.url.includes('api/random?revalidate-0')
               )
 
-              if (logEntry?.cache === 'revalidate: 0') {
-                return 'success'
-              }
-            }, 'success')
+              expect(logEntry?.cache).toBe('revalidate: 0')
+            })
           })
 
           it("should log 'skip' cache status with a reason when the browser indicates caching should be ignored", async () => {
@@ -113,26 +103,24 @@ createNextDescribe(
             await next.fetch('/default-cache', {
               headers: { 'Cache-Control': 'no-cache' },
             })
-            await check(() => {
+            await retry(() => {
               const logs = parseLogsFromCli(next.cliOutput.slice(outputIndex))
 
               const logEntry = logs.find((log) =>
                 log.url.includes('api/random?auto-cache')
               )
 
-              if (
-                logEntry?.cache === 'cache-control: no-cache (hard refresh)'
-              ) {
-                return 'success'
-              }
-            }, 'success')
+              expect(logEntry?.cache).toBe(
+                'cache-control: no-cache (hard refresh)'
+              )
+            })
           })
 
           it('should log requests with correct indentation', async () => {
             const outputIndex = next.cliOutput.length
             await next.fetch('/default-cache')
 
-            await check(() => {
+            await retry(() => {
               const logs = stripAnsi(next.cliOutput.slice(outputIndex))
               const hasLogs =
                 logs.includes(' GET /default-cache') &&
@@ -140,25 +128,40 @@ createNextDescribe(
                 logs.includes('  │  │ GET ') &&
                 logs.includes('  │  │  Cache missed reason')
 
-              if (hasLogs) {
-                return 'success'
-              }
-            }, 'success')
+              expect(hasLogs).toBe(true)
+            })
+          })
+
+          it('should show cache reason of noStore when use with fetch', async () => {
+            const logLength = next.cliOutput.length
+            await next.fetch('/no-store')
+
+            await retry(() => {
+              const output = stripAnsi(next.cliOutput.slice(logLength))
+              expect(output).toContain('Cache missed reason: (noStore call)')
+            })
+          })
+
+          it('should respect request.init.cache when use with fetch input is instance', async () => {
+            const logLength = next.cliOutput.length
+            await next.fetch('/fetch-no-store')
+
+            await retry(() => {
+              const output = stripAnsi(next.cliOutput.slice(logLength))
+              expect(output).toContain('Cache missed reason: (cache: no-store)')
+            })
           })
         }
       } else {
+        // No fetches logging enabled
         it('should not log fetch requests at all', async () => {
           const outputIndex = next.cliOutput.length
           await next.fetch('/default-cache')
 
-          await check(() => {
+          await retry(() => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-            if (logs.includes('GET /default-cache 200')) {
-              return 'fail'
-            }
-
-            return 'success'
-          }, 'success')
+            expect(logs).not.toContain('GET /default-cache 200')
+          })
         })
       }
 
@@ -167,28 +170,24 @@ createNextDescribe(
           const logLength = next.cliOutput.length
           await next.fetch('/')
 
-          await check(() => {
+          await retry(() => {
             const output = stripAnsi(next.cliOutput.slice(logLength))
             expect(output).toContain('/')
             expect(output).not.toContain('/page')
-
-            return 'success'
-          }, /success/)
+          })
         })
 
         it('should not contain metadata internal segments for dynamic metadata routes', async () => {
           const logLength = next.cliOutput.length
           await next.fetch('/dynamic/big/icon')
 
-          await check(() => {
+          await retry(() => {
             const output = stripAnsi(next.cliOutput.slice(logLength))
             expect(output).toContain('/dynamic/[slug]/icon')
             expect(output).not.toContain('/(group)')
             expect(output).not.toContain('[[...__metadata_id__]]')
             expect(output).not.toContain('/route')
-
-            return 'success'
-          }, /success/)
+          })
         })
       }
     }

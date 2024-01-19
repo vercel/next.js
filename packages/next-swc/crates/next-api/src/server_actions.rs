@@ -1,4 +1,4 @@
-use std::{io::Write, iter::once};
+use std::{collections::BTreeMap, io::Write, iter::once};
 
 use anyhow::{bail, Context, Result};
 use indexmap::{map::Entry, IndexMap};
@@ -6,13 +6,13 @@ use next_core::{
     next_manifests::{ActionLayer, ActionManifestWorkerEntry, ServerReferenceManifest},
     util::{get_asset_prefix_from_pathname, NextRuntime},
 };
-use next_swc::server_actions::parse_server_actions;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
     TryFlatJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_binding::{
+    swc::core::{common::comments::Comments, ecma::ast::Program},
     turbo::tasks_fs::{rope::RopeBuilder, File, FileSystemPath},
     turbopack::{
         core::{
@@ -56,7 +56,7 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<(Vc<Box<dyn EvaluatableAsset>>, Vc<Box<dyn OutputAsset>>)> {
     let actions = get_actions(rsc_entry, server_reference_modules, asset_context);
     let loader =
-        build_server_actions_loader(project_path, page_name, actions, asset_context).await?;
+        build_server_actions_loader(project_path, page_name.to_string(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?;
@@ -76,9 +76,10 @@ pub(crate) async fn create_server_actions_manifest(
 /// The actions are reexported under a hashed name (comprised of the exporting
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
+#[turbo_tasks::function]
 async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
-    page_name: &str,
+    page_name: String,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
@@ -264,6 +265,30 @@ async fn get_referenced_modules(
     primary_referenced_modules(module)
         .await
         .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
+}
+
+/// Parses the Server Actions comment for all exported action function names.
+///
+/// Action names are stored in a leading BlockComment prefixed by
+/// `__next_internal_action_entry_do_not_use__`.
+pub fn parse_server_actions<C: Comments>(
+    program: &Program,
+    comments: C,
+) -> Option<BTreeMap<String, String>> {
+    let byte_pos = match program {
+        Program::Module(m) => m.span.lo,
+        Program::Script(s) => s.span.lo,
+    };
+    comments.get_leading(byte_pos).and_then(|comments| {
+        comments.iter().find_map(|c| {
+            c.text
+                .split_once("__next_internal_action_entry_do_not_use__")
+                .and_then(|(_, actions)| match serde_json::from_str(actions) {
+                    Ok(v) => Some(v),
+                    Err(_) => None,
+                })
+        })
+    })
 }
 
 /// Inspects the comments inside [module] looking for the magic actions comment.

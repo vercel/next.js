@@ -19,13 +19,15 @@ use turbopack_binding::{
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
-        node::execution_context::ExecutionContext,
+        node::{
+            execution_context::ExecutionContext,
+            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+        },
         turbopack::{
             condition::ContextCondition,
             module_options::{
                 CustomEcmascriptTransformPlugins, JsxTransformOptions, MdxTransformModuleOptions,
-                ModuleOptionsContext, PostCssTransformOptions, TypescriptTransformOptions,
-                WebpackLoadersOptions,
+                ModuleOptionsContext, TypescriptTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -102,7 +104,7 @@ pub async fn get_server_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
-        get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
+        get_next_server_import_map(project_path, ty, next_config, execution_context);
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
@@ -115,6 +117,9 @@ pub async fn get_server_resolve_options_context(
         "dist/lib/server-external-packages.json".to_string(),
     )
     .await?;
+
+    let transpile_packages = next_config.transpile_packages().await?;
+    external_packages.retain(|item| !transpile_packages.contains(item));
 
     // Add the config's own list of external packages.
     external_packages.extend(
@@ -277,10 +282,20 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
-    let postcss_transform_options = Some(PostCssTransformOptions {
+    let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
+        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
-    });
+    };
+    let postcss_foreign_transform_options = PostCssTransformOptions {
+        // For node_modules we don't want to resolve postcss config relative to the file
+        // being compiled, instead it only uses the project root postcss
+        // config.
+        config_location: PostCssConfigLocation::ProjectPath,
+        ..postcss_transform_options.clone()
+    };
+    let enable_postcss_transform = Some(postcss_transform_options.cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -397,7 +412,7 @@ pub async fn get_server_module_options_context(
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
 
@@ -411,7 +426,7 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -466,7 +481,7 @@ pub async fn get_server_module_options_context(
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -488,7 +503,7 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -552,7 +567,7 @@ pub async fn get_server_module_options_context(
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -563,7 +578,7 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -588,6 +603,13 @@ pub async fn get_server_module_options_context(
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: enable_foreign_postcss_transform,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -595,14 +617,14 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
@@ -637,6 +659,13 @@ pub async fn get_server_module_options_context(
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: enable_foreign_postcss_transform,
+                ..module_options_context.clone()
+            };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 custom_rules: internal_custom_rules,
@@ -645,14 +674,14 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),

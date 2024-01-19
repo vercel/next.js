@@ -14,7 +14,11 @@ import {
 
 import path from 'path'
 import fs from 'fs/promises'
-import type { PageInfo } from './utils'
+import {
+  deserializePageInfos,
+  type PageInfos,
+  type SerializedPageInfos,
+} from './utils'
 import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
@@ -33,7 +37,8 @@ function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
   reasons: NodeFileTraceReasons,
-  cachedIgnoreFiles: Map<string, boolean>
+  cachedIgnoreFiles: Map<string, boolean>,
+  children: Set<string> = new Set()
 ) {
   if (cachedIgnoreFiles.has(file)) {
     return cachedIgnoreFiles.get(file)
@@ -43,6 +48,7 @@ function shouldIgnore(
     cachedIgnoreFiles.set(file, true)
     return true
   }
+  children.add(file)
 
   const reason = reasons.get(file)
   if (!reason || reason.parents.size === 0 || reason.type.includes('initial')) {
@@ -50,17 +56,30 @@ function shouldIgnore(
     return false
   }
 
-  if (
-    [...reason.parents.values()].every((parent) =>
-      shouldIgnore(parent, serverIgnoreFn, reasons, cachedIgnoreFiles)
-    )
-  ) {
-    cachedIgnoreFiles.set(file, true)
-    return true
+  // if all parents are ignored the child file
+  // should be ignored as well
+  let allParentsIgnored = true
+
+  for (const parent of reason.parents.values()) {
+    if (!children.has(parent)) {
+      children.add(parent)
+      if (
+        !shouldIgnore(
+          parent,
+          serverIgnoreFn,
+          reasons,
+          cachedIgnoreFiles,
+          children
+        )
+      ) {
+        allParentsIgnored = false
+        break
+      }
+    }
   }
 
-  cachedIgnoreFiles.set(file, false)
-  return false
+  cachedIgnoreFiles.set(file, allParentsIgnored)
+  return allParentsIgnored
 }
 
 export async function collectBuildTraces({
@@ -79,7 +98,8 @@ export async function collectBuildTraces({
   staticPages: string[]
   hasSsrAmpPages: boolean
   outputFileTracingRoot: string
-  pageInfos: [string, PageInfo][]
+  // pageInfos is serialized when this function runs in a worker.
+  pageInfos: PageInfos | SerializedPageInfos
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
@@ -219,16 +239,16 @@ export async function collectBuildTraces({
             )),
       ]
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
-      if (incrementalCacheHandlerPath) {
+      if (cacheHandler) {
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(incrementalCacheHandlerPath)
-              ? incrementalCacheHandlerPath
-              : path.join(dir, incrementalCacheHandlerPath)
+            path.isAbsolute(cacheHandler)
+              ? cacheHandler
+              : path.join(dir, cacheHandler)
           )
         )
       }
@@ -260,9 +280,20 @@ export async function collectBuildTraces({
         }
       }
 
+      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
+        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+          return true
+        }
+
+        return isMatch(pathname, ignores, {
+          contains: true,
+          dot: true,
+        })
+      }
+
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
+        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -287,14 +318,19 @@ export async function collectBuildTraces({
         ...(config.experimental.outputFileTracingIgnores || []),
       ]
 
+      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
+
       const serverIgnores = [
         ...sharedIgnores,
         '**/node_modules/react{,-dom,-dom-server-turbopack}/**/*.development.js',
         '**/*.d.ts',
         '**/*.map',
         '**/next/dist/pages/**/*',
-        ...(ciEnvironment.hasNextSupport ? ['**/node_modules/sharp/**/*'] : []),
+        ...(ciEnvironment.hasNextSupport
+          ? ['**/node_modules/sharp/**/*', '**/@img/sharp-libvips*/**/*']
+          : []),
       ].filter(nonNullable)
+      const serverIgnoreFn = makeIgnoreFn(serverIgnores)
 
       const minimalServerIgnores = [
         ...serverIgnores,
@@ -302,23 +338,20 @@ export async function collectBuildTraces({
         '**/next/dist/server/web/sandbox/**/*',
         '**/next/dist/server/post-process.js',
       ]
+      const minimalServerIgnoreFn = makeIgnoreFn(minimalServerIgnores)
 
       const routesIgnores = [
         ...sharedIgnores,
+        // server chunks are provided via next-trace-entrypoints-plugin plugin
+        // as otherwise all chunks are traced here and included for all pages
+        // whether they are needed or not
+        '**/.next/server/chunks/**',
         '**/next/dist/server/optimize-amp.js',
         '**/next/dist/server/post-process.js',
       ].filter(nonNullable)
 
-      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
-        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-          return true
-        }
+      const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-        return isMatch(pathname, ignores, {
-          contains: true,
-          dot: true,
-        })
-      }
       const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
@@ -370,10 +403,10 @@ export async function collectBuildTraces({
         ] as [Set<string>, string[]][]) {
           for (const file of files) {
             if (
-              !makeIgnoreFn(
+              !(
                 set === minimalServerTracedFiles
-                  ? minimalServerIgnores
-                  : serverIgnores
+                  ? minimalServerIgnoreFn
+                  : serverIgnoreFn
               )(path.join(traceContext, file))
             ) {
               addToTracedFiles(traceContext, file, set)
@@ -386,7 +419,6 @@ export async function collectBuildTraces({
           ...serverEntries,
           ...minimalServerEntries,
         ]
-
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
@@ -429,6 +461,26 @@ export async function collectBuildTraces({
               throw e
             }
           },
+          // handle shared ignores at top-level as it
+          // avoids over-tracing when we don't need to
+          // and speeds up total trace time
+          ignore(p) {
+            if (sharedIgnoresFn(p)) {
+              return true
+            }
+
+            // if a chunk is attempting to be traced that isn't
+            // in our initial list we need to ignore it to prevent
+            // over tracing as webpack needs to be the source of
+            // truth for which chunks should be included for each entry
+            if (
+              p.includes('.next/server/chunks') &&
+              !chunksToTrace.includes(path.join(outputFileTracingRoot, p))
+            ) {
+              return true
+            }
+            return false
+          },
         })
         const reasons = result.reasons
         const fileList = result.fileList
@@ -456,11 +508,9 @@ export async function collectBuildTraces({
               if (
                 !shouldIgnore(
                   curFile,
-                  makeIgnoreFn(
-                    tracedFiles === minimalServerTracedFiles
-                      ? minimalServerIgnores
-                      : serverIgnores
-                  ),
+                  tracedFiles === minimalServerTracedFiles
+                    ? minimalServerIgnoreFn
+                    : serverIgnoreFn,
                   reasons,
                   tracedFiles === minimalServerTracedFiles
                     ? cachedLookupIgnoreMinimal
@@ -520,7 +570,7 @@ export async function collectBuildTraces({
                 if (
                   !shouldIgnore(
                     curFile,
-                    makeIgnoreFn(routesIgnores),
+                    routeIgnoreFn,
                     reasons,
                     cachedLookupIgnoreRoutes
                   )
@@ -565,7 +615,7 @@ export async function collectBuildTraces({
 
         for (const item of await fs.readdir(contextDir)) {
           const itemPath = path.relative(root, path.join(contextDir, item))
-          if (!makeIgnoreFn(serverIgnores)(itemPath)) {
+          if (!serverIgnoreFn(itemPath)) {
             addToTracedFiles(root, itemPath, serverTracedFiles)
             addToTracedFiles(root, itemPath, minimalServerTracedFiles)
           }
@@ -619,6 +669,9 @@ export async function collectBuildTraces({
     }
 
     const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
+    const infos =
+      pageInfos instanceof Map ? pageInfos : deserializePageInfos(pageInfos)
+
     await Promise.all(
       [
         ...(entryNameFilesMap ? Object.entries(entryNameFilesMap) : new Map()),
@@ -638,7 +691,7 @@ export async function collectBuildTraces({
         }
 
         // edge routes have no trace files
-        const [, pageInfo] = pageInfos.find((item) => item[0] === route) || []
+        const pageInfo = infos.get(route)
         if (pageInfo?.runtime === 'edge') {
           return
         }

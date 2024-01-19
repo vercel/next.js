@@ -1,0 +1,332 @@
+---
+title: Parallel Routes
+description: Simultaneously render one or more pages in the same view that can be navigated independently. A pattern for highly dynamic applications.
+related:
+  links:
+    - app/api-reference/file-conventions/default
+---
+
+Parallel Routes allows you to simultaneously or conditionally render one or more pages within the same layout. They are useful for highly dynamic sections of an app, such as dashboards and feeds on social sites.
+
+For example, considering a dashboard, you can use parallel routes to simultaneously render the `team` and `analytics` pages:
+
+<Image
+  alt="Parallel Routes Diagram"
+  srcLight="/docs/light/parallel-routes.png"
+  srcDark="/docs/dark/parallel-routes.png"
+  width="1600"
+  height="952"
+/>
+
+## Slots
+
+Parallel routes are created using named **slots**. Slots are defined with the `@folder` convention. For example, the following file structure defines two slots: `@analytics` and `@team`:
+
+<Image
+  alt="Parallel Routes File-system Structure"
+  srcLight="/docs/light/parallel-routes-file-system.png"
+  srcDark="/docs/dark/parallel-routes-file-system.png"
+  width="1600"
+  height="687"
+/>
+
+Slots are passed as props to the shared parent layout. For the example above, the component in `app/layout.js` now accepts the `@analytics` and `@team` slots props, and can render them in parallel alongside the `children` prop:
+
+```tsx filename="app/layout.tsx" switcher
+export default function Layout(props: {
+  children: React.ReactNode
+  analytics: React.ReactNode
+  team: React.ReactNode
+}) {
+  return (
+    <>
+      {props.children}
+      {props.team}
+      {props.analytics}
+    </>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function Layout(props) {
+  return (
+    <>
+      {props.children}
+      {props.team}
+      {props.analytics}
+    </>
+  )
+}
+```
+
+However, slots are **not** [route segments](/docs/app/building-your-application/routing#route-segments) and do not affect the URL structure. For example, for `/dashboard/@analytics/views`, the URL will be `/dashboard/views` since `@analytics` is a slot.
+
+> **Good to know**:
+>
+> - The `children` prop is an implicit slot that does not need to be mapped to a folder. This means `app/page.js` is equivalent to `app/@children/page.js`.
+
+## Active state and navigation
+
+By default, Next.js keeps track of the active _state_ (or subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
+
+- [**Soft Navigation**](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation): During client-side navigation, Next.js will perform a [partial render](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), changing the subpage within the slot, while maintaining the other slot's active subpages, even if they don't match the current URL.
+- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state of slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
+
+> **Good to know**:
+>
+> - The `404` for unmatched routes helps ensure that you don't accidentally render a route that shouldn't be parallel rendered.
+
+### `default.js`
+
+You can define a `default.js` file to render as a fallback for unmatched slots during the initial load or full-page reload.
+
+Consider the following folder structure. The `@team` slot has a `settings` page, but `@analytics` does not.
+
+<Image
+  alt="Parallel Routes unmatched routes"
+  srcLight="/docs/light/parallel-routes-unmatched-routes.png"
+  srcDark="/docs/dark/parallel-routes-unmatched-routes.png"
+  width="1600"
+  height="930"
+/>
+
+When navigating to `/dashboard/settings`, the `@team` slot will render the `settings` page while maintaining the currently active page for the `@analytics` slot.
+
+On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, a `404` is rendered instead.
+
+Additionally, since `children` is an implicit slot, you also need to create a `default.js` file to render a fallback for `children` when Next.js cannot recover the active state of the parent page.
+
+### `useSelectedLayoutSegment(s)`
+
+Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment) and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) accept a `parallelRoutesKey` parameter, which allows you to read the active route segment within a slot.
+
+```tsx filename="app/layout.tsx" switcher
+'use client'
+
+import { useSelectedLayoutSegment } from 'next/navigation'
+
+export default function Layout(props: {
+  //...
+  auth: React.ReactNode
+}) {
+  const loginSegments = useSelectedLayoutSegment('auth')
+  // ...
+}
+```
+
+```jsx filename="app/layout.js" switcher
+'use client'
+
+import { useSelectedLayoutSegment } from 'next/navigation'
+
+export default function Layout(props) {
+  const loginSegments = useSelectedLayoutSegment('auth')
+  // ...
+}
+```
+
+When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginSegments` will be equal to the string `"login"`.
+
+## Examples
+
+### Modals
+
+Parallel Routing can be used to render modals.
+
+<Image
+  alt="Parallel Routes Diagram"
+  srcLight="/docs/light/parallel-routes-auth-modal.png"
+  srcDark="/docs/dark/parallel-routes-auth-modal.png"
+  width="1600"
+  height="687"
+/>
+
+The `@auth` slot renders a `<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
+
+```tsx filename="app/layout.tsx" switcher
+export default async function Layout(props: {
+  // ...
+  auth: React.ReactNode
+}) {
+  return (
+    <>
+      {/* ... */}
+      {props.auth}
+    </>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default async function Layout(props) {
+  return (
+    <>
+      {/* ... */}
+      {props.auth}
+    </>
+  )
+}
+```
+
+```tsx filename="app/@auth/login/page.tsx" switcher
+import { Modal } from 'components/modal'
+
+export default function Login() {
+  return (
+    <Modal>
+      <h1>Login</h1>
+      {/* ... */}
+    </Modal>
+  )
+}
+```
+
+```jsx filename="app/@auth/login/page.js" switcher
+import { Modal } from 'components/modal'
+
+export default function Login() {
+  return (
+    <Modal>
+      <h1>Login</h1>
+      {/* ... */}
+    </Modal>
+  )
+}
+```
+
+To ensure that the contents of the modal don't get rendered when it's not active, you can create a `default.js` file that returns `null`.
+
+```tsx filename="app/@auth/default.tsx" switcher
+export default function Default() {
+  return null
+}
+```
+
+```jsx filename="app/@auth/default.js" switcher
+export default function Default() {
+  return null
+}
+```
+
+#### Dismissing a modal
+
+If a modal was initiated through client navigation, e.g. by using `<Link href="/login">`, you can dismiss the modal by calling `router.back()` or by using a `Link` component.
+
+```tsx filename="app/@auth/login/page.tsx" highlight="5" switcher
+'use client'
+import { useRouter } from 'next/navigation'
+import { Modal } from 'components/modal'
+
+export default function Login() {
+  const router = useRouter()
+  return (
+    <Modal>
+      <span onClick={() => router.back()}>Close modal</span>
+      <h1>Login</h1>
+      ...
+    </Modal>
+  )
+}
+```
+
+```jsx filename="app/@auth/login/page.js" highlight="5" switcher
+'use client'
+import { useRouter } from 'next/navigation'
+import { Modal } from 'components/modal'
+
+export default function Login() {
+  const router = useRouter()
+  return (
+    <Modal>
+      <span onClick={() => router.back()}>Close modal</span>
+      <h1>Login</h1>
+      ...
+    </Modal>
+  )
+}
+```
+
+> More information on modals is covered in the [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) section.
+
+If you want to navigate elsewhere and dismiss a modal, you can also use a catch-all route.
+
+<Image
+  alt="Parallel Routes Diagram"
+  srcLight="/docs/light/parallel-routes-catchall.png"
+  srcDark="/docs/dark/parallel-routes-catchall.png"
+  width="1600"
+  height="768"
+/>
+
+```tsx filename="app/@auth/[...catchAll]/page.tsx" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
+```jsx filename="app/@auth/[...catchAll]/page.js" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
+> Catch-all routes take precedence over `default.js`.
+
+### Conditional Routes
+
+Parallel Routes also allows you to conditionally render a slot based on certain conditions, such as authentication state. For example, you can render a `/dashboard` or `/login` page depending on whether the user is logged in:
+
+<Image
+  alt="Conditional routes diagram"
+  srcLight="/docs/light/conditional-routes-ui.png"
+  srcDark="/docs/dark/conditional-routes-ui.png"
+  width="1600"
+  height="898"
+/>
+
+Parallel Routes can be used to implement conditional routing. For example, you can render a `@dashboard` or `@login` route depending on the authentication state.
+
+```tsx filename="app/layout.tsx" switcher
+import { getUser } from '@/lib/auth'
+
+export default function Layout({
+  dashboard,
+  login,
+}: {
+  dashboard: React.ReactNode
+  login: React.ReactNode
+}) {
+  const isLoggedIn = getUser()
+  return isLoggedIn ? dashboard : login
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { getUser } from '@/lib/auth'
+
+export default function Layout({ dashboard, login }) {
+  const isLoggedIn = getUser()
+  return isLoggedIn ? dashboard : login
+}
+```
+
+<Image
+  alt="Parallel routes authentication example"
+  srcLight="/docs/light/conditional-routes-ui.png"
+  srcDark="/docs/dark/conditional-routes-ui.png"
+  width="1600"
+  height="898"
+/>
+
+### Streaming
+
+Parallel Routes can be streamed independently, allowing you to define independent error and loading states for each route:
+
+<Image
+  alt="Parallel routes enable custom error and loading states"
+  srcLight="/docs/light/parallel-routes-cinematic-universe.png"
+  srcDark="/docs/dark/parallel-routes-cinematic-universe.png"
+  width="1600"
+  height="1218"
+/>
