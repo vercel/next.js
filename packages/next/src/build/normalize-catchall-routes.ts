@@ -37,6 +37,7 @@ export function normalizeCatchAllRoutes(
         0,
         normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
+
       if (
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
@@ -46,8 +47,11 @@ export function normalizeCatchAllRoutes(
         ) &&
         // check if the catch-all is not already matched by a default route or page route
         !appPaths[`${appPath}/default`] &&
-        // check if appPath does not ends with a dynamic segment that is not a catch-all (with endsWithDynamic) AND is more specific than the catch-all
-        !(endsWithDynamic(appPath) && isMoreSpecific(appPath, catchAllRoute))
+        // check if appPath does not ends with a dynamic segment that is not a catch-all (with endsWithDynamicNonCatchAll) AND is more specific than the catch-all
+        !(
+          endsWithDynamicNonCatchAll(appPath) &&
+          isMoreSpecific(appPath, catchAllRoute)
+        )
       ) {
         appPaths[appPath].push(catchAllRoute)
       }
@@ -85,13 +89,15 @@ function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')
 }
 
-function endsWithDynamic(pathname: string): boolean {
+// test to see if a path ends with a dynamic segment that is not a catch-all
+function endsWithDynamicNonCatchAll(pathname: string): boolean {
   const pathnameParts = pathname.split('/')
   const endPath = `/${pathnameParts[pathnameParts.length - 1]}`
 
   return isDynamicRoute(endPath) && !isCatchAllRoute(endPath)
 }
 
+// test to see if a path is more specific than a catch-all route
 function isMoreSpecific(pathname: string, catchAllRoute: string): boolean {
   const pathnameDepth = pathname.split('/').length
   const catchAllRouteDepth = catchAllRoute.split('/').length - 1
