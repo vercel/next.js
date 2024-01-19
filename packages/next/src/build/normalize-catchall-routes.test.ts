@@ -132,9 +132,18 @@ describe('normalizeCatchallRoutes', () => {
     const appPaths = {
       '/': ['/page'],
       '/[[...catchAll]]': ['/[[...catchAll]]/page'],
-      '/nested/[foo]/[bar]/default': ['/nested/[foo]/[bar]/default'],
-      '/nested/[foo]/[bar]': ['/nested/[foo]/[bar]/@slot/page'],
-      '/nested/[foo]/[bar]/[baz]': ['/nested/[foo]/[bar]/@slot/[baz]/page'],
+      '/nested/[foo]/[bar]/default': [
+        '/nested/[foo]/[bar]/default',
+        '/nested/[foo]/[bar]/@slot2/default',
+      ],
+      '/nested/[foo]/[bar]': [
+        '/nested/[foo]/[bar]/@slot0/page',
+        '/nested/[foo]/[bar]/@slot1/page',
+      ],
+      '/nested/[foo]/[bar]/[baz]': [
+        '/nested/[foo]/[bar]/@slot0/[baz]/page',
+        '/nested/[foo]/[bar]/@slot1/[baz]/page',
+      ],
     }
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
