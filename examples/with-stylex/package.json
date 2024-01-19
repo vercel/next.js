@@ -1,0 +1,40 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@stylexjs/open-props": "^0.4.1",
+    "@stylexjs/stylex": "^0.4.1",
+    "bright": "^0.8.4",
+    "next": "14.0.1",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.23.2",
+    "@babel/plugin-syntax-flow": "^7.22.5",
+    "@babel/plugin-syntax-jsx": "^7.22.5",
+    "@babel/plugin-syntax-typescript": "^7.22.5",
+    "@stylexjs/babel-plugin": "^0.4.1",
+    "@stylexjs/eslint-plugin": "^0.4.1",
+    "@stylexjs/nextjs-plugin": "^0.4.1",
+    "@testing-library/react": "^14.1.2",
+    "@types/jest": "^29.5.11",
+    "@types/node": "20.8.10",
+    "@types/react": "18.2.20",
+    "@types/react-dom": "18.2.7",
+    "@types/react-test-renderer": "^18.0.7",
+    "eslint": "8.52.0",
+    "eslint-config-next": "14.0.1",
+    "jest": "^30.0.0-alpha.1",
+    "prettier": "^3.1.1",
+    "react-test-renderer": "^18.2.0",
+    "rimraf": "^5.0.5",
+    "ts_dependency_graph": "^2.0.0",
+    "typescript": "5.2.2"
+  }
+}
