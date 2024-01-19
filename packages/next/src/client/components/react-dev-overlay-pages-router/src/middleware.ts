@@ -2,8 +2,8 @@ import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
-import { SourceMapConsumer } from 'source-map'
+import type { RawSourceMap } from 'next/dist/compiled/source-map'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map'
 import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
@@ -87,12 +87,10 @@ async function findOriginalSourcePositionAndContent(
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
   try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+    const sourcePosition = consumer.originalPositionFor({
+      line: position.line,
+      column: position.column ?? 0,
+    })
 
     if (!sourcePosition.source) {
       return null
@@ -109,7 +107,8 @@ async function findOriginalSourcePositionAndContent(
       sourceContent,
     }
   } finally {
-    consumer.destroy()
+    // @ts-ignore exists on newer versions of source-map
+    consumer?.destroy()
   }
 }
 
