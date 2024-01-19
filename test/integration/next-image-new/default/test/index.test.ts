@@ -15,7 +15,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs/promises'
 import { pathExists } from 'fs-extra'
@@ -991,7 +991,7 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser: BrowserInterface
       try {
         browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
@@ -1005,7 +1005,7 @@ function runTests(mode) {
           return 'done'
         }, 'done')
         await waitFor(1000)
-        const warnings = (await browser.log('browser'))
+        const warnings = (await browser.log())
           .map((log) => log.message)
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)

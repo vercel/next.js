@@ -160,8 +160,7 @@ describe('Font Optimization', () => {
             )
             expect(baseFont).toBeDefined()
 
-            await browser.waitForElementByCss('#with-font')
-            await browser.click('#with-font')
+            await browser.waitForElementByCss('#with-font').click()
 
             await browser.waitForElementByCss('#with-font-container')
             const pageFontCss = await browser.elementsByCss(
