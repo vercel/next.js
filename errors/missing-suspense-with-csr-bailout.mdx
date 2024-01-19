@@ -11,7 +11,7 @@ Reading search parameters through `useSearchParams()` without a Suspense boundar
 iss
 Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
 
-```tsx filename="app/search.tsx"
+```tsx filename="app/search.tsx" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
@@ -33,7 +33,7 @@ export function Searchbar() {
 }
 ```
 
-```jsx filename="app/search.js"
+```jsx filename="app/search.js" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
