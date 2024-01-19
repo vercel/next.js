@@ -108,7 +108,7 @@ async function printDefaultInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
 
-  let staleness = ''
+  let stalenessWithTitle = ''
   let title = ''
   let versionInfo
   try {
@@ -123,7 +123,7 @@ async function printDefaultInfo() {
       canary: tags.canary,
     })
     title = getStaleness(versionInfo).title
-    if (title) staleness = ` // ${title}`
+    if (title) stalenessWithTitle = ` // ${title}`
   } catch (e) {
     console.warn(
       `${yellow(
@@ -148,7 +148,7 @@ Binaries:
   Yarn: ${getBinaryVersion('yarn')}
   pnpm: ${getBinaryVersion('pnpm')}
 Relevant Packages:
-  next: ${installedRelease}${staleness}
+  next: ${installedRelease}${stalenessWithTitle}
   eslint-config-next: ${getPackageVersion('eslint-config-next')}
   react: ${getPackageVersion('react')}
   react-dom: ${getPackageVersion('react-dom')}
