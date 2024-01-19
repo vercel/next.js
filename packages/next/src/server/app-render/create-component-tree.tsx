@@ -38,7 +38,30 @@ export const Postpone = ({
 /**
  * Use the provided loader tree to create the React Component tree.
  */
-export async function createComponentTree({
+export function createComponentTree(props: {
+  createSegmentPath: CreateSegmentPath
+  loaderTree: LoaderTree
+  parentParams: Params
+  rootLayoutIncluded: boolean
+  firstItem?: boolean
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  asNotFound?: boolean
+  metadataOutlet?: React.ReactNode
+  ctx: AppRenderContext
+  missingSlots?: Set<string>
+}): Promise<ComponentTree> {
+  return getTracer().trace(
+    NextNodeServerSpan.createComponentTree,
+    {
+      spanName: 'build component tree',
+    },
+    () => createComponentTreeInternal(props)
+  )
+}
+
+async function createComponentTreeInternal({
   createSegmentPath,
   loaderTree: tree,
   parentParams,
@@ -413,7 +436,7 @@ export async function createComponentTree({
           }
 
           const { seedData, styles: childComponentStyles } =
-            await createComponentTree({
+            await createComponentTreeInternal({
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
