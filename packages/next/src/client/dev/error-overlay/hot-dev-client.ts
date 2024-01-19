@@ -95,8 +95,8 @@ export default function connect(mode: 'webpack' | 'turbopack') {
     addTurbopackMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
       turbopackMessageListeners.push(cb)
     },
-    sendTurbopackMessage(msg: any) {
-      sendMessage(JSON.stringify(msg))
+    sendTurbopackMessage(msg: string) {
+      sendMessage(msg)
     },
   }
 }
