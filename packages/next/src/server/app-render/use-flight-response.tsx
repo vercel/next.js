@@ -2,6 +2,15 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
+import {
+  chainStreams,
+  bufferEntireReadableStream,
+  streamFromString,
+} from '../stream-utils/node-web-streams-helper'
+import {
+  createDecodeTransformStream,
+  createEncodeTransformStream,
+} from '../stream-utils/encode-decode'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -71,78 +80,13 @@ export async function createEagerInlinedDataReadableStream(
   nonce: string | undefined,
   formState: unknown | null
 ): Promise<ReadableStream<Uint8Array>> {
-  const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
-    : '<script>'
-
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  const decoderOptions = { stream: true }
-
-  const encoder = new TextEncoder()
-
-  const flightReader = flightStream.getReader()
-
-  return new Promise((resolve, reject) => {
-    const readable = new ReadableStream({
-      type: 'bytes',
-      start(controller) {
-        async function eagerlyEnqueue() {
-          try {
-            controller.enqueue(
-              encoder.encode(
-                `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-                )});self.__next_f.push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-                )})</script>`
-              )
-            )
-
-            while (true) {
-              const { done, value } = await flightReader.read()
-              if (done) {
-                const chunkAsString = decoder.decode(value, { stream: false })
-                if (chunkAsString.length) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                        JSON.stringify([
-                          INLINE_FLIGHT_PAYLOAD_DATA,
-                          chunkAsString,
-                        ])
-                      )})</script>`
-                    )
-                  )
-                }
-                controller.close()
-                resolve(readable)
-                break
-              }
-              const chunkAsString = decoder.decode(value, decoderOptions)
-              controller.enqueue(
-                encoder.encode(
-                  `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                    JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
-                  )})</script>`
-                )
-              )
-            }
-          } catch (error) {
-            // There was a problem in the upstream reader or during encoding and enqueuing
-            // forward the error downstream
-            controller.error(error)
-            reject(error)
-          }
-        }
-
-        // We start reading the stream eagerly in the start method to ensure we drain
-        // the underlying react stream as quickly as possible. While this will increase memory
-        // usage it will allow us to make a correct determination of whether the flight render
-        // used dynamic APIs prior to deciding whether we will continue the stream or not
-        eagerlyEnqueue()
-      },
-    })
-  })
+  // We start reading the stream eagerly in the start method to ensure we drain
+  // the underlying react stream as quickly as possible. While this will increase memory
+  // usage it will allow us to make a correct determination of whether the flight render
+  // used dynamic APIs prior to deciding whether we will continue the stream or not
+  return await bufferEntireReadableStream(
+    createInlinedDataReadableStream(flightStream, nonce, formState)
+  )
 }
 
 /**
@@ -165,63 +109,29 @@ export function createInlinedDataReadableStream(
     ? `<script nonce=${JSON.stringify(nonce)}>`
     : '<script>'
 
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  const decoderOptions = { stream: true }
-
-  const encoder = new TextEncoder()
-
-  const flightReader = flightStream.getReader()
-
-  const readable = new ReadableStream({
-    type: 'bytes',
-    start(controller) {
-      try {
-        controller.enqueue(
-          encoder.encode(
-            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-            )});self.__next_f.push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-            )})</script>`
-          )
-        )
-      } catch (error) {
-        // during encoding or enqueueing forward the error downstream
-        controller.error(error)
-      }
-    },
-    async pull(controller) {
-      try {
-        const { done, value } = await flightReader.read()
-        if (done) {
-          const tail = decoder.decode(value, { stream: false })
-          if (tail.length) {
+  return chainStreams(
+    streamFromString(
+      `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+      )});self.__next_f.push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+      )})</script>`
+    ),
+    flightStream
+      .pipeThrough(
+        createDecodeTransformStream(new TextDecoder('utf-8', { fatal: true }))
+      )
+      .pipeThrough(
+        new TransformStream({
+          transform(chunk, controller) {
             controller.enqueue(
-              encoder.encode(
-                `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, tail])
-                )})</script>`
-              )
-            )
-          }
-          controller.close()
-        } else {
-          const chunkAsString = decoder.decode(value, decoderOptions)
-          controller.enqueue(
-            encoder.encode(
               `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
+                JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunk])
               )})</script>`
             )
-          )
-        }
-      } catch (error) {
-        // There was a problem in the upstream reader or during decoding or enqueuing
-        // forward the error downstream
-        controller.error(error)
-      }
-    },
-  })
-
-  return readable
+          },
+        })
+      )
+      .pipeThrough(createEncodeTransformStream())
+  )
 }

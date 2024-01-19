@@ -58,6 +58,36 @@ export async function streamToString(
   return buffer
 }
 
+export async function bufferEntireReadableStream<T>(
+  readable: ReadableStream<T>
+): Promise<ReadableStream<T>> {
+  const chunks: Array<T> = []
+
+  await readable.pipeTo(
+    new WritableStream<T>({
+      write(chunk) {
+        // Consume the chunks and store them in an array as they come in.
+        chunks.push(chunk)
+      },
+    })
+  )
+
+  // Reverse the chunks so they can be popped off the end to restore
+  // the memory used by the chunks earlier.
+  chunks.reverse()
+
+  return new ReadableStream<T>({
+    pull(controller) {
+      const chunk = chunks.pop()
+
+      // If there are no more chunks, then close the stream.
+      if (!chunk) return controller.close()
+
+      controller.enqueue(chunk)
+    },
+  })
+}
+
 export function createBufferedTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
