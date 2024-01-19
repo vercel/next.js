@@ -69,11 +69,9 @@ function onFastRefresh(
 ) {
   dispatcher.onBuildOk()
 
-  if (updatedModules.length > 0) {
-    reportHmrLatency(sendMessage, updatedModules)
+  reportHmrLatency(sendMessage, updatedModules)
 
-    dispatcher.onRefresh()
-  }
+  dispatcher.onRefresh()
 }
 
 function reportHmrLatency(
@@ -387,15 +385,13 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
       const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      if (updatedModules.length > 0) {
-        dispatcher.onBeforeRefresh()
-        processTurbopackMessage({
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-          data: obj.data,
-        })
-        dispatcher.onRefresh()
-        reportHmrLatency(sendMessage, updatedModules)
-      }
+      dispatcher.onBeforeRefresh()
+      processTurbopackMessage({
+        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+        data: obj.data,
+      })
+      dispatcher.onRefresh()
+      reportHmrLatency(sendMessage, updatedModules)
       break
     }
     // TODO-APP: make server component change more granular

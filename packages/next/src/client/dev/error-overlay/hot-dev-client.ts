@@ -332,17 +332,15 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
       const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      if (updatedModules.length > 0) {
-        onBeforeFastRefresh(updatedModules)
-        for (const listener of turbopackMessageListeners) {
-          listener({
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-            data: obj.data,
-          })
-        }
-        onRefresh()
-        reportHmrLatency(updatedModules)
+      onBeforeFastRefresh(updatedModules)
+      for (const listener of turbopackMessageListeners) {
+        listener({
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: obj.data,
+        })
       }
+      onRefresh()
+      reportHmrLatency(updatedModules)
       break
     }
     default: {

@@ -7,6 +7,7 @@ export function extractModulesFromTurbopackMessage(
 
   const updates = Array.isArray(data) ? data : [data]
   for (const update of updates) {
+    // TODO this won't capture changes to CSS since they don't result in a "partial" update
     if (
       update.type !== 'partial' ||
       update.instruction.type !== 'ChunkListUpdate' ||
