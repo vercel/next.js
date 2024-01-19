@@ -9,7 +9,7 @@ import type { Revalidate } from '../server/lib/revalidate'
 import '../lib/setup-exception-listeners'
 
 import { loadEnvConfig, type LoadedEnvFiles } from '@next/env'
-import { bold, yellow, green } from '../lib/picocolors'
+import { bold, yellow } from '../lib/picocolors'
 import crypto from 'crypto'
 import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
@@ -3090,13 +3090,11 @@ export default async function build(
           .traceFn(() => printCustomRoutes({ redirects, rewrites, headers }))
       }
 
+      // TODO: remove in the next major version
       if (config.analyticsId) {
-        console.log(
-          bold(green('Next.js Speed Insights')) +
-            ' is enabled for this production build. ' +
-            "You'll receive a Real Experience Score computed by all of your visitors."
+        Log.warn(
+          `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
         )
-        console.log('')
       }
 
       if (Boolean(config.experimental.nextScriptWorkers)) {
