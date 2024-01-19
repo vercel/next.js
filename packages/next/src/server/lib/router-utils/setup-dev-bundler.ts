@@ -1705,7 +1705,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     ;(async function () {
-      for await (const updateMessage of project.updateInfoSubscribe(1)) {
+      for await (const updateMessage of project.updateInfoSubscribe(30)) {
         switch (updateMessage.updateType) {
           case 'start': {
             hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
