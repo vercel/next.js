@@ -33,17 +33,17 @@ export function Video() {
 
 ### Common `<video>` tag attributes
 
-| Attribute     | Description                                                                                               | Example Value                   |
-| ------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| `src`         | Specifies the source of the video file.                                                                   | `< src="/path/to/video.mp4" />` |
-| `width`       | Sets the width of the video player.                                                                       | `< width="320" />`              |
-| `height`      | Sets the height of the video player.                                                                      | `<video height="240" />`        |
-| `controls`    | If present, it displays the default set of playback controls.                                             | `<video controls />`            |
-| `autoplay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoplay />`            |
-| `loop`        | Loops the video playback.                                                                                 | `<video loop />`                |
-| `muted`       | Mutes the audio by default. Often used with `autoplay`.                                                   | `<video muted />`               |
-| `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`      |
-| `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`         |
+| Attribute     | Description                                                                                               | Example Value                        |
+| ------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| `src`         | Specifies the source of the video file.                                                                   | `<video src="/path/to/video.mp4" />` |
+| `width`       | Sets the width of the video player.                                                                       | `<video width="320" />`              |
+| `height`      | Sets the height of the video player.                                                                      | `<video height="240" />`             |
+| `controls`    | If present, it displays the default set of playback controls.                                             | `<video controls />`                 |
+| `autoplay`    | Automatically starts playing the video when the page loads. Note: Autoplay policies vary across browsers. | `<video autoplay />`                 |
+| `loop`        | Loops the video playback.                                                                                 | `<video loop />`                     |
+| `muted`       | Mutes the audio by default. Often used with `autoplay`.                                                   | `<video muted />`                    |
+| `preload`     | Specifies how the video is preloaded. Values: `none`, `metadata`, `auto`.                                 | `<video preload="none" />`           |
+| `playsInline` | Enables inline playback on iOS devices, often necessary for autoplay to work on iOS Safari.               | `<video playsInline />`              |
 
 > **Good to know**: When using the `autoplay` attribute, it is important to also include the `muted` attribute to ensure the video plays automatically in most browsers and the `playsInline` attribute for compatibility with iOS devices.
 
