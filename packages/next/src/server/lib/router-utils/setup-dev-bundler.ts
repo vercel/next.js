@@ -22,6 +22,7 @@ import type {
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
 import type {
+  CompilationError,
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
@@ -289,7 +290,6 @@ async function startWatcher(opts: SetupOpts) {
     )
     const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
     const turbopackUpdates: TurbopackUpdate[] = []
-    let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
 
@@ -505,56 +505,26 @@ async function startWatcher(opts: SetupOpts) {
 
     let hmrEventHappened = false
     let hmrHash = 0
-    const sendHmrDebounce = debounce(() => {
-      interface HmrError {
-        moduleName?: string
-        message: string
-        details?: string
-        moduleTrace?: Array<{ moduleName: string }>
-        stack?: string
-      }
-
-      const errors = new Map<string, HmrError>()
+    const sendEnqueuedMessages = () => {
       for (const [, issueMap] of issues) {
-        for (const [key, issue] of issueMap) {
-          if (errors.has(key)) continue
-
-          const message = formatIssue(issue)
-
-          errors.set(key, {
-            message,
-            details: issue.detail
-              ? renderStyledStringToErrorAnsi(issue.detail)
-              : undefined,
-          })
+        if (issueMap.size > 0) {
+          // During compilation errors we want to delay the HMR events until errors are fixed
+          return
         }
       }
-
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-        updatedModules: [
-          ...extractModulesFromTurbopackMessage(turbopackUpdates),
-        ],
-      })
-      hmrBuilding = false
-
-      if (errors.size === 0) {
-        for (const payload of hmrPayloads.values()) {
-          hotReloader.send(payload)
-        }
-        hmrPayloads.clear()
-        if (turbopackUpdates.length > 0) {
-          hotReloader.send({
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-            data: turbopackUpdates,
-          })
-          turbopackUpdates.length = 0
-        }
+      for (const payload of hmrPayloads.values()) {
+        hotReloader.send(payload)
       }
-    }, 2)
+      hmrPayloads.clear()
+      if (turbopackUpdates.length > 0) {
+        hotReloader.send({
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: turbopackUpdates,
+        })
+        turbopackUpdates.length = 0
+      }
+    }
+    const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       hmrPayloads.set(`${key}:${id}`, payload)
@@ -564,7 +534,7 @@ async function startWatcher(opts: SetupOpts) {
     function sendTurbopackMessage(payload: TurbopackUpdate) {
       turbopackUpdates.push(payload)
       hmrEventHappened = true
-      sendHmrDebounce()
+      sendEnqueuedMessagesDebounce()
     }
 
     async function loadPartialManifest<T>(
@@ -1738,14 +1708,37 @@ async function startWatcher(opts: SetupOpts) {
       for await (const updateMessage of project.updateInfoSubscribe(1)) {
         switch (updateMessage.updateType) {
           case 'start': {
-            if (!hmrBuilding) {
-              hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-              hmrBuilding = true
-            }
+            hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
             break
           }
           case 'end': {
-            sendHmrDebounce()
+            sendEnqueuedMessages()
+
+            const errors = new Map<string, CompilationError>()
+            for (const [, issueMap] of issues) {
+              for (const [key, issue] of issueMap) {
+                if (errors.has(key)) continue
+
+                const message = formatIssue(issue)
+
+                errors.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
+            }
+
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              hash: String(++hmrHash),
+              errors: [...errors.values()],
+              warnings: [],
+              updatedModules: [
+                ...extractModulesFromTurbopackMessage(turbopackUpdates),
+              ],
+            })
 
             if (process.env.NEXT_HMR_TIMING && hmrEventHappened) {
               const time = updateMessage.value.duration
