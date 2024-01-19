@@ -1,4 +1,4 @@
-import type { Request } from 'playwright-core'
+import type { Request } from 'playwright'
 
 import { createNextDescribe } from 'e2e-utils'
 import type { BrowserInterface } from '../../../lib/browsers/base'

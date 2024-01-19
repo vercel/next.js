@@ -1010,7 +1010,7 @@ function runTests(mode) {
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
         if (browser) {
