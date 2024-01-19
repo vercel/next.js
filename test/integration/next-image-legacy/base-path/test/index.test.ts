@@ -11,7 +11,7 @@ import {
   nextStart,
   waitFor,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
@@ -61,7 +61,7 @@ function getRatio(width, height) {
 
 function runTests(mode) {
   it('should load the images', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs')
 
@@ -91,7 +91,7 @@ function runTests(mode) {
   })
 
   it('should update the image on src change', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/update')
 
@@ -114,7 +114,7 @@ function runTests(mode) {
   })
 
   it('should work when using flexbox', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/flex')
       await check(async () => {
@@ -135,7 +135,7 @@ function runTests(mode) {
   })
 
   it('should work with layout-fixed so resizing window does not resize image', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/layout-fixed')
       const width = 1200
@@ -169,7 +169,7 @@ function runTests(mode) {
   })
 
   it('should work with layout-intrinsic so resizing window maintains image aspect ratio', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/layout-intrinsic')
       const width = 1200
@@ -213,7 +213,7 @@ function runTests(mode) {
   })
 
   it('should work with layout-responsive so resizing window maintains image aspect ratio', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/layout-responsive')
       const width = 1200
@@ -257,7 +257,7 @@ function runTests(mode) {
   })
 
   it('should work with layout-fill to fill the parent but NOT stretch with viewport', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/layout-fill')
       const width = 600
@@ -301,7 +301,7 @@ function runTests(mode) {
   })
 
   it('should work with layout-fill to fill the parent and stretch with viewport', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/layout-fill')
       const id = 'fill2'
@@ -355,7 +355,7 @@ function runTests(mode) {
   })
 
   it('should work with sizes and automatically use layout-responsive', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/sizes')
       const width = 1200
@@ -434,7 +434,7 @@ function runTests(mode) {
   }
 
   it('should correctly ignore prose styles', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(appPort, '/docs/prose')
 

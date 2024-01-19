@@ -9,7 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
-} from 'playwright-chromium'
+} from 'playwright'
 import path from 'path'
 
 let page: Page

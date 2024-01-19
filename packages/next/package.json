@@ -151,7 +151,7 @@
     "@next/react-refresh-utils": "14.1.1-canary.50",
     "@next/swc": "14.1.1-canary.50",
     "@opentelemetry/api": "1.6.0",
-    "@playwright/test": "^1.35.1",
+    "@playwright/test": "^1.41.0",
     "@taskr/clear": "1.1.0",
     "@taskr/esnext": "1.1.0",
     "@types/amphtml-validator": "1.0.0",
