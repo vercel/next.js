@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useOptimistic, useRef } from "react";
+import { useOptimistic, useRef, useTransition } from "react";
 import { saveFeature, upvote } from "./actions";
 import { v4 as uuidv4 } from "uuid";
 import { Feature } from "./types";
@@ -23,22 +23,26 @@ function Item({
   pending: boolean;
   mutate: any;
 }) {
-  const upvoteWithId = upvote.bind(null, feature);
+  let upvoteWithId = upvote.bind(null, feature);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let [isPending, startTransition] = useTransition();
 
   return (
     <form
       action={upvoteWithId}
-      onSubmit={async (event) => {
+      onSubmit={(event) => {
         event.preventDefault();
-        mutate({
-          updatedFeature: {
-            ...feature,
-            score: Number(feature.score) + 1,
-          },
-          pending: true,
-        });
 
-        await upvote(feature);
+        startTransition(async () => {
+          mutate({
+            updatedFeature: {
+              ...feature,
+              score: Number(feature.score) + 1,
+            },
+            pending: true,
+          });
+          await upvote(feature);
+        });
       }}
       className={clsx(
         "p-6 mx-8 flex items-center border-t border-l border-r",
@@ -73,8 +77,8 @@ type FeatureState = {
 };
 
 export default function FeatureForm({ features }: { features: Feature[] }) {
-  const formRef = useRef<HTMLFormElement>(null);
-  const [state, mutate] = useOptimistic(
+  let formRef = useRef<HTMLFormElement>(null);
+  let [state, mutate] = useOptimistic(
     { features, pending: false },
     function createReducer(state, newState: FeatureState) {
       if (newState.newFeature) {
@@ -112,6 +116,8 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
     score: "1",
   };
   let saveWithNewFeature = saveFeature.bind(null, featureStub);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let [isPending, startTransition] = useTransition();
 
   return (
     <>
@@ -120,7 +126,7 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
           className="relative my-8"
           ref={formRef}
           action={saveWithNewFeature}
-          onSubmit={async (event) => {
+          onSubmit={(event) => {
             event.preventDefault();
             let formData = new FormData(event.currentTarget);
             let newFeature = {
@@ -128,12 +134,15 @@ export default function FeatureForm({ features }: { features: Feature[] }) {
               title: formData.get("feature") as string,
             };
 
-            mutate({
-              newFeature,
-              pending: true,
-            });
             formRef.current?.reset();
-            await saveFeature(newFeature, formData);
+            startTransition(async () => {
+              mutate({
+                newFeature,
+                pending: true,
+              });
+
+              await saveFeature(newFeature, formData);
+            });
           }}
         >
           <input

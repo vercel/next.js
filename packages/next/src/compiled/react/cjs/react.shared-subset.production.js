@@ -168,7 +168,7 @@ const ReactServerSharedInternals = {
   ReactCurrentCache
 };
 
-var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
+var ReactVersion = '18.3.0-canary-60a927d04-20240113';
 
 // ATTENTION
 // When adding new symbols to this file,

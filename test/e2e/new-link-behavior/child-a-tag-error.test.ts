@@ -32,7 +32,7 @@ describe('New Link Behavior with <a> child', () => {
 
     if ((global as any).isDev) {
       expect(next.cliOutput).toContain(msg)
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxSource(browser)).toContain(msg)
       expect(link).not.toBeDefined()
     } else {

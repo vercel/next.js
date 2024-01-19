@@ -1,7 +1,7 @@
 /* eslint-env jest */
-import { unstable_getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
-describe('getImgProps()', () => {
+describe('getImageProps()', () => {
   let warningMessages: string[]
   const originalConsoleWarn = console.warn
   beforeEach(() => {
@@ -14,17 +14,14 @@ describe('getImgProps()', () => {
   afterEach(() => {
     console.warn = originalConsoleWarn
   })
-  it('should warn on first usage and return props in correct order', async () => {
-    const { props } = unstable_getImgProps({
+  it('should return props in correct order', async () => {
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
       width: 100,
       height: 200,
     })
-    expect(warningMessages).toStrictEqual([
-      'Warning: unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.',
-    ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['id', 'my-image'],
@@ -41,7 +38,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle priority', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -66,7 +63,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle quality', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -91,7 +88,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle loading eager', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -116,7 +113,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle sizes', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -142,7 +139,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle fill', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -178,7 +175,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle style', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -203,7 +200,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle loader', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -229,7 +226,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle arbitrary props', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       src: '/test.png',
       width: 100,
