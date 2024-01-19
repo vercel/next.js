@@ -37,7 +37,11 @@ import {
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
-import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type {
+  HMR_ACTION_TYPES,
+  TurbopackMsgToBrowser,
+} from '../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -63,26 +67,33 @@ function onFastRefresh(
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
-  let endLatency = Date.now()
   dispatcher.onBuildOk()
 
   if (updatedModules.length > 0) {
-    sendMessage(
-      JSON.stringify({
-        event: 'client-hmr-latency',
-        id: window.__nextDevClientId,
-        startTime: startLatency,
-        endTime: endLatency,
-        page: window.location.pathname,
-        updatedModules,
-        // Whether the page (tab) was hidden at the time the event occurred.
-        // This can impact the accuracy of the event's timing.
-        isPageHidden: document.visibilityState === 'hidden',
-      })
-    )
+    reportHmrLatency(sendMessage, updatedModules)
 
     dispatcher.onRefresh()
   }
+}
+
+function reportHmrLatency(
+  sendMessage: (message: string) => void,
+  updatedModules: ReadonlyArray<string>
+) {
+  let endLatency = Date.now()
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
 }
 
 // There is a newer version of the code available.
@@ -237,6 +248,7 @@ function tryApplyUpdates(
 function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
+  processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
@@ -269,9 +281,9 @@ function processMessage(
     }
   }
 
-  function handleHotUpdate(updatedModules?: ReadonlyArray<string>) {
+  function handleHotUpdate() {
     if (process.env.TURBOPACK) {
-      onFastRefresh(dispatcher, sendMessage, updatedModules || [])
+      dispatcher.onBuildOk()
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
@@ -363,9 +375,28 @@ function processMessage(
 
       if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
         // Handle hot updates
-        handleHotUpdate(obj.updatedModules)
+        handleHotUpdate()
       }
       return
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+      processTurbopackMessage({
+        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+      })
+      break
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
+      if (updatedModules.length > 0) {
+        dispatcher.onBeforeRefresh()
+        processTurbopackMessage({
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: obj.data,
+        })
+        dispatcher.onRefresh()
+        reportHmrLatency(sendMessage, updatedModules)
+      }
+      break
     }
     // TODO-APP: make server component change more granular
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
@@ -501,10 +532,13 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
-        const handledByTurbopack = processTurbopackMessage?.(obj)
-        if (!handledByTurbopack) {
-          processMessage(obj, sendMessage, router, dispatcher)
-        }
+        processMessage(
+          obj,
+          sendMessage,
+          processTurbopackMessage,
+          router,
+          dispatcher
+        )
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')

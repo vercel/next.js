@@ -133,7 +133,6 @@ import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-u
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
 import { trace } from '../../../trace'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
@@ -518,7 +517,7 @@ async function startWatcher(opts: SetupOpts) {
       hmrPayloads.clear()
       if (turbopackUpdates.length > 0) {
         hotReloader.send({
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data: turbopackUpdates,
         })
         turbopackUpdates.length = 0
@@ -1358,7 +1357,7 @@ async function startWatcher(opts: SetupOpts) {
           })
 
           const turbopackConnected: TurbopackConnectedAction = {
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
 
@@ -1743,9 +1742,6 @@ async function startWatcher(opts: SetupOpts) {
               hash: String(++hmrHash),
               errors: [...errors.values()],
               warnings: [],
-              updatedModules: [
-                ...extractModulesFromTurbopackMessage(turbopackUpdates),
-              ],
             })
 
             if (process.env.NEXT_HMR_TIMING && hmrEventHappened) {

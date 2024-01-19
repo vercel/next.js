@@ -31,7 +31,7 @@ interface ServerErrorAction {
 }
 
 export interface TurbopackMessageAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
 }
 
@@ -107,7 +107,7 @@ interface DevPagesManifestUpdateAction {
 }
 
 export interface TurbopackConnectedAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
 export type HMR_ACTION_TYPES =
@@ -126,6 +126,10 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
+
+export type TurbopackMsgToBrowser =
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED }
 
 export interface NextJsHotReloaderInterface {
   turbopackProject?: Project

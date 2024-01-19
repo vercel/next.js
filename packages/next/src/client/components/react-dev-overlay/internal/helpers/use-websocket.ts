@@ -1,11 +1,7 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from './get-socket-url'
-import type {
-  HMR_ACTION_TYPES,
-  TurbopackConnectedAction,
-  TurbopackMessageAction,
-} from '../../../../../server/dev/hot-reloader-types'
+import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>()
@@ -40,8 +36,8 @@ export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
 export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
   const turbopackState = useRef<{
     init: boolean
-    queue: Array<TurbopackConnectedAction | TurbopackMessageAction> | undefined
-    callback: ((msg: HMR_ACTION_TYPES) => void) | undefined
+    queue: Array<TurbopackMsgToBrowser> | undefined
+    callback: ((msg: TurbopackMsgToBrowser) => void) | undefined
   }>({
     init: false,
     // Until the dynamic import resolves, queue any turbopack messages which will be replayed.
@@ -49,17 +45,13 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
     callback: undefined,
   })
 
-  const processTurbopackMessage = useCallback((msg: HMR_ACTION_TYPES) => {
-    if ('type' in msg && msg.type?.startsWith('turbopack-')) {
-      const { callback, queue } = turbopackState.current
-      if (callback) {
-        callback(msg)
-      } else {
-        queue!.push(msg)
-      }
-      return true
+  const processTurbopackMessage = useCallback((msg: TurbopackMsgToBrowser) => {
+    const { callback, queue } = turbopackState.current
+    if (callback) {
+      callback(msg)
+    } else {
+      queue!.push(msg)
     }
-    return false
   }, [])
 
   useEffect(() => {
@@ -76,7 +68,7 @@ export function useTurbopack(sendMessage: ReturnType<typeof useSendMessage>) {
     ).then(({ connect }) => {
       const { current } = turbopackState
       connect({
-        addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
+        addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
           current.callback = cb
 
           // Replay all Turbopack messages before we were able to establish the HMR client.

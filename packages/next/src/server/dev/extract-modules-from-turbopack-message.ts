@@ -1,4 +1,4 @@
-import type { Update as TurbopackUpdate } from '../../../build/swc'
+import type { Update as TurbopackUpdate } from '../../build/swc'
 
 export function extractModulesFromTurbopackMessage(
   data: TurbopackUpdate | TurbopackUpdate[]
@@ -30,5 +30,5 @@ export function extractModulesFromTurbopackMessage(
     }
   }
 
-  return updatedModules
+  return [...updatedModules]
 }
