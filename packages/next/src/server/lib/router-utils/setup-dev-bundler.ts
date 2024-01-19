@@ -528,6 +528,7 @@ async function startWatcher(opts: SetupOpts) {
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
       hmrPayloads.set(`${key}:${id}`, payload)
       hmrEventHappened = true
+      sendEnqueuedMessagesDebounce()
     }
 
     function sendTurbopackMessage(payload: TurbopackUpdate) {
