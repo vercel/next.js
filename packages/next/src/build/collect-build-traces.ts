@@ -291,7 +291,7 @@ export async function collectBuildTraces({
         })
       }
 
-      const sharedIgnores = [
+      const sharedIgnores: string[] = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
@@ -316,7 +316,12 @@ export async function collectBuildTraces({
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
         ...(config.experimental.outputFileTracingIgnores || []),
-      ]
+
+        // we shouldn't be tracing .next/server assets from
+        // inside .next/server as that relationship is pulled
+        // from webpack itself as it's more accurate
+        '**/.next/server/**/*',
+      ].filter(Boolean) as string[]
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -417,7 +422,6 @@ export async function collectBuildTraces({
           ...serverEntries,
           ...minimalServerEntries,
         ]
-
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
@@ -460,6 +464,10 @@ export async function collectBuildTraces({
               throw e
             }
           },
+          // handle shared ignores at top-level as it
+          // avoids over-tracing when we don't need to
+          // and speeds up total trace time
+          ignore: makeIgnoreFn(sharedIgnores),
         })
         const reasons = result.reasons
         const fileList = result.fileList
