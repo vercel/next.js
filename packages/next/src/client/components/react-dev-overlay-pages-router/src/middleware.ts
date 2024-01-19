@@ -108,7 +108,7 @@ async function findOriginalSourcePositionAndContent(
     }
   } finally {
     // @ts-ignore exists on newer versions of source-map
-    consumer?.destroy()
+    consumer.destroy?.()
   }
 }
 
