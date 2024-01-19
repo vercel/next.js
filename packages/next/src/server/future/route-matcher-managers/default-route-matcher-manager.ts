@@ -1,15 +1,14 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
-import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
-import { RouteMatcher } from '../route-matchers/route-matcher'
-import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import type { RouteKind } from '../route-kind'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
+import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
+import { DetachedPromise } from '../../../lib/detached-promise'
 
 interface RouteMatchers {
   static: ReadonlyArray<RouteMatcher>
@@ -44,10 +43,8 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
 
   private previousMatchers: ReadonlyArray<RouteMatcher> = []
   public async reload() {
-    let callbacks: { resolve: Function; reject: Function }
-    this.waitTillReadyPromise = new Promise((resolve, reject) => {
-      callbacks = { resolve, reject }
-    })
+    const { promise, resolve, reject } = new DetachedPromise<void>()
+    this.waitTillReadyPromise = promise
 
     // Grab the compilation ID for this run, we'll verify it at the end to
     // ensure that if any routes were added before reloading is finished that
@@ -182,11 +179,11 @@ export class DefaultRouteMatcherManager implements RouteMatcherManager {
         )
       }
     } catch (err) {
-      callbacks!.reject(err)
+      reject(err)
     } finally {
       // The compilation ID matched, so mark the complication as finished.
       this.lastCompilationID = compilationID
-      callbacks!.resolve()
+      resolve()
     }
   }
 

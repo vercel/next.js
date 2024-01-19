@@ -236,7 +236,7 @@ fn get_distance_from_normal_weight(weight: &Option<FontWeight>) -> Result<f64> {
 /// From https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L6
 ///
 /// Convert the weight string to a number so it can be used for comparison.
-/// Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-weight
+/// Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
 fn parse_weight_string(weight_str: &str) -> Result<f64> {
     if weight_str == "normal" {
         Ok(NORMAL_WEIGHT)

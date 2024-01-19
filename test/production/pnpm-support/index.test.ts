@@ -9,6 +9,7 @@ import {
   initNextServerScript,
   killApp,
   renderViaHTTP,
+  shouldRunTurboDevTest,
 } from 'next-test-utils'
 
 describe('pnpm support', () => {
@@ -72,13 +73,12 @@ describe('pnpm support', () => {
       },
       packageJson: {
         scripts: {
-          dev: 'next dev',
+          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
           build: 'next build',
           start: 'next start',
         },
       },
       buildCommand: 'pnpm run build',
-      installCommand: '',
     })
     await next.stop()
     expect(next.cliOutput).toMatch(/Compiled successfully/)
@@ -103,7 +103,7 @@ describe('pnpm support', () => {
       )
       server = await initNextServerScript(
         path.join(standaloneDir, 'server.js'),
-        /Listening/,
+        /- Local:/,
         {
           ...process.env,
           PORT: appPort,

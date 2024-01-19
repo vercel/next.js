@@ -1,4 +1,5 @@
 import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * LoaderTree is generated in next-app-loader.
@@ -14,7 +15,7 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
   const isDefaultPage =
-    typeof defaultPage !== 'undefined' && loaderTree[0] === '__DEFAULT__'
+    typeof defaultPage !== 'undefined' && loaderTree[0] === DEFAULT_SEGMENT_KEY
 
   let value = undefined
   let modType: 'layout' | 'page' | undefined = undefined
@@ -33,16 +34,13 @@ export async function getLayoutOrPageModule(loaderTree: LoaderTree) {
   return [value, modType] as const
 }
 
-// First check not-found, if it doesn't exist then pick layout
-export async function getErrorOrLayoutModule(
+export async function getComponentTypeModule(
   loaderTree: LoaderTree,
-  errorType: 'not-found'
+  componentType: 'layout' | 'not-found'
 ) {
-  const { [errorType]: error, layout } = loaderTree[2]
-  if (typeof error !== 'undefined') {
-    return await error[0]()
-  } else if (typeof layout !== 'undefined') {
-    return await layout[0]()
+  const { [componentType]: component } = loaderTree[2]
+  if (typeof component !== 'undefined') {
+    return await component[0]()
   }
   return undefined
 }

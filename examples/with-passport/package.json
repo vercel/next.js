@@ -7,14 +7,14 @@
   },
   "dependencies": {
     "@hapi/iron": "6.0.0",
-    "cookie": "0.4.1",
+    "cookie": "0.5.0",
     "next": "latest",
     "next-connect": "0.8.1",
-    "passport": "^0.4.1",
+    "passport": "^0.6.0",
     "passport-local": "^1.0.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "swr": "^2.0.0",
-    "uuid": "8.3.1"
+    "uuid": "8.3.2"
   }
 }

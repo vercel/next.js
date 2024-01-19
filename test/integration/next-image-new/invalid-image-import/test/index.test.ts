@@ -24,7 +24,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toBe('Failed to compile')
       expect(await getRedboxSource(browser)).toBe(`./pages/index.js:3\n${msg}`)
       expect(stripAnsi(stderr)).toContain(msg)
@@ -53,8 +53,7 @@ describe('Missing Import Image Tests', () => {
 
     runTests({ isDev: true })
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       stderr = ''
       const result = await nextBuild(appDir, [], { stderr: true })

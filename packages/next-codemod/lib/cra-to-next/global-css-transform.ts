@@ -1,5 +1,5 @@
 import nodePath from 'path'
-import { API, FileInfo, Options } from 'jscodeshift'
+import type { API, FileInfo, Options } from 'jscodeshift'
 
 export const globalCssContext = {
   cssImports: new Set<string>(),

@@ -1,6 +1,6 @@
 type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 export default function Button({ children, ...otherProps }: ButtonProps) {
   return (
@@ -30,5 +30,5 @@ export default function Button({ children, ...otherProps }: ButtonProps) {
         }
       `}</style>
     </>
-  )
+  );
 }

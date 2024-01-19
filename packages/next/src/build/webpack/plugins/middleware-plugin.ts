@@ -22,13 +22,12 @@ import {
   SERVER_REFERENCE_MANIFEST,
   PRERENDER_MANIFEST,
 } from '../../../shared/lib/constants'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
-import { Telemetry } from '../../../telemetry/storage'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { Telemetry } from '../../../telemetry/storage'
 import { traceGlobals } from '../../../trace/shared'
 import { EVENT_BUILD_FEATURE_USAGE } from '../../../telemetry/events'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
-import { NextBuildContext } from '../../build-context'
 
 const KNOWN_SAFE_DYNAMIC_PACKAGES =
   require('../../../lib/known-edge-safe-packages.json') as string[]
@@ -91,6 +90,7 @@ function isUsingIndirectEvalAndUsedByExports(args: {
 function getEntryFiles(
   entryFiles: string[],
   meta: EntryMetadata,
+  hasInstrumentationHook: boolean,
   opts: {
     sriEnabled: boolean
   }
@@ -124,7 +124,7 @@ function getEntryFiles(
     files.push(`server/${NEXT_FONT_MANIFEST}.js`)
   }
 
-  if (NextBuildContext!.hasInstrumentationHook) {
+  if (hasInstrumentationHook) {
     files.push(`server/edge-${INSTRUMENTATION_HOOK_FILENAME}.js`)
   }
 
@@ -156,6 +156,11 @@ function getCreateAssets(params: {
       functions: {},
       version: 2,
     }
+
+    const hasInstrumentationHook = compilation.entrypoints.has(
+      INSTRUMENTATION_HOOK_FILENAME
+    )
+
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
         continue
@@ -188,7 +193,12 @@ function getCreateAssets(params: {
       ]
 
       const edgeFunctionDefinition: EdgeFunctionDefinition = {
-        files: getEntryFiles(entrypoint.getFiles(), metadata, opts),
+        files: getEntryFiles(
+          entrypoint.getFiles(),
+          metadata,
+          hasInstrumentationHook,
+          opts
+        ),
         name: entrypoint.name,
         page: page,
         matchers,
@@ -587,7 +597,7 @@ function getExtractMetadata(params: {
           const resource = module.resource
           const hasOGImageGeneration =
             resource &&
-            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]web[\\/]spec-extension[\\/]image-response\.js$/.test(
+            /[\\/]node_modules[\\/]@vercel[\\/]og[\\/]dist[\\/]index\.(edge|node)\.js$|[\\/]next[\\/]dist[\\/](esm[\\/])?server[\\/]og[\\/]image-response\.js$/.test(
               resource
             )
 

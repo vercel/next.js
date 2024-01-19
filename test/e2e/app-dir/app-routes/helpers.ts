@@ -60,10 +60,10 @@ type Cookies = {
 export function getRequestMeta(
   headersOrCookies:
     | Headers
-    | import('node-fetch').Headers
     | Cookies
     | ReadonlyHeaders
     | ReadonlyRequestCookies
+    | import('next/dist/compiled/node-fetch').Headers
 ): Record<string, any> {
   const headerOrCookie = headersOrCookies.get(KEY)
   if (!headerOrCookie) return {}

@@ -4,7 +4,9 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
-use serde::Serialize;
+use indexmap::IndexSet;
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 use crate::next_config::Rewrites;
 
@@ -28,6 +30,7 @@ pub struct BuildManifest {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "version")]
+#[allow(clippy::large_enum_variant)]
 pub enum MiddlewaresManifest {
     #[serde(rename = "2")]
     MiddlewaresManifestV2(MiddlewaresManifestV2),
@@ -41,11 +44,92 @@ impl Default for MiddlewaresManifest {
     }
 }
 
+#[derive(Serialize, Debug)]
+#[serde(tag = "type", rename_all = "kebab-case")]
+pub enum RouteHas {
+    Header {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Cookie {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Query {
+        key: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        value: Option<String>,
+    },
+    Host {
+        value: String,
+    },
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MiddlewareMatcher {
+    // When skipped next.js with fill that during merging.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regexp: Option<String>,
+    #[serde(skip_serializing_if = "bool_is_true")]
+    pub locale: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has: Option<Vec<RouteHas>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub missing: Option<Vec<RouteHas>>,
+    pub original_source: String,
+}
+
+fn bool_is_true(b: &bool) -> bool {
+    *b
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct EdgeFunctionDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    pub page: String,
+    pub matchers: Vec<MiddlewareMatcher>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub regions: Option<Regions>,
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct InstrumentationDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetBinding {
+    pub name: String,
+    pub file_path: String,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(untagged)]
+pub enum Regions {
+    Multiple(Vec<String>),
+    Single(String),
+}
+
 #[derive(Serialize, Default, Debug)]
 pub struct MiddlewaresManifestV2 {
-    pub sorted_middleware: Vec<()>,
-    pub middleware: HashMap<String, ()>,
-    pub functions: HashMap<String, ()>,
+    pub sorted_middleware: Vec<String>,
+    pub middleware: HashMap<String, EdgeFunctionDefinition>,
+    pub instrumentation: Option<InstrumentationDefinition>,
+    pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
 #[derive(Serialize, Default, Debug)]
@@ -80,26 +164,34 @@ pub struct AppPathsManifest {
     pub node_server_app_paths: PagesManifest,
 }
 
+// A struct represent a single entry in react-loadable-manifest.json.
+// The manifest is in a format of:
+// { [`${origin} -> ${imported}`]: { id: `${origin} -> ${imported}`, files:
+// string[] } }
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ServerReferenceManifest {
-    #[serde(flatten)]
-    pub server_actions: ActionManifest,
-    #[serde(flatten)]
-    pub edge_server_actions: ActionManifest,
+pub struct LoadableManifest {
+    pub id: String,
+    pub files: Vec<String>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ActionManifest {
-    #[serde(flatten)]
-    pub actions: HashMap<String, ActionManifestEntry>,
+pub struct ServerReferenceManifest {
+    /// A map from hashed action name to the runtime module we that exports it.
+    pub node: HashMap<String, ActionManifestEntry>,
+    /// A map from hashed action name to the runtime module we that exports it.
+    pub edge: HashMap<String, ActionManifestEntry>,
 }
 
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestEntry {
+    /// A mapping from the page that uses the server action to the runtime
+    /// module that exports it.
     pub workers: HashMap<String, ActionManifestWorkerEntry>,
+
+    pub layer: HashMap<String, ActionLayer>,
 }
 
 #[derive(Serialize, Debug)]
@@ -110,9 +202,30 @@ pub enum ActionManifestWorkerEntry {
     Number(f64),
 }
 
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    Hash,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum ActionLayer {
+    Rsc,
+    ActionBrowser,
+}
+
 #[derive(Serialize, Default, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ClientReferenceManifest {
+    pub module_loading: ModuleLoading,
     /// Mapping of module path and export name to client module ID and required
     /// client chunks.
     pub client_modules: ManifestNode,
@@ -124,10 +237,20 @@ pub struct ClientReferenceManifest {
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<String, Vec<String>>,
+    pub entry_css_files: HashMap<String, IndexSet<String>>,
+    /// Mapping of server component path to required JS client chunks.
+    #[serde(rename = "entryJSFiles")]
+    pub entry_js_files: HashMap<String, IndexSet<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ModuleLoading {
+    pub prefix: String,
+    pub cross_origin: Option<String>,
+}
+
+#[derive(Serialize, Default, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNode {
     /// Mapping of export name to manifest node entry.
@@ -135,7 +258,7 @@ pub struct ManifestNode {
     pub module_exports: HashMap<String, ManifestNodeEntry>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ManifestNodeEntry {
     /// Turbopack module ID.
@@ -148,7 +271,7 @@ pub struct ManifestNodeEntry {
     pub r#async: bool,
 }
 
-#[derive(Serialize, Debug, Eq, PartialEq, Hash)]
+#[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum ModuleId {

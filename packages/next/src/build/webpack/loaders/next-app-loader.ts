@@ -1,12 +1,12 @@
-import type webpack from 'webpack'
+import type webpack from 'next/dist/compiled/webpack/webpack'
 import type { ValueOf } from '../../../shared/lib/constants'
 import type { ModuleReference, CollectedMetadata } from './metadata/types'
 
 import path from 'path'
 import { stringify } from 'querystring'
-import chalk from 'next/dist/compiled/chalk'
+import { bold } from '../../../lib/picocolors'
 import { getModuleBuildInfo } from './get-module-build-info'
-import { verifyRootLayout } from '../../../lib/verifyRootLayout'
+import { verifyRootLayout } from '../../../lib/verify-root-layout'
 import * as Log from '../../output/log'
 import { APP_DIR_ALIAS, WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import {
@@ -16,12 +16,22 @@ import {
 import { promises as fs } from 'fs'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
-import { NextConfig } from '../../../server/config-shared'
+import type { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
 import { AppBundlePathNormalizer } from '../../../server/future/normalizers/built/app/app-bundle-path-normalizer'
-import { MiddlewareConfig } from '../../analysis/get-page-static-info'
+import type { MiddlewareConfig } from '../../analysis/get-page-static-info'
 import { getFilenameAndExtension } from './next-metadata-route-loader'
-import { loadEntrypoint } from './next-route-loader/load-entrypoint'
+import { isAppBuiltinNotFoundPage } from '../../utils'
+import { loadEntrypoint } from '../../load-entrypoint'
+import {
+  isGroupSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
+import { getFilesInDir } from '../../../lib/get-files-in-dir'
+import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
+import type { PageExtensions } from '../../page-extensions-type'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
 
 export type AppLoaderOptions = {
   name: string
@@ -30,7 +40,7 @@ export type AppLoaderOptions = {
   appDir: string
   appPaths: readonly string[] | null
   preferredRegion: string | string[] | undefined
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   assetPrefix: string
   rootDir?: string
   tsconfigPath?: string
@@ -52,6 +62,10 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
+
+const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
+const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
+const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
 type DirResolver = (pathToResolve: string) => string
 type PathResolver = (
@@ -85,7 +99,7 @@ async function createAppRouteCode({
   page: string
   pagePath: string
   resolveAppRoute: PathResolver
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   nextConfigOutput: NextConfig['output']
 }): Promise<string> {
   // routePath is the path to the route handler file,
@@ -149,6 +163,7 @@ const isDirectory = async (pathname: string) => {
 async function createTreeCodeFromPath(
   pagePath: string,
   {
+    page,
     resolveDir,
     resolver,
     resolveParallelSegments,
@@ -156,6 +171,7 @@ async function createTreeCodeFromPath(
     pageExtensions,
     basePath,
   }: {
+    page: string
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -163,17 +179,22 @@ async function createTreeCodeFromPath(
       pathname: string
     ) => [key: string, segment: string | string[]][]
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     basePath: string
   }
 ): Promise<{
   treeCode: string
   pages: string
   rootLayout: string | undefined
-  globalError: string | undefined
+  globalError: string
 }> {
-  const splittedPath = pagePath.split(/[\\/]/)
-  const appDirPrefix = splittedPath[0]
+  const splittedPath = pagePath.split(/[\\/]/, 1)
+  const isNotFoundRoute = page === '/_not-found'
+  const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
+  const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
+  const hasRootNotFound = await resolver(
+    `${appDirPrefix}/${FILE_TYPES['not-found']}`
+  )
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -220,6 +241,7 @@ async function createTreeCodeFromPath(
 
     // Existing tree are the children of the current segment
     const props: Record<string, string> = {}
+    // Root layer could be 1st layer of normal routes
     const isRootLayer = segments.length === 0
     const isRootLayoutOrRootPage = segments.length <= 1
 
@@ -234,7 +256,10 @@ async function createTreeCodeFromPath(
     let metadata: Awaited<ReturnType<typeof createStaticMetadataFromRoute>> =
       null
     const routerDirPath = `${appDirPrefix}${segmentPath}`
-    const resolvedRouteDir = await resolveDir(routerDirPath)
+    // For default not-found, don't traverse the directory to find metadata.
+    const resolvedRouteDir = isDefaultNotFound
+      ? ''
+      : await resolveDir(routerDirPath)
 
     if (resolvedRouteDir) {
       metadata = await createStaticMetadataFromRoute(resolvedRouteDir, {
@@ -256,7 +281,9 @@ async function createTreeCodeFromPath(
         if (resolvedPagePath) pages.push(resolvedPagePath)
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
-        props[normalizeParallelKey(parallelKey)] = `['__PAGE__', {}, {
+        props[
+          normalizeParallelKey(parallelKey)
+        ] = `['${PAGE_SEGMENT_KEY}', {}, {
           page: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
             resolvedPagePath
           )}), ${JSON.stringify(resolvedPagePath)}],
@@ -282,9 +309,8 @@ async function createTreeCodeFromPath(
         )
       )
 
-      const { treeCode: subtreeCode } = await createSubtreePropsFromSegmentPath(
-        subSegmentPath
-      )
+      const { treeCode: pageSubtreeCode } =
+        await createSubtreePropsFromSegmentPath(subSegmentPath)
 
       const parallelSegmentPath = subSegmentPath.join('/')
 
@@ -309,16 +335,39 @@ async function createTreeCodeFromPath(
         ([, filePath]) => filePath !== undefined
       )
 
+      // Add default not found error as root not found if not present
+      const hasNotFoundFile = definedFilePaths.some(
+        ([type]) => type === 'not-found'
+      )
+      // If the first layer is a group route, we treat it as root layer
+      const isFirstLayerGroupRoute =
+        segments.length === 1 &&
+        subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
+      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
+        // If you already have a root not found, don't insert default not-found to group routes root
+        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
+          definedFilePaths.push(['not-found', defaultNotFoundPath])
+        }
+      }
+
       if (!rootLayout) {
         const layoutPath = definedFilePaths.find(
           ([type]) => type === 'layout'
         )?.[1]
         rootLayout = layoutPath
 
-        if (layoutPath) {
-          globalError = await resolver(
-            `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
-          )
+        if (isDefaultNotFound && !layoutPath && !rootLayout) {
+          rootLayout = defaultLayoutPath
+          definedFilePaths.push(['layout', rootLayout])
+        }
+      }
+
+      if (!globalError) {
+        const resolvedGlobalErrorPath = await resolver(
+          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
+        )
+        if (resolvedGlobalErrorPath) {
+          globalError = resolvedGlobalErrorPath
         }
       }
 
@@ -331,19 +380,40 @@ async function createTreeCodeFromPath(
           ? 'children'
           : parallelSegmentKey
 
-      props[normalizeParallelKey(parallelKey)] = `[
+      const normalizedParallelKey = normalizeParallelKey(parallelKey)
+      let subtreeCode = pageSubtreeCode
+      // If it's root not found page, set not-found boundary as children page
+      if (isNotFoundRoute && normalizedParallelKey === 'children') {
+        const notFoundPath =
+          definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
+          defaultNotFoundPath
+        subtreeCode = `{
+          children: ['${PAGE_SEGMENT_KEY}', {}, {
+            page: [
+              () => import(/* webpackMode: "eager" */ ${JSON.stringify(
+                notFoundPath
+              )}),
+              ${JSON.stringify(notFoundPath)}
+            ]
+          }]
+        }`
+      }
+
+      const componentsCode = `{
+        ${definedFilePaths
+          .map(([file, filePath]) => {
+            return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
+              filePath
+            )}), ${JSON.stringify(filePath)}],`
+          })
+          .join('\n')}
+        ${createMetadataExportsCode(metadata)}
+      }`
+
+      props[normalizedParallelKey] = `[
         '${parallelSegmentKey}',
         ${subtreeCode},
-        {
-          ${definedFilePaths
-            .map(([file, filePath]) => {
-              return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
-                filePath
-              )}), ${JSON.stringify(filePath)}],`
-            })
-            .join('\n')}
-          ${createMetadataExportsCode(metadata)}
-        }
+        ${componentsCode}
       ]`
     }
 
@@ -355,13 +425,25 @@ async function createTreeCodeFromPath(
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
           adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const defaultPath =
-          (await resolver(
-            `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-          )) ?? 'next/dist/client/components/parallel-route-default'
+        let defaultPath = await resolver(
+          `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+        )
+
+        if (!defaultPath) {
+          // no default was found at this segment. Check if the normalized segment resolves a default
+          // for example: /(level1)/(level2)/default doesn't exist, but /default does
+          const normalizedDefault = await resolver(
+            `${appDirPrefix}${normalizeAppPath(
+              segmentPath
+            )}/${actualSegment}/default`
+          )
+
+          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+          defaultPath = normalizedDefault ?? PARALLEL_ROUTE_DEFAULT_PATH
+        }
 
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
-          '__DEFAULT__',
+          '${DEFAULT_SEGMENT_KEY}',
           {},
           {
             defaultPage: [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
@@ -386,7 +468,7 @@ async function createTreeCodeFromPath(
     treeCode: `${treeCode}.children;`,
     pages: `${JSON.stringify(pages)};`,
     rootLayout,
-    globalError,
+    globalError: globalError ?? defaultGlobalErrorPath,
   }
 }
 
@@ -437,12 +519,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pathname: string
   ): [string, string | string[]][] => {
     const matched: Record<string, string | string[]> = {}
+    let existingChildrenPath: string | undefined
     for (const appPath of normalizedAppPaths) {
       if (appPath.startsWith(pathname + '/')) {
         const rest = appPath.slice(pathname.length + 1).split('/')
 
         // It is the actual page, mark it specially.
         if (rest.length === 1 && rest[0] === 'page') {
+          existingChildrenPath = appPath
           matched.children = PAGE_SEGMENT
           continue
         }
@@ -462,6 +546,30 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           continue
         }
 
+        if (existingChildrenPath && matched.children !== rest[0]) {
+          // If we get here, it means we already set a `page` segment earlier in the loop,
+          // meaning we already matched a page to the `children` parallel segment.
+          const isIncomingParallelPage = appPath.includes('@')
+          const hasCurrentParallelPage = existingChildrenPath.includes('@')
+
+          if (isIncomingParallelPage) {
+            // The duplicate segment was for a parallel slot. In this case,
+            // rather than throwing an error, we can ignore it since this can happen for valid reasons.
+            // For example, when we attempt to normalize catch-all routes, we'll push potential slot matches so
+            // that they are available in the loader tree when we go to render the page.
+            // We only need to throw an error if the duplicate segment was for a regular page.
+            // For example, /app/(groupa)/page & /app/(groupb)/page is an error since it corresponds
+            // with the same path.
+            continue
+          } else if (!hasCurrentParallelPage && !isIncomingParallelPage) {
+            // Both the current `children` and the incoming `children` are regular pages.
+            throw new Error(
+              `You cannot have two parallel pages that resolve to the same path. Please check ${existingChildrenPath} and ${appPath}. Refer to the route group docs for more information: https://nextjs.org/docs/app/building-your-application/routing/route-groups`
+            )
+          }
+        }
+
+        existingChildrenPath = appPath
         matched.children = rest[0]
       }
     }
@@ -487,13 +595,8 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       return existingFiles.has(fileName)
     }
     try {
-      const files = await fs.readdir(dirname, { withFileTypes: true })
-      const fileNames = new Set<string>()
-      for (const file of files) {
-        if (file.isFile()) {
-          fileNames.add(file.name)
-        }
-      }
+      const files = await getFilesInDir(dirname)
+      const fileNames = new Set<string>(files)
       filesInDir.set(dirname, fileNames)
       return fileNames.has(fileName)
     } catch (err) {
@@ -563,6 +666,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   }
 
   let treeCodeResult = await createTreeCodeFromPath(pagePath, {
+    page,
     resolveDir,
     resolver,
     metadataResolver,
@@ -576,7 +680,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     if (!isDev) {
       // If we're building and missing a root layout, exit the build
       Log.error(
-        `${chalk.bold(
+        `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. To fix this error, make sure every page has a root layout.`
       )
@@ -591,12 +695,12 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
       })
       if (!createdRootLayout) {
-        let message = `${chalk.bold(
+        let message = `${bold(
           pagePath.replace(`${APP_DIR_ALIAS}/`, '')
         )} doesn't have a root layout. `
 
         if (rootLayoutPath) {
-          message += `We tried to create ${chalk.bold(
+          message += `We tried to create ${bold(
             path.relative(this._compiler?.context ?? '', rootLayoutPath)
           )} for you but something went wrong.`
         } else {
@@ -610,6 +714,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       // Clear fs cache, get the new result with the created root layout.
       filesInDir.clear()
       treeCodeResult = await createTreeCodeFromPath(pagePath, {
+        page,
         resolveDir,
         resolver,
         metadataResolver,
@@ -630,9 +735,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     {
       VAR_DEFINITION_PAGE: page,
       VAR_DEFINITION_PATHNAME: pathname,
-      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError
-        ? treeCodeResult.globalError
-        : 'next/dist/client/components/error-boundary',
+      VAR_MODULE_GLOBAL_ERROR: treeCodeResult.globalError,
       VAR_ORIGINAL_PATHNAME: page,
     },
     {

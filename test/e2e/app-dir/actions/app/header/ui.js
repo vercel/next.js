@@ -67,6 +67,7 @@ export default function UI({
       </button>
       <form>
         <button
+          id="setCookieAndRedirect"
           formAction={async () => {
             await setCookieAndRedirect(
               'redirect',

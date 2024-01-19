@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_tasks::Vc;
 use turbopack_binding::{
@@ -11,7 +11,6 @@ use turbopack_binding::{
         resolve::{
             options::{ImportMapResult, ImportMapping, ImportMappingReplacement},
             parse::Request,
-            pattern::QueryMap,
             ResolveResult,
         },
         virtual_source::VirtualSource,
@@ -97,7 +96,7 @@ impl ImportMappingReplacement for NextFontLocalReplacer {
                 export default fontData;
                         "#,
             // Pass along whichever options we received to the css handler
-            qstring::QString::new(query_vc.await?.as_ref().unwrap().iter().collect()),
+            qstring::QString::from(&**query_vc.await?),
             properties.font_family.await?,
             properties
                 .weight
@@ -222,22 +221,17 @@ async fn get_font_css_properties(
 }
 
 #[turbo_tasks::function]
-async fn font_options_from_query_map(query: Vc<QueryMap>) -> Result<Vc<NextFontLocalOptions>> {
-    let query_map = &*query.await?;
-    // These are invariants from the next/font swc transform. Regular errors instead
-    // of Issues should be okay.
-    let query_map = query_map
-        .as_ref()
-        .context("next/font/local queries must exist")?;
+async fn font_options_from_query_map(query: Vc<String>) -> Result<Vc<NextFontLocalOptions>> {
+    let query_map = qstring::QString::from(&**query.await?);
 
     if query_map.len() != 1 {
-        bail!("next/font/local queries must only have one entry");
+        bail!("next/font/local queries have exactly one entry");
     }
 
-    let Some((json, _)) = query_map.iter().next() else {
+    let Some((json, _)) = query_map.into_iter().next() else {
         bail!("Expected one entry");
     };
 
-    options_from_request(&parse_json_with_source_context(json)?)
+    options_from_request(&parse_json_with_source_context(&json)?)
         .map(|o| NextFontLocalOptions::new(Value::new(o)))
 }

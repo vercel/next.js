@@ -22,7 +22,6 @@ export async function Tweet({ id, caption }: TweetArgs) {
   return (
     <div className="my-6">
       <div className="flex justify-center">
-        {/* @ts-ignore */}
         <ReactTweet id={id} components={components} />
       </div>
       {caption && <Caption>{caption}</Caption>}

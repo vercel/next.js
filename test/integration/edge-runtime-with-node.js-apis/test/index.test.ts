@@ -110,8 +110,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       expect(stripAnsi(output)).toInclude(errorHighlight)
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     let buildResult
 
     beforeAll(async () => {

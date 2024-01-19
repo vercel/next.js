@@ -1,9 +1,7 @@
-import Chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
 import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-
-const chalk = new Chalk.constructor({ enabled: true })
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431
 /*
@@ -90,11 +88,9 @@ function getFormattedFileName(
     // provided by next-swc next-transform-font
     return JSON.parse(module.resourceResolveData.query.slice(1)).path
   } else {
-    let formattedFileName: string = chalk.cyan(fileName)
+    let formattedFileName: string = cyan(fileName)
     if (lineNumber && column) {
-      formattedFileName += `:${chalk.yellow(lineNumber)}:${chalk.yellow(
-        column
-      )}`
+      formattedFileName += `:${yellow(lineNumber)}:${yellow(column)}`
     }
 
     return formattedFileName
@@ -126,7 +122,7 @@ export async function getNotFoundError(
 
     const errorMessage = input.error.message
       .replace(/ in '.*?'/, '')
-      .replace(/Can't resolve '(.*)'/, `Can't resolve '${chalk.green('$1')}'`)
+      .replace(/Can't resolve '(.*)'/, `Can't resolve '${green('$1')}'`)
 
     const importTrace = () => {
       const moduleTrace = getModuleTrace(input, compilation)
@@ -148,7 +144,7 @@ export async function getNotFoundError(
     }
 
     let message =
-      chalk.red.bold('Module not found') +
+      red(bold('Module not found')) +
       `: ${errorMessage}` +
       '\n' +
       frame +
@@ -193,11 +189,9 @@ export async function getImageError(
     return line.includes(importedFile)
   })
   return new SimpleWebpackError(
-    `${chalk.cyan(page)}:${chalk.yellow(lineNumber.toString())}`,
-    chalk.red
-      .bold('Error')
-      .concat(
-        `: Image import "${importedFile}" is not a valid image file. The image may be corrupted or an unsupported format.`
-      )
+    `${cyan(page)}:${yellow(lineNumber.toString())}`,
+    red(bold('Error')).concat(
+      `: Image import "${importedFile}" is not a valid image file. The image may be corrupted or an unsupported format.`
+    )
   )
 }

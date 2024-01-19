@@ -1,0 +1,89 @@
+{
+  "private": true,
+  "config": {
+    "appName": "xmcloud-nextjs-starter",
+    "rootPlaceholders": [
+      "jss-main"
+    ],
+    "sitecoreConfigPath": "/App_Config/Include/zzz",
+    "graphQLEndpointPath": "/sitecore/api/graph/edge",
+    "language": "en",
+    "templates": [
+      "nextjs",
+      "nextjs-sxa"
+    ]
+  },
+  "engines": {
+    "node": ">=12",
+    "npm": ">=6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sitecore/jss.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sitecore/jss/issues"
+  },
+  "dependencies": {
+    "@sitecore-jss/sitecore-jss-nextjs": "~21.1.6",
+    "bootstrap": "^5.1.3",
+    "font-awesome": "^4.7.0",
+    "graphql": "~15.8.0",
+    "graphql-tag": "^2.12.6",
+    "next": "^13.1.6",
+    "next-localization": "^0.12.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "^1.21.8",
+    "@graphql-codegen/import-types-preset": "^2.2.6",
+    "@graphql-codegen/plugin-helpers": "^3.1.2",
+    "@graphql-codegen/typed-document-node": "^2.3.12",
+    "@graphql-codegen/typescript": "^2.8.7",
+    "@graphql-codegen/typescript-operations": "^2.5.12",
+    "@graphql-codegen/typescript-resolvers": "^2.7.12",
+    "@graphql-typed-document-node/core": "^3.1.1",
+    "@sitecore-jss/sitecore-jss-cli": "~21.1.6",
+    "@types/node": "^18.11.18",
+    "@types/react": "^18.0.12",
+    "@types/react-dom": "^18.0.5",
+    "@typescript-eslint/eslint-plugin": "^5.49.0",
+    "@typescript-eslint/parser": "^5.49.0",
+    "chalk": "~4.1.2",
+    "chokidar": "~3.5.3",
+    "constant-case": "^3.0.4",
+    "cross-env": "~7.0.3",
+    "dotenv": "^16.0.3",
+    "eslint": "^8.32.0",
+    "eslint-config-next": "^13.1.5",
+    "eslint-config-prettier": "^8.6.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-yaml": "^0.5.0",
+    "graphql-let": "^0.18.6",
+    "npm-run-all": "~4.1.5",
+    "prettier": "^2.8.3",
+    "sass": "^1.52.3",
+    "sass-alias": "^1.0.5",
+    "ts-node": "^10.9.1",
+    "tsconfig-paths": "^4.1.2",
+    "typescript": "~4.9.4",
+    "yaml-loader": "^0.8.0"
+  },
+  "scripts": {
+    "dev": "npm run next:dev",
+    "start": "npm run next:start",
+    "jss": "jss",
+    "lint": "eslint ./src/**/*.tsx ./src/**/*.ts ./scripts/**/*.ts",
+    "bootstrap": "ts-node --project tsconfig.scripts.json scripts/bootstrap.ts",
+    "build": "npm-run-all --serial bootstrap next:build",
+    "graphql:update": "ts-node --project tsconfig.scripts.json ./scripts/fetch-graphql-introspection-data.ts",
+    "next:build": "next build",
+    "next:dev": "cross-env NODE_OPTIONS='--inspect' next dev",
+    "next:start": "next start",
+    "scaffold": "ts-node --project tsconfig.scripts.json scripts/scaffold-component.ts",
+    "start:connected": "npm-run-all --serial bootstrap --parallel next:dev start:watch-components",
+    "start:production": "npm-run-all --serial bootstrap next:build next:start",
+    "start:watch-components": "ts-node --project tsconfig.scripts.json scripts/generate-component-factory.ts --watch"
+  }
+}

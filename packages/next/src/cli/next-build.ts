@@ -1,33 +1,15 @@
 #!/usr/bin/env node
+
+import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
-import arg from 'next/dist/compiled/arg/index.js'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
-import { getValidatedArgs } from '../lib/get-validated-args'
 
-const nextBuild: CliCommand = (argv) => {
-  const validArgs: arg.Spec = {
-    // Types
-    '--help': Boolean,
-    '--profile': Boolean,
-    '--debug': Boolean,
-    '--no-lint': Boolean,
-    '--no-mangling': Boolean,
-    '--experimental-app-only': Boolean,
-    '--experimental-turbo': Boolean,
-    '--experimental-turbo-root': String,
-    '--build-mode': String,
-    // Aliases
-    '-h': '--help',
-    '-d': '--debug',
-  }
-
-  const args = getValidatedArgs(validArgs, argv)
-
+const nextBuild: CliCommand = (args) => {
   if (args['--help']) {
     printAndExit(
       `
@@ -69,7 +51,7 @@ const nextBuild: CliCommand = (argv) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (args['--experimental-turbo'] || process.env.EXPERIMENTAL_TURBOPACK) {
+  if (args['--experimental-turbo']) {
     process.env.TURBOPACK = '1'
   }
 
@@ -81,7 +63,6 @@ const nextBuild: CliCommand = (argv) => {
     args['--no-mangling'],
     args['--experimental-app-only'],
     !!process.env.TURBOPACK,
-    args['--experimental-turbo-root'],
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')

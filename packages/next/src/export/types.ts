@@ -1,0 +1,169 @@
+import type { WriteFileOptions } from 'fs'
+import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
+import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
+import type { LoadComponentsReturnType } from '../server/load-components'
+import type { OutgoingHttpHeaders } from 'http'
+import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
+import type { FontConfig } from '../server/font-utils'
+import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
+import type { Span } from '../trace'
+import type { Revalidate } from '../server/lib/revalidate'
+import type { NextEnabledDirectories } from '../server/base-server'
+
+export interface AmpValidation {
+  page: string
+  result: {
+    errors: AmpHtmlValidator.ValidationError[]
+    warnings: AmpHtmlValidator.ValidationError[]
+  }
+}
+
+/**
+ * Writes a file to the filesystem (and also records the file that was written).
+ */
+export type FileWriter = (
+  type: string,
+  path: string,
+  content:
+    | string
+    | NodeJS.ArrayBufferView
+    | Iterable<string | NodeJS.ArrayBufferView>
+    | AsyncIterable<string | NodeJS.ArrayBufferView>,
+  encodingOptions?: WriteFileOptions
+) => Promise<void>
+
+type PathMap = ExportPathMap[keyof ExportPathMap]
+
+export interface ExportPageInput {
+  path: string
+  dir: string
+  pathMap: PathMap
+  distDir: string
+  outDir: string
+  pagesDataDir: string
+  renderOpts: WorkerRenderOptsPartial
+  ampValidatorPath?: string
+  trailingSlash?: boolean
+  buildExport?: boolean
+  serverRuntimeConfig: { [key: string]: any }
+  subFolders?: boolean
+  optimizeFonts: FontConfig
+  optimizeCss: any
+  disableOptimizedLoading: any
+  parentSpanId: any
+  httpAgentOptions: NextConfigComplete['httpAgentOptions']
+  debugOutput?: boolean
+  cacheMaxMemorySize?: NextConfigComplete['cacheMaxMemorySize']
+  fetchCache?: boolean
+  cacheHandler?: string
+  fetchCacheKeyPrefix?: string
+  nextConfigOutput?: NextConfigComplete['output']
+  enableExperimentalReact?: boolean
+  enabledDirectories: NextEnabledDirectories
+}
+
+export type ExportedPageFile = {
+  type: string
+  path: string
+}
+
+export type ExportRouteResult =
+  | {
+      ampValidations?: AmpValidation[]
+      revalidate: Revalidate
+      metadata?: {
+        status?: number
+        headers?: OutgoingHttpHeaders
+      }
+      ssgNotFound?: boolean
+      hasEmptyPrelude?: boolean
+      hasPostponed?: boolean
+    }
+  | {
+      error: boolean
+    }
+
+export type ExportPageResult = ExportRouteResult & {
+  files: ExportedPageFile[]
+  duration: number
+}
+
+export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
+  AppRenderOptsPartial
+
+export type WorkerRenderOpts = WorkerRenderOptsPartial &
+  LoadComponentsReturnType
+
+export type ExportWorker = (
+  input: ExportPageInput
+) => Promise<ExportPageResult | undefined>
+
+export interface ExportAppOptions {
+  outdir: string
+  enabledDirectories: NextEnabledDirectories
+  silent?: boolean
+  threads?: number
+  debugOutput?: boolean
+  pages?: string[]
+  buildExport: boolean
+  statusMessage?: string
+  exportPageWorker?: ExportWorker
+  exportAppPageWorker?: ExportWorker
+  endWorker?: () => Promise<void>
+  nextConfig?: NextConfigComplete
+  hasOutdirFromCli?: boolean
+}
+
+export type ExportPageMetadata = {
+  revalidate: number | false
+  metadata:
+    | {
+        status?: number | undefined
+        headers?: OutgoingHttpHeaders | undefined
+      }
+    | undefined
+  duration: number
+}
+
+export type ExportAppResult = {
+  /**
+   * Page information keyed by path.
+   */
+  byPath: Map<
+    string,
+    {
+      /**
+       * The revalidation time for the page in seconds.
+       */
+      revalidate?: Revalidate
+      /**
+       * The metadata for the page.
+       */
+      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      /**
+       * If the page has an empty prelude when using PPR.
+       */
+      hasEmptyPrelude?: boolean
+      /**
+       * If the page has postponed when using PPR.
+       */
+      hasPostponed?: boolean
+    }
+  >
+
+  /**
+   * Durations for each page in milliseconds.
+   */
+  byPage: Map<string, { durationsByPath: Map<string, number> }>
+
+  /**
+   * The paths that were not found during SSG.
+   */
+  ssgNotFoundPaths: Set<string>
+}
+
+export type ExportAppWorker = (
+  dir: string,
+  options: ExportAppOptions,
+  span: Span
+) => Promise<ExportAppResult | null>

@@ -1,0 +1,18 @@
+# top level version field is required
+version: 2
+
+triggerPaths:
+  - 'packages/*/package.json'
+  - 'package.json'
+  - 'pnpm-lock.yaml'
+  - 'pnpm-workspace.yaml'
+
+projectIgnorePaths:
+  - '.github/'
+  - 'bench/'
+  - 'contributing/'
+  - 'docs/'
+  - 'errors/'
+  - 'examples/'
+  - 'scripts/'
+  - 'test/'

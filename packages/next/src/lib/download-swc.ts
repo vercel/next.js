@@ -1,86 +1,33 @@
-import os from 'os'
 import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
 import tar from 'next/dist/compiled/tar'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }
-import { fileExists } from './file-exists'
 import { getRegistry } from './helpers/get-registry'
+import { getCacheDirectory } from './helpers/get-cache-directory'
 
 const MAX_VERSIONS_TO_CACHE = 8
-
-// get platform specific cache directory adapted from playwright's handling
-// https://github.com/microsoft/playwright/blob/7d924470d397975a74a19184c136b3573a974e13/packages/playwright-core/src/utils/registry.ts#L141
-async function getCacheDirectory() {
-  let result
-  const envDefined = process.env['NEXT_SWC_PATH']
-
-  if (envDefined) {
-    result = envDefined
-  } else {
-    let systemCacheDirectory
-    if (process.platform === 'linux') {
-      systemCacheDirectory =
-        process.env.XDG_CACHE_HOME || path.join(os.homedir(), '.cache')
-    } else if (process.platform === 'darwin') {
-      systemCacheDirectory = path.join(os.homedir(), 'Library', 'Caches')
-    } else if (process.platform === 'win32') {
-      systemCacheDirectory =
-        process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local')
-    } else {
-      /// Attempt to use generic tmp location for un-handled platform
-      if (!systemCacheDirectory) {
-        for (const dir of [
-          path.join(os.homedir(), '.cache'),
-          path.join(os.tmpdir()),
-        ]) {
-          if (await fileExists(dir)) {
-            systemCacheDirectory = dir
-            break
-          }
-        }
-      }
-
-      if (!systemCacheDirectory) {
-        console.error(new Error('Unsupported platform: ' + process.platform))
-        process.exit(0)
-      }
-    }
-    result = path.join(systemCacheDirectory, 'next-swc')
-  }
-
-  if (!path.isAbsolute(result)) {
-    // It is important to resolve to the absolute path:
-    //   - for unzipping to work correctly;
-    //   - so that registry directory matches between installation and execution.
-    // INIT_CWD points to the root of `npm/yarn install` and is probably what
-    // the user meant when typing the relative path.
-    result = path.resolve(process.env['INIT_CWD'] || process.cwd(), result)
-  }
-  return result
-}
 
 async function extractBinary(
   outputDirectory: string,
   pkgName: string,
   tarFileName: string
 ) {
-  const cacheDirectory = await getCacheDirectory()
+  const cacheDirectory = getCacheDirectory(
+    'next-swc',
+    process.env['NEXT_SWC_PATH']
+  )
 
-  const extractFromTar = async () => {
-    await tar.x({
+  const extractFromTar = () =>
+    tar.x({
       file: path.join(cacheDirectory, tarFileName),
       cwd: outputDirectory,
       strip: 1,
     })
-  }
 
-  if (!(await fileExists(path.join(cacheDirectory, tarFileName)))) {
+  if (!fs.existsSync(path.join(cacheDirectory, tarFileName))) {
     Log.info(`Downloading swc package ${pkgName}...`)
     await fs.promises.mkdir(cacheDirectory, { recursive: true })
     const tempFile = path.join(
@@ -108,10 +55,28 @@ async function extractBinary(
       return body.pipeTo(
         new WritableStream({
           write(chunk) {
-            cacheWriteStream.write(chunk)
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.write(chunk, (error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
           close() {
-            cacheWriteStream.close()
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.close((error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
         })
       )
@@ -147,7 +112,7 @@ export async function downloadNativeNextSwc(
     const tarFileName = `${pkgName.substring(6)}-${version}.tgz`
     const outputDirectory = path.join(bindingsDirectory, pkgName)
 
-    if (await fileExists(outputDirectory)) {
+    if (fs.existsSync(outputDirectory)) {
       // if the package is already downloaded a different
       // failure occurred than not being present
       return
@@ -167,7 +132,7 @@ export async function downloadWasmSwc(
   const tarFileName = `${pkgName.substring(6)}-${version}.tgz`
   const outputDirectory = path.join(wasmDirectory, pkgName)
 
-  if (await fileExists(outputDirectory)) {
+  if (fs.existsSync(outputDirectory)) {
     // if the package is already downloaded a different
     // failure occurred than not being present
     return

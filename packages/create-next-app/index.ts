@@ -5,6 +5,7 @@ import Commander from 'commander'
 import Conf from 'conf'
 import path from 'path'
 import prompts from 'prompts'
+import type { InitialReturnValue } from 'prompts'
 import checkForUpdate from 'update-check'
 import { createApp, DownloadError } from './create-app'
 import { getPkgManager } from './helpers/get-pkg-manager'
@@ -21,7 +22,11 @@ const handleSigTerm = () => process.exit(0)
 process.on('SIGINT', handleSigTerm)
 process.on('SIGTERM', handleSigTerm)
 
-const onPromptState = (state: any) => {
+const onPromptState = (state: {
+  value: InitialReturnValue
+  aborted: boolean
+  exited: boolean
+}) => {
   if (state.aborted) {
     // If we don't re-enable the terminal cursor before exiting
     // the program, the cursor will remain hidden
@@ -179,7 +184,7 @@ async function run(): Promise<void> {
         if (validation.valid) {
           return true
         }
-        return 'Invalid project name: ' + validation.problems![0]
+        return 'Invalid project name: ' + validation.problems[0]
       },
     })
 
@@ -202,15 +207,17 @@ async function run(): Promise<void> {
   const resolvedProjectPath = path.resolve(projectPath)
   const projectName = path.basename(resolvedProjectPath)
 
-  const { valid, problems } = validateNpmName(projectName)
-  if (!valid) {
+  const validation = validateNpmName(projectName)
+  if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
         `"${projectName}"`
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
+    validation.problems.forEach((p) =>
+      console.error(`    ${red(bold('*'))} ${p}`)
+    )
     process.exit(1)
   }
 
@@ -246,6 +253,7 @@ async function run(): Promise<void> {
       typescript: true,
       eslint: true,
       tailwind: true,
+      app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
@@ -255,10 +263,9 @@ async function run(): Promise<void> {
 
     if (!program.typescript && !program.javascript) {
       if (ciInfo.isCI) {
-        // default to JavaScript in CI as we can't prompt to
+        // default to TypeScript in CI as we can't prompt to
         // prevent breaking setup flows
-        program.typescript = false
-        program.javascript = true
+        program.typescript = getPrefOrDefault('typescript')
       } else {
         const styledTypeScript = blue('TypeScript')
         const { typescript } = await prompts(
@@ -295,7 +302,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-eslint')
     ) {
       if (ciInfo.isCI) {
-        program.eslint = true
+        program.eslint = getPrefOrDefault('eslint')
       } else {
         const styledEslint = blue('ESLint')
         const { eslint } = await prompts({
@@ -317,7 +324,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-tailwind')
     ) {
       if (ciInfo.isCI) {
-        program.tailwind = false
+        program.tailwind = getPrefOrDefault('tailwind')
       } else {
         const tw = blue('Tailwind CSS')
         const { tailwind } = await prompts({
@@ -339,7 +346,7 @@ async function run(): Promise<void> {
       !process.argv.includes('--no-src-dir')
     ) {
       if (ciInfo.isCI) {
-        program.srcDir = false
+        program.srcDir = getPrefOrDefault('srcDir')
       } else {
         const styledSrcDir = blue('`src/` directory')
         const { srcDir } = await prompts({
@@ -358,7 +365,7 @@ async function run(): Promise<void> {
 
     if (!process.argv.includes('--app') && !process.argv.includes('--no-app')) {
       if (ciInfo.isCI) {
-        program.app = true
+        program.app = getPrefOrDefault('app')
       } else {
         const styledAppDir = blue('App Router')
         const { appRouter } = await prompts({
@@ -366,7 +373,7 @@ async function run(): Promise<void> {
           type: 'toggle',
           name: 'appRouter',
           message: `Would you like to use ${styledAppDir}? (recommended)`,
-          initial: true,
+          initial: getPrefOrDefault('app'),
           active: 'Yes',
           inactive: 'No',
         })
@@ -379,7 +386,8 @@ async function run(): Promise<void> {
       !program.importAlias.length
     ) {
       if (ciInfo.isCI) {
-        program.importAlias = '@/*'
+        // We don't use preferences here because the default value is @/* regardless of existing preferences
+        program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 
@@ -387,14 +395,15 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the default ${styledImportAlias}?`,
+          message: `Would you like to customize the default ${styledImportAlias} (${defaults.importAlias})?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
         })
 
         if (!customizeImportAlias) {
-          program.importAlias = '@/*'
+          // We don't use preferences here because the default value is @/* regardless of existing preferences
+          program.importAlias = defaults.importAlias
         } else {
           const { importAlias } = await prompts({
             onState: onPromptState,

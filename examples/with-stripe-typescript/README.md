@@ -6,12 +6,12 @@ This is a full-stack TypeScript example using:
   - Next.js
   - [react-stripe-js](https://github.com/stripe/react-stripe-js) for [Checkout](https://stripe.com/checkout) and [Elements](https://stripe.com/elements)
 - Backend
-  - Next.js [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) and [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions)
+  - Next.js [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) and [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/forms-and-mutations)
   - [stripe-node with TypeScript](https://github.com/stripe/stripe-node#usage-with-typescript)
 
 ## Demo
 
-- [Live demo](https://nextjs-typescript-react-stripe-js.vercel.app)
+- [Live demo](https://nextjs-with-stripe-typescript-demo.vercel.app)
 - [Guide](https://vercel.com/guides/getting-started-with-nextjs-typescript-stripe)
 
 The demo is running in test mode -- use `4242424242424242` as a test card number with any CVC + future expiration date.

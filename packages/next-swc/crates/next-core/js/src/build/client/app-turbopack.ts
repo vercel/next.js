@@ -1,6 +1,3 @@
-// @ts-expect-error
-process.env.__NEXT_NEW_LINK_BEHAVIOR = true
-
 // eslint-disable-next-line no-undef
 self.__next_require__ = __turbopack_require__
 

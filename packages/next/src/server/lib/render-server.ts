@@ -1,19 +1,23 @@
-import type { RequestHandler } from '../next'
+import type { NextServer, RequestHandler } from '../next'
+import type { DevBundlerService } from './dev-bundler-service'
+import type { PropagateToWorkersField } from './router-utils/types'
 
-// this must come first as it includes require hooks
-import { initializeServerWorker } from './setup-server-worker'
 import next from '../next'
+import type { Span } from '../../trace'
 
-export const WORKER_SELF_EXIT_CODE = 77
-
-let result:
+let initializations: Record<
+  string,
+  | Promise<{
+      requestHandler: ReturnType<
+        InstanceType<typeof NextServer>['getRequestHandler']
+      >
+      upgradeHandler: ReturnType<
+        InstanceType<typeof NextServer>['getUpgradeHandler']
+      >
+      app: ReturnType<typeof next>
+    }>
   | undefined
-  | {
-      port: number
-      hostname: string
-    }
-
-let app: ReturnType<typeof next> | undefined
+> = {}
 
 let sandboxContext: undefined | typeof import('../web/sandbox/context')
 let requireCacheHotReloader:
@@ -39,26 +43,21 @@ export function deleteCache(filePaths: string[]) {
   }
 }
 
-export async function propagateServerField(field: string, value: any) {
-  if (!app) {
+export async function propagateServerField(
+  dir: string,
+  field: PropagateToWorkersField,
+  value: any
+) {
+  const initialization = await initializations[dir]
+  if (!initialization) {
     throw new Error('Invariant cant propagate server field, no app initialized')
   }
+  const { app } = initialization
   let appField = (app as any).server
-
-  if (field.includes('.')) {
-    const parts = field.split('.')
-
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (appField) {
-        appField = appField[parts[i]]
-      }
-    }
-    field = parts[parts.length - 1]
-  }
 
   if (appField) {
     if (typeof appField[field] === 'function') {
-      appField[field].apply(
+      await appField[field].apply(
         (app as any).server,
         Array.isArray(value) ? value : []
       )
@@ -68,57 +67,65 @@ export async function propagateServerField(field: string, value: any) {
   }
 }
 
-export async function initialize(opts: {
+async function initializeImpl(opts: {
   dir: string
   port: number
   dev: boolean
   minimalMode?: boolean
   hostname?: string
-  workerType: 'router' | 'render'
   isNodeDebugging: boolean
   keepAliveTimeout?: number
   serverFields?: any
-}): Promise<NonNullable<typeof result>> {
-  // if we already setup the server return as we only need to do
-  // this on first worker boot
-  if (result) {
-    return result
+  server?: any
+  experimentalTestProxy: boolean
+  experimentalHttpsServer: boolean
+  _ipcPort?: string
+  _ipcKey?: string
+  bundlerService: DevBundlerService | undefined
+  startServerSpan: Span | undefined
+}) {
+  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER
+  if (type) {
+    process.title = 'next-render-worker-' + type
   }
-
-  const type = process.env.__NEXT_PRIVATE_RENDER_WORKER!
-  process.title = 'next-render-worker-' + type
 
   let requestHandler: RequestHandler
   let upgradeHandler: any
 
-  const { port, server, hostname } = await initializeServerWorker(
-    (...args) => {
-      return requestHandler(...args)
-    },
-    (...args) => {
-      return upgradeHandler(...args)
-    },
-    opts
-  )
-
-  app = next({
+  const app = next({
     ...opts,
-    _routerWorker: opts.workerType === 'router',
-    _renderWorker: opts.workerType === 'render',
-    hostname: hostname === '0.0.0.0' ? 'localhost' : hostname,
+    hostname: opts.hostname || 'localhost',
     customServer: false,
-    httpServer: server,
+    httpServer: opts.server,
     port: opts.port,
     isNodeDebugging: opts.isNodeDebugging,
   })
-
   requestHandler = app.getRequestHandler()
   upgradeHandler = app.getUpgradeHandler()
+
   await app.prepare(opts.serverFields)
 
-  result = {
-    port,
-    hostname: hostname === '0.0.0.0' ? '127.0.0.1' : hostname,
+  return {
+    requestHandler,
+    upgradeHandler,
+    app,
   }
-  return result
+}
+
+export async function initialize(
+  opts: Parameters<typeof initializeImpl>[0]
+): Promise<{
+  requestHandler: ReturnType<
+    InstanceType<typeof NextServer>['getRequestHandler']
+  >
+  upgradeHandler: ReturnType<
+    InstanceType<typeof NextServer>['getUpgradeHandler']
+  >
+}> {
+  // if we already setup the server return as we only need to do
+  // this on first worker boot
+  if (initializations[opts.dir]) {
+    return initializations[opts.dir]!
+  }
+  return (initializations[opts.dir] = initializeImpl(opts))
 }

@@ -1,5 +1,6 @@
 const path = require('path')
-const fs = require('fs-extra')
+const fs = require('fs/promises')
+const { existsSync } = require('fs')
 const exec = require('./util/exec')
 const logger = require('./util/logger')
 const runConfigs = require('./run')
@@ -7,14 +8,8 @@ const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
 const { mainRepoDir, diffRepoDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
-const {
-  cloneRepo,
-  checkoutRef,
-  mergeBranch,
-  getCommitId,
-  linkPackages,
-  getLastStable,
-} = require('./prepare/repo-setup')(actionInfo)
+const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
+  require('./prepare/repo-setup')(actionInfo)
 
 const allowedActions = new Set(['synchronize', 'opened'])
 
@@ -27,7 +22,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
 ;(async () => {
   try {
-    if (await fs.pathExists(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
+    if (existsSync(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
       console.log(
         'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
       )
@@ -106,41 +101,39 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
     for (const dir of repoDirs) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
-        const usePnpm = await fs.pathExists(path.join(dir, 'pnpm-lock.yaml'))
+        const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
 
-        let buildCommand = `cd ${dir}${
-          !statsConfig.skipInitialInstall
-            ? usePnpm
-              ? // --no-frozen-lockfile is used here to tolerate lockfile
-                // changes from merging latest changes
-                ` && pnpm install --no-frozen-lockfile && pnpm run build`
-              : ' && yarn install --network-timeout 1000000'
-            : ''
-        }`
+        if (!statsConfig.skipInitialInstall) {
+          await exec.spawnPromise(
+            `cd ${dir}${
+              usePnpm
+                ? // --no-frozen-lockfile is used here to tolerate lockfile
+                  // changes from merging latest changes
+                  ` && pnpm install --no-frozen-lockfile`
+                : ' && yarn install --network-timeout 1000000'
+            }`
+          )
 
-        if (statsConfig.initialBuildCommand) {
-          buildCommand += ` && ${statsConfig.initialBuildCommand}`
+          await exec.spawnPromise(
+            statsConfig.initialBuildCommand ||
+              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
+          )
         }
-        // allow 5 minutes node_modules install + building all packages
-        // in case of noisy environment slowing down initial repo build
-        await exec(buildCommand, false, { timeout: 5 * 60 * 1000 })
       }
 
       await fs
-        .copy(
+        .cp(
           path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native')
+          path.join(dir, 'packages/next-swc/native'),
+          { recursive: true, force: true }
         )
         .catch(console.error)
-
-      console.log(await exec(`ls ${path.join(__dirname, '../native')}`))
-      console.log(await exec(`cd ${dir} && ls ${dir}/packages/next-swc/native`))
 
       logger(`Linking packages in ${dir}`)
       const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : undefined,
+        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
       if (isMainRepo) mainRepoPkgPaths = pkgPaths

@@ -1,5 +1,7 @@
-import { requestAsyncStorage } from './request-async-storage'
+import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
+import { actionAsyncStorage } from './action-async-storage.external'
+import { RedirectStatusCode } from './redirect-status-code'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
@@ -8,17 +10,18 @@ export enum RedirectType {
   replace = 'replace',
 }
 
-type RedirectError<U extends string> = Error & {
-  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U}`
+export type RedirectError<U extends string> = Error & {
+  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${RedirectStatusCode};`
   mutableCookies: ResponseCookies
 }
 
 export function getRedirectError(
   url: string,
-  type: RedirectType
+  type: RedirectType,
+  statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
 ): RedirectError<typeof url> {
   const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
-  error.digest = `${REDIRECT_ERROR_CODE};${type};${url}`
+  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
   const requestStore = requestAsyncStorage.getStore()
   if (requestStore) {
     error.mutableCookies = requestStore.mutableCookies
@@ -27,9 +30,9 @@ export function getRedirectError(
 }
 
 /**
- * When used in a React server component, this will insert a meta tag to
+ * When used in a streaming context, this will insert a meta tag to
  * redirect the user to the target page. When used in a custom app route, it
- * will serve a 302 to the caller.
+ * will serve a 307/303 to the caller.
  *
  * @param url the url to redirect to
  */
@@ -37,7 +40,41 @@ export function redirect(
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
-  throw getRedirectError(url, type)
+  const actionStore = actionAsyncStorage.getStore()
+  throw getRedirectError(
+    url,
+    type,
+    // If we're in an action, we want to use a 303 redirect
+    // as we don't want the POST request to follow the redirect,
+    // as it could result in erroneous re-submissions.
+    actionStore?.isAction
+      ? RedirectStatusCode.SeeOther
+      : RedirectStatusCode.TemporaryRedirect
+  )
+}
+
+/**
+ * When used in a streaming context, this will insert a meta tag to
+ * redirect the user to the target page. When used in a custom app route, it
+ * will serve a 308/303 to the caller.
+ *
+ * @param url the url to redirect to
+ */
+export function permanentRedirect(
+  url: string,
+  type: RedirectType = RedirectType.replace
+): never {
+  const actionStore = actionAsyncStorage.getStore()
+  throw getRedirectError(
+    url,
+    type,
+    // If we're in an action, we want to use a 303 redirect
+    // as we don't want the POST request to follow the redirect,
+    // as it could result in erroneous re-submissions.
+    actionStore?.isAction
+      ? RedirectStatusCode.SeeOther
+      : RedirectStatusCode.PermanentRedirect
+  )
 }
 
 /**
@@ -48,16 +85,27 @@ export function redirect(
  * @returns true if the error is a redirect error
  */
 export function isRedirectError<U extends string>(
-  error: any
+  error: unknown
 ): error is RedirectError<U> {
-  if (typeof error?.digest !== 'string') return false
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('digest' in error) ||
+    typeof error.digest !== 'string'
+  ) {
+    return false
+  }
 
-  const [errorCode, type, destination] = (error.digest as string).split(';', 3)
+  const [errorCode, type, destination, status] = error.digest.split(';', 4)
+
+  const statusCode = Number(status)
 
   return (
     errorCode === REDIRECT_ERROR_CODE &&
     (type === 'replace' || type === 'push') &&
-    typeof destination === 'string'
+    typeof destination === 'string' &&
+    !isNaN(statusCode) &&
+    statusCode in RedirectStatusCode
   )
 }
 
@@ -86,5 +134,15 @@ export function getRedirectTypeFromError<U extends string>(
     throw new Error('Not a redirect error')
   }
 
-  return error.digest.split(';', 3)[1] as RedirectType
+  return error.digest.split(';', 2)[1] as RedirectType
+}
+
+export function getRedirectStatusCodeFromError<U extends string>(
+  error: RedirectError<U>
+): number {
+  if (!isRedirectError(error)) {
+    throw new Error('Not a redirect error')
+  }
+
+  return Number(error.digest.split(';', 4)[3])
 }

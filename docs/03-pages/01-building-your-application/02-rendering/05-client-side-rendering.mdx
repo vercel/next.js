@@ -6,7 +6,7 @@ related:
   links:
     - pages/building-your-application/rendering/server-side-rendering
     - pages/building-your-application/rendering/static-site-generation
-    - pages/building-your-application/rendering/incremental-static-regeneration
+    - pages/building-your-application/data-fetching/incremental-static-regeneration
     - app/building-your-application/routing/loading-ui-and-streaming
 ---
 
@@ -17,7 +17,7 @@ After the page has been loaded for the first time, navigating to other pages on 
 In Next.js, there are two ways you can implement client-side rendering:
 
 1. Using React's `useEffect()` hook inside your pages instead of the server-side rendering methods ([`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)).
-2. Using a data fetching library like [SWR](https://swr.vercel.app/) or [TanStack Query](https://tanstack.com/query/v3/) to fetch data on the client (recommended).
+2. Using a data fetching library like [SWR](https://swr.vercel.app/) or [TanStack Query](https://tanstack.com/query/latest/) to fetch data on the client (recommended).
 
 Here's an example of using `useEffect()` inside a Next.js page:
 

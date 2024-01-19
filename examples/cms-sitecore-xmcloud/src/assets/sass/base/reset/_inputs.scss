@@ -1,0 +1,67 @@
+@import "@sass/abstracts/mixins";
+@import "@sass/abstracts/vars";
+
+label {
+  background: transparent;
+  color: $text-basic;
+}
+input,
+button {
+  display: inline-block;
+  box-sizing: border-box;
+  background: $bg-basic-color !important;
+  border: 1px solid $border-gray;
+  border-radius: 0 !important;
+  color: $text-basic;
+  font-weight: normal;
+  padding: 8px 2%;
+  clear: both;
+  height: auto;
+  font-size: $font-normal;
+}
+input:focus {
+  border: 1px solid $border-gray;
+}
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
+button {
+  border: 1px solid $border-basic-color;
+  padding: 5px 20px;
+  &:hover {
+    background: $bg-light-gray !important;
+  }
+}
+input::-moz-focus-inner,
+button::-moz-focus-inner {
+  border: 0;
+  padding: 0;
+}
+input[type="text"] {
+  font-size: 13px;
+}
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea,
+select {
+  box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.1);
+  color: $text-basic;
+  width: 100%;
+  background: #fff;
+  border: 1px solid $border-gray;
+}
+
+select {
+  display: inline-block;
+  vertical-align: middle;
+  *vertical-align: auto;
+  *zoom: 1;
+  *display: inline;
+  -moz-box-sizing: border-box;
+  -webkit-box-sizing: border-box;
+  box-sizing: border-box;
+  outline: none;
+  cursor: pointer;
+  padding: 5px;
+}

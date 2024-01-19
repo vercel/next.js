@@ -17,7 +17,7 @@ describe('Error overlay for hydration errors', () => {
   })
 
   it('should show correct hydration error when client and server render different text', async () => {
-    const { cleanup, session } = await sandbox(
+    const { cleanup, session, browser } = await sandbox(
       next,
       new Map([
         [
@@ -40,12 +40,30 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Text content does not match server-rendered HTML.
+      "Error: Text content does not match server-rendered HTML.
 
-        Warning: Text content did not match. Server: \\"server\\" Client: \\"client\\"
+      Warning: Text content did not match. Server: "server" Client: "client"
 
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
+
+    await session.patch(
+      'app/page.js',
+      outdent`
+      'use client'
+      export default function Mismatch() {
+        return (
+          <div className="parent">
+            <main className="child">Value</main>
+          </div>
+        );
+      }
+    `
+    )
+
+    expect(await session.hasRedbox()).toBe(false)
+
+    expect(await browser.elementByCss('.child').text()).toBe('Value')
 
     await cleanup()
   })
@@ -109,12 +127,12 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-        Warning: Expected server HTML to contain a matching text node for \\"second\\" in <div>.
+      Warning: Expected server HTML to contain a matching text node for "second" in <div>.
 
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })
@@ -173,12 +191,12 @@ describe('Error overlay for hydration errors', () => {
     await session.waitForAndOpenRuntimeError()
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-        "Error: Hydration failed because the initial UI does not match what was rendered on the server.
+      "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-        Warning: Did not expect server HTML to contain the text node \\"only\\" in <div>.
+      Warning: Did not expect server HTML to contain the text node "only" in <div>.
 
-        See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+      See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
 
     await cleanup()
   })

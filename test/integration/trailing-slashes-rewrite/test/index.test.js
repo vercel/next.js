@@ -46,7 +46,7 @@ const runTests = () => {
 }
 
 describe('Trailing Slash Rewrite Proxying', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       proxyPort = await findPort()
       proxyServer = await initNextServerScript(

@@ -1,6 +1,6 @@
 import { useContext } from 'react'
-import { RouterContext } from '../../shared/lib/router-context'
-import { NextRouter } from '../router'
+import { RouterContext } from '../../shared/lib/router-context.shared-runtime'
+import type { NextRouter } from '../router'
 
 /**
  * useRouter from `next/compat/router` is designed to assist developers

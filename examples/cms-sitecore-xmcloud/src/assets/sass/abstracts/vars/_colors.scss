@@ -1,0 +1,283 @@
+//Backgrounds colors
+$bg-transparent: transparent !default;
+$bg-basic-color: #ffffff !default;
+$bg-basic-color-active: #cccccc !default;
+$bg-light-gray: #f7f7f7 !default;
+$bg-light-gray-active: #dadada !default;
+$bg-blue: #89c6cc;
+$bg-blue-active: #15909c !default;
+$bg-submenu: #edebeb !default;
+$bg-submenu-active: #f6f6f6 !default;
+$bg-black: #000;
+$bg-black-active: #3d3d3d;
+$bg-dark-gray: #262626;
+//Text colors
+$text-white: #fff !default;
+$text-heading-color: #222 !default;
+$text-basic: #747474 !default;
+$text-basic-active: #878787 !default;
+$text-blue: #89c6cc !default;
+$text-blue-active: #15909c !default;
+$text-submenu-active: #222 !default;
+$text-disabled: #aaa !default;
+$text-black: #000 !default;
+$text-red: #de232f;
+$text-gray: #262626;
+//Border colors
+$border-gray: #d2d2d2 !default;
+$border-white: #ffffff !default;
+$border-basic-color: #89c6cc !default;
+$border-basic-active: #15909c !default;
+$border-nav-submenu: #e1e1e1;
+//Styles for each component separately
+//Accordion
+$accordion-header-bg: transparent;
+$accordion-header-bg-active: transparent;
+$accordion-toggled-bg: transparent;
+$accordion-header-border: $border-gray;
+//Breadcrumb
+$breadcrumb-dropdown-bg: $bg-basic-color;
+$breadcrumb-dropdown-bg-active: $bg-blue;
+$breadcrumb-dropdown-text-active: $text-white;
+$breadcrumb-bg: transparent;
+$breadcrumb-color: $text-basic;
+$breadcrumb-color-active: $text-blue-active;
+//Buttons colors
+$btn-green-light: #a0ce4e;
+$btn-green: #92be43;
+$btn-red-active: #c34e30;
+$btn-red: #bc4526;
+//Carousel
+$carousel-bg: $bg-basic-color;
+$carousel-nav: $text-black;
+$carousel-nav-active: $text-basic-active;
+$carousel-nav-border: $border-basic-color;
+//Container component
+$container-title-row-bg: $bg-light-gray;
+//Event List
+$event-list-bg: transparent;
+$event-list-item-bg: $bg-basic-color;
+$event-list-item-color: $text-basic;
+$event-list-title-border: $border-basic-color;
+//Calendar
+$calendar-bg: $bg-basic-color;
+$calendar-header-bg: $bg-basic-color-active;
+$calendar-day-color-active: $text-white;
+$calendar-title-color: $text-white;
+//Feed
+$feed-bg: transparent;
+$feed-item-bg: transparent;
+//Field Editor
+$field-editor-bg: transparent;
+$field-editor-table-border: $bg-light-gray;
+$field-editor-text-header: $text-black;
+$field-editor-text-header-active: $text-red;
+$field-editor-text: $text-basic;
+//File List
+$file-list-bg: transparent;
+$file-list-item-bg: transparent;
+$file-list-title-color: $text-basic;
+$file-list-title-border: transparent;
+$file-list-item-color: $text-basic;
+$file-list-item-color-active: $text-basic-active;
+$file-list-item-size: $text-basic;
+$file-list-item-borer: $border-basic-color;
+$file-list-link-btn-color-active: $text-white;
+$file-list-link-btn-color: $text-basic;
+$file-list-link-btn-bg: $bg-blue-active;
+$file-list-link-btn-bg-active: $bg-blue;
+//Flip
+$flip-bg: transparent;
+$flip-slides-bg: $bg-basic-color;
+$flip-slides0-bg: #f6f6f6;
+$flip-slides1-bg: $bg-blue-active;
+$flip-slides1-color: $text-white;
+$flip-border: $border-gray;
+//Gallery
+$galleria-container-bg: transparent;
+$gallery-info-bg: $bg-basic-color;
+$gallery-info-border: $border-gray;
+$gallery-info-text: $text-basic;
+$gallery-nav-active: $text-white;
+$gallery-nav: $text-basic;
+$gallery-counter-color: $text-white;
+//Language selector
+$lang-selector-bg: $bg-basic-color;
+$lang-selector-border: $border-basic-color;
+$lang-selector-item-bg-active: $bg-basic-color;
+$lang-selector-item-border: $border-white;
+$lang-selector-item-border-active: $border-basic-active;
+//Site selector
+$site-selector-color: $text-basic;
+//Link List
+$link-list-bg: transparent;
+$link-list-header-border: $border-basic-color;
+$link-list-items-bg: transparent;
+$link-list-item-bg: transparent;
+$link-list-item-color: $text-basic;
+$link-list-item-color-active: $text-basic-active;
+$link-list-item-border-active: $border-basic-color;
+//Login
+$login-bg: transparent;
+//Logout
+$logout-bg: transparent;
+$logout-link-text-color: $text-basic;
+$logout-link-text-color-active: $text-basic-active;
+$logout-link-border: $border-basic-color;
+//Map
+$map-bg: transparent;
+$map-border: none;
+//Page List
+$page-list-bg: $bg-transparent;
+$page-list-item-bg: $bg-transparent;
+$page-list-item-title-text: $text-black;
+$page-list-item-border: $border-basic-color;
+//Pagination
+$list-pagination-bg: transparent;
+$list-pagination-active-bg: $bg-blue;
+$list-pagination-active-color: $text-white;
+$list-pagination-active-color: $text-blue;
+$list-pagination-active-bg: $bg-submenu-active;
+$list-pagination-active-border: $border-basic-active;
+//Play list
+$play-list-bg: transparent;
+$play-list-item-bg: transparent;
+$play-list-item-color: $text-basic;
+$play-list-item-color-active: $text-white;
+$play-list-nav-active: $text-blue;
+$play-list-item-bg: $bg-light-gray;
+$play-list-item-active-bg: $bg-blue;
+$play-list-border: $border-basic-color;
+$play-list-title-border: $border-basic-color;
+//Promo
+$promo-bg: $bg-basic-color;
+$promo-bg-hero: rgba(0, 0, 0, 0.5);
+$promo-border: $border-gray;
+$promo-hero-text-color: $text-white;
+$promo-shadow-border: $border-basic-color;
+//Rich Text Content
+$rich-content-bg: transparent;
+$rich-content-color: $text-basic;
+$rich-content-border: transparent;
+$rich-content-link-color: $text-red;
+$rich-content-link-color-active: $text-basic-active;
+//Search
+$search-filter: $text-basic;
+$search-filter-border: $border-basic-color;
+//Menu colors
+$menu-hover-color: #1b809e;
+$menu-active-color: #176f89;
+//Navigation
+$nav-bg: transparent;
+$nav-color-root: $text-basic;
+$nav-color-root-active: $text-basic;
+$nav-border-root: $border-basic-color;
+$nav-border-root-active: $border-basic-color;
+$nav-color-submenu: $text-submenu-active;
+$nav-color-submenu-active: $text-submenu-active;
+$nav-bg-root: $bg-submenu-active;
+$nav-bg-submenu: $bg-submenu-active;
+$nav-bg-submenu-active: $bg-submenu-active;
+$nav-border-submenu: $border-basic-color;
+$nav-submenu-item-border: $border-gray;
+$nav-submenu-border-active: $border-basic-color;
+//Social Media Share
+$social-media-share-bg: transparent;
+//Tabs
+$tab-heading-bg: $bg-light-gray;
+$tab-heading-active-bg: $bg-basic-color;
+$tab-heading-color: $text-heading-color;
+$tab-heading-active-color: $text-black;
+$tab-container-bg: transparent;
+$tab-container-border: $border-basic-color;
+//Title
+$title-bg: transparent;
+$title-color: $text-basic;
+$title-color-active: $text-basic-active;
+//Toggle
+$toggle-header-bg: $bg-basic-color;
+$toggle-content-bg: $bg-basic-color;
+$toggle-show-color: $text-basic-active;
+//Search Components
+$search-btn-bg: transparent;
+$search-btn-active-bg: #e0e0e0;
+$search-btn-active-border: #adadad;
+//Image component
+$image-caption-color: $text-basic;
+//Media Link Component
+$media-link-bg: transparent;
+$media-link-border: $border-basic-color;
+$media-link-color: $text-basic;
+$media-link-color-active: $text-basic-active;
+//Tag Component
+$tag-color: $text-basic;
+$tag-color-active: $text-basic-active;
+$tag-border-active: $border-basic-active;
+$tag-link-bg: $bg-blue;
+$tag-link-bg-active: $bg-blue-active;
+$tag-link-color: $text-white;
+//Link Component
+$link-bg: transparent;
+$link-text-color: $text-basic;
+$link-text-color-active: $text-basic-active;
+$link-border: $border-basic-color;
+//Overlay
+$overlay-bg: $bg-light-gray;
+//Search Components
+$search-title-border: $border-basic-color;
+$search-title-color: $text-basic;
+$search-item-color: $text-basic;
+$search-item-color-active: $text-basic;
+$search-item-border: $border-basic-color;
+$search-item-border-active: $border-basic-active;
+//
+//Search Facet Summary
+$search-facet-summary-border: transparent;
+$search-facet-summary-background: transparent;
+$search-facet-summary-item-color: $text-basic;
+$search-facet-summary-item-color-horizontal: $text-basic;
+$search-facet-summary-item-border: $border-gray;
+$search-facet-summary-item-border-horizontal: $border-basic-color;
+$search-facet-summary-item-shadow: $border-gray;
+$search-facet-summary-clear-border-horizontal: $btn-red;
+$search-facet-summary-clear-color: $text-red;
+$search-facet-summary-clear-color-horizontal: $text-blue;
+//
+$search-filter-radius-active: $text-blue;
+$search-filter-radius-border: $border-gray;
+$search-filter-radius-bg: $border-gray;
+//
+$search-filter-slider-border-active: $border-basic-color;
+$search-filter-slider-bg-active: $bg-blue;
+$search-filter-slider-btn-border: $border-gray;
+$search-filter-slider-btn-bg: $bg-light-gray;
+$search-filter-slider-btn-bg-active: $bg-light-gray-active;
+//Serach Pagination
+$search-pagination-bg: transparent;
+$search-pagination-active-bg: $bg-blue;
+$search-pagination-active-color: $text-white;
+$search-pagination-hover-color: $text-blue;
+$search-pagination-hover-bg: $bg-submenu-active;
+$search-pagination-hover-border: $border-basic-active;
+//Search selector
+$serach-selector-variant-color-active: $text-blue-active;
+//Typehead
+$tt-color: $text-basic;
+$tt-color-active: $text-blue;
+$tt-price-color: $text-blue;
+$tt-dropdown-bg: $bg-light-gray;
+$tt-suggestion-bg-active: $bg-light-gray-active;
+$tt-dropdown-border: $border-gray;
+//Video
+$video-control-bg: $bg-basic-color;
+$video-time-color: $text-basic;
+$video-time-total-bg: $bg-black;
+$video-time-handle-border: $border-gray;
+$video-time-handle-bg: $bg-black;
+//Form component
+$form-bg: transparent;
+$form-border: transparent;
+$form-color: $text-basic;
+//Main
+$page-bg: $bg-basic-color;
+$page-bg-editor: none;

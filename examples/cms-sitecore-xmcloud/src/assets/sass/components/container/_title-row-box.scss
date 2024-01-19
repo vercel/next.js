@@ -1,0 +1,69 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.title-row-box {
+  @include border-basic();
+  box-sizing: border-box;
+  width: 100%;
+  height: 87px;
+  margin: 0;
+  padding: 0;
+  background: $container-title-row-bg;
+  > .component-content {
+    @include wrapper();
+    .title {
+      display: inline-block;
+      vertical-align: middle;
+      box-sizing: border-box;
+      margin: 23px 0 0 0;
+      padding: 0;
+      h1 {
+        @include font-size(2.2);
+        border: none;
+      }
+      @include respond-to(all-mobile) {
+        margin: 23px 0 0 20px;
+      }
+    }
+    .rich-text {
+      margin: 0;
+      h1,
+      h2,
+      h3,
+      h4 {
+        margin: 0;
+        padding: 0;
+      }
+    }
+    .breadcrumb {
+      display: inline-block;
+      vertical-align: middle;
+      box-sizing: border-box;
+      @include font-size(1.4);
+      margin: 23px 0 0 0;
+      padding: 0;
+      float: right;
+      clear: both;
+      @include respond-to(tablet) {
+        margin: 23px 20px 0 0;
+      }
+      @include respond-to(mobile) {
+        display: none;
+      }
+    }
+  }
+  @include respond-to(all-mobile) {
+    .alpha {
+      vertical-align: middle;
+      box-sizing: border-box;
+      width: auto !important; //overrides grid
+      float: left;
+    }
+    .omega {
+      vertical-align: middle;
+      box-sizing: border-box;
+      width: auto !important; //overrides grid
+      float: right;
+    }
+  }
+}

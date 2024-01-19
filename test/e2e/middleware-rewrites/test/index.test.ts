@@ -628,8 +628,8 @@ describe('Middleware Rewrite', () => {
       // node-fetch bundles the cookies as string in the Response
       const cookieArray = res.headers.raw()['set-cookie']
       for (const cookie of cookieArray) {
-        let individualCookieParams = cookie.split(';')
-        let individualCookie = individualCookieParams[0].split('=')
+        let individualCookieParams = cookie.split(';', 1)
+        let individualCookie = individualCookieParams[0].split('=', 2)
         if (individualCookie[0] === cookieName) {
           return individualCookie[1]
         }

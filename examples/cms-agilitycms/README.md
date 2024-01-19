@@ -17,24 +17,28 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 
 ### Related examples
 
-- [WordPress](/examples/cms-wordpress)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Cosmic](/examples/cms-cosmic)
-- [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
-- [Ghost](/examples/cms-ghost)
-- [Umbraco Heartcore](/examples/cms-umbraco-heartcore)
-- [Blog Starter](/examples/blog-starter)
+- [AgilityCMS](/examples/cms-agilitycms)
 - [Builder.io](/examples/cms-builder-io)
+- [ButterCMS](/examples/cms-buttercms)
+- [Contentful](/examples/cms-contentful)
+- [Cosmic](/examples/cms-cosmic)
+- [DatoCMS](/examples/cms-datocms)
 - [DotCMS](/examples/cms-dotcms)
+- [Drupal](/examples/cms-drupal)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Ghost](/examples/cms-ghost)
+- [GraphCMS](/examples/cms-graphcms)
+- [Kontent](/examples/cms-kontent-ai)
+- [Prepr](/examples/cms-prepr)
+- [Prismic](/examples/cms-prismic)
+- [Sanity](/examples/cms-sanity)
+- [Sitefinity](/examples/cms-sitefinity)
+- [Storyblok](/examples/cms-storyblok)
+- [TakeShape](/examples/cms-takeshape)
+- [Umbraco heartcore](/examples/cms-umbraco-heartcore)
+- [Webiny](/examples/cms-webiny)
+- [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 ## How to use
 
@@ -70,18 +74,19 @@ First, [create an account on Agility CMS](https://agilitycms.com).
 
 After creating an account you'll be asked to create a new project. Use any name of your liking as the **Project Name** and select the **Blank (advanced users)** template to create a blank Agility CMS instance.
 
-### Step 2. Create an `Author` Content Definition
+### Step 2: Create an Author Content Definition
 
-From within the Agility CMS Content Manager, navigate to **Settings** > **Content Definitions** and click **New** to create a new **Content Definition**.
+To create an Author Content Definition in the Agility CMS Content Manager, follow these steps:
 
-- The **Title** should be `Author`. This will also pre-populate **Reference Name** for you.
+1. Navigate to **Settings** > **Content Definitions**.
+2. Click on the "New" button to create a new Content Definition.
+3. In the Title field, enter "Author". The Reference Name will be automatically populated for you.
+4. Use the Form Builder tab to add the following fields:
+   - `Name`: Set the Field Label to "Name" and the Field Type to "Text".
+   - `Picture`: Set the Field Label to "Picture" and the Field Type to "Image".
+5. Once you have added these fields, click on "Save & Close" to save your Author content definition.
 
-Next, add these fields via the **Form Builder** tab (you don't have to modify any other settings):
-
-- `Name` - Set **Field Label** to `Name` and **Field Type** to `Text`
-- `Picture` - Set **Field Label** to `Picture` and **Field Type** to `Image`
-
-When you are done, click **Save & Close** to save your `Author` content definition.
+By following these steps, you will be able to define an Author Content Definition in the Agility CMS Content Manager.
 
 ### Step 3. Create a `List` based on your `Author` Content Definition
 
@@ -317,7 +322,7 @@ Alternatively, you can deploy using our template by clicking on the Deploy butto
 
 ### Step 18. Try preview mode
 
-Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [NextJS Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
+Now that you've deployed your app to Vercel, take note of the URL of your deployed site. This will be registered in Agility CMS so that when editors click the `Preview` button within Agility CMS, your app is loaded in **Preview Mode**. Learn more about [Next.js Preview Mode](https://nextjs.org/docs/advanced-features/preview-mode)).
 
 To enable the Preview Mode, you'll need to add your site to **Domain Configuration** in Agility CMS:
 

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, Completion, Value, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
@@ -9,11 +9,13 @@ use turbopack_binding::{
     turbopack::{
         core::{
             changed::any_content_changed_of_module,
-            chunk::ChunkingContext,
-            context::AssetContext,
+            context::{AssetContext, ProcessResult},
             file_source::FileSource,
             ident::AssetIdent,
-            issue::{Issue, IssueContextExt, IssueExt, IssueSeverity},
+            issue::{
+                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString,
+                StyledString,
+            },
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
                 find_context_file,
@@ -76,6 +78,13 @@ pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
 
+    /// In-memory cache size in bytes.
+    ///
+    /// If `cache_max_memory_size: 0` disables in-memory caching.
+    pub cache_max_memory_size: Option<f64>,
+    /// custom path to a cache handler to use
+    pub cache_handler: Option<String>,
+
     pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
@@ -83,23 +92,32 @@ pub struct NextConfig {
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<String>>,
     pub modularize_imports: Option<IndexMap<String, ModularizeImportPackageConfig>>,
+    pub dist_dir: Option<String>,
     sass_options: Option<serde_json::Value>,
+    pub trailing_slash: Option<bool>,
+    pub asset_prefix: Option<String>,
+    pub base_path: Option<String>,
+    pub skip_middleware_url_normalize: Option<bool>,
+    pub skip_trailing_slash_redirect: Option<bool>,
+    pub i18n: Option<I18NConfig>,
+    pub cross_origin: Option<String>,
+    pub dev_indicators: Option<DevIndicatorsConfig>,
+    pub output: Option<OutputType>,
+    pub analytics_id: Option<String>,
+
+    ///
+    #[serde(rename = "_originalRedirects")]
+    pub original_redirects: Option<Vec<Redirect>>,
 
     // Partially supported
     pub compiler: Option<CompilerConfig>,
 
-    pub output: Option<OutputType>,
+    pub optimize_fonts: Option<bool>,
 
     // unsupported
-    cross_origin: Option<String>,
     amp: AmpConfig,
-    analytics_id: String,
-    asset_prefix: String,
-    base_path: String,
     clean_dist_dir: bool,
     compress: bool,
-    dev_indicators: DevIndicatorsConfig,
-    dist_dir: String,
     eslint: EslintConfig,
     exclude_default_moment_locales: bool,
     // this can be a function in js land
@@ -108,9 +126,7 @@ pub struct NextConfig {
     generate_build_id: Option<serde_json::Value>,
     generate_etags: bool,
     http_agent_options: HttpAgentConfig,
-    i18n: Option<I18NConfig>,
     on_demand_entries: OnDemandEntriesConfig,
-    optimize_fonts: bool,
     output_file_tracing: bool,
     powered_by_header: bool,
     production_browser_source_maps: bool,
@@ -119,12 +135,9 @@ pub struct NextConfig {
     static_page_generation_timeout: f64,
     swc_minify: Option<bool>,
     target: Option<String>,
-    trailing_slash: bool,
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
-    skip_middleware_url_normalize: Option<bool>,
-    skip_trailing_slash_redirect: Option<bool>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -142,7 +155,7 @@ struct EslintConfig {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "kebab-case")]
-enum BuildActivityPositions {
+pub enum BuildActivityPositions {
     #[default]
     BottomRight,
     BottomLeft,
@@ -152,9 +165,9 @@ enum BuildActivityPositions {
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-struct DevIndicatorsConfig {
-    build_activity: bool,
-    build_activity_position: BuildActivityPositions,
+pub struct DevIndicatorsConfig {
+    pub build_activity: Option<bool>,
+    pub build_activity_position: Option<BuildActivityPositions>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -172,20 +185,20 @@ struct HttpAgentConfig {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-struct DomainLocale {
-    default_locale: String,
-    domain: String,
-    http: Option<bool>,
-    locales: Option<Vec<String>>,
+pub struct DomainLocale {
+    pub default_locale: String,
+    pub domain: String,
+    pub http: Option<bool>,
+    pub locales: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
-struct I18NConfig {
-    default_locale: String,
-    domains: Option<Vec<DomainLocale>>,
-    locale_detection: Option<bool>,
-    locales: Vec<String>,
+pub struct I18NConfig {
+    pub default_locale: String,
+    pub domains: Option<Vec<DomainLocale>>,
+    pub locale_detection: Option<bool>,
+    pub locales: Vec<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -304,6 +317,8 @@ pub struct ImageConfig {
     pub image_sizes: Vec<u16>,
     pub path: String,
     pub loader: ImageLoader,
+    #[serde(deserialize_with = "empty_string_is_none")]
+    pub loader_file: Option<String>,
     pub domains: Vec<String>,
     pub disable_static_images: bool,
     #[serde(rename(deserialize = "minimumCacheTTL"))]
@@ -316,6 +331,14 @@ pub struct ImageConfig {
     pub unoptimized: bool,
 }
 
+fn empty_string_is_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let o = Option::<String>::deserialize(deserializer)?;
+    Ok(o.filter(|s| !s.is_empty()))
+}
+
 impl Default for ImageConfig {
     fn default() -> Self {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
@@ -324,6 +347,7 @@ impl Default for ImageConfig {
             image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
+            loader_file: None,
             domains: vec![],
             disable_static_images: false,
             minimum_cache_ttl: 60,
@@ -376,7 +400,7 @@ pub enum RemotePatternProtocal {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalTurboConfig {
-    /// This option has been replace by `rules`.
+    /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
@@ -403,66 +427,136 @@ pub enum LoaderItem {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "camelCase")]
 pub struct ExperimentalConfig {
-    pub app_dir: Option<bool>,
-    pub server_components_external_packages: Option<Vec<String>>,
-    pub turbo: Option<ExperimentalTurboConfig>,
     pub allowed_revalidate_header_keys: Option<Vec<String>>,
+    pub client_router_filter: Option<bool>,
+    /// decimal for percent for possible false positives e.g. 0.01 for 10%
+    /// potential false matches lower percent increases size of the filter
+    pub client_router_filter_allowed_rate: Option<f64>,
+    pub client_router_filter_redirects: Option<bool>,
     pub fetch_cache_key_prefix: Option<String>,
-    pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
+    /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
+    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
     mdx_rs: Option<bool>,
+    /// A list of packages that should be treated as external in the RSC server
+    /// build. @see https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages
+    pub server_components_external_packages: Option<Vec<String>>,
+    pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
+    pub turbo: Option<ExperimentalTurboConfig>,
+    pub turbotrace: Option<serde_json::Value>,
+    pub external_middleware_rewrites_resolve: Option<bool>,
+    pub scroll_restoration: Option<bool>,
+    pub use_deployment_id: Option<bool>,
+    pub use_deployment_id_server_actions: Option<bool>,
+    pub deployment_id: Option<String>,
+    pub manual_client_base_path: Option<bool>,
+    pub optimistic_client_cache: Option<bool>,
+    pub middleware_prefetch: Option<MiddlewarePrefetchType>,
+    /// optimizeCss can be boolean or critters' option object
+    /// Use Record<string, unknown> as critters doesn't export its Option type
+    /// https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+    pub optimize_css: Option<serde_json::Value>,
+    pub next_script_workers: Option<bool>,
+    pub web_vitals_attribution: Option<Vec<String>>,
+    pub server_actions: Option<ServerActionsOrLegacyBool>,
+    pub sri: Option<SubResourceIntegrity>,
 
-    // unsupported
+    // ---
+    // UNSUPPORTED
+    // ---
     adjust_font_fallbacks: Option<bool>,
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
-    allow_middleware_response_body: Option<bool>,
     amp: Option<serde_json::Value>,
+    app_document_preloading: Option<bool>,
+    case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    enable_undici: Option<bool>,
     esm_externals: Option<serde_json::Value>,
+    extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
-    fallback_node_polyfills: Option<bool>,
-    fetch_cache: Option<bool>,
-    font_loaders: Option<serde_json::Value>,
+    /// If set to `false`, webpack won't fall back to polyfill Node.js modules
+    /// in the browser Full list of old polyfills is accessible here:
+    /// [webpack/webpack#Module_notound_error.js#L13-L42](https://github.com/webpack/webpack/blob/2a0536cf510768111a3a6dceeb14cb79b9f59273/lib/Module_not_found_error.js#L13-L42)
+    fallback_node_polyfills: Option<bool>, // false
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
-    incremental_cache_handler_path: Option<String>,
+
+    instrumentation_hook: Option<bool>,
     large_page_data_bytes: Option<f64>,
-    legacy_browsers: Option<bool>,
-    manual_client_base_path: Option<bool>,
-    middleware_prefetch: Option<MiddlewarePrefetchType>,
-    new_next_link_behavior: Option<bool>,
-    next_script_workers: Option<bool>,
-    optimistic_client_cache: Option<bool>,
-    optimize_css: Option<serde_json::Value>,
+    logging: Option<serde_json::Value>,
+    memory_based_workers_count: Option<bool>,
+    /// Optimize React APIs for server builds.
+    optimize_server_react: Option<bool>,
+    /// Automatically apply the "modularize_imports" optimization to imports of
+    /// the specified packages.
+    optimize_package_imports: Option<Vec<String>>,
     output_file_tracing_ignores: Option<Vec<String>>,
+    output_file_tracing_includes: Option<serde_json::Value>,
     output_file_tracing_root: Option<String>,
-    page_env: Option<bool>,
-    profiling: Option<bool>,
+    /// Using this feature will enable the `react@experimental` for the `app`
+    /// directory.
+    ppr: Option<bool>,
+    taint: Option<bool>,
     proxy_timeout: Option<f64>,
-    runtime: Option<serde_json::Value>,
-    scroll_restoration: Option<bool>,
-    shared_pool: Option<bool>,
-    sri: Option<serde_json::Value>,
-    swc_file_reading: Option<bool>,
+    /// enables the minification of server code.
+    server_minification: Option<bool>,
+    /// Enables source maps generation for the server production bundle.
+    server_source_maps: Option<bool>,
     swc_minify: Option<bool>,
-    swc_minify_debug_options: Option<serde_json::Value>,
     swc_trace_profiling: Option<bool>,
-    transpile_packages: Option<Vec<String>>,
-    pub turbotrace: Option<serde_json::Value>,
+    /// @internal Used by the Next.js internals only.
+    trust_host_header: Option<bool>,
+    /// Generate Route types and enable type checking for Link and Router.push,
+    /// etc. This option requires `appDir` to be enabled first.
+    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+    typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
-    web_vitals_attribution: Option<serde_json::Value>,
+    /// This option is to enable running the Webpack build in a worker thread
+    /// (doesn't apply to Turbopack).
+    webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
+
+    use_lightningcss: Option<bool>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct SubResourceIntegrity {
+    pub algorithm: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum ServerActionsOrLegacyBool {
+    /// The current way to configure server actions sub behaviors.
+    ServerActionsConfig(ServerActions),
+
+    /// The legacy way to disable server actions. This is no longer used, server
+    /// actions is always enabled.
+    LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(rename_all = "camelCase")]
+pub struct ServerActions {
+    /// Allows adjusting body parser size limit for server actions.
+    pub body_size_limit: Option<SizeLimit>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum SizeLimit {
+    Number(f64),
+    WithUnit(String),
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(rename_all = "kebab-case")]
-enum MiddlewarePrefetchType {
+pub enum MiddlewarePrefetchType {
     Strict,
     Flexible,
 }
@@ -521,18 +615,6 @@ impl NextConfig {
             self.await?
                 .experimental
                 .server_components_external_packages
-                .as_ref()
-                .cloned()
-                .unwrap_or_default(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn app_dir(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.await?
-                .experimental
-                .app_dir
                 .as_ref()
                 .cloned()
                 .unwrap_or_default(),
@@ -672,6 +754,42 @@ impl NextConfig {
             self.await?.skip_trailing_slash_redirect.unwrap_or(false),
         ))
     }
+
+    /// Returns the final asset prefix. If an assetPrefix is set, it's used.
+    /// Otherwise, the basePath is used.
+    #[turbo_tasks::function]
+    pub async fn computed_asset_prefix(self: Vc<Self>) -> Result<Vc<Option<String>>> {
+        let this = self.await?;
+
+        Ok(Vc::cell(Some(format!(
+            "{}/_next/",
+            if let Some(asset_prefix) = &this.asset_prefix {
+                asset_prefix
+            } else if let Some(base_path) = &this.base_path {
+                base_path
+            } else {
+                ""
+            }
+            .trim_end_matches('/')
+        ))))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_ppr(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.ppr.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn enable_taint(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(self.await?.experimental.taint.unwrap_or(false)))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.await?.experimental.use_lightningcss.unwrap_or(false),
+        ))
+    }
 }
 
 fn next_configs() -> Vc<Vec<String>> {
@@ -711,7 +829,7 @@ async fn load_config_and_custom_routes(
     };
 
     load_next_config_and_custom_routes_internal(execution_context, config_file)
-        .issue_context(config_file, "Loading Next.js config")
+        .issue_file_path(config_file, "Loading Next.js config")
         .await
 }
 
@@ -730,31 +848,49 @@ async fn load_next_config_and_custom_routes_internal(
     import_map.insert_exact_alias("next", ImportMapping::External(None).into());
     import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
     import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_exact_alias(
+        "styled-jsx/style",
+        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+    );
     import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
 
-    let context = node_evaluate_asset_context(execution_context, Some(import_map.cell()), None);
+    let context = node_evaluate_asset_context(
+        execution_context,
+        Some(import_map.cell()),
+        None,
+        "next_config".to_string(),
+    );
     let config_asset = config_file.map(FileSource::new);
 
-    let config_changed = config_asset.map_or_else(Completion::immutable, |config_asset| {
+    let config_changed = if let Some(config_asset) = config_asset {
         // This invalidates the execution when anything referenced by the config file
         // changes
-        let config_asset = context.process(
-            Vc::upcast(config_asset),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        );
-        any_content_changed_of_module(config_asset)
-    });
-    let load_next_config_asset = context.process(
-        next_asset("entry/config/next.js".to_string()),
-        Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-    );
+        match *context
+            .process(
+                Vc::upcast(config_asset),
+                Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            )
+            .await?
+        {
+            ProcessResult::Module(module) => any_content_changed_of_module(module),
+            ProcessResult::Ignore => Completion::immutable(),
+        }
+    } else {
+        Completion::immutable()
+    };
+    let load_next_config_asset = context
+        .process(
+            next_asset("entry/config/next.js".to_string()),
+            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
+        )
+        .module();
     let config_value = evaluate(
         load_next_config_asset,
         project_path,
         env,
         config_asset.map_or_else(|| AssetIdent::from_path(project_path), |c| c.ident()),
         context,
-        chunking_context.with_layer("next_config".to_string()),
+        chunking_context,
         None,
         vec![],
         config_changed,
@@ -867,20 +1003,24 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn context(&self) -> Vc<FileSystemPath> {
+    fn file_path(&self) -> Vc<FileSystemPath> {
         self.path
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell(format!(
-            "\"{}\" has been replaced by \"{}\"",
-            self.old_name, self.new_name
-        ))
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Line(vec![
+            StyledString::Code(self.old_name.clone()),
+            StyledString::Text(" has been replaced by ".to_string()),
+            StyledString::Code(self.new_name.clone()),
+        ])
+        .cell()
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(self.description.to_string())
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(self.description.to_string()).cell(),
+        ))
     }
 }

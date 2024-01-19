@@ -1,12 +1,15 @@
 import type ws from 'next/dist/compiled/ws'
-import origDebug from 'next/dist/compiled/debug'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
 } from '../app-render/types'
+import type { CompilerNameValues } from '../../shared/lib/constants'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import type HotReloaderWebpack from './hot-reloader-webpack'
 
+import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
 import {
@@ -28,16 +31,19 @@ import {
 } from '../../build/utils'
 import { PageNotFoundError, stringifyError } from '../../shared/lib/utils'
 import {
-  CompilerNameValues,
   COMPILER_INDEXES,
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
-import { RouteMatch } from '../future/route-matches/route-match'
-import { RouteKind } from '../future/route-kind'
-import { AppPageRouteMatch } from '../future/route-matches/app-page-route-match'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
+import { scheduleOnNextTick } from '../../lib/scheduler'
+import { Batcher } from '../../lib/batcher'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_TYPES } from '../../lib/page-types'
 
-const debug = origDebug('next:on-demand-entry-handler')
+const debug = createDebug('next:on-demand-entry-handler')
 
 /**
  * Returns object keys with type inferred from the object key
@@ -95,23 +101,24 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageBundleType: 'app' | 'pages' | 'root',
+  pageBundleType: PAGE_TYPES,
   page: string
 ) {
   // TODO: handle the /children slot better
   // this is a quick hack to handle when children is provided as children/page instead of /page
-  return `${compilerType}@${pageBundleType}@${page.replace(/\/children/g, '')}`
+  const pageKey = page.replace(/(@[^/]+)\/children/g, '$1')
+  return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
-function getPageBundleType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
-  if (pageBundlePath === '/_error') return 'pages'
-  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
+  if (isMiddlewareFilename(pageBundlePath)) return PAGE_TYPES.ROOT
   return pageBundlePath.startsWith('pages/')
-    ? 'pages'
+    ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? 'app'
-    : 'root'
+    ? PAGE_TYPES.APP
+    : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -125,7 +132,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith('__PAGE__')
+  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 
@@ -357,6 +364,12 @@ function tryToNormalizePagePath(page: string) {
   }
 }
 
+interface PagePathData {
+  filename: string
+  bundlePath: string
+  page: string
+}
+
 /**
  * Attempts to find a page file path from the given pages absolute directory,
  * a page and allowed extensions. If the page can't be found it will throw an
@@ -373,7 +386,7 @@ async function findPagePathData(
   extensions: string[],
   pagesDir?: string,
   appDir?: string
-) {
+): Promise<PagePathData> {
   const normalizedPagePath = tryToNormalizePagePath(page)
   let pagePath: string | null = null
 
@@ -405,7 +418,7 @@ async function findPagePathData(
     }
 
     return {
-      absolutePagePath: join(rootDir, pagePath),
+      filename: join(rootDir, pagePath),
       bundlePath: bundlePath.slice(1),
       page: pageKey,
     }
@@ -423,7 +436,7 @@ async function findPagePathData(
       )
 
       return {
-        absolutePagePath: join(appDir, pagePath),
+        filename: join(appDir, pagePath),
         bundlePath: posix.join('app', pageUrl),
         page: posix.normalize(pageUrl),
       }
@@ -447,15 +460,23 @@ async function findPagePathData(
     )
 
     return {
-      absolutePagePath: join(pagesDir, pagePath),
+      filename: join(pagesDir, pagePath),
       bundlePath: posix.join('pages', normalizePagePath(pageUrl)),
       page: posix.normalize(pageUrl),
     }
   }
 
+  if (page === '/not-found' && appDir) {
+    return {
+      filename: require.resolve('next/dist/client/components/not-found-error'),
+      bundlePath: 'app/not-found',
+      page: '/not-found',
+    }
+  }
+
   if (page === '/_error') {
     return {
-      absolutePagePath: require.resolve('next/dist/pages/_error'),
+      filename: require.resolve('next/dist/pages/_error'),
       bundlePath: page,
       page: normalizePathSep(page),
     }
@@ -464,28 +485,8 @@ async function findPagePathData(
   }
 }
 
-async function findRoutePathData(
-  rootDir: string,
-  page: string,
-  extensions: string[],
-  pagesDir?: string,
-  appDir?: string,
-  match?: RouteMatch
-): ReturnType<typeof findPagePathData> {
-  if (match) {
-    // If the match is available, we don't have to discover the data from the
-    // filesystem.
-    return {
-      absolutePagePath: match.definition.filename,
-      page: match.definition.page,
-      bundlePath: match.definition.bundlePath,
-    }
-  }
-
-  return findPagePathData(rootDir, page, extensions, pagesDir, appDir)
-}
-
 export function onDemandEntryHandler({
+  hotReloader,
   maxInactiveAge,
   multiCompiler,
   nextConfig,
@@ -494,6 +495,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
+  hotReloader: HotReloaderWebpack
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -502,10 +504,11 @@ export function onDemandEntryHandler({
   rootDir: string
   appDir?: string
 }) {
+  const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
-  let curEntries = getEntries(multiCompiler.outputPath) as any
+  const curEntries = getEntries(multiCompiler.outputPath) as any
 
   if (!curInvalidator) {
     curInvalidator = new Invalidator(multiCompiler)
@@ -522,24 +525,24 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>,
-    root?: boolean
+    entrypoints: Map<string, { name?: string }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!, root)
+      const page = getRouteFromEntrypoint(entrypoint.name!, hasAppDir)
 
       if (page) {
         const pageBundleType = entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+          ? PAGE_TYPES.APP
+          : PAGE_TYPES.PAGES
         pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
-        (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -555,23 +558,19 @@ export function onDemandEntryHandler({
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!appDir
     const entryNames = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
-        clientStats.compilation.entrypoints,
-        root
+        clientStats.compilation.entrypoints
       ),
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.server,
-        serverStats.compilation.entrypoints,
-        root
+        serverStats.compilation.entrypoints
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             COMPILER_NAMES.edgeServer,
-            edgeServerStats.compilation.entrypoints,
-            root
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -599,11 +598,8 @@ export function onDemandEntryHandler({
     disposeInactiveEntries(curEntries, maxInactiveAge)
   }, pingIntervalTime + 1000).unref()
 
-  function handleAppDirPing(
-    tree: FlightRouterState
-  ): { success: true } | { invalid: true } {
+  function handleAppDirPing(tree: FlightRouterState): void {
     const pages = getEntrypointsFromTree(tree, true)
-    let toSend: { invalid: true } | { success: true } = { invalid: true }
 
     for (const page of pages) {
       for (const compilerType of [
@@ -611,7 +607,7 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryKey = getEntryKey(compilerType, PAGE_TYPES.APP, `/${page}`)
         const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -635,36 +631,28 @@ export function onDemandEntryHandler({
         }
         entryInfo.lastActiveTime = Date.now()
         entryInfo.dispose = false
-        toSend = { success: true }
       }
     }
-
-    return toSend
   }
 
-  function handlePing(pg: string) {
+  function handlePing(pg: string): void {
     const page = normalizePathSep(pg)
-    let toSend: { invalid: true } | { success: true } = { invalid: true }
-
     for (const compilerType of [
       COMPILER_NAMES.client,
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryKey = getEntryKey(compilerType, PAGE_TYPES.PAGES, page)
       const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
       if (!entryInfo) {
         // if (page !== lastEntry) client pings, but there's no entry for page
         if (compilerType === COMPILER_NAMES.client) {
-          return { invalid: true }
+          return
         }
         continue
       }
-
-      // 404 is an on demand entry but when a new page is added we have to refresh the page
-      toSend = page === '/_error' ? { invalid: true } : { success: true }
 
       // We don't need to maintain active state of anything other than BUILT entries
       if (entryInfo.status !== BUILT) continue
@@ -681,21 +669,21 @@ export function onDemandEntryHandler({
       entryInfo.lastActiveTime = Date.now()
       entryInfo.dispose = false
     }
-    return toSend
+    return
   }
 
   async function ensurePageImpl({
     page,
-    clientOnly,
-    appPaths = null,
-    match,
+    appPaths,
+    definition,
     isApp,
+    url,
   }: {
     page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    match?: RouteMatch
-    isApp?: boolean
+    appPaths: ReadonlyArray<string> | null
+    definition: RouteDefinition | undefined
+    isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -704,33 +692,32 @@ export function onDemandEntryHandler({
       )
     }, stalledTime * 1000)
 
-    // If the route is actually an app page route, then we should have access
-    // to the app route match, and therefore, the appPaths from it.
-    if (match?.definition.kind === RouteKind.APP_PAGE) {
-      const { definition: route } = match as AppPageRouteMatch
-      appPaths = route.appPaths
-    }
-
     try {
-      const pagePathData = await findRoutePathData(
-        rootDir,
-        page,
-        nextConfig.pageExtensions,
-        pagesDir,
-        appDir,
-        match
-      )
-
-      const isInsideAppDir =
-        !!appDir && pagePathData.absolutePagePath.startsWith(appDir)
-
-      if (typeof isApp === 'boolean' && !(isApp === isInsideAppDir)) {
-        throw new Error(
-          'Ensure bailed, found path does not match ensure type (pages/app)'
+      let route: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'>
+      if (definition) {
+        route = definition
+      } else {
+        route = await findPagePathData(
+          rootDir,
+          page,
+          nextConfig.pageExtensions,
+          pagesDir,
+          appDir
         )
       }
 
-      const pageBundleType = getPageBundleType(pagePathData.bundlePath)
+      const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
+
+      if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
+        Error.stackTraceLimit = 15
+        throw new Error(
+          `Ensure bailed, found path "${
+            route.page
+          }" does not match ensure type (${isApp ? 'app' : 'pages'})`
+        )
+      }
+
+      const pageBundleType = getPageBundleType(route.bundlePath)
       const addEntry = (
         compilerType: CompilerNameValues
       ): {
@@ -738,11 +725,7 @@ export function onDemandEntryHandler({
         newEntry: boolean
         shouldInvalidate: boolean
       } => {
-        const entryKey = getEntryKey(
-          compilerType,
-          pageBundleType,
-          pagePathData.page
-        )
+        const entryKey = getEntryKey(compilerType, pageBundleType, route.page)
         if (
           curEntries[entryKey] &&
           // there can be an overlap in the entryKey for the instrumentation hook file and a page named the same
@@ -770,9 +753,9 @@ export function onDemandEntryHandler({
         curEntries[entryKey] = {
           type: EntryTypes.ENTRY,
           appPaths,
-          absolutePagePath: pagePathData.absolutePagePath,
-          request: pagePathData.absolutePagePath,
-          bundlePath: pagePathData.bundlePath,
+          absolutePagePath: route.filename,
+          request: route.filename,
+          bundlePath: route.bundlePath,
           dispose: false,
           lastActiveTime: Date.now(),
           status: ADDED,
@@ -786,7 +769,7 @@ export function onDemandEntryHandler({
 
       const staticInfo = await getStaticInfoIncludingLayouts({
         page,
-        pageFilePath: pagePathData.absolutePagePath,
+        pageFilePath: route.filename,
         isInsideAppDir,
         pageExtensions: nextConfig.pageExtensions,
         isDev: true,
@@ -799,7 +782,7 @@ export function onDemandEntryHandler({
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
       runDependingOnPageType({
-        page: pagePathData.page,
+        page: route.page,
         pageRuntime: staticInfo.runtime,
         pageType: pageBundleType,
         onClient: () => {
@@ -814,11 +797,11 @@ export function onDemandEntryHandler({
           const edgeServerEntry = getEntryKey(
             COMPILER_NAMES.edgeServer,
             pageBundleType,
-            pagePathData.page
+            route.page
           )
           if (
             curEntries[edgeServerEntry] &&
-            !isInstrumentationHookFile(pagePathData.page)
+            !isInstrumentationHookFile(route.page)
           ) {
             // Runtime switched from edge to server
             delete curEntries[edgeServerEntry]
@@ -832,11 +815,11 @@ export function onDemandEntryHandler({
           const serverEntry = getEntryKey(
             COMPILER_NAMES.server,
             pageBundleType,
-            pagePathData.page
+            route.page
           )
           if (
             curEntries[serverEntry] &&
-            !isInstrumentationHookFile(pagePathData.page)
+            !isInstrumentationHookFile(route.page)
           ) {
             // Runtime switched from server to edge
             delete curEntries[serverEntry]
@@ -851,11 +834,8 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(
-          !clientOnly && hasNewEntry
-            ? `${pagePathData.page} (client and server)`
-            : pagePathData.page
-        )
+        const routePage = isApp ? route.page : normalizeAppPath(route.page)
+        reportTrigger(routePage, url)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -893,38 +873,55 @@ export function onDemandEntryHandler({
     }
   }
 
+  type EnsurePageOptions = {
+    page: string
+    appPaths?: ReadonlyArray<string> | null
+    definition?: RouteDefinition
+    isApp?: boolean
+    url?: string
+  }
+
   // Make sure that we won't have multiple invalidations ongoing concurrently.
-  const curEnsurePage = new Map<string, Promise<void>>()
+  const batcher = Batcher.create<EnsurePageOptions, void, string>({
+    // The cache key here is composed of the elements that affect the
+    // compilation, namely, the page, whether it's client only, and whether
+    // it's an app page. This ensures that we don't have multiple compilations
+    // for the same page happening concurrently.
+    //
+    // We don't include the whole match because it contains match specific
+    // parameters (like route params) that would just bust this cache. Any
+    // details that would possibly bust the cache should be listed here.
+    cacheKeyFn: (options) => JSON.stringify(options),
+    // Schedule the invocation of the ensurePageImpl function on the next tick.
+    schedulerFn: scheduleOnNextTick,
+  })
 
   return {
     async ensurePage({
       page,
-      clientOnly,
       appPaths = null,
-      match,
+      definition,
       isApp,
-    }: {
-      page: string
-      clientOnly: boolean
-      appPaths?: ReadonlyArray<string> | null
-      match?: RouteMatch
-      isApp?: boolean
-    }) {
-      if (curEnsurePage.has(page)) {
-        return curEnsurePage.get(page)
+      url,
+    }: EnsurePageOptions) {
+      // If the route is actually an app page route, then we should have access
+      // to the app route definition, and therefore, the appPaths from it.
+      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+        appPaths = definition.appPaths
       }
-      const promise = ensurePageImpl({
-        page,
-        clientOnly,
-        appPaths,
-        match,
-        isApp,
-      }).finally(() => {
-        curEnsurePage.delete(page)
-      })
-      curEnsurePage.set(page, promise)
 
-      await promise
+      // Wrap the invocation of the ensurePageImpl function in the pending
+      // wrapper, which will ensure that we don't have multiple compilations
+      // for the same page happening concurrently.
+      return batcher.batch({ page, appPaths, definition, isApp }, async () => {
+        await ensurePageImpl({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null
@@ -938,13 +935,10 @@ export function onDemandEntryHandler({
 
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
-            client.send(
-              JSON.stringify({
-                event: 'server-error', // for pages dir
-                action: 'serverError', // for app dir
-                errorJSON: stringifyError(error),
-              })
-            )
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              errorJSON: stringifyError(error),
+            })
             bufferedHmrServerError = null
           }
 
@@ -953,17 +947,13 @@ export function onDemandEntryHandler({
           )
 
           if (parsedData.event === 'ping') {
-            const result = parsedData.appDirRoute
-              ? handleAppDirPing(parsedData.tree)
-              : handlePing(parsedData.page)
-            client.send(
-              JSON.stringify({
-                ...result,
-                [parsedData.appDirRoute ? 'action' : 'event']: 'pong',
-              })
-            )
+            if (parsedData.appDirRoute) {
+              handleAppDirPing(parsedData.tree)
+            } else {
+              handlePing(parsedData.page)
+            }
           }
-        } catch (_) {}
+        } catch {}
       })
     },
   }

@@ -41,9 +41,9 @@ export default function Layout({ children }) {
         }
 
         code {
-          font-family: 'Menlo';
+          font-family: "Menlo";
         }
       `}</style>
     </>
-  )
+  );
 }

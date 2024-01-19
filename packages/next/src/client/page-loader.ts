@@ -9,6 +9,10 @@ import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { parseRelativeUrl } from '../shared/lib/router/utils/parse-relative-url'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { createRouteLoader, getClientBuildManifest } from './route-loader'
+import {
+  DEV_CLIENT_PAGES_MANIFEST,
+  DEV_MIDDLEWARE_MANIFEST,
+} from '../shared/lib/constants'
 
 declare global {
   interface Window {
@@ -60,7 +64,7 @@ export default class PageLoader {
         return window.__DEV_PAGES_MANIFEST.pages
       } else {
         this.promisedDevPagesManifest ||= fetch(
-          `${this.assetPrefix}/_next/static/development/_devPagesManifest.json`
+          `${this.assetPrefix}/_next/static/development/${DEV_CLIENT_PAGES_MANIFEST}`
         )
           .then((res) => res.json())
           .then((manifest: { pages: string[] }) => {
@@ -94,7 +98,7 @@ export default class PageLoader {
           // TODO: Decide what should happen when fetching fails instead of asserting
           // @ts-ignore
           this.promisedMiddlewareMatchers = fetch(
-            `${this.assetPrefix}/_next/static/${this.buildId}/_devMiddlewareManifest.json`
+            `${this.assetPrefix}/_next/static/${this.buildId}/${DEV_MIDDLEWARE_MANIFEST}`
           )
             .then((res) => res.json())
             .then((matchers: MiddlewareMatcher[]) => {

@@ -1,7 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 
-// @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 const browserConfigWithFixedTime = {
@@ -29,7 +28,7 @@ const browserConfigWithFixedTime = {
 }
 
 createNextDescribe(
-  'app dir prefetching',
+  'app dir - prefetching',
   {
     files: __dirname,
     skipDeployment: true,
@@ -58,7 +57,7 @@ createNextDescribe(
       const after = Date.now()
       const timeToComplete = after - before
 
-      expect(timeToComplete < 1000).toBe(true)
+      expect(timeToComplete).toBeLessThan(1000)
 
       expect(await browser.elementByCss('#dashboard-layout').text()).toBe(
         'Dashboard Hello World'
@@ -232,6 +231,131 @@ createNextDescribe(
       expect(
         await browser.elementByCss('#prefetch-false-page-result').text()
       ).toBe('Result page')
+    })
+
+    it('should not need to prefetch the layout if the prefetch is initiated at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'justputit', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/justputit',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).not.toContain('Loading Prefetch Auto')
+    })
+
+    it('should only prefetch the loading state and not the component tree when prefetching at the same segment', async () => {
+      const stateTree = encodeURIComponent(
+        JSON.stringify([
+          '',
+          {
+            children: [
+              'prefetch-auto',
+              {
+                children: [
+                  ['slug', 'vercel', 'd'],
+                  { children: ['__PAGE__', {}] },
+                ],
+              },
+            ],
+          },
+          null,
+          null,
+          true,
+        ])
+      )
+      const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
+        headers: {
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-State-Tree': stateTree,
+          'Next-Url': '/prefetch-auto/vercel',
+        },
+      })
+
+      const prefetchResponse = await response.text()
+      expect(prefetchResponse).not.toContain('Hello World')
+      expect(prefetchResponse).toContain('Loading Prefetch Auto')
+    })
+
+    describe('dynamic rendering', () => {
+      describe.each(['/force-dynamic', '/revalidate-0'])('%s', (basePath) => {
+        it('should not re-render layout when navigating between sub-pages', async () => {
+          const logStartIndex = next.cliOutput.length
+
+          const browser = await next.browser(`${basePath}/test-page`)
+          let initialRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+          await browser
+            .elementByCss(`[href="${basePath}/test-page/sub-page"]`)
+            .click()
+
+          await check(() => browser.hasElementByCssSelector('#sub-page'), true)
+
+          const newRandomNumber = await browser
+            .elementById('random-number')
+            .text()
+
+          expect(initialRandomNumber).toBe(newRandomNumber)
+
+          await check(() => {
+            const logOccurrences =
+              next.cliOutput.slice(logStartIndex).split('re-fetching in layout')
+                .length - 1
+
+            return logOccurrences
+          }, 1)
+        })
+
+        it('should update search params following a link click', async () => {
+          const browser = await next.browser(`${basePath}/search-params`)
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+          await browser
+            .elementByCss(`[href="${basePath}/search-params"]`)
+            .click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{}/
+          )
+          await browser.elementByCss('[href="?foo=true"]').click()
+          await check(
+            () => browser.elementById('search-params-data').text(),
+            /{"foo":"true"}/
+          )
+        })
+      })
     })
   }
 )

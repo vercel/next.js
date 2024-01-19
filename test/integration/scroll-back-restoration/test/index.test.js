@@ -63,7 +63,7 @@ const runTests = () => {
   })
 }
 
-describe('Scroll Restoration Support', () => {
+describe('Scroll Back Restoration Support', () => {
   describe('dev mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
@@ -73,8 +73,7 @@ describe('Scroll Restoration Support', () => {
 
     runTests()
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

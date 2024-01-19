@@ -11,7 +11,7 @@ import {
   killApp,
 } from 'next-test-utils'
 
-describe('should set-up next', () => {
+describe('required server files app router', () => {
   let next: NextInstance
   let server
   let appPort
@@ -30,6 +30,7 @@ describe('should set-up next', () => {
       files: {
         app: new FileRef(join(__dirname, 'app')),
         lib: new FileRef(join(__dirname, 'lib')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -37,6 +38,8 @@ describe('should set-up next', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -76,7 +79,7 @@ describe('should set-up next', () => {
     appPort = await findPort()
     server = await initNextServerScript(
       testServer,
-      /Listening on/,
+      /- Local:/,
       {
         ...process.env,
         PORT: appPort,
@@ -86,6 +89,7 @@ describe('should set-up next', () => {
         cwd: next.testDir,
       }
     )
+    appPort = `http://127.0.0.1:${appPort}`
   }
 
   beforeAll(async () => {
@@ -156,10 +160,22 @@ describe('should set-up next', () => {
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
-      ['/isr/first', 'isr-page,/isr/[slug]/page'],
-      ['/isr/second', 'isr-page,/isr/[slug]/page'],
-      ['/api/isr/first', 'isr-page,/api/isr/[slug]/route'],
-      ['/api/isr/second', 'isr-page,/api/isr/[slug]/route'],
+      [
+        '/isr/first',
+        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+      ],
+      [
+        '/isr/second',
+        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+      ],
+      [
+        '/api/isr/first',
+        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+      ],
+      [
+        '/api/isr/second',
+        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+      ],
     ]) {
       require('console').error('checking', { path, tags })
       const res = await fetchViaHTTP(appPort, path, undefined, {
@@ -180,6 +196,26 @@ describe('should set-up next', () => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+    }
+  })
+
+  it('should not send invalid soft tags to cache handler', async () => {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        { hello: 'world' },
+        {
+          redirect: 'manual',
+        }
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }

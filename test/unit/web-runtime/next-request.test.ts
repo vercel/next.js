@@ -32,4 +32,12 @@ it('should clone Request with headers', () => {
   expect(Object.fromEntries(nextRequest.headers)).toEqual(
     Object.fromEntries(request.headers)
   )
+
+  // Second argument should override headers
+  const headers = new Headers({ 'x-header': 'some header' })
+  const nextRequest2 = new NextRequest(request, { headers })
+
+  expect(Object.fromEntries(nextRequest2.headers)).toEqual(
+    Object.fromEntries(headers)
+  )
 })

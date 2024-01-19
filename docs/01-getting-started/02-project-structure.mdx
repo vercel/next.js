@@ -30,10 +30,9 @@ This page provides an overview of the file and folder structure of a Next.js pro
 | [`.env.development`](/docs/app/building-your-application/configuring/environment-variables) | Development environment variables       |
 | [`.eslintrc.json`](/docs/app/building-your-application/configuring/eslint)                  | Configuration file for ESLint           |
 | `.gitignore`                                                                                | Git files and folders to ignore         |
-| `.next-env.d.ts`                                                                            | TypeScript declaration file for Next.js |
+| `next-env.d.ts`                                                                             | TypeScript declaration file for Next.js |
 | `tsconfig.json`                                                                             | Configuration file for TypeScript       |
 | `jsconfig.json`                                                                             | Configuration file for JavaScript       |
-| `postcss.config.js`                                                                         | Configuration file for Tailwind CSS     |
 
 ## `app` Routing Conventions
 
@@ -77,7 +76,7 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 |                                                                                                |                            |
 | ---------------------------------------------------------------------------------------------- | -------------------------- |
-| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#convention)            | Named slot                 |
+| [`@folder`](/docs/app/building-your-application/routing/parallel-routes#slots)                 | Named slot                 |
 | [`(.)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)      | Intercept same level       |
 | [`(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention)     | Intercept one level above  |
 | [`(..)(..)folder`](/docs/app/building-your-application/routing/intercepting-routes#convention) | Intercept two levels above |
@@ -106,12 +105,12 @@ This page provides an overview of the file and folder structure of a Next.js pro
 
 #### SEO
 
-|                                                                                             |             |                       |
-| ------------------------------------------------------------------------------------------- | ----------- | --------------------- |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#static-sitemapxml)    | `.xml`      | Sitemap file          |
-| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generate-a-sitemap)   | `.js` `.ts` | Generated Sitemap     |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)       | `.txt`      | Robots file           |
-| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file) | `.js` `.ts` | Generated Robots file |
+|                                                                                                              |             |                       |
+| ------------------------------------------------------------------------------------------------------------ | ----------- | --------------------- |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#sitemap-files-xml)                     | `.xml`      | Sitemap file          |
+| [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap#generating-a-sitemap-using-code-js-ts) | `.js` `.ts` | Generated Sitemap     |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#static-robotstxt)                        | `.txt`      | Robots file           |
+| [`robots`](/docs/app/api-reference/file-conventions/metadata/robots#generate-a-robots-file)                  | `.js` `.ts` | Generated Robots file |
 
 ## `pages` Routing Conventions
 

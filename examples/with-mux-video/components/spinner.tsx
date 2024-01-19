@@ -1,9 +1,9 @@
 interface SpinnerProps {
-  size?: Number
-  color?: string
+  size?: Number;
+  color?: string;
 }
 
-export default function Spinner({ size = 6, color = '#999' }: SpinnerProps) {
+export default function Spinner({ size = 6, color = "#999" }: SpinnerProps) {
   return (
     <>
       <div className="spinner" />
@@ -51,5 +51,5 @@ export default function Spinner({ size = 6, color = '#999' }: SpinnerProps) {
         }
       `}</style>
     </>
-  )
+  );
 }

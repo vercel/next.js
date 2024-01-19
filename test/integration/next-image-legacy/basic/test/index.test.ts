@@ -264,101 +264,104 @@ async function hasImagePreloadBeforeCSSPreload() {
 }
 
 describe('Image Component Tests', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(() => killApp(app))
-  describe('SSR Image Component Tests', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
-      browser = await webdriver(appPort, '/')
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
     })
-    afterAll(async () => {
-      browser = null
-    })
-    runTests()
-    it('should add a preload tag for a priority image', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
+    afterAll(() => killApp(app))
+    describe('SSR Image Component Tests', () => {
+      beforeAll(async () => {
+        browser = await webdriver(appPort, '/')
+      })
+      afterAll(async () => {
+        browser = null
+      })
+      runTests()
+      it('should add a preload tag for a priority image', async () => {
+        expect(
+          await hasPreloadLinkMatchingUrl(
+            'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
+          )
+        ).toBe(true)
+      })
+      it('should add a preload tag for a priority image with preceding slash', async () => {
+        expect(
+          await hasPreloadLinkMatchingUrl(
+            'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
+          )
+        ).toBe(true)
+      })
+      it('should add a preload tag for a priority image, with arbitrary host', async () => {
+        expect(
+          await hasPreloadLinkMatchingUrl(
+            'https://arbitraryurl.com/withpriority3.png'
+          )
+        ).toBe(true)
+      })
+      it('should add a preload tag for a priority image, with quality', async () => {
+        expect(
+          await hasPreloadLinkMatchingUrl(
+            'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
+          )
+        ).toBe(true)
+      })
+      it('should not create any preload tags higher up the page than CSS preload tags', async () => {
+        expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
+      })
+      it('should add data-nimg data attribute based on layout', async () => {
+        expect(
+          await browser
+            .elementById('image-with-sizes')
+            .getAttribute('data-nimg')
+        ).toBe('responsive')
+        expect(
+          await browser.elementById('basic-image').getAttribute('data-nimg')
+        ).toBe('intrinsic')
+      })
+      it('should not pass config to custom loader prop', async () => {
+        browser = await webdriver(appPort, '/loader-prop')
+        expect(
+          await browser.elementById('loader-prop-img').getAttribute('src')
+        ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
+        expect(
+          await browser.elementById('loader-prop-img').getAttribute('srcset')
+        ).toBe(
+          'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
         )
-      ).toBe(true)
+      })
     })
-    it('should add a preload tag for a priority image with preceding slash', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/fooslash.jpg?auto=format&fit=max&w=1024'
-        )
-      ).toBe(true)
-    })
-    it('should add a preload tag for a priority image, with arbitrary host', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://arbitraryurl.com/withpriority3.png'
-        )
-      ).toBe(true)
-    })
-    it('should add a preload tag for a priority image, with quality', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriority.png?auto=format&fit=max&w=1024&q=60'
-        )
-      ).toBe(true)
-    })
-    it('should not create any preload tags higher up the page than CSS preload tags', async () => {
-      expect(await hasImagePreloadBeforeCSSPreload()).toBe(false)
-    })
-    it('should add data-nimg data attribute based on layout', async () => {
-      expect(
-        await browser.elementById('image-with-sizes').getAttribute('data-nimg')
-      ).toBe('responsive')
-      expect(
-        await browser.elementById('basic-image').getAttribute('data-nimg')
-      ).toBe('intrinsic')
-    })
-    it('should not pass config to custom loader prop', async () => {
-      browser = await webdriver(appPort, '/loader-prop')
-      expect(
-        await browser.elementById('loader-prop-img').getAttribute('src')
-      ).toBe('https://example.vercel.sh/success/foo.jpg?width=1024')
-      expect(
-        await browser.elementById('loader-prop-img').getAttribute('srcset')
-      ).toBe(
-        'https://example.vercel.sh/success/foo.jpg?width=480 1x, https://example.vercel.sh/success/foo.jpg?width=1024 2x'
-      )
-    })
-  })
-  describe('Client-side Image Component Tests', () => {
-    beforeAll(async () => {
-      browser = await webdriver(appPort, '/')
-      await browser.waitForElementByCss('#clientlink').click()
-    })
-    afterAll(async () => {
-      browser = null
-    })
-    runTests()
-    // FIXME: this test
-    it.skip('should NOT add a preload tag for a priority image', async () => {
-      expect(
-        await hasPreloadLinkMatchingUrl(
-          'https://example.com/myaccount/withpriorityclient.png?auto=format&fit=max'
-        )
-      ).toBe(false)
-    })
-    it('should only be loaded once if `sizes` is set', async () => {
-      const numRequests = await browser.eval(`(function() {
+    describe('Client-side Image Component Tests', () => {
+      beforeAll(async () => {
+        browser = await webdriver(appPort, '/')
+        await browser.waitForElementByCss('#clientlink').click()
+      })
+      afterAll(async () => {
+        browser = null
+      })
+      runTests()
+      // FIXME: this test
+      it.skip('should NOT add a preload tag for a priority image', async () => {
+        expect(
+          await hasPreloadLinkMatchingUrl(
+            'https://example.com/myaccount/withpriorityclient.png?auto=format&fit=max'
+          )
+        ).toBe(false)
+      })
+      it('should only be loaded once if `sizes` is set', async () => {
+        const numRequests = await browser.eval(`(function() {
         const entries = window.performance.getEntries()
         return entries.filter(function(entry) {
           return entry.name.includes('test-sizes.jpg')
         }).length
       })()`)
 
-      expect(numRequests).toBe(1)
-    })
-    describe('Client-side Errors', () => {
-      beforeAll(async () => {
-        await browser.eval(`(function() {
+        expect(numRequests).toBe(1)
+      })
+      describe('Client-side Errors', () => {
+        beforeAll(async () => {
+          await browser.eval(`(function() {
           window.gotHostError = false
           const origError = console.error
           window.console.error = function () {
@@ -368,32 +371,33 @@ describe('Image Component Tests', () => {
             origError.apply(this, arguments)
           }
         })()`)
-        await browser.waitForElementByCss('#errorslink').click()
+          await browser.waitForElementByCss('#errorslink').click()
+        })
+        it('Should not log an error when an unregistered host is used in production', async () => {
+          const foundError = await browser.eval('window.gotHostError')
+          expect(foundError).toBe(false)
+        })
       })
-      it('Should not log an error when an unregistered host is used in production', async () => {
-        const foundError = await browser.eval('window.gotHostError')
-        expect(foundError).toBe(false)
+    })
+    describe('SSR Lazy Loading Tests', () => {
+      beforeAll(async () => {
+        browser = await webdriver(appPort, '/lazy')
       })
+      afterAll(async () => {
+        browser = null
+      })
+      lazyLoadingTests()
     })
-  })
-  describe('SSR Lazy Loading Tests', () => {
-    beforeAll(async () => {
-      browser = await webdriver(appPort, '/lazy')
+    describe('Client-side Lazy Loading Tests', () => {
+      beforeAll(async () => {
+        browser = await webdriver(appPort, '/')
+        await browser.waitForElementByCss('#lazylink').click()
+        await waitFor(500)
+      })
+      afterAll(async () => {
+        browser = null
+      })
+      lazyLoadingTests()
     })
-    afterAll(async () => {
-      browser = null
-    })
-    lazyLoadingTests()
-  })
-  describe('Client-side Lazy Loading Tests', () => {
-    beforeAll(async () => {
-      browser = await webdriver(appPort, '/')
-      await browser.waitForElementByCss('#lazylink').click()
-      await waitFor(500)
-    })
-    afterAll(async () => {
-      browser = null
-    })
-    lazyLoadingTests()
   })
 })

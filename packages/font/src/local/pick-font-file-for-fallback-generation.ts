@@ -5,7 +5,7 @@ const BOLD_WEIGHT = 700
 
 /**
  * Convert the weight string to a number so it can be used for comparison.
- * Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-weight
+ * Weights can be defined as a number, 'normal' or 'bold'. https://developer.mozilla.org/docs/Web/CSS/@font-face/font-weight
  */
 function getWeightNumber(weight: string) {
   return weight === 'normal'

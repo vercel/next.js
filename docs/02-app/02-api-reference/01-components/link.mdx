@@ -5,6 +5,8 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
+<PagesOnly>
+
 <details>
   <summary>Examples</summary>
 
@@ -13,7 +15,9 @@ description: Enable fast client-side navigation with the built-in `next/link` co
 
 </details>
 
-`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
+</PagesOnly>
+
+`<Link>` is a React component that extends the HTML `<a>` element to provide [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and client-side navigation between routes. It is the primary way to navigate between routes in Next.js.
 
 <AppOnly>
 
@@ -77,6 +81,7 @@ Here's a summary of the props available for the Link Component:
 | ------------------------ | ------------------- | ---------------- | -------- |
 | [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
 | [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
+| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
 | [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean          | -        |
 
 > **Good to know**: `<a>` tag attributes such as `className` or `target="_blank"` can be added to `<Link>` as props and will be passed to the underlying `<a>` element.
@@ -105,7 +110,7 @@ The path or URL to navigate to.
 
 ### `replace`
 
-**Defaults to `false`.** When `true`, `next/link` will replace the current history state instead of adding a new URL into the [browser’s history](https://developer.mozilla.org/en-US/docs/Web/API/History_API) stack.
+**Defaults to `false`.** When `true`, `next/link` will replace the current history state instead of adding a new URL into the [browser’s history](https://developer.mozilla.org/docs/Web/API/History_API) stack.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -125,6 +130,34 @@ import Link from 'next/link'
 export default function Page() {
   return (
     <Link href="/dashboard" replace>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+### `scroll`
+
+**Defaults to `true`.** The default behavior of `<Link>` is to scroll to the top of a new route or to maintain the scroll position for backwards and forwards navigation. When `false`, `next/link` will _not_ scroll to the top of the page after a navigation.
+
+```tsx filename="app/page.tsx" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard" scroll={false}>
+      Dashboard
+    </Link>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import Link from 'next/link'
+
+export default function Page() {
+  return (
+    <Link href="/dashboard" scroll={false}>
       Dashboard
     </Link>
   )
@@ -169,7 +202,7 @@ export default function Page() {
 
 An `<a>` element is no longer required as a child of `<Link>`. Add the `legacyBehavior` prop to use the legacy behavior or remove the `<a>` to upgrade. A [codemod is available](/docs/app/building-your-application/upgrading/codemods#new-link) to automatically upgrade your code.
 
-> **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
+> **Good to know**: when `legacyBehavior` is not set to `true`, all [`anchor`](https://developer.mozilla.org/docs/Web/HTML/Element/a) tag properties can be passed to `next/link` as well such as, `className`, `onClick`, etc.
 
 ### `passHref`
 

@@ -1,7 +1,5 @@
-import Chalk from 'next/dist/compiled/chalk'
+import { bold, cyan, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
-
-const chalk = new Chalk.constructor({ enabled: true })
 
 export function getBabelError(
   fileName: string,
@@ -29,10 +27,10 @@ export function getBabelError(
       )
 
     return new SimpleWebpackError(
-      `${chalk.cyan(fileName)}:${chalk.yellow(
-        lineNumber.toString()
-      )}:${chalk.yellow(column.toString())}`,
-      chalk.red.bold('Syntax error').concat(`: ${message}`)
+      `${cyan(fileName)}:${yellow(lineNumber.toString())}:${yellow(
+        column.toString()
+      )}`,
+      red(bold('Syntax error')).concat(`: ${message}`)
     )
   }
 

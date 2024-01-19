@@ -7,4 +7,4 @@ export default function handler(
   return res.status(200).json({ hello: 'world' })
 }
 
-export const maxDuration = 1
+export const config = { maxDuration: 1 }

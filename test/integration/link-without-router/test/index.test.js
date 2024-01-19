@@ -36,8 +36,7 @@ describe('Link without a router', () => {
       expect(container.textContent).toBe('Click me')
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should not throw when rendered', () => {
       jest.useFakeTimers()
 

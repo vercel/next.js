@@ -34,4 +34,18 @@ exec.spawn = function spawn(command = '', opts = {}) {
   return child
 }
 
+exec.spawnPromise = function spawnPromise(command = '', opts = {}) {
+  return new Promise((resolve, reject) => {
+    const child = exec.spawn(command)
+    child.on('exit', (code, signal) => {
+      if (code || signal) {
+        return reject(
+          new Error(`bad exit code/signal code: ${code} signal: ${signal}`)
+        )
+      }
+      resolve()
+    })
+  })
+}
+
 module.exports = exec

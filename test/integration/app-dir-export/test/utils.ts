@@ -30,7 +30,8 @@ const apiJson = new File(join(appDir, 'app/api/json/route.js'))
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
-  '_next/static/media/test.3f1a293b.png',
+  // Turbopack and plain next.js have different hash output for the file name
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   '_next/static/test-build-id/_ssgManifest.js',
   'another/first/index.html',
@@ -41,6 +42,8 @@ export const expectedWhenTrailingSlashTrue = [
   'another/second/index.txt',
   'api/json',
   'api/txt',
+  'client/index.html',
+  'client/index.txt',
   'favicon.ico',
   'image-import/index.html',
   'image-import/index.txt',
@@ -51,7 +54,7 @@ export const expectedWhenTrailingSlashTrue = [
 
 const expectedWhenTrailingSlashFalse = [
   '404.html',
-  '_next/static/media/test.3f1a293b.png',
+  expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
   '_next/static/test-build-id/_ssgManifest.js',
   'another.html',
@@ -62,6 +65,8 @@ const expectedWhenTrailingSlashFalse = [
   'another/second.txt',
   'api/json',
   'api/txt',
+  'client.html',
+  'client.txt',
   'favicon.ico',
   'image-import.html',
   'image-import.txt',
@@ -87,12 +92,14 @@ export async function runTests({
   trailingSlash = true,
   dynamicPage,
   dynamicApiRoute,
+  generateStaticParamsOpt,
   expectedErrMsg,
 }: {
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
+  generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -112,6 +119,11 @@ export async function runTests({
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
     )
+  }
+  if (generateStaticParamsOpt === 'set noop') {
+    slugPage.replace('export function generateStaticParams', 'function noop')
+  } else if (generateStaticParamsOpt === 'set client') {
+    slugPage.prepend('"use client"\n')
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
@@ -141,7 +153,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
       } else {
         await check(() => result.stderr, /error/i)

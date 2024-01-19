@@ -8,12 +8,17 @@ edition = "2021"
 [lib]
 bench = false
 
+[lints]
+workspace = true
+
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
 const_format = "0.2.30"
+lazy-regex = "3.0.1"
+next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -27,6 +32,8 @@ allsorts = { workspace = true }
 futures = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
+tracing = { workspace = true }
+rustc-hash = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
@@ -39,6 +46,7 @@ turbopack-binding = { workspace = true, features = [
   "__turbo_tasks_hash",
   "__turbopack",
   "__turbopack_build",
+  "__turbopack_cli_utils",
   "__turbopack_core",
   "__turbopack_dev",
   "__turbopack_dev_server",
@@ -49,12 +57,10 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_static",
   "__turbopack_image",
   "__turbopack_node",
+  "__turbopack_trace_utils",
 ] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-next-transform-strip-page-exports = { workspace = true }
-next-transform-font = { workspace = true }
-next-transform-dynamic = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -71,6 +77,7 @@ native-tls = ["turbopack-binding/__turbo_tasks_fetch_native-tls"]
 rustls-tls = ["turbopack-binding/__turbo_tasks_fetch_rustls-tls"]
 plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
 image-webp = ["turbopack-binding/__turbopack_image_webp"]
+image-avif = ["turbopack-binding/__turbopack_image_avif"]
 
 # enable "HMR" for embedded assets
 dynamic_embed_contents = [
