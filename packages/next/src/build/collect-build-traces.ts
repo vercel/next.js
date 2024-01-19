@@ -320,7 +320,7 @@ export async function collectBuildTraces({
         // we shouldn't be tracing .next/server assets from
         // inside .next/server as that relationship is pulled
         // from webpack itself as it's more accurate
-        '**/.next/server/**/*',
+        '**/.next/server/chunks/**/*',
       ].filter(Boolean) as string[]
 
       const serverIgnores = [
