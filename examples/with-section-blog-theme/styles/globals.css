@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*  Custom Shadcn UI theme by https://ui.jln.dev/ */
+:root {
+  --background: 133 69% 99%;
+  --foreground: 133 63% 5%;
+  --card: 133 69% 99%;
+  --card-foreground: 133 63% 5%;
+  --popover: 133 69% 99%;
+  --popover-foreground: 133 63% 5%;
+  --primary: 133 4% 89%;
+  --primary-foreground: 133 4% 29%;
+  --secondary: 133 8% 85%;
+  --secondary-foreground: 133 8% 25%;
+  --accent: 133 17% 77%;
+  --accent-foreground: 133 17% 17%;
+  --destructive: 4 92% 26%;
+  --destructive-foreground: 4 92% 86%;
+  --muted: 133 26% 95%;
+  --muted-foreground: 133 11% 34%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 133 4% 89%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 133 36% 4%;
+  --foreground: 133 20% 99%;
+  --card: 133 36% 4%;
+  --card-foreground: 133 20% 99%;
+  --popover: 133 36% 4%;
+  --popover-foreground: 133 20% 99%;
+  --primary: 133 4% 89%;
+  --primary-foreground: 133 4% 29%;
+  --secondary: 133 3% 20%;
+  --secondary-foreground: 133 3% 80%;
+  --accent: 133 11% 29%;
+  --accent-foreground: 133 11% 89%;
+  --destructive: 4 92% 59%;
+  --destructive-foreground: 0 0% 100%;
+  --muted: 133 26% 5%;
+  --muted-foreground: 133 11% 66%;
+  --border: 215 27.9% 16.9%;
+  --input: 215 27.9% 16.9%;
+  --ring: 133 4% 89%;
+}
