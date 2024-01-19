@@ -1566,6 +1566,10 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
+                    if (process.env.NEXT_HMR_TIMING) {
+                      // Report the next compilation again
+                      readyIds.delete(page)
+                    }
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
@@ -1644,6 +1648,10 @@ async function startWatcher(opts: SetupOpts) {
                     // Ignore any updates that has errors
                     // There will be another update without errors eventually
                     return
+                  }
+                  if (process.env.NEXT_HMR_TIMING) {
+                    // Report the next compilation again
+                    readyIds.delete(page)
                   }
                   return {
                     action:
