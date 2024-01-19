@@ -1,4 +1,4 @@
-import Anser from 'anser'
+import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
 
 export type TerminalProps = { content: string }

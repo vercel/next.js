@@ -67,8 +67,9 @@ import { isPostpone } from '../lib/router-utils/is-postpone'
 let ReactDevOverlayImpl: FunctionComponent
 const ReactDevOverlay = (props: any) => {
   if (ReactDevOverlayImpl === undefined) {
-    ReactDevOverlayImpl =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/client').ReactDevOverlay
+    ReactDevOverlayImpl = (
+      require('../../client/components/react-dev-overlay-pages-router/src/client') as typeof import('../../client/components/react-dev-overlay-pages-router/src/client')
+    ).ReactDevOverlay
   }
   return ReactDevOverlayImpl(props)
 }

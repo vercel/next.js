@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-import pc from 'picocolors'
+import * as pc from '../../../../../../lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
