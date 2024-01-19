@@ -1847,7 +1847,11 @@ externals['source-map08'] = 'next/dist/compiled/source-map08'
 export async function ncc_source_map08(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('source-map08')))
-    .ncc({ packageName: 'source-map08', externals })
+    .ncc({
+      packageName: 'source-map08',
+      packageJsonName: 'source-map08',
+      externals,
+    })
     .target('src/compiled/source-map08')
 }
 // eslint-disable-next-line camelcase
