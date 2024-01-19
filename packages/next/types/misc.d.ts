@@ -272,8 +272,8 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/micromatch' {
-  import m from 'micromatch'
+declare module 'next/dist/compiled/picomatch' {
+  import m from 'picomatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
