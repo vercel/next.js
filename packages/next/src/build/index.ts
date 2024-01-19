@@ -1245,7 +1245,7 @@ export default async function build(
         PAGES_MANIFEST
       )
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       const requiredServerFilesManifest = nextBuildSpan
         .traceChild('generate-required-server-files')
@@ -1260,12 +1260,12 @@ export default async function build(
                     compress: false,
                   }
                 : {}),
+              cacheHandler: cacheHandler
+                ? path.relative(distDir, cacheHandler)
+                : config.cacheHandler,
               experimental: {
                 ...config.experimental,
                 trustHostHeader: ciEnvironment.hasNextSupport,
-                incrementalCacheHandlerPath: incrementalCacheHandlerPath
-                  ? path.relative(distDir, incrementalCacheHandlerPath)
-                  : undefined,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
@@ -1365,14 +1365,6 @@ export default async function build(
       )
       nextBuildSpan.setAttribute('use-build-worker', String(useBuildWorker))
 
-      if (
-        config.webpack &&
-        config.experimental.webpackBuildWorker === undefined
-      ) {
-        Log.warn(
-          'Custom webpack configuration is detected. When using a custom webpack configuration, the Webpack build worker is disabled by default. To force enable it, set the "experimental.webpackBuildWorker" option to "true". Read more: https://nextjs.org/docs/messages/webpack-build-worker-opt-out'
-        )
-      }
       if (
         !useBuildWorker &&
         (runServerAndEdgeInParallel || collectServerBuildTracesInParallel)
@@ -1523,11 +1515,11 @@ export default async function build(
 
       if (config.experimental.staticWorkerRequestDeduping) {
         let CacheHandler
-        if (incrementalCacheHandlerPath) {
+        if (cacheHandler) {
           CacheHandler = interopDefault(
-            await import(
-              formatDynamicImportPath(dir, incrementalCacheHandlerPath)
-            ).then((mod) => mod.default || mod)
+            await import(formatDynamicImportPath(dir, cacheHandler)).then(
+              (mod) => mod.default || mod
+            )
           )
         }
 
@@ -1542,7 +1534,7 @@ export default async function build(
             : config.experimental.isrFlushToDisk,
           serverDistDir: path.join(distDir, 'server'),
           fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-          maxMemoryCacheSize: config.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: config.cacheMaxMemorySize,
           getPrerenderManifest: () => ({
             version: -1 as any, // letting us know this doesn't conform to spec
             routes: {},
@@ -1840,13 +1832,11 @@ export default async function build(
                             pageRuntime,
                             edgeInfo,
                             pageType,
-                            incrementalCacheHandlerPath:
-                              config.experimental.incrementalCacheHandlerPath,
+                            cacheHandler: config.cacheHandler,
                             isrFlushToDisk: ciEnvironment.hasNextSupport
                               ? false
                               : config.experimental.isrFlushToDisk,
-                            maxMemoryCacheSize:
-                              config.experimental.isrMemoryCacheSize,
+                            maxMemoryCacheSize: config.cacheMaxMemorySize,
                             nextConfigOutput: config.output,
                             ppr: config.experimental.ppr === true,
                           })
@@ -1897,19 +1887,15 @@ export default async function build(
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
                               !!workerResult.prerenderRoutes?.length
-                            const isEmptyGenerateStaticParams =
-                              workerResult.prerenderRoutes?.length === 0
 
-                            if (config.output === 'export' && isDynamic) {
-                              if (isEmptyGenerateStaticParams) {
-                                throw new Error(
-                                  `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
-                                )
-                              } else if (!hasGenerateStaticParams) {
-                                throw new Error(
-                                  `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
-                                )
-                              }
+                            if (
+                              config.output === 'export' &&
+                              isDynamic &&
+                              !hasGenerateStaticParams
+                            ) {
+                              throw new Error(
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                              )
                             }
 
                             if (

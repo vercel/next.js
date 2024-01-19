@@ -239,16 +239,16 @@ export async function collectBuildTraces({
             )),
       ]
 
-      const { incrementalCacheHandlerPath } = config.experimental
+      const { cacheHandler } = config
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
-      if (incrementalCacheHandlerPath) {
+      if (cacheHandler) {
         sharedEntriesSet.push(
           require.resolve(
-            path.isAbsolute(incrementalCacheHandlerPath)
-              ? incrementalCacheHandlerPath
-              : path.join(dir, incrementalCacheHandlerPath)
+            path.isAbsolute(cacheHandler)
+              ? cacheHandler
+              : path.join(dir, cacheHandler)
           )
         )
       }
@@ -293,7 +293,7 @@ export async function collectBuildTraces({
 
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
+        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -317,6 +317,8 @@ export async function collectBuildTraces({
         ...additionalIgnores,
         ...(config.experimental.outputFileTracingIgnores || []),
       ]
+
+      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -417,7 +419,6 @@ export async function collectBuildTraces({
           ...serverEntries,
           ...minimalServerEntries,
         ]
-
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
@@ -459,6 +460,26 @@ export async function collectBuildTraces({
               }
               throw e
             }
+          },
+          // handle shared ignores at top-level as it
+          // avoids over-tracing when we don't need to
+          // and speeds up total trace time
+          ignore(p) {
+            if (sharedIgnoresFn(p)) {
+              return true
+            }
+
+            // if a chunk is attempting to be traced that isn't
+            // in our initial list we need to ignore it to prevent
+            // over tracing as webpack needs to be the source of
+            // truth for which chunks should be included for each entry
+            if (
+              p.includes('.next/server/chunks') &&
+              !chunksToTrace.includes(path.join(outputFileTracingRoot, p))
+            ) {
+              return true
+            }
+            return false
           },
         })
         const reasons = result.reasons

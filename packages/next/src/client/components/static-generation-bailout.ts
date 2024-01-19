@@ -3,8 +3,20 @@ import type { AppConfigDynamic } from '../../build/utils'
 import { DynamicServerError } from './hooks-server-context'
 import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 
+const NEXT_STATIC_GEN_BAILOUT = 'NEXT_STATIC_GEN_BAILOUT'
+
 class StaticGenBailoutError extends Error {
-  code = 'NEXT_STATIC_GEN_BAILOUT'
+  public readonly code = NEXT_STATIC_GEN_BAILOUT
+}
+
+export function isStaticGenBailoutError(
+  error: unknown
+): error is StaticGenBailoutError {
+  if (typeof error !== 'object' || error === null || !('code' in error)) {
+    return false
+  }
+
+  return error.code === NEXT_STATIC_GEN_BAILOUT
 }
 
 type BailoutOpts = { dynamic?: AppConfigDynamic; link?: string }

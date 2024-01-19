@@ -1304,7 +1304,7 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
@@ -1315,10 +1315,10 @@ export async function buildAppStaticPaths({
   page: string
   configFileName: string
   generateParams: GenerateParamsResults
-  incrementalCacheHandlerPath?: string
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
+  cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   ppr: boolean
@@ -1328,11 +1328,11 @@ export async function buildAppStaticPaths({
 
   let CacheHandler: any
 
-  if (incrementalCacheHandlerPath) {
+  if (cacheHandler) {
     CacheHandler = interopDefault(
-      await import(
-        formatDynamicImportPath(dir, incrementalCacheHandlerPath)
-      ).then((mod) => mod.default || mod)
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
     )
   }
 
@@ -1483,7 +1483,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -1501,7 +1501,7 @@ export async function isPageStatic({
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
@@ -1667,7 +1667,7 @@ export async function isPageStatic({
             requestHeaders: {},
             isrFlushToDisk,
             maxMemoryCacheSize,
-            incrementalCacheHandlerPath,
+            cacheHandler,
             ppr,
             ComponentMod,
           }))
