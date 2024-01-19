@@ -42,12 +42,10 @@
       { "type": "user", "pattern": "lydiahallie" },
       { "type": "user", "pattern": "StephDietz" },
       { "type": "user", "pattern": "timeyoutakeit" },
-      { "type": "user", "pattern": "s3prototype" },
       { "type": "user", "pattern": "manovotny" }
     ],
     "created-by: turbopack team": [
       { "type": "user", "pattern": "ForsakenHarmony" },
-      { "type": "user", "pattern": "jridgewell" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "kwonoj" },
       { "type": "user", "pattern": "padmaia" },
