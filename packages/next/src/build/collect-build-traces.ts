@@ -291,9 +291,9 @@ export async function collectBuildTraces({
         })
       }
 
-      const sharedIgnores: string[] = [
+      const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
-        isStandalone ? null : '**/next/dist/compiled/jest-worker/**/*',
+        ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
@@ -316,12 +316,9 @@ export async function collectBuildTraces({
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
         ...(config.experimental.outputFileTracingIgnores || []),
+      ]
 
-        // we shouldn't be tracing .next/server assets from
-        // inside .next/server as that relationship is pulled
-        // from webpack itself as it's more accurate
-        '**/.next/server/chunks/**/*',
-      ].filter(Boolean) as string[]
+      const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
 
       const serverIgnores = [
         ...sharedIgnores,
@@ -467,7 +464,23 @@ export async function collectBuildTraces({
           // handle shared ignores at top-level as it
           // avoids over-tracing when we don't need to
           // and speeds up total trace time
-          ignore: makeIgnoreFn(sharedIgnores),
+          ignore(p) {
+            if (sharedIgnoresFn(p)) {
+              return true
+            }
+
+            // if a chunk is attempting to be traced that isn't
+            // in our initial list we need to ignore it to prevent
+            // over tracing as webpack needs to be the source of
+            // truth for which chunks should be included for each entry
+            if (
+              p.includes('.next/server/chunks') &&
+              !chunksToTrace.includes(path.join(outputFileTracingRoot, p))
+            ) {
+              return true
+            }
+            return false
+          },
         })
         const reasons = result.reasons
         const fileList = result.fileList
