@@ -89,5 +89,5 @@ function isCatchAllRoute(pathname: string): boolean {
 function isMoreSpecific(pathname: string, catchAllRoute: string): boolean {
   const pathnameDepth = pathname.split('/').length
   const catchAllRouteDepth = catchAllRoute.split('/').length - 1
-  return pathnameDepth >= catchAllRouteDepth
+  return pathnameDepth > catchAllRouteDepth
 }
