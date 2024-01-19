@@ -1,5 +1,5 @@
 ---
-title: Missing Suspense with CSR Bailout
+title: Missing Suspense boundary with useSearchParams
 ---
 
 #### Why This Error Occurred
@@ -10,28 +10,47 @@ Reading search parameters through `useSearchParams()` without a Suspense boundar
 
 Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
 
-```tsx title="app/page.tsx"
-import { SearchBar } from './search'
+```tsx filename="app/search.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
-export default function Page() {
+function Search() {
+  const searchParams = useSearchParams()
+
+  return <input placeholder="Search..." />
+}
+
+export function Searchbar() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <SearchBar />
+    // You could have a loading skeleton as the `fallback` too
+    <Suspense>
+      <Search />
     </Suspense>
   )
 }
 ```
 
-```jsx title="app/search.tsx"
+```jsx filename="app/search.js" switcher
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export function Search() {
+function Search() {
   const searchParams = useSearchParams()
 
-  return '...'
+  return <input placeholder="Search..." />
+}
+
+export function Searchbar() {
+  return (
+    // You could have a loading skeleton as the `fallback` too
+    <Suspense>
+      <Search />
+    </Suspense>
+  )
 }
 ```
 
