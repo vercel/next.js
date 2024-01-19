@@ -4011,6 +4011,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-catchall-dynamic-segment/parallel-routes-catchall-dynamic-segment.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-default should match default paths before catch-all"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
     "passed": [
       "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"

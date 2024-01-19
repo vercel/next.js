@@ -134,6 +134,7 @@ describe('normalizeCatchallRoutes', () => {
       '/[[...catchAll]]': ['/[[...catchAll]]/page'],
       '/nested/[foo]/[bar]/default': [
         '/nested/[foo]/[bar]/default',
+        '/nested/[foo]/[bar]/@slot0/default',
         '/nested/[foo]/[bar]/@slot2/default',
       ],
       '/nested/[foo]/[bar]': [
@@ -143,6 +144,9 @@ describe('normalizeCatchallRoutes', () => {
       '/nested/[foo]/[bar]/[baz]': [
         '/nested/[foo]/[bar]/@slot0/[baz]/page',
         '/nested/[foo]/[bar]/@slot1/[baz]/page',
+      ],
+      '/[locale]/nested/[foo]/[bar]/[baz]/[qux]': [
+        '/[locale]/nested/[foo]/[bar]/@slot1/[baz]/[qux]/page',
       ],
     }
 
