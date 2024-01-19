@@ -477,9 +477,6 @@ async function startWatcher(opts: SetupOpts) {
           } as OutputState,
           true
         )
-        hotReloader.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-        })
       }
       buildingIds.add(id)
       return function finishBuilding() {
@@ -489,9 +486,6 @@ async function startWatcher(opts: SetupOpts) {
         readyIds.add(id)
         buildingIds.delete(id)
         if (buildingIds.size === 0) {
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING,
-          })
           consoleStore.setState(
             {
               loading: false,

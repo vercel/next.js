@@ -18,7 +18,6 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
-  FINISH_BUILDING = 'finishBuilding',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
@@ -37,10 +36,6 @@ export interface TurbopackMessageAction {
 
 interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
-}
-
-interface FinishBuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
 }
 
 export interface CompilationError {
@@ -114,7 +109,6 @@ export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
   | BuildingAction
-  | FinishBuildingAction
   | SyncAction
   | BuiltAction
   | AddedPageAction

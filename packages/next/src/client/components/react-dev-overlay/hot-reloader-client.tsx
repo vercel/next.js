@@ -304,9 +304,6 @@ function processMessage(
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING: {
-      break
-    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
     case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
