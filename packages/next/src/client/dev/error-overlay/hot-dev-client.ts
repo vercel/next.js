@@ -61,9 +61,9 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler: any
-let MODE: 'webpack' | 'turbopack' = 'webpack'
-export default function connect(mode: 'webpack' | 'turbopack') {
-  MODE = mode
+
+type Mode = 'webpack' | 'turbopack'
+export default function connect(mode: Mode) {
   register()
 
   addMessageListener((payload) => {
@@ -72,7 +72,7 @@ export default function connect(mode: 'webpack' | 'turbopack') {
     }
 
     try {
-      processMessage(payload)
+      processMessage(mode, payload)
     } catch (err: any) {
       console.warn(
         '[HMR] Invalid message: ' + payload + '\n' + (err?.stack ?? '')
@@ -105,10 +105,10 @@ function clearOutdatedErrors() {
 }
 
 // Successful compilation.
-function handleSuccess(updatedModules?: ReadonlyArray<string>) {
+function handleSuccess(mode: Mode, updatedModules?: ReadonlyArray<string>) {
   clearOutdatedErrors()
 
-  if (MODE === 'webpack') {
+  if (mode === 'webpack') {
     const isHotUpdate =
       !isFirstCompilation ||
       (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
@@ -243,7 +243,7 @@ function handleAvailableHash(hash: string) {
 }
 
 // Handle messages from the server.
-function processMessage(obj: HMR_ACTION_TYPES) {
+function processMessage(mode: Mode, obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
     return
   }
@@ -291,7 +291,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           clientId: window.__nextDevClientId,
         })
       )
-      return handleSuccess(obj.updatedModules)
+      return handleSuccess(mode, obj.updatedModules)
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()
