@@ -11,8 +11,10 @@ describe('normalizeCatchallRoutes', () => {
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
 
@@ -36,8 +38,10 @@ describe('normalizeCatchallRoutes', () => {
       ],
     }
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject({
       '/parallel-nested-catchall': ['/parallel-nested-catchall/page'],
       '/parallel-nested-catchall/[...catchAll]': [
@@ -73,8 +77,10 @@ describe('normalizeCatchallRoutes', () => {
       '/foo/[...catchAll]': ['/@slot/foo/[...catchAll]/page'],
     }
 
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject({
       '/': [
         '/page',
@@ -114,7 +120,11 @@ describe('normalizeCatchallRoutes', () => {
     }
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
+
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
 
@@ -128,7 +138,11 @@ describe('normalizeCatchallRoutes', () => {
     }
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
+
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
 
@@ -140,8 +154,11 @@ describe('normalizeCatchallRoutes', () => {
     }
 
     const initialAppPaths = JSON.parse(JSON.stringify(appPaths))
+
+    // normalize appPaths against catchAlls
     normalizeCatchAllRoutes(appPaths)
 
+    // ensure values are correct after normalizing
     expect(appPaths).toMatchObject(initialAppPaths)
   })
 })

@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
 use turbo_tasks::{trace::TraceRawVcs, Completion, Value, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
@@ -77,6 +77,13 @@ struct CustomRoutes {
 pub struct NextConfig {
     pub config_file: Option<String>,
     pub config_file_name: String,
+
+    /// In-memory cache size in bytes.
+    ///
+    /// If `cache_max_memory_size: 0` disables in-memory caching.
+    pub cache_max_memory_size: Option<f64>,
+    /// custom path to a cache handler to use
+    pub cache_handler: Option<String>,
 
     pub env: IndexMap<String, JsonValue>,
     pub experimental: ExperimentalConfig,
@@ -310,6 +317,8 @@ pub struct ImageConfig {
     pub image_sizes: Vec<u16>,
     pub path: String,
     pub loader: ImageLoader,
+    #[serde(deserialize_with = "empty_string_is_none")]
+    pub loader_file: Option<String>,
     pub domains: Vec<String>,
     pub disable_static_images: bool,
     #[serde(rename(deserialize = "minimumCacheTTL"))]
@@ -322,6 +331,14 @@ pub struct ImageConfig {
     pub unoptimized: bool,
 }
 
+fn empty_string_is_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let o = Option::<String>::deserialize(deserializer)?;
+    Ok(o.filter(|s| !s.is_empty()))
+}
+
 impl Default for ImageConfig {
     fn default() -> Self {
         // https://github.com/vercel/next.js/blob/327634eb/packages/next/shared/lib/image-config.ts#L100-L114
@@ -330,6 +347,7 @@ impl Default for ImageConfig {
             image_sizes: vec![16, 32, 48, 64, 96, 128, 256, 384],
             path: "/_next/image".to_string(),
             loader: ImageLoader::Default,
+            loader_file: None,
             domains: vec![],
             disable_static_images: false,
             minimum_cache_ttl: 60,
@@ -416,10 +434,6 @@ pub struct ExperimentalConfig {
     pub client_router_filter_allowed_rate: Option<f64>,
     pub client_router_filter_redirects: Option<bool>,
     pub fetch_cache_key_prefix: Option<String>,
-    /// In-memory cache size in bytes.
-    ///
-    /// If `isr_memory_cache_size: 0` disables in-memory caching.
-    pub isr_memory_cache_size: Option<f64>,
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
     /// @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
@@ -470,8 +484,7 @@ pub struct ExperimentalConfig {
     force_swc_transforms: Option<bool>,
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
-    /// custom path to a cache handler to use
-    incremental_cache_handler_path: Option<String>,
+
     instrumentation_hook: Option<bool>,
     large_page_data_bytes: Option<f64>,
     logging: Option<serde_json::Value>,
