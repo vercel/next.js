@@ -1,6 +1,5 @@
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 import { AppPathnameNormalizer } from '../server/future/normalizers/built/app/app-pathname-normalizer'
-import { isDynamicRoute } from '../shared/lib/router/utils'
 
 /**
  * This function will transform the appPaths in order to support catch-all routes and parallel routes.
@@ -48,10 +47,7 @@ export function normalizeCatchAllRoutes(
         // check if the catch-all is not already matched by a default route or page route
         !appPaths[`${appPath}/default`] &&
         // check if appPath does not ends with a dynamic segment that is not a catch-all (with endsWithDynamicNonCatchAll) AND is more specific than the catch-all
-        !(
-          endsWithDynamicNonCatchAll(appPath) &&
-          isMoreSpecific(appPath, catchAllRoute)
-        )
+        (isCatchAllRoute(appPath) || !isMoreSpecific(appPath, catchAllRoute))
       ) {
         appPaths[appPath].push(catchAllRoute)
       }
@@ -87,14 +83,6 @@ const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')
-}
-
-// test to see if a path ends with a dynamic segment that is not a catch-all
-function endsWithDynamicNonCatchAll(pathname: string): boolean {
-  const pathnameParts = pathname.split('/')
-  const endPath = `/${pathnameParts[pathnameParts.length - 1]}`
-
-  return isDynamicRoute(endPath) && !isCatchAllRoute(endPath)
 }
 
 // test to see if a path is more specific than a catch-all route
