@@ -148,7 +148,6 @@
     "@napi-rs/triples": "1.1.0",
     "@next/polyfill-module": "14.1.1-canary.3",
     "@next/polyfill-nomodule": "14.1.1-canary.3",
-    "@next/react-dev-overlay": "14.1.1-canary.3",
     "@next/react-refresh-utils": "14.1.1-canary.3",
     "@next/swc": "14.1.1-canary.3",
     "@opentelemetry/api": "1.6.0",
