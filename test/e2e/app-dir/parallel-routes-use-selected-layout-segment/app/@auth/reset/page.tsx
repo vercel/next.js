@@ -1,3 +1,3 @@
 export default function Page() {
-  return <div>/app/@app/reset/page.tsx</div>
+  return <div>/app/@auth/reset/page.tsx</div>
 }

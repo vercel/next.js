@@ -9,20 +9,18 @@ import Link from 'next/link'
 export default function RootLayout({
   children,
   auth,
+  nav,
 }: Readonly<{
   children: React.ReactNode
   auth: React.ReactNode
+  nav: React.ReactNode
 }>) {
-  const loginSegment = useSelectedLayoutSegment('auth')
+  const authSegment = useSelectedLayoutSegment('auth')
+  const navSegment = useSelectedLayoutSegment('nav')
   const routeSegment = useSelectedLayoutSegment()
 
-  console.log({
-    loginSegment,
-    routeSegment,
-    useSelectedLayoutSegments: useSelectedLayoutSegments(),
-    useSelectedLayoutSegmentsAuth: useSelectedLayoutSegments('auth'),
-  })
-  const loginSegmentOutput = `${loginSegment} (${typeof loginSegment})`
+  const authSegmentOutput = `${authSegment} (${typeof authSegment})`
+  const navSegmentOutput = `${navSegment} (${typeof navSegment})`
   const routeSegmentOutput = `${routeSegment} (${typeof routeSegment})`
   return (
     <html lang="en">
@@ -31,7 +29,9 @@ export default function RootLayout({
           <nav>
             <Link href="/">Main</Link>
             <Link href="/foo">Foo (regular page)</Link>
-            <Link href="/login">Login (/app/@auth/login)</Link>
+            <Link href="/login">
+              Login (/app/@auth/login) and (/app/@nav/login)
+            </Link>
             <Link href="/reset">Reset (/app/@auth/reset)</Link>
             <Link href="/reset/withEmail">
               Reset with Email (/app/@auth/reset/withEmail)
@@ -41,15 +41,21 @@ export default function RootLayout({
             </Link>
           </nav>
           <div>
-            loginSegment (parallel route):{' '}
-            <div id="loginSegment">{loginSegmentOutput}</div>
+            navSegment (parallel route):{' '}
+            <div id="navSegment">{navSegmentOutput}</div>
+          </div>
+          <div>
+            authSegment (parallel route):{' '}
+            <div id="authSegment">{authSegmentOutput}</div>
           </div>
           <div>
             routeSegment (app route):{' '}
             <div id="routeSegment">{routeSegmentOutput}</div>
           </div>
-          <section>{children}</section>
-          <section>{auth}</section>
+
+          <section id="navSlot">{nav}</section>
+          <section id="authSlot">{auth}</section>
+          <section id="children">{children}</section>
         </section>
       </body>
     </html>
