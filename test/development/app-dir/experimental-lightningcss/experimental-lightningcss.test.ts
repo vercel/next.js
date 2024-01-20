@@ -26,7 +26,7 @@ describeVariants.each(['default'])(
         files: __dirname,
         dependencies: { lightningcss: '^1' },
         packageJson: {
-          browserslist: ['chrome 12'],
+          browserslist: ['chrome 100'],
         },
       })
 
@@ -42,7 +42,7 @@ describeVariants.each(['default'])(
         const $ = await next.render$('/')
 
         expect($('.nested').text()).toBe('Red due to nesting')
-        expect($('.nested').style('color')).toBe('red')
+        expect($('.nested').css('color')).toBe('red')
       })
     })
   }
