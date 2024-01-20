@@ -98,7 +98,7 @@ export class LightningCssMinifyPlugin {
         const sourceAsString = source.toString()
         const code = typeof source === 'string' ? Buffer.from(source) : source
         const targets = getTargets({
-          default: userTargets,
+          targets: userTargets,
           key: ECacheKey.minify,
         })
 
