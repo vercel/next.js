@@ -28,12 +28,12 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay-pages-router/src/middleware/middleware').getServerError
-let decorateServerError: typeof import('../../../client/components/react-dev-overlay-pages-router/src/middleware/middleware').decorateServerError
+let getServerError: typeof import('../../dev/error-overlay/error-overlay-middleware').getServerError
+let decorateServerError: typeof import('../../dev/error-overlay/error-overlay-middleware').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
   const middleware =
-    require('../../../client/components/react-dev-overlay-pages-router/src/middleware/middleware') as typeof import('../../../client/components/react-dev-overlay-pages-router/src/middleware/middleware')
+    require('../../dev/error-overlay/error-overlay-middleware') as typeof import('../../dev/error-overlay/error-overlay-middleware')
   getServerError = middleware.getServerError
   decorateServerError = middleware.decorateServerError
 } else {

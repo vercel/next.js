@@ -1,11 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
-import type { OriginalStackFrameResponse } from './middleware'
+import type { OriginalStackFrameResponse } from './error-overlay-middleware'
 
 import fs, { constants as FS } from 'fs/promises'
 import url from 'url'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import { launchEditor } from './internal/launchEditor'
+import { launchEditor } from './internal/launch-editor'
 
 interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>

@@ -9,15 +9,15 @@ import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import type webpack from 'webpack'
-import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
-import { launchEditor } from './internal/launchEditor'
+import { getRawSourceMap } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/getRawSourceMap'
+import { launchEditor } from './internal/launch-editor'
 
-export { getErrorSource } from '../internal/helpers/nodeStackFrames'
+export { getErrorSource } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/nodeStackFrames'
 export {
   decorateServerError,
   getServerError,
-} from '../internal/helpers/nodeStackFrames'
-export { parseStack } from '../internal/helpers/parseStack'
+} from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/nodeStackFrames'
+export { parseStack } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
@@ -108,7 +108,7 @@ async function findOriginalSourcePositionAndContent(
     }
   } finally {
     // @ts-ignore exists on newer versions of source-map
-    consumer.destroy?.()
+    consumer.destroy()
   }
 }
 
