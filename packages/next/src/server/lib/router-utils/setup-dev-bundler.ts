@@ -1560,10 +1560,8 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
-                    if (process.env.NEXT_HMR_TIMING) {
-                      // Report the next compilation again
-                      readyIds.delete(page)
-                    }
+                    // Report the next compilation again
+                    readyIds.delete(page)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
@@ -1643,10 +1641,8 @@ async function startWatcher(opts: SetupOpts) {
                     // There will be another update without errors eventually
                     return
                   }
-                  if (process.env.NEXT_HMR_TIMING) {
-                    // Report the next compilation again
-                    readyIds.delete(page)
-                  }
+                  // Report the next compilation again
+                  readyIds.delete(page)
                   return {
                     action:
                       HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
@@ -1739,7 +1735,7 @@ async function startWatcher(opts: SetupOpts) {
               warnings: [],
             })
 
-            if (process.env.NEXT_HMR_TIMING && hmrEventHappened) {
+            if (hmrEventHappened) {
               const time = updateMessage.value.duration
               const timeMessage =
                 time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
