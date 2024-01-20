@@ -585,6 +585,15 @@ interface TurbopackStackFrame {
   methodName: string | null
 }
 
+export type UpdateMessage =
+  | {
+      updateType: 'start'
+    }
+  | {
+      updateType: 'end'
+      value: UpdateInfo
+    }
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -601,7 +610,9 @@ export interface Project {
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
-  updateInfoSubscribe(): AsyncIterableIterator<TurbopackResult<UpdateInfo>>
+  updateInfoSubscribe(
+    aggregationMs: number
+  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
 }
 
 export type Route =
@@ -984,11 +995,15 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
     }
 
-    updateInfoSubscribe() {
-      const subscription = subscribe<TurbopackResult<UpdateInfo>>(
+    updateInfoSubscribe(aggregationMs: number) {
+      const subscription = subscribe<TurbopackResult<UpdateMessage>>(
         true,
         async (callback) =>
-          binding.projectUpdateInfoSubscribe(this._nativeProject, callback)
+          binding.projectUpdateInfoSubscribe(
+            this._nativeProject,
+            aggregationMs,
+            callback
+          )
       )
       return subscription
     }
