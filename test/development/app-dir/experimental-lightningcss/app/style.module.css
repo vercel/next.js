@@ -1,7 +1,7 @@
 .blue {
   color: blue;
 
-  &.nested {
+  & > div {
     color: red;
   }
 }
