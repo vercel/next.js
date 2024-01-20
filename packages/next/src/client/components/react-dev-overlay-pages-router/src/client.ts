@@ -1,11 +1,11 @@
+import { parseComponentStack } from '../../react-dev-overlay/internal/helpers/parse-component-stack'
 import * as Bus from './internal/bus'
 import { parseStack } from './internal/helpers/parseStack'
-import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
 import {
   hydrationErrorComponentStack,
   hydrationErrorWarning,
   patchConsoleError,
-} from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
+} from '../../react-dev-overlay/internal/helpers/hydration-error-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()

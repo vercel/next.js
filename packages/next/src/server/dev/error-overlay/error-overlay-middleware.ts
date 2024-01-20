@@ -1,23 +1,23 @@
-import { codeFrameColumns } from '@babel/code-frame'
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
-import { SourceMapConsumer } from 'source-map'
-import type { StackFrame } from 'stacktrace-parser'
+import type { RawSourceMap } from 'next/dist/compiled/source-map08'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import type webpack from 'webpack'
-import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
-import { launchEditor } from './internal/helpers/launchEditor'
+import { getRawSourceMap } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/getRawSourceMap'
+import { launchEditor } from './internal/launch-editor'
 
-export { getErrorSource } from './internal/helpers/nodeStackFrames'
+export { getErrorSource } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/nodeStackFrames'
 export {
   decorateServerError,
   getServerError,
-} from './internal/helpers/nodeStackFrames'
-export { parseStack } from './internal/helpers/parseStack'
+} from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/nodeStackFrames'
+export { parseStack } from '../../../client/components/react-dev-overlay-pages-router/src/internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
@@ -87,12 +87,10 @@ async function findOriginalSourcePositionAndContent(
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
   try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+    const sourcePosition = consumer.originalPositionFor({
+      line: position.line,
+      column: position.column ?? 0,
+    })
 
     if (!sourcePosition.source) {
       return null
@@ -109,6 +107,7 @@ async function findOriginalSourcePositionAndContent(
       sourceContent,
     }
   } finally {
+    // @ts-ignore exists on newer versions of source-map
     consumer.destroy()
   }
 }

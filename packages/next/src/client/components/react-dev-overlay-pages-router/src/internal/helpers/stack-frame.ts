@@ -1,5 +1,5 @@
-import type { StackFrame } from 'stacktrace-parser'
-import type { OriginalStackFrameResponse } from '../../middleware'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { OriginalStackFrameResponse } from '../../../../../../server/dev/error-overlay/error-overlay-middleware'
 
 export type OriginalStackFrame =
   | {

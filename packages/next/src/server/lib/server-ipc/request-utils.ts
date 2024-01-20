@@ -25,7 +25,7 @@ export const deserializeErr = (serializedErr: any) => {
     process.env.NEXT_RUNTIME !== 'edge'
   ) {
     const { decorateServerError } =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware') as typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+      require('../../dev/error-overlay/error-overlay-middleware') as typeof import('../../dev/error-overlay/error-overlay-middleware')
     decorateServerError(err, serializedErr.source || 'server')
   }
   return err

@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-import { cyan, green, red } from '../../../../../lib/picocolors'
+import * as pc from '../../../../lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
@@ -214,7 +214,8 @@ function getArgumentsForLineNumber(
 function guessEditor(): string[] {
   // Explicit config always wins
   if (process.env.REACT_EDITOR) {
-    return shellQuote.parse(process.env.REACT_EDITOR) as any
+    // @ts-ignore
+    return shellQuote.parse(process.env.REACT_EDITOR)
   }
 
   // We can find out which editor is currently running by:
@@ -226,7 +227,7 @@ function guessEditor(): string[] {
       const processNames = Object.keys(COMMON_EDITORS_MACOS)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
-        if (output.indexOf(processName) !== -1) {
+        if (output.includes(processName)) {
           return [(COMMON_EDITORS_MACOS as any)[processName]]
         }
       }
@@ -242,7 +243,7 @@ function guessEditor(): string[] {
       for (let i = 0; i < runningProcesses.length; i++) {
         const processPath = runningProcesses[i].trim()
         const processName = path.basename(processPath)
-        if (COMMON_EDITORS_WIN.indexOf(processName) !== -1) {
+        if (COMMON_EDITORS_WIN.includes(processName)) {
           return [processPath]
         }
       }
@@ -256,7 +257,7 @@ function guessEditor(): string[] {
       const processNames = Object.keys(COMMON_EDITORS_LINUX)
       for (let i = 0; i < processNames.length; i++) {
         const processName = processNames[i]
-        if (output.indexOf(processName) !== -1) {
+        if (output.includes(processName)) {
           return [(COMMON_EDITORS_LINUX as any)[processName] as string]
         }
       }
@@ -278,20 +279,22 @@ function guessEditor(): string[] {
 function printInstructions(fileName: string, errorMessage: string | null) {
   console.log()
   console.log(
-    red('Could not open ' + path.basename(fileName) + ' in the editor.')
+    pc.red('Could not open ' + path.basename(fileName) + ' in the editor.')
   )
   if (errorMessage) {
     if (errorMessage[errorMessage.length - 1] !== '.') {
       errorMessage += '.'
     }
-    console.log(red('The editor process exited with an error: ' + errorMessage))
+    console.log(
+      pc.red('The editor process exited with an error: ' + errorMessage)
+    )
   }
   console.log()
   console.log(
     'To set up the editor integration, add something like ' +
-      cyan('REACT_EDITOR=atom') +
+      pc.cyan('REACT_EDITOR=atom') +
       ' to the ' +
-      green('.env.local') +
+      pc.green('.env.local') +
       ' file in your project folder ' +
       'and restart the development server.'
   )
@@ -351,7 +354,7 @@ function launchEditor(fileName: string, lineNumber: number, colNumber: number) {
   ) {
     console.log()
     console.log(
-      red('Could not open ' + path.basename(fileName) + ' in the editor.')
+      pc.red('Could not open ' + path.basename(fileName) + ' in the editor.')
     )
     console.log()
     console.log(
