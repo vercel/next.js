@@ -9,15 +9,15 @@ import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
 import type webpack from 'webpack'
-import { getRawSourceMap } from './internal/helpers/getRawSourceMap'
-import { launchEditor } from './internal/helpers/launchEditor'
+import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
+import { launchEditor } from './internal/launchEditor'
 
-export { getErrorSource } from './internal/helpers/nodeStackFrames'
+export { getErrorSource } from '../internal/helpers/nodeStackFrames'
 export {
   decorateServerError,
   getServerError,
-} from './internal/helpers/nodeStackFrames'
-export { parseStack } from './internal/helpers/parseStack'
+} from '../internal/helpers/nodeStackFrames'
+export { parseStack } from '../internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {
   rootDirectory: string
