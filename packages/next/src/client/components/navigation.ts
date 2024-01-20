@@ -245,7 +245,7 @@ export function useSelectedLayoutSegment(
 
   return parallelRouteKey === 'children'
     ? selectedLayoutSegments[0]
-    : selectedLayoutSegments[1] ?? null
+    : selectedLayoutSegments[selectedLayoutSegments.length - 1] ?? null
 }
 
 export { redirect, permanentRedirect, RedirectType } from './redirect'
