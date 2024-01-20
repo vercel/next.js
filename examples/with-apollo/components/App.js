@@ -4,8 +4,8 @@ export default function App({ children }) {
       {children}
       <style jsx global>{`
         * {
-          font-family: Menlo, Monaco, 'Lucida Console', 'Liberation Mono',
-            'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Courier New',
+          font-family: Menlo, Monaco, "Lucida Console", "Liberation Mono",
+            "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Courier New",
             monospace, serif;
         }
         body {
@@ -43,5 +43,5 @@ export default function App({ children }) {
         }
       `}</style>
     </main>
-  )
+  );
 }

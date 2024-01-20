@@ -5,7 +5,6 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
   Issue,
-  Project,
   StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
@@ -23,6 +22,7 @@ import type {
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
 import type {
+  CompilationError,
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
@@ -133,8 +133,9 @@ import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-u
 import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { extractModulesFromTurbopackMessage } from './extract-modules-from-turbopack-message'
+import { trace } from '../../../trace'
 
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 
 type SetupOpts = {
@@ -238,6 +239,13 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
+    const hotReloaderSpan = trace('hot-reloader', undefined, {
+      version: process.env.__NEXT_VERSION as string,
+    })
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    hotReloaderSpan.stop()
+
     const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
@@ -281,7 +289,6 @@ async function startWatcher(opts: SetupOpts) {
     )
     const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
     const turbopackUpdates: TurbopackUpdate[] = []
-    let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
 
@@ -470,9 +477,6 @@ async function startWatcher(opts: SetupOpts) {
           } as OutputState,
           true
         )
-        hotReloader.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-        })
       }
       buildingIds.add(id)
       return function finishBuilding() {
@@ -482,9 +486,6 @@ async function startWatcher(opts: SetupOpts) {
         readyIds.add(id)
         buildingIds.delete(id)
         if (buildingIds.size === 0) {
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING,
-          })
           consoleStore.setState(
             {
               loading: false,
@@ -495,82 +496,39 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
+    let hmrEventHappened = false
     let hmrHash = 0
-    const sendHmrDebounce = debounce(() => {
-      interface HmrError {
-        moduleName?: string
-        message: string
-        details?: string
-        moduleTrace?: Array<{ moduleName: string }>
-        stack?: string
-      }
-
-      const errors = new Map<string, HmrError>()
+    const sendEnqueuedMessages = () => {
       for (const [, issueMap] of issues) {
-        for (const [key, issue] of issueMap) {
-          if (errors.has(key)) continue
-
-          const message = formatIssue(issue)
-
-          errors.set(key, {
-            message,
-            details: issue.detail
-              ? renderStyledStringToErrorAnsi(issue.detail)
-              : undefined,
-          })
+        if (issueMap.size > 0) {
+          // During compilation errors we want to delay the HMR events until errors are fixed
+          return
         }
       }
-
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-        updatedModules: [
-          ...extractModulesFromTurbopackMessage(turbopackUpdates),
-        ],
-      })
-      hmrBuilding = false
-
-      if (errors.size === 0) {
-        for (const payload of hmrPayloads.values()) {
-          hotReloader.send(payload)
-        }
-        hmrPayloads.clear()
-        if (turbopackUpdates.length > 0) {
-          hotReloader.send({
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-            data: turbopackUpdates,
-          })
-          turbopackUpdates.length = 0
-        }
+      for (const payload of hmrPayloads.values()) {
+        hotReloader.send(payload)
       }
-    }, 2)
+      hmrPayloads.clear()
+      if (turbopackUpdates.length > 0) {
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: turbopackUpdates,
+        })
+        turbopackUpdates.length = 0
+      }
+    }
+    const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
       hmrPayloads.set(`${key}:${id}`, payload)
       hmrEventHappened = true
-      sendHmrDebounce()
+      sendEnqueuedMessagesDebounce()
     }
 
     function sendTurbopackMessage(payload: TurbopackUpdate) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
       turbopackUpdates.push(payload)
       hmrEventHappened = true
-      sendHmrDebounce()
+      sendEnqueuedMessagesDebounce()
     }
 
     async function loadPartialManifest<T>(
@@ -708,7 +666,9 @@ async function startWatcher(opts: SetupOpts) {
       for await (const change of changed) {
         processIssues(page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', key, payload)
+        if (payload) {
+          sendHmr('endpoint-change', key, payload)
+        }
       }
     }
 
@@ -1282,21 +1242,6 @@ async function startWatcher(opts: SetupOpts) {
     await currentEntriesHandling
     await writeManifests()
 
-    let hmrEventHappened = false
-    if (process.env.NEXT_HMR_TIMING) {
-      ;(async (proj: Project) => {
-        for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappened) {
-            const time = updateInfo.duration
-            const timeMessage =
-              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
-            Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappened = false
-          }
-        }
-      })(project)
-    }
-
     const overlayMiddleware = getOverlayMiddleware(project)
     const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
@@ -1348,12 +1293,31 @@ async function startWatcher(opts: SetupOpts) {
               case 'ping':
                 // Ping doesn't need additional handling in Turbopack.
                 break
-              case 'span-end':
+              case 'span-end': {
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.spanName,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  parsedData.attributes
+                )
+                break
+              }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.event,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  {
+                    updatedModules: parsedData.updatedModules,
+                    page: parsedData.page,
+                    isPageHidden: parsedData.isPageHidden,
+                  }
+                )
+                break
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
               case 'server-component-reload-page': // { clientId }
-              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
               case 'client-reload-page': // { clientId }
               case 'client-removed-page': // { page }
               case 'client-full-reload': // { stackTrace, hadRuntimeError }
@@ -1388,7 +1352,7 @@ async function startWatcher(opts: SetupOpts) {
           })
 
           const turbopackConnected: TurbopackConnectedAction = {
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
 
@@ -1596,6 +1560,8 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
+                    // Report the next compilation again
+                    readyIds.delete(page)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
@@ -1675,6 +1641,8 @@ async function startWatcher(opts: SetupOpts) {
                     // There will be another update without errors eventually
                     return
                   }
+                  // Report the next compilation again
+                  readyIds.delete(page)
                   return {
                     action:
                       HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
@@ -1733,6 +1701,53 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
+
+    ;(async function () {
+      for await (const updateMessage of project.updateInfoSubscribe(30)) {
+        switch (updateMessage.updateType) {
+          case 'start': {
+            hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+            break
+          }
+          case 'end': {
+            sendEnqueuedMessages()
+
+            const errors = new Map<string, CompilationError>()
+            for (const [, issueMap] of issues) {
+              for (const [key, issue] of issueMap) {
+                if (errors.has(key)) continue
+
+                const message = formatIssue(issue)
+
+                errors.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
+            }
+
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              hash: String(++hmrHash),
+              errors: [...errors.values()],
+              warnings: [],
+            })
+
+            if (hmrEventHappened) {
+              const time = updateMessage.value.duration
+              const timeMessage =
+                time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+              Log.event(`Compiled in ${timeMessage}`)
+              hmrEventHappened = false
+            }
+            break
+          }
+          default:
+        }
+      }
+    })()
 
     return hotReloader
   }
@@ -2270,7 +2285,10 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
+        generateInterceptionRoutesRewrites(
+          Object.keys(appPaths),
+          opts.nextConfig.basePath
+        )?.map((item) =>
           buildCustomRoute(
             'before_files_rewrite',
             item,
@@ -2623,4 +2641,8 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
     default:
       throw new Error('Unknown StyledString type', string)
   }
+}
+
+function msToNs(ms: number): bigint {
+  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }

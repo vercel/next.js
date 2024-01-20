@@ -1,10 +1,10 @@
-import type { Metadata } from 'next'
+import type { Metadata } from "next";
 
-import Link from 'next/link'
+import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: 'Home | Next.js + TypeScript Example',
-}
+  title: "Home | Next.js + TypeScript Example",
+};
 
 export default function IndexPage(): JSX.Element {
   return (
@@ -28,5 +28,5 @@ export default function IndexPage(): JSX.Element {
         </Link>
       </li>
     </ul>
-  )
+  );
 }

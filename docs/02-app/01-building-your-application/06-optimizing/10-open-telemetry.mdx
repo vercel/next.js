@@ -276,6 +276,8 @@ Attributes:
 - `next.span_name`
 - `next.span_type`
 
+This span can be turned off by setting `NEXT_OTEL_FETCH_DISABLED=1` in your environment. This is useful when you want to use a custom fetch instrumentation library.
+
 ### `executing api route (app) [next.route]`
 
 - `next.span_type`: `AppRouteRouteHandlers.runHandler`.
@@ -335,3 +337,27 @@ Attributes:
 - `next.span_name`
 - `next.span_type`
 - `next.page`
+
+### `resolve page components`
+
+- `next.span_type`: `NextNodeServer.findPageComponents`.
+
+This span represents the process of resolving page components for a specific page.
+
+Attributes:
+
+- `next.span_name`
+- `next.span_type`
+- `next.route`
+
+### `resolve segment modules`
+
+- `next.span_type`: `NextNodeServer.getLayoutOrPageModule`.
+
+This span represents loading of code modules for a layout or a page.
+
+Attributes:
+
+- `next.span_name`
+- `next.span_type`
+- `next.segment`

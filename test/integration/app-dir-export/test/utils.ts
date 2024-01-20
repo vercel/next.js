@@ -99,7 +99,7 @@ export async function runTests({
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client' | 'set empty'
+  generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -124,11 +124,6 @@ export async function runTests({
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {
     slugPage.prepend('"use client"\n')
-  } else if (generateStaticParamsOpt === 'set empty') {
-    slugPage.replace(
-      "return [{ slug: 'first' }, { slug: 'second' }]",
-      'return []'
-    )
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
@@ -158,7 +153,7 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
       } else {
         await check(() => result.stderr, /error/i)

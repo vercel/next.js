@@ -434,7 +434,7 @@ describe('app dir - next/font', () => {
                 'fonts/index.js',
                 font1Content.replace('./font1.woff2', './does-not-exist.woff2')
               )
-              expect(await hasRedbox(browser, true)).toBeTrue()
+              expect(await hasRedbox(browser)).toBeTrue()
               expect(await getRedboxSource(browser)).toInclude(
                 "Can't resolve './does-not-exist.woff2'"
               )

@@ -5,10 +5,11 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
 export async function createIncrementalCache({
-  incrementalCacheHandlerPath,
-  isrMemoryCacheSize,
+  cacheHandler,
+  cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   distDir,
   dir,
@@ -16,8 +17,8 @@ export async function createIncrementalCache({
   experimental,
   flushToDisk,
 }: {
-  incrementalCacheHandlerPath?: string
-  isrMemoryCacheSize?: number
+  cacheHandler?: string
+  cacheMaxMemorySize?: number
   fetchCacheKeyPrefix?: string
   distDir: string
   dir: string
@@ -27,15 +28,11 @@ export async function createIncrementalCache({
 }) {
   // Custom cache handler overrides.
   let CacheHandler: any
-  if (incrementalCacheHandlerPath) {
+  if (cacheHandler) {
     CacheHandler = interopDefault(
-      (
-        await import(
-          path.isAbsolute(incrementalCacheHandlerPath)
-            ? incrementalCacheHandlerPath
-            : path.join(dir, incrementalCacheHandlerPath)
-        )
-      ).default
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
     )
   }
 
@@ -44,7 +41,7 @@ export async function createIncrementalCache({
     requestHeaders: {},
     flushToDisk,
     fetchCache: true,
-    maxMemoryCacheSize: isrMemoryCacheSize,
+    maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({
       version: 4,
