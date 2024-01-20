@@ -226,6 +226,7 @@ export async function LightningCssLoader(
       map,
       exports: moduleExports,
     } = transform({
+      ...opts,
       visitor: createVisitor(
         {
           urlHandler: (url) =>
@@ -257,7 +258,6 @@ export async function LightningCssLoader(
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
-      ...opts,
     })
     let cssCodeAsString = code.toString()
 
