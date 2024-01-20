@@ -180,7 +180,6 @@ export function useParams<T extends Params = Params>(): T {
   }, [globalLayoutRouter?.tree, pathParams])
 }
 
-// TODO-APP: handle parallel routes
 /**
  * Get the canonical parameters from the current level to the leaf node.
  */
