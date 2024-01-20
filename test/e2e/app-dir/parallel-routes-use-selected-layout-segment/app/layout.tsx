@@ -1,9 +1,6 @@
 'use client'
 
-import {
-  useSelectedLayoutSegment,
-  useSelectedLayoutSegments,
-} from 'next/navigation'
+import { useSelectedLayoutSegment } from 'next/navigation'
 import Link from 'next/link'
 
 export default function RootLayout({
