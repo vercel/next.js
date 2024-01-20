@@ -1285,19 +1285,17 @@ async function startWatcher(opts: SetupOpts) {
     await writeManifests()
 
     let hmrEventHappened = false
-    if (process.env.NEXT_HMR_TIMING) {
-      ;(async (proj: Project) => {
-        for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappened) {
-            const time = updateInfo.duration
-            const timeMessage =
-              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
-            Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappened = false
-          }
+    ;(async (proj: Project) => {
+      for await (const updateInfo of proj.updateInfoSubscribe()) {
+        if (hmrEventHappened) {
+          const time = updateInfo.duration
+          const timeMessage =
+            time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+          Log.event(`Compiled in ${timeMessage}`)
+          hmrEventHappened = false
         }
-      })(project)
-    }
+      }
+    })(project)
 
     const overlayMiddleware = getOverlayMiddleware(project)
     const hotReloader: NextJsHotReloaderInterface = {
