@@ -14,6 +14,9 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
     expect($('p').attr('class')).toBe(
       'search-keyword style-module__hlQ3RG__blue'
     )
+
+    expect($('.nested').text()).toBe('Red due to nesting')
+    expect($('.nested').attr('class')).toBe('')
   })
 })
 
