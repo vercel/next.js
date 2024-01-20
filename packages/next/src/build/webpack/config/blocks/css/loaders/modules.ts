@@ -39,6 +39,7 @@ export function getCssModuleLoader(
           // Server-side (Node.js) rendering support:
           exportOnlyLocals: ctx.isServer,
         },
+        targets: ctx.supportedBrowsers,
       },
     })
   } else {

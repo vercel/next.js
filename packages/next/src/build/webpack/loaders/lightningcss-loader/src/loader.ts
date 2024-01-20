@@ -254,7 +254,7 @@ export async function LightningCssLoader(
       filename: this.resourcePath,
       code: encoder.encode(source),
       sourceMap: this.sourceMap,
-      targets: getTargets({ default: userTargets, key: ECacheKey.loader }),
+      targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
       ...opts,

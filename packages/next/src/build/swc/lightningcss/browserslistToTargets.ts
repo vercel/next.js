@@ -11,7 +11,13 @@ const BROWSER_MAPPING: { [key: string]: string | null } = {
   op_mini: null,
 }
 
-export function browserslistToTargets(browserslist: string) {
+/**
+ * Converts browserslist targets array into a targets object
+ *
+ * @param browserslist browserslist targets array
+ * @returns          targets object
+ */
+export function browserslistToTargets(browserslist: string[]) {
   let targets: { [key: string]: number } = {}
   for (let browser of browserslist) {
     let [name, v] = browser.split(' ')
