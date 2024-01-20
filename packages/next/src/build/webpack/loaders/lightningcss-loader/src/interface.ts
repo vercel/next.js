@@ -34,7 +34,7 @@ type AllowTransformOpts = Omit<
 export interface IMinifyPluginOpts extends AllowTransformOpts {
   include?: string | RegExp | (string | RegExp)[]
   exclude?: string | RegExp | (string | RegExp)[]
-  targets?: string | string[]
+  targets?: string[]
   test?: RegExp
   implementation?: Implementation
 }
@@ -58,7 +58,7 @@ type AllowLoaderTransformOpts = Omit<
 >
 
 export interface ILightningCssLoaderConfig extends AllowLoaderTransformOpts {
-  targets?: string | string[]
+  targets: string[]
   implementation?: Implementation
 
   modules: ModulesOptions
