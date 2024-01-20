@@ -4477,9 +4477,9 @@ dependencies = [
 
 [[package]]
 name = "react_remove_properties"
-version = "0.21.0"
+version = "0.22.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8bcbde8369667c2c776c0f025f91944b3692a480496e0f4ef4b774674ae5e4ed"
+checksum = "4e95cedc4e243e8e9bcf33101a24ab2a7aa5d1b3c626bd54f3ce2af01774b29b"
 dependencies = [
  "serde",
  "swc_atoms",
@@ -4620,9 +4620,9 @@ checksum = "c707298afce11da2efef2f600116fa93ffa7a032b5d7b628aa17711ec81383ca"
 
 [[package]]
 name = "remove_console"
-version = "0.22.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39aa6fbc267aada3d272adae986196a9aa573eb360e9a3677c95b91329b85e24"
+checksum = "e24f7647beb43e19265a19d4afe7937d51440de1fbb8214428b177340bed7ab1"
 dependencies = [
  "serde",
  "swc_atoms",
