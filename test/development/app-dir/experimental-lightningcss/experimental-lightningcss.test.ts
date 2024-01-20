@@ -14,9 +14,6 @@ describeVariants.each(['turbo'])('experimental-lightningcss', () => {
     expect($('p').attr('class')).toBe(
       'search-keyword style-module__hlQ3RG__blue'
     )
-
-    expect($('.nested').text()).toBe('Red due to nesting')
-    expect($('.nested').attr('class')).toBe('')
   })
 })
 
@@ -28,6 +25,9 @@ describeVariants.each(['default'])(
       const { next } = nextTestSetup({
         files: __dirname,
         dependencies: { lightningcss: '^1' },
+        packageJson: {
+          browserslist: ['chrome 12'],
+        },
       })
 
       it('should support css modules', async () => {
@@ -36,6 +36,13 @@ describeVariants.each(['default'])(
         expect($('p').text()).toBe('hello world')
         // We remove hash frmo the class name in test mode using env var because it is not deterministic.
         expect($('p').attr('class')).toBe('search-keyword style-module__blue')
+      })
+
+      it('should support browserslist', async () => {
+        const $ = await next.render$('/')
+
+        expect($('.nested').text()).toBe('Red due to nesting')
+        expect($('.nested').style('color')).toBe('red')
       })
     })
   }
