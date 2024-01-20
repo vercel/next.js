@@ -39,10 +39,14 @@ describeVariants.each(['default'])(
       })
 
       it('should support browserslist', async () => {
-        const $ = await next.render$('/')
+        const $ = await next.browser('/')
 
-        expect($('.nested').text()).toBe('Red due to nesting')
-        expect($('.nested').css('color')).toBe('red')
+        expect(await $.elementByCss('.nested').text()).toBe(
+          'Red due to nesting'
+        )
+        expect(await $.elementByCss('.nested').getComputedCss('color')).toBe(
+          'rgb(255, 0, 0)'
+        )
       })
     })
   }
