@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'parallel-routes-catchall-dynamic-segment',
+  'parallel-routes-catchall-slotted-non-catchalls',
   {
     files: __dirname,
   },
