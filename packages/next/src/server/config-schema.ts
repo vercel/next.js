@@ -114,7 +114,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(),
+    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),

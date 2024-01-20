@@ -23,7 +23,7 @@ import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
 import * as ciEnvironment from '../telemetry/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import { defaultOverrides } from '../server/require-hook'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
@@ -273,22 +273,27 @@ export async function collectBuildTraces({
       const additionalIgnores = new Set<string>()
 
       for (const glob of excludeGlobKeys) {
-        if (isMatch('next-server', glob)) {
+        if (picomatch(glob)('next-server')) {
           outputFileTracingExcludes[glob].forEach((exclude) => {
             additionalIgnores.add(exclude)
           })
         }
       }
 
-      const makeIgnoreFn = (ignores: string[]) => (pathname: string) => {
-        if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
-          return true
-        }
-
-        return isMatch(pathname, ignores, {
+      const makeIgnoreFn = (ignores: string[]) => {
+        // pre compile the ignore globs
+        const isMatch = picomatch(ignores, {
           contains: true,
           dot: true,
         })
+
+        return (pathname: string) => {
+          if (path.isAbsolute(pathname) && !pathname.startsWith(root)) {
+            return true
+          }
+
+          return isMatch(pathname)
+        }
       }
 
       const sharedIgnores = [
@@ -698,7 +703,8 @@ export async function collectBuildTraces({
         const combinedIncludes = new Set<string>()
         const combinedExcludes = new Set<string>()
         for (const curGlob of includeGlobKeys) {
-          if (isMatch(route, [curGlob], { dot: true, contains: true })) {
+          const isMatch = picomatch(curGlob, { dot: true, contains: true })
+          if (isMatch(route)) {
             for (const include of outputFileTracingIncludes[curGlob]) {
               combinedIncludes.add(include.replace(/\\/g, '/'))
             }
@@ -706,7 +712,8 @@ export async function collectBuildTraces({
         }
 
         for (const curGlob of excludeGlobKeys) {
-          if (isMatch(route, [curGlob], { dot: true, contains: true })) {
+          const isMatch = picomatch(curGlob, { dot: true, contains: true })
+          if (isMatch(route)) {
             for (const exclude of outputFileTracingExcludes[curGlob]) {
               combinedExcludes.add(exclude)
             }
@@ -749,13 +756,15 @@ export async function collectBuildTraces({
           const resolvedGlobs = [...combinedExcludes].map((exclude) =>
             path.join(dir, exclude)
           )
+
+          // pre compile before forEach
+          const isMatch = picomatch(resolvedGlobs, {
+            dot: true,
+            contains: true,
+          })
+
           combined.forEach((file) => {
-            if (
-              isMatch(path.join(pageDir, file), resolvedGlobs, {
-                dot: true,
-                contains: true,
-              })
-            ) {
+            if (isMatch(path.join(pageDir, file))) {
               combined.delete(file)
             }
           })

@@ -1983,12 +1983,12 @@ export async function ncc_webpack_sources3(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['micromatch'] = 'next/dist/compiled/micromatch'
+externals['picomatch'] = 'next/dist/compiled/picomatch'
 export async function ncc_minimatch(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('micromatch')))
-    .ncc({ packageName: 'micromatch', externals })
-    .target('src/compiled/micromatch')
+    .source(relative(__dirname, require.resolve('picomatch')))
+    .ncc({ packageName: 'picomatch', externals })
+    .target('src/compiled/picomatch')
 }
 
 // eslint-disable-next-line camelcase
