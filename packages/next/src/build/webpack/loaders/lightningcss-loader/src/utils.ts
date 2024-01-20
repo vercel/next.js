@@ -1,5 +1,5 @@
-import { browserslistToTargets } from '../../../../swc/lightningcss/browserslistToTargets'
-import type { Targets } from '../../../../swc/lightningcss/targets'
+import { browserslistToTargets } from 'lightningcss'
+import type { Targets } from 'lightningcss'
 import type { ECacheKey } from './interface'
 
 let targetsCache: Record<string, Targets> = {}
@@ -9,5 +9,6 @@ export const getTargets = (opts: { targets?: string[]; key: ECacheKey }) => {
     return cache
   }
 
-  return (targetsCache[opts.key] = browserslistToTargets(opts.targets ?? []))
+  const result = browserslistToTargets(opts.targets ?? [])
+  return (targetsCache[opts.key] = result)
 }
