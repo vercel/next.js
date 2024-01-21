@@ -1578,6 +1578,8 @@
       "basic HMR, basePath: \"\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
+      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1594,6 +1596,8 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1607,8 +1611,6 @@
     "failed": [
       "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
@@ -1616,8 +1618,6 @@
       "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
@@ -1872,25 +1872,6 @@
   "test/development/experimental-https-server/https-server.generated-key.test.ts": {
     "passed": [
       "experimental-https-server (generated certificate) only runs on CI as it requires administrator privileges"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/experimental-https-server/https-server.provided-key.test.ts": {
-    "passed": [
-      "experimental-https-server (provided certificate) should successfully load the app in app dir",
-      "experimental-https-server (provided certificate) should successfully load the app in pages dir"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/development/gssp-notfound/index.test.ts": {
-    "passed": [
-      "getServerSideProps returns notFound: true should not poll indefinitely"
     ],
     "failed": [],
     "pending": [],
