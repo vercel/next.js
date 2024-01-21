@@ -178,6 +178,15 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * @deprecated use config.cacheHandler instead
+   */
+  incrementalCacheHandlerPath?: string
+  /**
+   * @deprecated use config.cacheMaxMemorySize instead
+   *
+   */
+  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -378,7 +387,8 @@ export interface ExperimentalConfig {
    *
    * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
    *
-   * @default false
+   * @note This flag will be removed in Next.js 15.
+   * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
 }
@@ -542,7 +552,8 @@ export interface NextConfig extends Record<string, any> {
    * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
+   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
+   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
    */
   analyticsId?: string
 
@@ -766,7 +777,7 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -857,7 +868,7 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: false,
+    missingSuspenseWithCSRBailout: true,
   },
 }
 
