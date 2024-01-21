@@ -35,29 +35,20 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
       [e.currentTarget.name]: e.currentTarget.value,
     });
 
-  const handleSubmit: React.FormEventHandler<HTMLFormElement> = async (
-    e,
-  ): Promise<void> => {
-    e.preventDefault();
+  const formAction = async (data: FormData): Promise<void> => {
+    const uiMode = data.get(
+      "uiMode",
+    ) as Stripe.Checkout.SessionCreateParams.UiMode;
+    const { client_secret, url } = await createCheckoutSession(data);
 
-    if (props.uiMode === "hosted") {
-      const { url } = await createCheckoutSession(
-        new FormData(e.target as HTMLFormElement),
-      );
+    if (uiMode === "embedded") return setClientSecret(client_secret);
 
-      window.location.assign(url as string);
-    }
-
-    const { client_secret } = await createCheckoutSession(
-      new FormData(e.target as HTMLFormElement),
-    );
-
-    setClientSecret(client_secret);
+    window.location.assign(url as string);
   };
 
   return (
     <React.Fragment>
-      <form onSubmit={handleSubmit}>
+      <form action={formAction}>
         <input type="hidden" name="uiMode" value={props.uiMode} />
         <CustomDonationInput
           className="checkout-style"
