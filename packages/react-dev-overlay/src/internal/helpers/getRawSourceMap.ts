@@ -22,7 +22,6 @@ export function getRawSourceMap(fileContents: string): unknown | null {
   }
 
   try {
-    console.log('TEST')
     return JSON.parse(buffer.toString())
   } catch {
     console.error('Failed to parse source map.')

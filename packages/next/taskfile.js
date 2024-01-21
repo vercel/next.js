@@ -1920,6 +1920,7 @@ export async function ncc_source_map(task, opts) {
 // NB: Used by other dependencies, but Vercel version is a duplicate
 // version so can be inlined anyway (although may change in future)
 externals['source-map08'] = 'next/dist/compiled/source-map08'
+externals['next/dist/compiled/source-map08'] = 'next/dist/compiled/source-map08'
 export async function ncc_source_map08(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('source-map08')))
@@ -1927,6 +1928,7 @@ export async function ncc_source_map08(task, opts) {
       packageName: 'source-map08',
       packageJsonName: 'source-map08',
       externals,
+      minify: false,
     })
     .target('src/compiled/source-map08')
 }
