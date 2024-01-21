@@ -1733,12 +1733,6 @@ export async function isPageStatic({
         ? {}
         : componentsResult.pageConfig
 
-      if (config.unstable_includeFiles || config.unstable_excludeFiles) {
-        Log.warn(
-          `unstable_includeFiles/unstable_excludeFiles has been removed in favor of the option in next.config.js.\nSee more info here: https://nextjs.org/docs/advanced-features/output-file-tracing#caveats`
-        )
-      }
-
       let isStatic = false
       if (!hasStaticProps && !hasGetInitialProps && !hasServerProps) {
         isStatic = true
