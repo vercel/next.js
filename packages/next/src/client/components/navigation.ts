@@ -251,4 +251,4 @@ export {
   permanentRedirect,
   RedirectType,
 } from './redirect'
-export { notFound } from './not-found'
+export { notFound, isNotFoundError } from './not-found'
