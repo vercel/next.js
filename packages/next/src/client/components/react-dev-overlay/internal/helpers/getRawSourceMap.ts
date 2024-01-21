@@ -1,9 +1,8 @@
 import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
 import type { MimeBuffer } from 'next/dist/compiled/data-uri-to-buffer'
-import type { RawSourceMap } from 'source-map'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
-export function getRawSourceMap(fileContents: string): RawSourceMap | null {
+export function getRawSourceMap(fileContents: string): unknown | null {
   const sourceUrl = getSourceMapUrl(fileContents)
   if (!sourceUrl?.startsWith('data:')) {
     return null
@@ -26,6 +25,8 @@ export function getRawSourceMap(fileContents: string): RawSourceMap | null {
   try {
     return JSON.parse(buffer.toString())
   } catch {
+    console.log('TEST2')
+
     console.error('Failed to parse source map.')
     return null
   }
