@@ -108,18 +108,29 @@ function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
   })()
 }
 
+async function* filterMapAsyncIterator<T, U>(
+  iterator: AsyncIterableIterator<T>,
+  transform: (t: T) => U | undefined
+): AsyncGenerator<Awaited<U>> {
+  for await (const val of iterator) {
+    const mapped = transform(val)
+    if (mapped !== undefined) {
+      yield mapped
+    }
+  }
+}
+
 /**
  * Drains the stream until no value is available for 100ms, then returns the next value.
  */
-async function drainAndGetNext<T>(
-  stream: AsyncIterableIterator<TurbopackResult<T>>
-) {
-  const next = stream.next()
+async function drainAndGetNext<T>(stream: AsyncIterableIterator<T>) {
   while (true) {
+    const next = stream.next()
     const result = await Promise.race([
       new Promise((r) => setTimeout(() => r({ next }), 100)),
       next.then(() => undefined),
     ])
+
     if (result) return result
   }
 }
@@ -175,9 +186,7 @@ describe('next.rs api', () => {
   afterAll(() => next.destroy())
 
   let project: Project
-  let projectUpdateSubscription: AsyncIterableIterator<
-    TurbopackResult<UpdateInfo>
-  >
+  let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
     console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
@@ -212,7 +221,10 @@ describe('next.rs api', () => {
         previewModeId: undefined,
       }),
     })
-    projectUpdateSubscription = project.updateInfoSubscribe()
+    projectUpdateSubscription = filterMapAsyncIterator(
+      project.updateInfoSubscribe(1000),
+      (update) => (update.updateType === 'end' ? update.value : undefined)
+    )
   })
 
   it('should detect the correct routes', async () => {
