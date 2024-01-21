@@ -3,7 +3,7 @@ import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 // @ts-ignore Package exists
-import { SourceMapConsumer } from 'source-map'
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
