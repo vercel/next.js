@@ -53,7 +53,6 @@ import getRouteFromEntrypoint from '../get-route-from-entrypoint'
 import {
   difference,
   isInstrumentationHookFile,
-  isInstrumentationHookFilename,
   isMiddlewareFile,
   isMiddlewareFilename,
 } from '../../build/utils'
