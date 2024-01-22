@@ -21,6 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+// @ts-ignore Package Exists
 import pc from 'next/dist/lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
