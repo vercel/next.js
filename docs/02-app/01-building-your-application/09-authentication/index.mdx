@@ -467,10 +467,17 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const session = await getSession(req)
-  const userRole = session?.user?.role
 
-  // Check if user is authorized to perform the action
-  if (userRole !== 'admin') {
+  // Check if the user is authenticated
+  if (!session) {
+    res.status(401).json({
+      error: 'User is not authenticated',
+    })
+    return
+  }
+
+  // Check if the user has the 'admin' role
+  if (session.user.role !== 'admin') {
     res.status(401).json({
       error: 'Unauthorized access: User does not have admin privileges.',
     })
@@ -485,10 +492,17 @@ export default async function handler(
 ```js filename="pages/api/route.js" switcher
 export default async function handler(req, res) {
   const session = await getSession(req)
-  const userRole = session?.user?.role
 
-  // Check if user is authorized to perform the action
-  if (userRole !== 'admin') {
+  // Check if the user is authenticated
+  if (!session) {
+    res.status(401).json({
+      error: 'User is not authenticated',
+    })
+    return
+  }
+
+  // Check if the user has the 'admin' role
+  if (session.user.role !== 'admin') {
     res.status(401).json({
       error: 'Unauthorized access: User does not have admin privileges.',
     })
