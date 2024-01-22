@@ -551,7 +551,42 @@ Setting a cookie in a Next.js project might look something like this:
 
 <PagesOnly>
 
-TODO
+```ts filename="pages/api/login.ts" switcher
+import { serialize } from 'cookie'
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+export default function handler(req: NextApiRequest, res: NextApiResponse) {
+  const sessionData = req.body
+  const encryptedSessionData = encrypt(sessionData)
+
+  const cookie = serialize('session', encryptedSessionData, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7, // One week
+    path: '/',
+  })
+  res.setHeader('Set-Cookie', cookie)
+  res.status(200).json({ message: 'Successfully set cookie!' })
+}
+```
+
+```js filename="pages/api/login.js" switcher
+import { serialize } from 'cookie'
+
+export default function handler(req, res) {
+  const sessionData = req.body
+  const encryptedSessionData = encrypt(sessionData)
+
+  const cookie = serialize('session', encryptedSessionData, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 60 * 60 * 24 * 7, // One week
+    path: '/',
+  })
+  res.setHeader('Set-Cookie', cookie)
+  res.status(200).json({ message: 'Successfully set cookie!' })
+}
+```
 
 </PagesOnly>
 
@@ -625,7 +660,57 @@ Here's a simplified example of implementing database sessions in a Next.js appli
 
 <PagesOnly>
 
-TODO
+```ts filename="pages/api/create-session.ts" switcher
+import db from '../../lib/db'
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  if (req.method === 'POST') {
+    try {
+      const user = req.body
+      const sessionId = generateSessionId()
+      await db.insertSession({
+        sessionId,
+        userId: user.id,
+        createdAt: new Date(),
+      })
+
+      res.status(200).json({ sessionId })
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  } else {
+    res.status(405).end(`Method ${req.method} Not Allowed`)
+  }
+}
+```
+
+```js filename="pages/api/create-session.js" switcher
+import db from '../../lib/db'
+
+export default async function handler(req, res) {
+  if (req.method === 'POST') {
+    try {
+      const user = req.body
+      const sessionId = generateSessionId()
+      await db.insertSession({
+        sessionId,
+        userId: user.id,
+        createdAt: new Date(),
+      })
+
+      res.status(200).json({ sessionId })
+    } catch (error) {
+      res.status(500).json({ error: 'Internal Server Error' })
+    }
+  } else {
+    res.status(405).end(`Method ${req.method} Not Allowed`)
+  }
+}
+```
 
 </PagesOnly>
 
