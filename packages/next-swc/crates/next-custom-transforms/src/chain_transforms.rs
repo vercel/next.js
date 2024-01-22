@@ -4,6 +4,7 @@ use anyhow::bail;
 use either::Either;
 use fxhash::FxHashSet;
 use lightningcss::targets::Browsers;
+use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
 use swc_core::ecma::visit::as_folder;
 use turbopack_binding::swc::{
@@ -157,18 +158,7 @@ where
         .config
         .env
         .as_ref()
-        .and_then(|env| {
-            env.targets.as_ref().map(|v| match v {
-                turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => *v,
-                _ => {
-                    unreachable!(
-                        "env.targets should be `Versions`. next-swc should pass Versions after \
-                         invoking browserslist from js\nGot: {:?}",
-                        v
-                    )
-                }
-            })
-        })
+        .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
     let styled_jsx = if let Some(config) = opts.styled_jsx {
