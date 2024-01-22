@@ -2,8 +2,12 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use fxhash::FxHashSet;
+use lightningcss::targets::Browsers;
 use serde::Deserialize;
-use swc_core::ecma::visit::as_folder;
+use swc_core::ecma::{
+    preset_env::{Version, Versions},
+    visit::as_folder,
+};
 use turbopack_binding::swc::{
     core::{
         common::{
@@ -146,6 +150,34 @@ where
         },
     };
 
+    let target_browsers = opts.swc.config.env.as_ref().and_then(|env| {
+        env.targets.and_then(|v| match v {
+            turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => v,
+            _ => {
+                unreachable!(
+                    "env.targets should be `Versions`. next-swc should pass Versions after \
+                     invoking browserslist from js"
+                )
+            }
+        })
+    });
+
+    let styled_jsx = if let Some(config) = opts.styled_jsx {
+        Either::Left(
+            turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                file.name.clone(),
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config {
+                    browsers: config.browsers.unwrap_or(target_browsers),
+                    ..config
+                },
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {},
+            ),
+        )
+    } else {
+        Either::Right(noop())
+    };
+
     chain!(
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
@@ -158,17 +190,7 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        if let Some(config) = opts.styled_jsx {
-            Either::Left(
-                turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
-                    cm.clone(),
-                    file.name.clone(),
-                    config,
-                ),
-            )
-        } else {
-            Either::Right(noop())
-        },
+        styled_jsx,
         match &opts.styled_components {
             Some(config) => Either::Left(
                 turbopack_binding::swc::custom_transform::styled_components::styled_components(
@@ -306,5 +328,23 @@ impl TransformOptions {
         }
 
         self
+    }
+}
+
+fn convert_browsers_to_lightningcss(browsers: &Versions) -> Browsers {
+    fn convert(v: Option<Version>) -> Option<u32> {
+        v.map(|v| v.major << 16 | v.minor << 8 | v.patch)
+    }
+
+    Browsers {
+        android: convert(browsers.android),
+        chrome: convert(browsers.chrome),
+        edge: convert(browsers.edge),
+        firefox: convert(browsers.firefox),
+        ie: convert(browsers.ie),
+        ios_saf: convert(browsers.ios),
+        opera: convert(browsers.opera),
+        safari: convert(browsers.safari),
+        samsung: convert(browsers.samsung),
     }
 }
