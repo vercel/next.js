@@ -38,6 +38,8 @@ enum NextServerSpan {
 enum NextNodeServerSpan {
   compression = 'NextNodeServer.compression',
   getBuildId = 'NextNodeServer.getBuildId',
+  createComponentTree = 'NextNodeServer.createComponentTree',
+  getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
   generateFsStaticRoutes = 'NextNodeServer.generateFsStaticRoutes',
   generatePublicRoutes = 'NextNodeServer.generatePublicRoutes',
@@ -127,6 +129,9 @@ export const NextVanillaSpanAllowlist = [
   AppRouteRouteHandlersSpan.runHandler,
   ResolveMetadataSpan.generateMetadata,
   ResolveMetadataSpan.generateViewport,
+  NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.findPageComponents,
+  NextNodeServerSpan.getLayoutOrPageModule,
 ]
 
 export {

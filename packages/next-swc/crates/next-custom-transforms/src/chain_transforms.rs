@@ -3,6 +3,7 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 use either::Either;
 use fxhash::FxHashSet;
 use serde::Deserialize;
+use swc_core::ecma::visit::as_folder;
 use turbopack_binding::swc::{
     core::{
         common::{
@@ -275,11 +276,11 @@ where
         },
         match &opts.cjs_require_optimizer {
             Some(config) => {
-                Either::Left(crate::transforms::cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark))))
             },
             None => Either::Right(noop()),
         },
-        crate::transforms::pure::pure_magic(comments),
+        as_folder(crate::transforms::pure::pure_magic(comments)),
     )
 }
 

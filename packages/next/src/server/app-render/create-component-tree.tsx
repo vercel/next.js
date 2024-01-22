@@ -11,6 +11,8 @@ import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import { getTracer } from '../lib/trace/tracer'
+import { NextNodeServerSpan } from '../lib/trace/constants'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -36,7 +38,30 @@ export const Postpone = ({
 /**
  * Use the provided loader tree to create the React Component tree.
  */
-export async function createComponentTree({
+export function createComponentTree(props: {
+  createSegmentPath: CreateSegmentPath
+  loaderTree: LoaderTree
+  parentParams: Params
+  rootLayoutIncluded: boolean
+  firstItem?: boolean
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  asNotFound?: boolean
+  metadataOutlet?: React.ReactNode
+  ctx: AppRenderContext
+  missingSlots?: Set<string>
+}): Promise<ComponentTree> {
+  return getTracer().trace(
+    NextNodeServerSpan.createComponentTree,
+    {
+      spanName: 'build component tree',
+    },
+    () => createComponentTreeInternal(props)
+  )
+}
+
+async function createComponentTreeInternal({
   createSegmentPath,
   loaderTree: tree,
   parentParams,
@@ -131,7 +156,17 @@ export async function createComponentTree({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
+  const [layoutOrPageMod] = await getTracer().trace(
+    NextNodeServerSpan.getLayoutOrPageModule,
+    {
+      hideSpan: !(isLayout || isPage),
+      spanName: 'resolve segment modules',
+      attributes: {
+        'next.segment': segment,
+      },
+    },
+    () => getLayoutOrPageModule(tree)
+  )
 
   /**
    * Checks if the current segment is a root layout.
@@ -401,7 +436,7 @@ export async function createComponentTree({
           }
 
           const { seedData, styles: childComponentStyles } =
-            await createComponentTree({
+            await createComponentTreeInternal({
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },

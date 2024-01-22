@@ -328,7 +328,7 @@ export function makeExternalHandler({
 
     // ESM externals can only be imported (and not required).
     // Make an exception in loose mode.
-    if (!isEsmRequested && isEsm && !looseEsmExternals) {
+    if (!isEsmRequested && isEsm && !looseEsmExternals && !isLocal) {
       throw new Error(
         `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
