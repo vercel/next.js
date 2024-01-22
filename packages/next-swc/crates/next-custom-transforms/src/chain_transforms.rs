@@ -185,16 +185,12 @@ where
                                 Default::default(),
                             );
 
-                            let mut ss = match ss {
+                            let ss = match ss {
                                 Ok(v) => v,
                                 Err(err) => {
                                     bail!("failed to parse css: {}", err)
                                 }
                             };
-                            ss.minify(lightningcss::stylesheet::MinifyOptions {
-                                targets,
-                                ..Default::default()
-                            })?;
 
                             let output = ss.to_css(lightningcss::stylesheet::PrinterOptions {
                                 minify: true,
