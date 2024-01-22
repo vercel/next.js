@@ -193,7 +193,7 @@ where
                             };
 
                             let output = ss.to_css(lightningcss::stylesheet::PrinterOptions {
-                                minify: false,
+                                minify: true,
                                 source_map: None,
                                 project_root: None,
                                 targets,
