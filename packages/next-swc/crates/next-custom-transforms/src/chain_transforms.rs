@@ -1,13 +1,11 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
+use anyhow::bail;
 use either::Either;
 use fxhash::FxHashSet;
 use lightningcss::targets::Browsers;
 use serde::Deserialize;
-use swc_core::ecma::{
-    preset_env::{Version, Versions},
-    visit::as_folder,
-};
+use swc_core::ecma::visit::as_folder;
 use turbopack_binding::swc::{
     core::{
         common::{
@@ -17,7 +15,11 @@ use turbopack_binding::swc::{
             FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
-            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
+            ast::EsVersion,
+            parser::parse_file_as_module,
+            preset_env::{Version, Versions},
+            transforms::base::pass::noop,
+            visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -150,17 +152,24 @@ where
         },
     };
 
-    let target_browsers = opts.swc.config.env.as_ref().and_then(|env| {
-        env.targets.and_then(|v| match v {
-            turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => v,
-            _ => {
-                unreachable!(
-                    "env.targets should be `Versions`. next-swc should pass Versions after \
-                     invoking browserslist from js"
-                )
-            }
+    let target_browsers = opts
+        .swc
+        .config
+        .env
+        .as_ref()
+        .map(|env| {
+            env.targets.and_then(|v| match v {
+                turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => v,
+                _ => {
+                    unreachable!(
+                        "env.targets should be `Versions`. next-swc should pass Versions after \
+                         invoking browserslist from js"
+                    )
+                }
+            })
         })
-    });
+        .flatten()
+        .unwrap_or_default();
 
     let styled_jsx = if let Some(config) = opts.styled_jsx {
         Either::Left(
@@ -168,10 +177,47 @@ where
                 cm.clone(),
                 file.name.clone(),
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config {
-                    browsers: config.browsers.unwrap_or(target_browsers),
-                    ..config
+                    use_lightningcss: config.use_lightningcss,
+                    browsers: target_browsers,
                 },
-                turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {},
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
+                    process_css: if config.use_lightningcss {
+                        None
+                    } else {
+                        let targets = lightningcss::targets::Targets {
+                            browsers: Some(convert_browsers_to_lightningcss(&target_browsers)),
+                            ..Default::default()
+                        };
+
+                        Some(Box::new(move |css| {
+                            let ss = lightningcss::stylesheet::StyleSheet::parse(
+                                css,
+                                Default::default(),
+                            );
+
+                            let mut ss = match ss {
+                                Ok(v) => v,
+                                Err(err) => {
+                                    bail!("failed to parse css: {}", err)
+                                }
+                            };
+                            ss.minify(lightningcss::stylesheet::MinifyOptions {
+                                targets,
+                                ..Default::default()
+                            })?;
+
+                            let output = ss.to_css(lightningcss::stylesheet::PrinterOptions {
+                                minify: true,
+                                source_map: None,
+                                project_root: None,
+                                targets,
+                                analyze_dependencies: None,
+                                pseudo_classes: None,
+                            })?;
+                            Ok(output.code)
+                        }))
+                    },
+                },
             ),
         )
     } else {
