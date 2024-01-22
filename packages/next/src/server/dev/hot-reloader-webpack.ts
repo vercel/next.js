@@ -1002,7 +1002,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     middlewareConfig: staticInfo.middleware ?? {},
                   })
                 } else {
-                  console.log('else:', relativeRequest)
                   value = relativeRequest
                 }
 
