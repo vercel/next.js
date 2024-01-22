@@ -10,6 +10,8 @@ Parallel Routes allows you to simultaneously or conditionally render one or more
 
 For example, considering a dashboard, you can use parallel routes to simultaneously render the `team` and `analytics` pages:
 
+{/* To do: Update main diagram to remove `props.team` and `props.analytics`, prefer destructuring */}
+
 <Image
   alt="Parallel Routes Diagram"
   srcLight="/docs/light/parallel-routes.png"
@@ -75,7 +77,7 @@ By default, Next.js keeps track of the active _state_ (or subpage) for each slot
 
 > **Good to know**:
 >
-> - The `404` for unmatched routes helps ensure that you don't accidentally render a route that shouldn't be parallel rendered.
+> - The `404` for unmatched routes helps ensure that you don't accidentally render a route that is not a parallel.
 
 ### `default.js`
 
@@ -206,9 +208,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
+## Breadcrumbs
+
 ### Modals
 
-Parallel Routing can be used to render modals.
+You can use Parallel Routes to create modals, for example:
 
 <Image
   alt="Parallel Routes Diagram"
@@ -221,10 +225,7 @@ Parallel Routing can be used to render modals.
 The `@auth` slot renders a `<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
 
 ```tsx filename="app/layout.tsx" switcher
-export default async function Layout(props: {
-  // ...
-  auth: React.ReactNode
-}) {
+export default async function Layout({ auth }: { auth: React.ReactNode }) {
   return (
     <>
       {/* ... */}
@@ -283,6 +284,29 @@ export default function Default() {
 export default function Default() {
   return null
 }
+Intercepting Routes can be used together with [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) to create modals.
+
+Using this pattern to create modals overcomes some common challenges when working with modals, by allowing you to:
+
+- Make the modal content **shareable through a URL**
+- **Preserve context** when the page is refreshed, instead of closing the modal
+- **Close the modal on backwards navigation** rather than going to the previous route
+- **Reopen the modal on forwards navigation**
+
+<Image
+  alt="Intercepting routes modal example"
+  srcLight="/docs/light/intercepted-routes-modal-example.png"
+  srcDark="/docs/dark/intercepted-routes-modal-example.png"
+  width="1600"
+  height="976"
+/>
+
+> In the above example, the path to the `photo` segment can use the `(..)` matcher since `@modal` is a _slot_ and not a _segment_. This means that the `photo` route is only one _segment_ level higher, despite being two _file-system_ levels higher.
+
+Other examples could include opening a login modal in a top navbar while also having a dedicated `/login` page, or opening a shopping cart in a side modal.
+
+[View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
+
 ```
 
 #### Dismissing a modal
