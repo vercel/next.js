@@ -789,22 +789,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method === 'POST') {
-    try {
-      const user = req.body
-      const sessionId = generateSessionId()
-      await db.insertSession({
-        sessionId,
-        userId: user.id,
-        createdAt: new Date(),
-      })
+  try {
+    const user = req.body
+    const sessionId = generateSessionId()
+    await db.insertSession({
+      sessionId,
+      userId: user.id,
+      createdAt: new Date(),
+    })
 
-      res.status(200).json({ sessionId })
-    } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' })
-    }
-  } else {
-    res.status(405).end(`Method ${req.method} Not Allowed`)
+    res.status(200).json({ sessionId })
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' })
   }
 }
 ```
@@ -813,22 +809,18 @@ export default async function handler(
 import db from '../../lib/db'
 
 export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    try {
-      const user = req.body
-      const sessionId = generateSessionId()
-      await db.insertSession({
-        sessionId,
-        userId: user.id,
-        createdAt: new Date(),
-      })
+  try {
+    const user = req.body
+    const sessionId = generateSessionId()
+    await db.insertSession({
+      sessionId,
+      userId: user.id,
+      createdAt: new Date(),
+    })
 
-      res.status(200).json({ sessionId })
-    } catch (error) {
-      res.status(500).json({ error: 'Internal Server Error' })
-    }
-  } else {
-    res.status(405).end(`Method ${req.method} Not Allowed`)
+    res.status(200).json({ sessionId })
+  } catch (error) {
+    res.status(500).json({ error: 'Internal Server Error' })
   }
 }
 ```
