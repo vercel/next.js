@@ -35,7 +35,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    aggregation_tree::{aggregation_info, ensure_thresholds},
+    aggregation_tree::{aggregation_info, ensure_thresholds, AggregationInfoGuard},
     cell::Cell,
     gc::{to_exp_u8, GcPriority, GcStats, GcTaskState},
     output::{Output, OutputContent},
@@ -417,7 +417,7 @@ enum TaskStateType {
 use TaskStateType::*;
 
 use self::{
-    aggregation::{RootInfoType, RootType, TaskAggregationTreeLeaf, TaskGuard},
+    aggregation::{Aggregated, RootInfoType, RootType, TaskAggregationTreeLeaf, TaskGuard},
     meta_state::{
         FullTaskWriteGuard, TaskMetaState, TaskMetaStateReadGuard, TaskMetaStateWriteGuard,
     },
@@ -490,7 +490,11 @@ impl Task {
     ) {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            aggregation_context.aggregation_info(id).lock().root_type = Some(RootType::Root);
+            Self::set_root_type(
+                &aggregation_context,
+                &mut aggregation_context.aggregation_info(id).lock(),
+                RootType::Root,
+            );
         }
         aggregation_context.apply_queued_updates();
     }
@@ -502,9 +506,30 @@ impl Task {
     ) {
         let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         {
-            aggregation_context.aggregation_info(id).lock().root_type = Some(RootType::Once);
+            let aggregation_info = &aggregation_context.aggregation_info(id);
+            Self::set_root_type(
+                &aggregation_context,
+                &mut aggregation_info.lock(),
+                RootType::Once,
+            );
         }
         aggregation_context.apply_queued_updates();
+    }
+
+    fn set_root_type(
+        aggregation_context: &TaskAggregationContext,
+        aggregation: &mut AggregationInfoGuard<Aggregated>,
+        root_type: RootType,
+    ) {
+        aggregation.root_type = Some(root_type);
+        let dirty_tasks = aggregation
+            .dirty_tasks
+            .iter()
+            .filter_map(|(&id, &count)| (count > 0).then_some(id));
+        let mut tasks_to_schedule = aggregation_context.dirty_tasks_to_schedule.lock();
+        tasks_to_schedule
+            .get_or_insert_default()
+            .extend(dirty_tasks);
     }
 
     pub(crate) fn unset_root(
@@ -601,7 +626,7 @@ impl Task {
                 });
             }
             TaskDependency::Collectibles(task, trait_type) => {
-                let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+                let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
                 let aggregation = aggregation_context.aggregation_info(task);
                 aggregation
                     .lock()
@@ -1518,14 +1543,26 @@ impl Task {
         let mut state = self.full_state_mut();
         if let Some(aggregation) = aggregation_when_strongly_consistent {
             {
-                let aggregation = aggregation.lock();
+                let mut aggregation = aggregation.lock();
                 if aggregation.unfinished > 0 {
+                    if aggregation.root_type.is_none() {
+                        Self::set_root_type(
+                            &aggregation_context,
+                            &mut aggregation,
+                            RootType::ReadingStronglyConsistent,
+                        );
+                    }
                     let listener = aggregation.unfinished_event.listen_with_note(note);
                     drop(aggregation);
                     drop(state);
                     aggregation_context.apply_queued_updates();
 
                     return Ok(Err(listener));
+                } else if matches!(
+                    aggregation.root_type,
+                    Some(RootType::ReadingStronglyConsistent)
+                ) {
+                    aggregation.root_type = None;
                 }
             }
         }
@@ -1576,7 +1613,7 @@ impl Task {
         backend: &MemoryBackend,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> AutoMap<RawVc, i32> {
-        let mut aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
+        let aggregation_context = TaskAggregationContext::new(turbo_tasks, backend);
         aggregation_context
             .aggregation_info(id)
             .lock()
