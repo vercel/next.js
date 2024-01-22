@@ -1,4 +1,5 @@
-import { codeFrameColumns } from '@babel/code-frame'
+// @ts-ignore Package exists
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'

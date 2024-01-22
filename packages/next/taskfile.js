@@ -249,6 +249,7 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
+externals['next/dist/compiled/anser'] = 'next/dist/compiled/anser'
 export async function ncc_node_anser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('anser')))
@@ -273,6 +274,7 @@ export async function ncc_node_data_uri_to_buffer(task, opts) {
 }
 
 externals['css.escape'] = 'next/dist/compiled/css.escape'
+externals['next/dist/compiled/css.escape'] = 'next/dist/compiled/css.escape'
 export async function ncc_node_cssescape(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('css.escape')))
@@ -289,6 +291,7 @@ export async function ncc_node_shell_quote(task, opts) {
 }
 
 externals['platform'] = 'next/dist/compiled/platform'
+externals['next/dist/compiled/platform'] = 'next/dist/compiled/platform'
 export async function ncc_node_platform(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('platform')))
@@ -1133,6 +1136,8 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
+externals['next/dist/compiled/babel/code-frame'] =
+  'next/dist/compiled/babel/code-frame'
 
 Object.assign(externals, babelCorePackages)
 
