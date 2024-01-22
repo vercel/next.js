@@ -343,7 +343,7 @@ createNextDescribe(
       expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
-      expect(head).toMatch(/{color:(\s*)#00f;?}/)
+      expect(head).toMatch(/{color:(\s*)blue;?}/)
     })
 
     it('should render initial styles of css-in-js in edge SSR correctly', async () => {
@@ -355,7 +355,7 @@ createNextDescribe(
       expect(head).toMatch(/{color:(\s*)#ff69b4;?}/) // styled-jsx/css
 
       // from styled-components
-      expect(head).toMatch(/{color:(\s*)#00f;?}/)
+      expect(head).toMatch(/{color:(\s*)blue;?}/)
     })
 
     it('should render css-in-js suspense boundary correctly', async () => {

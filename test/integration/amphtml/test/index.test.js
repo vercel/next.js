@@ -230,7 +230,7 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
         expect($('style[amp-custom]').first().text()).toMatch(
-          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:#00f}body{background-color:green}/
+          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:blue}body{background-color:green}/
         )
       })
 
