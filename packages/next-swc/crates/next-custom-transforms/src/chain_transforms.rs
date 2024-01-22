@@ -171,7 +171,7 @@ where
                     browsers: target_browsers,
                 },
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
-                    process_css: if config.use_lightningcss {
+                    process_css: if config.use_lightningcss || target_browsers.is_any_target() {
                         None
                     } else {
                         let targets = lightningcss::targets::Targets {
