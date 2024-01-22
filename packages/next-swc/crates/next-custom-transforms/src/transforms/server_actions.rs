@@ -684,7 +684,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.rewrite_expr_to_proxy_expr = None;
         n.visit_mut_children_with(self);
         if let Some(expr) = &self.rewrite_expr_to_proxy_expr {
-            *n = (**expr).clone().into();
+            *n = (**expr).clone();
             self.rewrite_expr_to_proxy_expr = None;
         }
     }
@@ -1121,10 +1121,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     noop_visit_mut_type!();
 }
 
-fn retain_names_from_declared_idents(
-    child_names: &mut Vec<Name>,
-    current_declared_idents: &Vec<Id>,
-) {
+fn retain_names_from_declared_idents(child_names: &mut Vec<Name>, current_declared_idents: &[Id]) {
     // Collect all the identifiers defined inside the closure and used
     // in the action function. With deduplication.
     let mut added_names = Vec::new();
