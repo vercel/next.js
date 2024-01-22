@@ -451,10 +451,7 @@ After successful authentication, it's important to manage user navigation based 
 
 When setting up authorization, it's important to ensure that the main security checks happen where your app accesses or changes data. While Middleware can be useful for initial validation, it should not be the sole line of defense in protecting your data. The bulk of security checks should be performed in the Data Access Layer (DAL).
 
-This approach, highlighted in [this security blog](/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. This strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance.
-
 <PagesOnly>
-To ensure comprehensive security, consider protecting your API routes.
 
 ### Protecting API Routes
 
@@ -509,7 +506,7 @@ This example demonstrates an API Route with a two-tier security check for authen
 
 <AppOnly>
 
-To ensure comprehensive security, consider the following key areas:
+This approach, highlighted in [this security blog](/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. This strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance. To ensure comprehensive security, consider the following key areas:
 
 - Server Actions: Implement security checks in server-side processes, especially for sensitive operations.
 - Route Handlers: Manage incoming requests with security measures to ensure access is limited to authorized users.
