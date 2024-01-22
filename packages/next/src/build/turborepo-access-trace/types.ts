@@ -21,9 +21,9 @@ export type SerializableTurborepoAccessTraceResult = Readonly<{
 
 // The public version of AccessProxy - this is what is written to the trace file
 export type PublicTurborepoAccessTraceResult = Readonly<{
-  accessedFilePaths: Array<string>
-  accessedNetwork: boolean
-  readEnvVarKeys: Array<string>
+  filePaths: Array<string>
+  network: boolean
+  envVarKeys: Array<string>
 }>
 
 // A function that restores the original state of a proxy

@@ -62,7 +62,7 @@ export async function writeTurborepoAccessTraceResult({
         configTraceFile,
         JSON.stringify({
           outputs: [`${distDir}/**`, `!${distDir}/cache/**`],
-          access: accessTrace.toPublicTrace(),
+          accessed: accessTrace.toPublicTrace(),
         })
       )
     } catch (err) {

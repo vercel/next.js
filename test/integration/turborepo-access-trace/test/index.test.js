@@ -14,22 +14,22 @@ describe('build with proxy trace', () => {
         stderr: true,
         stdout: true,
         env: {
-          TURBOREPO_TRACE_FILE: 'dist/turborepo-trace.json',
+          TURBOREPO_TRACE_FILE: '.turbo/turborepo-trace.json',
           SSG_ROUTE_ENV_VAR_HEADER_TEXT: 'Welcome',
         },
       })
       expect(result.code).toBe(0)
 
       const accessTrace = await fs.readJSON(
-        join(appDir, 'dist', 'turborepo-trace.json')
+        join(appDir, '.turbo', 'turborepo-trace.json')
       )
       expect(accessTrace.outputs).toStrictEqual(['dist/**', '!dist/cache/**'])
-      expect(accessTrace.access.readEnvVarKeys).toBeArray()
-      expect(accessTrace.access.readEnvVarKeys).toContain(
+      expect(accessTrace.accessed.envVarKeys).toBeArray()
+      expect(accessTrace.accessed.envVarKeys).toContain(
         'SSG_ROUTE_ENV_VAR_HEADER_TEXT'
       )
-      expect(accessTrace.access.accessedNetwork).toBeFalse()
-      expect(accessTrace.access.accessedFilePaths).toBeArray()
+      expect(accessTrace.accessed.network).toBeFalse()
+      expect(accessTrace.accessed.filePaths).toBeArray()
     })
   })
 })

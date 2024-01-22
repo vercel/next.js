@@ -44,9 +44,9 @@ export class TurborepoAccessTraceResult {
    */
   public toPublicTrace(): PublicTurborepoAccessTraceResult {
     return {
-      accessedNetwork: this.addresses.length > 0,
-      readEnvVarKeys: Array.from(this.envVars).map(String),
-      accessedFilePaths: Array.from(this.fsPaths).map(String),
+      network: this.addresses.length > 0,
+      envVarKeys: Array.from(this.envVars).map(String),
+      filePaths: Array.from(this.fsPaths).map(String),
     }
   }
 
