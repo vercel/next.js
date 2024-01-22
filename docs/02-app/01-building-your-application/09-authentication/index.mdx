@@ -33,84 +33,148 @@ In this section, we'll explore the process of adding basic email-password authen
 <PagesOnly>
 
 1. The user submits their credentials through a login form.
-2. The form calls a Server Action.
+2. The form sends a request that is handled by an API route.
 3. Upon successful verification, the process is completed, indicating the user's successful authentication.
 4. If verification is unsuccessful, an error message is shown.
 
 Consider a login form where users can input their credentials:
 
-```tsx filename="app/login/page.tsx" switcher
-import { authenticate } from '@/app/lib/actions'
+```tsx filename="pages/login.tsx" switcher
+import { useState } from 'react'
+import { useRouter } from 'next/router'
 
-export default function Page() {
+export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const router = useRouter()
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    if (response.ok) {
+      router.push('/profile')
+    } else {
+      // Handle errors
+    }
+  }
+
   return (
-    <form action={authenticate}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        name="password"
+        placeholder="Password"
+        required
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <button type="submit">Login</button>
     </form>
   )
 }
 ```
 
-```jsx filename="app/login/page.jsx" switcher
-import { authenticate } from '@/app/lib/actions'
+```jsx filename="pages/login.jsx" switcher
+import { useState } from 'react'
+import { useRouter } from 'next/router'
 
-export default function Page() {
+export default function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const router = useRouter()
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    const response = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    })
+    if (response.ok) {
+      router.push('/profile')
+    } else {
+      // Handle errors
+    }
+  }
+
   return (
-    <form action={authenticate}>
-      <input type="email" name="email" placeholder="Email" required />
-      <input type="password" name="password" placeholder="Password" required />
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <input
+        type="password"
+        name="password"
+        placeholder="Password"
+        required
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
       <button type="submit">Login</button>
     </form>
   )
 }
 ```
 
-The form above has two input fields for capturing the user's email and password. On submission, it calls the `authenticate` Server Action.
+The form above has two input fields for capturing the user's email and password. On submission, it triggers a function that sends a POST request to an API route (`/api/auth/login`).
 
-You can then call your Authentication Provider's API in the Server Action to handle authentication:
+You can then call your Authentication Provider's API in the API route to handle authentication:
 
-```ts filename="app/lib/actions.ts" switcher
-'use server'
-
+```ts filename="pages/api/auth/login.ts" switcher
+import { NextApiRequest, NextApiResponse } from 'next'
 import { signIn } from '@/auth'
 
-export async function authenticate(formData: FormData) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   try {
-    await signIn('credentials', formData)
+    const { email, password } = req.body
+    await signIn('credentials', { email, password })
+
+    res.status(200).json({ success: true })
   } catch (error) {
-    if (error) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.'
-        default:
-          return 'Something went wrong.'
-      }
+    if (error.type === 'CredentialsSignin') {
+      res.status(401).json({ error: 'Invalid credentials.' })
+    } else {
+      res.status(500).json({ error: 'Something went wrong.' })
     }
-    throw error
   }
 }
 ```
 
-```js filename="app/lib/actions.js" switcher
-'use server'
-
+```js filename="pages/api/auth/login.js" switcher
 import { signIn } from '@/auth'
 
-export async function authenticate(formData) {
+export default async function handler(req, res) {
   try {
-    await signIn('credentials', formData)
+    const { email, password } = req.body
+    await signIn('credentials', { email, password })
+
+    res.status(200).json({ success: true })
   } catch (error) {
-    if (error) {
-      switch (error.type) {
-        case 'CredentialsSignin':
-          return 'Invalid credentials.'
-        default:
-          return 'Something went wrong.'
-      }
+    if (error.type === 'CredentialsSignin') {
+      res.status(401).json({ error: 'Invalid credentials.' })
+    } else {
+      res.status(500).json({ error: 'Something went wrong.' })
     }
-    throw error
   }
 }
 ```
