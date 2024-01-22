@@ -4,7 +4,8 @@ import type { OriginalStackFrameResponse } from './middleware'
 
 import fs, { constants as FS } from 'fs/promises'
 import url from 'url'
-import { codeFrameColumns } from '@babel/code-frame'
+// @ts-ignore Package exists
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { launchEditor } from './internal/helpers/launchEditor'
 
 interface Project {
