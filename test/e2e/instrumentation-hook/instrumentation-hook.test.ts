@@ -21,11 +21,6 @@ describe('Instrumentation Hook', () => {
   //   'with-esm-import',
   //   {
   //     files: path.join(__dirname, 'with-esm-import'),
-  //     nextConfig: {
-  //       experimental: {
-  //         instrumentationHook: true,
-  //       },
-  //     },
   //     dependencies: {
   //       // This test is mostly for compatibility with this package
   //       '@vercel/otel': 'latest',
