@@ -330,11 +330,13 @@ pub async fn get_server_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
+    let versions = *env.runtime_versions().await?;
 
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
+    let styled_jsx_transform_plugin =
+        *get_styled_jsx_transform_plugin(use_lightningcss, versions).await?;
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
