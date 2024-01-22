@@ -13,7 +13,9 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, ServerAddr},
+            environment::{
+                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
+            },
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
@@ -330,7 +332,7 @@ pub async fn get_server_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
-    let versions = *env.runtime_versions().await?;
+    let versions = RuntimeVersions(Default::default()).cell();
 
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
