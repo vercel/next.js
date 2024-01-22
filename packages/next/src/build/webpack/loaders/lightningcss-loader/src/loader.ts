@@ -1,7 +1,12 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
-import { transform as transformCss, type Url, type Visitor } from 'lightningcss'
+import {
+  Features,
+  transform as transformCss,
+  type Url,
+  type Visitor,
+} from 'lightningcss'
 import { getTargets } from './utils'
 import {
   getImportCode,
@@ -258,6 +263,7 @@ export async function LightningCssLoader(
       targets: getTargets({ targets: userTargets, key: ECacheKey.loader }),
       inputSourceMap:
         this.sourceMap && prevMap ? JSON.stringify(prevMap) : undefined,
+      include: Features.Nesting,
     })
     let cssCodeAsString = code.toString()
 
