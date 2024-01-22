@@ -1,15 +1,14 @@
-import type { MimeBuffer } from 'data-uri-to-buffer'
-import dataUriToBuffer from 'data-uri-to-buffer'
-import type { RawSourceMap } from 'source-map'
+// @ts-ignore Package Exists
+import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
-export function getRawSourceMap(fileContents: string): RawSourceMap | null {
+export function getRawSourceMap(fileContents: string): unknown | null {
   const sourceUrl = getSourceMapUrl(fileContents)
   if (!sourceUrl?.startsWith('data:')) {
     return null
   }
 
-  let buffer: MimeBuffer
+  let buffer
   try {
     buffer = dataUriToBuffer(sourceUrl)
   } catch (err) {

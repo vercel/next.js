@@ -21,13 +21,14 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-import pc from 'picocolors'
+// @ts-ignore Package Exists
+import pc from 'next/dist/lib/picocolors'
 import child_process from 'child_process'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
 // @ts-ignore
-import shellQuote from 'shell-quote'
+import shellQuote from 'next/dist/compiled/shell-quote'
 
 function isTerminalEditor(editor: string) {
   switch (editor) {
