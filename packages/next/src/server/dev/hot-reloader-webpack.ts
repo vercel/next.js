@@ -841,7 +841,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
-                console.log('edge:bundlePath', bundlePath)
                 entries[entryKey].status = BUILDING
 
                 if (isInstrumentationHookFile(page)) {
@@ -850,6 +849,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     name: bundlePath,
                     value: getInstrumentationEntry({
                       absolutePagePath: entryData.absolutePagePath,
+                      isEdgeServer: true,
                     }),
                     isServerComponent: true,
                     hasAppDir,
@@ -905,7 +905,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               },
               onClient: () => {
                 if (!isClientCompilation) return
-                console.log('client:bundlePath', bundlePath)
                 if (isChildEntry) {
                   entries[entryKey].status = BUILDING
                   entrypoints[bundlePath] = finalizeEntrypoint({
@@ -942,13 +941,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   relativeRequest = `./${relativeRequest}`
                 }
 
-                const isInstrumentation = isInstrumentationHookFile(page)
-                console.log('dev:onServer', isInstrumentation, page)
-
                 let value: { import: string; layer?: string } | string
-                if (isInstrumentation) {
+                if (isInstrumentationHookFile(page)) {
                   value = getInstrumentationEntry({
                     absolutePagePath: entryData.absolutePagePath,
+                    isEdgeServer: false,
                   })
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     compilerType: COMPILER_NAMES.server,

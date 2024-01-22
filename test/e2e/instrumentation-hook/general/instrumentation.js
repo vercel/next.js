@@ -1,5 +1,5 @@
-// Unused, should not error
-import { headers } from 'next/headers'
+// Should not error
+import 'server-only'
 
 export function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {

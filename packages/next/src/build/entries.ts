@@ -392,13 +392,6 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  if (isInstrumentationHookFile(opts.page)) {
-    return {
-      import: opts.absolutePagePath,
-      filename: `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
-    }
-  }
-
   const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -432,12 +425,16 @@ export function getEdgeServerEntry(opts: {
   }
 }
 
-export function getInstrumentationEntry(opts: { absolutePagePath: string }) {
+export function getInstrumentationEntry(opts: {
+  absolutePagePath: string
+  isEdgeServer: boolean
+}) {
   return {
     import: opts.absolutePagePath,
-    // the '../' is needed to make sure the file is not chunked
-    filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-    layer: WEBPACK_LAYERS.reactServerComponents,
+    filename: `${
+      opts.isEdgeServer ? 'edge-' : ''
+    }${INSTRUMENTATION_HOOK_FILENAME}.js`,
+    layer: WEBPACK_LAYERS.instrument,
   }
 }
 
@@ -653,6 +650,7 @@ export async function createEntrypoints(
             server[serverBundlePath.replace('src/', '')] =
               getInstrumentationEntry({
                 absolutePagePath,
+                isEdgeServer: false,
               })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
@@ -776,35 +774,21 @@ export function finalizeEntrypoint({
 
   const isApi = name.startsWith('pages/api/')
   const isInstrumentation = isInstrumentationHookFilename(name)
-  console.log('name', name)
-  if (isInstrumentation) {
-    console.log('instrument compilerType', compilerType)
-    if (compilerType === COMPILER_NAMES.server) {
-      const layer = isApi
-        ? WEBPACK_LAYERS.api
-        : isServerComponent || isInstrumentation
-        ? WEBPACK_LAYERS.reactServerComponents
-        : undefined
-      console.log('instrument server layer', layer)
-    } else if (compilerType === COMPILER_NAMES.edgeServer) {
-      const layer =
-        isMiddlewareFilename(name) || isApi || isInstrumentation
-          ? WEBPACK_LAYERS.middleware
-          : undefined
-      console.log('instrument edge layer', layer)
-    }
-  }
 
   switch (compilerType) {
     case COMPILER_NAMES.server: {
+      const layer = isApi
+        ? WEBPACK_LAYERS.api
+        : isInstrumentation
+        ? WEBPACK_LAYERS.instrument
+        : isServerComponent
+        ? WEBPACK_LAYERS.reactServerComponents
+        : undefined
+
       return {
         publicPath: isApi ? '' : undefined,
         runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-        layer: isApi
-          ? WEBPACK_LAYERS.api
-          : isServerComponent || isInstrumentation
-          ? WEBPACK_LAYERS.reactServerComponents
-          : undefined,
+        layer,
         ...entry,
       }
     }

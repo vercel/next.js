@@ -6,6 +6,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
+import { isWebpackServerLayer } from '../utils'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -78,10 +79,17 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   bundleLayer?: WebpackLayerName
 }) {
-  const isReactServerLayer =
-    bundleLayer === WEBPACK_LAYERS.reactServerComponents ||
-    bundleLayer === WEBPACK_LAYERS.middleware
-  // console.log('filename', filename, 'layer', bundleLayer, 'serverComponents', serverComponents, 'isReactServerLayer', isReactServerLayer)
+  const isReactServerLayer = isWebpackServerLayer(bundleLayer)
+  console.log(
+    'filename',
+    filename,
+    'layer',
+    bundleLayer,
+    'serverComponents',
+    serverComponents,
+    'isReactServerLayer',
+    isReactServerLayer
+  )
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
