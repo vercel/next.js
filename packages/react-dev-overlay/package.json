@@ -18,8 +18,7 @@
     "typescript": "tsec --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "shell-quote": "1.7.3",
-    "strip-ansi": "6.0.1"
+    "shell-quote": "1.7.3"
   },
   "peerDependencies": {
     "react": "^17.0.2",

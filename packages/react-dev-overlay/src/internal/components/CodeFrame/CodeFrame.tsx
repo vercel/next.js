@@ -3,7 +3,8 @@ import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
 // @ts-ignore Package Exists
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import stripAnsi from 'strip-ansi'
+// @ts-ignore Package Exists
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
