@@ -1,5 +1,5 @@
-import type { MimeBuffer } from 'data-uri-to-buffer'
-import dataUriToBuffer from 'data-uri-to-buffer'
+// @ts-ignore Package Exists
+import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
 import { getSourceMapUrl } from './getSourceMapUrl'
 
 export function getRawSourceMap(fileContents: string): unknown | null {
@@ -8,7 +8,7 @@ export function getRawSourceMap(fileContents: string): unknown | null {
     return null
   }
 
-  let buffer: MimeBuffer
+  let buffer
   try {
     buffer = dataUriToBuffer(sourceUrl)
   } catch (err) {
