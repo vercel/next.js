@@ -251,7 +251,7 @@ export async function startServer(
       let envInfo: string[] | undefined
       let expFeatureInfo: string[] | undefined
       if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir)
+        const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
       }

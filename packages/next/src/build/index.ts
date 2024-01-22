@@ -803,7 +803,7 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, false)
       logStartInfo({
         networkUrl: null,
         appUrl: null,
