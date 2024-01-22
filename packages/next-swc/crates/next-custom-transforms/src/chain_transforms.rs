@@ -157,9 +157,9 @@ where
         .config
         .env
         .as_ref()
-        .map(|env| {
-            env.targets.and_then(|v| match v {
-                turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => v,
+        .and_then(|env| {
+            env.targets.as_ref().map(|v| match v {
+                turbopack_binding::swc::core::ecma::preset_env::Targets::Versions(v) => *v,
                 _ => {
                     unreachable!(
                         "env.targets should be `Versions`. next-swc should pass Versions after \
@@ -168,7 +168,6 @@ where
                 }
             })
         })
-        .flatten()
         .unwrap_or_default();
 
     let styled_jsx = if let Some(config) = opts.styled_jsx {
