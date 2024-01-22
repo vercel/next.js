@@ -21,6 +21,7 @@ use crate::{
 pub enum RootType {
     Once,
     Root,
+    ReadingStronglyConsistent,
 }
 
 #[derive(Debug, Default)]
@@ -59,8 +60,9 @@ pub struct Aggregated {
 
     /// Only used for the aggregation root. Which kind of root is this?
     /// [RootType::Once] for OnceTasks or [RootType::Root] for Root Tasks.
-    /// It's set to None for other tasks, when the once task is done or when the
-    /// root task is disposed.
+    /// [RootType::ReadingStronglyConsistent] while currently reading a task
+    /// strongly consistent. It's set to None for other tasks, when the once
+    /// task is done or when the root task is disposed.
     pub root_type: Option<RootType>,
 }
 
@@ -189,7 +191,7 @@ impl<'a> TaskAggregationContext<'a> {
         }
     }
 
-    pub fn aggregation_info(&mut self, id: TaskId) -> AggregationInfoReference<Aggregated> {
+    pub fn aggregation_info(&self, id: TaskId) -> AggregationInfoReference<Aggregated> {
         aggregation_info(self, &id)
     }
 }
@@ -236,7 +238,7 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
         let mut unfinished = 0;
         if info.unfinished > 0 {
             info.unfinished += change.unfinished;
-            if info.unfinished == 0 {
+            if info.unfinished <= 0 {
                 info.unfinished_event.notify(usize::MAX);
                 unfinished = -1;
             }
@@ -250,12 +252,10 @@ impl<'a> AggregationContext for TaskAggregationContext<'a> {
         for &(task, count) in change.unfinished_tasks_update.iter() {
             update_count_entry(info.unfinished_tasks.entry(task), count);
         }
+        let is_root = info.root_type.is_some();
         for &(task, count) in change.dirty_tasks_update.iter() {
             let value = update_count_entry(info.dirty_tasks.entry(task), count);
-            if value > 0
-                && value <= count
-                && matches!(info.root_type, Some(RootType::Root) | Some(RootType::Once))
-            {
+            if is_root && value > 0 && value <= count {
                 let mut tasks_to_schedule = self.dirty_tasks_to_schedule.lock();
                 tasks_to_schedule.get_or_insert_default().insert(task);
             }
