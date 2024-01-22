@@ -833,6 +833,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               this.hasAppRouterEntrypoints = true
             }
 
+            const isInstrumentation =
+              isInstrumentationHookFile(page) && pageType === 'root'
+
             runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
@@ -842,7 +845,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 if (!isEdgeServerCompilation || !isEntry) return
                 entries[entryKey].status = BUILDING
 
-                if (isInstrumentationHookFile(page)) {
+                if (isInstrumentation) {
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     compilerType: COMPILER_NAMES.edgeServer,
                     name: bundlePath,
@@ -941,7 +944,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 }
 
                 let value: { import: string; layer?: string } | string
-                if (isInstrumentationHookFile(page)) {
+                if (isInstrumentation) {
                   value = getInstrumentationEntry({
                     absolutePagePath: entryData.absolutePagePath,
                     isEdgeServer: false,
@@ -990,7 +993,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest) &&
                   !isNonRoutePagesPage(page) &&
-                  !(isInstrumentationHookFile(page) && pageType === 'root')
+                  !isInstrumentation
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
