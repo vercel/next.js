@@ -416,6 +416,7 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
     fn number_of_children(&self) -> usize {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref guard) => match &guard.state_type {
+                #[cfg(feature = "lazy_remove_children")]
                 TaskStateType::InProgress {
                     outdated_children, ..
                 } => guard.children.len() + outdated_children.len(),
@@ -428,21 +429,30 @@ impl<'l> AggregationItemLock for TaskGuard<'l> {
     fn children(&self) -> Self::ChildrenIter<'_> {
         match self.guard {
             TaskMetaStateWriteGuard::Full(ref guard) => {
-                let outdated_children = match &guard.state_type {
-                    TaskStateType::InProgress {
-                        outdated_children, ..
-                    } => Some(outdated_children.iter().map(Cow::Borrowed)),
-                    _ => None,
-                };
-                Some(
-                    guard
-                        .children
-                        .iter()
-                        .map(Cow::Borrowed)
-                        .chain(outdated_children.into_iter().flatten()),
-                )
-                .into_iter()
-                .flatten()
+                #[cfg(feature = "lazy_remove_children")]
+                {
+                    let outdated_children = match &guard.state_type {
+                        TaskStateType::InProgress {
+                            outdated_children, ..
+                        } => Some(outdated_children.iter().map(Cow::Borrowed)),
+                        _ => None,
+                    };
+                    Some(
+                        guard
+                            .children
+                            .iter()
+                            .map(Cow::Borrowed)
+                            .chain(outdated_children.into_iter().flatten()),
+                    )
+                    .into_iter()
+                    .flatten()
+                }
+                #[cfg(not(feature = "lazy_remove_children"))]
+                {
+                    Some(guard.children.iter().map(Cow::Borrowed))
+                        .into_iter()
+                        .flatten()
+                }
             }
             TaskMetaStateWriteGuard::Partial(_) | TaskMetaStateWriteGuard::Unloaded(_) => {
                 None.into_iter().flatten()
