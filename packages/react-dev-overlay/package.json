@@ -19,7 +19,6 @@
   },
   "dependencies": {
     "shell-quote": "1.7.3",
-    "stacktrace-parser": "0.1.10",
     "strip-ansi": "6.0.1"
   },
   "peerDependencies": {

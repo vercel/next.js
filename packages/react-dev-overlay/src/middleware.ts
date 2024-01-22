@@ -5,7 +5,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
 // @ts-ignore Package exists
 import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
-import type { StackFrame } from 'stacktrace-parser'
+// @ts-ignore Package exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies

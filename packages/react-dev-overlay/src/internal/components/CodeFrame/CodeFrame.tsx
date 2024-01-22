@@ -1,7 +1,8 @@
 // @ts-ignore Package exists
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
-import type { StackFrame } from 'stacktrace-parser'
+// @ts-ignore Package Exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import stripAnsi from 'strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 
