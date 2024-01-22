@@ -30,7 +30,7 @@ export type OriginalStackFrame =
       originalCodeFrame: null
     }
 
-export function getOriginalStackFrame(
+function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
   errorMessage: string
