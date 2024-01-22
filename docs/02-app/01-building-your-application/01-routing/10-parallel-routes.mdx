@@ -130,6 +130,42 @@ When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginS
 
 ## Examples
 
+### Conditional Routes
+
+You can use Parallel Routes to conditionally render a page based on certain conditions, such as user role. For example, to render a `/admin` or `/user` dashboard page depending on the user's role:
+
+<Image
+  alt="Conditional routes diagram"
+  srcLight="/docs/light/conditional-routes-ui.png"
+  srcDark="/docs/dark/conditional-routes-ui.png"
+  width="1600"
+  height="898"
+/>
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { checkUserRole } from '@/lib/auth'
+
+export default function Layout({
+  user,
+  admin,
+}: {
+  user: React.ReactNode
+  admin: React.ReactNode
+}) {
+  const role = checkUserRole()
+  return <>{role === 'admin' ? admin : user}</>
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+import { checkUserRole } from '@/lib/auth'
+
+export default function Layout({ user, admin }) {
+  const role = checkUserRole()
+  return <>{role === 'admin' ? admin : user}</>
+}
+```
+
 ### Modals
 
 Parallel Routing can be used to render modals.
@@ -272,52 +308,6 @@ export default function CatchAll() {
 ```
 
 > Catch-all routes take precedence over `default.js`.
-
-### Conditional Routes
-
-Parallel Routes also allows you to conditionally render a slot based on certain conditions, such as authentication state. For example, you can render a `/dashboard` or `/login` page depending on whether the user is logged in:
-
-<Image
-  alt="Conditional routes diagram"
-  srcLight="/docs/light/conditional-routes-ui.png"
-  srcDark="/docs/dark/conditional-routes-ui.png"
-  width="1600"
-  height="898"
-/>
-
-Parallel Routes can be used to implement conditional routing. For example, you can render a `@dashboard` or `@login` route depending on the authentication state.
-
-```tsx filename="app/layout.tsx" switcher
-import { getUser } from '@/lib/auth'
-
-export default function Layout({
-  dashboard,
-  login,
-}: {
-  dashboard: React.ReactNode
-  login: React.ReactNode
-}) {
-  const isLoggedIn = getUser()
-  return isLoggedIn ? dashboard : login
-}
-```
-
-```jsx filename="app/layout.js" switcher
-import { getUser } from '@/lib/auth'
-
-export default function Layout({ dashboard, login }) {
-  const isLoggedIn = getUser()
-  return isLoggedIn ? dashboard : login
-}
-```
-
-<Image
-  alt="Parallel routes authentication example"
-  srcLight="/docs/light/conditional-routes-ui.png"
-  srcDark="/docs/dark/conditional-routes-ui.png"
-  width="1600"
-  height="898"
-/>
 
 ### Streaming
 
