@@ -612,6 +612,8 @@ export async function createEntrypoints(
         ]
       }
 
+      const isInstrumentation =
+        isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -643,10 +645,7 @@ export async function createEntrypoints(
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
-          } else if (
-            isInstrumentationHookFile(page) &&
-            pagesType === PAGE_TYPES.ROOT
-          ) {
+          } else if (isInstrumentation) {
             server[serverBundlePath.replace('src/', '')] =
               getInstrumentationEntry({
                 absolutePagePath,
@@ -683,44 +682,48 @@ export async function createEntrypoints(
         },
         onEdgeServer: () => {
           let appDirLoader: string = ''
-          if (pagesType === 'app') {
-            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
-            appDirLoader = getAppEntry({
-              name: serverBundlePath,
+          if (isInstrumentation) {
+            edgeServer[serverBundlePath.replace('src/', '')] =
+              getInstrumentationEntry({
+                absolutePagePath,
+                isEdgeServer: true,
+              })
+          } else {
+            if (pagesType === 'app') {
+              const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
+              appDirLoader = getAppEntry({
+                name: serverBundlePath,
+                page,
+                pagePath: absolutePagePath,
+                appDir: appDir!,
+                appPaths: matchedAppPaths,
+                pageExtensions,
+                basePath: config.basePath,
+                assetPrefix: config.assetPrefix,
+                nextConfigOutput: config.output,
+                // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
+                // Still passing it here for consistency.
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: Buffer.from(
+                  JSON.stringify(staticInfo.middleware || {})
+                ).toString('base64'),
+              }).import
+            }
+            edgeServer[serverBundlePath] = getEdgeServerEntry({
+              ...params,
+              rootDir,
+              absolutePagePath: absolutePagePath,
+              bundlePath: clientBundlePath,
+              isDev: false,
+              isServerComponent,
               page,
-              pagePath: absolutePagePath,
-              appDir: appDir!,
-              appPaths: matchedAppPaths,
-              pageExtensions,
-              basePath: config.basePath,
-              assetPrefix: config.assetPrefix,
-              nextConfigOutput: config.output,
-              // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
-              // Still passing it here for consistency.
+              middleware: staticInfo?.middleware,
+              pagesType,
+              appDirLoader,
               preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: Buffer.from(
-                JSON.stringify(staticInfo.middleware || {})
-              ).toString('base64'),
-            }).import
+              middlewareConfig: staticInfo.middleware,
+            })
           }
-          const normalizedServerBundlePath =
-            isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
-              ? serverBundlePath.replace('src/', '')
-              : serverBundlePath
-          edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
-            ...params,
-            rootDir,
-            absolutePagePath: absolutePagePath,
-            bundlePath: clientBundlePath,
-            isDev: false,
-            isServerComponent,
-            page,
-            middleware: staticInfo?.middleware,
-            pagesType,
-            appDirLoader,
-            preferredRegion: staticInfo.preferredRegion,
-            middlewareConfig: staticInfo.middleware,
-          })
         },
       })
     }
