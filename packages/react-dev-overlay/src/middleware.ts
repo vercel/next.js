@@ -2,8 +2,8 @@ import { codeFrameColumns } from '@babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
-import { SourceMapConsumer } from 'source-map'
+// @ts-ignore Package exists
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'stacktrace-parser'
 import url from 'url'
 // @ts-ignore
@@ -32,7 +32,7 @@ export type OriginalStackFrameResponse = {
   sourcePackage?: string
 }
 
-type Source = { map: () => RawSourceMap } | null
+type Source = { map: () => any } | null
 
 function getModuleId(compilation: any, module: any) {
   return compilation.chunkGraph.getModuleId(module)
@@ -87,12 +87,10 @@ async function findOriginalSourcePositionAndContent(
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
   try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+    const sourcePosition = consumer.originalPositionFor({
+      line: position.line,
+      column: position.column ?? 0,
+    })
 
     if (!sourcePosition.source) {
       return null
