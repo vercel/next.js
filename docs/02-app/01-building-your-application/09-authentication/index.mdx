@@ -445,11 +445,71 @@ export default function Page() {
 }
 ```
 
+</AppOnly>
+
 After successful authentication, it's important to manage user navigation based on their roles. For example, an admin user might be redirected to an admin dashboard, while a regular user is sent to a different page. This is important for role-specific experiences and conditional navigation, such as prompting users to complete their profile if needed.
 
 When setting up authorization, it's important to ensure that the main security checks happen where your app accesses or changes data. While Middleware can be useful for initial validation, it should not be the sole line of defense in protecting your data. The bulk of security checks should be performed in the Data Access Layer (DAL).
 
-This approach, highlighted in [this security blog](/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. This strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance. To ensure comprehensive security, consider the following key areas:
+This approach, highlighted in [this security blog](/blog/security-nextjs-server-components-actions), advocates for consolidating all data access within a dedicated DAL. This strategy ensures consistent data access, minimizes authorization bugs, and simplifies maintenance.
+
+<PagesOnly>
+To ensure comprehensive security, consider protecting your API routes.
+
+### Protecting API Routes
+
+API Routes in Next.js are essential for handling server-side logic and data management. It's crucial to secure these routes to ensure that only authorized users can access specific functionalities. This typically involves verifying the user's authentication status and their role-based permissions.
+
+Here's an example of securing an API Route:
+
+```ts filename="pages/api/route.ts" switcher
+import { NextApiRequest, NextApiResponse } from 'next'
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  const session = await getSession(req)
+  const userRole = session?.user?.role
+
+  // Check if user is authorized to perform the action
+  if (userRole !== 'admin') {
+    res.status(401).json({
+      error: 'Unauthorized access: User does not have admin privileges.',
+    })
+    return
+  }
+
+  // Proceed with the action for authorized users
+  // ... implementation of the action
+}
+```
+
+```js filename="pages/api/route.js" switcher
+export default async function handler(req, res) {
+  const session = await getSession(req)
+  const userRole = session?.user?.role
+
+  // Check if user is authorized to perform the action
+  if (userRole !== 'admin') {
+    res.status(401).json({
+      error: 'Unauthorized access: User does not have admin privileges.',
+    })
+    return
+  }
+
+  // Proceed with the action for authorized users
+  // ... implementation of the action
+}
+```
+
+This example demonstrates an API Route with a two-tier security check for authentication and authorization. It first checks for an active session, and then verifies if the logged-in user is an 'admin'. This approach ensures secure access, limited to authenticated and authorized users, maintaining robust security for request processing.
+
+</PagesOnly>
+
+<AppOnly>
+
+To ensure comprehensive security, consider the following key areas:
 
 - Server Actions: Implement security checks in server-side processes, especially for sensitive operations.
 - Route Handlers: Manage incoming requests with security measures to ensure access is limited to authorized users.
