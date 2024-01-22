@@ -24,7 +24,7 @@
 
 .inlineCode::before,
 .inlineCode::after {
-  content: '`';
+  content: "`";
 }
 
 .hr {
@@ -44,7 +44,7 @@
 }
 
 .list li:before {
-  content: '-';
+  content: "-";
   color: #999999;
   position: absolute;
   margin-left: -1rem;

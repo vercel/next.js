@@ -1,6 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_transform_strip_page_exports::{next_transform_strip_page_exports, ExportFilter};
+use next_custom_transforms::transforms::strip_page_exports::{
+    next_transform_strip_page_exports, ExportFilter,
+};
 use swc_core::{
     common::util::take::Take,
     ecma::{

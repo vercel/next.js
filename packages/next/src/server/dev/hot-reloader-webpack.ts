@@ -56,7 +56,7 @@ import {
   isMiddlewareFilename,
 } from '../../build/utils'
 import { DecodeError } from '../../shared/lib/utils'
-import { Span, trace } from '../../trace'
+import { type Span, trace } from '../../trace'
 import { getProperError } from '../../lib/is-error'
 import ws from 'next/dist/compiled/ws'
 import { existsSync, promises as fs } from 'fs'
@@ -76,6 +76,8 @@ import {
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import type { WebpackError } from 'webpack'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 
@@ -154,7 +156,7 @@ function findEntryModule(
 }
 
 function erroredPages(compilation: webpack.Compilation) {
-  const failedPages: { [page: string]: any[] } = {}
+  const failedPages: { [page: string]: WebpackError[] } = {}
   for (const error of compilation.errors) {
     if (!error.module) {
       continue
@@ -384,16 +386,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
           switch (payload.event) {
             case 'span-end': {
-              new Span({
+              traceChild = {
                 name: payload.spanName,
                 startTime:
                   BigInt(Math.floor(payload.startTime)) *
                   BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: payload.attributes,
-              }).stop(
-                BigInt(Math.floor(payload.endTime)) *
-                  BigInt(MILLISECONDS_IN_NANOSECOND)
-              )
+                endTime:
+                  BigInt(Math.floor(payload.endTime)) *
+                  BigInt(MILLISECONDS_IN_NANOSECOND),
+              }
               break
             }
             case 'client-hmr-latency': {
@@ -406,7 +408,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   BigInt(payload.endTime) * BigInt(MILLISECONDS_IN_NANOSECOND),
                 attrs: {
                   updatedModules: payload.updatedModules.map((m: string) =>
-                    m.replace(/^\.\//, '[project]/')
+                    m
+                      .replace(`(${WEBPACK_LAYERS.appPagesBrowser})/`, '')
+                      .replace(/^\.\//, '[project]/')
                   ),
                   page: payload.page,
                   isPageHidden: payload.isPageHidden,
@@ -578,7 +582,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           createPagesMapping({
             isDev: true,
             pageExtensions: this.config.pageExtensions,
-            pagesType: 'pages',
+            pagesType: PAGE_TYPES.PAGES,
             pagePaths: pagePaths.filter(
               (i: string | null): i is string => typeof i === 'string'
             ),
@@ -813,11 +817,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             const isServerComponent =
               isAppPath && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
-            const pageType = entryData.bundlePath.startsWith('pages/')
-              ? 'pages'
+            const pageType: PAGE_TYPES = entryData.bundlePath.startsWith(
+              'pages/'
+            )
+              ? PAGE_TYPES.PAGES
               : entryData.bundlePath.startsWith('app/')
-              ? 'app'
-              : 'root'
+              ? PAGE_TYPES.APP
+              : PAGE_TYPES.ROOT
 
             if (pageType === 'pages') {
               this.hasPagesRouterEntrypoints = true
@@ -875,7 +881,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     pages: this.pagesMapping,
                     isServerComponent,
                     appDirLoader,
-                    pagesType: isAppPath ? 'app' : 'pages',
+                    pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
                     preferredRegion: staticInfo.preferredRegion,
                   }),
                   hasAppDir,
@@ -1448,8 +1454,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         : compilation.errors
     }
 
-    if (this.clientError || this.serverError) {
-      return [this.clientError || this.serverError]
+    if (this.clientError) {
+      return [this.clientError]
+    } else if (this.serverError) {
+      return [this.serverError]
     } else if (this.clientStats?.hasErrors()) {
       return getErrors(this.clientStats)
     } else if (this.serverStats?.hasErrors()) {

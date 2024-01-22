@@ -569,7 +569,13 @@ export async function ncc_next_font(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['watchpack'] = 'watchpack'
+externals['watchpack'] = 'next/dist/compiled/watchpack'
+export async function ncc_watchpack(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('watchpack')))
+    .ncc({ packageName: 'watchpack', externals })
+    .target('src/compiled/watchpack')
+}
 
 // eslint-disable-next-line camelcase
 externals['jest-worker'] = 'next/dist/compiled/jest-worker'
@@ -1292,14 +1298,6 @@ export async function ncc_devalue(task, opts) {
     .target('src/compiled/devalue')
 }
 
-// eslint-disable-next-line camelcase
-externals['find-cache-dir'] = 'next/dist/compiled/find-cache-dir'
-export async function ncc_find_cache_dir(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('find-cache-dir')))
-    .ncc({ packageName: 'find-cache-dir', externals })
-    .target('src/compiled/find-cache-dir')
-}
 // eslint-disable-next-line camelcase
 externals['find-up'] = 'next/dist/compiled/find-up'
 export async function ncc_find_up(task, opts) {
@@ -2047,12 +2045,12 @@ export async function ncc_webpack_sources3(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-externals['micromatch'] = 'next/dist/compiled/micromatch'
+externals['picomatch'] = 'next/dist/compiled/picomatch'
 export async function ncc_minimatch(task, opts) {
   await task
-    .source(relative(__dirname, require.resolve('micromatch')))
-    .ncc({ packageName: 'micromatch', externals })
-    .target('src/compiled/micromatch')
+    .source(relative(__dirname, require.resolve('picomatch')))
+    .ncc({ packageName: 'picomatch', externals })
+    .target('src/compiled/picomatch')
 }
 
 // eslint-disable-next-line camelcase
@@ -2276,7 +2274,6 @@ export async function ncc(task, opts) {
         'ncc_cross_spawn',
         'ncc_debug',
         'ncc_devalue',
-        'ncc_find_cache_dir',
         'ncc_find_up',
         'ncc_fresh',
         'ncc_glob',
@@ -2321,6 +2318,7 @@ export async function ncc(task, opts) {
         'ncc_terser',
         'ncc_text_table',
         'ncc_unistore',
+        'ncc_watchpack',
         'ncc_web_vitals',
         'ncc_web_vitals_attribution',
         'ncc_webpack_bundle5',

@@ -10,10 +10,17 @@ import { createComponentStylesAndScripts } from './create-component-styles-and-s
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { validateRevalidate } from '../lib/patch-fetch'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
+import { getTracer } from '../lib/trace/tracer'
+import { NextNodeServerSpan } from '../lib/trace/constants'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
   styles: ReactNode
+}
+
+type Params = {
+  [key: string]: string | string[]
 }
 
 /**
@@ -31,7 +38,30 @@ export const Postpone = ({
 /**
  * Use the provided loader tree to create the React Component tree.
  */
-export async function createComponentTree({
+export function createComponentTree(props: {
+  createSegmentPath: CreateSegmentPath
+  loaderTree: LoaderTree
+  parentParams: Params
+  rootLayoutIncluded: boolean
+  firstItem?: boolean
+  injectedCSS: Set<string>
+  injectedJS: Set<string>
+  injectedFontPreloadTags: Set<string>
+  asNotFound?: boolean
+  metadataOutlet?: React.ReactNode
+  ctx: AppRenderContext
+  missingSlots?: Set<string>
+}): Promise<ComponentTree> {
+  return getTracer().trace(
+    NextNodeServerSpan.createComponentTree,
+    {
+      spanName: 'build component tree',
+    },
+    () => createComponentTreeInternal(props)
+  )
+}
+
+async function createComponentTreeInternal({
   createSegmentPath,
   loaderTree: tree,
   parentParams,
@@ -43,10 +73,11 @@ export async function createComponentTree({
   asNotFound,
   metadataOutlet,
   ctx,
+  missingSlots,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
-  parentParams: { [key: string]: any }
+  parentParams: Params
   rootLayoutIncluded: boolean
   firstItem?: boolean
   injectedCSS: Set<string>
@@ -55,6 +86,7 @@ export async function createComponentTree({
   asNotFound?: boolean
   metadataOutlet?: React.ReactNode
   ctx: AppRenderContext
+  missingSlots?: Set<string>
 }): Promise<ComponentTree> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -124,7 +156,17 @@ export async function createComponentTree({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const [layoutOrPageMod] = await getLayoutOrPageModule(tree)
+  const [layoutOrPageMod] = await getTracer().trace(
+    NextNodeServerSpan.getLayoutOrPageModule,
+    {
+      hideSpan: !(isLayout || isPage),
+      spanName: 'resolve segment modules',
+      attributes: {
+        'next.segment': segment,
+      },
+    },
+    () => getLayoutOrPageModule(tree)
+  )
 
   /**
    * Checks if the current segment is a root layout.
@@ -228,7 +270,7 @@ export async function createComponentTree({
     throw staticGenerationStore.dynamicUsageErr
   }
 
-  const LayoutOrPage = layoutOrPageMod
+  const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined
 
@@ -239,20 +281,31 @@ export async function createComponentTree({
   const parallelKeys = Object.keys(parallelRoutes)
   const hasSlotKey = parallelKeys.length > 1
 
-  if (hasSlotKey && rootLayoutAtThisLevel) {
-    Component = (componentProps: any) => {
+  // TODO-APP: This is a hack to support unmatched parallel routes, which will throw `notFound()`.
+  // This ensures that a `NotFoundBoundary` is available for when that happens,
+  // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
+  // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
+  // rely on the `NotFound` behavior.
+  if (hasSlotKey && rootLayoutAtThisLevel && LayoutOrPage) {
+    Component = (componentProps: { params: Params }) => {
       const NotFoundComponent = NotFound
       const RootLayoutComponent = LayoutOrPage
       return (
         <NotFoundBoundary
           notFound={
-            <>
-              {layerAssets}
-              <RootLayoutComponent>
-                {notFoundStyles}
-                <NotFoundComponent />
-              </RootLayoutComponent>
-            </>
+            NotFoundComponent ? (
+              <>
+                {layerAssets}
+                {/*
+                 * We are intentionally only forwarding params to the root layout, as passing any of the parallel route props
+                 * might trigger `notFound()`, which is not currently supported in the root layout.
+                 */}
+                <RootLayoutComponent params={componentProps.params}>
+                  {notFoundStyles}
+                  <NotFoundComponent />
+                </RootLayoutComponent>
+              </>
+            ) : undefined
           }
         >
           <RootLayoutComponent {...componentProps} />
@@ -372,8 +425,18 @@ export async function createComponentTree({
           // client router.
         } else {
           // Create the child component
+
+          if (process.env.NODE_ENV === 'development' && missingSlots) {
+            // When we detect the default fallback (which triggers a 404), we collect the missing slots
+            // to provide more helpful debug information during development mode.
+            const parsedTree = parseLoaderTree(parallelRoute)
+            if (parsedTree.layoutOrPagePath === PARALLEL_ROUTE_DEFAULT_PATH) {
+              missingSlots.add(parallelRouteKey)
+            }
+          }
+
           const { seedData, styles: childComponentStyles } =
-            await createComponentTree({
+            await createComponentTreeInternal({
               createSegmentPath: (child) => {
                 return createSegmentPath([...currentSegmentPath, ...child])
               },
@@ -386,6 +449,7 @@ export async function createComponentTree({
               asNotFound,
               metadataOutlet,
               ctx,
+              missingSlots,
             })
 
           currentStyles = childComponentStyles

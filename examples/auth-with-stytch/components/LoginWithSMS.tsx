@@ -1,12 +1,12 @@
-import React, { useState } from 'react'
-import SendOTPForm from './SendOTPForm'
-import VerifyOTPForm from './VerifyOTPForm'
-import StytchContainer from './StytchContainer'
+import React, { useState } from "react";
+import SendOTPForm from "./SendOTPForm";
+import VerifyOTPForm from "./VerifyOTPForm";
+import StytchContainer from "./StytchContainer";
 
 const LoginWithSMS = () => {
-  const [otpSent, setOTPSent] = useState(false)
-  const [phoneNumber, setPhoneNumber] = useState('')
-  const [methodId, setMethodId] = useState('')
+  const [otpSent, setOTPSent] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [methodId, setMethodId] = useState("");
 
   return (
     <StytchContainer>
@@ -21,7 +21,7 @@ const LoginWithSMS = () => {
         <VerifyOTPForm methodId={methodId} phoneNumber={phoneNumber} />
       )}
     </StytchContainer>
-  )
-}
+  );
+};
 
-export default LoginWithSMS
+export default LoginWithSMS;

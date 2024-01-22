@@ -681,8 +681,36 @@ function createHints() {
   return new Set();
 }
 
+// We do this globally since the async work can potentially eagerly
+// start before the first request and once requests start they can interleave.
+// In theory we could enable and disable using a ref count of active requests
+// but given that typically this is just a live server, it doesn't really matter.
+
+function initAsyncDebugInfo() {
+  {
+    createAsyncHook({
+      init: function (asyncId, type, triggerAsyncId) {// TODO
+      },
+      promiseResolve: function (asyncId) {
+        // TODO
+        executionAsyncId();
+      },
+      destroy: function (asyncId) {// TODO
+      }
+    }).enable();
+  }
+}
+
 var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
-var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null; // We use the Node version but get access to async_hooks from a global.
+
+var createAsyncHook = typeof async_hooks === 'object' ? async_hooks.createHook : function () {
+  return {
+    enable: function () {},
+    disable: function () {}
+  };
+};
+var executionAsyncId = typeof async_hooks === 'object' ? async_hooks.executionAsyncId : null;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1566,6 +1594,7 @@ function binaryToComparableString(view) {
   return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
 }
 
+initAsyncDebugInfo();
 var ObjectPrototype = Object.prototype;
 var stringify = JSON.stringify; // Serializable values
 // Thenable<ReactClientValue>

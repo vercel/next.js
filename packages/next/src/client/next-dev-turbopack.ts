@@ -4,10 +4,9 @@ import initHMR from './dev/hot-middleware-client'
 
 import './setup-hydration-warning'
 import { pageBootrap } from './page-bootstrap'
-import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
 import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
-import type { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
+import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {
   version: `${version}-turbo`,
@@ -41,18 +40,10 @@ initialize({
     }
 
     connect({
-      addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
-        addMessageListener((msg) => {
-          if (!('type' in msg)) {
-            return
-          }
-          // Only call Turbopack's message listener for turbopack messages
-          if (msg.type?.startsWith('turbopack-')) {
-            cb(msg)
-          }
-        })
+      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+        devClient.addTurbopackMessageListener(cb)
       },
-      sendMessage,
+      sendMessage: devClient.sendTurbopackMessage,
     })
 
     return pageBootrap(assetPrefix)

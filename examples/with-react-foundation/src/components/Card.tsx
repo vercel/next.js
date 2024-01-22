@@ -1,5 +1,5 @@
 // Import react-foundation components
-import { MediaObject, MediaObjectSection, Thumbnail } from 'react-foundation'
+import { MediaObject, MediaObjectSection, Thumbnail } from "react-foundation";
 
 export const Card = () => {
   return (
@@ -17,5 +17,5 @@ export const Card = () => {
         </MediaObjectSection>
       </MediaObject>
     </div>
-  )
-}
+  );
+};

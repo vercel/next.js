@@ -1,4 +1,4 @@
-import * as glob from 'glob'
+import { globSync } from 'glob'
 import type { Rule } from 'eslint'
 
 /**
@@ -7,7 +7,7 @@ import type { Rule } from 'eslint'
 const processRootDir = (rootDir: string): string[] => {
   // Ensures we only match folders.
   if (!rootDir.endsWith('/')) rootDir += '/'
-  return glob.sync(rootDir)
+  return globSync(rootDir)
 }
 
 /**

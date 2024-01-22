@@ -11,6 +11,7 @@ import {
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
 import type { NextConfigComplete } from '../server/config-shared'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -234,7 +235,9 @@ export function makeExternalHandler({
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
+        return `commonjs ${normalizePathSep(
+          localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+        )}`
       }
     }
 
@@ -288,7 +291,7 @@ export function makeExternalHandler({
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
-        ? path.join(context, request).replace(/\\/g, '/')
+        ? normalizePathSep(path.join(context, request))
         : request
       return resolveNextExternal(fullRequest)
     }
@@ -325,7 +328,7 @@ export function makeExternalHandler({
 
     // ESM externals can only be imported (and not required).
     // Make an exception in loose mode.
-    if (!isEsmRequested && isEsm && !looseEsmExternals) {
+    if (!isEsmRequested && isEsm && !looseEsmExternals && !isLocal) {
       throw new Error(
         `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
