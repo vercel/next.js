@@ -391,6 +391,9 @@ export interface ExperimentalConfig {
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
+
+  /** Replace the `globalThis.fetch` with the latest, precompiled version from Undici */
+  latestFetch?: boolean
 }
 
 export type ExportPathMap = {
@@ -869,6 +872,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
+    latestFetch: false,
   },
 }
 
