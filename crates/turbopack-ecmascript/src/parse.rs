@@ -304,6 +304,7 @@ async fn parse_content(
                 );
 
                 let mut parser = Parser::new_from(lexer);
+                let program_result = parser.parse_program();
 
                 let mut has_errors = false;
                 for e in parser.take_errors() {
@@ -315,7 +316,7 @@ async fn parse_content(
                     return Ok(ParseResult::Unparseable);
                 }
 
-                match parser.parse_program() {
+                match program_result {
                     Ok(parsed_program) => parsed_program,
                     Err(e) => {
                         e.into_diagnostic(&handler).emit();
