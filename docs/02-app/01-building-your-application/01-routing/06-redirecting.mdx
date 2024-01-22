@@ -252,14 +252,16 @@ export const config = {
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
 
-## Managing redirects at scale (Advanced)
+## Managing redirects at scale (advanced)
 
 To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically without having to redeploy your application.
 
-When handling a large number of redirects, you should consider:
+To do this, you'll need to consider:
 
 1. Creating and storing a redirect map.
 2. Optimizing data lookup performance.
+
+> **Next.js Example**: See our [Middleware with Bloom filter](https://redirects-bloom-filter.vercel.app/) example for an implementation of the recommendations below.
 
 ### 1. Creating and storing a redirect map
 
