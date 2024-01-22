@@ -220,7 +220,7 @@ export async function initialize(opts: {
         removePathPrefix(invokePath, config.basePath) === '/404'
       ) {
         res.setHeader('x-nextjs-matched-path', parsedUrl.pathname || '')
-        res.statusCode = 200
+        res.statusCode = 404
         res.setHeader('content-type', 'application/json')
         res.end('{}')
         return null
