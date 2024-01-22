@@ -1,7 +1,7 @@
 .blue {
   color: blue;
 
-  & > div {
+  div {
     color: red;
   }
 }
