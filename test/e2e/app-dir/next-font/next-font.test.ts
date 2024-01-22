@@ -24,7 +24,12 @@ const getAttrs = (elems: Cheerio) =>
     .sort((a, b) => (a.href < b.href ? -1 : 1))
 
 describe('app dir - next/font', () => {
-  describe.each([['app'], ['app-old']])('%s', (fixture: string) => {
+  for (const fixture of ['app', 'app-old']) {
+    // Turbopack only support `next/font` as `@next/font` is going to be removed in the next major version.
+    if (process.env.TURBOPACK && fixture === 'app-old') {
+      return
+    }
+
     createNextDescribe(
       'app dir - next-font',
       {
@@ -447,5 +452,5 @@ describe('app dir - next/font', () => {
         }
       }
     )
-  })
+  }
 })
