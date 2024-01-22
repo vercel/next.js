@@ -83,6 +83,7 @@ import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1744,12 +1745,18 @@ export async function isPageStatic({
         isStatic = true
       }
 
-      // When PPR is enabled, any route may contain or be completely static, so
+      // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
       let isPPR = false
       if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
         isPPR = true
         isStatic = true
+      }
+
+      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
+      if (isInterceptionRouteAppPath(page)) {
+        isStatic = false
+        isPPR = false
       }
 
       return {
