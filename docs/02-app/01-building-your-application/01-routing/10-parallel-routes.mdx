@@ -166,6 +166,46 @@ export default function Layout({ user, admin }) {
 }
 ```
 
+## Tab Groups
+
+Within slots, you can create tabs to allow users to navigate each slot independently. For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
+
+{/* TODO: Add diagrams for tabs */}
+
+Within `@analytics`, create a `layout` to share the tabs between the two pages:
+
+```tsx filename="app/dashboard/@analytics/layout.tsx" switcher
+import Link from 'next/link'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <nav>
+        <Link href="/dashboard/page-views">Page Views</Link>
+        <Link href="/dashboard/visitors">Visitors</Link>
+      </nav>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import Link from 'next/link'
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <nav>
+        <Link href="/dashboard/page-views">Page Views</Link>
+        <Link href="/dashboard/visitors">Visitors</Link>
+      </nav>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
 ### Modals
 
 Parallel Routing can be used to render modals.
