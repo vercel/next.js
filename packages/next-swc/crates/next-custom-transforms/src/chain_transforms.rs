@@ -163,7 +163,8 @@ where
                 _ => {
                     unreachable!(
                         "env.targets should be `Versions`. next-swc should pass Versions after \
-                         invoking browserslist from js"
+                         invoking browserslist from js\nGot: {:?}",
+                        v
                     )
                 }
             })
