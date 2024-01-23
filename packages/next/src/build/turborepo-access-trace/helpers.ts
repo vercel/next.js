@@ -3,15 +3,14 @@ import path from 'path'
 import type { FS, Addresses, EnvVars } from './types'
 import { envProxy } from './env'
 import { tcpProxy } from './tcp'
-import { fsProxy } from './fs'
 import { TurborepoAccessTraceResult } from './result'
 
 /**
- * Trace access to the filesystem, environment variables, and TCP addresses and
- * merge the results into the parent AccessProxy.
+ * Trace access to the filesystem (TODO), environment variables, and TCP addresses and
+ * merge the results into the parent TurborepoAccessTraceResult.
  *
  * @param f the function to trace
- * @param parent the AccessProxy to merge the results into
+ * @param parent the TurborepoAccessTraceResult to merge the results into
  * @returns the result of the function
  */
 export function turborepoTraceAccess<T>(
@@ -25,7 +24,7 @@ export function turborepoTraceAccess<T>(
   // Otherwise, trace the function and merge the results into the parent. Using
   // `then` instead of `await` here to avoid creating a new async context when
   // tracing is disabled.
-  return withAccessProxy(f).then(([result, proxy]) => {
+  return withTurborepoTraceAccess(f).then(([result, proxy]) => {
     parent.merge(proxy)
 
     // Return the result of the function.
@@ -73,27 +72,28 @@ export async function writeTurborepoAccessTraceResult({
   }
 }
 
-async function withAccessProxy<T>(
+async function withTurborepoTraceAccess<T>(
   f: () => T | Promise<T>
 ): Promise<[T, TurborepoAccessTraceResult]> {
   const envVars: EnvVars = new Set([])
   // addresses is an array of objects, so a set is useless
   const addresses: Addresses = []
+  // TODO: watch fsPaths (removed from this implementation for now)
   const fsPaths: FS = new Set<string>()
 
   // setup proxies
   const restoreTCP = tcpProxy(addresses)
-  const restoreFS = fsProxy(fsPaths)
   const restoreEnv = envProxy(envVars)
 
-  // call the wrapped function
   let functionResult
+
+  // NOTE: we intentionally don't catch errors here so the calling function can handle them
   try {
+    // call the wrapped function
     functionResult = await f()
   } finally {
     // remove proxies
     restoreTCP()
-    restoreFS()
     restoreEnv()
   }
 

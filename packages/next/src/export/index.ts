@@ -55,7 +55,6 @@ import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
-import { isDefaultRoute } from '../lib/is-default-route'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 
 function divideSegments(number: number, segments: number): number[] {

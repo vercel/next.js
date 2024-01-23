@@ -14,7 +14,7 @@ export class TurborepoAccessTraceResult {
   ) {}
 
   /**
-   * Merge another AccessProxy into this one, mutating this AccessProxy.
+   * Merge another TurborepoAccessTraceResult into this one, mutating this TurborepoAccessTraceResult.
    *
    */
   public merge(other: TurborepoAccessTraceResult) {
@@ -26,8 +26,8 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Serialize this AccessProxy into a serializable object. Used for passing
-   * the AccessProxy between workers where Sets are not serializable.
+   * Serialize this TurborepoAccessTraceResult into a serializable object. Used for passing
+   * the TurborepoAccessTraceResult between workers where Sets are not serializable.
    *
    */
   public serialize(): SerializableTurborepoAccessTraceResult {
@@ -39,7 +39,7 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Squash this AccessProxy into a public trace object that can be written to a file
+   * Squash this TurborepoAccessTraceResult into a public trace object that can be written to a file
    *
    */
   public toPublicTrace(): PublicTurborepoAccessTraceResult {
@@ -51,7 +51,7 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Create an AccessProxy from a serialized SerializableAccessProxy
+   * Create an TurborepoAccessTraceResult from a serialized SerializableTurborepoAccessTraceResult
    *
    */
   public static fromSerialized(

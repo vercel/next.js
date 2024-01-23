@@ -11,7 +11,7 @@ export type FS = Set<string>
 // Tracked Addr / Port pairs that were accessed during the duration of the trace
 export type Addresses = Array<Address>
 
-// The serializable version of AccessProxy - this is required to pass the AccessProxy
+// The serializable version of TurborepoAccessTraceResult - this is required to pass the TurborepoAccessTraceResult
 // between workers where Sets are not serializable.
 export type SerializableTurborepoAccessTraceResult = Readonly<{
   fs: Array<string>
@@ -19,7 +19,7 @@ export type SerializableTurborepoAccessTraceResult = Readonly<{
   envVars: Array<string>
 }>
 
-// The public version of AccessProxy - this is what is written to the trace file
+// The public version of TurborepoAccessTraceResult - this is what is written to the trace file
 export type PublicTurborepoAccessTraceResult = Readonly<{
   filePaths: Array<string>
   network: boolean
