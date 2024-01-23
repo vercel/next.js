@@ -338,6 +338,7 @@ pub async fn get_client_chunking_context(
     let mut builder = DevChunkingContext::builder(
         project_path,
         client_root,
+        client_root,
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
         environment,

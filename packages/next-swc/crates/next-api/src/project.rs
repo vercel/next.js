@@ -457,6 +457,7 @@ impl Project {
             DevChunkingContext::builder(
                 self.project_path(),
                 node_root,
+                node_root,
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
                 node_build_environment(),
@@ -529,6 +530,8 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.edge_compile_time_info().environment(),
         )
     }
