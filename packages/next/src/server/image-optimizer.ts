@@ -599,11 +599,17 @@ export async function imageOptimizer(
         '"url" parameter is valid but image type is not allowed'
       )
     }
-    const vector = VECTOR_TYPES.includes(upstreamType)
-    const animate =
-      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
 
-    if (vector || animate) {
+    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
+      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+    }
+    if (VECTOR_TYPES.includes(upstreamType)) {
+      // We don't warn here because we already know that "dangerouslyAllowSVG"
+      // was enabled above, therefore the user explicitly opted in.
+      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
