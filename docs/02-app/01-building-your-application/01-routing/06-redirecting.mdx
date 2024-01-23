@@ -157,7 +157,7 @@ export default function Page() {
 
 > **Good to know**:
 >
-> - If you don't need to programatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
+> - If you don't need to programmatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
 
 See the [`useRouter` API reference](/docs/app/api-reference/functions/use-router) for more information.
 
@@ -251,6 +251,86 @@ export const config = {
 > - Middleware runs **after** `redirects` in `next.config.js` and **before** rendering.
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
+
+## External redirects
+
+App Router fully supports programmatic external redirects to other sites (ie. `https://google.com`) using the same methods mentioned above.
+
+An example of when this would be useful is when generating checkout urls for hosted payment providers, such as Stripe and Shopify.
+
+[`redirect`](#redirect-function) and [permanentRedirect`](#permanentredirect-function) work on the server and in [Server Actions]().
+
+```ts filename="app/actions.ts" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { createCheckout } from './payment'
+
+export async function checkout(data: FormData) {
+  // Do validation and / or generate url
+  const { url } = await createCheckout(data)
+
+  redirect(url) // Redirect to hosted checkout
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+import { redirect } from 'next/navigation'
+import { createCheckout } from './payment'
+
+export async function checkout(data) {
+  // Do validation and / or generate url
+  const { url } = await createCheckout(data)
+
+  redirect(url) // Redirect to hosted checkout
+}
+```
+
+`router.push` and `router.replace` from [`useRouter`](#userouter-hook) work in client-side components and event handlers.
+
+```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <button
+      type="button"
+      onClick={() => router.push('https://checkout.stripe.com/c/pay')}
+    >
+      Checkout
+    </button>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <button
+      type="button"
+      onClick={() => router.push('https://checkout.stripe.com/c/pay')}
+    >
+      Checkout
+    </button>
+  )
+}
+```
+
+> **Good to know**:
+>
+> - If you don't need to programmatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
 
 ## Managing redirects at scale (advanced)
 
