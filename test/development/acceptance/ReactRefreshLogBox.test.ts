@@ -211,14 +211,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:1
+        "./index.js:7:0
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
         > 7 | }
-            |  ^
+            | ^
 
-        Unexpected eof"
+        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
