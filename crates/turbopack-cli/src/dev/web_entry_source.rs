@@ -39,6 +39,7 @@ pub fn get_client_chunking_context(
         DevChunkingContext::builder(
             project_path,
             server_root,
+            server_root,
             server_root.join("/_chunks".to_string()),
             server_root.join("/_assets".to_string()),
             environment,

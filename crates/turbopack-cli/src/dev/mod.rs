@@ -252,6 +252,7 @@ async fn source(
     let build_chunking_context = DevChunkingContext::builder(
         project_path,
         build_output_root,
+        build_output_root,
         build_output_root.join("chunks".to_string()),
         build_output_root.join("assets".to_string()),
         node_build_environment(),
