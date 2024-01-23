@@ -40,21 +40,25 @@ In this section, we'll explore the process of adding basic email-password authen
 Consider a login form where users can input their credentials:
 
 ```tsx filename="pages/login.tsx" switcher
-import { useState } from 'react'
+import { FormEvent } from 'react'
 import { useRouter } from 'next/router'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const router = useRouter()
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const email = formData.get('email')
+    const password = formData.get('password')
+
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+
     if (response.ok) {
       router.push('/profile')
     } else {
@@ -64,22 +68,8 @@ export default function LoginPage() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input
-        type="email"
-        name="email"
-        placeholder="Email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        type="password"
-        name="password"
-        placeholder="Password"
-        required
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
       <button type="submit">Login</button>
     </form>
   )
@@ -87,21 +77,25 @@ export default function LoginPage() {
 ```
 
 ```jsx filename="pages/login.jsx" switcher
-import { useState } from 'react'
+import { FormEvent } from 'react'
 import { useRouter } from 'next/router'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
   const router = useRouter()
 
-  async function handleSubmit(e) {
-    e.preventDefault()
+  async function handleSubmit(event) {
+    event.preventDefault()
+
+    const formData = new FormData(event.currentTarget)
+    const email = formData.get('email')
+    const password = formData.get('password')
+
     const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
     })
+
     if (response.ok) {
       router.push('/profile')
     } else {
@@ -111,22 +105,8 @@ export default function LoginPage() {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input
-        type="email"
-        name="email"
-        placeholder="Email"
-        required
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        type="password"
-        name="password"
-        placeholder="Password"
-        required
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
       <button type="submit">Login</button>
     </form>
   )
