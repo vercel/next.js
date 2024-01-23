@@ -16,7 +16,7 @@ use turbopack_binding::{
             context::AssetContext,
             file_source::FileSource,
             module::Module,
-            reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
+            reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
             virtual_source::VirtualSource,
         },
@@ -125,11 +125,19 @@ pub async fn create_page_ssr_entry_module(
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
         inner_assets.insert(
             INNER_DOCUMENT.to_string(),
-            process_global_item(pages_structure.document(), ssr_module_context),
+            process_global_item(
+                pages_structure.document(),
+                Value::new(reference_type.clone()),
+                ssr_module_context,
+            ),
         );
         inner_assets.insert(
             INNER_APP.to_string(),
-            process_global_item(pages_structure.app(), ssr_module_context),
+            process_global_item(
+                pages_structure.app(),
+                Value::new(reference_type.clone()),
+                ssr_module_context,
+            ),
         );
     }
 
@@ -148,6 +156,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module,
                 definition_page.clone(),
                 definition_pathname.clone(),
+                Value::new(reference_type),
                 pages_structure,
                 next_config,
             );
@@ -173,16 +182,12 @@ pub async fn create_page_ssr_entry_module(
 #[turbo_tasks::function]
 async fn process_global_item(
     item: Vc<PagesStructureItem>,
+    reference_type: Value<ReferenceType>,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
     let source = Vc::upcast(FileSource::new(item.project_path()));
 
-    let module = module_context
-        .process(
-            source,
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
-        )
-        .module();
+    let module = module_context.process(source, reference_type).module();
 
     Ok(module)
 }
@@ -194,6 +199,7 @@ async fn wrap_edge_page(
     entry: Vc<Box<dyn Module>>,
     page: String,
     pathname: String,
+    reference_type: Value<ReferenceType>,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
@@ -247,9 +253,9 @@ async fn wrap_edge_page(
 
     let inner_assets = indexmap! {
         INNER.to_string() => entry,
-        INNER_DOCUMENT.to_string() => process_global_item(pages_structure.document(), context),
-        INNER_APP.to_string() => process_global_item(pages_structure.app(), context),
-        INNER_ERROR.to_string() => process_global_item(pages_structure.error(), context),
+        INNER_DOCUMENT.to_string() => process_global_item(pages_structure.document(), reference_type.clone(), context),
+        INNER_APP.to_string() => process_global_item(pages_structure.app(), reference_type.clone(), context),
+        INNER_ERROR.to_string() => process_global_item(pages_structure.error(), reference_type.clone(), context),
     };
 
     let wrapped = context
