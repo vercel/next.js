@@ -162,6 +162,7 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isDefaultRoute } from '../lib/is-default-route'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -803,7 +804,7 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir)
+      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, false)
       logStartInfo({
         networkUrl: null,
         appUrl: null,
@@ -1855,7 +1856,7 @@ export default async function build(
                           )
                         } else {
                           // If this route can be partially pre-rendered, then
-                          // mark it as such and mark it that it can be
+                          // mark it as such and mark that it can be
                           // generated server-side.
                           if (workerResult.isPPR) {
                             isPPR = workerResult.isPPR
@@ -1883,6 +1884,8 @@ export default async function build(
                           }
 
                           const appConfig = workerResult.appConfig || {}
+                          const isInterceptionRoute =
+                            isInterceptionRouteAppPath(page)
                           if (appConfig.revalidate !== 0) {
                             const isDynamic = isDynamicRoute(page)
                             const hasGenerateStaticParams =
@@ -1898,26 +1901,29 @@ export default async function build(
                               )
                             }
 
-                            if (
-                              // Mark the app as static if:
-                              // - It has no dynamic param
-                              // - It doesn't have generateStaticParams but `dynamic` is set to
-                              //   `error` or `force-static`
-                              !isDynamic
-                            ) {
-                              appStaticPaths.set(originalAppPath, [page])
-                              appStaticPathsEncoded.set(originalAppPath, [page])
-                              isStatic = true
-                            } else if (
-                              isDynamic &&
-                              !hasGenerateStaticParams &&
-                              (appConfig.dynamic === 'error' ||
-                                appConfig.dynamic === 'force-static')
-                            ) {
-                              appStaticPaths.set(originalAppPath, [])
-                              appStaticPathsEncoded.set(originalAppPath, [])
-                              isStatic = true
-                              isPPR = false
+                            // Mark the app as static if:
+                            // - It's not an interception route (these currently depend on request headers and cannot be computed at build)
+                            // - It has no dynamic param
+                            // - It doesn't have generateStaticParams but `dynamic` is set to
+                            //   `error` or `force-static`
+                            if (!isInterceptionRoute) {
+                              if (!isDynamic) {
+                                appStaticPaths.set(originalAppPath, [page])
+                                appStaticPathsEncoded.set(originalAppPath, [
+                                  page,
+                                ])
+                                isStatic = true
+                              } else if (
+                                isDynamic &&
+                                !hasGenerateStaticParams &&
+                                (appConfig.dynamic === 'error' ||
+                                  appConfig.dynamic === 'force-static')
+                              ) {
+                                appStaticPaths.set(originalAppPath, [])
+                                appStaticPathsEncoded.set(originalAppPath, [])
+                                isStatic = true
+                                isPPR = false
+                              }
                             }
                           }
 
@@ -1934,7 +1940,8 @@ export default async function build(
                             !isStatic &&
                             !isAppRouteRoute(originalAppPath) &&
                             !isDynamicRoute(originalAppPath) &&
-                            !isPPR
+                            !isPPR &&
+                            !isInterceptionRoute
                           ) {
                             appPrefetchPaths.set(originalAppPath, page)
                           }

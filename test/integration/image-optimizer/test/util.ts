@@ -1320,6 +1320,12 @@ export const setupTests = (ctx) => {
       }
 
       beforeAll(async () => {
+        const json = JSON.stringify({
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
+        })
+        nextConfig.replace('{ /* replaceme */ }', json)
         curCtx.nextOutput = ''
         curCtx.appPort = await findPort()
         curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
@@ -1336,6 +1342,7 @@ export const setupTests = (ctx) => {
         await cleanImagesDir(ctx)
       })
       afterAll(async () => {
+        nextConfig.restore()
         if (curCtx.app) await killApp(curCtx.app)
       })
 
@@ -1365,6 +1372,9 @@ export const setupTests = (ctx) => {
       beforeAll(async () => {
         const json = JSON.stringify({
           images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
@@ -1403,6 +1413,12 @@ export const setupTests = (ctx) => {
           isDev: false,
         }
         beforeAll(async () => {
+          const json = JSON.stringify({
+            experimental: {
+              outputFileTracingRoot: join(__dirname, '../../../..'),
+            },
+          })
+          nextConfig.replace('{ /* replaceme */ }', json)
           curCtx.nextOutput = ''
           await nextBuild(curCtx.appDir)
           await cleanImagesDir(ctx)
@@ -1420,6 +1436,7 @@ export const setupTests = (ctx) => {
           })
         })
         afterAll(async () => {
+          nextConfig.restore()
           if (curCtx.app) await killApp(curCtx.app)
         })
 
@@ -1452,6 +1469,9 @@ export const setupTests = (ctx) => {
       beforeAll(async () => {
         const json = JSON.stringify({
           images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
