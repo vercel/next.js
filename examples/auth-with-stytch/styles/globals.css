@@ -11,7 +11,7 @@ a {
 
 * {
   box-sizing: border-box;
-  font-family: IBM Plex Sans, 'sans-serif';
+  font-family: IBM Plex Sans, "sans-serif";
 }
 
 p {
@@ -57,7 +57,7 @@ input::placeholder {
 }
 
 button,
-input[type='submit'] {
+input[type="submit"] {
   border: none;
   border-radius: 3px;
   color: white;
@@ -68,6 +68,6 @@ input[type='submit'] {
 }
 
 button:hover,
-input[type='submit']:hover {
+input[type="submit"]:hover {
   opacity: 0.8;
 }

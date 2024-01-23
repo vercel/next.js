@@ -1,25 +1,25 @@
-import { useRouter } from 'next/router'
-import { urlForImage } from '../lib/sanity'
-import ErrorPage from 'next/error'
-import Layout from './layout'
-import Container from './container'
-import Header from './header'
-import PostTitle from './post-title'
-import Head from 'next/head'
-import { CMS_NAME } from '../lib/constants'
-import PostHeader from './post-header'
-import PostBody from './post-body'
-import SectionSeparator from './section-separator'
-import MoreStories from './more-stories'
+import { useRouter } from "next/router";
+import { urlForImage } from "../lib/sanity";
+import ErrorPage from "next/error";
+import Layout from "./layout";
+import Container from "./container";
+import Header from "./header";
+import PostTitle from "./post-title";
+import Head from "next/head";
+import { CMS_NAME } from "../lib/constants";
+import PostHeader from "./post-header";
+import PostBody from "./post-body";
+import SectionSeparator from "./section-separator";
+import MoreStories from "./more-stories";
 
 export default function Post({ data = {}, preview = false }) {
-  const router = useRouter()
+  const router = useRouter();
 
-  const { post, morePosts } = data
-  const slug = post?.slug
+  const { post, morePosts } = data;
+  const slug = post?.slug;
 
   if (!router.isFallback && !slug) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   return (
@@ -42,7 +42,7 @@ export default function Post({ data = {}, preview = false }) {
                     content={urlForImage(post.coverImage)
                       .width(1200)
                       .height(627)
-                      .fit('crop')
+                      .fit("crop")
                       .url()}
                   />
                 )}
@@ -61,5 +61,5 @@ export default function Post({ data = {}, preview = false }) {
         )}
       </Container>
     </Layout>
-  )
+  );
 }

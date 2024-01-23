@@ -35,7 +35,7 @@ const appDir = join(__dirname, '../')
       )
 
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       if (process.platform === 'win32') {
         // TODO: add win32 snapshot
       } else {
