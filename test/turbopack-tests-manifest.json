@@ -4070,16 +4070,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/parallel-routes-use-selected-layout-segment/parallel-routes-use-selected-layout-segment.test.ts": {
-    "passed": [
-      "parallel-routes-use-selected-layout-segment - useSelectedLayoutSegment should return the correct active layout segment for a soft nav parallel route",
-      "parallel-routes-use-selected-layout-segment - useSelectedLayoutSegment should return the correct active layout segment for a hard nav parallel route"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/params-hooks-compat/index.test.ts": {
     "passed": [
       "app-dir - params hooks compat should only access path params with useParams",
