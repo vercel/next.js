@@ -493,9 +493,11 @@ describe.each([[''], ['/docs']])(
         await next.patchFile(aboutPage, aboutContent.replace('</div>', 'div'))
 
         expect(await hasRedbox(browser)).toBe(true)
-
+        const source = next.normalizeTestDirContent(
+          await getRedboxSource(browser)
+        )
         if (basePath === '' && !process.env.TURBOPACK) {
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js
             Error: 
               x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -521,7 +523,7 @@ describe.each([[''], ['/docs']])(
             ./pages/hmr/about2.js"
           `)
         } else if (basePath === '' && process.env.TURBOPACK) {
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:0
             Parsing ecmascript source code failed
               5 |     div
@@ -533,7 +535,7 @@ describe.each([[''], ['/docs']])(
             Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
           `)
         } else if (basePath === '/docs' && !process.env.TURBOPACK) {
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js
             Error: 
               x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -559,7 +561,7 @@ describe.each([[''], ['/docs']])(
             ./pages/hmr/about2.js"
           `)
         } else if (basePath === '/docs' && process.env.TURBOPACK) {
-          expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+          expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:0
             Parsing ecmascript source code failed
               5 |     div
