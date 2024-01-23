@@ -103,16 +103,13 @@ createNextDescribe(
     })
 
     it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {
+      const $ = await next.render$('/')
+      const url1 = $('#app-page').attr('src')
       const opts = { headers: { connection: 'upgrade' } }
-      const res1 = await next.fetch(
-        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90',
-        opts
-      )
+      const res1 = await next.fetch(url1, opts)
       expect(res1.status).toBe(200)
-      const res2 = await next.fetch(
-        '/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90',
-        opts
-      )
+      const url2 = $('#remote-app-page').attr('src')
+      const res2 = await next.fetch(url2, opts)
       expect(res2.status).toBe(200)
     })
 
