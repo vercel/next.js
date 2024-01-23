@@ -725,16 +725,22 @@ async function renderToHTMLOrFlightImpl(
     isRSCRequest &&
     req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
+  // TODO: this should be moved to a higher point in the stack
+  const isInterceptionRoute = isInterceptionRouteAppPath(pagePath)
+
   /**
-   * Router state provided from the client-side router. Used to handle rendering from the common layout down.
+   * Router state provided from the client-side router. Used to handle rendering
+   * from the common layout down. This value will be undefined if the request
+   * is not a client-side navigation request or if the request is a prefetch
+   * request (except when it's a prefetch request for an interception route
+   * which is always dynamic).
    */
 
   const shouldProvideFlightRouterState =
     isRSCRequest &&
     (!isPrefetchRSCRequest ||
       !renderOpts.experimental.ppr ||
-      // interception routes currently depend on the flight router state to extract dynamic params
-      isInterceptionRouteAppPath(pagePath))
+      isInterceptionRoute)
 
   let providedFlightRouterState = shouldProvideFlightRouterState
     ? parseAndValidateFlightRouterState(
