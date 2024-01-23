@@ -13,6 +13,7 @@ import { validateRevalidate } from '../lib/patch-fetch'
 import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/parallel-route-default'
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 
 type ComponentTree = {
   seedData: CacheNodeSeedData
@@ -80,7 +81,6 @@ async function createComponentTreeInternal({
     renderOpts: { nextConfigOutput, experimental },
     staticGenerationStore,
     componentMod: {
-      staticGenerationBailout,
       NotFoundBoundary,
       LayoutRouter,
       RenderFromTemplateContext,
@@ -185,12 +185,10 @@ async function createComponentTreeInternal({
     if (!dynamic || dynamic === 'auto') {
       dynamic = 'error'
     } else if (dynamic === 'force-dynamic') {
-      staticGenerationStore.forceDynamic = true
-      staticGenerationStore.dynamicShouldError = true
-      staticGenerationBailout(`output: export`, {
-        dynamic,
-        link: 'https://nextjs.org/docs/advanced-features/static-html-export',
-      })
+      // force-dynamic is always incompatible with 'export'. We must interrupt the build
+      throw new StaticGenBailoutError(
+        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is not runtime server to dynamic render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
+      )
     }
   }
 
@@ -204,10 +202,18 @@ async function createComponentTreeInternal({
       staticGenerationStore.forceDynamic = true
 
       // TODO: (PPR) remove this bailout once PPR is the default
-      if (!staticGenerationStore.prerenderState) {
+      if (
+        staticGenerationStore.isStaticGeneration &&
+        !staticGenerationStore.prerenderState
+      ) {
         // If the postpone API isn't available, we can't postpone the render and
         // therefore we can't use the dynamic API.
-        staticGenerationBailout(`force-dynamic`, { dynamic })
+        const err = new DynamicServerError(
+          `Page with \`dynamic = "force-dynamic"\` won't be rendered statically.`
+        )
+        staticGenerationStore.dynamicUsageDescription = err.message
+        staticGenerationStore.dynamicUsageStack = err.stack
+        throw err
       }
     } else {
       staticGenerationStore.dynamicShouldError = false

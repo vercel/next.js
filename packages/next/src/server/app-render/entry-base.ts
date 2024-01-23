@@ -12,7 +12,6 @@ import RenderFromTemplateContext from '../../client/components/render-from-templ
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
-import { staticGenerationBailout } from '../../client/components/static-generation-bailout'
 import { ClientPageRoot } from '../../client/components/client-page'
 import {
   createUntrackedSearchParams,
@@ -45,7 +44,6 @@ export {
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  staticGenerationBailout,
   createUntrackedSearchParams,
   createDynamicallyTrackedSearchParams,
   serverHooks,
