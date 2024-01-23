@@ -292,9 +292,16 @@ async fn run_test(resource: String) -> Result<Vc<FileSystemPath>> {
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match options.runtime {
         Runtime::Dev => Vc::upcast(
-            DevChunkingContext::builder(project_root, path, chunk_root_path, static_root_path, env)
-                .runtime_type(options.runtime_type)
-                .build(),
+            DevChunkingContext::builder(
+                project_root,
+                path,
+                path,
+                chunk_root_path,
+                static_root_path,
+                env,
+            )
+            .runtime_type(options.runtime_type)
+            .build(),
         ),
         Runtime::Build => Vc::upcast(
             BuildChunkingContext::builder(

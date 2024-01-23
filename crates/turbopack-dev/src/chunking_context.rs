@@ -77,8 +77,10 @@ pub struct DevChunkingContext {
     /// This path get stripped off of chunk paths before generating output asset
     /// paths.
     context_path: Vc<FileSystemPath>,
-    /// This path is used to compute the url to request chunks or assets from
+    /// This path is used to compute the url to request chunks from
     output_root: Vc<FileSystemPath>,
+    /// This path is used to compute the url to request assets from
+    client_root: Vc<FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: Vc<FileSystemPath>,
     /// Chunks reference source maps assets
@@ -105,6 +107,7 @@ impl DevChunkingContext {
     pub fn builder(
         context_path: Vc<FileSystemPath>,
         output_root: Vc<FileSystemPath>,
+        client_root: Vc<FileSystemPath>,
         chunk_root_path: Vc<FileSystemPath>,
         asset_root_path: Vc<FileSystemPath>,
         environment: Vc<Environment>,
@@ -113,6 +116,7 @@ impl DevChunkingContext {
             chunking_context: DevChunkingContext {
                 context_path,
                 output_root,
+                client_root,
                 chunk_root_path,
                 reference_chunk_source_maps: true,
                 reference_css_chunk_source_maps: true,
@@ -235,8 +239,8 @@ impl ChunkingContext for DevChunkingContext {
         let this = self.await?;
         let asset_path = ident.path().await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.output_root.await?.path))
-            .context("expected output_root to contain asset path")?;
+            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .context("expected asset_path to contain client_root")?;
 
         Ok(Vc::cell(format!(
             "{}{}",
