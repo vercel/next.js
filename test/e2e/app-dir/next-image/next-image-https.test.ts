@@ -8,11 +8,11 @@ createNextDescribe(
     startCommand: `yarn next dev --experimental-https`,
   },
   ({ next }) => {
-    // if (!process.env.CI) {
-    //   console.warn('only runs on CI as it requires administrator privileges')
-    //   it('only runs on CI as it requires administrator privileges', () => {})
-    //   return
-    // }
+    if (!process.env.CI) {
+      console.warn('only runs on CI as it requires administrator privileges')
+      it('only runs on CI as it requires administrator privileges', () => {})
+      return
+    }
 
     it('loads images without any errors', async () => {
       let failCount = 0
