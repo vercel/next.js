@@ -225,9 +225,9 @@ pub(crate) async fn get_paths_from_root(
         .map({
             move |&file| async move {
                 let path = &*file.ident().path().await?;
-                let relative = root
-                    .get_path_to(path)
-                    .context("file path must be inside the root")?;
+                let Some(relative) = root.get_path_to(path) else {
+                    return Ok(None);
+                };
 
                 Ok(if filter(relative) {
                     Some(relative.to_string())

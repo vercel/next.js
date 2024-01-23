@@ -321,7 +321,7 @@ dependencies = [
 [[package]]
 name = "auto-hash-map"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "serde",
  "smallvec",
@@ -2192,7 +2192,7 @@ dependencies = [
  "hash32",
  "rustc_version 0.4.0",
  "serde",
- "spin 0.9.8",
+ "spin",
  "stable_deref_trait",
 ]
 
@@ -2311,10 +2311,11 @@ dependencies = [
 
 [[package]]
 name = "hyper-rustls"
-version = "0.23.2"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1788965e61b367cd03a62950836d5cd41560c3577d90e40e0819373194d1661c"
+checksum = "ec3efd23720e2049821a693cbc7e65ea87c72f1c58ff2f9522ff332b1491e590"
 dependencies = [
+ "futures-util",
  "http",
  "hyper",
  "rustls",
@@ -2782,9 +2783,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.147"
+version = "0.2.152"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
+checksum = "13e3bf6590cbc649f4d1a3eefc9d5d6eb746f5200ffb04e5e142700b8faa56e7"
 
 [[package]]
 name = "libfuzzer-sys"
@@ -3498,7 +3499,7 @@ dependencies = [
 [[package]]
 name = "node-file-trace"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "serde",
@@ -4618,9 +4619,9 @@ checksum = "e3a8614ee435691de62bcffcf4a66d91b3594bf1428a5722e79103249a095690"
 
 [[package]]
 name = "reqwest"
-version = "0.11.15"
+version = "0.11.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ba30cc2c0cd02af1222ed216ba659cdb2f879dfe3181852fe7c50b1d0005949"
+checksum = "37b1ae8d9ac08420c66222fb9096fc5de435c3c48542bc5336c51892cffafb41"
 dependencies = [
  "base64 0.21.4",
  "bytes",
@@ -4646,6 +4647,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "system-configuration",
  "tokio",
  "tokio-native-tls",
  "tokio-rustls",
@@ -4669,17 +4671,16 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.16.20"
+version = "0.17.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3053cf52e236a3ed746dfc745aa9cacf1b791d846bdaf412f60a8d7d6e17c8fc"
+checksum = "688c63d65483050968b2a8937f7995f443e27041a0f7700aa59b0822aedebb74"
 dependencies = [
  "cc",
+ "getrandom",
  "libc",
- "once_cell",
- "spin 0.5.2",
+ "spin",
  "untrusted",
- "web-sys",
- "winapi 0.3.9",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
@@ -4792,14 +4793,14 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.20.8"
+version = "0.21.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fff78fc74d175294f4e83b28343315ffcfb114b156f0185e9741cb5570f50e2f"
+checksum = "f9d5a6813c0759e4609cd494e8e725babae6a2ca7b62a5536a13daaec6fcb7ba"
 dependencies = [
  "log",
  "ring",
+ "rustls-webpki",
  "sct",
- "webpki",
 ]
 
 [[package]]
@@ -4809,6 +4810,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d194b56d58803a43635bdc398cd17e383d6f71f9182b9a192c127ca42494a59b"
 dependencies = [
  "base64 0.21.4",
+]
+
+[[package]]
+name = "rustls-webpki"
+version = "0.101.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b6275d1ee7a1cd780b64aca7726599a1dbc893b1e64144529e55c3c2f745765"
+dependencies = [
+ "ring",
+ "untrusted",
 ]
 
 [[package]]
@@ -4867,9 +4878,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sct"
-version = "0.7.0"
+version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d53dcdb7c9f8158937a7981b48accfd39a43af418591a5d008c7b22b5e1b7ca4"
+checksum = "da046153aa2352493d6cb7da4b6e5c0c057d8a1d0a9aa8560baffdd945acd414"
 dependencies = [
  "ring",
  "untrusted",
@@ -5325,12 +5336,6 @@ dependencies = [
  "unicode-id",
  "url",
 ]
-
-[[package]]
-name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
 name = "spin"
@@ -6945,6 +6950,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "system-configuration"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba3a3adc5c275d719af8cb4272ea1c4a6d668a777f37e115f6d11ddbc1c8e0e7"
+dependencies = [
+ "bitflags 1.3.2",
+ "core-foundation",
+ "system-configuration-sys",
+]
+
+[[package]]
+name = "system-configuration-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a75fb188eb626b924683e3b95e3a48e63551fcfb51949de2f06a9d91dbee93c9"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
 name = "system-deps"
 version = "6.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7260,13 +7286,12 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
-version = "0.23.4"
+version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c43ee83903113e03984cb9e5cebe6c04a5116269e900e3ddba8f068a62adda59"
+checksum = "c28327cf380ac148141087fbfb9de9d7bd4e84ab5d2c28fbc911d753de8a7081"
 dependencies = [
  "rustls",
  "tokio",
- "webpki",
 ]
 
 [[package]]
@@ -7294,9 +7319,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.7"
+version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5427d89453009325de0d8f342c9490009f76e999cb7672d77e46267448f7e6b2"
+checksum = "5419f34732d9eb6ee4c3578b7989078579b7f039cbbb9ca2c4da015749371e15"
 dependencies = [
  "bytes",
  "futures-core",
@@ -7470,12 +7495,12 @@ dependencies = [
 
 [[package]]
 name = "tracing-log"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ddad33d2d10b1ed7eb9d1f518a5674713876e97e5bb9b7345a7984fbb4f922"
+checksum = "ee855f1f400bd0e5c02d150ae5de3840039a3f54b025156404e34c23c03f47c3"
 dependencies = [
- "lazy_static",
  "log",
+ "once_cell",
  "tracing-core",
 ]
 
@@ -7491,9 +7516,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.17"
+version = "0.3.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30a651bc37f915e81f087d86e62a18eec5f79550c7faff886f7090b4ea757c77"
+checksum = "ad0f048c97dbd9faa9b7df56362b8ebcaa52adb06b498c050d2f4e32f90a7a8b"
 dependencies = [
  "matchers",
  "nu-ansi-term",
@@ -7538,7 +7563,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7570,7 +7595,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "cargo-lock",
@@ -7582,7 +7607,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-bytes"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7597,7 +7622,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "dotenvs",
@@ -7611,7 +7636,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fetch"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7628,7 +7653,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-fs"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7659,7 +7684,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-hash"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "base16",
  "hex",
@@ -7671,7 +7696,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "convert_case 0.6.0",
@@ -7685,7 +7710,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-macros-shared"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7695,7 +7720,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-malloc"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "mimalloc",
 ]
@@ -7703,7 +7728,7 @@ dependencies = [
 [[package]]
 name = "turbo-tasks-memory"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "auto-hash-map",
@@ -7728,7 +7753,7 @@ dependencies = [
 [[package]]
 name = "turbopack"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7760,7 +7785,7 @@ dependencies = [
 [[package]]
 name = "turbopack-binding"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "auto-hash-map",
  "mdxjs",
@@ -7801,7 +7826,7 @@ dependencies = [
 [[package]]
 name = "turbopack-build"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7825,7 +7850,7 @@ dependencies = [
 [[package]]
 name = "turbopack-cli-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "clap 4.4.2",
@@ -7843,7 +7868,7 @@ dependencies = [
 [[package]]
 name = "turbopack-core"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-recursion",
@@ -7873,7 +7898,7 @@ dependencies = [
 [[package]]
 name = "turbopack-css"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7900,7 +7925,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -7924,7 +7949,7 @@ dependencies = [
 [[package]]
 name = "turbopack-dev-server"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -7961,7 +7986,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7996,7 +8021,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-hmr-protocol"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "serde",
  "serde_json",
@@ -8007,7 +8032,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-plugins"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8030,7 +8055,7 @@ dependencies = [
 [[package]]
 name = "turbopack-ecmascript-runtime"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indoc",
@@ -8047,7 +8072,7 @@ dependencies = [
 [[package]]
 name = "turbopack-env"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8063,7 +8088,7 @@ dependencies = [
 [[package]]
 name = "turbopack-image"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "base64 0.21.4",
@@ -8083,7 +8108,7 @@ dependencies = [
 [[package]]
 name = "turbopack-json"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "serde",
@@ -8098,7 +8123,7 @@ dependencies = [
 [[package]]
 name = "turbopack-mdx"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "mdxjs",
@@ -8113,7 +8138,7 @@ dependencies = [
 [[package]]
 name = "turbopack-node"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -8148,7 +8173,7 @@ dependencies = [
 [[package]]
 name = "turbopack-static"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "serde",
@@ -8164,7 +8189,7 @@ dependencies = [
 [[package]]
 name = "turbopack-swc-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "swc_core",
  "turbo-tasks",
@@ -8175,7 +8200,7 @@ dependencies = [
 [[package]]
 name = "turbopack-trace-utils"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
@@ -8191,7 +8216,7 @@ dependencies = [
 [[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
-source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240122.1#50ebf6858e28cd8d1447292e08f4c84bc21f0225"
+source = "git+https://github.com/vercel/turbo.git?tag=turbopack-240123.3#31816d1f102caa1968b7d0962002413c6fd9a5ad"
 dependencies = [
  "anyhow",
  "indexmap 1.9.3",
@@ -8213,7 +8238,7 @@ version = "1.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
- "cfg-if 1.0.0",
+ "cfg-if 0.1.10",
  "rand",
  "static_assertions",
 ]
@@ -8335,9 +8360,9 @@ checksum = "f962df74c8c05a667b5ee8bcf162993134c104e96440b663c8daa176dc772d8c"
 
 [[package]]
 name = "untrusted"
-version = "0.7.1"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
+checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "url"
@@ -9055,23 +9080,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "webpki"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f095d78192e208183081cc07bc5515ef55216397af48b873e5edcd72637fa1bd"
-dependencies = [
- "ring",
- "untrusted",
-]
-
-[[package]]
 name = "webpki-roots"
-version = "0.22.6"
+version = "0.25.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
-dependencies = [
- "webpki",
-]
+checksum = "1778a42e8b3b90bff8d0f5032bf22250792889a5cdc752aa0020c84abe3aaf10"
 
 [[package]]
 name = "weezl"
@@ -9343,11 +9355,12 @@ dependencies = [
 
 [[package]]
 name = "winreg"
-version = "0.10.1"
+version = "0.50.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
+checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
- "winapi 0.3.9",
+ "cfg-if 1.0.0",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
