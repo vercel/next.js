@@ -76,6 +76,7 @@ next-build = { workspace = true }
 next-core = { workspace = true }
 turbo-tasks = { workspace = true }
 once_cell = { workspace = true }
+regex = "1.5"
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
