@@ -133,7 +133,7 @@ jobs:
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -159,21 +159,21 @@ jobs:
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: turbo run summary
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats
           path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-reports
@@ -184,7 +184,7 @@ jobs:
 
       # upload playwright snapshots from failed tests
       - name: Upload test report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-playwright-snapshots
