@@ -371,6 +371,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
         missingSuspenseWithCSRBailout: z.boolean().optional(),
+        latestFetch: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

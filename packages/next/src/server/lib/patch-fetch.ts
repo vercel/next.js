@@ -12,6 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
+import Undici from 'next/dist/compiled/undici'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -182,8 +183,11 @@ export function patchFetch({
   serverHooks,
   staticGenerationAsyncStorage,
 }: PatchableModule) {
-  if (!(globalThis as any)._nextOriginalFetch) {
-    ;(globalThis as any)._nextOriginalFetch = globalThis.fetch
+  if (
+    process.env.NEXT_PRIVATE_LATEST_FETCH === '1' &&
+    !(globalThis.fetch as any).__nextLatestFetch
+  ) {
+    replaceGlobalFetch()
   }
 
   if ((globalThis.fetch as any).__nextPatched) return
@@ -693,4 +697,16 @@ export function patchFetch({
     return staticGenerationAsyncStorage
   }
   ;(globalThis.fetch as any).__nextPatched = true
+}
+
+/**
+ * This function replaces the `globalThis.fetch` that comes from Node.js core
+ * with the latest, pre-compiled version directly from `undici` (the original
+ * source for fetch in Node.js). This makes sure that fetch is always as fast
+ * as possible even Node.js has not updated its internal version.
+ */
+export function replaceGlobalFetch() {
+  // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+  globalThis.fetch = Undici.fetch
+  ;(globalThis.fetch as any).__nextLatestFetch = true
 }

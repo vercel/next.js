@@ -478,3 +478,8 @@ declare module 'next/dist/compiled/zod' {
   import * as m from 'zod'
   export = m
 }
+
+declare module 'next/dist/compiled/undici' {
+  import * as m from 'undici'
+  export = m
+}

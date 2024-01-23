@@ -77,6 +77,15 @@ const externals = {
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
+
+externals['undici'] = 'next/dist/compiled/undici'
+export async function ncc_undici(task) {
+  await task
+    .source(relative(__dirname, require.resolve('undici')))
+    .ncc({ packageName: 'undici', externals })
+    .target('src/compiled/undici')
+}
+
 // eslint-disable-next-line camelcase
 externals['node-html-parser'] = 'next/dist/compiled/node-html-parser'
 export async function ncc_node_html_parser(task, opts) {
@@ -2359,6 +2368,7 @@ export async function ncc(task, opts) {
         'ncc_http_proxy_agent',
         'ncc_https_proxy_agent',
         'ncc_mini_css_extract_plugin',
+        'ncc_undici',
       ],
       opts
     )
