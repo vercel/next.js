@@ -432,9 +432,11 @@ export function getInstrumentationEntry(opts: {
   return {
     import: opts.absolutePagePath,
     filename: `${
-      opts.isEdgeServer ? 'edge-' : '../'
+      opts.isEdgeServer ? 'edge-' : ''
     }${INSTRUMENTATION_HOOK_FILENAME}.js`,
-    layer: WEBPACK_LAYERS.instrument,
+    layer: opts.isEdgeServer
+      ? WEBPACK_LAYERS.middleware
+      : WEBPACK_LAYERS.instrument,
   }
 }
 

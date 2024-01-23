@@ -834,7 +834,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             }
 
             const isInstrumentation =
-              isInstrumentationHookFile(page) && pageType === 'root'
+              isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
 
             runDependingOnPageType({
               page,
@@ -846,9 +846,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 entries[entryKey].status = BUILDING
 
                 if (isInstrumentation) {
-                  entrypoints[bundlePath] = finalizeEntrypoint({
+                  const normalizedBundlePath = bundlePath.replace('src/', '')
+                  entrypoints[normalizedBundlePath] = finalizeEntrypoint({
                     compilerType: COMPILER_NAMES.edgeServer,
-                    name: bundlePath,
+                    name: normalizedBundlePath,
                     value: getInstrumentationEntry({
                       absolutePagePath: entryData.absolutePagePath,
                       isEdgeServer: true,
