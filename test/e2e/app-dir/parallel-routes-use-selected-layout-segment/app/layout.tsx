@@ -16,9 +16,6 @@ export default function RootLayout({
   const navSegment = useSelectedLayoutSegment('nav')
   const routeSegment = useSelectedLayoutSegment()
 
-  const authSegmentOutput = `${authSegment} (${typeof authSegment})`
-  const navSegmentOutput = `${navSegment} (${typeof navSegment})`
-  const routeSegmentOutput = `${routeSegment} (${typeof routeSegment})`
   return (
     <html lang="en">
       <body>
@@ -38,16 +35,15 @@ export default function RootLayout({
             </Link>
           </nav>
           <div>
-            navSegment (parallel route):{' '}
-            <div id="navSegment">{navSegmentOutput}</div>
+            navSegment (parallel route): <div id="navSegment">{navSegment}</div>
           </div>
           <div>
             authSegment (parallel route):{' '}
-            <div id="authSegment">{authSegmentOutput}</div>
+            <div id="authSegment">{authSegment}</div>
           </div>
           <div>
             routeSegment (app route):{' '}
-            <div id="routeSegment">{routeSegmentOutput}</div>
+            <div id="routeSegment">{routeSegment}</div>
           </div>
 
           <section id="navSlot">{nav}</section>
