@@ -247,6 +247,8 @@ export function useSelectedLayoutSegment(
       ? selectedLayoutSegments[0]
       : selectedLayoutSegments[selectedLayoutSegments.length - 1] ?? null
 
+  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
+  // and returning an internal value like `__DEFAULT__` would be confusing.
   return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
     ? null
     : selectedLayoutSegment
