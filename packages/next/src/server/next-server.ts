@@ -891,7 +891,7 @@ export default class NextNodeServer extends BaseServer {
 
     try {
       // next.js core assumes page path without trailing slash
-      pathname = removeTrailingSlash(pathname)
+      pathname = decodeURIComponent(removeTrailingSlash(pathname))
 
       const options: MatchOptions = {
         i18n: this.i18nProvider?.fromQuery(pathname, query),

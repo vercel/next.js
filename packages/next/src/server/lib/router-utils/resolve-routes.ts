@@ -267,7 +267,8 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+        const decodedURL = decodeURIComponent(localeResult.pathname)
+        const params = route.match(decodedURL)
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
