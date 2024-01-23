@@ -108,10 +108,7 @@ Both [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function Layout(props: {
-  //...
-  auth: React.ReactNode
-}) {
+export default function Layout({ auth }: { auth: React.ReactNode }) {
   const loginSegments = useSelectedLayoutSegment('auth')
   // ...
 }
@@ -122,7 +119,7 @@ export default function Layout(props: {
 
 import { useSelectedLayoutSegment } from 'next/navigation'
 
-export default function Layout(props) {
+export default function Layout({ auth }) {
   const loginSegments = useSelectedLayoutSegment('auth')
   // ...
 }
@@ -134,7 +131,7 @@ When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginS
 
 ### Conditional Routes
 
-You can use Parallel Routes to conditionally render a page based on certain conditions, such as user role. For example, to render a `/admin` or `/user` dashboard page depending on the user's role:
+You can use Parallel Routes to conditionally render a page based on certain conditions, such as user role. For example, to render a different dashboard page depending on the `/admin` or `/user` roles:
 
 <Image
   alt="Conditional routes diagram"
@@ -170,11 +167,11 @@ export default function Layout({ user, admin }) {
 
 ## Tab Groups
 
-Within slots, you can create tabs to allow users to navigate each slot independently. For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
+Within slots, you can create tabs to allow users to navigate each Parallel Routes independently. For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
 
 {/* TODO: Add diagrams for tabs */}
 
-Within `@analytics`, create a `layout` to share the tabs between the two pages:
+Within `@analytics`, create a [`layout`](/docs/app/building-your-application/routing/pages-and-layouts) file to share the tabs between the two pages:
 
 ```tsx filename="app/dashboard/@analytics/layout.tsx" switcher
 import Link from 'next/link'
@@ -208,11 +205,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-## Breadcrumbs
-
 ### Modals
 
-You can use Parallel Routes to create modals, for example:
+Parallel Routes can be used together with [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) to create modals. This allows you to solve common challenges when building modals, such as:
+
+- Making the modal content **shareable through a URL**.
+- **Preserveing context** when the page is refreshed, instead of closing the modal.
+- **Closing the modal on backwards navigation** rather than going to the previous route.
+- **Reopening the modal on forwards navigation**.
+
+Consider the following UI pattern, where a user can open a login modal from a layout, or by navigating to the `/login` route:
+
+{/* TO DO: Update these diagrams */}
 
 <Image
   alt="Parallel Routes Diagram"
@@ -222,77 +226,6 @@ You can use Parallel Routes to create modals, for example:
   height="687"
 />
 
-The `@auth` slot renders a `<Modal>` component that can be shown by navigating to a matching route, for example `/login`.
-
-```tsx filename="app/layout.tsx" switcher
-export default async function Layout({ auth }: { auth: React.ReactNode }) {
-  return (
-    <>
-      {/* ... */}
-      {props.auth}
-    </>
-  )
-}
-```
-
-```jsx filename="app/layout.js" switcher
-export default async function Layout(props) {
-  return (
-    <>
-      {/* ... */}
-      {props.auth}
-    </>
-  )
-}
-```
-
-```tsx filename="app/@auth/login/page.tsx" switcher
-import { Modal } from 'components/modal'
-
-export default function Login() {
-  return (
-    <Modal>
-      <h1>Login</h1>
-      {/* ... */}
-    </Modal>
-  )
-}
-```
-
-```jsx filename="app/@auth/login/page.js" switcher
-import { Modal } from 'components/modal'
-
-export default function Login() {
-  return (
-    <Modal>
-      <h1>Login</h1>
-      {/* ... */}
-    </Modal>
-  )
-}
-```
-
-To ensure that the contents of the modal don't get rendered when it's not active, you can create a `default.js` file that returns `null`.
-
-```tsx filename="app/@auth/default.tsx" switcher
-export default function Default() {
-  return null
-}
-```
-
-```jsx filename="app/@auth/default.js" switcher
-export default function Default() {
-  return null
-}
-Intercepting Routes can be used together with [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) to create modals.
-
-Using this pattern to create modals overcomes some common challenges when working with modals, by allowing you to:
-
-- Make the modal content **shareable through a URL**
-- **Preserve context** when the page is refreshed, instead of closing the modal
-- **Close the modal on backwards navigation** rather than going to the previous route
-- **Reopen the modal on forwards navigation**
-
 <Image
   alt="Intercepting routes modal example"
   srcLight="/docs/light/intercepted-routes-modal-example.png"
@@ -301,53 +234,166 @@ Using this pattern to create modals overcomes some common challenges when workin
   height="976"
 />
 
-> In the above example, the path to the `photo` segment can use the `(..)` matcher since `@modal` is a _slot_ and not a _segment_. This means that the `photo` route is only one _segment_ level higher, despite being two _file-system_ levels higher.
+To implement this pattern, create a `/login` route that renders your main login page. This page will be used when navigating to `/login` directly.
 
-Other examples could include opening a login modal in a top navbar while also having a dedicated `/login` page, or opening a shopping cart in a side modal.
+```tsx filename="app/@auth/login/page.tsx" switcher
+import { Login } from '@/app/ui/login'
 
-[View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
-
+export default function Page() {
+  return <Login />
+}
 ```
 
-#### Dismissing a modal
+```jsx filename="app/@auth/login/page.js" switcher
+import { Login } from '@/app/ui/login'
 
-If a modal was initiated through client navigation, e.g. by using `<Link href="/login">`, you can dismiss the modal by calling `router.back()` or by using a `Link` component.
+export default function Page() {
+  return <Login />
+}
+```
 
-```tsx filename="app/@auth/login/page.tsx" highlight="5" switcher
-'use client'
-import { useRouter } from 'next/navigation'
-import { Modal } from 'components/modal'
+Then, create a new `@modal` slot, and inside it, add a `default.js` file that returns `null`. This ensures that the modal is not rendered when it's not active.
 
-export default function Login() {
-  const router = useRouter()
+```tsx filename="app/@modal/default.tsx"
+export default function Default() {
+  return null
+}
+```
+
+```tsx filename="app/@modal/default.tsx"
+export default function Default() {
+  return null
+}
+```
+
+Inside your `@modal` slot, intercept the `/login` route by creating a `/(.)login` folder with a `page.tsx` file.
+
+```tsx filename="app/@modal/(.)login/page.tsx" switcher
+import { Modal } from '@/app/ui/modal'
+import { Login } from '@/app/ui/login'
+
+export default function Page() {
   return (
     <Modal>
-      <span onClick={() => router.back()}>Close modal</span>
-      <h1>Login</h1>
-      ...
+      <Login />
     </Modal>
   )
 }
 ```
 
-```jsx filename="app/@auth/login/page.js" highlight="5" switcher
-'use client'
-import { useRouter } from 'next/navigation'
-import { Modal } from 'components/modal'
+```jsx filename="app/@modal/(.)login/page.js" switcher
+import { Modal } from '@/app/ui/modal'
+import { Login } from '@/app/ui/login'
 
-export default function Login() {
-  const router = useRouter()
+export default function Page() {
   return (
     <Modal>
-      <span onClick={() => router.back()}>Close modal</span>
-      <h1>Login</h1>
-      ...
+      <Login />
     </Modal>
   )
 }
 ```
 
-> More information on modals is covered in the [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) section.
+> **Good to know:** The intercepting route convention, e.g. `(.)`, depends on your file-system structure. See the [convention](/docs/app/building-your-application/routing/intercepting-routes#convention) section for more information.
+
+Although it's up to you to implement the design of your `<Modal>` component, you can leverage the Next.js router to open and close the modal. That is, ensuring the modal closes/opens when navigating backwards and forwards.
+
+### Opening the modal
+
+To open the modal, pass the `modal` slot as a prop to the parent layout and render it alongside the `children` prop.
+
+```tsx filename="app/layout.tsx" switcher
+import Link from 'next/link'
+
+export default function Layout({
+  modal,
+  children,
+}: {
+  modal: React.ReactNode
+  children: React.ReactNode
+}) {
+  return (
+    <>
+      <nav>
+        <Link href="/login">Open modal</Link>
+      </nav>
+      <div>{modal}</div>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import Link from 'next/link'
+
+export default function Layout({ modal, children }) {
+  return (
+    <>
+      <nav>
+        <Link href="/login">Open modal</Link>
+      </nav>
+      <div>{modal}</div>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+When the user clicks the link, the modal will open instead of navigating to the `/login` page because of the route interception. On refresh, the user will be taken to the `/login` page.
+
+### Closing the modal
+
+If a modal was initiated through client navigation, e.g. by using `<Link href="/login">`, you can dismiss the modal by calling `router.back()` or by using the `Link` component.
+
+```tsx filename="app/ui/modal.tsx switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export function Modal({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          router.back()
+        }}
+      >
+        Close modal
+      </button>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```tsx filename="app/ui/modal.tsx switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export function Modal({ children }) {
+  const router = useRouter()
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => {
+          router.back()
+        }}
+      >
+        Close modal
+      </button>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+> **Good to know**: By separating the `<Modal>` functionality from the modal content (`<Login>`), you can not only reuse `<Modal>`, but make its children (or content) Server Components. See [interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more.
 
 If you want to navigate elsewhere and dismiss a modal, you can also use a catch-all route.
 
@@ -373,7 +419,12 @@ export default function CatchAll() {
 
 > Catch-all routes take precedence over `default.js`.
 
-### Streaming
+> **Good to know:**
+>
+> - Other examples could include opening a photo modal in a gallery while also having a dedicated `/photo/[id]` page, or opening a shopping cart in a side modal.
+> - [View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
+
+### Loading and Error UI
 
 Parallel Routes can be streamed independently, allowing you to define independent error and loading states for each route:
 
@@ -384,3 +435,5 @@ Parallel Routes can be streamed independently, allowing you to define independen
   width="1600"
   height="1218"
 />
+
+See the [Loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [Error Handling](/docs/app/building-your-application/routing/error-handling) docs for more.
