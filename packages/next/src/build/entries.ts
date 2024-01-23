@@ -428,15 +428,17 @@ export function getEdgeServerEntry(opts: {
 export function getInstrumentationEntry(opts: {
   absolutePagePath: string
   isEdgeServer: boolean
+  isDev: boolean
 }) {
+  // the '../' is needed to make sure the file is not chunked
+  const filename = `${
+    opts.isEdgeServer ? 'edge-' : opts.isDev ? '' : '../'
+  }${INSTRUMENTATION_HOOK_FILENAME}.js`
+
   return {
     import: opts.absolutePagePath,
-    filename: `${
-      opts.isEdgeServer ? 'edge-' : ''
-    }${INSTRUMENTATION_HOOK_FILENAME}.js`,
-    layer: opts.isEdgeServer
-      ? WEBPACK_LAYERS.middleware
-      : WEBPACK_LAYERS.instrument,
+    filename,
+    layer: WEBPACK_LAYERS.instrument,
   }
 }
 
@@ -652,6 +654,7 @@ export async function createEntrypoints(
               getInstrumentationEntry({
                 absolutePagePath,
                 isEdgeServer: false,
+                isDev: false,
               })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
@@ -689,6 +692,7 @@ export async function createEntrypoints(
               getInstrumentationEntry({
                 absolutePagePath,
                 isEdgeServer: true,
+                isDev: false,
               })
           } else {
             if (pagesType === 'app') {

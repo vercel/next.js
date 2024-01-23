@@ -853,6 +853,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     value: getInstrumentationEntry({
                       absolutePagePath: entryData.absolutePagePath,
                       isEdgeServer: true,
+                      isDev: true,
                     }),
                     isServerComponent: true,
                     hasAppDir,
@@ -949,6 +950,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   value = getInstrumentationEntry({
                     absolutePagePath: entryData.absolutePagePath,
                     isEdgeServer: false,
+                    isDev: true,
                   })
                   entrypoints[bundlePath] = finalizeEntrypoint({
                     compilerType: COMPILER_NAMES.server,
