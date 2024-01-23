@@ -220,20 +220,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     expect(await session.hasRedbox()).toBe(true)
 
-    const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      IS_TURBOPACK
-        ? `
-      "./index.js:7:1
-      Parsing ecmascript source code failed
-        5 |     div
-        6 |   )
-      > 7 | }
-          |  ^
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (IS_TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:7:0
+        Parsing ecmascript source code failed
+          5 |     div
+          6 |   )
+        > 7 | }
+            | ^
 
-      Unexpected eof"
-    `
-        : `
+        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -259,8 +259,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         Import trace for requested module:
         ./index.js
         ./app/page.js"
-      `
-    )
+      `)
+    }
 
     await cleanup()
   })
