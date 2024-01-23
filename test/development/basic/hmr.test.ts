@@ -501,7 +501,7 @@ describe.each([[''], ['/docs']])(
             "./pages/hmr/about2.js
             Error: 
               x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               ,-[4:1]
+               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
              4 |       <p>This is the about page.</p>
              5 |     div
              6 |   )
@@ -510,7 +510,7 @@ describe.each([[''], ['/docs']])(
                \`----
 
               x Unexpected eof
-               ,-[5:1]
+               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
              5 |     div
              6 |   )
              7 | }
@@ -539,7 +539,7 @@ describe.each([[''], ['/docs']])(
             "./pages/hmr/about2.js
             Error: 
               x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-               ,-[4:1]
+               ,-[TEST_DIR/pages/hmr/about2.js:4:1]
              4 |       <p>This is the about page.</p>
              5 |     div
              6 |   )
@@ -548,7 +548,7 @@ describe.each([[''], ['/docs']])(
                \`----
 
               x Unexpected eof
-               ,-[5:1]
+               ,-[TEST_DIR/pages/hmr/about2.js:5:1]
              5 |     div
              6 |   )
              7 | }
