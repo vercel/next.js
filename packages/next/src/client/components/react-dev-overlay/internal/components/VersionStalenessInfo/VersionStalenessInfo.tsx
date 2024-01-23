@@ -11,10 +11,7 @@ export function VersionStalenessInfo(props: VersionInfo) {
   return (
     <small className="nextjs-container-build-error-version-status">
       <span className={indicatorClass} />
-      <small
-        className="nextjs-container-build-error-version-status"
-        title={title}
-      >
+      <small data-nextjs-version-checker title={title}>
         {text}
       </small>{' '}
       {staleness === 'fresh' || staleness === 'unknown' ? null : (
@@ -36,7 +33,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   let indicatorClass = ''
   switch (staleness) {
     case 'fresh':
-      text = `Next.js is up to date${process.env.TURBOPACK ? ' (Turbo)' : ''}`
+      text = `Next.js is up to date${process.env.TURBOPACK ? ' (turbo)' : ''}`
       title = `Latest available version is detected (${installed}).`
       indicatorClass = 'fresh'
       break
