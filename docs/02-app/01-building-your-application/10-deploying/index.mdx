@@ -222,21 +222,23 @@ Vercel provides additional [skew protection](https://vercel.com/docs/deployments
 
 The Next.js App Router supports [streaming responses](/docs/app/building-your-application/routing/loading-ui-and-streaming) when self-hosting. If you are using Nginx or a similar proxy, you will need to configure it to disable buffering to enable streaming.
 
-```nginx filename="nginx.conf"
-server {
-    listen 80;
+For example, you can disable buffering in Nginx by setting `X-Accel-Buffering` to `no`:
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-
-        # Disable buffering
-        proxy_buffering off;
-    }
+```js filename="next.config.js"
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*{/}?',
+        headers: [
+          {
+            key: 'X-Accel-Buffering',
+            value: 'no',
+          },
+        ],
+      },
+    ]
+  },
 }
 ```
 
