@@ -13,7 +13,11 @@ client.on("error", (error) => {
 
 IncrementalCache.onCreation(async () => {
   // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
-  const useTtl = true;
+  function useTtl(maxAge) {
+    const evictionAge = maxAge * 1.5;
+
+    return evictionAge;
+  }
 
   await client.connect();
 
@@ -28,7 +32,8 @@ IncrementalCache.onCreation(async () => {
 
   return {
     cache: [redisCache, localCache],
-    useFileSystem: !useTtl,
+    // read more about useFileSystem limitations https://caching-tools.github.io/next-shared-cache/configuration/use-file-system
+    useFileSystem: false,
   };
 });
 

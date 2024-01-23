@@ -1,4 +1,4 @@
-import type { Update as TurbopackUpdate } from '../../../build/swc'
+import type { Update as TurbopackUpdate } from '../../build/swc'
 
 export function extractModulesFromTurbopackMessage(
   data: TurbopackUpdate | TurbopackUpdate[]
@@ -7,6 +7,7 @@ export function extractModulesFromTurbopackMessage(
 
   const updates = Array.isArray(data) ? data : [data]
   for (const update of updates) {
+    // TODO this won't capture changes to CSS since they don't result in a "merged" update
     if (
       update.type !== 'partial' ||
       update.instruction.type !== 'ChunkListUpdate' ||
@@ -30,5 +31,5 @@ export function extractModulesFromTurbopackMessage(
     }
   }
 
-  return updatedModules
+  return [...updatedModules]
 }
