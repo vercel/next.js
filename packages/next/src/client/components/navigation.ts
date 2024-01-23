@@ -12,7 +12,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -242,9 +242,14 @@ export function useSelectedLayoutSegment(
     return null
   }
 
-  return parallelRouteKey === 'children'
-    ? selectedLayoutSegments[0]
-    : selectedLayoutSegments[selectedLayoutSegments.length - 1] ?? null
+  const selectedLayoutSegment =
+    parallelRouteKey === 'children'
+      ? selectedLayoutSegments[0]
+      : selectedLayoutSegments[selectedLayoutSegments.length - 1] ?? null
+
+  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
+    ? null
+    : selectedLayoutSegment
 }
 
 export { redirect, permanentRedirect, RedirectType } from './redirect'
