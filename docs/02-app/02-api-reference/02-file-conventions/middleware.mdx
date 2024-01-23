@@ -1,0 +1,61 @@
+---
+title: middleware.js
+description: API reference for the middleware.js  file.
+related:
+  title: Learn more about Middleware
+  links:
+    - app/building-your-application/routing/middleware
+---
+
+The `middleware.ts` file is designed for executing server-side logic before a request is completed during client-side navigation. It provides the ability to modify the response based on the incoming request. This can include operations like URL rewriting, redirecting, altering request or response headers, or even sending a direct response.
+
+Middleware executes before the content is served from the cache and before routes are matched. It's particularly useful for implementing custom server-side functionalities like authentication, logging, or handling specific path patterns.
+
+```tsx filename="middleware.ts" switcher
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+// This function can be marked `async` if using `await` inside
+export function middleware(request: NextRequest) {
+  return NextResponse.redirect(new URL('/home', request.url))
+}
+
+export const config = {
+  matcher: '/about/:path*',
+}
+```
+
+```jsx filename="middleware.js" switcher
+import { NextResponse } from 'next/server'
+
+// This function can be marked `async` if using `await` inside
+export function middleware(request) {
+  return NextResponse.redirect(new URL('/home', request.url))
+}
+
+export const config = {
+  matcher: '/about/:path*',
+}
+```
+
+## Matcher
+
+[`matcher`](https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher) allows you to filter Middleware to run on specific paths. For a single path, directly provide the path string. For multiple paths, use an array. For instance, `matcher: ['/about', '/contact']` applies Middleware to both the `/about` and `/contact` paths. Matcher supports full regular expressions, enabling complex patterns like negative lookaheads or specific character matches. Additionally, to avoid processing prefetch requests from `next/link` through Middleware, list these paths in the `ignore` array.
+
+## NextResponse
+
+Middleware can utilize [`NextResponse`](https://nextjs.org/docs/app/building-your-application/routing/middleware#nextresponse) to enhance route handling capabilities. By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
+
+## Runtime
+
+Middleware currently only supports the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). The Node.js runtime can not be used.
+
+## Version History
+
+| Version   | Changes                                                                                       |
+| --------- | --------------------------------------------------------------------------------------------- |
+| `v13.1.0` | Advanced Middleware flags added                                                               |
+| `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |
+| `v12.2.0` | Middleware is stable, please see the [upgrade guide](/docs/messages/middleware-upgrade-guide) |
+| `v12.0.9` | Enforce absolute URLs in Edge Runtime ([PR](https://github.com/vercel/next.js/pull/33410))    |
+| `v12.0.0` | Middleware (Beta) added                                                                       |
