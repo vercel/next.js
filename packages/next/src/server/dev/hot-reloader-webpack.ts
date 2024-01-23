@@ -185,6 +185,34 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
+  let installed = '0.0.0'
+
+  if (!enabled) {
+    return { installed, staleness: 'unknown' }
+  }
+
+  try {
+    installed = require('next/package.json').version
+
+    const registry = getRegistry()
+    const res = await fetch(`${registry}-/package/next/dist-tags`)
+
+    if (!res.ok) return { installed, staleness: 'unknown' }
+
+    const tags = await res.json()
+
+    return parseVersionInfo({
+      installed,
+      latest: tags.latest,
+      canary: tags.canary,
+    })
+  } catch (e) {
+    console.error('parse version e', e)
+    return { installed, staleness: 'unknown' }
+  }
+}
+
 export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
@@ -524,36 +552,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       )
   }
 
-  private async getVersionInfo(span: Span, enabled: boolean) {
-    const versionInfoSpan = span.traceChild('get-version-info')
-    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () => {
-      let installed = '0.0.0'
-
-      if (!enabled) {
-        return { installed, staleness: 'unknown' }
-      }
-
-      try {
-        installed = require('next/package.json').version
-
-        const registry = getRegistry()
-        const res = await fetch(`${registry}-/package/next/dist-tags`)
-
-        if (!res.ok) return { installed, staleness: 'unknown' }
-
-        const tags = await res.json()
-
-        return parseVersionInfo({
-          installed,
-          latest: tags.latest,
-          canary: tags.canary,
-        })
-      } catch {
-        return { installed, staleness: 'unknown' }
-      }
-    })
-  }
-
   private async getWebpackConfig(span: Span) {
     const webpackConfigSpan = span.traceChild('get-webpack-config')
 
@@ -716,15 +714,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
+  private async tracedGetVersionInfo(span: Span, enabled: boolean) {
+    const versionInfoSpan = span.traceChild('get-version-info')
+    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
+      getVersionInfo(enabled)
+    )
+  }
+
   public async start(): Promise<void> {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    const testMode = process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
-
-    this.versionInfo = await this.getVersionInfo(
+    const isTestMode = !!(
+      process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+    )
+    this.versionInfo = await this.tracedGetVersionInfo(
       startSpan,
-      !!testMode || this.telemetry.isEnabled
+      isTestMode || this.telemetry.isEnabled
     )
 
     await this.clean(startSpan)

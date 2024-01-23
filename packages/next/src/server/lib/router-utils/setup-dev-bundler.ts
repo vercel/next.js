@@ -43,6 +43,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloaderWebpack, {
+  getVersionInfo,
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
@@ -134,9 +135,13 @@ import { bold, green, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { trace } from '../../../trace'
+import type { VersionInfo } from '../../dev/parse-version-info'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
+const isTestMode = !!(
+  process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+)
 
 type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -227,10 +232,10 @@ async function startWatcher(opts: SetupOpts) {
 
     // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
     // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-    if (process.env.TURBOPACK && process.env.NEXT_TEST_MODE) {
+    if (process.env.TURBOPACK && isTestMode) {
       require('console').log('Creating turbopack project', {
         dir,
-        testMode: process.env.NEXT_TEST_MODE,
+        testMode: isTestMode,
       })
     }
 
@@ -1243,6 +1248,10 @@ async function startWatcher(opts: SetupOpts) {
     await writeManifests()
 
     const overlayMiddleware = getOverlayMiddleware(project)
+    let versionInfo: VersionInfo = {
+      installed: '0.0.0',
+      staleness: 'unknown',
+    }
     const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
@@ -1370,10 +1379,7 @@ async function startWatcher(opts: SetupOpts) {
             errors,
             warnings: [],
             hash: '',
-            versionInfo: {
-              installed: '0.0.0',
-              staleness: 'unknown',
-            },
+            versionInfo,
           }
 
           this.send(sync)
@@ -1394,7 +1400,11 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async start() {
-        // Not implemented yet.
+        const enabled = isTestMode || opts.telemetry.isEnabled
+        const nextVersionInfo = await getVersionInfo(enabled)
+        if (nextVersionInfo) {
+          versionInfo = nextVersionInfo
+        }
       },
       async stop() {
         // Not implemented yet.
