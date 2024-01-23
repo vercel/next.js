@@ -46,9 +46,7 @@ describe('Exported runtimes value validation', () => {
       )
     )
     expect(result.stderr).toEqual(
-      expect.stringContaining(
-        'Unsupported node type "BinaryExpression" at "config.runtime"'
-      )
+      expect.stringContaining('Unsupported node type at "config.runtime"')
     )
     // Spread Operator within Object Expression
     expect(result.stderr).toEqual(
@@ -90,9 +88,7 @@ describe('Exported runtimes value validation', () => {
       )
     )
     expect(result.stderr).toEqual(
-      expect.stringContaining(
-        'Unsupported node type "CallExpression" at "config.runtime"'
-      )
+      expect.stringContaining('Unsupported node type at "config.runtime"')
     )
     // Unknown Object Key
     expect(result.stderr).toEqual(
@@ -102,7 +98,7 @@ describe('Exported runtimes value validation', () => {
     )
     expect(result.stderr).toEqual(
       expect.stringContaining(
-        'Unsupported key type "Computed" in the Object Expression at "config.runtime"'
+        'Unsupported key type in the Object Expression at "config.runtime"'
       )
     )
   })
