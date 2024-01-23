@@ -80,6 +80,11 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
+const isTestMode = !!(
+  process.env.NEXT_TEST_MODE ||
+  process.env.__NEXT_TEST_MODE ||
+  process.env.DEBUG
+)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -725,9 +730,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    const isTestMode = !!(
-      process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
-    )
     this.versionInfo = await this.tracedGetVersionInfo(
       startSpan,
       isTestMode || this.telemetry.isEnabled

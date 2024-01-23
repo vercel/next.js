@@ -140,7 +140,9 @@ import type { VersionInfo } from '../../dev/parse-version-info'
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
-  process.env.NEXT_TEST_MODE || process.env.__NEXT_TEST_MODE
+  process.env.NEXT_TEST_MODE ||
+  process.env.__NEXT_TEST_MODE ||
+  process.env.DEBUG
 )
 
 type SetupOpts = {

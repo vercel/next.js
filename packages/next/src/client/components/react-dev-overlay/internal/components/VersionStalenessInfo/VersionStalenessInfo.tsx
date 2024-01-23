@@ -36,7 +36,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   let indicatorClass = ''
   switch (staleness) {
     case 'fresh':
-      text = 'Next.js is up to date'
+      text = `Next.js is up to date${process.env.TURBOPACK ? ' (Turbo)' : ''}`
       title = `Latest available version is detected (${installed}).`
       indicatorClass = 'fresh'
       break
