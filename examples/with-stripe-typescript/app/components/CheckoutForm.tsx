@@ -47,7 +47,7 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
   };
 
   return (
-    <React.Fragment>
+    <>
       <form action={formAction}>
         <input type="hidden" name="uiMode" value={props.uiMode} />
         <CustomDonationInput
@@ -77,6 +77,6 @@ export default function CheckoutForm(props: CheckoutFormProps): JSX.Element {
           <EmbeddedCheckout />
         </EmbeddedCheckoutProvider>
       ) : null}
-    </React.Fragment>
+    </>
   );
 }
