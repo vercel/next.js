@@ -1,9 +1,9 @@
-import PostPreview from './post-preview'
-import Post from '../types/post'
+import PostPreview from "./post-preview";
+import Post from "../types/post";
 
 type Props = {
-  posts: Post[]
-}
+  posts: Post[];
+};
 
 export default function MoreStories({ posts }: Props) {
   return (
@@ -25,5 +25,5 @@ export default function MoreStories({ posts }: Props) {
         ))}
       </div>
     </section>
-  )
+  );
 }

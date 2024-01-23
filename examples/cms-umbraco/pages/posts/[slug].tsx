@@ -1,30 +1,30 @@
-import { useRouter } from 'next/router'
-import ErrorPage from 'next/error'
-import Container from '../../components/container'
-import MoreStories from '../../components/more-stories'
-import PostBody from '../../components/post-body'
-import Header from '../../components/header'
-import PostHeader from '../../components/post-header'
-import SectionSeparator from '../../components/section-separator'
-import Layout from '../../components/layout'
-import { getAllPostSlugs, getPostAndMorePosts } from '../../lib/api'
-import PostTitle from '../../components/post-title'
-import Head from 'next/head'
-import { EXAMPLE_TOOL_NAME } from '../../lib/constants'
-import Tags from '../../components/tags'
-import Post from '../../types/post'
+import { useRouter } from "next/router";
+import ErrorPage from "next/error";
+import Container from "../../components/container";
+import MoreStories from "../../components/more-stories";
+import PostBody from "../../components/post-body";
+import Header from "../../components/header";
+import PostHeader from "../../components/post-header";
+import SectionSeparator from "../../components/section-separator";
+import Layout from "../../components/layout";
+import { getAllPostSlugs, getPostAndMorePosts } from "../../lib/api";
+import PostTitle from "../../components/post-title";
+import Head from "next/head";
+import { EXAMPLE_TOOL_NAME } from "../../lib/constants";
+import Tags from "../../components/tags";
+import Post from "../../types/post";
 
 type Props = {
-  post: Post
-  morePosts: Post[]
-  preview: boolean
-}
+  post: Post;
+  morePosts: Post[];
+  preview: boolean;
+};
 
 export default function Post({ post, morePosts, preview }: Props) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (!router.isFallback && !post?.slug) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   return (
@@ -62,30 +62,30 @@ export default function Post({ post, morePosts, preview }: Props) {
         )}
       </Container>
     </Layout>
-  )
+  );
 }
 
 export async function getStaticPaths({ preview }: { preview: boolean }) {
-  const slugs = await getAllPostSlugs(preview)
+  const slugs = await getAllPostSlugs(preview);
 
   return {
     paths: slugs.map((slug) => `/posts${slug}`),
     fallback: false,
-  }
+  };
 }
 
 type Params = {
-  slug: string
-}
+  slug: string;
+};
 
 export async function getStaticProps({
   params,
   preview,
 }: {
-  params: Params
-  preview: boolean
+  params: Params;
+  preview: boolean;
 }) {
-  const postAndMorePosts = await getPostAndMorePosts(params.slug, preview)
+  const postAndMorePosts = await getPostAndMorePosts(params.slug, preview);
 
   return {
     props: {
@@ -93,5 +93,5 @@ export async function getStaticProps({
       morePosts: postAndMorePosts.morePosts,
       preview: preview || null,
     },
-  }
+  };
 }

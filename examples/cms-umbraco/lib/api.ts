@@ -1,51 +1,51 @@
-import Post from '../types/post'
-import Author from '../types/author'
-import PostAndMorePosts from '../types/postAndMorePosts'
+import Post from "../types/post";
+import Author from "../types/author";
+import PostAndMorePosts from "../types/postAndMorePosts";
 
-const UMBRACO_SERVER_URL = process.env.UMBRACO_SERVER_URL
-const UMBRACO_DELIVERY_API_KEY = process.env.UMBRACO_DELIVERY_API_KEY
-const UMBRACO_API_URL = `${UMBRACO_SERVER_URL}/umbraco/delivery/api/v1.0/content`
+const UMBRACO_SERVER_URL = process.env.UMBRACO_SERVER_URL;
+const UMBRACO_DELIVERY_API_KEY = process.env.UMBRACO_DELIVERY_API_KEY;
+const UMBRACO_API_URL = `${UMBRACO_SERVER_URL}/umbraco/delivery/api/v2/content`;
 
 const fetchSingle = async (slug: string, startItem: string, preview: boolean) =>
   await performFetch(`${UMBRACO_API_URL}/item/${slug}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Start-Item': startItem,
-      'Api-Key': UMBRACO_DELIVERY_API_KEY,
-      Preview: preview ? 'true' : 'false',
+      "Start-Item": startItem,
+      "Api-Key": UMBRACO_DELIVERY_API_KEY,
+      Preview: preview ? "true" : "false",
     },
-  })
+  });
 
 const fetchMultiple = async (
   query: string,
   startItem: string,
-  preview: boolean
+  preview: boolean,
 ) =>
   await performFetch(`${UMBRACO_API_URL}/?${query}`, {
-    method: 'GET',
+    method: "GET",
     headers: {
-      'Start-Item': startItem,
-      'Api-Key': UMBRACO_DELIVERY_API_KEY,
-      Preview: preview ? 'true' : 'false',
+      "Start-Item": startItem,
+      "Api-Key": UMBRACO_DELIVERY_API_KEY,
+      Preview: preview ? "true" : "false",
     },
-  })
+  });
 
 const performFetch = async (url: string, options: RequestInit) => {
-  const response = await fetch(url, options)
+  const response = await fetch(url, options);
 
   if (!response.ok) {
-    const message = `Could not fetch data for URL: ${url} - response status was: ${response.status}`
-    throw new Error(message)
+    const message = `Could not fetch data for URL: ${url} - response status was: ${response.status}`;
+    throw new Error(message);
   }
 
-  return await response.json()
-}
+  return await response.json();
+};
 
-const extractSlug = (item: any): string => item.route.path
+const extractSlug = (item: any): string => item.route.path;
 
 const extractPost = (post: any): Post => {
   // NOTE: author is an expanded property on the post
-  const author = extractAuthor(post.properties.author)
+  const author = extractAuthor(post.properties.author);
   return {
     id: post.id,
     slug: extractSlug(post),
@@ -58,8 +58,8 @@ const extractPost = (post: any): Post => {
     excerpt: post.properties.excerpt,
     content: post.properties.content.markup,
     tags: post.properties.tags,
-  }
-}
+  };
+};
 
 const extractAuthor = (author: any): Author => {
   return {
@@ -68,46 +68,46 @@ const extractAuthor = (author: any): Author => {
     picture: {
       url: `${UMBRACO_SERVER_URL}${author.properties.picture[0].url}`,
     },
-  }
-}
+  };
+};
 
 const fetchPost = async (slug: string, preview: boolean) =>
-  await fetchSingle(`${slug}?expand=property:author`, 'posts', preview)
+  await fetchSingle(`${slug}?expand=properties[author]`, "posts", preview);
 
 const fetchPosts = async (
   expandAuthor: boolean,
   numberOfPosts: number,
-  preview: boolean
+  preview: boolean,
 ) => {
-  const expand = expandAuthor ? 'property:author' : ''
-  const take = numberOfPosts ?? 10
+  const expand = expandAuthor ? "properties[author]" : "";
+  const take = numberOfPosts ?? 10;
   return await fetchMultiple(
     `fetch=children:/&expand=${expand}&sort=updateDate:desc&take=${take}`,
-    'posts',
-    preview
-  )
-}
+    "posts",
+    preview,
+  );
+};
 
 export const getAllPostSlugs = async (preview: boolean): Promise<string[]> => {
-  const json = await fetchPosts(false, 100, preview)
-  return json.items.map((post) => extractSlug(post))
-}
+  const json = await fetchPosts(false, 100, preview);
+  return json.items.map((post) => extractSlug(post));
+};
 
 export const getAllPostsForHome = async (preview: boolean): Promise<Post[]> => {
-  const json = await fetchPosts(true, 10, preview)
-  return json.items.map(extractPost)
-}
+  const json = await fetchPosts(true, 10, preview);
+  return json.items.map(extractPost);
+};
 
 export const getPostAndMorePosts = async (
   slug: string,
-  preview: boolean
+  preview: boolean,
 ): Promise<PostAndMorePosts> => {
-  const postJson = await fetchPost(slug, preview)
-  const post = extractPost(postJson)
-  const morePostsJson = await fetchPosts(true, 3, preview)
-  const morePosts = morePostsJson.items.map(extractPost)
+  const postJson = await fetchPost(slug, preview);
+  const post = extractPost(postJson);
+  const morePostsJson = await fetchPosts(true, 3, preview);
+  const morePosts = morePostsJson.items.map(extractPost);
   return {
     post: post,
     morePosts: morePosts.filter((p) => p.id !== post.id).slice(0, 2),
-  }
-}
+  };
+};

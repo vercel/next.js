@@ -1,18 +1,18 @@
-import Avatar from './avatar'
-import Date from './date'
-import CoverImage from './cover-image'
-import Link from 'next/link'
-import Author from '../types/author'
-import Picture from '../types/picture'
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import Link from "next/link";
+import Author from "../types/author";
+import Picture from "../types/picture";
 
 type Props = {
-  title: string
-  coverImage: Picture
-  date: string
-  excerpt: string
-  author: Author
-  slug: string
-}
+  title: string;
+  coverImage: Picture;
+  date: string;
+  excerpt: string;
+  author: Author;
+  slug: string;
+};
 
 export default function HeroPost({
   title,
@@ -51,5 +51,5 @@ export default function HeroPost({
         </div>
       </div>
     </section>
-  )
+  );
 }

@@ -1,8 +1,8 @@
-import Post from './post'
+import Post from "./post";
 
 type PostAndMorePosts = {
-  post: Post
-  morePosts: Post[]
-}
+  post: Post;
+  morePosts: Post[];
+};
 
-export default PostAndMorePosts
+export default PostAndMorePosts;

@@ -151,3 +151,11 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco&project-name=nextjs-umbraco-blog&repository-name=nextjs-umbraco-blog&env=UMBRACO_SERVER_URL,UMBRACO_DELIVERY_API_KEY,UMBRACO_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Umbraco%20CMS&envLink=https://github.com/vercel/next.js/tree/canary/examples/cms-umbraco%23step-6-set-up-environment-variables)
+
+### Getting to know Umbraco's Content Delivery API
+
+This example utilizes the native Content Delivery API in Umbraco to fetch the blog data headlessly.
+
+The Content Delivery API is a feature-rich API for headless content delivery. However, in an effort to keep the complexity down in this sample, certain features and optimizations have been omitted from the API queries. This results in slight over-fetching, particularly when fetching multiple blog posts.
+
+You can read all about the Content Delivery API [here](https://docs.umbraco.com/umbraco-cms/reference/content-delivery-api).
