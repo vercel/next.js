@@ -4029,15 +4029,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/parallel-routes-catchall-dynamic-segment/parallel-routes-catchall-dynamic-segment.test.ts": {
-    "passed": [
-      "parallel-routes-catchall-dynamic-segment should match default paths before catch-all"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/parallel-routes-catchall-slotted-non-catchalls/parallel-routes-catchall-slotted-non-catchalls.test.ts": {
     "passed": [
       "parallel-routes-catchall-slotted-non-catchalls should match default paths before catch-all"
