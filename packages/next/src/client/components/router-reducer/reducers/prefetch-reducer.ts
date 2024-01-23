@@ -22,7 +22,7 @@ export function prefetchReducer(
   const { url } = action
   url.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.tree)
   const cacheEntry = state.prefetchCache.get(prefetchCacheKey)
 
   if (cacheEntry) {

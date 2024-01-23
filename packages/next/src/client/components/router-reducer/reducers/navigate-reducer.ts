@@ -127,7 +127,7 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.tree)
   let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
@@ -322,7 +322,7 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
+  const prefetchCacheKey = createPrefetchCacheKey(url, state.tree)
   let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
