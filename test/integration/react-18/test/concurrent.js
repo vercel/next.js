@@ -27,7 +27,7 @@ export default (context, _render) => {
     await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
       await check(
         () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
-        /blue/
+        /(?:blue|#00f)/
       )
       await check(
         () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),

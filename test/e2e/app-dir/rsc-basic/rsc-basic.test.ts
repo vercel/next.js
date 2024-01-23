@@ -340,7 +340,7 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
 
       // from styled-components
       expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
