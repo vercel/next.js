@@ -45,7 +45,7 @@ createNextDescribe(
         '/[locale]/nested/[foo]/[bar]/default.tsx'
       )
 
-      // we do have a slot for the `[baz]` dynamic segment in slot0 and so we expect that to no match
+      // we do have a slot for the `[baz]` dynamic segment in slot0 and so we expect that to match
       expect(await browser.elementById('slot0').text()).toBe(
         '/[locale]/nested/[foo]/[bar]/@slot0/[baz]/page.tsx'
       )
