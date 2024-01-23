@@ -8,11 +8,11 @@ createNextDescribe(
     startCommand: `yarn next dev --experimental-https`,
   },
   ({ next }) => {
-    if (!process.env.CI) {
-      console.warn('only runs on CI as it requires administrator privileges')
-      it('only runs on CI as it requires administrator privileges', () => {})
-      return
-    }
+    // if (!process.env.CI) {
+    //   console.warn('only runs on CI as it requires administrator privileges')
+    //   it('only runs on CI as it requires administrator privileges', () => {})
+    //   return
+    // }
 
     it('loads images without any errors', async () => {
       let failCount = 0
@@ -36,9 +36,15 @@ createNextDescribe(
       const image = browser.elementByCss('#app-page')
       const src = await image.getAttribute('src')
 
-      expect(src).toContain(
-        '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90'
-      )
+      if (process.env.TURBOPACK) {
+        expect(src).toMatchInlineSnapshot(
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+        )
+      } else {
+        expect(src).toMatchInlineSnapshot(
+          `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.3f1a293b.png&w=828&q=90"`
+        )
+      }
 
       expect(failCount).toBe(0)
     })
