@@ -245,7 +245,7 @@ export function useSelectedLayoutSegment(
   const selectedLayoutSegment =
     parallelRouteKey === 'children'
       ? selectedLayoutSegments[0]
-      : selectedLayoutSegments[selectedLayoutSegments.length - 1] ?? null
+      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
 
   // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
   // and returning an internal value like `__DEFAULT__` would be confusing.
