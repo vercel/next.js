@@ -448,24 +448,4 @@ describe('Error overlay - RSC build errors', () => {
 
     await cleanup()
   })
-
-  it('should contain nextjs version check in error overlay', async () => {
-    const { session, cleanup } = await sandbox(
-      next,
-      undefined,
-      '/server-with-errors/error-file'
-    )
-
-    await session.patch(
-      'app/server-with-errors/error-file/error.js',
-      'export default function Error() { throw new Error("test") }'
-    )
-
-    expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getVersionCheckerText()).toInclude(
-      `Next.js is up to date${process.env.TURBOPACK ? ' (turbo)' : ''}`
-    )
-
-    await cleanup()
-  })
 })

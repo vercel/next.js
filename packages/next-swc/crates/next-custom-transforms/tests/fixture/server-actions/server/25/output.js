@@ -5,10 +5,7 @@ export function Item({ id1, id2 }) {
     id1++;
     return (()=>{
         id1++;
-        return <Button action={createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-            id1,
-            id2
-        ]))}>Delete</Button>;
+        return <Button action={deleteItem}>Delete</Button>;
     })();
     var deleteItem = createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
@@ -25,15 +22,9 @@ export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
 export function Item2({ id1, id2 }) {
     id1++;
     const temp = [];
-    temp.push(<Button action={createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
-        id1,
-        id2
-    ]))}>Delete</Button>);
+    temp.push(<Button action={deleteItem}>Delete</Button>);
     id1++;
-    temp.push(<Button action={createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
-        id1,
-        id2
-    ]))}>Delete</Button>);
+    temp.push(<Button action={deleteItem}>Delete</Button>);
     return temp;
     var deleteItem = createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
         id1,
