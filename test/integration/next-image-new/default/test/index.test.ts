@@ -15,7 +15,7 @@ import {
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
-import webdriver, { BrowserInterface } from 'next-webdriver'
+import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs/promises'
 import { pathExists } from 'fs-extra'
@@ -991,9 +991,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser: BrowserInterface
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -1013,9 +1012,7 @@ function runTests(mode) {
           /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 

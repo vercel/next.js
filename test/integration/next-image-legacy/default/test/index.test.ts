@@ -915,9 +915,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -934,12 +933,10 @@ function runTests(mode) {
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 
