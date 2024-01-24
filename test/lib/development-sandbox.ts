@@ -3,6 +3,7 @@ import {
   getRedboxDescription,
   getRedboxHeader,
   getRedboxSource,
+  getVersionCheckerText,
   hasRedbox,
   waitFor,
 } from './next-test-utils'
@@ -136,6 +137,9 @@ export async function sandbox(
       },
       async waitForAndOpenRuntimeError() {
         return browser.waitForElementByCss('[data-nextjs-toast]').click()
+      },
+      async getVersionCheckerText() {
+        return getVersionCheckerText(browser)
       },
     },
     async cleanup() {
