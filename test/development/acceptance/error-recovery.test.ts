@@ -509,7 +509,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error:
           x Expected '}', got '<eof>'
-           ,-[4:1]
+           ,-[TEST_DIR/index.js:4:1]
          4 |   i++
          5 |   throw Error('no ' + i)
          6 | }, 1000)
