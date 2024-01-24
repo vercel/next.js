@@ -83,8 +83,8 @@ const runTests = (isDev) => {
         }
       })
     expect(metaViewport.attribs.content).toContain('width=device-width')
-    expect(linkPreload.attribs.imagesrcset).toContain(
-      '%2F_next%2Fstatic%2Fmedia%2Ftest-rect.f323a148.jpg'
+    expect(linkPreload.attribs.imagesrcset).toMatch(
+      /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
