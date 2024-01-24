@@ -12,6 +12,7 @@ import {
   NEXT_CACHE_TAG_MAX_LENGTH,
 } from '../../lib/constants'
 import * as Log from '../../build/output/log'
+import { trackDynamicFetch } from '../app-render/dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -280,16 +281,7 @@ export function patchFetch({
         }
         const implicitTags = addImplicitTags(staticGenerationStore)
 
-        const isOnlyCache = staticGenerationStore.fetchCache === 'only-cache'
-        const isForceCache = staticGenerationStore.fetchCache === 'force-cache'
-        const isDefaultCache =
-          staticGenerationStore.fetchCache === 'default-cache'
-        const isDefaultNoStore =
-          staticGenerationStore.fetchCache === 'default-no-store'
-        const isOnlyNoStore =
-          staticGenerationStore.fetchCache === 'only-no-store'
-        const isForceNoStore =
-          staticGenerationStore.fetchCache === 'force-no-store'
+        const fetchCacheMode = staticGenerationStore.fetchCache
         const isUsingNoStore = !!staticGenerationStore.isUnstableNoStore
 
         let _cache = getRequestMeta('cache')
@@ -314,8 +306,8 @@ export function patchFetch({
         } else if (
           _cache === 'no-cache' ||
           _cache === 'no-store' ||
-          isForceNoStore ||
-          isOnlyNoStore
+          fetchCacheMode === 'force-no-store' ||
+          fetchCacheMode === 'only-no-store'
         ) {
           curRevalidate = 0
         }
@@ -349,45 +341,54 @@ export function patchFetch({
           (hasUnCacheableHeader || isUnCacheableMethod) &&
           staticGenerationStore.revalidate === 0
 
-        if (isForceNoStore) {
-          cacheReason = 'fetchCache = force-no-store'
-        }
-
-        if (isOnlyNoStore) {
-          if (
-            _cache === 'force-cache' ||
-            (typeof revalidate !== 'undefined' &&
-              (revalidate === false || revalidate > 0))
-          ) {
-            throw new Error(
-              `cache: 'force-cache' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-no-store'`
-            )
+        switch (fetchCacheMode) {
+          case 'force-no-store': {
+            cacheReason = 'fetchCache = force-no-store'
+            break
           }
-          cacheReason = 'fetchCache = only-no-store'
-        }
-
-        if (isOnlyCache && _cache === 'no-store') {
-          throw new Error(
-            `cache: 'no-store' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-cache'`
-          )
-        }
-
-        if (
-          isForceCache &&
-          (typeof curRevalidate === 'undefined' || curRevalidate === 0)
-        ) {
-          cacheReason = 'fetchCache = force-cache'
-          revalidate = false
+          case 'only-no-store': {
+            if (
+              _cache === 'force-cache' ||
+              (typeof revalidate !== 'undefined' &&
+                (revalidate === false || revalidate > 0))
+            ) {
+              throw new Error(
+                `cache: 'force-cache' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-no-store'`
+              )
+            }
+            cacheReason = 'fetchCache = only-no-store'
+            break
+          }
+          case 'only-cache': {
+            if (_cache === 'no-store') {
+              throw new Error(
+                `cache: 'no-store' used on fetch for ${fetchUrl} with 'export const fetchCache = 'only-cache'`
+              )
+            }
+            break
+          }
+          case 'force-cache': {
+            if (typeof curRevalidate === 'undefined' || curRevalidate === 0) {
+              cacheReason = 'fetchCache = force-cache'
+              revalidate = false
+            }
+            break
+          }
+          default:
+          // sometimes we won't match the above cases. the reason we don't move
+          // everything to this switch is the use of autoNoCache which is not a fetchCacheMode
+          // I suspect this could be unified with fetchCacheMode however in which case we could
+          // simplify the switch case and ensure we have an exhaustive switch handling all modes
         }
 
         if (typeof revalidate === 'undefined') {
-          if (isDefaultCache) {
+          if (fetchCacheMode === 'default-cache') {
             revalidate = false
             cacheReason = 'fetchCache = default-cache'
           } else if (autoNoCache) {
             revalidate = 0
             cacheReason = 'auto no cache'
-          } else if (isDefaultNoStore) {
+          } else if (fetchCacheMode === 'default-no-store') {
             revalidate = 0
             cacheReason = 'fetchCache = default-no-store'
           } else if (isUsingNoStore) {
@@ -424,7 +425,7 @@ export function patchFetch({
           // If we were setting the revalidate value to 0, we should try to
           // postpone instead first.
           if (revalidate === 0) {
-            staticGenerationStore.postpone?.('revalidate: 0')
+            trackDynamicFetch(staticGenerationStore, 'revalidate: 0')
           }
 
           staticGenerationStore.revalidate = revalidate
@@ -640,7 +641,7 @@ export function patchFetch({
             }`
 
             // If enabled, we should bail out of static generation.
-            staticGenerationStore.postpone?.(dynamicUsageReason)
+            trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
             // PPR is not enabled, or React postpone is not available, we
             // should set the revalidate to 0.
@@ -671,7 +672,7 @@ export function patchFetch({
               }`
 
               // If enabled, we should bail out of static generation.
-              staticGenerationStore.postpone?.(dynamicUsageReason)
+              trackDynamicFetch(staticGenerationStore, dynamicUsageReason)
 
               const err = new DynamicServerError(dynamicUsageReason)
               staticGenerationStore.dynamicUsageErr = err
