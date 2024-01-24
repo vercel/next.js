@@ -35,28 +35,32 @@ Parallel routes are created using named **slots**. Slots are defined with the `@
 Slots are passed as props to the shared parent layout. For the example above, the component in `app/layout.js` now accepts the `@analytics` and `@team` slots props, and can render them in parallel alongside the `children` prop:
 
 ```tsx filename="app/layout.tsx" switcher
-export default function Layout(props: {
+export default function Layout({
+  children,
+  team,
+  analytics,
+}: {
   children: React.ReactNode
   analytics: React.ReactNode
   team: React.ReactNode
 }) {
   return (
     <>
-      {props.children}
-      {props.team}
-      {props.analytics}
+      {children}
+      {team}
+      {analytics}
     </>
   )
 }
 ```
 
 ```jsx filename="app/layout.js" switcher
-export default function Layout(props) {
+export default function Layout({ children, team, analytics }) {
   return (
     <>
-      {props.children}
-      {props.team}
-      {props.analytics}
+      {children}
+      {team}
+      {analytics}
     </>
   )
 }
@@ -73,7 +77,7 @@ However, slots are **not** [route segments](/docs/app/building-your-application/
 By default, Next.js keeps track of the active _state_ (or subpage) for each slot. However, the content rendered within a slot will depend on the type of navigation:
 
 - [**Soft Navigation**](/docs/app/building-your-application/routing/linking-and-navigating#5-soft-navigation): During client-side navigation, Next.js will perform a [partial render](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), changing the subpage within the slot, while maintaining the other slot's active subpages, even if they don't match the current URL.
-- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state of slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
+- **Hard Navigation**: After a full-page load (browser refresh), Next.js cannot determine the active state for the slots that don't match the current URL. Instead, it will render a [`default.js`](#defaultjs) file for the unmatched slots, or `404` if `default.js` doesn't exist.
 
 > **Good to know**:
 >
@@ -83,7 +87,7 @@ By default, Next.js keeps track of the active _state_ (or subpage) for each slot
 
 You can define a `default.js` file to render as a fallback for unmatched slots during the initial load or full-page reload.
 
-Consider the following folder structure. The `@team` slot has a `settings` page, but `@analytics` does not.
+Consider the following folder structure. The `@team` slot has a `/settings` page, but `@analytics` does not.
 
 <Image
   alt="Parallel Routes unmatched routes"
@@ -93,7 +97,7 @@ Consider the following folder structure. The `@team` slot has a `settings` page,
   height="930"
 />
 
-When navigating to `/dashboard/settings`, the `@team` slot will render the `settings` page while maintaining the currently active page for the `@analytics` slot.
+When navigating to `/dashboard/settings`, the `@team` slot will render the `/settings` page while maintaining the currently active page for the `@analytics` slot.
 
 On refresh, Next.js will render a `default.js` for `@analytics`. If `default.js` doesn't exist, a `404` is rendered instead.
 
@@ -131,7 +135,7 @@ When a user navigates to `app/@auth/login` (or `/login` in the URL bar), `loginS
 
 ### Conditional Routes
 
-You can use Parallel Routes to conditionally render a page based on certain conditions, such as user role. For example, to render a different dashboard page depending on the `/admin` or `/user` roles:
+You can use Parallel Routes to conditionally render routes based on certain conditions, such as user role. For example, to render a different dashboard page for the `/admin` or `/user` roles:
 
 <Image
   alt="Conditional routes diagram"
@@ -167,7 +171,9 @@ export default function Layout({ user, admin }) {
 
 ## Tab Groups
 
-Within slots, you can create tabs to allow users to navigate each Parallel Routes independently. For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
+You can add a `layout` inside a slot to allow users to navigate the slot independently. This is useful for creating tabs.
+
+For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
 
 {/* TODO: Add diagrams for tabs */}
 
@@ -210,11 +216,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 Parallel Routes can be used together with [Intercepting Routes](/docs/app/building-your-application/routing/intercepting-routes) to create modals. This allows you to solve common challenges when building modals, such as:
 
 - Making the modal content **shareable through a URL**.
-- **Preserveing context** when the page is refreshed, instead of closing the modal.
+- **Preserving context** when the page is refreshed, instead of closing the modal.
 - **Closing the modal on backwards navigation** rather than going to the previous route.
 - **Reopening the modal on forwards navigation**.
 
-Consider the following UI pattern, where a user can open a login modal from a layout, or by navigating to the `/login` route:
+Consider the following UI pattern, where a user can open a login modal from a layout using client-side navigation, or access a separate `/login` page:
 
 {/* TO DO: Update these diagrams */}
 
@@ -234,7 +240,7 @@ Consider the following UI pattern, where a user can open a login modal from a la
   height="976"
 />
 
-To implement this pattern, create a `/login` route that renders your main login page. This page will be used when navigating to `/login` directly.
+To implement this pattern, start by creating a `/login` route that renders your **main** login page.
 
 ```tsx filename="app/@auth/login/page.tsx" switcher
 import { Login } from '@/app/ui/login'
@@ -294,11 +300,14 @@ export default function Page() {
 }
 ```
 
-> **Good to know:** The intercepting route convention, e.g. `(.)`, depends on your file-system structure. See the [convention](/docs/app/building-your-application/routing/intercepting-routes#convention) section for more information.
-
-Although it's up to you to implement the design of your `<Modal>` component, you can leverage the Next.js router to open and close the modal. That is, ensuring the modal closes/opens when navigating backwards and forwards.
+> **Good to know:**
+>
+> - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
+> - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
 ### Opening the modal
+
+Now, you can leverage the Next.js router to open and close the modal. This ensures the URL is correctly updated when the modal is open, and when navigating backwards and forwards.
 
 To open the modal, pass the `modal` slot as a prop to the parent layout and render it alongside the `children` prop.
 
@@ -340,11 +349,11 @@ export default function Layout({ modal, children }) {
 }
 ```
 
-When the user clicks the link, the modal will open instead of navigating to the `/login` page because of the route interception. On refresh, the user will be taken to the `/login` page.
+When the user clicks the `<Link>`, the modal will open instead of navigating to the `/login` page. However, on refresh or initial load, navigating to `/login` will take the user to the main login page.
 
 ### Closing the modal
 
-If a modal was initiated through client navigation, e.g. by using `<Link href="/login">`, you can dismiss the modal by calling `router.back()` or by using the `Link` component.
+You can close the modal by calling `router.back()` or by using the `Link` component.
 
 ```tsx filename="app/ui/modal.tsx switcher
 'use client'
@@ -393,8 +402,6 @@ export function Modal({ children }) {
 }
 ```
 
-> **Good to know**: By separating the `<Modal>` functionality from the modal content (`<Login>`), you can not only reuse `<Modal>`, but make its children (or content) Server Components. See [interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more.
-
 If you want to navigate elsewhere and dismiss a modal, you can also use a catch-all route.
 
 <Image
@@ -417,10 +424,9 @@ export default function CatchAll() {
 }
 ```
 
-> Catch-all routes take precedence over `default.js`.
-
 > **Good to know:**
 >
+> - Catch-all routes take precedence over `default.js`.
 > - Other examples could include opening a photo modal in a gallery while also having a dedicated `/photo/[id]` page, or opening a shopping cart in a side modal.
 > - [View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
 
@@ -436,4 +442,4 @@ Parallel Routes can be streamed independently, allowing you to define independen
   height="1218"
 />
 
-See the [Loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [Error Handling](/docs/app/building-your-application/routing/error-handling) docs for more.
+See the [Loading UI](/docs/app/building-your-application/routing/loading-ui-and-streaming) and [Error Handling](/docs/app/building-your-application/routing/error-handling) documentation for more information.
