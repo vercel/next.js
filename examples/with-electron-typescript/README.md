@@ -1,6 +1,6 @@
 # Electron with Typescript application example
 
-This example show how you can use Next.js inside an Electron application to avoid a lot of configuration, use Next.js router as view and use server-render to speed up the initial render of the application. Both Next.js and Electron layers are written in TypeScript and compiled to JavaScript during the build process.
+This example shows how to use Next.js inside an Electron application. To avoid a lot of configuration, we use Next.js as a router for pages, and use server rendering to speed up the initial render of the application. Both Next.js and Electron layers are written in TypeScript and compiled to JavaScript during the build process.
 
 | Part       | Source code (Typescript) | Builds (JavaScript) |
 | ---------- | ------------------------ | ------------------- |
@@ -8,7 +8,7 @@ This example show how you can use Next.js inside an Electron application to avoi
 | Electron   | `/electron-src`          | `/main`             |
 | Production |                          | `/dist`             |
 
-For development it's going to run a HTTP server and let Next.js handle routing. In production it use `output: 'export'` to pre-generate HTML static files and use them in your app instead of running an HTTP server.
+For development it's going to run a HTTP server and let Next.js handle routing. In production it will use `output: 'export'` to pre-generate HTML static files and use them in your app (instead of running a HTTP server).
 
 ## How to use
 

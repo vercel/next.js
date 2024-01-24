@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-performance.mark('next-start')
+
 import '../server/require-hook'
 import * as log from '../build/output/log'
 import arg from 'next/dist/compiled/arg/index.js'
+import semver from 'next/dist/compiled/semver'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { commands } from '../lib/commands'
 import { commandArgs } from '../lib/command-args'
 import { getValidatedArgs } from '../lib/get-validated-args'
 
-const defaultCommand = 'dev'
 const args = arg(
   {
     // Types
@@ -55,6 +55,20 @@ if (!foundCommand && args['--help']) {
   process.exit(0)
 }
 
+// Check supported Node.js version first
+if (
+  semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
+) {
+  console.error(
+    `You are using Node.js ${process.versions.node}. For Next.js, Node.js version >= v${process.env.__NEXT_REQUIRED_NODE_VERSION} is required.`
+  )
+  process.exit(1)
+}
+
+// Start performance profiling after Node.js version is checked
+performance.mark('next-start')
+
+const defaultCommand = 'dev'
 const command = foundCommand ? args._[0] : defaultCommand
 
 if (['experimental-compile', 'experimental-generate'].includes(command)) {
@@ -94,12 +108,11 @@ if (process.env.NODE_ENV) {
 ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
 ;(process.env as any).NEXT_RUNTIME = 'nodejs'
 
-// Make sure commands gracefully respect termination signals (e.g. from Docker)
-// Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE && command !== 'dev') {
+if (command === 'build') {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 }
+
 async function main() {
   const currentArgsSpec = commandArgs[command]()
   const validatedArgs = getValidatedArgs(currentArgsSpec, forwardedArgs)

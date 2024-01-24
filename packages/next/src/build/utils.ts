@@ -21,12 +21,22 @@ import type {
 import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/future/route-modules/app-page/module'
 import type { RouteModule } from '../server/future/route-modules/route-module'
+import type { LoaderTree } from '../server/lib/app-dir-module'
+import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
+import {
+  green,
+  yellow,
+  red,
+  cyan,
+  white,
+  bold,
+  underline,
+} from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -64,13 +74,16 @@ import { getRuntimeContext } from '../server/web/sandbox'
 import { isClientReference } from '../lib/client-reference'
 import { StaticGenerationAsyncStorageWrapper } from '../server/async-storage/static-generation-async-storage-wrapper'
 import { IncrementalCache } from '../server/lib/incremental-cache'
-import { patchFetch } from '../server/lib/patch-fetch'
 import { nodeFs } from '../server/lib/node-fs-methods'
 import * as ciEnvironment from '../telemetry/ci-info'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
-import { AppRouteRouteModule } from '../server/future/route-modules/app-route/module.compiled'
 import { RouteKind } from '../server/future/route-kind'
+import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
+import { interopDefault } from '../lib/interop-default'
+import type { PageExtensions } from './page-extensions-type'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -342,6 +355,18 @@ export interface PageInfo {
   isDynamicAppRoute?: boolean
 }
 
+export type PageInfos = Map<string, PageInfo>
+
+export type SerializedPageInfos = [string, PageInfo][]
+
+export function serializePageInfos(input: PageInfos): SerializedPageInfos {
+  return Array.from(input.entries())
+}
+
+export function deserializePageInfos(input: SerializedPageInfos): PageInfos {
+  return new Map(input)
+}
+
 export async function printTreeView(
   lists: {
     pages: ReadonlyArray<string>
@@ -362,7 +387,7 @@ export async function printTreeView(
     distPath: string
     buildId: string
     pagesDir?: string
-    pageExtensions: string[]
+    pageExtensions: PageExtensions
     buildManifest: BuildManifest
     appBuildManifest?: AppBuildManifest
     middlewareManifest: MiddlewareManifest
@@ -372,12 +397,7 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-130kb
-    if (_size < 130 * 1000) return green(size)
-    // yellow for 130-170kb
-    if (_size < 170 * 1000) return yellow(size)
-    // red for >= 170kb
-    return red(bold(size))
+    return white(bold(size))
   }
 
   const MIN_DURATION = 300
@@ -460,8 +480,13 @@ export async function printTreeView(
       } else if (isEdgeRuntime(pageInfo?.runtime)) {
         symbol = 'ℇ'
       } else if (pageInfo?.isPPR) {
-        // If the page has an empty prelude, then it's equivalent to a static page.
-        if (pageInfo?.hasEmptyPrelude || pageInfo.isDynamicAppRoute) {
+        if (
+          // If the page has an empty prelude, then it's equivalent to a dynamic page
+          pageInfo?.hasEmptyPrelude ||
+          // ensure we don't mark dynamic paths that postponed as being dynamic
+          // since in this case we're able to partially prerender it
+          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+        ) {
           symbol = 'λ'
         } else if (!pageInfo?.hasPostponed) {
           symbol = '○'
@@ -604,7 +629,7 @@ export async function printTreeView(
       '',
     ])
     const sharedCssFiles: string[] = []
-    ;[
+    const sharedJsChunks = [
       ...sharedFiles
         .filter((file) => {
           if (file.endsWith('.css')) {
@@ -616,19 +641,35 @@ export async function printTreeView(
         .map((e) => e.replace(buildId, '<buildId>'))
         .sort(),
       ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
-    ].forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+    ]
+
+    // if the some chunk are less than 10kb or we don't know the size, we only show the total size of the rest
+    const tenKbLimit = 10 * 1000
+    let restChunkSize = 0
+    let restChunkCount = 0
+    sharedJsChunks.forEach((fileName, index, { length }) => {
+      const innerSymbol = index + restChunkCount === length - 1 ? '└' : '├'
 
       const originalName = fileName.replace('<buildId>', buildId)
       const cleanName = getCleanName(fileName)
       const size = stats.sizes.get(originalName)
 
+      if (!size || size < tenKbLimit) {
+        restChunkCount++
+        restChunkSize += size || 0
+        return
+      }
+
+      messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
+    })
+
+    if (restChunkCount > 0) {
       messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        typeof size === 'number' ? prettyBytes(size) : '',
+        `  └ other shared chunks (total)`,
+        prettyBytes(restChunkSize),
         '',
       ])
-    })
+    }
   }
 
   // If enabled, then print the tree for the app directory.
@@ -1123,21 +1164,34 @@ export async function buildStaticPaths({
   }
 }
 
+export type AppConfigDynamic =
+  | 'auto'
+  | 'error'
+  | 'force-static'
+  | 'force-dynamic'
+
 export type AppConfig = {
   revalidate?: number | false
   dynamicParams?: true | false
-  dynamic?: 'auto' | 'error' | 'force-static' | 'force-dynamic'
+  dynamic?: AppConfigDynamic
   fetchCache?: 'force-cache' | 'only-cache'
   preferredRegion?: string
 }
-export type GenerateParams = Array<{
+
+type Params = Record<string, string | string[]>
+
+type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+type GenerateParamsResult = {
   config?: AppConfig
   isDynamicSegment?: boolean
   segmentPath: string
   getStaticPaths?: GetStaticPaths
-  generateStaticParams?: any
+  generateStaticParams?: GenerateStaticParams
   isLayout?: boolean
-}>
+}
+
+export type GenerateParamsResults = GenerateParamsResult[]
 
 export const collectAppConfig = (mod: any): AppConfig | undefined => {
   let hasConfig = false
@@ -1167,56 +1221,81 @@ export const collectAppConfig = (mod: any): AppConfig | undefined => {
   return hasConfig ? config : undefined
 }
 
-export const collectGenerateParams = async (
-  segment: any,
-  parentSegments: string[] = [],
-  generateParams: GenerateParams = []
-): Promise<GenerateParams> => {
-  if (!Array.isArray(segment)) return generateParams
-  const isLayout = !!segment[2]?.layout
-  const mod = await (isLayout
-    ? segment[2]?.layout?.[0]?.()
-    : segment[2]?.page?.[0]?.())
-  const config = collectAppConfig(mod)
-  const page: string | undefined = segment[0]
-  const isClientComponent = isClientReference(mod)
-  const isDynamicSegment = /^\[.+\]$/.test(page || '')
-  const { generateStaticParams, getStaticPaths } = mod || {}
+/**
+ * Walks the loader tree and collects the generate parameters for each segment.
+ *
+ * @param tree the loader tree
+ * @returns the generate parameters for each segment
+ */
+export async function collectGenerateParams(tree: LoaderTree) {
+  const generateParams: GenerateParamsResults = []
+  const parentSegments: string[] = []
 
-  //console.log({parentSegments, page, isDynamicSegment, isClientComponent, generateStaticParams})
-  if (isDynamicSegment && isClientComponent && generateStaticParams) {
-    throw new Error(
-      `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
-    )
-  }
+  let currentLoaderTree = tree
+  while (currentLoaderTree) {
+    const [
+      // TODO: check if this is ever undefined
+      page = '',
+      parallelRoutes,
+      components,
+    ] = currentLoaderTree
 
-  const result = {
-    isLayout,
-    isDynamicSegment,
-    segmentPath: `/${parentSegments.join('/')}${
+    // If the segment doesn't have any components, then skip it.
+    if (!components) continue
+
+    const isLayout = !!components.layout
+    const mod = await (isLayout
+      ? components.layout?.[0]?.()
+      : components.page?.[0]?.())
+
+    if (page) {
+      parentSegments.push(page)
+    }
+
+    const config = mod ? collectAppConfig(mod) : undefined
+    const isClientComponent = isClientReference(mod)
+
+    const isDynamicSegment = /^\[.+\]$/.test(page)
+
+    const { generateStaticParams, getStaticPaths } = mod || {}
+
+    if (isDynamicSegment && isClientComponent && generateStaticParams) {
+      throw new Error(
+        `Page "${page}" cannot export "generateStaticParams()" because it is a client component`
+      )
+    }
+
+    const segmentPath = `/${parentSegments.join('/')}${
       page && parentSegments.length > 0 ? '/' : ''
-    }${page}`,
-    config,
-    getStaticPaths: isClientComponent ? undefined : getStaticPaths,
-    generateStaticParams: isClientComponent ? undefined : generateStaticParams,
+    }${page}`
+
+    const result: GenerateParamsResult = {
+      isLayout,
+      isDynamicSegment,
+      segmentPath,
+      config,
+      getStaticPaths: !isClientComponent ? getStaticPaths : undefined,
+      generateStaticParams: !isClientComponent
+        ? generateStaticParams
+        : undefined,
+    }
+
+    // If the configuration contributes to the static generation, then add it
+    // to the list.
+    if (
+      result.config ||
+      result.generateStaticParams ||
+      result.getStaticPaths ||
+      isDynamicSegment
+    ) {
+      generateParams.push(result)
+    }
+
+    // Use this route's parallel route children as the next segment.
+    currentLoaderTree = parallelRoutes.children
   }
 
-  if (page) {
-    parentSegments.push(page)
-  }
-
-  if (result.config || result.generateStaticParams || result.getStaticPaths) {
-    generateParams.push(result)
-  } else if (isDynamicSegment) {
-    // It is a dynamic route, but no config was provided
-    generateParams.push(result)
-  }
-
-  return collectGenerateParams(
-    segment[1]?.children,
-    parentSegments,
-    generateParams
-  )
+  return generateParams
 }
 
 export async function buildAppStaticPaths({
@@ -1226,47 +1305,43 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
-  staticGenerationAsyncStorage,
-  serverHooks,
   ppr,
+  ComponentMod,
 }: {
   dir: string
   page: string
   configFileName: string
-  generateParams: GenerateParams
-  incrementalCacheHandlerPath?: string
+  generateParams: GenerateParamsResults
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
+  cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  staticGenerationAsyncStorage: Parameters<
-    typeof patchFetch
-  >[0]['staticGenerationAsyncStorage']
-  serverHooks: Parameters<typeof patchFetch>[0]['serverHooks']
   ppr: boolean
+  ComponentMod: AppPageModule
 }) {
-  patchFetch({
-    staticGenerationAsyncStorage,
-    serverHooks,
-  })
+  ComponentMod.patchFetch()
 
   let CacheHandler: any
 
-  if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
-    CacheHandler = CacheHandler.default || CacheHandler
+  if (cacheHandler) {
+    CacheHandler = interopDefault(
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
+    )
   }
 
   const incrementalCache = new IncrementalCache({
     fs: nodeFs,
     dev: true,
+    // Enabled both for build as we're only writing this cache, not reading it.
+    pagesDir: true,
     appDir: true,
     flushToDisk: isrFlushToDisk,
     serverDistDir: path.join(distDir, 'server'),
@@ -1282,10 +1357,11 @@ export async function buildAppStaticPaths({
     CurCacheHandler: CacheHandler,
     requestHeaders,
     minimalMode: ciEnvironment.hasNextSupport,
+    experimental: { ppr },
   })
 
   return StaticGenerationAsyncStorageWrapper.wrap(
-    staticGenerationAsyncStorage,
+    ComponentMod.staticGenerationAsyncStorage,
     {
       urlPathname: page,
       renderOpts: {
@@ -1294,7 +1370,8 @@ export async function buildAppStaticPaths({
         supportsDynamicHTML: true,
         isRevalidate: false,
         isBot: false,
-        ppr,
+        // building static paths should never postpone
+        experimental: { ppr: false },
       },
     },
     async () => {
@@ -1310,18 +1387,18 @@ export async function buildAppStaticPaths({
       } else {
         // if generateStaticParams is being used we iterate over them
         // collecting them from each level
-        type Params = Array<Record<string, string | string[]>>
         let hadAllParamsGenerated = false
 
         const buildParams = async (
-          paramsItems: Params = [{}],
+          paramsItems: Params[] = [{}],
           idx = 0
-        ): Promise<Params> => {
+        ): Promise<Params[]> => {
           const curGenerate = generateParams[idx]
 
           if (idx === generateParams.length) {
             return paramsItems
           }
+
           if (
             typeof curGenerate.generateStaticParams !== 'function' &&
             idx < generateParams.length
@@ -1336,22 +1413,27 @@ export async function buildAppStaticPaths({
           }
           hadAllParamsGenerated = true
 
-          const newParams = []
+          const newParams: Params[] = []
 
-          for (const params of paramsItems) {
-            const result = await curGenerate.generateStaticParams({ params })
-            // TODO: validate the result is valid here or wait for
-            // buildStaticPaths to validate?
-            for (const item of result) {
-              newParams.push({ ...params, ...item })
+          if (curGenerate.generateStaticParams) {
+            for (const params of paramsItems) {
+              const result = await curGenerate.generateStaticParams({
+                params,
+              })
+              // TODO: validate the result is valid here or wait for buildStaticPaths to validate?
+              for (const item of result) {
+                newParams.push({ ...params, ...item })
+              }
             }
           }
 
           if (idx < generateParams.length) {
             return buildParams(newParams, idx + 1)
           }
+
           return newParams
         }
+
         const builtParams = await buildParams()
         const fallback = !generateParams.some(
           // TODO: dynamic params should be allowed
@@ -1402,7 +1484,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -1420,7 +1502,7 @@ export async function isPageStatic({
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
@@ -1492,21 +1574,27 @@ export async function isPageStatic({
           isAppPath: pageType === 'app',
         })
       }
-      const Comp = componentsResult.Component || {}
+      const Comp = componentsResult.Component as NextComponentType | undefined
       let staticPathsResult: GetStaticPathsResult | undefined
 
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
+      let supportsPPR = false
+
       if (pageType === 'app') {
+        if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+          supportsPPR = true
+        }
+
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        const { tree, staticGenerationAsyncStorage, serverHooks } = ComponentMod
+        const { tree } = ComponentMod
 
-        const generateParams: GenerateParams =
-          routeModule && AppRouteRouteModule.is(routeModule)
+        const generateParams: GenerateParamsResults =
+          routeModule && isAppRouteRouteModule(routeModule)
             ? [
                 {
                   config: {
@@ -1565,7 +1653,10 @@ export async function isPageStatic({
           )
         }
 
-        if (appConfig.dynamic === 'force-dynamic') {
+        // If force dynamic was set and we don't have PPR enabled, then set the
+        // revalidate to 0.
+        // TODO: (PPR) remove this once PPR is enabled by default
+        if (appConfig.dynamic === 'force-dynamic' && !supportsPPR) {
           appConfig.revalidate = 0
         }
 
@@ -1577,16 +1668,15 @@ export async function isPageStatic({
           } = await buildAppStaticPaths({
             dir,
             page,
-            serverHooks,
-            staticGenerationAsyncStorage,
             configFileName,
             generateParams,
             distDir,
             requestHeaders: {},
             isrFlushToDisk,
             maxMemoryCacheSize,
-            incrementalCacheHandlerPath,
+            cacheHandler,
             ppr,
+            ComponentMod,
           }))
         }
       } else {
@@ -1595,7 +1685,7 @@ export async function isPageStatic({
         }
       }
 
-      const hasGetInitialProps = !!(Comp as any).getInitialProps
+      const hasGetInitialProps = !!Comp?.getInitialProps
       const hasStaticProps = !!componentsResult.getStaticProps
       const hasStaticPaths = !!componentsResult.getStaticPaths
       const hasServerProps = !!componentsResult.getServerSideProps
@@ -1661,12 +1751,18 @@ export async function isPageStatic({
         isStatic = true
       }
 
-      // When PPR is enabled, any route may contain or be completely static, so
+      // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
       let isPPR = false
-      if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+      if (supportsPPR) {
         isPPR = true
         isStatic = true
+      }
+
+      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
+      if (isInterceptionRouteAppPath(page)) {
+        isStatic = false
+        isPPR = false
       }
 
       return {
@@ -1989,13 +2085,6 @@ const dir = path.join(__dirname)
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
 
-// Make sure commands gracefully respect termination signals (e.g. from Docker)
-// Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
-}
-
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
@@ -2023,7 +2112,6 @@ startServer({
   port: currentPort,
   allowRetry: false,
   keepAliveTimeout,
-  useWorkers: true,
 }).catch((err) => {
   console.error(err);
   process.exit(1);

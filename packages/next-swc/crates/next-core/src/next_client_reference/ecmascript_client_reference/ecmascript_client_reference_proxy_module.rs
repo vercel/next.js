@@ -65,44 +65,95 @@ impl EcmascriptClientReferenceProxyModule {
     }
 
     #[turbo_tasks::function]
-    async fn proxy_module(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAsset>> {
-        let this = self.await?;
+    async fn proxy_module(&self) -> Result<Vc<EcmascriptModuleAsset>> {
         let mut code = CodeBuilder::default();
 
-        // Adapted from
-        // next.js/packages/next/src/build/webpack/loaders/next-flight-loader/index.ts
-        writedoc!(
-            code,
-            r#"
-                import {{ createProxy }} from 'next/dist/build/webpack/loaders/next-flight-loader/module-proxy'
+        let server_module_path = &*self.server_module_ident.path().to_string().await?;
 
-                const proxy = createProxy({server_module_path})
+        // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
+        if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
+            let exports = exports.expand_exports().await?;
 
-                // Accessing the __esModule property and exporting $$typeof are required here.
-                // The __esModule getter forces the proxy target to create the default export
-                // and the $$typeof value is for rendering logic to determine if the module
-                // is a client boundary.
-                const {{ __esModule, $$typeof }} = proxy;
+            if !exports.dynamic_exports.is_empty() {
+                // TODO: throw? warn?
+            }
 
-                export {{ __esModule, $$typeof }};
-                export default proxy;
-            "#,
-            server_module_path = StringifyJs(&this.server_module_ident.path().to_string().await?)
-        )?;
+            writedoc!(
+                code,
+                r#"
+                    import {{ registerClientReference }} from "react-server-dom-turbopack/server.edge";
+                "#,
+            )?;
+
+            for export_name in exports.exports.keys() {
+                if export_name == "default" {
+                    writedoc!(
+                        code,
+                        r#"
+                            export default registerClientReference(
+                                function() {{ throw new Error({call_err}); }},
+                                {server_module_path},
+                                "default",
+                            );
+                        "#,
+                        call_err = StringifyJs(&format!(
+                            "Attempted to call the default export of {server_module_path} from \
+                             the server, but it's on the client. It's not possible to invoke a \
+                             client function from the server, it can only be rendered as a \
+                             Component or passed to props of a Client Component."
+                        )),
+                        server_module_path = StringifyJs(server_module_path),
+                    )?;
+                } else {
+                    writedoc!(
+                        code,
+                        r#"
+                            export const {export_name} = registerClientReference(
+                                function() {{ throw new Error({call_err}); }},
+                                {server_module_path},
+                                {export_name_str},
+                            );
+                        "#,
+                        export_name = export_name,
+                        call_err = StringifyJs(&format!(
+                            "Attempted to call {export_name}() from the server but {export_name} \
+                             is on the client. It's not possible to invoke a client function from \
+                             the server, it can only be rendered as a Component or passed to \
+                             props of a Client Component."
+                        )),
+                        server_module_path = StringifyJs(server_module_path),
+                        export_name_str = StringifyJs(export_name),
+                    )?;
+                }
+            }
+        } else {
+            writedoc!(
+                code,
+                r#"
+                    const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
+
+                    __turbopack_export_namespace__(createClientModuleProxy({server_module_path}));
+                "#,
+                server_module_path = StringifyJs(server_module_path)
+            )?;
+        };
 
         let code = code.build();
         let proxy_module_content =
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            this.server_module_ident.path().join("proxy.ts".to_string()),
+            self.server_module_ident.path().join("proxy.js".to_string()),
             proxy_module_content,
         );
 
-        let proxy_module = this.server_asset_context.process(
-            Vc::upcast(proxy_source),
-            Value::new(ReferenceType::Undefined),
-        );
+        let proxy_module = self
+            .server_asset_context
+            .process(
+                Vc::upcast(proxy_source),
+                Value::new(ReferenceType::Undefined),
+            )
+            .module();
 
         let Some(proxy_module) =
             Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(proxy_module).await?
@@ -165,7 +216,7 @@ impl ChunkableModule for EcmascriptClientReferenceProxyModule {
     async fn as_chunk_item(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_binding::turbopack::core::chunk::ChunkItem>>> {
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let item = self.proxy_module().as_chunk_item(chunking_context);
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?

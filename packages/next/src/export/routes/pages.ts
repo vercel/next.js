@@ -11,8 +11,11 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
-import { SERVER_PROPS_EXPORT_ERROR } from '../../lib/constants'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import {
+  NEXT_DATA_SUFFIX,
+  SERVER_PROPS_EXPORT_ERROR,
+} from '../../lib/constants'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
@@ -102,10 +105,8 @@ export async function exportPages(
         query,
         renderOpts
       )
-    } catch (err: any) {
-      if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-        throw err
-      }
+    } catch (err) {
+      if (!isBailoutToCSRError(err)) throw err
     }
   }
 
@@ -160,10 +161,8 @@ export async function exportPages(
           { ...query, amp: '1' },
           renderOpts
         )
-      } catch (err: any) {
-        if (err.digest !== NEXT_DYNAMIC_NO_SSR_CODE) {
-          throw err
-        }
+      } catch (err) {
+        if (!isBailoutToCSRError(err)) throw err
       }
 
       const ampHtml =
@@ -187,7 +186,7 @@ export async function exportPages(
   if (metadata.pageData) {
     const dataFile = join(
       pagesDataDir,
-      htmlFilename.replace(/\.html$/, '.json')
+      htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
     )
 
     await fileWriter(

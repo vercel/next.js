@@ -8,15 +8,11 @@ import {
   buildStaticPaths,
   collectGenerateParams,
 } from '../../build/utils'
-import type { GenerateParams } from '../../build/utils'
+import type { GenerateParamsResults } from '../../build/utils'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import * as serverHooks from '../../client/components/hooks-server-context'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-
-const { AppRouteRouteModule } =
-  require('../future/route-modules/app-route/module.compiled') as typeof import('../future/route-modules/app-route/module')
+import { isAppRouteRouteModule } from '../future/route-modules/checks'
 
 type RuntimeConfig = {
   configFileName: string
@@ -41,7 +37,7 @@ export async function loadStaticPaths({
   fetchCacheKeyPrefix,
   maxMemoryCacheSize,
   requestHeaders,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -57,7 +53,7 @@ export async function loadStaticPaths({
   fetchCacheKeyPrefix?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   ppr: boolean
 }): Promise<{
   paths?: string[]
@@ -87,8 +83,8 @@ export async function loadStaticPaths({
 
   if (isAppPath) {
     const { routeModule } = components
-    const generateParams: GenerateParams =
-      routeModule && AppRouteRouteModule.is(routeModule)
+    const generateParams: GenerateParamsResults =
+      routeModule && isAppRouteRouteModule(routeModule)
         ? [
             {
               config: {
@@ -109,13 +105,12 @@ export async function loadStaticPaths({
       configFileName: config.configFileName,
       distDir,
       requestHeaders,
-      incrementalCacheHandlerPath,
-      serverHooks,
-      staticGenerationAsyncStorage,
+      cacheHandler,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ppr,
+      ComponentMod: components.ComponentMod,
     })
   }
 

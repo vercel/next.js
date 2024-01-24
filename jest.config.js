@@ -7,9 +7,6 @@ const createJestConfig = nextJest()
 const customJestConfig = {
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
-  snapshotFormat: {
-    printBasicPrototype: false,
-  },
   verbose: true,
   rootDir: 'test',
   roots: [
@@ -25,14 +22,18 @@ const customJestConfig = {
   },
 }
 
-// Check if the environment variable is set to enable test trace,
-// Insert a reporter to generate a junit report to upload.
-// This won't count for the retry to avoid duplicated test being reported twice
-// - which means our test trace will report test results for the flaky test as failed without retry.
-const shouldEnableTestTrace =
-  process.env.DATADOG_API_KEY && process.env.DATADOG_TRACE_NEXTJS_TEST
+if (process.env.RECORD_REPLAY) {
+  customJestConfig.testRunner = '@replayio/jest/runner'
+}
 
-if (shouldEnableTestTrace) {
+// Check if the environment variable is set to enable test report,
+// Insert a reporter to generate a junit report to upload.
+//
+// This won't count retries to avoid tests being reported twice.
+// Our test report will report test results for flaky tests as failed without retry.
+const enableTestReport = !!process.env.NEXT_JUNIT_TEST_REPORT
+
+if (enableTestReport) {
   if (!customJestConfig.reporters) {
     customJestConfig.reporters = ['default']
   }
@@ -48,6 +49,7 @@ if (shouldEnableTestTrace) {
       reportTestSuiteErrors: 'true',
       uniqueOutputName: 'true',
       outputName: 'nextjs-test-junit',
+      addFileAttribute: 'true',
     },
   ])
 }

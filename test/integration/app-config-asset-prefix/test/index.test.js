@@ -25,7 +25,7 @@ describe('App assetPrefix config', () => {
     const browser = await webdriver(appPort, '/')
     try {
       await waitFor(2000)
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
       const title = await browser.elementById('title').text()
       expect(title).toBe('IndexPage')
     } finally {

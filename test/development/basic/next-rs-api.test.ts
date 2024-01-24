@@ -8,6 +8,7 @@ import {
   Issue,
   loadBindings,
   Project,
+  StyledString,
   TurbopackResult,
   UpdateInfo,
 } from 'next/src/build/swc'
@@ -23,11 +24,29 @@ function normalizePath(path: string) {
     )
 }
 
+function styledStringToMarkdown(styled: StyledString): string {
+  switch (styled.type) {
+    case 'text':
+      return styled.value
+    case 'strong':
+      return '**' + styled.value + '**'
+    case 'code':
+      return '`' + styled.value + '`'
+    case 'line':
+      return styled.value.map(styledStringToMarkdown).join('')
+    case 'stack':
+      return styled.value.map(styledStringToMarkdown).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', styled)
+  }
+}
+
 function normalizeIssues(issues: Issue[]) {
   return issues
     .map((issue) => ({
       ...issue,
-      detail: issue.detail && normalizePath(issue.detail),
+      detail:
+        issue.detail && normalizePath(styledStringToMarkdown(issue.detail)),
       filePath: issue.filePath && normalizePath(issue.filePath),
       source: issue.source && {
         ...issue.source,
@@ -89,18 +108,29 @@ function raceIterators<T>(iterators: AsyncIterableIterator<T>[]) {
   })()
 }
 
+async function* filterMapAsyncIterator<T, U>(
+  iterator: AsyncIterableIterator<T>,
+  transform: (t: T) => U | undefined
+): AsyncGenerator<Awaited<U>> {
+  for await (const val of iterator) {
+    const mapped = transform(val)
+    if (mapped !== undefined) {
+      yield mapped
+    }
+  }
+}
+
 /**
  * Drains the stream until no value is available for 100ms, then returns the next value.
  */
-async function drainAndGetNext<T>(
-  stream: AsyncIterableIterator<TurbopackResult<T>>
-) {
-  const next = stream.next()
+async function drainAndGetNext<T>(stream: AsyncIterableIterator<T>) {
   while (true) {
+    const next = stream.next()
     const result = await Promise.race([
       new Promise((r) => setTimeout(() => r({ next }), 100)),
       next.then(() => undefined),
     ])
+
     if (result) return result
   }
 }
@@ -156,9 +186,7 @@ describe('next.rs api', () => {
   afterAll(() => next.destroy())
 
   let project: Project
-  let projectUpdateSubscription: AsyncIterableIterator<
-    TurbopackResult<UpdateInfo>
-  >
+  let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
     console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
@@ -193,7 +221,10 @@ describe('next.rs api', () => {
         previewModeId: undefined,
       }),
     })
-    projectUpdateSubscription = project.updateInfoSubscribe()
+    projectUpdateSubscription = filterMapAsyncIterator(
+      project.updateInfoSubscribe(1000),
+      (update) => (update.updateType === 'end' ? update.value : undefined)
+    )
   })
 
   it('should detect the correct routes', async () => {
@@ -208,6 +239,7 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
+      '/not-found',
       '/page-edge',
       '/page-nodejs',
       '/route-edge',

@@ -7,23 +7,25 @@ use next_core::{
     app_structure::find_app_dir,
     emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
     get_edge_resolve_options_context,
+    instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
     next_config::{JsConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
-        get_server_module_options_context, ServerContextType,
+        get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
     },
     next_telemetry::NextFeatureTelemetry,
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, IntoTraitRef, State, TaskInput, TraitRef, TransientInstance,
-    TryFlatJoinIterExt, Value, ValueToString, Vc,
+    TryFlatJoinIterExt, Value, Vc,
 };
 use turbopack_binding::{
     turbo::{
@@ -40,7 +42,6 @@ use turbopack_binding::{
             environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
             version::{Update, Version, VersionState, VersionedContent},
@@ -57,6 +58,7 @@ use crate::{
     app::{AppProject, OptionAppProject},
     build,
     entrypoints::Entrypoints,
+    instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{Endpoint, Route},
@@ -134,6 +136,12 @@ pub struct DefineEnv {
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
 pub struct Middleware {
     pub endpoint: Vc<Box<dyn Endpoint>>,
+}
+
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+pub struct Instrumentation {
+    pub node_js: Vc<Box<dyn Endpoint>>,
+    pub edge: Vc<Box<dyn Endpoint>>,
 }
 
 #[turbo_tasks::value]
@@ -402,15 +410,6 @@ impl Project {
         self.project_fs().root()
     }
 
-    /// Returns a path to dist_dir resolved from project root path as string.
-    /// Currently this is only for embedding process.env.__NEXT_DIST_DIR.
-    /// [Note] in webpack-config, it is being injected when
-    /// dev && (isClient || isEdgeServer)
-    #[turbo_tasks::function]
-    async fn dist_root_string(self: Vc<Self>) -> Result<Vc<String>> {
-        Ok(self.node_root().to_string())
-    }
-
     #[turbo_tasks::function]
     pub async fn client_relative_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let next_config = self.next_config().await?;
@@ -457,6 +456,7 @@ impl Project {
         let node_execution_chunking_context = Vc::upcast(
             DevChunkingContext::builder(
                 self.project_path(),
+                node_root,
                 node_root,
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
@@ -530,6 +530,8 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -670,9 +672,34 @@ impl Project {
             None
         };
 
+        let instrumentation = find_context_file(
+            self.project_path(),
+            instrumentation_files(self.next_config().page_extensions()),
+        );
+        let instrumentation = if let FindContextFileResult::Found(fs_path, _) =
+            *instrumentation.await?
+        {
+            let source = Vc::upcast(FileSource::new(fs_path));
+            Some(Instrumentation {
+                node_js: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, false))
+                        .into_trait_ref()
+                        .await?,
+                ),
+                edge: TraitRef::cell(
+                    Vc::upcast::<Box<dyn Endpoint>>(self.instrumentation_endpoint(source, true))
+                        .into_trait_ref()
+                        .await?,
+                ),
+            })
+        } else {
+            None
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
+            instrumentation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -704,15 +731,51 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
+        Ok(MiddlewareEndpoint::new(self, context, source))
+    }
 
-        MiddlewareEndpoint::new(self, context, module)
+    #[turbo_tasks::function]
+    fn node_instrumentation_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>> {
+        Vc::upcast(ModuleAssetContext::new(
+            Default::default(),
+            self.server_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+            ),
+            get_server_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Instrumentation),
+                NextMode::Development,
+                self.next_config(),
+                self.execution_context(),
+            ),
+            Vc::cell("instrumentation".to_string()),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn instrumentation_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+        is_edge: bool,
+    ) -> Vc<InstrumentationEndpoint> {
+        let context = if is_edge {
+            self.middleware_context()
+        } else {
+            self.node_instrumentation_context()
+        };
+
+        InstrumentationEndpoint::new(self, context, source, is_edge)
     }
 
     #[turbo_tasks::function]
@@ -720,19 +783,24 @@ impl Project {
         self: Vc<Self>,
         output_assets: Vc<OutputAssetsOperation>,
     ) -> Result<Vc<Completion>> {
-        let all_output_assets = all_assets_from_entries_operation(output_assets);
+        let span = tracing::info_span!("emitting");
+        async move {
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
-        self.await?
-            .versioned_content_map
-            .insert_output_assets(all_output_assets)
-            .await?;
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets)
+                .await?;
 
-        Ok(emit_assets(
-            *all_output_assets.await?,
-            self.node_root(),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
+                self.client_relative_path(),
+                self.node_root(),
+            ))
+        }
+        .instrument(span)
+        .await
     }
 
     #[turbo_tasks::function]

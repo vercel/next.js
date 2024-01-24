@@ -17,14 +17,17 @@ use turbopack_binding::{
             resolve::{parse::Request, pattern::Pattern},
         },
         dev::{react_refresh::assert_can_resolve_react_refresh, DevChunkingContext},
-        ecmascript::chunk::EcmascriptChunkingContext,
-        node::execution_context::ExecutionContext,
+        ecmascript::{chunk::EcmascriptChunkingContext, TreeShakingMode},
+        node::{
+            execution_context::ExecutionContext,
+            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+        },
         turbopack::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::ModuleOptionsContext, CustomEcmascriptTransformPlugins,
-                JsxTransformOptions, MdxTransformModuleOptions, PostCssTransformOptions,
-                TypescriptTransformOptions, WebpackLoadersOptions,
+                JsxTransformOptions, MdxTransformModuleOptions, TypescriptTransformOptions,
+                WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -142,7 +145,7 @@ pub async fn get_client_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
-        get_next_client_import_map(project_path, ty, mode, next_config, execution_context);
+        get_next_client_import_map(project_path, ty, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
     let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
     let module_options_context = ResolveOptionsContext {
@@ -163,6 +166,7 @@ pub async fn get_client_resolve_options_context(
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
+        enable_mjs_extension: true,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
@@ -237,12 +241,15 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
+    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let target_browsers = env.runtime_versions();
+
     let source_transforms = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
-        *get_styled_jsx_transform_plugin().await?,
+        *get_styled_jsx_transform_plugin(use_lightningcss, target_browsers).await?,
     ]
     .into_iter()
     .flatten()
@@ -255,22 +262,34 @@ pub async fn get_client_module_options_context(
         },
     ));
 
-    let postcss_transform_options = Some(PostCssTransformOptions {
+    let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
+        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
-    });
+    };
+    let postcss_foreign_transform_options = PostCssTransformOptions {
+        // For node_modules we don't want to resolve postcss config relative to the file being
+        // compiled, instead it only uses the project root postcss config.
+        config_location: PostCssConfigLocation::ProjectPath,
+        ..postcss_transform_options.clone()
+    };
+    let enable_postcss_transform = Some(postcss_transform_options.cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         custom_ecma_transform_plugins,
+        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        enable_postcss_transform,
         ..Default::default()
     };
 
+    // node_modules context
     let foreign_codes_options_context = ModuleOptionsContext {
         enable_webpack_loaders: foreign_webpack_loaders,
+        enable_postcss_transform: enable_foreign_postcss_transform,
         // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-        enable_postcss_transform: postcss_transform_options.clone(),
         ..module_options_context.clone()
     };
 
@@ -280,7 +299,6 @@ pub async fn get_client_module_options_context(
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
         enable_webpack_loaders,
-        enable_postcss_transform: postcss_transform_options,
         enable_typescript_transform: Some(tsconfig),
         enable_mdx_rs,
         decorators: Some(decorators_options),
@@ -302,6 +320,7 @@ pub async fn get_client_module_options_context(
             ),
         ],
         custom_rules,
+        use_lightningcss,
         ..module_options_context
     }
     .cell();
@@ -319,6 +338,7 @@ pub async fn get_client_chunking_context(
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let mut builder = DevChunkingContext::builder(
         project_path,
+        client_root,
         client_root,
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),
