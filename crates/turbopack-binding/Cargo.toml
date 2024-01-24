@@ -20,6 +20,7 @@ __swc_core_next_core = [
   "swc_core/ecma_loader_lru",
   "swc_core/ecma_utils",
   "swc_core/ecma_minifier",
+  "swc_core/ecma_preset_env",
   "swc_core/ecma_transforms",
   "swc_core/ecma_transforms_react",
   "swc_core/ecma_transforms_typescript",
@@ -170,7 +171,12 @@ __swc_transform_styled_components = [
   "__swc_custom_transform",
   "styled_components",
 ]
-__swc_transform_styled_jsx = ["__swc", "__swc_custom_transform", "styled_jsx"]
+__swc_transform_styled_jsx = [
+  "__swc",
+  "__swc_custom_transform",
+  "swc_core/ecma_preset_env",
+  "styled_jsx",
+]
 __swc_transform_emotion = ["__swc", "__swc_custom_transform", "swc_emotion"]
 __swc_transform_relay = ["__swc", "__swc_custom_transform", "swc_relay"]
 __swc_transform_modularize_imports = [
