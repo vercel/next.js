@@ -252,6 +252,8 @@ export const config = {
 
 See the [Middleware](/docs/app/building-your-application/routing/middleware) documentation for more information.
 
+<AppOnly>
+
 ## External redirects
 
 The App Router fully supports programmatic redirects to external links using the same methods mentioned above.
@@ -323,7 +325,7 @@ export default function Page() {
 > **Good to know**:
 >
 > - If you don't need to programmatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component
-
+</AppOnly>
 ## Managing redirects at scale (advanced)
 
 To manage a large number of redirects (1000+), you may consider creating a custom solution using Middleware. This allows you to handle redirects programmatically without having to redeploy your application.
