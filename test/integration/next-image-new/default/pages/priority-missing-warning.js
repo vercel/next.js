@@ -1,11 +1,13 @@
 import React from 'react'
 import Image from 'next/image'
-import img from '../public/test.jpg'
 
 const Page = () => {
   return (
     <div>
-      <Image id="responsive" src={img} />
+      <h1>Priority Missing Warning Page</h1>
+      <Image id="responsive" src="/wide.png" width="1200" height="700" />
+      <Image id="fixed" src="/test.jpg" width="400" height="400" />
+      <footer>Priority Missing Warning Footer</footer>
     </div>
   )
 }
