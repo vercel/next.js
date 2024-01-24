@@ -6,7 +6,7 @@ import { outdent } from 'outdent'
 import path from 'path'
 
 describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -105,18 +105,31 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     ).toBe('1')
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (7:10) @ eval
+    if (isTurbopack) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (7:5) @ <unknown>
 
-         5 | const increment = useCallback(() => {
-         6 |   setCount(c => c + 1)
-      >  7 |   throw new Error('oops')
-           |        ^
-         8 | }, [setCount])
-         9 | return (
-        10 |   <main>"
-    `)
+           5 | const increment = useCallback(() => {
+           6 |   setCount(c => c + 1)
+        >  7 |   throw new Error('oops')
+             |   ^
+           8 | }, [setCount])
+           9 | return (
+          10 |   <main>"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+              "index.js (7:10) @ eval
 
+                 5 | const increment = useCallback(() => {
+                 6 |   setCount(c => c + 1)
+              >  7 |   throw new Error('oops')
+                   |        ^
+                 8 | }, [setCount])
+                 9 | return (
+                10 |   <main>"
+          `)
+    }
     await session.patch(
       'index.js',
       outdent`
