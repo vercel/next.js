@@ -6,6 +6,10 @@ import type { Revalidate } from '../../server/lib/revalidate'
 
 import { createAsyncLocalStorage } from './async-local-storage'
 
+type PrerenderState = {
+  hasDynamic: boolean
+}
+
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
   readonly pagePath?: string
@@ -16,12 +20,8 @@ export interface StaticGenerationStore {
   readonly isRevalidate?: boolean
   readonly isUnstableCacheCallback?: boolean
 
-  /**
-   * If defined, this function when called will throw an error postponing
-   * rendering during the React render phase. This should not be invoked outside
-   * of the React render phase as it'll throw an error.
-   */
-  readonly postpone: ((reason: string) => never) | undefined
+  // When this exists (is not null) it means we are in a Prerender
+  prerenderState: null | PrerenderState
 
   forceDynamic?: boolean
   fetchCache?:
@@ -36,7 +36,6 @@ export interface StaticGenerationStore {
   forceStatic?: boolean
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
-  postponeWasTriggered?: boolean
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
@@ -59,3 +58,13 @@ export type StaticGenerationAsyncStorage =
 
 export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
   createAsyncLocalStorage()
+
+export function getExpectedStaticGenerationStore(callingExpression: string) {
+  const store = staticGenerationAsyncStorage.getStore()
+  if (!store) {
+    throw new Error(
+      `Invariant: \`${callingExpression}\` expects to have staticGenerationAsyncStorage, none available.`
+    )
+  }
+  return store
+}
