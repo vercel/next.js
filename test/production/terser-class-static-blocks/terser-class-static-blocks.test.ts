@@ -4,6 +4,9 @@ createNextDescribe(
   'terser-class-static-blocks',
   {
     files: __dirname,
+    nextConfig: {
+      swcMinify: false,
+    },
   },
   ({ next }) => {
     it('should work using cheerio', async () => {
