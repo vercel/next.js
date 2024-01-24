@@ -11,7 +11,7 @@ createNextDescribe(
   ({ next }) => {
     it('should work using cheerio', async () => {
       const $ = await next.render$('/')
-      expect($('p').text()).toBe('Hello world')
+      expect($('p').text()).toBe('hello world')
     })
   }
 )

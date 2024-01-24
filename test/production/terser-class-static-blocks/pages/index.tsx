@@ -1,12 +1,11 @@
 class TestClass {
-  static currentDate = new Date()
+  static text = 'hello world'
 }
 
 export default function Page() {
   return (
     <div>
-      <p>Hello world</p>
-      <span>{TestClass.currentDate.toString()}</span>
+      <p>{TestClass.text}</p>
     </div>
   )
 }
