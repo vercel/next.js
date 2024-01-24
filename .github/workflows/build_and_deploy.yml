@@ -7,7 +7,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.11.3
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -202,7 +202,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,tracing/release_max_level_info &&
               llvm-strip -x native/next-swc.*.node &&
               objdump -T native/next-swc.*.node | grep GLIBC_
 
@@ -228,7 +228,7 @@ jobs:
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network

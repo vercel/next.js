@@ -11,6 +11,7 @@ import { normalizePagePath } from '../../../../shared/lib/page-path/normalize-pa
 import { decodeFromBase64, encodeToBase64 } from '../utils'
 import { isInstrumentationHookFile } from '../../../worker'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import type { MappedPages } from '../../../build-context'
 
 type RouteLoaderOptionsPagesAPIInput = {
   kind: RouteKind.PAGES_API
@@ -23,7 +24,7 @@ type RouteLoaderOptionsPagesAPIInput = {
 type RouteLoaderOptionsPagesInput = {
   kind: RouteKind.PAGES
   page: string
-  pages: { [page: string]: string }
+  pages: MappedPages
   preferredRegion: string | string[] | undefined
   absolutePagePath: string
   middlewareConfig: MiddlewareConfig

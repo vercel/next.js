@@ -5,7 +5,9 @@ description: Learn how to use instrumentation to run code at server startup in y
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-If you export a function named `register` from a `instrumentation.ts` (or `.js`) file in the **root directory** of your project (or inside the `src` folder if using one), we will call that function whenever a new Next.js server instance is bootstrapped.
+Instrumentation is the process of using code to integrate monitoring and logging tools into your application. This allows you to track the performance and behavior of your application, and to debug issues in production.
+
+Next.js provides a `register` function that can be exported from a `instrumentation.ts|js` file in the **root directory** of your project (or inside the `src` folder if using one). Next.js will then call `register` whenever a new Next.js server instance is bootstrapped.
 
 <AppOnly>
 

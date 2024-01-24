@@ -3,15 +3,15 @@ import {
   RichText,
   Field,
   withDatasourceCheck,
-} from '@sitecore-jss/sitecore-jss-nextjs'
-import { ComponentProps } from 'lib/component-props'
+} from "@sitecore-jss/sitecore-jss-nextjs";
+import { ComponentProps } from "lib/component-props";
 
 type ContentBlockProps = ComponentProps & {
   fields: {
-    heading: Field<string>
-    content: Field<string>
-  }
-}
+    heading: Field<string>;
+    content: Field<string>;
+  };
+};
 
 /**
  * A simple Content Block component, with a heading and rich text block.
@@ -24,6 +24,6 @@ const ContentBlock = ({ fields }: ContentBlockProps): JSX.Element => (
 
     <RichText className="contentDescription" field={fields.content} />
   </div>
-)
+);
 
-export default withDatasourceCheck()<ContentBlockProps>(ContentBlock)
+export default withDatasourceCheck()<ContentBlockProps>(ContentBlock);

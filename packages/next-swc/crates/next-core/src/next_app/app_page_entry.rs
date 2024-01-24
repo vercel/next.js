@@ -106,10 +106,12 @@ pub async fn get_app_page_entry(
     let file = File::from(result.build());
     let source = VirtualSource::new(source.ident().path(), AssetContent::file(file.into()));
 
-    let mut rsc_entry = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let mut rsc_entry = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     if is_edge {
         rsc_entry = wrap_edge_page(
@@ -190,10 +192,12 @@ async fn wrap_edge_page(
         INNER.to_string() => entry
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(
         context,
