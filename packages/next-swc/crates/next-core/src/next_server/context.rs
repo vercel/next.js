@@ -13,7 +13,9 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, ServerAddr},
+            environment::{
+                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
+            },
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
@@ -330,11 +332,13 @@ pub async fn get_server_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
+    let versions = RuntimeVersions(Default::default()).cell();
 
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
+    let styled_jsx_transform_plugin =
+        *get_styled_jsx_transform_plugin(use_lightningcss, versions).await?;
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
