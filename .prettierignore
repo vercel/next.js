@@ -31,6 +31,9 @@ packages/next-env/**/*.d.ts
 test/**/out/**
 test/development/basic/hmr/components/parse-error.js
 
+# TODO: upgrade prettier to 3.1.1 to support import attributes
+test/integration/import-attributes/**/*
+
 bench/nested-deps/pages/**/*
 bench/nested-deps/components/**/*
 
