@@ -286,15 +286,18 @@ describe('ReactRefreshRegression', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    const splittedSource = source.split(/\r?\n/g).slice(2).join('\n')
 
     if (process.env.TURBOPACK) {
-      expect(splittedSource).toMatchInlineSnapshot(
-        `"  1 | export default function () { throw new Error('boom'); }"`
-      )
+      expect(source).toMatchInlineSnapshot(`
+        "pages/index.js (0:54) @ __TURBOPACK__default__export__
+
+          1 | export default function () { throw new Error('boom'); }"
+      `)
     } else {
-      expect(splittedSource).toMatchInlineSnapshot(`
-        "> 1 | export default function () { throw new Error('boom'); }
+      expect(source).toMatchInlineSnapshot(`
+        "pages/index.js (1:35) @ default
+
+        > 1 | export default function () { throw new Error('boom'); }
             |                                   ^"
       `)
     }
