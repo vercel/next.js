@@ -24,18 +24,18 @@ describe('ReactRefreshRegression', () => {
         outdent`
           import Document from 'next/document'
           import { ServerStyleSheet } from 'styled-components'
-  
+
           export default class MyDocument extends Document {
             static async getInitialProps(ctx) {
               const sheet = new ServerStyleSheet()
               const originalRenderPage = ctx.renderPage
-  
+
               try {
                 ctx.renderPage = () =>
                   originalRenderPage({
                     enhanceApp: App => props => sheet.collectStyles(<App {...props} />),
                   })
-  
+
                 const initialProps = await Document.getInitialProps(ctx)
                 return {
                   ...initialProps,
@@ -286,10 +286,18 @@ describe('ReactRefreshRegression', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                   ^"
-    `)
+    const splittedSource = source.split(/\r?\n/g).slice(2).join('\n')
+
+    if (process.env.TURBOPACK) {
+      expect(splittedSource).toMatchInlineSnapshot(
+        `"  1 | export default function () { throw new Error('boom'); }"`
+      )
+    } else {
+      expect(splittedSource).toMatchInlineSnapshot(`
+        "> 1 | export default function () { throw new Error('boom'); }
+            |                                   ^"
+      `)
+    }
 
     await cleanup()
   })
