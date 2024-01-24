@@ -74,7 +74,7 @@ createNextDescribe(
       const errorDescription = await getRedboxDescription(browser)
 
       expect(errorDescription).toContain(
-        `Error: Invariant: cookies() expects to have requestAsyncStorage, none available.`
+        `Error: Invariant: \`cookies\` expects to have requestAsyncStorage, none available.`
       )
     })
 

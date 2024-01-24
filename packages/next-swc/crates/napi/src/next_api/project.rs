@@ -696,6 +696,32 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
+enum UpdateMessage {
+    Start,
+    End(UpdateInfo),
+}
+
+#[napi(object)]
+struct NapiUpdateMessage {
+    pub update_type: String,
+    pub value: Option<NapiUpdateInfo>,
+}
+
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
+        match update_message {
+            UpdateMessage::Start => NapiUpdateMessage {
+                update_type: "start".to_string(),
+                value: None,
+            },
+            UpdateMessage::End(info) => NapiUpdateMessage {
+                update_type: "end".to_string(),
+                value: Some(info.into()),
+            },
+        }
+    }
+}
+
 #[napi(object)]
 struct NapiUpdateInfo {
     pub duration: u32,
@@ -714,20 +740,41 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateInfo> = func.create_threadsafe_function(0, |ctx| {
-        let update_info = ctx.value;
-        Ok(vec![NapiUpdateInfo::from(update_info)])
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
     })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {
             let update_info = turbo_tasks
-                .get_or_wait_aggregated_update_info(Duration::from_secs(1))
+                .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
-            let status = func.call(Ok(update_info), ThreadsafeFunctionCallMode::NonBlocking);
+            func.call(
+                Ok(UpdateMessage::Start),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
+            let update_info = match update_info {
+                Some(update_info) => update_info,
+                None => {
+                    turbo_tasks
+                        .get_or_wait_aggregated_update_info(Duration::from_millis(
+                            aggregation_ms.into(),
+                        ))
+                        .await
+                }
+            };
+
+            let status = func.call(
+                Ok(UpdateMessage::End(update_info)),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{}", error);

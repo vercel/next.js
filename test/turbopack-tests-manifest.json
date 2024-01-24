@@ -116,6 +116,8 @@
       "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
       "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
       "normalizeCatchallRoutes should not add the catch-all route to a path that has a @children slot",
+      "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
+      "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
       "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
@@ -916,7 +918,10 @@
   "test/development/acceptance-app/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["ReactRefreshLogBox app scss syntax errors"],
+    "pending": [
+      "ReactRefreshLogBox scss app scss module pure selector error",
+      "ReactRefreshLogBox scss app scss syntax errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -937,7 +942,6 @@
     ],
     "failed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for server error",
-      "ReactRefreshLogBox app turbo client component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors"
     ],
@@ -950,7 +954,6 @@
       "ReactRefreshLogBox app default Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app default Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app default boundaries",
-      "ReactRefreshLogBox app default client component can recover from error thrown in the module",
       "ReactRefreshLogBox app default conversion to class component (1)",
       "ReactRefreshLogBox app default css syntax errors",
       "ReactRefreshLogBox app default internal package errors",
@@ -1083,16 +1086,16 @@
     "passed": [
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
-      "Error recovery app turbo render error not shown right after syntax error"
+      "Error recovery app turbo displays build error on initial page load",
+      "Error recovery app turbo render error not shown right after syntax error",
+      "Error recovery app turbo server component can recover from syntax error",
+      "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo client component can recover from syntax error",
-      "Error recovery app turbo displays build error on initial page load",
       "Error recovery app turbo server component can recover from a component error",
-      "Error recovery app turbo server component can recover from syntax error",
-      "Error recovery app turbo stuck error",
-      "Error recovery app turbo syntax > runtime error"
+      "Error recovery app turbo stuck error"
     ],
     "pending": [
       "Error recovery app default can recover from a event handler error",
@@ -1103,6 +1106,7 @@
       "Error recovery app default render error not shown right after syntax error",
       "Error recovery app default server component can recover from a component error",
       "Error recovery app default server component can recover from syntax error",
+      "Error recovery app default stuck error",
       "Error recovery app default syntax > runtime error"
     ],
     "flakey": [],
@@ -1166,6 +1170,7 @@
     ],
     "failed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
+      "Error overlay - RSC build errors should contain nextjs version check in error overlay",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
@@ -1275,7 +1280,10 @@
   "test/development/acceptance/ReactRefreshLogBox-scss.test.ts": {
     "passed": [],
     "failed": [],
-    "pending": ["ReactRefreshLogBox scss syntax errors"],
+    "pending": [
+      "ReactRefreshLogBox scss scss module pure selector error",
+      "ReactRefreshLogBox scss scss syntax errors"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -1316,8 +1324,8 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshModule.test.ts": {
-    "passed": [],
-    "failed": ["ReactRefreshModule should allow any variable names"],
+    "passed": ["ReactRefreshModule should allow any variable names"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1364,23 +1372,23 @@
     "runtimeError": false
   },
   "test/development/acceptance/component-stack.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Component Stack in error overlay should show a component stack on hydration error"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
-      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state"
+      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
+      "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
+      "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
-      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
-      "ReactRefreshLogBox turbo stuck error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
     "pending": [
@@ -1388,6 +1396,7 @@
       "ReactRefreshLogBox default logbox: can recover from a event handler error",
       "ReactRefreshLogBox default logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox default render error not shown right after syntax error",
+      "ReactRefreshLogBox default stuck error",
       "ReactRefreshLogBox default syntax > runtime error"
     ],
     "flakey": [],
@@ -2391,6 +2400,7 @@
     "passed": [
       "app dir - basepath should prefix redirect() with basePath",
       "app dir - basepath should render usePathname without the basePath",
+      "app dir - basepath should successfully hard navigate from pages -> app",
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
@@ -2439,6 +2449,7 @@
       "app dir - css HMR should support HMR for CSS imports in client components",
       "app dir - css HMR should support HMR for CSS imports in server components",
       "app dir - css HMR should support HMR with sass/scss",
+      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
       "app dir - css css support client layouts should support css modules inside client layouts",
@@ -2457,6 +2468,7 @@
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
+      "app dir - css css support special entries should include css imported in loading.js",
       "app dir - css css support special entries should include css imported in root not-found.js",
       "app dir - css css support special entries should include css imported in server not-found.js",
       "app dir - css css support special entries should include css imported in server template.js",
@@ -2472,11 +2484,9 @@
     ],
     "failed": [
       "app dir - css HMR should not create duplicate link tags during HMR",
-      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
-      "app dir - css css support should not preload styles twice during HMR",
-      "app dir - css css support special entries should include css imported in loading.js"
+      "app dir - css css support should not preload styles twice during HMR"
     ],
     "pending": [
       "app dir - css css support multiple entries should only inject the same style once if used by different layers",
@@ -2527,7 +2537,8 @@
   "test/e2e/app-dir/app-esm-js/index.test.ts": {
     "passed": [
       "app-dir - esm js extension should be able to render nextjs api in app router",
-      "app-dir - esm js extension should be able to use nextjs api in pages router"
+      "app-dir - esm js extension should be able to use nextjs api in pages router",
+      "app-dir - esm js extension should support next/og image"
     ],
     "failed": [],
     "pending": [],
@@ -2867,7 +2878,6 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
-      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -2944,7 +2954,6 @@
       "app-dir static/dynamic handling usePathname should have the correct values",
       "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
-      "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - without suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
     "failed": [],
@@ -3227,6 +3236,20 @@
       "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
+    "passed": [
+      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
+      "dynamic-data should render empty objects for dynamic APIs when rendering with force-static",
+      "dynamic-data should render the dynamic apis dynamically when used in a top-level scope",
+      "dynamic-data should render the dynamic apis dynamically when used in a top-level scope with force dynamic",
+      "dynamic-data should track searchParams access as dynamic when the Page is a client component",
+      "dynamic-data with dynamic = \"error\" displays redbox when `dynamic = \"error\"` and dynamic data is read in dev"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3547,6 +3570,8 @@
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches default logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches default logging should only log requests in dev mode",
+      "app-dir - logging with fetches default logging should respect request.init.cache when use with fetch input is instance",
+      "app-dir - logging with fetches default logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
@@ -3554,6 +3579,8 @@
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with fetches verbose logging should not contain trailing word page for app router routes",
       "app-dir - logging with fetches verbose logging should only log requests in dev mode",
+      "app-dir - logging with fetches verbose logging should respect request.init.cache when use with fetch input is instance",
+      "app-dir - logging with fetches verbose logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not log fetch requests at all"
@@ -3705,6 +3732,13 @@
     ],
     "runtimeError": false
   },
+  "test/e2e/app-dir/missing-suspense-with-csr-bailout/missing-suspense-with-csr-bailout.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["missing-suspense-with-csr-bailout skip test for dev mode"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/mjs-as-extension/mjs-as-extension.test.ts": {
     "passed": ["mjs as extension should render the page correctly"],
     "failed": [],
@@ -3792,14 +3826,7 @@
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation",
-      "app dir - next/font app-old app dir - next-font Dev errors should recover on font loader error",
-      "app dir - next/font app-old app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app-old app dir - next-font computed styles should have correct styles at /client",
-      "app dir - next/font app-old app dir - next-font import values should have correct values at /",
-      "app dir - next/font app-old app dir - next-font import values should have correct values at /client",
-      "app dir - next/font app-old app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app-old app dir - next-font navigation should not have duplicate preload tags on navigation"
+      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "pending": [],
     "flakey": [],
@@ -3815,11 +3842,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-proxy.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next-image-proxy loads images without any errors",
       "next-image-proxy should work with connection upgrade by removing it via filterReqHeaders()"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3828,18 +3855,16 @@
     "passed": [
       "app dir - next-image browser content should render images nested under page dir on /nested route",
       "app dir - next-image browser content should render images on / route",
-      "app dir - next-image browser content should render images on /client route",
       "app dir - next-image image content should render images nested under page dir on /nested route",
+      "app dir - next-image image content should render images on / route",
       "app dir - next-image image content should render images on /client route",
+      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image image content should render legacy images under /legacy route",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
     ],
-    "failed": [
-      "app dir - next-image image content should render images on / route",
-      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3861,6 +3886,7 @@
   },
   "test/e2e/app-dir/not-found/basic/index.test.ts": {
     "passed": [
+      "app dir - not-found - basic should propagate notFound errors past a segment's error boundary",
       "app dir - not-found - basic with default runtime should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with default runtime should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with default runtime should not reload the page",
@@ -3869,7 +3895,6 @@
       "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with runtime = edge should not reload the page",
-      "app dir - not-found - basic with runtime = edge should render the 404 page when the file is removed, and restore the page when re-added",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
     "failed": [],
@@ -4011,9 +4036,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-catchall-dynamic-segment/parallel-routes-catchall-dynamic-segment.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-dynamic-segment should match default and dynamic segment paths before catch-all"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
     "passed": [
       "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall-slotted-non-catchalls/parallel-routes-catchall-slotted-non-catchalls.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-slotted-non-catchalls should match default and dynamic segment paths before catch-all"
     ],
     "failed": [],
     "pending": [],
@@ -4046,6 +4089,18 @@
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-use-selected-layout-segment/parallel-routes-use-selected-layout-segment.test.ts": {
+    "passed": [
+      "parallel-routes-use-selected-layout-segment hard nav to parallel route",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav around other router pages",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav to parallel route and soft nav back to another router page",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav to parallel routes"
     ],
     "failed": [],
     "pending": [],
@@ -4159,8 +4214,29 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-navigations/ppr-navigations.test.ts": {
-    "passed": ["ppr-navigations prefetching is disabled in dev"],
+  "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
+    "passed": ["avoid-popstate-flash ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/loading-tsx-no-partial-rendering/loading-tsx-no-partial-rendering.test.ts": {
+    "passed": ["loading-tsx-no-partial-rendering ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/search-params/search-params.test.ts": {
+    "passed": ["search-params ppr is disabled in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
+    "passed": ["stale-prefetch-entry ppr is disabled in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -4810,19 +4886,18 @@
     "runtimeError": false
   },
   "test/e2e/edge-configurable-runtime/index.test.ts": {
-    "passed": [
-      "Configurable runtime for pages and API routes In dev mode runs with no warning API route on the edge runtime",
-      "Configurable runtime for src/pages and API routes In dev mode runs with no warning API route on the edge runtime"
-    ],
-    "failed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Configurable runtime for pages and API routes In dev mode errors about page using edge runtime",
+      "Configurable runtime for pages and API routes In dev mode runs with no warning API route on the edge runtime",
       "Configurable runtime for pages and API routes In dev mode warns about API route using experimental-edge runtime",
       "Configurable runtime for pages and API routes In dev mode warns about page using edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode errors about page using edge runtime",
+      "Configurable runtime for src/pages and API routes In dev mode runs with no warning API route on the edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode warns about API route using experimental-edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode warns about page using edge runtime"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5655,20 +5730,20 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed"
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
     "failed": [
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
@@ -5767,13 +5842,7 @@
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
-      "next/font app import values page with local fonts",
-      "next/font app-old computed styles page using fallback fonts",
-      "next/font app-old computed styles page using variables",
-      "next/font app-old computed styles page with fonts",
-      "next/font app-old import values Variable font without weight range",
-      "next/font app-old import values page with font",
-      "next/font app-old import values page with local fonts"
+      "next/font app import values page with local fonts"
     ],
     "failed": [
       "next/font app Fallback fontfaces google Fraunces",
@@ -5789,21 +5858,7 @@
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
-      "next/font app should use production cache control for fonts",
-      "next/font app-old Fallback fontfaces google Fraunces",
-      "next/font app-old Fallback fontfaces google Indie flower",
-      "next/font app-old Fallback fontfaces local Fraunces",
-      "next/font app-old Fallback fontfaces local Indie flower",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app-old preload font without preloadable subsets",
-      "next/font app-old preload font without size adjust",
-      "next/font app-old preload google fonts with multiple weights/styles",
-      "next/font app-old preload page with fonts",
-      "next/font app-old preload page with local fonts",
-      "next/font app-old preload page without fonts",
-      "next/font app-old should use production cache control for fonts"
+      "next/font app should use production cache control for fonts"
     ],
     "pending": [],
     "flakey": [],
@@ -5859,6 +5914,13 @@
     "passed": [
       "next-image-forward-ref allows framer-motion to animate opacity"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-phase/index.test.ts": {
+    "passed": ["next-phase should render page with next phase correctly"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5928,7 +5990,8 @@
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context pages should handle api routes in pages",
       "opentelemetry root context pages should handle getServerSideProps",
-      "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'"
+      "opentelemetry root context pages should handle getStaticProps when fallback: 'blocking'",
+      "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
     "flakey": [],
     "runtimeError": false
@@ -6324,28 +6387,28 @@
   },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-eslint"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-mdx"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-next-sass.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-next-sass"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6765,8 +6828,7 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
-      "app dir - with output export - dynamic missing gsp dev development mode should error when generateStaticParams returns an empty array"
+      "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams"
     ],
     "failed": [
       "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
@@ -6780,8 +6842,7 @@
     "failed": [],
     "pending": [
       "app dir - with output export - dynamic missing gsp prod production mode should error when client component has generateStaticParams",
-      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams",
-      "app dir - with output export - dynamic missing gsp prod production mode should error when generateStaticParams returns an empty array"
+      "app dir - with output export - dynamic missing gsp prod production mode should error when dynamic route is missing generateStaticParams"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11102,6 +11163,7 @@
       "i18n Support basePath dev mode should rewrite to API route correctly for nl locale",
       "i18n Support basePath dev mode should rewrite to API route correctly for nl-BE locale",
       "i18n Support basePath dev mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath dev mode should serve public file on locale domain",
       "i18n Support basePath dev mode should show error for redirect and notFound returned at same time",
       "i18n Support basePath dev mode should transition on client properly for page that starts with locale",
       "i18n Support basePath dev mode should update asPath on the client correctly",
@@ -11198,6 +11260,7 @@
       "i18n Support basePath production mode should rewrite to API route correctly for nl locale",
       "i18n Support basePath production mode should rewrite to API route correctly for nl-BE locale",
       "i18n Support basePath production mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support basePath production mode should serve public file on locale domain",
       "i18n Support basePath production mode should transition on client properly for page that starts with locale",
       "i18n Support basePath production mode should update asPath on the client correctly",
       "i18n Support basePath production mode should use correct default locale for locale domains",
@@ -11378,6 +11441,7 @@
       "i18n Support dev mode should rewrite to API route correctly for nl locale",
       "i18n Support dev mode should rewrite to API route correctly for nl-BE locale",
       "i18n Support dev mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support dev mode should serve public file on locale domain",
       "i18n Support dev mode should show error for redirect and notFound returned at same time",
       "i18n Support dev mode should transition on client properly for page that starts with locale",
       "i18n Support dev mode should update asPath on the client correctly",
@@ -11479,6 +11543,7 @@
       "i18n Support production mode should rewrite to API route correctly for nl locale",
       "i18n Support production mode should rewrite to API route correctly for nl-BE locale",
       "i18n Support production mode should rewrite to API route correctly for nl-NL locale",
+      "i18n Support production mode should serve public file on locale domain",
       "i18n Support production mode should show proper error for duplicate defaultLocales",
       "i18n Support production mode should show proper error for duplicate locales",
       "i18n Support production mode should show proper error for invalid locale domain",
@@ -11568,15 +11633,14 @@
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as png",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with contentDispositionType attachment dev support with next.config.js should return home page",
       "with contentDispositionType attachment dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with contentDispositionType attachment dev support with next.config.js should set cache-control to immutable for static images",
       "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with contentDispositionType attachment dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with contentDispositionType attachment Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
@@ -11729,15 +11793,14 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as png",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set cache-control to immutable for static images",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
@@ -11872,6 +11935,8 @@
       "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
       "with latest sharp dev support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support w/o next.config.js should error if the image file does not exist",
+      "with latest sharp dev support w/o next.config.js should error if the resource isn't a valid image",
       "with latest sharp dev support w/o next.config.js should fail when domain is not defined in next.config.js",
       "with latest sharp dev support w/o next.config.js should fail when internal url is not an image",
       "with latest sharp dev support w/o next.config.js should fail when q is greater than 100",
@@ -11895,6 +11960,9 @@
       "with latest sharp dev support w/o next.config.js should maintain ico format",
       "with latest sharp dev support w/o next.config.js should maintain jpg format for old Safari",
       "with latest sharp dev support w/o next.config.js should maintain png format for old Safari",
+      "with latest sharp dev support w/o next.config.js should not allow svg with application header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support w/o next.config.js should not allow vector svg",
       "with latest sharp dev support w/o next.config.js should not have sharp missing warning",
       "with latest sharp dev support w/o next.config.js should not have sharp outdated warning",
@@ -11905,6 +11973,7 @@
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as gif",
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support w/o next.config.js should return home page",
       "with latest sharp dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
       "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
@@ -11917,12 +11986,15 @@
       "with latest sharp dev support with next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
       "with latest sharp dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support with next.config.js should error if the image file does not exist",
+      "with latest sharp dev support with next.config.js should error if the resource isn't a valid image",
       "with latest sharp dev support with next.config.js should fail when domain is not defined in next.config.js",
       "with latest sharp dev support with next.config.js should fail when internal url is not an image",
       "with latest sharp dev support with next.config.js should fail when q is greater than 100",
       "with latest sharp dev support with next.config.js should fail when q is less than 1",
       "with latest sharp dev support with next.config.js should fail when q is missing",
       "with latest sharp dev support with next.config.js should fail when q is not a number",
+      "with latest sharp dev support with next.config.js should fail when url fails to load an image",
       "with latest sharp dev support with next.config.js should fail when url has file protocol",
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support with next.config.js should fail when url is missing",
@@ -11942,6 +12014,9 @@
       "with latest sharp dev support with next.config.js should maintain jpg format for old Safari",
       "with latest sharp dev support with next.config.js should maintain png format for old Safari",
       "with latest sharp dev support with next.config.js should normalize invalid status codes",
+      "with latest sharp dev support with next.config.js should not allow svg with application header",
+      "with latest sharp dev support with next.config.js should not allow svg with comma header",
+      "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support with next.config.js should not allow vector svg",
       "with latest sharp dev support with next.config.js should not have sharp missing warning",
       "with latest sharp dev support with next.config.js should not have sharp outdated warning",
@@ -11954,27 +12029,14 @@
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support with next.config.js should return home page",
       "with latest sharp dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support with next.config.js should set cache-control to immutable for static images",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with latest sharp dev support w/o next.config.js should error if the image file does not exist",
-      "with latest sharp dev support w/o next.config.js should error if the resource isn't a valid image",
-      "with latest sharp dev support w/o next.config.js should not allow svg with application header",
-      "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
-      "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
-      "with latest sharp dev support w/o next.config.js should return home page",
-      "with latest sharp dev support with next.config.js should error if the image file does not exist",
-      "with latest sharp dev support with next.config.js should error if the resource isn't a valid image",
-      "with latest sharp dev support with next.config.js should fail when url fails to load an image",
-      "with latest sharp dev support with next.config.js should not allow svg with application header",
-      "with latest sharp dev support with next.config.js should not allow svg with comma header",
-      "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
-      "with latest sharp dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
@@ -12130,6 +12192,7 @@
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as gif",
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as png",
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with squoosh dev support w/o next.config.js should return home page",
       "with squoosh dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
       "with squoosh dev support w/o next.config.js should set cache-control to immutable for static images",
       "with squoosh dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
@@ -12186,16 +12249,14 @@
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as png",
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with squoosh dev support with next.config.js should return home page",
       "with squoosh dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with squoosh dev support with next.config.js should set cache-control to immutable for static images",
       "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with squoosh dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with squoosh dev support w/o next.config.js should return home page",
-      "with squoosh dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with squoosh Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with squoosh Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
@@ -13136,7 +13197,7 @@
       "Image Component Default Tests dev mode should render correct objectFit when blurDataURL and fill",
       "Image Component Default Tests dev mode should render correct objectFit when data url placeholder and fill",
       "Image Component Default Tests dev mode should render no wrappers or sizers",
-      "Image Component Default Tests dev mode should render picture via getImgProps",
+      "Image Component Default Tests dev mode should render picture via getImageProps",
       "Image Component Default Tests dev mode should show empty string src error",
       "Image Component Default Tests dev mode should show error when CSS position changed on fill image",
       "Image Component Default Tests dev mode should show error when invalid Infinity width prop",
@@ -13195,7 +13256,7 @@
       "Image Component Default Tests production mode should render correct objectFit when blurDataURL and fill",
       "Image Component Default Tests production mode should render correct objectFit when data url placeholder and fill",
       "Image Component Default Tests production mode should render no wrappers or sizers",
-      "Image Component Default Tests production mode should render picture via getImgProps",
+      "Image Component Default Tests production mode should render picture via getImageProps",
       "Image Component Default Tests production mode should update the image on src change",
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
@@ -13356,7 +13417,7 @@
       "Image Component Default Tests dev mode should render correct objectFit when blurDataURL and fill",
       "Image Component Default Tests dev mode should render correct objectFit when data url placeholder and fill",
       "Image Component Default Tests dev mode should render no wrappers or sizers",
-      "Image Component Default Tests dev mode should render picture via getImgProps",
+      "Image Component Default Tests dev mode should render picture via getImageProps",
       "Image Component Default Tests dev mode should show empty string src error",
       "Image Component Default Tests dev mode should show error when CSS position changed on fill image",
       "Image Component Default Tests dev mode should show error when invalid Infinity width prop",
@@ -13416,7 +13477,7 @@
       "Image Component Default Tests production mode should render correct objectFit when blurDataURL and fill",
       "Image Component Default Tests production mode should render correct objectFit when data url placeholder and fill",
       "Image Component Default Tests production mode should render no wrappers or sizers",
-      "Image Component Default Tests production mode should render picture via getImgProps",
+      "Image Component Default Tests production mode should render picture via getImageProps",
       "Image Component Default Tests production mode should update the image on src change",
       "Image Component Default Tests production mode should warn when legacy prop layout=fill",
       "Image Component Default Tests production mode should warn when legacy prop layout=responsive",
@@ -13495,17 +13556,16 @@
   "test/integration/next-image-new/loader-config-default-loader-with-file/test/index.test.ts": {
     "passed": [
       "Image Loader Config dev mode - component should work with loader prop",
-      "Image Loader Config dev mode - getImgProps should work with loader prop"
-    ],
-    "failed": [
       "Image Loader Config dev mode - component should work with loaderFile config, leaving default image optimization enabled",
-      "Image Loader Config dev mode - getImgProps should work with loaderFile config, leaving default image optimization enabled"
+      "Image Loader Config dev mode - getImageProps should work with loader prop",
+      "Image Loader Config dev mode - getImageProps should work with loaderFile config, leaving default image optimization enabled"
     ],
+    "failed": [],
     "pending": [
       "Image Loader Config production mode - component should work with loader prop",
       "Image Loader Config production mode - component should work with loaderFile config, leaving default image optimization enabled",
-      "Image Loader Config production mode - getImgProps should work with loader prop",
-      "Image Loader Config production mode - getImgProps should work with loaderFile config, leaving default image optimization enabled"
+      "Image Loader Config production mode - getImageProps should work with loader prop",
+      "Image Loader Config production mode - getImageProps should work with loaderFile config, leaving default image optimization enabled"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13532,14 +13592,14 @@
     "failed": [
       "Image Loader Config new dev mode - component should work with loader prop",
       "Image Loader Config new dev mode - component should work with loaderFile config",
-      "Image Loader Config new dev mode - getImgProps should work with loader prop",
-      "Image Loader Config new dev mode - getImgProps should work with loaderFile config"
+      "Image Loader Config new dev mode - getImageProps should work with loader prop",
+      "Image Loader Config new dev mode - getImageProps should work with loaderFile config"
     ],
     "pending": [
       "Image Loader Config new production mode - component should work with loader prop",
       "Image Loader Config new production mode - component should work with loaderFile config",
-      "Image Loader Config new production mode - getImgProps should work with loader prop",
-      "Image Loader Config new production mode - getImgProps should work with loaderFile config"
+      "Image Loader Config new production mode - getImageProps should work with loader prop",
+      "Image Loader Config new production mode - getImageProps should work with loaderFile config"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13617,12 +13677,12 @@
   "test/integration/next-image-new/unoptimized/test/index.test.ts": {
     "passed": [
       "Unoptimized Image Tests dev mode - component should not optimize any image",
-      "Unoptimized Image Tests dev mode - getImgProps should not optimize any image"
+      "Unoptimized Image Tests dev mode - getImageProps should not optimize any image"
     ],
     "failed": [],
     "pending": [
       "Unoptimized Image Tests production mode - component should not optimize any image",
-      "Unoptimized Image Tests production mode - getImgProps should not optimize any image"
+      "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
     "flakey": [],
     "runtimeError": false

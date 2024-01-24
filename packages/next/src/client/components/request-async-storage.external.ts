@@ -17,3 +17,13 @@ export type RequestAsyncStorage = AsyncLocalStorage<RequestStore>
 
 export const requestAsyncStorage: RequestAsyncStorage =
   createAsyncLocalStorage()
+
+export function getExpectedRequestStore(callingExpression: string) {
+  const store = requestAsyncStorage.getStore()
+  if (!store) {
+    throw new Error(
+      `Invariant: \`${callingExpression}\` expects to have requestAsyncStorage, none available.`
+    )
+  }
+  return store
+}

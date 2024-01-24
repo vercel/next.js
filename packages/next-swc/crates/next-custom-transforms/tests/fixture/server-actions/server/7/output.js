@@ -17,7 +17,14 @@ export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
     await deleteFromDb($$ACTION_ARG_3.id, $$ACTION_ARG_3?.foo, $$ACTION_ARG_3.bar.baz, $$ACTION_ARG_3[$$ACTION_ARG_4, $$ACTION_ARG_5]);
 }
 export function Item2(product, foo, bar) {
-    function deleteItem2() {}
+    var deleteItem2 = createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
+        product.id,
+        product?.foo,
+        product.bar.baz,
+        product,
+        foo,
+        bar
+    ]));
     return <Button action={createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1).bind(null, encryptActionBoundArgs("188d5d945750dc32e2c842b93c75a65763d4a922", [
         product.id,
         product?.foo,

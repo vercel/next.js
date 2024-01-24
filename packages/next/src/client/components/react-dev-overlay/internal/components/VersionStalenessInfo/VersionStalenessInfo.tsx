@@ -3,13 +3,37 @@ import type { VersionInfo } from '../../../../../../server/dev/parse-version-inf
 
 export function VersionStalenessInfo(props: VersionInfo) {
   if (!props) return null
-  const { staleness, installed, expected } = props
+  const { staleness } = props
+  let { text, indicatorClass, title } = getStaleness(props)
+
+  if (!text) return null
+
+  return (
+    <small className="nextjs-container-build-error-version-status">
+      <span className={indicatorClass} />
+      <small data-nextjs-version-checker title={title}>
+        {text}
+      </small>{' '}
+      {staleness === 'fresh' || staleness === 'unknown' ? null : (
+        <a
+          target="_blank"
+          rel="noopener noreferrer"
+          href="https://nextjs.org/docs/messages/version-staleness"
+        >
+          (learn more)
+        </a>
+      )}
+    </small>
+  )
+}
+
+export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   let text = ''
   let title = ''
   let indicatorClass = ''
   switch (staleness) {
     case 'fresh':
-      text = 'Next.js is up to date'
+      text = `Next.js is up to date${process.env.TURBOPACK ? ' (turbo)' : ''}`
       title = `Latest available version is detected (${installed}).`
       indicatorClass = 'fresh'
       break
@@ -37,27 +61,5 @@ export function VersionStalenessInfo(props: VersionInfo) {
     default:
       break
   }
-
-  if (!text) return null
-
-  return (
-    <small className="nextjs-container-build-error-version-status">
-      <span className={indicatorClass} />
-      <small
-        className="nextjs-container-build-error-version-status"
-        title={title}
-      >
-        {text}
-      </small>{' '}
-      {staleness === 'fresh' || staleness === 'unknown' ? null : (
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://nextjs.org/docs/messages/version-staleness"
-        >
-          (learn more)
-        </a>
-      )}
-    </small>
-  )
+  return { text, indicatorClass, title }
 }

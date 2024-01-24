@@ -12,7 +12,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -180,7 +180,6 @@ export function useParams<T extends Params = Params>(): T {
   }, [globalLayoutRouter?.tree, pathParams])
 }
 
-// TODO-APP: handle parallel routes
 /**
  * Get the canonical parameters from the current level to the leaf node.
  */
@@ -243,7 +242,16 @@ export function useSelectedLayoutSegment(
     return null
   }
 
-  return selectedLayoutSegments[0]
+  const selectedLayoutSegment =
+    parallelRouteKey === 'children'
+      ? selectedLayoutSegments[0]
+      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
+
+  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
+  // and returning an internal value like `__DEFAULT__` would be confusing.
+  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
+    ? null
+    : selectedLayoutSegment
 }
 
 export { redirect, permanentRedirect, RedirectType } from './redirect'

@@ -1,4 +1,4 @@
-import { getSSRSession } from "../sessionUtils";
+import { cookies, headers } from "next/headers";
 import { TryRefreshComponent } from "./tryRefreshClientComponent";
 import styles from "../page.module.css";
 import { redirect } from "next/navigation";
@@ -7,9 +7,46 @@ import { CelebrateIcon, SeparatorLine } from "../../assets/images";
 import { CallAPIButton } from "./callApiButton";
 import { LinksComponent } from "./linksComponent";
 import { SessionAuthForNextJS } from "./sessionAuthForNextJS";
+import { getSSRSession } from "supertokens-node/nextjs";
+import { SessionContainer } from "supertokens-node/recipe/session";
+import { ensureSuperTokensInit } from "../config/backend";
+
+ensureSuperTokensInit();
+
+async function getSSRSessionHelper(): Promise<{
+  session: SessionContainer | undefined;
+  hasToken: boolean;
+  hasInvalidClaims: boolean;
+  error: Error | undefined;
+}> {
+  let session: SessionContainer | undefined;
+  let hasToken = false;
+  let hasInvalidClaims = false;
+  let error: Error | undefined = undefined;
+
+  try {
+    ({ session, hasToken, hasInvalidClaims } = await getSSRSession(
+      cookies().getAll(),
+      headers(),
+    ));
+  } catch (err: any) {
+    error = err;
+  }
+  return { session, hasToken, hasInvalidClaims, error };
+}
 
 export async function HomePage() {
-  const { session, hasToken, hasInvalidClaims } = await getSSRSession();
+  const { session, hasToken, hasInvalidClaims, error } =
+    await getSSRSessionHelper();
+
+  if (error) {
+    return (
+      <div>
+        Something went wrong while trying to get the session. Error -{" "}
+        {error.message}
+      </div>
+    );
+  }
 
   if (!session) {
     if (!hasToken) {
