@@ -197,11 +197,13 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2]
+        const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
             .fetch(
-              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
+              isNextDev
+                ? `/gsp/sitemap.xml/${id}.xml`
+                : `/gsp/sitemap/${id}.xml`
             )
             .then((res) => res.text())
         }
