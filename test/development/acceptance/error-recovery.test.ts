@@ -469,7 +469,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     } else {
       expect(source1).toMatchInlineSnapshot(`
         "./index.js
-        Error:
+        Error: 
           x Expected '}', got '<eof>'
            ,-[TEST_DIR/index.js:4:1]
          4 |   i++
