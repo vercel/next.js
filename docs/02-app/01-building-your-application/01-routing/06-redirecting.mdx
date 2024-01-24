@@ -262,13 +262,10 @@ The App Router fully supports programmatic redirects to external links using the
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createCheckout } from './payment'
 
 export async function checkout(data: FormData) {
-  // Do validation and / or generate url
-  const { url } = await createCheckout(data)
-
-  redirect(url) // Redirect to hosted checkout
+  // Do validation, etc. and then redirect to hosted checkout
+  redirect('https://checkout.stripe.com/c/pay')
 }
 ```
 
@@ -276,13 +273,10 @@ export async function checkout(data: FormData) {
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createCheckout } from './payment'
 
 export async function checkout(data) {
-  // Do validation and / or generate url
-  const { url } = await createCheckout(data)
-
-  redirect(url) // Redirect to hosted checkout
+  // Do validation, etc. and then redirect to hosted checkout
+  redirect('https://checkout.stripe.com/c/pay')
 }
 ```
 
