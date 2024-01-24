@@ -9,7 +9,7 @@ related:
 
 The middleware.ts file in Next.js is used to run code on the server before a request is finished. It provides the ability to modify the response based on the incoming request. This can include operations like URL rewriting, redirecting, altering request or response headers, or even sending a direct response.
 
-Middleware executes before the content is served from the cache and before routes are matched. It's particularly useful for implementing custom server-side functionalities like authentication, logging, or handling specific path patterns.
+Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side functionalities like authentication, logging, or handling redirects.
 
 Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as pages or app, or inside src if applicable.
 
