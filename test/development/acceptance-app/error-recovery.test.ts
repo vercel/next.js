@@ -212,7 +212,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         'index.js',
         outdent`
           import Child from './child'
-  
+
           export default function Index() {
             return (
               <main>

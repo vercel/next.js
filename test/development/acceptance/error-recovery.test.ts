@@ -411,12 +411,31 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
     expect(await session.hasRedbox()).toBe(true)
-    if (process.platform === 'win32') {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+    if (isTurbopack) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (5:8) @ Error
+
+          3 | setInterval(() => {
+          4 | i++
+        > 5 | throw Error('no ' + i)
+            |      ^
+          6 | }, 1000)
+          7 | export default function FunctionNamed() {
+          8 | return <div />"
+    `)
     } else {
-      expect(await session.getRedboxSource()).toMatchSnapshot()
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (5:8) @ Error
+
+          3 | setInterval(() => {
+          4 | i++
+        > 5 | throw Error('no ' + i)
+            |      ^
+          6 | }, 1000)
+          7 | export default function FunctionNamed() {
+          8 | return <div />"
+      `)
     }
 
     // Make a syntax error.
@@ -432,14 +451,27 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         export default function FunctionNamed() {`
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
     expect(await session.hasRedbox()).toBe(true)
-    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
-      .toMatchInlineSnapshot(`
+    const source1 = next.normalizeTestDirContent(
+      await session.getRedboxSource()
+    )
+    if (isTurbopack) {
+      expect(source1).toMatchInlineSnapshot(`
+              "./index.js:7:40
+              Parsing ecmascript source code failed
+                5 |   throw Error('no ' + i)
+                6 | }, 1000)
+              > 7 | export default function FunctionNamed() {
+                  |                                         ^
+
+              Expected '}', got '<eof>'"
+          `)
+    } else {
+      expect(source1).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
+           ,-[4:1]
          4 |   i++
          5 |   throw Error('no ' + i)
          6 | }, 1000)
@@ -454,18 +486,30 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ./index.js
         ./pages/index.js"
       `)
+    }
 
     // Test that runtime error does not take over:
-    await new Promise((resolve) => setTimeout(resolve, 2000))
     expect(await session.hasRedbox()).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      `
+    const source2 = next.normalizeTestDirContent(
+      await session.getRedboxSource()
+    )
+    if (isTurbopack) {
+      expect(source2).toMatchInlineSnapshot(`
+              "./index.js:7:40
+              Parsing ecmascript source code failed
+                5 |   throw Error('no ' + i)
+                6 | }, 1000)
+              > 7 | export default function FunctionNamed() {
+                  |                                         ^
+
+              Expected '}', got '<eof>'"
+          `)
+    } else {
+      expect(source2).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
+           ,-[4:1]
          4 |   i++
          5 |   throw Error('no ' + i)
          6 | }, 1000)
@@ -479,8 +523,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         Import trace for requested module:
         ./index.js
         ./pages/index.js"
-      `
-    )
+      `)
+    }
 
     await cleanup()
   })
