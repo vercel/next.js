@@ -256,7 +256,7 @@ See the [Middleware](/docs/app/building-your-application/routing/middleware) doc
 
 The App Router fully supports programmatic redirects to external links using the same methods mentioned above.
 
-[`redirect`](#redirect-function) and [`permanentRedirect`](#permanentredirect-function) work server-side and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+On the server-side and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), [`redirect`](#redirect-function) and [`permanentRedirect`](#permanentredirect-function) methods can be used to navigate to external links:
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -280,7 +280,7 @@ export async function checkout(data) {
 }
 ```
 
-`router.push` and `router.replace` from [`useRouter`](#userouter-hook) work in client-side components and event handlers.
+In event handlers, `router.push` and `router.replace` methods form [`useRouter`](#userouter-hook) can be used to navigate to external links:
 
 ```tsx filename="app/page.tsx" switcher
 'use client'
