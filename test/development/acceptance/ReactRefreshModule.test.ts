@@ -24,6 +24,7 @@ describe('ReactRefreshModule', () => {
       await session.patch(
         'pages/index.js',
         `import { default as ${variable} } from 'next/link'
+        console.log({ ${variable} })
         export default function Page() {
           return null
         }`
