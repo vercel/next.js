@@ -187,20 +187,15 @@ ${errorOnBadHandler(resourcePath)}
 ${'' /* re-export the userland route configs */}
 export * from ${JSON.stringify(resourcePath)}
 
-function appendXmlExtension(id) {
-  return id && !id.endsWith('.xml') ? id + '.xml' : id 
-}
 
 export async function GET(_, ctx) {
   const { __metadata_id__, ...params } = ctx.params || {}
   ${
     '' /* sitemap will be optimized to [__metadata_id__] from [[..._metadata_id__]] in production */
   }
-  let targetId = process.env.NODE_ENV !== 'production'
+  const targetId = process.env.NODE_ENV !== 'production'
     ? __metadata_id__?.[0]
     : __metadata_id__
-
-  targetId = appendXmlExtension(targetId)
 
   let id = undefined
   const sitemaps = generateSitemaps ? await generateSitemaps() : null
@@ -212,8 +207,8 @@ export async function GET(_, ctx) {
           throw new Error('id property is required for every item returned from generateSitemaps')
         }
       }
-      const currentId = appendXmlExtension(item.id.toString())
-      return currentId === targetId
+
+      return item.id.toString() === targetId
     })?.id
     if (id == null) {
       return new NextResponse('Not Found', {
