@@ -38,7 +38,7 @@ module.exports = {
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
-Redirects are not applied to client-side routing (`Link`, `router.push`), unless [Middleware](/docs/app/building-your-application/routing/middleware) is present and matches the path.
+When using the Pages Router, redirects are not applied to client-side routing (`Link`, `router.push`) unless [Middleware](/docs/app/building-your-application/routing/middleware) is present and matches the path.
 
 When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:
 
@@ -309,7 +309,7 @@ In some rare cases, you might need to assign a custom status code for older HTTP
 
 ## Other Redirects
 
-- Inside [API Routes](/docs/pages/api-reference/functions/next-server), you can use `res.redirect()`.
+- Inside [API Routes](/docs/pages/building-your-application/routing/api-routes) and [Route Handlers](/docs/app/building-your-application/routing/route-handlers), you can redirect based on the incoming request.
 - Inside [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) and [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props), you can redirect specific pages at request-time.
 
 ## Version History

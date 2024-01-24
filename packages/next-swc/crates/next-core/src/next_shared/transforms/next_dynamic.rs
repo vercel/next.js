@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use next_transform_dynamic::{next_dynamic, NextDynamicMode};
+use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
 use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{
@@ -66,6 +66,7 @@ impl CustomTransformer for NextJsDynamic {
             },
             self.is_server_compiler,
             self.is_react_server_layer,
+            false,
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),

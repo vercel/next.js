@@ -7,11 +7,6 @@ import type {
   MockedRequest,
   MockedResponse,
 } from '../../server/lib/mock-request'
-import {
-  RSC_HEADER,
-  NEXT_URL,
-  NEXT_ROUTER_PREFETCH_HEADER,
-} from '../../client/components/app-router-headers'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
@@ -21,6 +16,7 @@ import {
 } from '../../lib/constants'
 import { hasNextSupport } from '../../telemetry/ci-info'
 import { lazyRenderAppPage } from '../../server/future/route-modules/app-page/module.render'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -28,59 +24,6 @@ export const enum ExportedAppPageFiles {
   PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
   META = 'META',
   POSTPONED = 'POSTPONED',
-}
-
-async function generatePrefetchRsc(
-  req: MockedRequest,
-  path: string,
-  res: MockedResponse,
-  pathname: string,
-  htmlFilepath: string,
-  renderOpts: RenderOpts,
-  fileWriter: FileWriter
-): Promise<boolean> {
-  // TODO: Re-enable once this is better supported client-side
-  // It's currently not reliable to generate these prefetches because the client router
-  // depends on the RSC payload being generated with FlightRouterState. When we generate these prefetches
-  // without router state, it causes mismatches on client-side nav, resulting in subtle navigation bugs
-  // like unnecessarily re-rendering layouts.
-  return false
-
-  // When we're in PPR, the RSC payload is emitted as the prefetch payload, so
-  // attempting to generate a prefetch RSC is an error.
-  if (renderOpts.experimental.ppr) {
-    throw new Error(
-      'Invariant: explicit prefetch RSC cannot be generated with PPR enabled'
-    )
-  }
-
-  req.headers[RSC_HEADER.toLowerCase()] = '1'
-  req.headers[NEXT_URL.toLowerCase()] = path
-  req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-
-  renderOpts.supportsDynamicHTML = true
-  renderOpts.isPrefetch = true
-  delete renderOpts.isRevalidate
-
-  const prefetchRenderResult = await lazyRenderAppPage(
-    req,
-    res,
-    pathname,
-    {},
-    renderOpts
-  )
-
-  const prefetchRscData = await prefetchRenderResult.toUnchunkedString(true)
-
-  if ((renderOpts as any).store.staticPrefetchBailout) return false
-
-  await fileWriter(
-    ExportedAppPageFiles.FLIGHT,
-    htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-    prefetchRscData
-  )
-
-  return true
 }
 
 export async function exportAppPage(
@@ -94,7 +37,6 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  isAppPrefetch: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
   // If the page is `/_not-found`, then we should update the page to be `/404`.
@@ -103,22 +45,6 @@ export async function exportAppPage(
   }
 
   try {
-    if (isAppPrefetch) {
-      const generated = await generatePrefetchRsc(
-        req,
-        path,
-        res,
-        pathname,
-        htmlFilepath,
-        renderOpts,
-        fileWriter
-      )
-
-      if (generated) {
-        return { revalidate: 0 }
-      }
-    }
-
     const result = await lazyRenderAppPage(
       req,
       res,
@@ -143,19 +69,6 @@ export async function exportAppPage(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
         )
       }
-
-      if (!(renderOpts as any).store.staticPrefetchBailout) {
-        await generatePrefetchRsc(
-          req,
-          path,
-          res,
-          pathname,
-          htmlFilepath,
-          renderOpts,
-          fileWriter
-        )
-      }
-
       const { staticBailoutInfo = {} } = metadata
 
       if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
@@ -227,8 +140,17 @@ export async function exportAppPage(
       hasPostponed: Boolean(postponed),
       revalidate,
     }
-  } catch (err: any) {
+  } catch (err) {
     if (!isDynamicUsageError(err)) {
+      throw err
+    }
+
+    // If enabled, we should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (
+      renderOpts.experimental.missingSuspenseWithCSRBailout &&
+      isBailoutToCSRError(err)
+    ) {
       throw err
     }
 

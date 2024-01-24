@@ -1,0 +1,53 @@
+[package]
+edition = "2018"
+name = "next-custom-transforms"
+version = "0.0.0"
+publish = false
+
+[features]
+plugin = ["turbopack-binding/__swc_core_binding_napi_plugin"]
+
+[lints]
+workspace = true
+
+[dependencies]
+chrono = "0.4"
+convert_case = "0.5.0"
+easy-error = "1.0.0"
+either = "1"
+fxhash = "0.2.1"
+hex = "0.4.3"
+once_cell = { workspace = true }
+pathdiff = { workspace = true }
+regex = "1.5"
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sha1 = "0.10.1"
+tracing = { version = "0.1.37" }
+anyhow = { workspace = true }
+lazy_static = { workspace = true }
+lightningcss = {workspace = true}
+
+turbopack-binding = { workspace = true, features = [
+  "__swc_core",
+  "__swc_core_next_core",
+  "__swc_transform_styled_jsx",
+  "__swc_transform_emotion",
+  "__swc_transform_styled_components",
+  "__swc_transform_modularize_imports",
+  "__swc_transform_relay",
+] }
+# To allow quote! macro works
+swc_core = { workspace = true, features = ["ecma_quote"]}
+react_remove_properties = "0.22.0"
+remove_console = "0.23.0"
+preset_env_base = "0.4.10"
+
+[dev-dependencies]
+turbopack-binding = { workspace = true, features = [
+  "__swc_core_testing_transform",
+  "__swc_testing",
+] }
+
+walkdir = "2.3.2"

@@ -456,6 +456,26 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental?.incrementalCacheHandlerPath) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.incrementalCacheHandlerPath',
+      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (result.experimental?.isrMemoryCacheSize) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.isrMemoryCacheSize',
+      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
+      silent
+    )
+  }
+
   if (typeof result.experimental?.serverActions === 'boolean') {
     // TODO: Remove this warning in Next.js 15
     warnOptionHasBeenDeprecated(
@@ -808,46 +828,8 @@ function assignDefaults(
     '@mui/icons-material': {
       transform: '@mui/icons-material/{{member}}',
     },
-    'date-fns': {
-      transform: 'date-fns/{{member}}',
-    },
     lodash: {
       transform: 'lodash/{{member}}',
-    },
-    'lodash-es': {
-      transform: 'lodash-es/{{member}}',
-    },
-    ramda: {
-      transform: 'ramda/es/{{member}}',
-    },
-    'react-bootstrap': {
-      transform: {
-        useAccordionButton:
-          'modularize-import-loader?name=useAccordionButton&from=named&as=default!react-bootstrap/AccordionButton',
-        '*': 'react-bootstrap/{{member}}',
-      },
-    },
-    antd: {
-      transform: 'antd/es/{{kebabCase member}}',
-    },
-    ahooks: {
-      transform: {
-        createUpdateEffect:
-          'modularize-import-loader?name=createUpdateEffect&from=named&as=default!ahooks/es/createUpdateEffect',
-        '*': 'ahooks/es/{{member}}',
-      },
-    },
-    '@ant-design/icons': {
-      transform: {
-        IconProvider:
-          'modularize-import-loader?name=IconProvider&from=named&as=default!@ant-design/icons',
-        createFromIconfontCN: '@ant-design/icons/es/components/IconFont',
-        getTwoToneColor:
-          'modularize-import-loader?name=getTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        setTwoToneColor:
-          'modularize-import-loader?name=setTwoToneColor&from=named&as=default!@ant-design/icons/es/components/twoTonePrimaryColor',
-        '*': '@ant-design/icons/lib/icons/{{member}}',
-      },
     },
     'next/server': {
       transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
@@ -863,6 +845,13 @@ function assignDefaults(
     ...new Set([
       ...userProvidedOptimizePackageImports,
       'lucide-react',
+      'date-fns',
+      'lodash-es',
+      'ramda',
+      'antd',
+      'react-bootstrap',
+      'ahooks',
+      '@ant-design/icons',
       '@headlessui/react',
       '@headlessui-float/react',
       '@heroicons/react/20/solid',

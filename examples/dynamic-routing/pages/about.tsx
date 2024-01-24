@@ -1,4 +1,4 @@
-import Header from '../components/header'
+import Header from "../components/header";
 
 export default function AboutPage() {
   return (
@@ -6,5 +6,5 @@ export default function AboutPage() {
       <Header />
       <h1>About page</h1>
     </>
-  )
+  );
 }

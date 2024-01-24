@@ -29,12 +29,15 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  RedirectStatusCode,
 } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
 import { type Span, trace } from '../../trace'
+import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 
 const debug = setupDebug('next:router-server:main')
+const isNextFont = (pathname: string | null) =>
+  pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -396,7 +399,7 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev) {
+          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
             res.setHeader(
@@ -565,7 +568,7 @@ export async function initialize(opts: {
     const {
       wrapRequestHandlerWorker,
       interceptTestApis,
-    } = require('../../experimental/testmode/server')
+    } = require('next/dist/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }
@@ -582,8 +585,16 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler) {
-        if (req.url?.includes(`/_next/webpack-hmr`)) {
+      if (opts.dev && developmentBundler && req.url) {
+        const { basePath, assetPrefix } = config
+
+        const isHMRRequest = req.url.startsWith(
+          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+        )
+
+        // only handle HMR requests if the basePath in the request
+        // matches the basePath for the handler responding to the request
+        if (isHMRRequest) {
           return developmentBundler.hotReloader.onHMR(req, socket, head)
         }
       }

@@ -8,12 +8,12 @@ const nextConfig = {
     return {
       fallback: [
         {
-          source: '/:path*',
+          source: "/:path*",
           destination: `https://custom-routes-proxying-endpoint.vercel.app/:path*`,
         },
       ],
-    }
+    };
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

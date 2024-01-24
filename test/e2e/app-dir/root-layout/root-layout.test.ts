@@ -16,7 +16,7 @@ createNextDescribe(
             waitHydration: false,
           })
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -30,7 +30,7 @@ createNextDescribe(
           })
           await browser.elementByCss('a').click()
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "Please make sure to include the following tags in your root layout: <html>, <body>.
 
@@ -43,7 +43,7 @@ createNextDescribe(
             waitHydration: false,
           })
 
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
           "Please make sure to include the following tags in your root layout: <html>, <body>.
 

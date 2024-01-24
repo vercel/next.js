@@ -27,7 +27,9 @@ module.exports = (actionInfo) => {
         )
       }
       // last stable tag will always be 1 patch less than canary
-      return `${major}.${minor}.${Number(patch) - 1}`
+      return `${major}.${minor}.${
+        Number(patch) - tag.includes('-canary') ? 1 : 0
+      }`
     },
     async getCommitId(repoDir = '') {
       const { stdout } = await exec(`cd ${repoDir} && git rev-parse HEAD`)

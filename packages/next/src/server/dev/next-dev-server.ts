@@ -58,7 +58,6 @@ import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-provide
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import { NextBuildContext } from '../../build/build-context'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -103,7 +102,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch: typeof fetch
+  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -153,7 +152,7 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.originalFetch = global.fetch
+    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
@@ -281,6 +280,9 @@ export default class DevServer extends Server {
       .traceChild('run-instrumentation-hook')
       .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
+
+    // Store globals again to preserve changes made by the instrumentation hook.
+    this.storeGlobals()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -580,8 +582,6 @@ export default class DevServer extends Server {
         .then(() => true)
         .catch(() => false))
     ) {
-      NextBuildContext!.hasInstrumentationHook = true
-
       try {
         const instrumentationHook = await require(pathJoin(
           this.distDir,
@@ -698,11 +698,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
@@ -758,8 +757,12 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
+  private storeGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch
+    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {

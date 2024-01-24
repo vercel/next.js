@@ -95,7 +95,7 @@ describe('Type module interop', () => {
 
   it('should render client-side', async () => {
     const browser = await webdriver(next.url, '/')
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
     await browser.close()
   })
 
@@ -107,7 +107,7 @@ describe('Type module interop', () => {
 
   it('should render client-side with modules', async () => {
     const browser = await webdriver(next.url, '/modules')
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
     await browser.close()
   })
 })

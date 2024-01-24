@@ -12,7 +12,6 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { cyan } from '../lib/picocolors'
 import { posix, join, dirname, extname } from 'path'
 import { stringify } from 'querystring'
 import fs from 'fs'
@@ -37,7 +36,6 @@ import {
 } from '../shared/lib/constants'
 import type { CompilerNameValues } from '../shared/lib/constants'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import { warn } from './output/log'
 import {
   isMiddlewareFile,
   isMiddlewareFilename,
@@ -61,8 +59,11 @@ import { isStaticMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/future/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
+import type { PageExtensions } from './page-extensions-type'
+import type { MappedPages } from './build-context'
+import { PAGE_TYPES } from '../lib/page-types'
 
-export function sortByPageExts(pageExtensions: string[]) {
+export function sortByPageExts(pageExtensions: PageExtensions) {
   return (a: string, b: string) => {
     // prioritize entries according to pageExtensions order
     // for consistency as fs order can differ across systems
@@ -94,7 +95,7 @@ export async function getStaticInfoIncludingLayouts({
   page,
 }: {
   isInsideAppDir: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pageFilePath: string
   appDir: string | undefined
   config: NextConfigComplete
@@ -106,7 +107,7 @@ export async function getStaticInfoIncludingLayouts({
     pageFilePath,
     isDev,
     page,
-    pageType: isInsideAppDir ? 'app' : 'pages',
+    pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
   })
 
   const staticInfo: PageStaticInfo = isInsideAppDir
@@ -139,7 +140,7 @@ export async function getStaticInfoIncludingLayouts({
         pageFilePath: layoutFile,
         isDev,
         page,
-        pageType: isInsideAppDir ? 'app' : 'pages',
+        pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
       })
 
       // Only runtime is relevant here.
@@ -173,7 +174,10 @@ type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 /**
  * For a given page path removes the provided extensions.
  */
-export function getPageFromPath(pagePath: string, pageExtensions: string[]) {
+export function getPageFromPath(
+  pagePath: string,
+  pageExtensions: PageExtensions
+) {
   let page = normalizePathSep(
     pagePath.replace(new RegExp(`\\.+(${pageExtensions.join('|')})$`), '')
   )
@@ -209,6 +213,10 @@ export function getPageFilePath({
   return require.resolve(absolutePagePath)
 }
 
+/**
+ * Creates a mapping of route to page file path for a given list of page paths.
+ * For example ['/middleware.ts'] is turned into  { '/middleware': `${ROOT_DIR_ALIAS}/middleware.ts` }
+ */
 export function createPagesMapping({
   isDev,
   pageExtensions,
@@ -217,16 +225,15 @@ export function createPagesMapping({
   pagesDir,
 }: {
   isDev: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   pagePaths: string[]
-  pagesType: 'pages' | 'root' | 'app'
+  pagesType: PAGE_TYPES
   pagesDir: string | undefined
-}): { [page: string]: string } {
+}): MappedPages {
   const isAppRoute = pagesType === 'app'
-  const previousPages: { [key: string]: string } = {}
   const pages = pagePaths.reduce<{ [key: string]: string }>(
     (result, pagePath) => {
-      // Do not process .d.ts files inside the `pages` folder
+      // Do not process .d.ts files as routes
       if (pagePath.endsWith('.d.ts') && pageExtensions.includes('ts')) {
         return result
       }
@@ -235,18 +242,6 @@ export function createPagesMapping({
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
         pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
-      }
-
-      if (pageKey in result) {
-        warn(
-          `Duplicate page detected. ${cyan(
-            join('pages', previousPages[pageKey])
-          )} and ${cyan(join('pages', pagePath))} both resolve to ${cyan(
-            pageKey
-          )}.`
-        )
-      } else {
-        previousPages[pageKey] = pagePath
       }
 
       const normalizedPath = normalizePathSep(
@@ -268,38 +263,45 @@ export function createPagesMapping({
     {}
   )
 
-  if (pagesType === 'app') {
-    const hasAppPages = Object.keys(pages).some((page) =>
-      page.endsWith('/page')
-    )
-    return {
-      // If there's any app pages existed, add a default not-found page.
-      // If there's any custom not-found page existed, it will override the default one.
-      ...(hasAppPages && {
-        '/_not-found': 'next/dist/client/components/not-found-error',
-      }),
-      ...pages,
+  switch (pagesType) {
+    case PAGE_TYPES.ROOT: {
+      return pages
     }
-  } else if (pagesType === 'root') {
-    return pages
-  }
+    case PAGE_TYPES.APP: {
+      const hasAppPages = Object.keys(pages).some((page) =>
+        page.endsWith('/page')
+      )
+      return {
+        // If there's any app pages existed, add a default not-found page.
+        // If there's any custom not-found page existed, it will override the default one.
+        ...(hasAppPages && {
+          '/_not-found': 'next/dist/client/components/not-found-error',
+        }),
+        ...pages,
+      }
+    }
+    case PAGE_TYPES.PAGES: {
+      if (isDev) {
+        delete pages['/_app']
+        delete pages['/_error']
+        delete pages['/_document']
+      }
 
-  if (isDev) {
-    delete pages['/_app']
-    delete pages['/_error']
-    delete pages['/_document']
-  }
+      // In development we always alias these to allow Webpack to fallback to
+      // the correct source file so that HMR can work properly when a file is
+      // added or removed.
+      const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
-  // In development we always alias these to allow Webpack to fallback to
-  // the correct source file so that HMR can work properly when a file is
-  // added or removed.
-  const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
-
-  return {
-    '/_app': `${root}/_app`,
-    '/_error': `${root}/_error`,
-    '/_document': `${root}/_document`,
-    ...pages,
+      return {
+        '/_app': `${root}/_app`,
+        '/_error': `${root}/_error`,
+        '/_document': `${root}/_document`,
+        ...pages,
+      }
+    }
+    default: {
+      return {}
+    }
   }
 }
 
@@ -308,14 +310,14 @@ export interface CreateEntrypointsParams {
   config: NextConfigComplete
   envFiles: LoadedEnvFiles
   isDev?: boolean
-  pages: { [page: string]: string }
+  pages: MappedPages
   pagesDir?: string
   previewMode: __ApiPreviewProps
   rootDir: string
-  rootPaths?: Record<string, string>
+  rootPaths?: MappedPages
   appDir?: string
-  appPaths?: Record<string, string>
-  pageExtensions: string[]
+  appPaths?: MappedPages
+  pageExtensions: PageExtensions
   hasInstrumentationHook?: boolean
 }
 
@@ -328,9 +330,9 @@ export function getEdgeServerEntry(opts: {
   isDev: boolean
   isServerComponent: boolean
   page: string
-  pages: { [page: string]: string }
+  pages: MappedPages
   middleware?: Partial<MiddlewareConfig>
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
   preferredRegion: string | string[] | undefined
@@ -412,8 +414,7 @@ export function getEdgeServerEntry(opts: {
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
-    incrementalCacheHandlerPath:
-      opts.config.experimental.incrementalCacheHandlerPath,
+    cacheHandler: opts.config.cacheHandler,
     preferredRegion: opts.preferredRegion,
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
@@ -462,9 +463,12 @@ export function runDependingOnPageType<T>(params: {
   onServer: () => T
   page: string
   pageRuntime: ServerRuntime
-  pageType?: 'app' | 'pages' | 'root'
+  pageType?: PAGE_TYPES
 }): void {
-  if (params.pageType === 'root' && isInstrumentationHookFile(params.page)) {
+  if (
+    params.pageType === PAGE_TYPES.ROOT &&
+    isInstrumentationHookFile(params.page)
+  ) {
     params.onServer()
     params.onEdgeServer()
     return
@@ -556,17 +560,14 @@ export async function createEntrypoints(
   }
 
   const getEntryHandler =
-    (
-      mappings: Record<string, string>,
-      pagesType: 'app' | 'pages' | 'root'
-    ): ((page: string) => void) =>
+    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
     async (page) => {
       const bundleFile = normalizePagePath(page)
       const clientBundlePath = posix.join(pagesType, bundleFile)
       const serverBundlePath =
-        pagesType === 'pages'
+        pagesType === PAGE_TYPES.PAGES
           ? posix.join('pages', bundleFile)
-          : pagesType === 'app'
+          : pagesType === PAGE_TYPES.APP
           ? posix.join('app', bundleFile)
           : bundleFile.slice(1)
       const absolutePagePath = mappings[page]
@@ -635,7 +636,10 @@ export async function createEntrypoints(
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
-          } else if (isInstrumentationHookFile(page) && pagesType === 'root') {
+          } else if (
+            isInstrumentationHookFile(page) &&
+            pagesType === PAGE_TYPES.ROOT
+          ) {
             server[serverBundlePath.replace('src/', '')] = {
               import: absolutePagePath,
               // the '../' is needed to make sure the file is not chunked
@@ -693,7 +697,7 @@ export async function createEntrypoints(
             }).import
           }
           const normalizedServerBundlePath =
-            isInstrumentationHookFile(page) && pagesType === 'root'
+            isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
               ? serverBundlePath.replace('src/', '')
               : serverBundlePath
           edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
@@ -717,18 +721,20 @@ export async function createEntrypoints(
   const promises: Promise<void[]>[] = []
 
   if (appPaths) {
-    const entryHandler = getEntryHandler(appPaths, 'app')
+    const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
     promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
   }
   if (rootPaths) {
     promises.push(
       Promise.all(
-        Object.keys(rootPaths).map(getEntryHandler(rootPaths, 'root'))
+        Object.keys(rootPaths).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
       )
     )
   }
   promises.push(
-    Promise.all(Object.keys(pages).map(getEntryHandler(pages, 'pages')))
+    Promise.all(
+      Object.keys(pages).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
+    )
   )
 
   await Promise.all(promises)

@@ -1,7 +1,10 @@
-import Anser from 'anser'
+// @ts-ignore Package exists
+import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
-import type { StackFrame } from 'stacktrace-parser'
-import stripAnsi from 'strip-ansi'
+// @ts-ignore Package Exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+// @ts-ignore Package Exists
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
@@ -93,7 +96,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
         </p>
       </div>
       <pre>
-        {decoded.map((entry, index) => (
+        {decoded.map((entry: any, index: any) => (
           <span
             key={`frame-${index}`}
             style={{
