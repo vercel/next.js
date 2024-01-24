@@ -89,7 +89,7 @@ jobs:
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-dev-${{ matrix.group }}
           path: |
             test/turbopack-test-junit-report
 
@@ -133,7 +133,7 @@ jobs:
       - name: Upload test report artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-integration-${{ matrix.group }}
           path: |
             test/turbopack-test-junit-report
 
@@ -184,8 +184,9 @@ jobs:
         id: download-test-reports
         uses: actions/download-artifact@v4
         with:
-          name: test-reports
+          pattern: test-reports-*
           path: test/reports
+          merge-multiple: true
 
       - name: Upload to datadog
         env:

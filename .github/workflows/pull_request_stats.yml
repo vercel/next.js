@@ -25,6 +25,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
+      stepName: 'generate-pull-request-stats'
       uploadSwcArtifact: 'yes'
       uploadAnalyzerArtifacts: 'yes'
 

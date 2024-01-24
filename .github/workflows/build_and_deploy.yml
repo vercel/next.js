@@ -325,19 +325,19 @@ jobs:
         if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
         uses: actions/upload-artifact@v4
         with:
-          name: turbopack-bytesize
+          name: turbopack-bytesize-${{ matrix.settings.target }}
           path: turbopack-bin-size/*
 
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-${{ matrix.settings.target }}
           path: .turbo/runs
 
   build-wasm:
@@ -383,7 +383,7 @@ jobs:
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-wasm
           path: .turbo/runs
 
       - name: Upload swc artifact
@@ -426,7 +426,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          pattern: next-swc-binaries-*
+          merge-multiple: true
           path: packages/next-swc/native
 
       - uses: actions/download-artifact@v4
@@ -480,7 +481,8 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          pattern: next-swc-binaries
+          merge-multiple: true
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
@@ -501,7 +503,8 @@ jobs:
       - name: Collect bytesize metrics
         uses: actions/download-artifact@v4
         with:
-          name: turbopack-bytesize
+          pattern: turbopack-bytesize-*
+          merge-multiple: true
           path: turbopack-bin-size
 
       - name: Upload to Datadog
