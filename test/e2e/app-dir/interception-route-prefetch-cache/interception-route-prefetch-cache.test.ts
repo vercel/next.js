@@ -1,12 +1,13 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import { Response } from 'playwright-chromium'
 
 createNextDescribe(
   'interception-route-prefetch-cache',
   {
     files: __dirname,
   },
-  ({ next }) => {
+  ({ next, isNextStart }) => {
     it('should render the correct interception when two distinct layouts share the same path structure', async () => {
       const browser = await next.browser('/')
 
@@ -41,5 +42,41 @@ createNextDescribe(
         /Intercepted on Bar Page/
       )
     })
+
+    if (isNextStart) {
+      it('should not be a cache HIT when prefetching an interception route', async () => {
+        const responses: { cacheStatus: string; pathname: string }[] = []
+        const browser = await next.browser('/baz', {
+          beforePageLoad(page) {
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const request = response.request()
+              const responseHeaders = response.headers()
+              const requestHeaders = request.headers()
+              if (requestHeaders['next-router-prefetch']) {
+                responses.push({
+                  cacheStatus: responseHeaders['x-nextjs-cache'],
+                  pathname: url.pathname,
+                })
+              }
+            })
+          },
+        })
+
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Open Interception Modal'
+        )
+
+        const interceptionPrefetchResponse = responses.find(
+          (response) => response.pathname === '/baz/modal'
+        )
+        const homePrefetchResponse = responses.find(
+          (response) => response.pathname === '/'
+        )
+
+        expect(homePrefetchResponse.cacheStatus).toBe('HIT') // sanity check to ensure we're seeing cache statuses
+        expect(interceptionPrefetchResponse.cacheStatus).toBeUndefined()
+      })
+    }
   }
 )

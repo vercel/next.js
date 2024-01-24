@@ -1379,12 +1379,12 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
+      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
-      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
