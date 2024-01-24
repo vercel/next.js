@@ -706,7 +706,19 @@ export function patchFetch({
  * as possible even Node.js has not updated its internal version.
  */
 export function replaceGlobalFetch() {
-  // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
-  globalThis.fetch = Undici.fetch
-  ;(globalThis.fetch as any).__nextLatestFetch = true
+  // @ts-expect-error Internal property to prevent unnecessary re-execution
+  if (!globalThis.fetch.__nextLatestFetch) {
+    // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+    globalThis.fetch = Undici.fetch
+    // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+    globalThis.FormData = Undici.FormData
+    // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+    globalThis.Headers = Undici.Headers
+    // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+    globalThis.Request = Undici.Request
+    // @ts-expect-error Incompatible types between lib.dom.d.ts and undici types
+    globalThis.Response = Undici.Response
+  }
+  // @ts-expect-error Apply an internal property to prevent unnecessary re-execution
+  globalThis.fetch.__nextLatestFetch = true
 }
