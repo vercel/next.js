@@ -469,9 +469,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     } else {
       expect(source1).toMatchInlineSnapshot(`
         "./index.js
-        Error: 
+        Error:
           x Expected '}', got '<eof>'
-           ,-[4:1]
+           ,-[TEST_DIR/index.js:4:1]
          4 |   i++
          5 |   throw Error('no ' + i)
          6 | }, 1000)
@@ -507,7 +507,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     } else {
       expect(source2).toMatchInlineSnapshot(`
         "./index.js
-        Error: 
+        Error:
           x Expected '}', got '<eof>'
            ,-[4:1]
          4 |   i++
