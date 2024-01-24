@@ -121,6 +121,8 @@ async fn get_client_module_options_context(
         .cell(),
     );
 
+    let versions = *env.runtime_versions().await?;
+
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
         CustomEcmascriptTransformPlugins {
             source_transforms: vec![
@@ -133,6 +135,7 @@ async fn get_client_module_options_context(
                 )) as _),
                 Vc::cell(Box::new(StyledJsxTransformer::new(
                     module_options_context.use_lightningcss,
+                    versions,
                 )) as _),
             ],
             output_transforms: vec![],
