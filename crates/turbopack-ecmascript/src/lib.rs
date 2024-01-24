@@ -424,7 +424,12 @@ impl EcmascriptModuleAsset {
         }
 
         let find_package_json = find_context_file(
-            self.origin_path().resolve().await?,
+            self.origin_path()
+                .resolve()
+                .await?
+                .parent()
+                .resolve()
+                .await?,
             package_json().resolve().await?,
         )
         .await?;
