@@ -1060,7 +1060,10 @@ createNextDescribe(
 
         // delete foo and set bar to 2, redirect
         await browser.elementById('redirect-with-cookie-mutation').click()
-        await check(() => browser.url(), /\/redirects\/action-redirect\/target/)
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target/
+        )
 
         // verify that the cookies were merged correctly
         expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')

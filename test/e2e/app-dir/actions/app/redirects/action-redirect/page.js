@@ -14,7 +14,7 @@ export default function Page() {
           'use server'
           cookies().delete('foo')
           cookies().set('bar', '2')
-          redirect('/redirects/action-redirect/target')
+          redirect('/redirects/action-redirect/redirect-target')
         }}
       >
         <button type="submit" id="redirect-with-cookie-mutation">
