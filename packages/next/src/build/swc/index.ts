@@ -1056,7 +1056,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
-    let nextConfigSerializable = nextConfig as any
+    // Avoid mutating the existing `nextConfig` object.
+    let nextConfigSerializable = { ...(nextConfig as any) }
 
     nextConfigSerializable.generateBuildId =
       await nextConfig.generateBuildId?.()
@@ -1091,9 +1092,12 @@ function bindingToApi(binding: any, _wasm: boolean) {
         : undefined
 
     // loaderFile is an absolute path, we need it to be relative for turbopack.
-    if (nextConfig.images.loaderFile) {
-      nextConfig.images.loaderFile =
-        './' + path.relative(projectPath, nextConfig.images.loaderFile)
+    if (nextConfigSerializable.images.loaderFile) {
+      nextConfigSerializable.images = {
+        ...nextConfig.images,
+        loaderFile:
+          './' + path.relative(projectPath, nextConfig.images.loaderFile),
+      }
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
