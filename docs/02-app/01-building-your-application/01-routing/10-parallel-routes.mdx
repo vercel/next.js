@@ -17,7 +17,7 @@ For example, considering a dashboard, you can use parallel routes to simultaneou
   srcLight="/docs/light/parallel-routes.png"
   srcDark="/docs/dark/parallel-routes.png"
   width="1600"
-  height="952"
+  height="942"
 />
 
 ## Slots
@@ -175,7 +175,13 @@ You can add a `layout` inside a slot to allow users to navigate the slot indepen
 
 For example, the `@analytics` slot has two subpages: `/page-views` and `/visitors`.
 
-{/* TODO: Add diagrams for tabs */}
+<Image
+  alt="Analytics slot with two subpages and a layout"
+  srcLight="/docs/light/parallel-routes-tab-groups.png"
+  srcDark="/docs/dark/parallel-routes-tab-groups.png"
+  width="1600"
+  height="768"
+/>
 
 Within `@analytics`, create a [`layout`](/docs/app/building-your-application/routing/pages-and-layouts) file to share the tabs between the two pages:
 
@@ -222,8 +228,6 @@ Parallel Routes can be used together with [Intercepting Routes](/docs/app/buildi
 
 Consider the following UI pattern, where a user can open a login modal from a layout using client-side navigation, or access a separate `/login` page:
 
-{/* TO DO: Update these diagrams */}
-
 <Image
   alt="Parallel Routes Diagram"
   srcLight="/docs/light/parallel-routes-auth-modal.png"
@@ -232,17 +236,17 @@ Consider the following UI pattern, where a user can open a login modal from a la
   height="687"
 />
 
-<Image
-  alt="Intercepting routes modal example"
-  srcLight="/docs/light/intercepted-routes-modal-example.png"
-  srcDark="/docs/dark/intercepted-routes-modal-example.png"
-  width="1600"
-  height="976"
-/>
-
 To implement this pattern, start by creating a `/login` route that renders your **main** login page.
 
-```tsx filename="app/@auth/login/page.tsx" switcher
+<Image
+  alt="Parallel Routes Diagram"
+  srcLight="/docs/light/parallel-routes-modal-login-page.png"
+  srcDark="/docs/dark/parallel-routes-modal-login-page.png"
+  width="1600"
+  height="768"
+/>
+
+```tsx filename="app/login/page.tsx" switcher
 import { Login } from '@/app/ui/login'
 
 export default function Page() {
@@ -250,7 +254,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/@auth/login/page.js" switcher
+```jsx filename="app/login/page.js" switcher
 import { Login } from '@/app/ui/login'
 
 export default function Page() {
@@ -258,23 +262,23 @@ export default function Page() {
 }
 ```
 
-Then, create a new `@modal` slot, and inside it, add a [`default.js`](/docs/app/api-reference/file-conventions/default) file that returns `null`. This ensures that the modal is not rendered when it's not active.
+Then, inside the `@auth` slot, add [`default.js`](/docs/app/api-reference/file-conventions/default) file that returns `null`. This ensures that the modal is not rendered when it's not active.
 
-```tsx filename="app/@modal/default.tsx" switcher
+```tsx filename="app/@auth/default.tsx" switcher
 export default function Default() {
   return null
 }
 ```
 
-```jsx filename="app/@modal/default.js" switcher
+```jsx filename="app/@auth/default.js" switcher
 export default function Default() {
   return null
 }
 ```
 
-Inside your `@modal` slot, intercept the `/login` route by creating a `/(.)login` folder with a `page.tsx` file.
+Inside your `@auth` slot, intercept the `/login` route by updating the `/(.)login` folder. Import the `<Modal>` component and its children into the `/(.)login/page.tsx` file:
 
-```tsx filename="app/@modal/(.)login/page.tsx" switcher
+```tsx filename="app/@auth/(.)login/page.tsx" switcher
 import { Modal } from '@/app/ui/modal'
 import { Login } from '@/app/ui/login'
 
@@ -287,7 +291,7 @@ export default function Page() {
 }
 ```
 
-```jsx filename="app/@modal/(.)login/page.js" switcher
+```jsx filename="app/@auth/(.)login/page.js" switcher
 import { Modal } from '@/app/ui/modal'
 import { Login } from '@/app/ui/login'
 
@@ -309,16 +313,16 @@ export default function Page() {
 
 Now, you can leverage the Next.js router to open and close the modal. This ensures the URL is correctly updated when the modal is open, and when navigating backwards and forwards.
 
-To open the modal, pass the `modal` slot as a prop to the parent layout and render it alongside the `children` prop.
+To open the modal, pass the `@auth` slot as a prop to the parent layout and render it alongside the `children` prop.
 
 ```tsx filename="app/layout.tsx" switcher
 import Link from 'next/link'
 
 export default function Layout({
-  modal,
+  auth,
   children,
 }: {
-  modal: React.ReactNode
+  auth: React.ReactNode
   children: React.ReactNode
 }) {
   return (
@@ -326,7 +330,7 @@ export default function Layout({
       <nav>
         <Link href="/login">Open modal</Link>
       </nav>
-      <div>{modal}</div>
+      <div>{auth}</div>
       <div>{children}</div>
     </>
   )
@@ -336,13 +340,13 @@ export default function Layout({
 ```jsx filename="app/layout.js" switcher
 import Link from 'next/link'
 
-export default function Layout({ modal, children }) {
+export default function Layout({ auth, children }) {
   return (
     <>
       <nav>
         <Link href="/login">Open modal</Link>
       </nav>
-      <div>{modal}</div>
+      <div>{auth}</div>
       <div>{children}</div>
     </>
   )
