@@ -10752,7 +10752,7 @@
       "FileSystemPublicRoutes should not route to the index page",
       "FileSystemPublicRoutes should route to exportPathMap defined routes in development",
       "FileSystemPublicRoutes should route to public folder files",
-      "FileSystemPublicRoutes should still handle /_next routes"
+      "FileSystemPublicRoutes should serve JavaScript files correctly"
     ],
     "failed": [],
     "pending": [],
