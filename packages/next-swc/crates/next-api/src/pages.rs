@@ -54,7 +54,9 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            resolve::esm_resolve,
+            EcmascriptModuleAsset,
         },
         turbopack::{
             module_options::ModuleOptionsContext,
@@ -91,13 +93,14 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
+        let pages_structure = self.pages_structure();
         let PagesStructure {
             api,
             pages,
             app: _,
             document: _,
             error: _,
-        } = &*self.pages_structure().await?;
+        } = &*pages_structure.await?;
         let mut routes = IndexMap::new();
 
         async fn add_page_to_routes(
@@ -150,6 +153,7 @@ impl PagesProject {
                         pathname,
                         original_name,
                         path,
+                        pages_structure,
                     )),
                 }
             })
@@ -163,6 +167,7 @@ impl PagesProject {
                 pathname,
                 original_name,
                 path,
+                pages_structure,
             )),
             data_endpoint: Vc::upcast(PageEndpoint::new(
                 PageEndpointType::Data,
@@ -170,6 +175,7 @@ impl PagesProject {
                 pathname,
                 original_name,
                 path,
+                pages_structure,
             )),
         };
 
@@ -201,6 +207,7 @@ impl PagesProject {
             pathname_vc,
             original_name,
             path,
+            self.pages_structure(),
         ));
         Ok(endpoint)
     }
@@ -524,6 +531,7 @@ struct PageEndpoint {
     pathname: Vc<String>,
     original_name: Vc<String>,
     path: Vc<FileSystemPath>,
+    pages_structure: Vc<PagesStructure>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
@@ -543,6 +551,7 @@ impl PageEndpoint {
         pathname: Vc<String>,
         original_name: Vc<String>,
         path: Vc<FileSystemPath>,
+        pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
             ty,
@@ -550,6 +559,7 @@ impl PageEndpoint {
             pathname,
             original_name,
             path,
+            pages_structure,
         }
         .cell()
     }
@@ -661,6 +671,7 @@ impl PageEndpoint {
                     Vc::upcast(edge_module_context),
                     self.source(),
                     this.original_name,
+                    this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
                 );
@@ -691,18 +702,34 @@ impl PageEndpoint {
                 }
                 .cell())
             } else {
-                let ssr_module = create_page_ssr_entry_module(
-                    this.pathname,
-                    reference_type,
-                    project_root,
-                    Vc::upcast(module_context),
-                    self.source(),
-                    this.original_name,
-                    config.runtime,
-                    this.pages_project.project().next_config(),
-                );
+                let pathname = &**this.pathname.await?;
 
-                let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
+                // `/_app` and `/_document` never get rendered directly so they don't need to be
+                // wrapped in the route module.
+                let ssr_module = if pathname == "/_app" || pathname == "/_document" {
+                    let Some(ssr_module) =
+                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
+                            .await?
+                    else {
+                        bail!("expected an ECMAScript chunk placeable module");
+                    };
+
+                    ssr_module
+                } else {
+                    create_page_ssr_entry_module(
+                        this.pathname,
+                        reference_type,
+                        project_root,
+                        Vc::upcast(module_context),
+                        self.source(),
+                        this.original_name,
+                        this.pages_structure,
+                        config.runtime,
+                        this.pages_project.project().next_config(),
+                    )
+                };
+
+                let asset_path = get_asset_path_from_pathname(pathname, ".js");
 
                 let ssr_entry_chunk_path_string = format!("pages{asset_path}");
                 let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
