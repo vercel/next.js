@@ -1,4 +1,3 @@
-import fs from 'fs/promises'
 import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
