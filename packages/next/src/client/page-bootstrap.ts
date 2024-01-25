@@ -10,7 +10,7 @@ import {
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 
-export function pageBootrap(assetPrefix: string) {
+export function pageBootstrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
   return hydrate({ beforeRender: displayContent }).then(() => {
