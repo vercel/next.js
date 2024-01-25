@@ -3387,11 +3387,10 @@
   },
   "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
     "passed": [
-      "app dir - global error - with catch-all route should render catch-all route correctly"
-    ],
-    "failed": [
+      "app dir - global error - with catch-all route should render catch-all route correctly",
       "app dir - global error - with catch-all route should render 404 page correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
