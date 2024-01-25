@@ -586,7 +586,12 @@ export async function fetchInternalImage(
 
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
-  paramsResult: Omit<ImageParamsResult, 'isAbsolute' | 'isStatic'>,
+  paramsResult: {
+    href: ImageParamsResult['href']
+    width: ImageParamsResult['width']
+    quality: ImageParamsResult['quality']
+    mimeType: ImageParamsResult['mimeType']
+  },
   nextConfig: {
     output: NextConfigComplete['output']
     images: {
