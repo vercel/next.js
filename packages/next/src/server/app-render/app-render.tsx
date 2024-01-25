@@ -80,6 +80,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { useFlightResponse } from './use-flight-response'
 import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -104,9 +105,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
-  providedSearchParams: NextParsedUrlQuery
   requestTimestamp: number
-  searchParamsProps: { searchParams: NextParsedUrlQuery }
   appUsingSizeAdjustment: boolean
   providedFlightRouterState?: FlightRouterState
   requestId: string
@@ -250,11 +249,15 @@ async function generateFlight(
   let flightData: FlightData | null = null
 
   const {
-    componentMod: { tree: loaderTree, renderToReadableStream },
+    componentMod: {
+      tree: loaderTree,
+      renderToReadableStream,
+      createDynamicallyTrackedSearchParams,
+    },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     staticGenerationStore: { urlPathname },
-    providedSearchParams,
+    query,
     requestId,
     providedFlightRouterState,
   } = ctx
@@ -263,9 +266,10 @@ async function generateFlight(
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       pathname: urlPathname,
-      searchParams: providedSearchParams,
+      query,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
+      createDynamicallyTrackedSearchParams,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -374,9 +378,12 @@ async function ReactServerApp({
   const {
     getDynamicParamFromSegment,
     query,
-    providedSearchParams,
     appUsingSizeAdjustment,
-    componentMod: { AppRouter, GlobalError },
+    componentMod: {
+      AppRouter,
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+    },
     staticGenerationStore: { urlPathname },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
@@ -389,9 +396,10 @@ async function ReactServerApp({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
-    searchParams: providedSearchParams,
+    query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
+    createDynamicallyTrackedSearchParams,
   })
 
   const { seedData, styles } = await createComponentTree({
@@ -454,9 +462,12 @@ async function ReactServerError({
   const {
     getDynamicParamFromSegment,
     query,
-    providedSearchParams,
     appUsingSizeAdjustment,
-    componentMod: { AppRouter, GlobalError },
+    componentMod: {
+      AppRouter,
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+    },
     staticGenerationStore: { urlPathname },
     requestId,
     res,
@@ -467,9 +478,10 @@ async function ReactServerError({
     tree,
     pathname: urlPathname,
     errorType,
-    searchParams: providedSearchParams,
+    query,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
+    createDynamicallyTrackedSearchParams,
   })
 
   const head = (
@@ -683,11 +695,7 @@ async function renderToHTMLOrFlightImpl(
   const generateStaticHTML = supportsDynamicHTML !== true
 
   // Pull out the hooks/references from the component.
-  const {
-    createSearchParamsBailoutProxy,
-    tree: loaderTree,
-    taintObjectReference,
-  } = ComponentMod
+  const { tree: loaderTree, taintObjectReference } = ComponentMod
 
   if (enableTainting) {
     taintObjectReference(
@@ -714,12 +722,19 @@ async function renderToHTMLOrFlightImpl(
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState =
-    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
-      ? parseAndValidateFlightRouterState(
-          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-        )
-      : undefined
+
+  const shouldProvideFlightRouterState =
+    isRSCRequest &&
+    (!isPrefetchRSCRequest ||
+      !renderOpts.experimental.ppr ||
+      // interception routes currently depend on the flight router state to extract dynamic params
+      isInterceptionRouteAppPath(pagePath))
+
+  let providedFlightRouterState = shouldProvideFlightRouterState
+    ? parseAndValidateFlightRouterState(
+        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+      )
+    : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -732,13 +747,6 @@ async function renderToHTMLOrFlightImpl(
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
   }
-
-  // During static generation we need to call the static generation bailout when reading searchParams
-  const providedSearchParams = isStaticGeneration
-    ? createSearchParamsBailoutProxy()
-    : query
-
-  const searchParamsProps = { searchParams: providedSearchParams }
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
@@ -755,9 +763,7 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRSCRequest,
-    providedSearchParams,
     requestTimestamp,
-    searchParamsProps,
     appUsingSizeAdjustment,
     providedFlightRouterState,
     requestId,
@@ -1224,8 +1230,8 @@ async function renderToHTMLOrFlightImpl(
   // bailout error was also emitted which indicates that part of the stream was
   // not rendered.
   if (
-    renderOpts.experimental.ppr &&
-    staticGenerationStore.postponeWasTriggered &&
+    staticGenerationStore.prerenderState &&
+    staticGenerationStore.prerenderState.hasDynamic &&
     !metadata.postponed &&
     (!response.err || !isBailoutToCSRError(response.err))
   ) {

@@ -83,6 +83,7 @@ import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
 import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1579,7 +1580,13 @@ export async function isPageStatic({
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
+      let supportsPPR = false
+
       if (pageType === 'app') {
+        if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+          supportsPPR = true
+        }
+
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
@@ -1649,7 +1656,7 @@ export async function isPageStatic({
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
-        if (appConfig.dynamic === 'force-dynamic' && !ppr) {
+        if (appConfig.dynamic === 'force-dynamic' && !supportsPPR) {
           appConfig.revalidate = 0
         }
 
@@ -1744,12 +1751,18 @@ export async function isPageStatic({
         isStatic = true
       }
 
-      // When PPR is enabled, any route may contain or be completely static, so
+      // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
       let isPPR = false
-      if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+      if (supportsPPR) {
         isPPR = true
         isStatic = true
+      }
+
+      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
+      if (isInterceptionRouteAppPath(page)) {
+        isStatic = false
+        isPPR = false
       }
 
       return {

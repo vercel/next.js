@@ -32,7 +32,7 @@ export type OriginalStackFrame =
       sourcePackage?: string
     }
 
-export function getOriginalStackFrame(
+function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
   errorMessage: string

@@ -552,7 +552,8 @@ export interface NextConfig extends Record<string, any> {
    * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
+   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
+   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
    */
   analyticsId?: string
 
@@ -776,7 +777,7 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -868,6 +869,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
+    optimizeServerReact: false,
   },
 }
 

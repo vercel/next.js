@@ -242,13 +242,14 @@ pub async fn get_client_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
+    let target_browsers = env.runtime_versions();
 
     let source_transforms = vec![
         *get_swc_ecma_transform_plugin(project_path, next_config).await?,
         *get_relay_transform_plugin(next_config).await?,
         *get_emotion_transform_plugin(next_config).await?,
         *get_styled_components_transform_plugin(next_config).await?,
-        *get_styled_jsx_transform_plugin(use_lightningcss).await?,
+        *get_styled_jsx_transform_plugin(use_lightningcss, target_browsers).await?,
     ]
     .into_iter()
     .flatten()
@@ -337,6 +338,7 @@ pub async fn get_client_chunking_context(
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let mut builder = DevChunkingContext::builder(
         project_path,
+        client_root,
         client_root,
         client_root.join("static/chunks".to_string()),
         get_client_assets_path(client_root),

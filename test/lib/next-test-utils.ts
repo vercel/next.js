@@ -1031,6 +1031,17 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
+export async function getVersionCheckerText(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-version-checker]', 30000)
+  const versionCheckerElement = await browser.elementByCss(
+    '[data-nextjs-version-checker]'
+  )
+  const versionCheckerText = await versionCheckerElement.innerText()
+  return versionCheckerText.trim()
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *

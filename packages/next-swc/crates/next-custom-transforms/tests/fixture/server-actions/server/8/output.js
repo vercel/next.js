@@ -7,5 +7,5 @@ export async function $$ACTION_0(a, b, c) {
     console.log('a');
 }
 export default function Page() {
-    return <Button action={createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0)}>Delete</Button>;
+    return <Button action={myAction}>Delete</Button>;
 }
