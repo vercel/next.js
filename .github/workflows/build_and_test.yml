@@ -322,6 +322,10 @@ jobs:
           name: test-reports
           path: test
 
+      - name: measure install time
+        run: |
+          DD_ENV=ci time npx @datadog/datadog-ci@2.23.1
+
       - name: Upload test report to datadog
         run: |
           if [ -d ./test/test-junit-report ]; then
