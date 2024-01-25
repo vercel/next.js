@@ -116,6 +116,8 @@
       "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
       "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
       "normalizeCatchallRoutes should not add the catch-all route to a path that has a @children slot",
+      "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
+      "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
       "normalizeCatchallRoutes should not add the catch-all to the interception route"
     ],
@@ -1084,16 +1086,16 @@
     "passed": [
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
-      "Error recovery app turbo render error not shown right after syntax error"
+      "Error recovery app turbo displays build error on initial page load",
+      "Error recovery app turbo render error not shown right after syntax error",
+      "Error recovery app turbo server component can recover from syntax error",
+      "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
       "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo client component can recover from syntax error",
-      "Error recovery app turbo displays build error on initial page load",
       "Error recovery app turbo server component can recover from a component error",
-      "Error recovery app turbo server component can recover from syntax error",
-      "Error recovery app turbo stuck error",
-      "Error recovery app turbo syntax > runtime error"
+      "Error recovery app turbo stuck error"
     ],
     "pending": [
       "Error recovery app default can recover from a event handler error",
@@ -1168,6 +1170,7 @@
     ],
     "failed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
+      "Error overlay - RSC build errors should contain nextjs version check in error overlay",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
@@ -1321,8 +1324,8 @@
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshModule.test.ts": {
-    "passed": [],
-    "failed": ["ReactRefreshModule should allow any variable names"],
+    "passed": ["ReactRefreshModule should allow any variable names"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1379,12 +1382,12 @@
   },
   "test/development/acceptance/error-recovery.test.ts": {
     "passed": [
+      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo logbox: can recover from a syntax error without losing state",
       "ReactRefreshLogBox turbo stuck error"
     ],
     "failed": [
       "ReactRefreshLogBox turbo logbox: can recover from a component error",
-      "ReactRefreshLogBox turbo logbox: can recover from a event handler error",
       "ReactRefreshLogBox turbo render error not shown right after syntax error",
       "ReactRefreshLogBox turbo syntax > runtime error"
     ],
@@ -1578,6 +1581,8 @@
       "basic HMR, basePath: \"\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
+      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1594,6 +1599,8 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after an error reported via SSR",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after exporting an invalid page",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after undefined exported as default",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
+      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading delete a page and add it back should load the page properly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should detect the changes and display it",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should not reload unrelated pages",
@@ -1607,8 +1614,6 @@
     "failed": [
       "basic HMR, basePath: \"\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
@@ -1616,8 +1621,6 @@
       "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added",
-      "basic HMR, basePath: \"/docs\" Error Recovery should recover from 404 after a page has been added with dynamic segments",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
@@ -3237,6 +3240,20 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
+    "passed": [
+      "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
+      "dynamic-data should render empty objects for dynamic APIs when rendering with force-static",
+      "dynamic-data should render the dynamic apis dynamically when used in a top-level scope",
+      "dynamic-data should render the dynamic apis dynamically when used in a top-level scope with force dynamic",
+      "dynamic-data should track searchParams access as dynamic when the Page is a client component",
+      "dynamic-data with dynamic = \"error\" displays redbox when `dynamic = \"error\"` and dynamic data is read in dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-href/dynamic-href.test.ts": {
     "passed": [
       "dynamic-href should error when using dynamic href in app dir",
@@ -3809,14 +3826,7 @@
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation",
-      "app dir - next/font app-old app dir - next-font Dev errors should recover on font loader error",
-      "app dir - next/font app-old app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app-old app dir - next-font computed styles should have correct styles at /client",
-      "app dir - next/font app-old app dir - next-font import values should have correct values at /",
-      "app dir - next/font app-old app dir - next-font import values should have correct values at /client",
-      "app dir - next/font app-old app dir - next-font import values should transform code in node_modules",
-      "app dir - next/font app-old app dir - next-font navigation should not have duplicate preload tags on navigation"
+      "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
     ],
     "pending": [],
     "flakey": [],
@@ -3832,11 +3842,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-proxy.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next-image-proxy loads images without any errors",
       "next-image-proxy should work with connection upgrade by removing it via filterReqHeaders()"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3845,18 +3855,16 @@
     "passed": [
       "app dir - next-image browser content should render images nested under page dir on /nested route",
       "app dir - next-image browser content should render images on / route",
-      "app dir - next-image browser content should render images on /client route",
       "app dir - next-image image content should render images nested under page dir on /nested route",
+      "app dir - next-image image content should render images on / route",
       "app dir - next-image image content should render images on /client route",
+      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route",
       "app dir - next-image image content should render legacy images under /legacy route",
       "app dir - next-image ssr content should render images nested under page dir on /nested route",
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
     ],
-    "failed": [
-      "app dir - next-image image content should render images on / route",
-      "app dir - next-image image content should render legacy images in edge runtime on /legacy-edge-runtime route"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3866,12 +3874,11 @@
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
       "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
       "app dir - not found with default 404 page should error on client notFound from root layout in browser",
-      "app dir - not found with default 404 page should error on server notFound from root layout on server-side"
-    ],
-    "failed": [
+      "app dir - not found with default 404 page should error on server notFound from root layout on server-side",
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3887,7 +3894,6 @@
       "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with runtime = edge should not reload the page",
-      "app dir - not-found - basic with runtime = edge should render the 404 page when the file is removed, and restore the page when re-added",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
     "failed": [],
@@ -4029,9 +4035,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/parallel-routes-catchall-dynamic-segment/parallel-routes-catchall-dynamic-segment.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-dynamic-segment should match default and dynamic segment paths before catch-all"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/parallel-routes-catchall-groups/parallel-routes-catchall-groups.test.ts": {
     "passed": [
       "parallel-routes-catchall-groups should work without throwing any errors about conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-catchall-slotted-non-catchalls/parallel-routes-catchall-slotted-non-catchalls.test.ts": {
+    "passed": [
+      "parallel-routes-catchall-slotted-non-catchalls should match default and dynamic segment paths before catch-all"
     ],
     "failed": [],
     "pending": [],
@@ -4064,6 +4088,18 @@
       "parallel-routes-revalidation should handle a redirect action when called in a slot",
       "parallel-routes-revalidation should handle router.refresh() when called in a slot",
       "parallel-routes-revalidation should submit the action and revalidate the page data"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-use-selected-layout-segment/parallel-routes-use-selected-layout-segment.test.ts": {
+    "passed": [
+      "parallel-routes-use-selected-layout-segment hard nav to parallel route",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav around other router pages",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav to parallel route and soft nav back to another router page",
+      "parallel-routes-use-selected-layout-segment hard nav to router page and soft nav to parallel routes"
     ],
     "failed": [],
     "pending": [],
@@ -4849,19 +4885,18 @@
     "runtimeError": false
   },
   "test/e2e/edge-configurable-runtime/index.test.ts": {
-    "passed": [
-      "Configurable runtime for pages and API routes In dev mode runs with no warning API route on the edge runtime",
-      "Configurable runtime for src/pages and API routes In dev mode runs with no warning API route on the edge runtime"
-    ],
-    "failed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Configurable runtime for pages and API routes In dev mode errors about page using edge runtime",
+      "Configurable runtime for pages and API routes In dev mode runs with no warning API route on the edge runtime",
       "Configurable runtime for pages and API routes In dev mode warns about API route using experimental-edge runtime",
       "Configurable runtime for pages and API routes In dev mode warns about page using edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode errors about page using edge runtime",
+      "Configurable runtime for src/pages and API routes In dev mode runs with no warning API route on the edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode warns about API route using experimental-edge runtime",
       "Configurable runtime for src/pages and API routes In dev mode warns about page using edge runtime"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5806,13 +5841,7 @@
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
-      "next/font app import values page with local fonts",
-      "next/font app-old computed styles page using fallback fonts",
-      "next/font app-old computed styles page using variables",
-      "next/font app-old computed styles page with fonts",
-      "next/font app-old import values Variable font without weight range",
-      "next/font app-old import values page with font",
-      "next/font app-old import values page with local fonts"
+      "next/font app import values page with local fonts"
     ],
     "failed": [
       "next/font app Fallback fontfaces google Fraunces",
@@ -5828,21 +5857,7 @@
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
       "next/font app preload page without fonts",
-      "next/font app should use production cache control for fonts",
-      "next/font app-old Fallback fontfaces google Fraunces",
-      "next/font app-old Fallback fontfaces google Indie flower",
-      "next/font app-old Fallback fontfaces local Fraunces",
-      "next/font app-old Fallback fontfaces local Indie flower",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app-old Fallback fontfaces local Roboto multiple weights and styles - variable 2",
-      "next/font app-old preload font without preloadable subsets",
-      "next/font app-old preload font without size adjust",
-      "next/font app-old preload google fonts with multiple weights/styles",
-      "next/font app-old preload page with fonts",
-      "next/font app-old preload page with local fonts",
-      "next/font app-old preload page without fonts",
-      "next/font app-old should use production cache control for fonts"
+      "next/font app should use production cache control for fonts"
     ],
     "pending": [],
     "flakey": [],
@@ -5898,6 +5913,13 @@
     "passed": [
       "next-image-forward-ref allows framer-motion to animate opacity"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/next-phase/index.test.ts": {
+    "passed": ["next-phase should render page with next phase correctly"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -6364,28 +6386,28 @@
   },
   "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-eslint"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-mdx"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/yarn-pnp/test/with-next-sass.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "yarn PnP should compile and serve the index page correctly with-next-sass"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11610,15 +11632,14 @@
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as png",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with contentDispositionType attachment dev support with next.config.js should return home page",
       "with contentDispositionType attachment dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with contentDispositionType attachment dev support with next.config.js should set cache-control to immutable for static images",
       "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with contentDispositionType attachment dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with contentDispositionType attachment dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with contentDispositionType attachment dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with contentDispositionType attachment Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
@@ -11771,15 +11792,14 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as png",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should set cache-control to immutable for static images",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
@@ -11914,6 +11934,8 @@
       "with latest sharp dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
       "with latest sharp dev support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support w/o next.config.js should error if the image file does not exist",
+      "with latest sharp dev support w/o next.config.js should error if the resource isn't a valid image",
       "with latest sharp dev support w/o next.config.js should fail when domain is not defined in next.config.js",
       "with latest sharp dev support w/o next.config.js should fail when internal url is not an image",
       "with latest sharp dev support w/o next.config.js should fail when q is greater than 100",
@@ -11937,6 +11959,9 @@
       "with latest sharp dev support w/o next.config.js should maintain ico format",
       "with latest sharp dev support w/o next.config.js should maintain jpg format for old Safari",
       "with latest sharp dev support w/o next.config.js should maintain png format for old Safari",
+      "with latest sharp dev support w/o next.config.js should not allow svg with application header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
+      "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support w/o next.config.js should not allow vector svg",
       "with latest sharp dev support w/o next.config.js should not have sharp missing warning",
       "with latest sharp dev support w/o next.config.js should not have sharp outdated warning",
@@ -11947,6 +11972,7 @@
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as gif",
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support w/o next.config.js should return home page",
       "with latest sharp dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support w/o next.config.js should set cache-control to immutable for static images",
       "with latest sharp dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
@@ -11959,12 +11985,15 @@
       "with latest sharp dev support with next.config.js should downlevel webp format to jpeg for old Safari",
       "with latest sharp dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
       "with latest sharp dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with latest sharp dev support with next.config.js should error if the image file does not exist",
+      "with latest sharp dev support with next.config.js should error if the resource isn't a valid image",
       "with latest sharp dev support with next.config.js should fail when domain is not defined in next.config.js",
       "with latest sharp dev support with next.config.js should fail when internal url is not an image",
       "with latest sharp dev support with next.config.js should fail when q is greater than 100",
       "with latest sharp dev support with next.config.js should fail when q is less than 1",
       "with latest sharp dev support with next.config.js should fail when q is missing",
       "with latest sharp dev support with next.config.js should fail when q is not a number",
+      "with latest sharp dev support with next.config.js should fail when url fails to load an image",
       "with latest sharp dev support with next.config.js should fail when url has file protocol",
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
       "with latest sharp dev support with next.config.js should fail when url is missing",
@@ -11984,6 +12013,9 @@
       "with latest sharp dev support with next.config.js should maintain jpg format for old Safari",
       "with latest sharp dev support with next.config.js should maintain png format for old Safari",
       "with latest sharp dev support with next.config.js should normalize invalid status codes",
+      "with latest sharp dev support with next.config.js should not allow svg with application header",
+      "with latest sharp dev support with next.config.js should not allow svg with comma header",
+      "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support with next.config.js should not allow vector svg",
       "with latest sharp dev support with next.config.js should not have sharp missing warning",
       "with latest sharp dev support with next.config.js should not have sharp outdated warning",
@@ -11996,27 +12028,14 @@
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as png",
       "with latest sharp dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with latest sharp dev support with next.config.js should return home page",
       "with latest sharp dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with latest sharp dev support with next.config.js should set cache-control to immutable for static images",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with latest sharp dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with latest sharp dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with latest sharp dev support w/o next.config.js should error if the image file does not exist",
-      "with latest sharp dev support w/o next.config.js should error if the resource isn't a valid image",
-      "with latest sharp dev support w/o next.config.js should not allow svg with application header",
-      "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
-      "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
-      "with latest sharp dev support w/o next.config.js should return home page",
-      "with latest sharp dev support with next.config.js should error if the image file does not exist",
-      "with latest sharp dev support with next.config.js should error if the resource isn't a valid image",
-      "with latest sharp dev support with next.config.js should fail when url fails to load an image",
-      "with latest sharp dev support with next.config.js should not allow svg with application header",
-      "with latest sharp dev support with next.config.js should not allow svg with comma header",
-      "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
-      "with latest sharp dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with latest sharp Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
@@ -12172,6 +12191,7 @@
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as gif",
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as png",
       "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
+      "with squoosh dev support w/o next.config.js should return home page",
       "with squoosh dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
       "with squoosh dev support w/o next.config.js should set cache-control to immutable for static images",
       "with squoosh dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
@@ -12228,16 +12248,14 @@
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as gif",
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as png",
       "with squoosh dev support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with squoosh dev support with next.config.js should return home page",
       "with squoosh dev support with next.config.js should set 304 status without body when etag matches if-none-match",
       "with squoosh dev support with next.config.js should set cache-control to immutable for static images",
       "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with squoosh dev support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
-    "failed": [
-      "with squoosh dev support w/o next.config.js should return home page",
-      "with squoosh dev support with next.config.js should return home page"
-    ],
+    "failed": [],
     "pending": [
       "with squoosh Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
       "with squoosh Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",

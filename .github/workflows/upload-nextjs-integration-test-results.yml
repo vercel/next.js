@@ -17,7 +17,7 @@ jobs:
 
       # Download test results into the `test-results` directory from the artifact created by `nextjs-integration-test`.
       - name: Download test results artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: test-results
           path: test-results

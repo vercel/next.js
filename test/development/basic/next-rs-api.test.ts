@@ -239,6 +239,7 @@ describe('next.rs api', () => {
       '/app',
       '/app-edge',
       '/app-nodejs',
+      '/not-found',
       '/page-edge',
       '/page-nodejs',
       '/route-edge',

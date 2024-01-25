@@ -296,6 +296,10 @@ impl AppPath {
         })
     }
 
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn contains(&self, other: &AppPath) -> bool {
         for (i, segment) in other.0.iter().enumerate() {
             if self.0.get(i) != Some(segment) {
