@@ -16,7 +16,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 30 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
+        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
       },
     },
     {
