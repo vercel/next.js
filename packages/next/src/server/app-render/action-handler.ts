@@ -40,6 +40,8 @@ import {
   getIsServerAction,
   getServerActionRequestMetadata,
 } from '../lib/server-action-request-meta'
+import { isCsrfOriginAllowed } from './csrf-protection'
+import { warn } from '../../build/output/log'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -146,6 +148,7 @@ async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
   redirectUrl: string,
+  basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   res.setHeader('x-action-redirect', redirectUrl)
@@ -157,7 +160,7 @@ async function createRedirectRenderResult(
     const host = req.headers['host']
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(`${proto}://${host}${redirectUrl}`)
+    const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
@@ -298,6 +301,9 @@ export async function handleAction({
     )
   }
 
+  // When running actions the default is no-store, you can still `cache: 'force-cache'`
+  staticGenerationStore.fetchCache = 'default-no-store'
+
   const originDomain =
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
@@ -319,19 +325,24 @@ export async function handleAction({
       }
     : undefined
 
+  let warning: string | undefined = undefined
+
+  function warnBadServerActionRequest() {
+    if (warning) {
+      warn(warning)
+    }
+  }
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
   if (!originDomain) {
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
-    console.warn(
-      'Missing `origin` header from a forwarded Server Actions request.'
-    )
+    warning = 'Missing `origin` header from a forwarded Server Actions request.'
   } else if (!host || originDomain !== host.value) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (serverActions?.allowedOrigins?.includes(originDomain)) {
+    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
@@ -416,8 +427,12 @@ export async function handleAction({
             bound = await decodeReply(formData, serverModuleMap)
           } else {
             const action = await decodeAction(formData, serverModuleMap)
-            const actionReturnedState = await action()
-            formState = decodeFormState(actionReturnedState, formData)
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              warnBadServerActionRequest()
+              const actionReturnedState = await action()
+              formState = decodeFormState(actionReturnedState, formData)
+            }
 
             // Skip the fetch path
             return
@@ -494,8 +509,12 @@ export async function handleAction({
             })
             const formData = await fakeRequest.formData()
             const action = await decodeAction(formData, serverModuleMap)
-            const actionReturnedState = await action()
-            formState = await decodeFormState(actionReturnedState, formData)
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              warnBadServerActionRequest()
+              const actionReturnedState = await action()
+              formState = await decodeFormState(actionReturnedState, formData)
+            }
 
             // Skip the fetch path
             return
@@ -526,7 +545,7 @@ export async function handleAction({
             throw new ApiError(
               413,
               `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation`
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
             )
           }
 
@@ -611,6 +630,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
             req,
             res,
             redirectUrl,
+            ctx.renderOpts.basePath,
             staticGenerationStore
           ),
         }

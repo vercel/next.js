@@ -17,7 +17,7 @@ There are four ways you can fetch data:
 
 Next.js extends the native [`fetch` Web API](https://developer.mozilla.org/docs/Web/API/Fetch_API) to allow you to configure the [caching](#caching-data) and [revalidating](#revalidating-data) behavior for each fetch request on the server. React extends `fetch` to automatically [memoize](/docs/app/building-your-application/data-fetching/patterns#fetching-data-where-its-needed) fetch requests while rendering a React component tree.
 
-You can use `fetch` with `async`/`await` in Server Components, in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations).
+You can use `fetch` with `async`/`await` in Server Components, in [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 For example:
 
@@ -117,7 +117,7 @@ Learn more about [time-based revalidation](/docs/app/building-your-application/c
 
 #### On-demand Revalidation
 
-Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+Data can be revalidated on-demand by path ([`revalidatePath`](/docs/app/api-reference/functions/revalidatePath)) or by cache tag ([`revalidateTag`](/docs/app/api-reference/functions/revalidateTag)) inside a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 Next.js has a cache tagging system for invalidating `fetch` requests across routes.
 
@@ -211,7 +211,7 @@ You can also use the experimental [`unstable_cache` API](/docs/app/api-reference
 In the example below:
 
 - The React `cache` function is used to [memoize](/docs/app/building-your-application/caching#request-memoization) data requests.
-- The `revalidate` option is set to `3600` in the `layout.ts` and `page.ts` segments, meaning the data will be cached and revalidated at most every hour.
+- The `revalidate` option is set to `3600` in the Layout and Page segments, meaning the data will be cached and revalidated at most every hour.
 
 ```ts filename="app/utils.ts" switcher
 import { cache } from 'react'
@@ -297,7 +297,7 @@ See the [Route Handler](/docs/app/building-your-application/routing/route-handle
 
 ## Fetching Data on the Client with third-party libraries
 
-You can also fetch data on the client using a third-party library such as [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
+You can also fetch data on the client using a third-party library such as [SWR](https://swr.vercel.app/) or [TanStack Query](https://tanstack.com/query/latest). These libraries provide their own APIs for memoizing requests, caching, revalidating, and mutating data.
 
 > **Future APIs**:
 >

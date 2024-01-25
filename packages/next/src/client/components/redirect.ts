@@ -1,7 +1,7 @@
 import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
 import { actionAsyncStorage } from './action-async-storage.external'
-import { RedirectStatusCode } from '../../shared/lib/constants'
+import { RedirectStatusCode } from './redirect-status-code'
 
 const REDIRECT_ERROR_CODE = 'NEXT_REDIRECT'
 
@@ -85,14 +85,18 @@ export function permanentRedirect(
  * @returns true if the error is a redirect error
  */
 export function isRedirectError<U extends string>(
-  error: any
+  error: unknown
 ): error is RedirectError<U> {
-  if (typeof error?.digest !== 'string') return false
+  if (
+    typeof error !== 'object' ||
+    error === null ||
+    !('digest' in error) ||
+    typeof error.digest !== 'string'
+  ) {
+    return false
+  }
 
-  const [errorCode, type, destination, status] = (error.digest as string).split(
-    ';',
-    4
-  )
+  const [errorCode, type, destination, status] = error.digest.split(';', 4)
 
   const statusCode = Number(status)
 

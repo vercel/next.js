@@ -37,10 +37,10 @@ use turbopack_binding::{
         File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
     },
     turbopack::{
-        build::BuildChunkingContext,
+        build::{BuildChunkingContext, EntryChunkGroupResult},
         core::{
             asset::AssetContent,
-            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
             context::AssetContext,
             file_source::FileSource,
             issue::IssueSeverity,
@@ -54,7 +54,9 @@ use turbopack_binding::{
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::{
-            chunk::EcmascriptChunkingContext, resolve::esm_resolve, EcmascriptModuleAsset,
+            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
+            resolve::esm_resolve,
+            EcmascriptModuleAsset,
         },
         turbopack::{
             module_options::ModuleOptionsContext,
@@ -91,13 +93,14 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     pub async fn routes(self: Vc<Self>) -> Result<Vc<Routes>> {
+        let pages_structure = self.pages_structure();
         let PagesStructure {
             api,
             pages,
             app: _,
             document: _,
             error: _,
-        } = &*self.pages_structure().await?;
+        } = &*pages_structure.await?;
         let mut routes = IndexMap::new();
 
         async fn add_page_to_routes(
@@ -150,6 +153,7 @@ impl PagesProject {
                         pathname,
                         original_name,
                         path,
+                        pages_structure,
                     )),
                 }
             })
@@ -163,6 +167,7 @@ impl PagesProject {
                 pathname,
                 original_name,
                 path,
+                pages_structure,
             )),
             data_endpoint: Vc::upcast(PageEndpoint::new(
                 PageEndpointType::Data,
@@ -170,6 +175,7 @@ impl PagesProject {
                 pathname,
                 original_name,
                 path,
+                pages_structure,
             )),
         };
 
@@ -201,6 +207,7 @@ impl PagesProject {
             pathname_vc,
             original_name,
             path,
+            self.pages_structure(),
         ));
         Ok(endpoint)
     }
@@ -524,6 +531,7 @@ struct PageEndpoint {
     pathname: Vc<String>,
     original_name: Vc<String>,
     path: Vc<FileSystemPath>,
+    pages_structure: Vc<PagesStructure>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
@@ -543,6 +551,7 @@ impl PageEndpoint {
         pathname: Vc<String>,
         original_name: Vc<String>,
         path: Vc<FileSystemPath>,
+        pages_structure: Vc<PagesStructure>,
     ) -> Vc<Self> {
         PageEndpoint {
             ty,
@@ -550,6 +559,7 @@ impl PageEndpoint {
             pathname,
             original_name,
             path,
+            pages_structure,
         }
         .cell()
     }
@@ -606,12 +616,13 @@ impl PageEndpoint {
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
             let mut client_chunks = client_chunking_context
-                .evaluated_chunk_group(
+                .evaluated_chunk_group_assets(
                     client_module.ident(),
                     this.pages_project
                         .client_runtime_entries()
                         .with_entry(Vc::upcast(client_main_module))
                         .with_entry(Vc::upcast(client_module)),
+                    Value::new(AvailabilityInfo::Root),
                 )
                 .await?
                 .clone_value();
@@ -645,7 +656,9 @@ impl PageEndpoint {
         async move {
             let this = self.await?;
 
-            let ssr_module = module_context.process(self.source(), reference_type.clone());
+            let ssr_module = module_context
+                .process(self.source(), reference_type.clone())
+                .module();
 
             let config = parse_config_from_source(ssr_module).await?;
             let is_edge = matches!(config.runtime, NextRuntime::Edge);
@@ -658,19 +671,21 @@ impl PageEndpoint {
                     Vc::upcast(edge_module_context),
                     self.source(),
                     this.original_name,
+                    this.pages_structure,
                     config.runtime,
                     this.pages_project.project().next_config(),
                 );
 
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
-                let Some(evaluatable) = Vc::try_resolve_sidecast(ssr_module).await? else {
-                    bail!("Entry module must be evaluatable");
-                };
+                let evaluatable = Vc::try_resolve_sidecast(ssr_module)
+                    .await?
+                    .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
-                let edge_files = edge_chunking_context.evaluated_chunk_group(
+                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
                     Vc::cell(evaluatable_assets.clone()),
+                    Value::new(AvailabilityInfo::Root),
                 );
 
                 let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;
@@ -687,26 +702,48 @@ impl PageEndpoint {
                 }
                 .cell())
             } else {
-                let ssr_module = create_page_ssr_entry_module(
-                    this.pathname,
-                    reference_type,
-                    project_root,
-                    Vc::upcast(module_context),
-                    self.source(),
-                    this.original_name,
-                    config.runtime,
-                    this.pages_project.project().next_config(),
-                );
+                let pathname = &**this.pathname.await?;
 
-                let asset_path = get_asset_path_from_pathname(&this.pathname.await?, ".js");
+                // `/_app` and `/_document` never get rendered directly so they don't need to be
+                // wrapped in the route module.
+                let ssr_module = if pathname == "/_app" || pathname == "/_document" {
+                    let Some(ssr_module) =
+                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
+                            .await?
+                    else {
+                        bail!("expected an ECMAScript chunk placeable module");
+                    };
+
+                    ssr_module
+                } else {
+                    create_page_ssr_entry_module(
+                        this.pathname,
+                        reference_type,
+                        project_root,
+                        Vc::upcast(module_context),
+                        self.source(),
+                        this.original_name,
+                        this.pages_structure,
+                        config.runtime,
+                        this.pages_project.project().next_config(),
+                    )
+                };
+
+                let asset_path = get_asset_path_from_pathname(pathname, ".js");
 
                 let ssr_entry_chunk_path_string = format!("pages{asset_path}");
                 let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-                let ssr_entry_chunk = chunking_context.entry_chunk_group(
-                    ssr_entry_chunk_path,
-                    ssr_module,
-                    runtime_entries,
-                );
+                let EntryChunkGroupResult {
+                    asset: ssr_entry_chunk,
+                    ..
+                } = *chunking_context
+                    .entry_chunk_group(
+                        ssr_entry_chunk_path,
+                        ssr_module,
+                        runtime_entries,
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                    .await?;
 
                 let availability_info = Value::new(AvailabilityInfo::Root);
                 let dynamic_import_modules = collect_next_dynamic_imports(ssr_module).await?;

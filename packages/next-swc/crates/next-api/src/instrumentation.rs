@@ -11,12 +11,15 @@ use turbo_tasks::{Completion, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileContent},
     turbopack::{
+        build::EntryChunkGroupResult,
         core::{
             asset::AssetContent,
-            chunk::ChunkingContext,
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
+            reference_type::{EntryReferenceSubType, ReferenceType},
+            source::Source,
             virtual_output::VirtualOutputAsset,
         },
         ecmascript::chunk::EcmascriptChunkPlaceable,
@@ -34,7 +37,7 @@ use crate::{
 pub struct InstrumentationEndpoint {
     project: Vc<Project>,
     context: Vc<Box<dyn AssetContext>>,
-    userland_module: Vc<Box<dyn Module>>,
+    source: Vc<Box<dyn Source>>,
     is_edge: bool,
 }
 
@@ -44,13 +47,13 @@ impl InstrumentationEndpoint {
     pub fn new(
         project: Vc<Project>,
         context: Vc<Box<dyn AssetContext>>,
-        userland_module: Vc<Box<dyn Module>>,
+        source: Vc<Box<dyn Source>>,
         is_edge: bool,
     ) -> Vc<Self> {
         Self {
             project,
             context,
-            userland_module,
+            source,
             is_edge,
         }
         .cell()
@@ -58,10 +61,18 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
+        let userland_module = self
+            .context
+            .process(
+                self.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+            )
+            .module();
+
         let module = wrap_edge_entry(
             self.context,
             self.project.project_path(),
-            self.userland_module,
+            userland_module,
             "instrumentation".to_string(),
         );
 
@@ -86,8 +97,11 @@ impl InstrumentationEndpoint {
 
         let edge_chunking_context = self.project.edge_chunking_context();
 
-        let edge_files = edge_chunking_context
-            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
+        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+            module.ident(),
+            Vc::cell(evaluatable_assets),
+            Value::new(AvailabilityInfo::Root),
+        );
 
         Ok(edge_files)
     }
@@ -102,21 +116,32 @@ impl InstrumentationEndpoint {
             self.project.server_compile_time_info().environment(),
         );
 
-        let Some(module) = Vc::try_resolve_downcast(self.userland_module).await? else {
+        let userland_module = self
+            .context
+            .process(
+                self.source,
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+            )
+            .module();
+
+        let Some(module) = Vc::try_resolve_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
         };
 
-        let chunk = chunking_context.entry_chunk_group(
-            self.project
-                .node_root()
-                .join("server/instrumentation.js".to_string()),
-            module,
-            get_server_runtime_entries(
-                Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+        let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
+            .entry_chunk_group(
+                self.project
+                    .node_root()
+                    .join("server/instrumentation.js".to_string()),
+                module,
+                get_server_runtime_entries(
+                    Value::new(ServerContextType::Instrumentation),
+                    NextMode::Development,
+                )
+                .resolve_entries(self.context),
+                Value::new(AvailabilityInfo::Root),
             )
-            .resolve_entries(self.context),
-        );
+            .await?;
         Ok(chunk)
     }
 

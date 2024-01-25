@@ -29,11 +29,12 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.11.3
   NODE_LTS_VERSION: 20
 
 jobs:
   start:
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -58,6 +59,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
+        if: ${{ github.event.inputs.releaseType != 'stable' }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."

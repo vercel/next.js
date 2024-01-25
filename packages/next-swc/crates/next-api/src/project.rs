@@ -42,7 +42,6 @@ use turbopack_binding::{
             environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
-            reference_type::{EntryReferenceSubType, ReferenceType},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
             version::{Update, Version, VersionState, VersionedContent},
@@ -458,6 +457,7 @@ impl Project {
             DevChunkingContext::builder(
                 self.project_path(),
                 node_root,
+                node_root,
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
                 node_build_environment(),
@@ -530,6 +530,8 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -729,15 +731,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn middleware_endpoint(self: Vc<Self>, source: Vc<Box<dyn Source>>) -> Vc<MiddlewareEndpoint> {
+    async fn middleware_endpoint(
+        self: Vc<Self>,
+        source: Vc<Box<dyn Source>>,
+    ) -> Result<Vc<MiddlewareEndpoint>> {
         let context = self.middleware_context();
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Middleware)),
-        );
-
-        MiddlewareEndpoint::new(self, context, module)
+        Ok(MiddlewareEndpoint::new(self, context, source))
     }
 
     #[turbo_tasks::function]
@@ -775,12 +775,7 @@ impl Project {
             self.node_instrumentation_context()
         };
 
-        let module = context.process(
-            source,
-            Value::new(ReferenceType::Entry(EntryReferenceSubType::Undefined)),
-        );
-
-        InstrumentationEndpoint::new(self, context, module, is_edge)
+        InstrumentationEndpoint::new(self, context, source, is_edge)
     }
 
     #[turbo_tasks::function]

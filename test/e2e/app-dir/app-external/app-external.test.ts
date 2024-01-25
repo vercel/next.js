@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from '../../../lib/next-test-utils'
+import { check, hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -20,8 +20,6 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       swr: 'latest',
     },
     packageJson: {
@@ -228,6 +226,15 @@ createNextDescribe(
       })
     })
 
+    it('should emit cjs helpers for external cjs modules when compiled', async () => {
+      const $ = await next.render$('/cjs/client')
+      expect($('#private-prop').text()).toBe('prop')
+      expect($('#transpile-cjs-lib').text()).toBe('transpile-cjs-lib')
+
+      const browser = await next.browser('/cjs/client')
+      expect(await hasRedbox(browser)).toBe(false)
+    })
+
     it('should export client module references in esm', async () => {
       const html = await next.render('/esm-client-ref')
       expect(html).toContain('hello')
@@ -249,6 +256,32 @@ createNextDescribe(
     it('should use the same async storages if imported directly', async () => {
       const html = await next.render('/async-storage')
       expect(html).toContain('success')
+    })
+
+    describe('server actions', () => {
+      it('should not prefer to resolve esm over cjs for bundling optout packages', async () => {
+        const browser = await next.browser('/optout/action')
+        expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+
+        browser.elementByCss('#dual-pkg-outout button').click()
+        await check(async () => {
+          const text = await browser.elementByCss('#dual-pkg-outout p').text()
+          expect(text).toBe('dual-pkg-optout:cjs')
+          return 'success'
+        }, /success/)
+      })
+
+      it('should compile server actions from node_modules in client components', async () => {
+        // before action there's no action log
+        expect(next.cliOutput).not.toContain('action-log:server:action1')
+        const browser = await next.browser('/action/client')
+        await browser.elementByCss('#action').click()
+
+        await check(() => {
+          expect(next.cliOutput).toContain('action-log:server:action1')
+          return 'success'
+        }, /success/)
+      })
     })
   }
 )

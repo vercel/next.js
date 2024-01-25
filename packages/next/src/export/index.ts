@@ -54,6 +54,8 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { validateRevalidate } from '../server/lib/patch-fetch'
+import { isDefaultRoute } from '../lib/is-default-route'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -504,7 +506,11 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    experimental: { ppr: nextConfig.experimental.ppr === true },
+    experimental: {
+      ppr: nextConfig.experimental.ppr === true,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+    },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -558,9 +564,13 @@ export async function exportAppImpl(
   ]
 
   const filteredPaths = exportPaths.filter(
-    // Remove API routes
     (route) =>
-      exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
+      // Remove default routes -- they don't need to be exported
+      // and are only used for parallel route normalization
+      !isDefaultRoute(exportPathMap[route].page) &&
+      (exportPathMap[route]._isAppDir ||
+        // Remove API routes
+        !isAPIRoute(exportPathMap[route].page))
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -691,11 +701,10 @@ export async function exportAppImpl(
           parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
-          isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
           fetchCache: true,
           fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          incrementalCacheHandlerPath:
-            nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
           enabledDirectories,
         })
@@ -741,7 +750,7 @@ export async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+        info.revalidate = validateRevalidate(result.revalidate, path)
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

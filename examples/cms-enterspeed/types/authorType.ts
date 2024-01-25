@@ -1,10 +1,10 @@
 type AuthorType = {
-  firstName: string
-  lastName: string
-  name: string
+  firstName: string;
+  lastName: string;
+  name: string;
   avatar: {
-    url: string
-  }
-}
+    url: string;
+  };
+};
 
-export default AuthorType
+export default AuthorType;

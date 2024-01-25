@@ -2,6 +2,7 @@ import type webpack from 'webpack'
 import fs from 'fs'
 import path from 'path'
 import { imageExtMimeTypeMap } from '../../../lib/mime-type'
+import { getNamedExports } from './next-metadata-image-loader'
 
 function errorOnBadHandler(resourcePath: string) {
   return `
@@ -118,8 +119,8 @@ const generateImageMetadata = imageModule.generateImageMetadata
 ${errorOnBadHandler(resourcePath)}
 
 export async function GET(_, ctx) {
-  const { __metadata_id__ = [], ...params } = ctx.params || {}
-  const targetId = __metadata_id__[0]
+  const { __metadata_id__, ...params } = ctx.params || {}
+  const targetId = __metadata_id__?.[0]
   let id = undefined
   const imageMetadata = generateImageMetadata ? await generateImageMetadata({ params }) : null
 
@@ -143,16 +144,23 @@ export async function GET(_, ctx) {
 `
 }
 
-function getDynamicSiteMapRouteCode(resourcePath: string, page: string) {
+async function getDynamicSiteMapRouteCode(
+  resourcePath: string,
+  page: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
   let staticGenerationCode = ''
 
+  const exportNames = await getNamedExports(resourcePath, loaderContext)
+  const hasGenerateSiteMaps = exportNames.includes('generateSitemaps')
   if (
     process.env.NODE_ENV === 'production' &&
+    hasGenerateSiteMaps &&
     page.includes('[__metadata_id__]')
   ) {
     staticGenerationCode = `\
 export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
+  const sitemaps = generateSitemaps ? await generateSitemaps() : []
   const params = []
 
   for (const item of sitemaps) {
@@ -179,9 +187,16 @@ ${errorOnBadHandler(resourcePath)}
 ${'' /* re-export the userland route configs */}
 export * from ${JSON.stringify(resourcePath)}
 
+
 export async function GET(_, ctx) {
-  const { __metadata_id__ = [], ...params } = ctx.params || {}
-  const targetId = __metadata_id__[0]
+  const { __metadata_id__, ...params } = ctx.params || {}
+  ${
+    '' /* sitemap will be optimized to [__metadata_id__] from [[..._metadata_id__]] in production */
+  }
+  const targetId = process.env.NODE_ENV !== 'production'
+    ? __metadata_id__?.[0]
+    : __metadata_id__
+
   let id = undefined
   const sitemaps = generateSitemaps ? await generateSitemaps() : null
 
@@ -192,6 +207,7 @@ export async function GET(_, ctx) {
           throw new Error('id property is required for every item returned from generateSitemaps')
         }
       }
+
       return item.id.toString() === targetId
     })?.id
     if (id == null) {
@@ -230,7 +246,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
         code = getDynamicTextRouteCode(resourcePath)
       } else if (fileBaseName === 'sitemap') {
-        code = getDynamicSiteMapRouteCode(resourcePath, page)
+        code = await getDynamicSiteMapRouteCode(resourcePath, page, this)
       } else {
         code = getDynamicImageRouteCode(resourcePath)
       }

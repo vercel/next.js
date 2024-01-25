@@ -1,6 +1,6 @@
 import { join } from 'path'
 import { createNextDescribe } from 'e2e-utils'
-import { shouldRunTurboDevTest } from 'next-test-utils'
+import { hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
 
 createNextDescribe(
   'optimizePackageImports',
@@ -28,7 +28,7 @@ createNextDescribe(
       '@heroicons/react': '2.0.18',
       '@visx/visx': '3.3.0',
       'recursive-barrel': '1.0.0',
-      '@mui/material': '5.14.19',
+      '@mui/material': '5.15.4',
       '@emotion/styled': '11.11.0',
       '@emotion/react': '11.11.1',
     },
@@ -137,8 +137,12 @@ createNextDescribe(
       })
 
       // Ensure that MUI is working
-      const html = await next.render('/mui')
-      expect(html).toContain('test_mui')
+      const $ = await next.render$('/mui')
+      expect(await $('#button').text()).toContain('button')
+      expect(await $('#typography').text()).toContain('typography')
+
+      const browser = await next.browser('/mui')
+      expect(await hasRedbox(browser)).toBe(false)
 
       const modules = [...logs.matchAll(/\((\d+) modules\)/g)]
       expect(modules.length).toBeGreaterThanOrEqual(1)

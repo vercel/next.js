@@ -6,6 +6,7 @@ import {
   ACTION_REFRESH,
   ACTION_SERVER_ACTION,
   ACTION_NAVIGATE,
+  ACTION_RESTORE,
 } from '../../../client/components/router-reducer/router-reducer-types'
 import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
@@ -26,7 +27,7 @@ export type AppRouterActionQueue = {
 export type ActionQueueNode = {
   payload: ReducerActions
   next: ActionQueueNode | null
-  resolve: (value: PromiseLike<AppRouterState> | AppRouterState) => void
+  resolve: (value: ReducerState) => void
   reject: (err: Error) => void
   discarded?: boolean
 }
@@ -115,14 +116,26 @@ function dispatchAction(
   setState: DispatchStatePromise
 ) {
   let resolvers: {
-    resolve: (value: AppRouterState | PromiseLike<AppRouterState>) => void
+    resolve: (value: ReducerState) => void
     reject: (reason: any) => void
-  }
+  } = { resolve: setState, reject: () => {} }
 
-  // Create the promise and assign the resolvers to the object.
-  const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
-    resolvers = { resolve, reject }
-  })
+  // most of the action types are async with the exception of restore
+  // it's important that restore is handled quickly since it's fired on the popstate event
+  // and we don't want to add any delay on a back/forward nav
+  // this only creates a promise for the async actions
+  if (payload.type !== ACTION_RESTORE) {
+    // Create the promise and assign the resolvers to the object.
+    const deferredPromise = new Promise<AppRouterState>((resolve, reject) => {
+      resolvers = { resolve, reject }
+    })
+
+    startTransition(() => {
+      // we immediately notify React of the pending promise -- the resolver is attached to the action node
+      // and will be called when the associated action promise resolves
+      setState(deferredPromise)
+    })
+  }
 
   const newAction: ActionQueueNode = {
     payload,
@@ -130,12 +143,6 @@ function dispatchAction(
     resolve: resolvers!.resolve,
     reject: resolvers!.reject,
   }
-
-  startTransition(() => {
-    // we immediately notify React of the pending promise -- the resolver is attached to the action node
-    // and will be called when the associated action promise resolves
-    setState(deferredPromise)
-  })
 
   // Check if the queue is empty
   if (actionQueue.pending === null) {

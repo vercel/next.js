@@ -11,6 +11,7 @@ import {
 } from './webpack-config'
 import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
 import type { NextConfigComplete } from '../server/config-shared'
+import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 
 const pathSeparators = '[/\\\\]'
@@ -47,6 +48,7 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
+  optOutBundlingPackages: string[],
   getResolve: (
     options: any
   ) => (
@@ -66,8 +68,15 @@ export async function resolveExternal(
   let res: string | null = null
   let isEsm: boolean = false
 
-  let preferEsmOptions =
-    esmExternals && isEsmRequested ? [true, false] : [false]
+  const preferEsmOptions =
+    esmExternals &&
+    isEsmRequested &&
+    // For package that marked as externals that should be not bundled,
+    // we don't resolve them as ESM since it could be resolved as async module,
+    // such as `import(external package)` in the bundle, valued as a `Promise`.
+    !optOutBundlingPackages.some((optOut) => request.startsWith(optOut))
+      ? [true, false]
+      : [false]
 
   for (const preferEsm of preferEsmOptions) {
     const resolve = getResolve(
@@ -131,10 +140,12 @@ export async function resolveExternal(
 
 export function makeExternalHandler({
   config,
+  optOutBundlingPackages,
   optOutBundlingPackageRegex,
   dir,
 }: {
   config: NextConfigComplete
+  optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
   dir: string
 }) {
@@ -224,12 +235,15 @@ export function makeExternalHandler({
       if (isExternal) {
         // it's important we return the path that starts with `next/dist/` here instead of the absolute path
         // otherwise NFT will get tripped up
-        return `commonjs ${localRes.replace(/.*?next[/\\]dist/, 'next/dist')}`
+        return `commonjs ${normalizePathSep(
+          localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+        )}`
       }
     }
 
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
+    // Make sure @vercel/og is loaded as ESM for Node.js runtime
     if (
       isWebpackServerLayer(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
@@ -277,7 +291,7 @@ export function makeExternalHandler({
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
-        ? path.join(context, request).replace(/\\/g, '/')
+        ? normalizePathSep(path.join(context, request))
         : request
       return resolveNextExternal(fullRequest)
     }
@@ -289,6 +303,7 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
+      optOutBundlingPackages,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -313,7 +328,7 @@ export function makeExternalHandler({
 
     // ESM externals can only be imported (and not required).
     // Make an exception in loose mode.
-    if (!isEsmRequested && isEsm && !looseEsmExternals) {
+    if (!isEsmRequested && isEsm && !looseEsmExternals && !isLocal) {
       throw new Error(
         `ESM packages (${request}) need to be imported. Use 'import' to reference the package instead. https://nextjs.org/docs/messages/import-esm-externals`
       )
@@ -349,6 +364,7 @@ export function makeExternalHandler({
           context,
           pkg + '/package.json',
           isEsmRequested,
+          optOutBundlingPackages,
           getResolve,
           isLocal ? resolveNextExternal : undefined
         )

@@ -1,5 +1,5 @@
 import { createHrefFromUrl } from '../create-href-from-url'
-import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
+import { applyRouterStatePatchToTreeSkipDefault } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
 import type {
   ServerPatchAction,
@@ -12,6 +12,7 @@ import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -41,7 +42,7 @@ export function serverPatchReducer(
     const flightSegmentPath = flightDataPath.slice(0, -4)
 
     const [treePatch] = flightDataPath.slice(-3, -2)
-    const newTree = applyRouterStatePatchToTree(
+    const newTree = applyRouterStatePatchToTreeSkipDefault(
       // TODO-APP: remove ''
       ['', ...flightSegmentPath],
       currentTree,
@@ -49,7 +50,7 @@ export function serverPatchReducer(
     )
 
     if (newTree === null) {
-      throw new Error('SEGMENT MISMATCH')
+      return handleSegmentMismatch(state, action, treePatch)
     }
 
     if (isNavigatingToNewRootLayout(currentTree, newTree)) {

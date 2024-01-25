@@ -29,16 +29,18 @@ function runTests() {
 }
 
 describe('Image Component from node_modules prod mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  runTests()
+    runTests()
+  })
 })
 
 describe('Image Component from node_modules dev mode', () => {

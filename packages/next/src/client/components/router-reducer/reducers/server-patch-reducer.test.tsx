@@ -4,7 +4,6 @@ import type {
   FlightData,
   FlightRouterState,
 } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
 import { ACTION_SERVER_PATCH, ACTION_NAVIGATE } from '../router-reducer-types'
@@ -26,7 +25,7 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -57,7 +56,7 @@ const flightDataForPatch: FlightData = [
         children: ['', {}],
       },
     ],
-    ['somewhere-else', null, <h1>Somewhere Page!</h1>],
+    ['somewhere-else', {}, <h1>Somewhere Page!</h1>],
     <>
       <title>Somewhere page!</title>
     </>,
@@ -105,7 +104,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -113,17 +111,18 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -135,7 +134,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
@@ -166,54 +165,54 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
-                      "subTreeData": <React.Fragment>
+                      "prefetchRsc": null,
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
-                            "subTreeData": null,
+                            "prefetchRsc": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "status": "READY",
-                      "subTreeData": <h1>
+                      "prefetchRsc": null,
+                      "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
-                "subTreeData": <React.Fragment>
+                "prefetchRsc": null,
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
-          "subTreeData": <html>
+          "prefetchRsc": null,
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -276,7 +275,6 @@ describe('serverPatchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -284,17 +282,18 @@ describe('serverPatchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -315,7 +314,7 @@ describe('serverPatchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
       isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
@@ -349,76 +348,76 @@ describe('serverPatchReducer', () => {
       {
         "buildId": "development",
         "cache": {
-          "data": null,
+          "lazyData": null,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
-                "data": null,
+                "lazyData": null,
                 "parallelRoutes": Map {
                   "children" => Map {
                     "" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {},
-                      "status": "READY",
-                      "subTreeData": <React.Fragment>
+                      "prefetchRsc": null,
+                      "rsc": <React.Fragment>
                         Linking page
                       </React.Fragment>,
                     },
                     "about" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 About page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
-                            "subTreeData": null,
+                            "prefetchRsc": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "status": "READY",
-                      "subTreeData": <h1>
+                      "prefetchRsc": null,
+                      "rsc": <h1>
                         About Page!
                       </h1>,
                     },
                     "somewhere-else" => {
-                      "data": null,
+                      "lazyData": null,
                       "parallelRoutes": Map {
                         "children" => Map {
                           "" => {
-                            "data": null,
                             "head": <React.Fragment>
                               <title>
                                 Somewhere page!
                               </title>
                             </React.Fragment>,
+                            "lazyData": null,
                             "parallelRoutes": Map {},
-                            "status": "LAZYINITIALIZED",
-                            "subTreeData": null,
+                            "prefetchRsc": null,
+                            "rsc": null,
                           },
                         },
                       },
-                      "status": "READY",
-                      "subTreeData": <h1>
+                      "prefetchRsc": null,
+                      "rsc": <h1>
                         Somewhere Page!
                       </h1>,
                     },
                   },
                 },
-                "status": "READY",
-                "subTreeData": <React.Fragment>
+                "prefetchRsc": null,
+                "rsc": <React.Fragment>
                   Linking layout level
                 </React.Fragment>,
               },
             },
           },
-          "status": "READY",
-          "subTreeData": <html>
+          "prefetchRsc": null,
+          "rsc": <html>
             <head />
             <body>
               Root layout
@@ -501,5 +500,63 @@ describe('serverPatchReducer', () => {
         ],
       }
     `)
+  })
+
+  it("should gracefully recover if the server patch doesn't match the current tree", async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+
+    const state = createInitialRouterState({
+      buildId,
+      initialTree,
+      initialHead: null,
+      initialCanonicalUrl,
+      initialSeedData: ['', {}, children],
+      initialParallelRoutes: new Map(),
+      isServer: false,
+      location: new URL('/linking/about', 'https://localhost') as any,
+    })
+
+    const action: ServerPatchAction = {
+      type: ACTION_SERVER_PATCH,
+      // this flight data is intentionally completely unrelated to the existing tree
+      flightData: [
+        [
+          'children',
+          'tree-patch-failure',
+          'children',
+          'new-page',
+          ['new-page', { children: ['__PAGE__', {}] }],
+          null,
+          null,
+        ],
+      ],
+      previousTree: [
+        '',
+        {
+          children: [
+            'linking',
+            {
+              children: ['about', { children: ['', {}] }],
+            },
+          ],
+        },
+        undefined,
+        undefined,
+        true,
+      ],
+      overrideCanonicalUrl: undefined,
+    }
+
+    const newState = await serverPatchReducer(state, action)
+    expect(newState.pushRef.pendingPush).toBe(true)
+    expect(newState.pushRef.mpaNavigation).toBe(true)
+    expect(newState.canonicalUrl).toBe('/linking/about')
   })
 })

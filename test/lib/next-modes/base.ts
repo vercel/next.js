@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import fs from 'fs-extra'
+import { existsSync, promises as fs } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef } from '../e2e-utils'
@@ -8,8 +8,9 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
 import escapeStringRegexp from 'escape-string-regexp'
 
@@ -59,7 +60,7 @@ export class NextInstance {
   public testDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
-  protected childProcess: ChildProcess
+  protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
@@ -100,17 +101,18 @@ export class NextInstance {
           `FileRef passed to "files" in "createNext" is not a directory ${files.fsPath}`
         )
       }
-      await fs.copy(files.fsPath, this.testDir)
+
+      await fs.cp(files.fsPath, this.testDir, { recursive: true })
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
         const outputFilename = path.join(this.testDir, filename)
 
         if (typeof item === 'string') {
-          await fs.ensureDir(path.dirname(outputFilename))
+          await fs.mkdir(path.dirname(outputFilename), { recursive: true })
           await fs.writeFile(outputFilename, item)
         } else {
-          await fs.copy(item.fsPath, outputFilename)
+          await fs.cp(item.fsPath, outputFilename, { recursive: true })
         }
       }
     }
@@ -158,7 +160,7 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
-          await fs.ensureDir(this.testDir)
+          await fs.mkdir(this.testDir, { recursive: true })
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
@@ -193,7 +195,9 @@ export class NextInstance {
             !this.packageJson &&
             !(global as any).isNextDeploy
           ) {
-            await fs.copy(process.env.NEXT_TEST_STARTER, this.testDir)
+            await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
+              recursive: true,
+            })
           } else {
             const { installDir } = await createNextInstall({
               parentSpan: rootSpan,
@@ -218,7 +222,7 @@ export class NextInstance {
           file.startsWith('next.config.')
         )
 
-        if (await fs.pathExists(path.join(this.testDir, 'next.config.js'))) {
+        if (existsSync(path.join(this.testDir, 'next.config.js'))) {
           nextConfigFile = 'next.config.js'
         }
 
@@ -233,11 +237,13 @@ export class NextInstance {
           ((global as any).isNextDeploy && !nextConfigFile)
         ) {
           const functions = []
-
+          const exportDeclare =
+            this.packageJson?.type === 'module'
+              ? 'export default'
+              : 'module.exports = '
           await fs.writeFile(
             path.join(this.testDir, 'next.config.js'),
-            `
-        module.exports = ` +
+            exportDeclare +
               JSON.stringify(
                 {
                   ...this.nextConfig,
@@ -298,20 +304,6 @@ export class NextInstance {
       new RegExp(escapeStringRegexp(this.testDir), 'g'),
       'TEST_DIR'
     )
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/,----/, ',-[1:1]')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
-    return content
-  }
-
-  // the dev binary for next-swc is missing file references
-  // so this normalizes to allow snapshots to match
-  public normalizeSnapshot(content) {
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/TEST_DIR.*?:/g, '')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
     return content
   }
 
@@ -328,7 +320,10 @@ export class NextInstance {
     ]
     for (const file of await fs.readdir(this.testDir)) {
       if (!keptFiles.includes(file)) {
-        await fs.remove(path.join(this.testDir, file))
+        await fs.rm(path.join(this.testDir, file), {
+          recursive: true,
+          force: true,
+        })
       }
     }
     await this.writeInitialFiles()
@@ -343,13 +338,7 @@ export class NextInstance {
   public async stop(): Promise<void> {
     this.isStopping = true
     if (this.childProcess) {
-      let exitResolve
-      const exitPromise = new Promise((resolve) => {
-        exitResolve = resolve
-      })
-      this.childProcess.addListener('exit', () => {
-        exitResolve()
-      })
+      const exitPromise = once(this.childProcess, 'exit')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
@@ -376,7 +365,7 @@ export class NextInstance {
 
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
-          .copy(
+          .cp(
             path.join(this.testDir, '.next/trace'),
             path.join(
               __dirname,
@@ -388,13 +377,16 @@ export class NextInstance {
                 )
                 .replace(/\//g, '-')}`,
               `next-trace`
-            )
+            ),
+            { recursive: true }
           )
-          .catch(() => {})
+          .catch((e) => {
+            require('console').error(e)
+          })
       }
 
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
-        await fs.remove(this.testDir)
+        await fs.rm(this.testDir, { recursive: true, force: true })
       }
       require('console').log(`destroyed next instance`)
     } catch (err) {
@@ -420,13 +412,15 @@ export class NextInstance {
 
   // TODO: block these in deploy mode
   public async hasFile(filename: string) {
-    return fs.pathExists(path.join(this.testDir, filename))
+    return existsSync(path.join(this.testDir, filename))
   }
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
   public async readJSON(filename: string) {
-    return fs.readJSON(path.join(this.testDir, filename))
+    return JSON.parse(
+      await fs.readFile(path.join(this.testDir, filename), 'utf-8')
+    )
   }
   private async handleDevWatchDelayBeforeChange(filename: string) {
     // This is a temporary workaround for turbopack starting watching too late.
@@ -434,7 +428,7 @@ export class NextInstance {
     // to connect the WebSocket and start watching.
     if (process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(500)
     }
   }
   private async handleDevWatchDelayAfterChange(filename: string) {
@@ -451,13 +445,21 @@ export class NextInstance {
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
   }
-  public async patchFile(filename: string, content: string) {
+  public async patchFile(
+    filename: string,
+    content: string | ((contents: string) => string)
+  ) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
     const outputPath = path.join(this.testDir, filename)
-    const newFile = !(await fs.pathExists(outputPath))
-    await fs.ensureDir(path.dirname(outputPath))
-    await fs.writeFile(outputPath, content)
+    const newFile = !existsSync(outputPath)
+    await fs.mkdir(path.dirname(outputPath), { recursive: true })
+    await fs.writeFile(
+      outputPath,
+      typeof content === 'function'
+        ? content(await this.readFile(filename))
+        : content
+    )
 
     if (newFile) {
       await this.handleDevWatchDelayAfterChange(filename)
@@ -474,12 +476,13 @@ export class NextInstance {
       path.join(this.testDir, filename),
       path.join(this.testDir, newFilename)
     )
+
     await this.handleDevWatchDelayAfterChange(filename)
   }
   public async renameFolder(foldername: string, newFoldername: string) {
     await this.handleDevWatchDelayBeforeChange(foldername)
 
-    await fs.move(
+    await fs.rename(
       path.join(this.testDir, foldername),
       path.join(this.testDir, newFoldername)
     )
@@ -488,7 +491,11 @@ export class NextInstance {
   public async deleteFile(filename: string) {
     await this.handleDevWatchDelayBeforeChange(filename)
 
-    await fs.remove(path.join(this.testDir, filename))
+    await fs.rm(path.join(this.testDir, filename), {
+      recursive: true,
+      force: true,
+    })
+
     await this.handleDevWatchDelayAfterChange(filename)
   }
 

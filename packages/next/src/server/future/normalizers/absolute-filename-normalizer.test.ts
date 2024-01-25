@@ -1,19 +1,20 @@
+import { PAGE_TYPES } from '../../../lib/page-types'
 import { AbsoluteFilenameNormalizer } from './absolute-filename-normalizer'
 
 describe('AbsoluteFilenameNormalizer', () => {
   it.each([
     {
-      name: 'app',
+      name: PAGE_TYPES.APP,
       pathname: '<root>/app/basic/(grouped)/endpoint/nested/route.ts',
       expected: '/basic/(grouped)/endpoint/nested/route',
     },
     {
-      name: 'pages',
+      name: PAGE_TYPES.PAGES,
       pathname: '<root>/pages/basic/endpoint/nested.ts',
       expected: '/basic/endpoint/nested',
     },
     {
-      name: 'pages',
+      name: PAGE_TYPES.PAGES,
       pathname: '<root>/pages/basic/endpoint/index.ts',
       expected: '/basic/endpoint',
     },
@@ -23,7 +24,7 @@ describe('AbsoluteFilenameNormalizer', () => {
       const normalizer = new AbsoluteFilenameNormalizer(
         `<root>/${name}`,
         ['ts', 'tsx', 'js', 'jsx'],
-        name as 'app' | 'pages' | 'root'
+        name as PAGE_TYPES
       )
 
       expect(normalizer.normalize(pathname)).toEqual(expected)

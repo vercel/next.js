@@ -29,10 +29,15 @@ import {
   isCSSMod,
   regexCSS,
 } from '../loaders/utils'
-import { traverseModules, forEachEntryModule } from '../utils'
+import {
+  traverseModules,
+  forEachEntryModule,
+  formatBarrelOptimizedResource,
+} from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 interface Options {
   dev: boolean
@@ -195,7 +200,7 @@ export class FlightClientEntryPlugin {
         // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath
           ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
-            ? mod.resource
+            ? formatBarrelOptimizedResource(mod.resource, modPath)
             : modPath + modQuery
           : mod.resource
 
@@ -714,7 +719,11 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
+      const pageKey = getEntryKey(
+        COMPILER_NAMES.client,
+        PAGE_TYPES.APP,
+        bundlePath
+      )
 
       if (!entries[pageKey]) {
         entries[pageKey] = {
