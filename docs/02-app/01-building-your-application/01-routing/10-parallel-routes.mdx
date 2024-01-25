@@ -81,7 +81,7 @@ By default, Next.js keeps track of the active _state_ (or subpage) for each slot
 
 > **Good to know**:
 >
-> - The `404` for unmatched routes helps ensure that you don't accidentally render a route that is not a parallel.
+> - The `404` for unmatched routes helps ensure that you don't accidentally render a parallel route on a page that it was not intended for.
 
 ### `default.js`
 
@@ -260,13 +260,13 @@ export default function Page() {
 
 Then, create a new `@modal` slot, and inside it, add a [`default.js`](/docs/app/api-reference/file-conventions/default) file that returns `null`. This ensures that the modal is not rendered when it's not active.
 
-```tsx filename="app/@modal/default.tsx"
+```tsx filename="app/@modal/default.tsx" switcher
 export default function Default() {
   return null
 }
 ```
 
-```tsx filename="app/@modal/default.tsx"
+```jsx filename="app/@modal/default.js" switcher
 export default function Default() {
   return null
 }
@@ -303,7 +303,7 @@ export default function Page() {
 > **Good to know:**
 >
 > - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
-> - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
+> - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
 ### Opening the modal
 
