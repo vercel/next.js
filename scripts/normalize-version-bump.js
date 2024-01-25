@@ -6,23 +6,22 @@
  to bumping the version in the repo's package.json files
 */
 const path = require('path')
-const fs = require('fs/promises')
+const fs = require('fs')
+const fsp = require('fs/promises')
 
 const cwd = process.cwd()
 const NORMALIZED_VERSION = '0.0.0'
 
 const readJson = async (filePath) =>
-  JSON.parse(await fs.readFile(filePath, 'utf8'))
+  JSON.parse(await fsp.readFile(filePath, 'utf8'))
 
 const writeJson = async (filePath, data) =>
-  fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n')
+  fsp.writeFile(filePath, JSON.stringify(data, null, 2) + '\n')
 
 ;(async function () {
-  const packages = (await fs.readdir(path.join(cwd, 'packages'))).filter(
+  const packages = (await fsp.readdir(path.join(cwd, 'packages'))).filter(
     (pkgDir) => {
-      return fs
-        .stat(path.join(cwd, 'packages', pkgDir))
-        .then((stat) => stat.isDirectory())
+      return fs.statSync(path.join(cwd, 'packages', pkgDir)).isDirectory()
     }
   )
 
@@ -67,8 +66,8 @@ const writeJson = async (filePath, data) =>
     )
   )
   await normalizeVersions(path.join(cwd, 'lerna.json'))
-  await fs.unlink(path.join(cwd, 'pnpm-lock.yaml'))
-  await fs.writeFile(path.join(cwd, 'pnpm-lock.yaml'), '')
+  await fsp.unlink(path.join(cwd, 'pnpm-lock.yaml'))
+  await fsp.writeFile(path.join(cwd, 'pnpm-lock.yaml'), '')
 
   const rootPkgJsonPath = path.join(cwd, 'package.json')
   await writeJson(rootPkgJsonPath, {
