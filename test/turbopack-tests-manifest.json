@@ -3387,11 +3387,10 @@
   },
   "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
     "passed": [
-      "app dir - global error - with catch-all route should render catch-all route correctly"
-    ],
-    "failed": [
+      "app dir - global error - with catch-all route should render catch-all route correctly",
       "app dir - global error - with catch-all route should render 404 page correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10749,13 +10748,12 @@
   },
   "test/integration/filesystempublicroutes/test/index.test.js": {
     "passed": [
-      "FileSystemPublicRoutes should route to public folder files",
-      "FileSystemPublicRoutes should still handle /_next routes"
-    ],
-    "failed": [
       "FileSystemPublicRoutes should not route to the index page",
-      "FileSystemPublicRoutes should route to exportPathMap defined routes in development"
+      "FileSystemPublicRoutes should route to exportPathMap defined routes in development",
+      "FileSystemPublicRoutes should route to public folder files",
+      "FileSystemPublicRoutes should serve JavaScript files correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
