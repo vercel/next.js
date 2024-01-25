@@ -383,13 +383,13 @@ jobs:
       - name: Upload turbo summary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: turbo-run-summary-wasm
+          name: turbo-run-summary-wasm-${{matrix.target}}
           path: .turbo/runs
 
       - name: Upload swc artifact
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-binaries
+          name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
 
   publishRelease:
@@ -433,6 +433,8 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wasm-binaries
+          pattern: wasm-binaries-*
+          merge-multiple: true
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
