@@ -4,7 +4,7 @@ export default function ExportPathMapRoute() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
-  })
+  }, [])
   return (
     <div>
       <h1>exportpathmap was here</h1>
