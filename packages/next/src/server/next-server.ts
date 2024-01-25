@@ -544,53 +544,65 @@ export default class NextNodeServer extends BaseServer {
         'invariant: imageOptimizer should not be called in minimal mode'
       )
     } else {
-      const { imageOptimizer } =
+      const { imageOptimizer, fetchExternalImage, fetchInternalImage } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
+      const handleInternalReq = async (
+        newReq: IncomingMessage,
+        newRes: ServerResponse
+      ) => {
+        if (newReq.url === req.url) {
+          throw new Error(`Invariant attempted to optimize _next/image itself`)
+        }
+
+        const protocol = this.serverOptions.experimentalHttpsServer
+          ? 'https'
+          : 'http'
+
+        const invokeRes = await invokeRequest(
+          `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
+            newReq.url || ''
+          }`,
+          {
+            method: newReq.method || 'GET',
+            headers: newReq.headers,
+            signal: signalFromNodeResponse(res.originalResponse),
+          }
+        )
+        const filteredResHeaders = filterReqHeaders(
+          toNodeOutgoingHttpHeaders(invokeRes.headers),
+          ipcForbiddenHeaders
+        )
+
+        for (const key of Object.keys(filteredResHeaders)) {
+          newRes.setHeader(key, filteredResHeaders[key] || '')
+        }
+        newRes.statusCode = invokeRes.status || 200
+
+        if (invokeRes.body) {
+          await pipeToNodeResponse(invokeRes.body, newRes)
+        } else {
+          res.send()
+        }
+        return
+      }
+
+      const { isAbsolute, href } = paramsResult
+
+      const imageUpstream = isAbsolute
+        ? await fetchExternalImage(href)
+        : await fetchInternalImage(
+            href,
+            req.originalRequest,
+            res.originalResponse,
+            handleInternalReq
+          )
+
       return imageOptimizer(
-        req.originalRequest,
-        res.originalResponse,
+        imageUpstream,
         paramsResult,
         this.nextConfig,
-        this.renderOpts.dev,
-        async (newReq, newRes) => {
-          if (newReq.url === req.url) {
-            throw new Error(
-              `Invariant attempted to optimize _next/image itself`
-            )
-          }
-
-          const protocol = this.serverOptions.experimentalHttpsServer
-            ? 'https'
-            : 'http'
-
-          const invokeRes = await invokeRequest(
-            `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
-              newReq.url || ''
-            }`,
-            {
-              method: newReq.method || 'GET',
-              headers: newReq.headers,
-              signal: signalFromNodeResponse(res.originalResponse),
-            }
-          )
-          const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
-          )
-
-          for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
-          }
-          newRes.statusCode = invokeRes.status || 200
-
-          if (invokeRes.body) {
-            await pipeToNodeResponse(invokeRes.body, newRes)
-          } else {
-            res.send()
-          }
-          return
-        }
+        this.renderOpts.dev
       )
     }
   }
