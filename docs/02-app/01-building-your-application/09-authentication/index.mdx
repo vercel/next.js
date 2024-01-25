@@ -163,33 +163,19 @@ export default async function handler(req, res) {
 
 <AppOnly>
 
-1. The user submits their credentials through a login form.
-2. The form calls an API Route.
+1. The user submits their credentials via a login form.
+2. The form calls a Server Action.
 3. Upon successful verification, the process is completed, indicating the user's successful authentication.
 4. If verification is unsuccessful, an error message is shown.
 
 Consider a login form where users can input their credentials:
 
-```tsx filename="pages/index.tsx" switcher
-import { FormEvent } from 'react'
+```tsx filename="app/login/page.tsx" switcher
+import { authenticate } from '@/app/lib/actions'
 
 export default function Page() {
-  async function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      body: formData,
-    })
-
-    // Handle response if necessary
-    const data = await response.json()
-    // ...
-  }
-
   return (
-    <form action={onSubmit}>
+    <form action={authenticate}>
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
       <button type="submit">Login</button>
@@ -198,24 +184,12 @@ export default function Page() {
 }
 ```
 
-```jsx filename="pages/index.jsx" switcher
+```jsx filename="app/login/page.jsx" switcher
+import { authenticate } from '@/app/lib/actions'
+
 export default function Page() {
-  async function onSubmit(event) {
-    event.preventDefault()
-
-    const formData = new FormData(event.target)
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      body: formData,
-    })
-
-    // Handle response if necessary
-    const data = await response.json()
-    // ...
-  }
-
   return (
-    <form action={onSubmit}>
+    <form action={authenticate}>
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
       <button type="submit">Login</button>
@@ -224,36 +198,50 @@ export default function Page() {
 }
 ```
 
-The form above has two input fields for capturing the user's email and password. On submission, it calls an API Route to log in.
+The form above has two input fields for capturing the user's email and password. On submission, it calls the `authenticate` Server Action.
 
-You can then call your authentication provider's API in the API Route to handle authentication:
+You can then call your Authentication Provider's API in the Server Action to handle authentication:
 
-```ts filename="pages/api/login.ts" switcher
-import type { NextApiRequest, NextApiResponse } from 'next'
+```ts filename="app/lib/actions.ts" switcher
+'use server'
+
 import { signIn } from '@/auth'
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export async function authenticate(formData: FormData) {
   try {
-    await signIn('credentials', req.body)
-    return res.status(200).json({ success: true })
+    await signIn('credentials', formData)
   } catch (error) {
-    return res.status(500).json({ error })
+    if (error) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.'
+        default:
+          return 'Something went wrong.'
+      }
+    }
+    throw error
   }
 }
 ```
 
-```js filename="pages/api/login.js" switcher
+```js filename="app/lib/actions.js" switcher
+'use server'
+
 import { signIn } from '@/auth'
 
-export default function handler(req, res) {
+export async function authenticate(formData) {
   try {
-    await signIn('credentials', req.body)
-    return res.status(200).json({ success: true })
+    await signIn('credentials', formData)
   } catch (error) {
-    return res.status(500).json({ error })
+    if (error) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.'
+        default:
+          return 'Something went wrong.'
+      }
+    }
+    throw error
   }
 }
 ```
