@@ -1095,7 +1095,8 @@ function bindingToApi(binding: any, _wasm: boolean) {
     if (nextConfigSerializable.images.loaderFile) {
       nextConfigSerializable.images = {
         ...nextConfig.images,
-        loaderFile: path.relative(projectPath, nextConfig.images.loaderFile),
+        loaderFile:
+          './' + path.relative(projectPath, nextConfig.images.loaderFile),
       }
     }
 
