@@ -235,14 +235,14 @@
     "typescript": "5.2.2",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
-    "webpack": "5.86.0",
+    "webpack": "5.90.0",
     "webpack-bundle-analyzer": "4.7.0",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3",
     "yargs": "16.2.0"
   },
   "resolutions": {
-    "webpack": "5.86.0",
+    "webpack": "5.90.0",
     "browserslist": "4.22.2",
     "caniuse-lite": "1.0.30001579",
     "@types/node": "20.2.5",
