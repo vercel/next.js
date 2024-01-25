@@ -27,14 +27,7 @@ export function y(p, [p1, { p2 }], ...p3) {
         p2,
         p3
     ]));
-    return <Button action={createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
-        f2,
-        f11,
-        p,
-        p1,
-        p2,
-        p3
-    ]))}>Delete</Button>;
+    return <Button action={action}>Delete</Button>;
 }
 export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5] = await decryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_CLOSURE_BOUND);

@@ -3874,12 +3874,11 @@
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
       "app dir - not found with default 404 page should be able to navigate to page with calling not-found in metadata",
       "app dir - not found with default 404 page should error on client notFound from root layout in browser",
-      "app dir - not found with default 404 page should error on server notFound from root layout on server-side"
-    ],
-    "failed": [
+      "app dir - not found with default 404 page should error on server notFound from root layout on server-side",
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
