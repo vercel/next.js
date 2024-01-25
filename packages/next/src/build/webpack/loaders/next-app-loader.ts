@@ -764,11 +764,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   )
 
   // Evaluated the imported modules early in the generated code
-  const earlyEvaluateCode = collectedAsyncImports
-    .map((modulePath) => {
-      return `import ${JSON.stringify(modulePath)};`
-    })
-    .join('\n')
+  const earlyEvaluateCode =
+    process.env.NODE_ENV !== 'production'
+      ? ''
+      : collectedAsyncImports
+          .map((modulePath) => {
+            return `import ${JSON.stringify(modulePath)};`
+          })
+          .join('\n')
 
   return earlyEvaluateCode + code
 }
