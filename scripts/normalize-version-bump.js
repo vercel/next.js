@@ -18,16 +18,20 @@ const writeJson = async (filePath, data) =>
   fs.writeFile(filePath, JSON.stringify(data, null, 2) + '\n')
 
 ;(async function () {
-  const packages = await fs.readdir(path.join(cwd, 'packages'))
+  const packages = (await fs.readdir(path.join(cwd, 'packages'))).filter(
+    (pkgDir) => {
+      return fs
+        .stat(path.join(cwd, 'packages', pkgDir))
+        .then((stat) => stat.isDirectory())
+    }
+  )
 
   const pkgJsonData = new Map()
   const pkgNames = []
   await Promise.all(
     packages.map(async (pkgDir) => {
-      if ((await fs.stat(path.join(cwd, 'packages', pkgDir))).isFile()) return
-      const data = await readJson(
-        path.join(cwd, 'packages', pkgDir, 'package.json')
-      )
+      const subPath = path.join(cwd, 'packages', pkgDir)
+      const data = await readJson(path.join(subPath, 'package.json'))
       pkgNames.push(data.name)
       pkgJsonData.set(pkgDir, data)
     })
