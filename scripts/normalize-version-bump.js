@@ -24,6 +24,7 @@ const writeJson = async (filePath, data) =>
   const pkgNames = []
   await Promise.all(
     packages.map(async (pkgDir) => {
+      if ((await fs.stat(path.join(cwd, 'packages', pkgDir))).isFile()) return
       const data = await readJson(
         path.join(cwd, 'packages', pkgDir, 'package.json')
       )

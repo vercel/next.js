@@ -1,4 +1,5 @@
 {
+  "extends": "../.eslintrc.json",
   "overrides": [
     {
       "rules": {
