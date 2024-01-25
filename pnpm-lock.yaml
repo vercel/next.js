@@ -1106,6 +1106,9 @@ importers:
       babel-plugin-transform-react-remove-prop-types:
         specifier: 0.4.24
         version: 0.4.24
+      browserify-util:
+        specifier: 0.12.5
+        version: 0.12.5
       browserify-zlib:
         specifier: 0.2.0
         version: 0.2.0
@@ -1333,7 +1336,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 12.4.0
-        version: 12.4.0(sass@1.54.0)(webpack@5.86.0)
+        version: 12.4.0(webpack@5.86.0)
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: /schema-utils@2.7.1
@@ -1412,9 +1415,6 @@ importers:
       unistore:
         specifier: 3.4.1
         version: 3.4.1(react@18.2.0)
-      util:
-        specifier: 0.12.4
-        version: 0.12.4
       uuid:
         specifier: 8.3.2
         version: 8.3.2
@@ -8847,6 +8847,16 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
+  /browserify-util@0.12.5:
+    resolution: {integrity: sha512-XYnPikfiu+UC9HujheB/IuG3NVczRJvxbRgWkFTmmTitJKXNekNk/gggiBkVFNah6sXuXYV/IlaEejWrqdJTSw==}
+    dependencies:
+      inherits: 2.0.4
+      is-arguments: 1.0.4
+      is-generator-function: 1.0.10
+      is-typed-array: 1.1.12
+      which-typed-array: 1.1.11
+    dev: true
+
   /browserify-zlib@0.2.0:
     resolution: {integrity: sha512-Z942RysHXmJrhqk88FmKBVq/v5tqmSkDz7p54G/MGyjMnCFFnC79XWNbg+Vta8W6Wb2qtSZTSxIGkJrRpCFEiA==}
     dependencies:
@@ -14624,7 +14634,6 @@ packages:
     engines: {node: '>= 0.4'}
     dependencies:
       has-tostringtag: 1.0.0
-    dev: false
 
   /is-generator-function@1.0.7:
     resolution: {integrity: sha512-YZc5EwyO4f2kWCax7oegfuSr9mFz1ZvieNYBEjmukLxgXfBUbxAWGVF7GZf0zidYtoBl3WvC07YK0wT76a+Rtw==}
@@ -22218,7 +22227,7 @@ packages:
   /safer-buffer@2.1.2:
     resolution: {integrity: sha512-YZo3K82SD7Riyi0E1EQPojLz7kpepnSQI9IyPbHHg1XXXevb5dJI7tpyN2ADxGcQbHG7vcyRHk0cbwqcQriUtg==}
 
-  /sass-loader@12.4.0(sass@1.54.0)(webpack@5.86.0):
+  /sass-loader@12.4.0(webpack@5.86.0):
     resolution: {integrity: sha512-7xN+8khDIzym1oL9XyS6zP6Ges+Bo2B2xbPrjdMHEYyV3AQYhd/wXeru++3ODHF0zMjYmVadblSKrPrjEkL8mg==}
     engines: {node: '>= 12.13.0'}
     peerDependencies:
@@ -22236,7 +22245,6 @@ packages:
     dependencies:
       klona: 2.0.4
       neo-async: 2.6.2
-      sass: 1.54.0
       webpack: 5.86.0(@swc/core@1.3.85)
     dev: true
 
@@ -25234,7 +25242,7 @@ packages:
       foreach: 2.0.5
       function-bind: 1.1.1
       has-symbols: 1.0.2
-      is-typed-array: 1.1.5
+      is-typed-array: 1.1.12
     dev: true
 
   /which@1.3.1:

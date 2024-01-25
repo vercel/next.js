@@ -1575,7 +1575,7 @@ export default async function getBaseWebpackConfig(
                           string_decoder: require.resolve(
                             'next/dist/compiled/string_decoder'
                           ),
-                          sys: require.resolve('next/dist/compiled/util/'),
+                          sys: require.resolve('next/dist/compiled/browserify-util/'),
                           timers: require.resolve(
                             'next/dist/compiled/timers-browserify'
                           ),
@@ -1584,7 +1584,7 @@ export default async function getBaseWebpackConfig(
                           ),
                           // Handled in separate alias
                           // url: require.resolve('url/'),
-                          util: require.resolve('next/dist/compiled/util/'),
+                          util: require.resolve('next/dist/compiled/browserify-util/'),
                           vm: require.resolve(
                             'next/dist/compiled/vm-browserify'
                           ),

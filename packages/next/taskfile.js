@@ -989,7 +989,7 @@ export async function ncc_string_decoder(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
-export async function ncc_util(task, opts) {
+export async function ncc_browserify_util(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('util/')))
     .ncc({
@@ -998,7 +998,7 @@ export async function ncc_util(task, opts) {
       mainFields: ['browser', 'main'],
       target: 'es5',
     })
-    .target('src/compiled/util')
+    .target('src/compiled/browserify-util')
 }
 
 // eslint-disable-next-line camelcase
@@ -2282,7 +2282,7 @@ export async function ncc(task, opts) {
         'ncc_process',
         'ncc_querystring_es3',
         'ncc_string_decoder',
-        'ncc_util',
+        'ncc_browserify_util',
         'ncc_punycode',
         'ncc_set_immediate',
         'ncc_timers_browserify',
