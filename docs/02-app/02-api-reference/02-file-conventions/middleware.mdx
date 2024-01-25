@@ -40,13 +40,60 @@ export const config = {
 }
 ```
 
-## Matcher
+## Exports
 
-[`matcher`](https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher) allows you to filter Middleware to run on specific paths. For a single path, directly provide the path string. For multiple paths, use an array. For instance, `matcher: ['/about', '/contact']` applies Middleware to both the `/about` and `/contact` paths. Matcher supports full regular expressions, enabling complex patterns like negative lookaheads or specific character matches.
+### Middleware Function
+
+The `middleware.ts` (or `.js`) file must export a single middleware function, either as a default or named export. Note that multiple middleware exports from the same file are not supported.
+
+```jsx
+// Example of default export
+export default function middleware(request) {
+  // Middleware logic
+}
+```
+
+### Config Object (Optional)
+
+Optionally, a config object can be exported alongside the middleware function. This object includes various settings, like [matcher](#matcher), to specify paths where the middleware applies, and other configuration options.
+
+```jsx
+export const config = {
+  matcher: '/about/:path*',
+  // Other configuration options
+}
+```
+
+## Params
+
+### `request`
+
+When defining middleware, the default export function, typically named middleware, accepts a single parameter, `request`. This parameter is an instance of `NextRequest`, which represents the incoming HTTP request.
+
+```tsx filename="middleware.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  // Middleware logic goes here
+}
+```
+
+```jsx filename="middleware.js" switcher
+export function middleware(request) {
+  // Middleware logic goes here
+}
+```
+
+> **Note**:
+> `NextRequest` is a type that represents incoming HTTP requests in Next.js middleware, whereas [`NextResponse`](#nextresponse) is a class used to manipulate and send back HTTP responses.
 
 ## NextResponse
 
 Middleware can utilize [`NextResponse`](https://nextjs.org/docs/app/building-your-application/routing/middleware#nextresponse) to enhance route handling capabilities. By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
+
+## Matcher
+
+[`matcher`](https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher) allows you to filter Middleware to run on specific paths. For a single path, directly provide the path string. For multiple paths, use an array. For instance, `matcher: ['/about', '/contact']` applies Middleware to both the `/about` and `/contact` paths. Matcher supports full regular expressions, enabling complex patterns like negative lookaheads or specific character matches.
 
 ## Runtime
 
