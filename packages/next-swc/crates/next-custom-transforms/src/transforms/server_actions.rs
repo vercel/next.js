@@ -900,6 +900,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
             }
 
@@ -986,6 +987,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1059,6 +1061,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Encryption and decryption only happens on the server layer.
@@ -1087,6 +1090,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Make it the first item
