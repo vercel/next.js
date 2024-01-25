@@ -258,7 +258,7 @@ export default function Page() {
 }
 ```
 
-Then, create a new `@modal` slot, and inside it, add a `default.js` file that returns `null`. This ensures that the modal is not rendered when it's not active.
+Then, create a new `@modal` slot, and inside it, add a [`default.js`](/docs/app/api-reference/file-conventions/default) file that returns `null`. This ensures that the modal is not rendered when it's not active.
 
 ```tsx filename="app/@modal/default.tsx"
 export default function Default() {
