@@ -24,7 +24,7 @@ export function AvatarOfMe() {
 
 ## Caching
 
-Next.js will not cache assets in the `public` folder because they may change. The default caching headers applied are:
+Next.js cannot safely cache assets in the `public` folder because they may change. The default caching headers applied are:
 
 ```jsx
 Cache-Control: public, max-age=0
