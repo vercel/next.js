@@ -624,6 +624,16 @@ export class FlightClientEntryPlugin {
         actionImports.push([modRequest, actions])
       }
 
+      const clientComponentEntry = isClientComponentEntryModule(mod)
+
+      if (!clientComponentEntry) {
+        mod.dependencies.forEach((dependency: any) => {
+          filterClientComponents(
+            compilation.moduleGraph.getResolvedModule(dependency)
+          )
+        })
+      }
+
       if (isCSS) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
@@ -641,16 +651,9 @@ export class FlightClientEntryPlugin {
         CSSImports.add(modRequest)
       }
 
-      if (isClientComponentEntryModule(mod)) {
+      if (clientComponentEntry) {
         clientComponentImports.push(modRequest)
-        return
       }
-
-      compilation.moduleGraph
-        .getOutgoingConnections(mod)
-        .forEach((connection: any) => {
-          filterClientComponents(connection.resolvedModule)
-        })
     }
 
     // Traverse the module graph to find all client components.
