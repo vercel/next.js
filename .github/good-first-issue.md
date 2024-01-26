@@ -9,4 +9,4 @@ Please remember to add tests to confirm your code changes will fix the issue and
 If you have any questions, feel free to ask below or on the PR. Generally, you don't need to `@mention` anyone directly, as we will get notified anyway and will respond as soon as we can.
 
 > [!NOTE]  
-> There is no need to ask for permission "can I work on this?" Please, go ahead if there is no linked PR :slightly_smiling_face:_
+> There is no need to ask for permission "can I work on this?" Please, go ahead if there is no linked PR :slightly_smiling_face:
