@@ -109,13 +109,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "index.js (7:5) @ <unknown>
 
-           5 | const increment = useCallback(() => {
-           6 |   setCount(c => c + 1)
-        >  7 |   throw new Error('oops')
-             |   ^
-           8 | }, [setCount])
-           9 | return (
-          10 |   <main>"
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |     ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
@@ -463,7 +463,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       "./index.js
       Error: 
         x Expected '}', got '<eof>'
-         ,-[4:1]
+         ,-[TEST_DIR/index.js:4:1]
        4 |   i++
        5 |   throw Error('no ' + i)
        6 | }, 1000)
