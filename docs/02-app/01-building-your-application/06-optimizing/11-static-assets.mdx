@@ -13,14 +13,12 @@ For example, the file `public/avatars/me.png` can be viewed by visiting the `/av
 ```jsx filename="Example.js"
 import Image from 'next/image'
 
-export function Avatar({ name }) {
-  return (
-    <Image src={`/avatars/${name}.png`} alt={name} width="64" height="64" />
-  )
+export function Avatar({ id, alt }) {
+  return <Image src={`/avatars/${id}.png`} alt={alt} width="64" height="64" />
 }
 
 export function AvatarOfMe() {
-  return <Avatar name="me" />
+  return <Avatar id="me" alt="A portrait of me" />
 }
 ```
 
