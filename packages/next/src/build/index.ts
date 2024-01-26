@@ -115,6 +115,7 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
   serializePageInfos,
+  isReservedAppPage,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -1794,7 +1795,10 @@ export default async function build(
                     pageType === 'app' &&
                     staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-                  if (pageType === 'app' || !isReservedPage(page)) {
+                  if (
+                    (pageType === 'app' && !isReservedAppPage(page)) ||
+                    (pageType === 'pages' && !isReservedPage(page))
+                  ) {
                     try {
                       let edgeInfo: any
 
