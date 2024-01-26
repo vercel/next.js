@@ -77,6 +77,7 @@ describe('TypeScript Features', () => {
       'should resolve files in correct order',
       async () => {
         const $ = await get$('/hello')
+        // eslint-disable-next-line jest/no-standalone-expect
         expect($('#imported-value').text()).toBe('OK')
       }
     )
