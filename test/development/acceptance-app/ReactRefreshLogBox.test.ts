@@ -26,14 +26,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         export default function Page() {
           return (
             <>
+              <p>index page</p>
 
-                          <p>index page</p>
-
-                          <a onClick={() => {
-                            throw new Error('idk')
-                          }}>
-                            click me
-                          </a>
+              <a onClick={() => {
+                throw new Error('idk')
+              }}>
+                click me
+              </a>
             </>
           )
         }
