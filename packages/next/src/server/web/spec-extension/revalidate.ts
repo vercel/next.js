@@ -27,7 +27,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
   } else if (isDynamicRoute(originalPath)) {
     console.warn(
-      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath" without the "page" argument. This has no affect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
+      `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
   return revalidate(normalizedPath, `revalidatePath ${originalPath}`)
