@@ -89,7 +89,7 @@ export function middleware(request) {
 
 ## NextResponse
 
-Middleware can utilize [`NextResponse`](/docs/app/building-your-application/routing/middleware#nextresponse) to enhance route handling capabilities. By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
+Middleware can use the [`NextResponse`](/docs/app/building-your-application/routing/middleware#nextresponse) object which extends the [Web Response API](https://developer.mozilla.org/en-US/docs/Web/API/Response). By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
 
 > **Good to know**: For redirects, you can also use `Response.redirect` instead of `NextResponse.redirect`.
 
