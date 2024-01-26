@@ -974,6 +974,14 @@ export default async function getBaseWebpackConfig(
           chunks: (chunk: any) =>
             !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
           cacheGroups: {
+            css: {
+              test: /\.(css|sass|scss)$/i,
+              chunks: 'all',
+              enforce: true,
+              type: /css/,
+              minChunks: 2,
+              priority: 100,
+            },
             framework: {
               chunks: 'all',
               name: 'framework',
