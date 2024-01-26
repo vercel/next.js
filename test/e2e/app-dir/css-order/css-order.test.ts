@@ -49,6 +49,9 @@ createNextDescribe(
   'css-order',
   {
     files: __dirname,
+    dependencies: {
+      sass: 'latest',
+    },
   },
   ({ next, isNextDev, isTurbopack }) => {
     for (const ordering of allPairs) {
