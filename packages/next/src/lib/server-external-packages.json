@@ -8,6 +8,7 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@prisma/client",
+  "@sentry/profiling-node",
   "@swc/core",
   "argon2",
   "autoprefixer",
