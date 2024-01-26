@@ -534,7 +534,11 @@ export async function imageOptimizer(
   const { isAbsolute, href, width, mimeType, quality } = paramsResult
 
   if (isAbsolute) {
-    const upstreamRes = await fetch(href)
+    const upstreamRes = await fetch(href, {
+      headers: {
+        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+      }
+    })
 
     if (!upstreamRes.ok) {
       Log.error('upstream image response failed for', href, upstreamRes.status)
