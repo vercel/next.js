@@ -432,7 +432,6 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: wasm-binaries
           pattern: wasm-binaries-*
           merge-multiple: true
           path: packages/next-swc/crates/wasm
