@@ -27,11 +27,11 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
     if (prefixLength > 1) {
-      const p = ' '.repeat(prefixLength)
       return lines
         .map((line, a) =>
           ~(a = line.indexOf('|'))
-            ? line.substring(0, a) + line.substring(a).replace(p, '')
+            ? line.substring(0, a) +
+              line.substring(a).replace(new RegExp(`^\\ {${prefixLength}}`), '')
             : line
         )
         .join('\n')
