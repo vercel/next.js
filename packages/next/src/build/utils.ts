@@ -84,6 +84,7 @@ import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isDefaultRoute } from '../lib/is-default-route'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -2121,6 +2122,10 @@ startServer({
 
 export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
+}
+
+export function isReservedAppPage(page: string) {
+  return isDefaultRoute(page)
 }
 
 export function isAppBuiltinNotFoundPage(page: string) {

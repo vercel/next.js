@@ -81,6 +81,7 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { useFlightResponse } from './use-flight-response'
 import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -1014,8 +1015,9 @@ async function renderToHTMLOrFlightImpl(
           console.log()
 
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
+            const stack = getStackWithoutErrorMessage(err)
             error(
-              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
+              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
 
             throw err
