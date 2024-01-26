@@ -1156,11 +1156,30 @@ function runTests({ dev }) {
         }
       `
       )
+      await check(async () => {
+        const response = await fetch(
+          '/_next/static/development/_devPagesManifest.json',
+          {
+            credentials: 'same-origin',
+          }
+        )
+
+        // Check if the response was successful (status code in the range 200-299)
+        if (!response.ok) {
+          return 'fail'
+        }
+
+        const contents = await response.text()
+        const containsAddedLater = contents.includes('added-later')
+
+        return containsAddedLater ? 'success' : 'fail'
+      }, 'success')
 
       await check(async () => {
         const contents = await renderViaHTTP(
           appPort,
-          '/_next/static/development/_devPagesManifest.json'
+          '/_next/static/development/_devPagesManifest.json',
+          { credentials: 'same-origin' }
         )
         return contents.includes('added-later') ? 'success' : 'fail'
       }, 'success')
