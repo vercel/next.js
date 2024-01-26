@@ -1178,8 +1178,7 @@ function runTests({ dev }) {
       await check(async () => {
         const contents = await renderViaHTTP(
           appPort,
-          '/_next/static/development/_devPagesManifest.json',
-          { credentials: 'same-origin' }
+          '/_next/static/development/_devPagesManifest.json'
         )
         return contents.includes('added-later') ? 'success' : 'fail'
       }, 'success')
