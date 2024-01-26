@@ -7,11 +7,11 @@ related:
     - app/building-your-application/routing/middleware
 ---
 
-The `middleware.ts` file is used to write [Middleware](/docs/app/building-your-application/routing/middleware) and run code on the server before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
+The `middleware.ts` (or .js) file is used to write [Middleware](/docs/app/building-your-application/routing/middleware) and run code on the server before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side functionalities like authentication, logging, or handling redirects.
 
-Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as pages or app, or inside src if applicable.
+Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as `app` or `pages`, or inside `src` if applicable.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse } from 'next/server'
@@ -27,7 +27,7 @@ export const config = {
 }
 ```
 
-```jsx filename="middleware.js" switcher
+```js filename="middleware.js" switcher
 import { NextResponse } from 'next/server'
 
 // This function can be marked `async` if using `await` inside
@@ -42,22 +42,22 @@ export const config = {
 
 ## Exports
 
-### Middleware Function
+### Middleware function
 
-The `middleware.ts` (or `.js`) file must export a single middleware function, either as a default or named export. Note that multiple middleware exports from the same file are not supported.
+The `middleware.ts` (or `.js`) file must export a single Middleware function, either as a default or named export. Note that multiple Middleware exports from the same file are not supported.
 
-```jsx
+```js
 // Example of default export
 export default function middleware(request) {
   // Middleware logic
 }
 ```
 
-### Config Object (Optional)
+### Config object (optional)
 
-Optionally, a config object can be exported alongside the middleware function. This object includes various settings, like [matcher](#matcher), to specify paths where the middleware applies, and other configuration options.
+Optionally, a config object can be exported alongside the Middleware function. This object includes various settings, like [matcher](#matcher), to specify paths where the Middleware applies, and other configuration options.
 
-```jsx
+```js
 export const config = {
   matcher: '/about/:path*',
   // Other configuration options
@@ -68,7 +68,7 @@ export const config = {
 
 ### `request`
 
-When defining middleware, the default export function accepts a single parameter, `request`. This parameter is an instance of `NextRequest`, which represents the incoming HTTP request.
+When defining Middleware, the default export function accepts a single parameter, `request`. This parameter is an instance of `NextRequest`, which represents the incoming HTTP request.
 
 ```tsx filename="middleware.ts" switcher
 import type { NextRequest } from 'next/server'
@@ -78,24 +78,24 @@ export function middleware(request: NextRequest) {
 }
 ```
 
-```jsx filename="middleware.js" switcher
+```js filename="middleware.js" switcher
 export function middleware(request) {
   // Middleware logic goes here
 }
 ```
 
 > **Note**:
-> `NextRequest` is a type that represents incoming HTTP requests in Next.js middleware, whereas [`NextResponse`](#nextresponse) is a class used to manipulate and send back HTTP responses.
+> `NextRequest` is a type that represents incoming HTTP requests in Next.js Middleware, whereas [`NextResponse`](#nextresponse) is a class used to manipulate and send back HTTP responses.
 
 ## NextResponse
 
-Middleware can utilize [`NextResponse`](https://nextjs.org/docs/app/building-your-application/routing/middleware#nextresponse) to enhance route handling capabilities. By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
+Middleware can utilize [`NextResponse`](/docs/app/building-your-application/routing/middleware#nextresponse) to enhance route handling capabilities. By returning a `NextResponse` object, you can directly manipulate cookies, set headers, implement redirects, and rewrite paths.
 
 > **Good to know**: For redirects, you can also use `Response.redirect` instead of `NextResponse.redirect`.
 
 ## Matcher
 
-[`matcher`](https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher) allows you to filter Middleware to run on specific paths. For a single path, directly provide the path string. For multiple paths, use an array. For instance, `matcher: ['/about', '/contact']` applies Middleware to both the `/about` and `/contact` paths. Matcher supports full regular expressions, enabling complex patterns like negative lookaheads or specific character matches.
+[`matcher`](/docs/app/building-your-application/routing/middleware#matcher) allows you to filter Middleware to run on specific paths. For a single path, directly provide the path string. For multiple paths, use an array. For instance, `matcher: ['/about', '/contact']` applies Middleware to both the `/about` and `/contact` paths. Matcher supports full regular expressions, enabling complex patterns like negative lookaheads or specific character matches.
 
 ## Runtime
 
