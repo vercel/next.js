@@ -444,6 +444,7 @@ describe('serverPatchReducer', () => {
         "prefetchCache": Map {
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,

@@ -148,6 +148,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
+            key: '/linking/about',
             data: prom,
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
@@ -304,6 +305,7 @@ describe('prefetchReducer', () => {
         [
           '/linking/about',
           {
+            key: '/linking/about',
             data: prom,
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,

@@ -1,4 +1,3 @@
-import { fetchServerResponse } from '../fetch-server-response'
 import type {
   PrefetchAction,
   ReducerState,
@@ -9,8 +8,10 @@ import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
 import { PromiseQueue } from '../../promise-queue'
 import {
   createPrefetchCacheKey,
+  createPrefetchCacheEntry,
+  getPrefetchCacheEntry,
   prunePrefetchCache,
-} from '../prefetch-cache-utils'
+} from './prefetch-cache-utils'
 
 export const prefetchQueue = new PromiseQueue(5)
 
@@ -24,8 +25,7 @@ export function prefetchReducer(
   const { url } = action
   url.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  const cacheEntry = state.prefetchCache.get(prefetchCacheKey)
+  const cacheEntry = getPrefetchCacheEntry(url, state)
 
   if (cacheEntry) {
     /**
@@ -33,7 +33,7 @@ export function prefetchReducer(
      * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
      */
     if (cacheEntry.kind === PrefetchKind.TEMPORARY) {
-      state.prefetchCache.set(prefetchCacheKey, {
+      state.prefetchCache.set(cacheEntry.key, {
         ...cacheEntry,
         kind: action.kind,
       })
@@ -53,27 +53,15 @@ export function prefetchReducer(
     }
   }
 
-  // fetchServerResponse is intentionally not awaited so that it can be unwrapped in the navigate-reducer
-  const serverResponse = prefetchQueue.enqueue(() =>
-    fetchServerResponse(
-      url,
-      // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      action.kind
-    )
-  )
-
-  // Create new tree based on the flightSegmentPath and router state patch
-  state.prefetchCache.set(prefetchCacheKey, {
-    // Create new tree based on the flightSegmentPath and router state patch
-    treeAtTimeOfPrefetch: state.tree,
-    data: serverResponse,
+  const prefetchCacheKey = createPrefetchCacheKey(url)
+  const newEntry = createPrefetchCacheEntry({
+    state,
+    url,
     kind: action.kind,
-    prefetchTime: Date.now(),
-    lastUsedTime: null,
+    prefetchCacheKey,
   })
+
+  state.prefetchCache.set(prefetchCacheKey, newEntry)
 
   return state
 }
