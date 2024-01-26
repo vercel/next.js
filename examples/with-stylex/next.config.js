@@ -1,11 +1,5 @@
-/** @type {import('next').NextConfig} */
-const stylexPlugin = require("@stylexjs/nextjs-plugin");
-
-const nextConfig = {
-  pageExtensions: ["js", "jsx", "ts", "tsx"],
-  transpilePackages: ["@stylexjs/open-props"],
-};
+const stylexPlugin = require('@stylexjs/nextjs-plugin');
 
 module.exports = stylexPlugin({
   rootDir: __dirname,
-})(nextConfig);
+})({});

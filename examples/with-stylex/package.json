@@ -31,6 +31,7 @@
     "eslint": "8.52.0",
     "eslint-config-next": "14.0.1",
     "jest": "^30.0.0-alpha.1",
+    "next-transpile-modules": "^10.0.1",
     "prettier": "^3.1.1",
     "react-test-renderer": "^18.2.0",
     "rimraf": "^5.0.5",

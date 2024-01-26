@@ -1,16 +1,14 @@
 module.exports = {
-  presets: ["next/babel"],
+  presets: ['next/babel'],
   plugins: [
     [
-      "@stylexjs/babel-plugin",
+      '@stylexjs/babel-plugin',
       {
-        dev: process.env.NODE_ENV === "development",
-        test: process.env.NODE_ENV === "test",
+        dev: process.env.NODE_ENV === 'development',
         runtimeInjection: false,
         genConditionalClasses: true,
-        treeshakeCompensation: true,
         unstable_moduleResolution: {
-          type: "commonJS",
+          type: 'commonJS',
           rootDir: __dirname,
         },
       },
