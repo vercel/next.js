@@ -8,22 +8,28 @@ description: Next.js allows you to serve static files, like images, in the publi
 
 Next.js can serve static files, like images, under a folder called `public` in the root directory. Files inside `public` can then be referenced by your code starting from the base URL (`/`).
 
-For example, if you add `me.png` inside `public`, the following code will access the image:
+For example, the file `public/avatars/me.png` can be viewed by visiting the `/avatars/me.png` path. The code might look like:
 
-```jsx filename="Avatar.js"
+```jsx filename="Example.js"
 import Image from 'next/image'
 
-export function Avatar() {
-  return <Image src="/me.png" alt="me" width="64" height="64" />
+export function Avatar({ name }) {
+  return (
+    <Image src={`/avatars/${name}.png`} alt={name} width="64" height="64" />
+  )
+}
+
+export function AvatarOfMe() {
+  return <Avatar name="me" />
 }
 ```
 
 ## Caching
 
-Next.js automatically adds caching headers to immutable assets in the `public` folder. The default caching headers applied are:
+Next.js will not cache assets in the `public` folder because they may change. The default caching headers applied are:
 
 ```jsx
-Cache-Control: public, max-age=31536000, immutable
+Cache-Control: public, max-age=0
 ```
 
 ## Robots, Favicons, and others
