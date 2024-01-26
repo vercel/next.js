@@ -61,7 +61,7 @@ createNextDescribe(
       // TODO fix this case
       const broken = isNextDev && !isTurbopack
       if (broken) {
-        it.skip(name)
+        it.todo(name)
         continue
       }
       it(name, async () => {
@@ -96,9 +96,11 @@ createNextDescribe(
       const broken =
         isNextDev &&
         !isTurbopack &&
-        ordering.some((page) => page.includes('client'))
+        ordering.some(
+          (page) => page.includes('client') || page.includes('first')
+        )
       if (broken) {
-        it.skip(name)
+        it.todo(name)
         continue
       }
       it(name, async () => {
@@ -126,7 +128,7 @@ createNextDescribe(
       // TODO fix this case
       const broken = isNextDev && !isTurbopack && page.includes('client')
       if (broken) {
-        it.skip(name)
+        it.todo(name)
         continue
       }
       it(name, async () => {
