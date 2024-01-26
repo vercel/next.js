@@ -10,8 +10,6 @@ Parallel Routes allows you to simultaneously or conditionally render one or more
 
 For example, considering a dashboard, you can use parallel routes to simultaneously render the `team` and `analytics` pages:
 
-{/* To do: Update main diagram to remove `props.team` and `props.analytics`, prefer destructuring */}
-
 <Image
   alt="Parallel Routes Diagram"
   srcLight="/docs/light/parallel-routes.png"
@@ -406,31 +404,8 @@ export function Modal({ children }) {
 }
 ```
 
-If you want to navigate elsewhere and dismiss a modal, you can also use a catch-all route.
-
-<Image
-  alt="Parallel Routes Diagram"
-  srcLight="/docs/light/parallel-routes-catchall.png"
-  srcDark="/docs/dark/parallel-routes-catchall.png"
-  width="1600"
-  height="768"
-/>
-
-```tsx filename="app/@auth/[...catchAll]/page.tsx" switcher
-export default function CatchAll() {
-  return null
-}
-```
-
-```jsx filename="app/@auth/[...catchAll]/page.js" switcher
-export default function CatchAll() {
-  return null
-}
-```
-
 > **Good to know:**
 >
-> - Catch-all routes take precedence over `default.js`.
 > - Other examples could include opening a photo modal in a gallery while also having a dedicated `/photo/[id]` page, or opening a shopping cart in a side modal.
 > - [View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
 
