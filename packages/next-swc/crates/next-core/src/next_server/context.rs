@@ -13,7 +13,9 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, ServerAddr},
+            environment::{
+                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
+            },
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
@@ -330,11 +332,13 @@ pub async fn get_server_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
+    let versions = RuntimeVersions(Default::default()).cell();
 
     // EcmascriptTransformPlugins for custom transforms
     let styled_components_transform_plugin =
         *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
+    let styled_jsx_transform_plugin =
+        *get_styled_jsx_transform_plugin(use_lightningcss, versions).await?;
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -349,7 +353,17 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
+
+    // Get the jsx transform options for the `client` side.
+    // This matches to the behavior of existing webpack config, if issuer layer is
+    // ssr or pages-browser (client bundle for the browser)
+    // applies client specific swc transforms.
+    //
+    // This enables correct emotion transform and other hydration between server and
+    // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
     let jsx_runtime_options =
+        get_jsx_transform_options(project_path, mode, None, false, next_config);
+    let rsc_jsx_runtime_options =
         get_jsx_transform_options(project_path, mode, None, true, next_config);
 
     let source_transforms: Vec<Vc<TransformPlugin>> = vec![
@@ -490,16 +504,6 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
 
-            // Get the jsx transform options for the `client` side.
-            // This matches to the behavior of existing webpack config, if issuer layer is
-            // ssr or pages-browser (client bundle for the browser)
-            // applies client specific swc transforms.
-            //
-            // This enables correct emotion transform and other hydration between server and
-            // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
-            let jsx_runtime_options =
-                get_jsx_transform_options(project_path, mode, None, false, next_config);
-
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
@@ -576,7 +580,7 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
                 enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),

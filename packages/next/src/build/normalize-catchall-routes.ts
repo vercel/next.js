@@ -36,6 +36,7 @@ export function normalizeCatchAllRoutes(
         0,
         normalizedCatchAllRoute.search(catchAllRouteRegex)
       )
+
       if (
         // check if the appPath could match the catch-all
         appPath.startsWith(normalizedCatchAllRouteBasePath) &&
@@ -43,8 +44,10 @@ export function normalizeCatchAllRoutes(
         !appPaths[appPath].some((path) =>
           hasMatchedSlots(path, catchAllRoute)
         ) &&
-        // check if the catch-all is not already matched by a default route
-        !appPaths[`${appPath}/default`]
+        // check if the catch-all is not already matched by a default route or page route
+        !appPaths[`${appPath}/default`] &&
+        // check if appPath is a catch-all OR is not more specific than the catch-all
+        (isCatchAllRoute(appPath) || !isMoreSpecific(appPath, catchAllRoute))
       ) {
         appPaths[appPath].push(catchAllRoute)
       }
@@ -80,4 +83,11 @@ const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
   return pathname.includes('[...') || pathname.includes('[[...')
+}
+
+// test to see if a path is more specific than a catch-all route
+function isMoreSpecific(pathname: string, catchAllRoute: string): boolean {
+  const pathnameDepth = pathname.split('/').length
+  const catchAllRouteDepth = catchAllRoute.split('/').length - 1
+  return pathnameDepth > catchAllRouteDepth
 }

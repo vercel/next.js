@@ -552,9 +552,12 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const { rootDir, route } = getModuleBuildInfo(
+      const resolvedModule =
         compilation.moduleGraph.getResolvedModule(entryDependency)
-      )
+      if (!resolvedModule) {
+        continue
+      }
+      const { rootDir, route } = getModuleBuildInfo(resolvedModule)
 
       const { moduleGraph } = compilation
       const modules = new Set<webpack.NormalModule>()
