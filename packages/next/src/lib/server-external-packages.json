@@ -8,8 +8,6 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@prisma/client",
-  "@sentry/nextjs",
-  "@sentry/node",
   "@sentry/profiling-node",
   "@swc/core",
   "argon2",
