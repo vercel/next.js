@@ -11,6 +11,7 @@ mod babel;
 mod bootstrap;
 mod embed_js;
 mod emit;
+pub mod instrumentation;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
@@ -64,3 +65,9 @@ pub fn register() {
     turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
+
+#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
+compile_error!("You can't enable both `native-tls` and `rustls-tls`");
+
+#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
+compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");

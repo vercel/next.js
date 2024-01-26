@@ -1,10 +1,10 @@
-import React from 'react'
-import NextImage, { StaticImageData } from 'next/image'
-import classes from './index.module.scss'
-import cssVariables from '../../../cssVariables'
-import { Props } from '..'
+import React from "react";
+import NextImage, { StaticImageData } from "next/image";
+import classes from "./index.module.scss";
+import cssVariables from "../../../cssVariables";
+import { Props } from "..";
 
-const { breakpoints } = cssVariables
+const { breakpoints } = cssVariables;
 
 export const Image: React.FC<Props> = (props) => {
   const {
@@ -16,49 +16,49 @@ export const Image: React.FC<Props> = (props) => {
     fill,
     src: srcFromProps,
     alt: altFromProps,
-  } = props
+  } = props;
 
-  const [isLoading, setIsLoading] = React.useState(true)
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  let width: number | undefined
-  let height: number | undefined
-  let alt = altFromProps
-  let src: StaticImageData | string = srcFromProps || ''
+  let width: number | undefined;
+  let height: number | undefined;
+  let alt = altFromProps;
+  let src: StaticImageData | string = srcFromProps || "";
 
-  if (!src && resource && typeof resource !== 'string') {
+  if (!src && resource && typeof resource !== "string") {
     const {
       width: fullWidth,
       height: fullHeight,
       filename: fullFilename,
       alt: altFromResource,
-    } = resource
+    } = resource;
 
-    width = fullWidth
-    height = fullHeight
-    alt = altFromResource
+    width = fullWidth;
+    height = fullHeight;
+    alt = altFromResource;
 
-    let filename = fullFilename
+    let filename = fullFilename;
 
-    src = `https://${process.env.NEXT_PUBLIC_S3_HOSTNAME}/${process.env.NEXT_PUBLIC_S3_BUCKET}/${filename}`
+    src = `https://${process.env.NEXT_PUBLIC_S3_HOSTNAME}/${process.env.NEXT_PUBLIC_S3_BUCKET}/${filename}`;
   }
 
   // NOTE: this is used by the browser to determine which image to download at different screen sizes
   const sizes = Object.entries(breakpoints)
     .map(([, value]) => `(max-width: ${value}px) ${value}px`)
-    .join(', ')
+    .join(", ");
 
   return (
     <NextImage
       className={[isLoading && classes.placeholder, classes.image, imgClassName]
         .filter(Boolean)
-        .join(' ')}
+        .join(" ")}
       src={src}
-      alt={alt || ''}
+      alt={alt || ""}
       onClick={onClick}
       onLoad={() => {
-        setIsLoading(false)
-        if (typeof onLoadFromProps === 'function') {
-          onLoadFromProps()
+        setIsLoading(false);
+        if (typeof onLoadFromProps === "function") {
+          onLoadFromProps();
         }
       }}
       fill={fill}
@@ -67,5 +67,5 @@ export const Image: React.FC<Props> = (props) => {
       sizes={sizes}
       priority={priority}
     />
-  )
-}
+  );
+};

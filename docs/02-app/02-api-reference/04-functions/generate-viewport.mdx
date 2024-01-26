@@ -19,10 +19,10 @@ You can customize the initial viewport of the page with the static `viewport` ob
 
 ## The `viewport` object
 
-To define the viewport options, export a `viewport` object from a `layout.js` or `page.js` file.
+To define the viewport options, export a `viewport` object from a `layout.jsx` or `page.jsx` file.
 
 ```tsx filename="layout.tsx | page.tsx" switcher
-import { Viewport } from 'next'
+import type { Viewport } from 'next'
 
 export const viewport: Viewport = {
   themeColor: 'black',
@@ -31,7 +31,7 @@ export const viewport: Viewport = {
 export default function Page() {}
 ```
 
-```jsx filename="layout.js | page.js" switcher
+```jsx filename="layout.jsx | page.jsx" switcher
 export const viewport = {
   themeColor: 'black',
 }
@@ -67,11 +67,19 @@ export function generateViewport({ params }) {
 
 ### `themeColor`
 
-Learn more about [theme-color](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
+Learn more about [`theme-color`](https://developer.mozilla.org/docs/Web/HTML/Element/meta/name/theme-color).
 
 **Simple theme color**
 
-```jsx filename="layout.js | page.js"
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  themeColor: 'black',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
 export const viewport = {
   themeColor: 'black',
 }
@@ -83,7 +91,18 @@ export const viewport = {
 
 **With media attribute**
 
-```jsx filename="layout.js | page.js"
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: 'cyan' },
+    { media: '(prefers-color-scheme: dark)', color: 'black' },
+  ],
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
 export const viewport = {
   themeColor: [
     { media: '(prefers-color-scheme: light)', color: 'cyan' },
@@ -97,15 +116,29 @@ export const viewport = {
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="black" />
 ```
 
-### `width`, `initialScale`, and `maximumScale`
+### `width`, `initialScale`, `maximumScale` and `userScalable`
 
 > **Good to know**: The `viewport` meta tag is automatically set with the following default values. Usually, manual configuration is unnecessary as the default is sufficient. However, the information is provided for completeness.
 
-```jsx filename="layout.js | page.js"
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  // Also supported by less commonly used
+  // interactiveWidget: 'resizes-visual',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
 export const viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
+  userScalable: false,
   // Also supported by less commonly used
   // interactiveWidget: 'resizes-visual',
 }
@@ -114,7 +147,7 @@ export const viewport = {
 ```html filename="<head> output" hideLineNumbers
 <meta
   name="viewport"
-  content="width=device-width, initial-scale=1, maximum-scale=1"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
 />
 ```
 
@@ -122,7 +155,15 @@ export const viewport = {
 
 Learn more about [`color-scheme`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta/name#:~:text=color%2Dscheme%3A%20specifies,of%20the%20following%3A).
 
-```jsx filename="layout.js | page.js"
+```tsx filename="layout.tsx | page.tsx" switcher
+import type { Viewport } from 'next'
+
+export const viewport: Viewport = {
+  colorScheme: 'dark',
+}
+```
+
+```jsx filename="layout.jsx | page.jsx" switcher
 export const viewport = {
   colorScheme: 'dark',
 }

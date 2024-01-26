@@ -1,5 +1,5 @@
-import { foo } from 'external-package'
+import { dir } from 'external-package'
 
 export default function Page() {
-  return <div>{foo}</div>
+  return <div id="directory">{dir}</div>
 }

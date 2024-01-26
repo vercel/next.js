@@ -35,7 +35,7 @@ In Next.js, the lightweight Edge Runtime is a subset of available Node.js APIs.
 
 The Edge Runtime is ideal if you need to deliver dynamic, personalized content at low latency with small, simple functions. The Edge Runtime's speed comes from its minimal use of resources, but that can be limiting in many scenarios.
 
-For example, code executed in the Edge Runtime [on Vercel cannot exceed between 1 MB and 4 MB](https://vercel.com/docs/concepts/limits/overview#edge-middleware-and-edge-functions-size), this limit includes imported packages, fonts and files, and will vary depending on your deployment infrastructure.
+For example, code executed in the Edge Runtime [on Vercel cannot exceed between 1 MB and 4 MB](https://vercel.com/docs/concepts/limits/overview#edge-middleware-and-edge-functions-size), this limit includes imported packages, fonts and files, and will vary depending on your deployment infrastructure. In addition, the Edge Runtime does not support all Node.js APIs meaning some `npm` packages may not work. For example, "Module not found: Can't resolve 'fs'" or similar errors. We recommend using the Node.js runtime if you need to use these APIs or packages.
 
 ### Node.js Runtime
 

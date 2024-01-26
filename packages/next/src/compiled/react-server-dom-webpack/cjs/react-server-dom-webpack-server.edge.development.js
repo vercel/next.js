@@ -689,7 +689,15 @@ function createHints() {
 }
 
 var supportsRequestStorage = typeof AsyncLocalStorage === 'function';
-var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null;
+var requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null; // We use the Node version but get access to async_hooks from a global.
+
+typeof async_hooks === 'object' ? async_hooks.createHook : function () {
+  return {
+    enable: function () {},
+    disable: function () {}
+  };
+};
+typeof async_hooks === 'object' ? async_hooks.executionAsyncId : null;
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -1605,11 +1613,15 @@ function serializeThenable(request, thenable) {
     newTask.model = value;
     pingTask(request, newTask);
   }, function (reason) {
-    newTask.status = ERRORED$1;
-    request.abortableTasks.delete(newTask); // TODO: We should ideally do this inside performWork so it's scheduled
+    {
+      newTask.status = ERRORED$1;
 
-    var digest = logRecoverableError(request, reason);
-    emitErrorChunk(request, newTask.id, digest, reason);
+      var _digest = logRecoverableError(request, reason);
+
+      emitErrorChunk(request, newTask.id, _digest, reason);
+    }
+
+    request.abortableTasks.delete(newTask);
 
     if (request.destination !== null) {
       flushCompletedChunks(request, request.destination);

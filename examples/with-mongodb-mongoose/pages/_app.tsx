@@ -1,8 +1,8 @@
-import '../css/style.css'
-import '../css/form.css'
-import Head from 'next/head'
-import Link from 'next/link'
-import type { AppProps } from 'next/app'
+import "../css/style.css";
+import "../css/form.css";
+import Head from "next/head";
+import Link from "next/link";
+import type { AppProps } from "next/app";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -27,7 +27,7 @@ function MyApp({ Component, pageProps }: AppProps) {
         <Component {...pageProps} />
       </div>
     </>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

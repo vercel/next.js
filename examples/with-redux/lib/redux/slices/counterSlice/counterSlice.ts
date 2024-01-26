@@ -1,16 +1,16 @@
 /* Core */
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 /* Instruments */
-import { incrementAsync } from './thunks'
+import { incrementAsync } from "./thunks";
 
 const initialState: CounterSliceState = {
   value: 0,
-  status: 'idle',
-}
+  status: "idle",
+};
 
 export const counterSlice = createSlice({
-  name: 'counter',
+  name: "counter",
   initialState,
   // The `reducers` field lets us define reducers and generate associated actions
   reducers: {
@@ -19,14 +19,14 @@ export const counterSlice = createSlice({
       // doesn't actually mutate the state because it uses the Immer library,
       // which detects changes to a "draft state" and produces a brand new
       // immutable state based off those changes
-      state.value += 1
+      state.value += 1;
     },
     decrement: (state) => {
-      state.value -= 1
+      state.value -= 1;
     },
     // Use the PayloadAction type to declare the contents of `action.payload`
     incrementByAmount: (state, action: PayloadAction<number>) => {
-      state.value += action.payload
+      state.value += action.payload;
     },
   },
   // The `extraReducers` field lets the slice handle actions defined elsewhere,
@@ -34,17 +34,17 @@ export const counterSlice = createSlice({
   extraReducers: (builder) => {
     builder
       .addCase(incrementAsync.pending, (state) => {
-        state.status = 'loading'
+        state.status = "loading";
       })
       .addCase(incrementAsync.fulfilled, (state, action) => {
-        state.status = 'idle'
-        state.value += action.payload
-      })
+        state.status = "idle";
+        state.value += action.payload;
+      });
   },
-})
+});
 
 /* Types */
 export interface CounterSliceState {
-  value: number
-  status: 'idle' | 'loading' | 'failed'
+  value: number;
+  status: "idle" | "loading" | "failed";
 }

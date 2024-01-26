@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "strict": false,
+    "noEmit": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "target": "ESNext",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
+    "paths": {
+      "development-sandbox": ["test/lib/development-sandbox"],
+      "next-test-utils": ["test/lib/next-test-utils"],
+      "amp-test-utils": ["test/lib/amp-test-utils"],
+      "next-webdriver": ["test/lib/next-webdriver"],
+      "e2e-utils": ["test/lib/e2e-utils"],
+      "test-data-service/*": ["test/lib/test-data-service/*"],
+      "test-log": ["test/lib/test-log"]
+    }
+  }
+}

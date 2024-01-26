@@ -1,7 +1,7 @@
-import { NextPage } from 'next'
+import { NextPage } from "next";
 
 export const RedirectedPage: NextPage = () => {
-  return <h1>Redirected from /about</h1>
-}
+  return <h1>Redirected from /about</h1>;
+};
 
-export default RedirectedPage
+export default RedirectedPage;

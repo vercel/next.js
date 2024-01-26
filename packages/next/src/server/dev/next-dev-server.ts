@@ -58,7 +58,6 @@ import { DevAppRouteRouteMatcherProvider } from '../future/route-matcher-provide
 import { NodeManifestLoader } from '../future/route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../future/route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import { NextBuildContext } from '../../build/build-context'
 import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -103,7 +102,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch: typeof fetch
+  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -153,7 +152,7 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.originalFetch = global.fetch
+    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
@@ -198,11 +197,12 @@ export default class DevServer extends Server {
     const { pagesDir, appDir } = findPagesDir(this.dir)
 
     const ensurer: RouteEnsurer = {
-      ensure: async (match) => {
+      ensure: async (match, pathname) => {
         await this.ensurePage({
           definition: match.definition,
           page: match.definition.page,
           clientOnly: false,
+          url: pathname,
         })
       },
     }
@@ -280,6 +280,9 @@ export default class DevServer extends Server {
       .traceChild('run-instrumentation-hook')
       .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
+
+    // Store globals again to preserve changes made by the instrumentation hook.
+    this.storeGlobals()
 
     this.ready?.resolve()
     this.ready = undefined
@@ -559,11 +562,12 @@ export default class DevServer extends Server {
     return this.hasPage(this.actualMiddlewareFile!)
   }
 
-  protected async ensureMiddleware() {
+  protected async ensureMiddleware(url: string) {
     return this.ensurePage({
       page: this.actualMiddlewareFile!,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -578,8 +582,6 @@ export default class DevServer extends Server {
         .then(() => true)
         .catch(() => false))
     ) {
-      NextBuildContext!.hasInstrumentationHook = true
-
       try {
         const instrumentationHook = await require(pathJoin(
           this.distDir,
@@ -597,15 +599,18 @@ export default class DevServer extends Server {
   protected async ensureEdgeFunction({
     page,
     appPaths,
+    url,
   }: {
     page: string
     appPaths: string[] | null
+    url: string
   }) {
     return this.ensurePage({
       page,
       appPaths,
       clientOnly: false,
       definition: undefined,
+      url,
     })
   }
 
@@ -693,11 +698,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
@@ -753,8 +757,12 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
+  private storeGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch
+    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {
@@ -762,6 +770,7 @@ export default class DevServer extends Server {
     clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
+    url?: string
   }): Promise<void> {
     await this.bundlerService.ensurePage(opts)
   }
@@ -773,6 +782,7 @@ export default class DevServer extends Server {
     isAppPath,
     appPaths = null,
     shouldEnsure,
+    url,
   }: {
     page: string
     query: NextParsedUrlQuery
@@ -781,6 +791,7 @@ export default class DevServer extends Server {
     sriEnabled?: boolean
     appPaths?: ReadonlyArray<string> | null
     shouldEnsure: boolean
+    url?: string
   }): Promise<FindComponentsResult | null> {
     await this.ready?.promise
 
@@ -796,6 +807,7 @@ export default class DevServer extends Server {
           appPaths,
           clientOnly: false,
           definition: undefined,
+          url,
         })
       }
 
@@ -812,6 +824,7 @@ export default class DevServer extends Server {
         params,
         isAppPath,
         shouldEnsure,
+        url,
       })
     } catch (err) {
       if ((err as any).code !== 'ENOENT') {
@@ -821,8 +834,10 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async getFallbackErrorComponents(): Promise<LoadComponentsReturnType | null> {
-    await this.bundlerService.getFallbackErrorComponents()
+  protected async getFallbackErrorComponents(
+    url?: string
+  ): Promise<LoadComponentsReturnType | null> {
+    await this.bundlerService.getFallbackErrorComponents(url)
     return await loadDefaultErrorComponents(this.distDir)
   }
 

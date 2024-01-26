@@ -4,6 +4,7 @@ pub(crate) mod client_reference_manifest;
 
 use std::collections::HashMap;
 
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
@@ -29,6 +30,7 @@ pub struct BuildManifest {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase", tag = "version")]
+#[allow(clippy::large_enum_variant)]
 pub enum MiddlewaresManifest {
     #[serde(rename = "2")]
     MiddlewaresManifestV2(MiddlewaresManifestV2),
@@ -90,14 +92,29 @@ pub struct EdgeFunctionDefinition {
     pub name: String,
     pub page: String,
     pub matchers: Vec<MiddlewareMatcher>,
-    // TODO: AssetBinding[]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wasm: Option<Vec<()>>,
-    // TODO: AssetBinding[]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assets: Option<Vec<()>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub regions: Option<Regions>,
+}
+
+#[derive(Serialize, Default, Debug)]
+pub struct InstrumentationDefinition {
+    pub files: Vec<String>,
+    pub name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub wasm: Vec<AssetBinding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub assets: Vec<AssetBinding>,
+}
+
+#[derive(Serialize, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AssetBinding {
+    pub name: String,
+    pub file_path: String,
 }
 
 #[derive(Serialize, Debug)]
@@ -111,6 +128,7 @@ pub enum Regions {
 pub struct MiddlewaresManifestV2 {
     pub sorted_middleware: Vec<String>,
     pub middleware: HashMap<String, EdgeFunctionDefinition>,
+    pub instrumentation: Option<InstrumentationDefinition>,
     pub functions: HashMap<String, EdgeFunctionDefinition>,
 }
 
@@ -219,10 +237,10 @@ pub struct ClientReferenceManifest {
     pub edge_ssr_module_mapping: HashMap<ModuleId, ManifestNode>,
     /// Mapping of server component path to required CSS client chunks.
     #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: HashMap<String, Vec<String>>,
+    pub entry_css_files: HashMap<String, IndexSet<String>>,
     /// Mapping of server component path to required JS client chunks.
     #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: HashMap<String, Vec<String>>,
+    pub entry_js_files: HashMap<String, IndexSet<String>>,
 }
 
 #[derive(Serialize, Default, Debug)]

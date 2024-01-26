@@ -114,9 +114,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(),
+    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
+    cacheHandler: z.string().min(1).optional(),
+    cacheMaxMemorySize: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({
@@ -216,7 +218,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       })
       .optional(),
     distDir: z.string().min(1).optional(),
-    env: z.record(z.string(), z.string()).optional(),
+    env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
     eslint: z
       .strictObject({
         dirs: z.array(z.string().min(1)).optional(),
@@ -226,7 +228,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
-        windowHistorySupport: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
         adjustFontFallbacks: z.boolean().optional(),
         adjustFontFallbacksWithSizeAdjust: z.boolean().optional(),
@@ -267,9 +268,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
-        incrementalCacheHandlerPath: z.string().optional(),
         isrFlushToDisk: z.boolean().optional(),
-        isrMemoryCacheSize: z.number().optional(),
         largePageDataBytes: z.number().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
@@ -285,6 +284,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         outputFileTracingIncludes: z
           .record(z.string(), z.array(z.string()))
           .optional(),
+        parallelServerCompiles: z.boolean().optional(),
+        parallelServerBuildTraces: z.boolean().optional(),
         ppr: z.boolean().optional(),
         taint: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
@@ -369,6 +370,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticWorkerRequestDeduping: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
         useLightningcss: z.boolean().optional(),
+        missingSuspenseWithCSRBailout: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
