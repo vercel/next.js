@@ -586,18 +586,16 @@ export async function fetchInternalImage(
 
 export async function imageOptimizer(
   imageUpstream: ImageUpstream,
-  paramsResult: {
-    href: ImageParamsResult['href']
-    width: ImageParamsResult['width']
-    quality: ImageParamsResult['quality']
-    mimeType: ImageParamsResult['mimeType']
-  },
+  paramsResult: Pick<
+    ImageParamsResult,
+    'href' | 'width' | 'quality' | 'mimeType'
+  >
   nextConfig: {
     output: NextConfigComplete['output']
-    images: {
-      dangerouslyAllowSVG: NextConfigComplete['images']['dangerouslyAllowSVG']
-      minimumCacheTTL: NextConfigComplete['images']['minimumCacheTTL']
-    }
+    images: Pick<
+      NextConfigComplete['images'],
+      'dangerouslyAllowSVG' | 'minimumCacheTTL'
+    >
   },
   isDev: boolean | undefined
 ): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
