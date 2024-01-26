@@ -2,7 +2,16 @@
 
 import { useSearchParams } from 'next/navigation'
 
-export default function Page() {
+function SearchParams() {
   useSearchParams()
-  return <div>Page</div>
+  return null
+}
+
+export default function Page() {
+  return (
+    <>
+      <SearchParams />
+      <div>Page</div>
+    </>
+  )
 }
