@@ -589,7 +589,7 @@ export async function imageOptimizer(
   paramsResult: Pick<
     ImageParamsResult,
     'href' | 'width' | 'quality' | 'mimeType'
-  >
+  >,
   nextConfig: {
     output: NextConfigComplete['output']
     images: Pick<
