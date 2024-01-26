@@ -1,10 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 
-function permute(all) {
+function getPairs(all) {
   const result = []
 
   for (const first of all) {
-    result.push([first])
     for (const second of all) {
       if (first === second) {
         continue
@@ -44,7 +43,7 @@ const PAGES = {
   },
 }
 
-const allOrders = permute(Object.keys(PAGES))
+const allPairs = getPairs(Object.keys(PAGES))
 
 createNextDescribe(
   'css-order',
@@ -52,10 +51,10 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    for (const ordering of allOrders) {
-      it(`should load correct styles when opening pages in this order: ${ordering.join(
+    for (const ordering of allPairs) {
+      it(`should load correct styles navigating back again ${ordering.join(
         ' -> '
-      )}`, async () => {
+      )} -> ${ordering.join(' -> ')}`, async () => {
         const start = PAGES[ordering[0]]
         const browser = await next.browser(start.url)
         const check = async (pageInfo) => {
@@ -77,6 +76,39 @@ createNextDescribe(
           await navigate(page)
           await check(PAGES[page])
         }
+      })
+    }
+    for (const ordering of allPairs) {
+      it(`should load correct styles navigating ${ordering.join(
+        ' -> '
+      )}`, async () => {
+        const start = PAGES[ordering[0]]
+        const browser = await next.browser(start.url)
+        const check = async (pageInfo) => {
+          expect(
+            await browser
+              .waitForElementByCss(pageInfo.selector)
+              .getComputedCss('color')
+          ).toBe(pageInfo.color)
+        }
+        const navigate = async (page) => {
+          await browser.waitForElementByCss('#' + page).click()
+        }
+        await check(start)
+        for (const page of ordering.slice(1)) {
+          await navigate(page)
+          await check(PAGES[page])
+        }
+      })
+    }
+    for (const [page, pageInfo] of Object.entries(PAGES)) {
+      it(`should load correct styles on ${page}`, async () => {
+        const browser = await next.browser(pageInfo.url)
+        expect(
+          await browser
+            .waitForElementByCss(pageInfo.selector)
+            .getComputedCss('color')
+        ).toBe(pageInfo.color)
       })
     }
   }
