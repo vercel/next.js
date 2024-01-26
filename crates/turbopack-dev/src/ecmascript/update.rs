@@ -11,9 +11,9 @@ pub(super) enum EcmascriptChunkUpdate {
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: IndexMap<ReadRef<ModuleId>, (u64, ReadRef<Code>)>,
+    pub added: IndexMap<ReadRef<ModuleId>, (u64, Vc<Code>)>,
     pub deleted: IndexMap<ReadRef<ModuleId>, u64>,
-    pub modified: IndexMap<ReadRef<ModuleId>, ReadRef<Code>>,
+    pub modified: IndexMap<ReadRef<ModuleId>, Vc<Code>>,
 }
 
 pub(super) async fn update_ecmascript_chunk(
@@ -40,7 +40,7 @@ pub(super) async fn update_ecmascript_chunk(
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {
             if *entry.hash.await? != *from_hash {
-                modified.insert(id.clone(), entry.code.await?);
+                modified.insert(id.clone(), entry.code);
             }
         } else {
             deleted.insert(id.clone(), *from_hash);
@@ -50,7 +50,7 @@ pub(super) async fn update_ecmascript_chunk(
     // Remaining entries are added
     for (id, entry) in entries.iter() {
         if !from.entries_hashes.contains_key(id) {
-            added.insert(id.clone(), (*entry.hash.await?, entry.code.await?));
+            added.insert(id.clone(), (*entry.hash.await?, entry.code));
         }
     }
 
