@@ -162,13 +162,13 @@ exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app turbo should strip whitespace correctly with newline 1`] = `
-"index.js (6:30) @ onClick
+"index.js (5:18) @ onClick
 
-  4 |
-  5 |                   <p>index page</p>
-> 6 |
+  3 |     <>
+  4 |       <p>index page</p>
+> 5 |
     | ^
-  7 |                   <a onClick={() => {
-  8 |                     throw new Error('idk')
-  9 |                   }}>"
+  6 |       <a onClick={() => {
+  7 |         throw new Error('idk')
+  8 |       }}>"
 `;
