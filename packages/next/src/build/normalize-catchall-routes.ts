@@ -44,8 +44,6 @@ export function normalizeCatchAllRoutes(
         !appPaths[appPath].some((path) =>
           hasMatchedSlots(path, catchAllRoute)
         ) &&
-        // check if the catch-all is not already matched by a default route or page route
-        !appPaths[`${appPath}/default`] &&
         // check if appPath is a catch-all OR is not more specific than the catch-all
         (isCatchAllRoute(appPath) || !isMoreSpecific(appPath, catchAllRoute))
       ) {
