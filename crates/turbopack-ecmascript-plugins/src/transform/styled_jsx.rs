@@ -56,7 +56,7 @@ impl CustomTransformer for StyledJsxTransformer {
                         let ss = match ss {
                             Ok(v) => v,
                             Err(err) => {
-                                bail!("failed to parse css: {}", err)
+                                bail!("failed to parse css using lightningcss: {}", err)
                             }
                         };
 
