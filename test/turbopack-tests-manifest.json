@@ -1959,11 +1959,11 @@
   },
   "test/development/next-font/build-errors.test.ts": {
     "passed": [],
-    "failed": [
-      "build-errors Skipped in webpack should show a module not found error if local font file can' be resolved",
-      "build-errors Skipped in webpack should show a next/font error when input is wrong"
+    "failed": [],
+    "pending": [
+      "next/font build-errors should show a module not found error if local font file can' be resolved",
+      "next/font build-errors should show a next/font error when input is wrong"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
