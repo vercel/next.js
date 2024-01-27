@@ -1021,11 +1021,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action {
-            let actions = if self.in_action_file {
-                self.exported_idents.iter().map(|e| e.1.clone()).collect()
-            } else {
-                self.export_actions.clone()
+            let mut actions = self.export_actions.clone();
+            if self.in_action_file {
+                actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };
+
             let actions = actions
                 .into_iter()
                 .map(|name| (generate_action_id(&self.file_name, &name), name))

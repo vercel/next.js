@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { createActionProxy } from "private-next-rsc-action-proxy";
+/* __next_internal_action_entry_do_not_use__ {"188d5d945750dc32e2c842b93c75a65763d4a922":"$$ACTION_1","c18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default"} */ import { createActionProxy } from "private-next-rsc-action-proxy";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export default $$ACTION_0 = createActionProxy("188d5d945750dc32e2c842b93c75a65763d4a922", $$ACTION_1);
 var $$ACTION_0;
