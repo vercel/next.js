@@ -12572,12 +12572,12 @@
     "runtimeError": false
   },
   "test/integration/jsconfig-baseurl/test/index.test.js": {
-    "passed": ["TypeScript Features default behavior should render the page"],
+    "passed": ["jsconfig.json baseurl default behavior should render the page"],
     "failed": [
-      "TypeScript Features default behavior should have correct module not found error"
+      "jsconfig.json baseurl default behavior should have correct module not found error"
     ],
     "pending": [
-      "TypeScript Features should build production mode should trace correctly"
+      "jsconfig.json baseurl should build production mode should trace correctly"
     ],
     "flakey": [],
     "runtimeError": false
