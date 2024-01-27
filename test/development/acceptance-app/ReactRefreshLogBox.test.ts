@@ -229,7 +229,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         > 7 | }
             | ^
 
-          Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
