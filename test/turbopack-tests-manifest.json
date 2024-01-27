@@ -6856,12 +6856,13 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dynamicapiroute-dev.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
+    ],
+    "failed": [
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'"
     ],
     "pending": [],
     "flakey": [],
@@ -6881,13 +6882,12 @@
   },
   "test/integration/app-dir-export/test/dynamicpage-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'error'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-static'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage undefined"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6915,11 +6915,11 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/trailing-slash-dev.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'false'",
       "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'true'"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
