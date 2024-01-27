@@ -42,6 +42,9 @@ import {
 } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
+import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -70,18 +73,13 @@ function getForwardedHeaders(
 ): Headers {
   // Get request headers and cookies
   const requestHeaders = req.headers
-  const requestCookies = requestHeaders['cookie'] ?? ''
+  const requestCookies = new RequestCookies(HeadersAdapter.from(requestHeaders))
 
-  // Get response headers and Set-Cookie header
+  // Get response headers and cookies
   const responseHeaders = res.getHeaders()
-  const rawSetCookies = responseHeaders['set-cookie']
-  const setCookies = (
-    Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
-  ).map((setCookie) => {
-    // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';', 1)
-    return cookie
-  })
+  const responseCookies = new ResponseCookies(
+    fromNodeOutgoingHttpHeaders(responseHeaders)
+  )
 
   // Merge request and response headers
   const mergedHeaders = filterReqHeaders(
@@ -92,11 +90,18 @@ function getForwardedHeaders(
     actionsForbiddenHeaders
   ) as Record<string, string>
 
-  // Merge cookies
-  const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
+  // Merge cookies into requestCookies, so responseCookies always take precedence
+  // and overwrite/delete those from requestCookies.
+  responseCookies.getAll().forEach((cookie) => {
+    if (typeof cookie.value === 'undefined') {
+      requestCookies.delete(cookie.name)
+    } else {
+      requestCookies.set(cookie)
+    }
+  })
 
   // Update the 'cookie' header with the merged cookies
-  mergedHeaders['cookie'] = mergedCookies
+  mergedHeaders['cookie'] = requestCookies.toString()
 
   // Remove headers that should not be forwarded
   delete mergedHeaders['transfer-encoding']
