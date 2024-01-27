@@ -15406,11 +15406,10 @@
   },
   "test/integration/typescript-only-remove-type-imports/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "TypeScript onlyRemoveTypeImports dev mode should render a normal page correctly",
-      "TypeScript onlyRemoveTypeImports dev mode should render a page with type import correctly"
-    ],
+    "failed": [],
     "pending": [
+      "TypeScript onlyRemoveTypeImports dev mode should render a normal page correctly",
+      "TypeScript onlyRemoveTypeImports dev mode should render a page with type import correctly",
       "TypeScript onlyRemoveTypeImports production mode should render a normal page correctly",
       "TypeScript onlyRemoveTypeImports production mode should render a page with type import correctly"
     ],
