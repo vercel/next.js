@@ -12,7 +12,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests
 ;
 ;
 const StyledButton = __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$styled$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"]("button", {
-    target: "eqxscy0"
+    target: "e1xogxlp0"
 })("background:blue;");
 function ClassNameButton({ children }) {
     return /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__["jsxDEV"]("button", {
@@ -21,7 +21,7 @@ function ClassNameButton({ children }) {
       `,
         children: children
     }, void 0, false, {
-        fileName: "<[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js>",
+        fileName: "[project]/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js",
         lineNumber: 12,
         columnNumber: 5
     }, this);

@@ -300,6 +300,7 @@ impl DepGraph {
                         src: Box::new(uri_of_module.clone().into()),
                         type_only: false,
                         with: Some(Box::new(create_turbopack_chunk_id_assert(dep))),
+                        phase: Default::default(),
                     })));
             }
 
