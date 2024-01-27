@@ -7,7 +7,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.11.3
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -202,7 +202,7 @@ jobs:
               rustup target add aarch64-unknown-linux-gnu &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/aarch64-unknown-linux-gnu/bin/aarch64-unknown-linux-gnu-gcc &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,rustls-tls,tracing/release_max_level_info &&
+              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu --features plugin,tracing/release_max_level_info &&
               llvm-strip -x native/next-swc.*.node &&
               objdump -T native/next-swc.*.node | grep GLIBC_
 
@@ -323,21 +323,21 @@ jobs:
 
       - name: Upload turbopack bytesize artifact
         if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: turbopack-bytesize
+          name: turbopack-bytesize-${{ matrix.settings.target }}
           path: turbopack-bin-size/*
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: next-swc-binaries
+          name: next-swc-binaries-${{ matrix.settings.target }}
           path: packages/next-swc/native/next-swc.*.node
 
       - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-${{ matrix.settings.target }}
           path: .turbo/runs
 
   build-wasm:
@@ -381,15 +381,15 @@ jobs:
         run: '[[ -d "packages/next-swc/crates/wasm/pkg" ]] && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-${{ matrix.target }} || ls packages/next-swc/crates/wasm'
 
       - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-wasm-${{matrix.target}}
           path: .turbo/runs
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wasm-binaries
+          name: wasm-binaries-${{matrix.target}}
           path: packages/next-swc/crates/wasm/pkg-*
 
   publishRelease:
@@ -424,14 +424,16 @@ jobs:
           path: ./*
           key: ${{ github.sha }}-${{ github.run_number }}
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          pattern: next-swc-binaries-*
+          merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: wasm-binaries
+          pattern: wasm-binaries-*
+          merge-multiple: true
           path: packages/next-swc/crates/wasm
 
       - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
@@ -478,9 +480,10 @@ jobs:
         with:
           fetch-depth: 25
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
-          name: next-swc-binaries
+          pattern: next-swc-binaries
+          merge-multiple: true
           path: packages/next-swc/native
 
       - run: cp -r packages/next-swc/native .github/actions/next-stats-action/native
@@ -499,9 +502,10 @@ jobs:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
       - name: Collect bytesize metrics
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: turbopack-bytesize
+          pattern: turbopack-bytesize-*
+          merge-multiple: true
           path: turbopack-bin-size
 
       - name: Upload to Datadog

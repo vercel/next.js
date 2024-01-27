@@ -99,7 +99,7 @@ pub async fn get_edge_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, mode, next_config, execution_context);
+        get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
     let ty = ty.into_value();
 
@@ -154,6 +154,8 @@ pub async fn get_edge_resolve_options_context(
 pub fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
     let output_root = node_root.join("server/edge".to_string());
@@ -161,10 +163,12 @@ pub fn get_edge_chunking_context(
         DevChunkingContext::builder(
             project_path,
             output_root,
+            client_root,
             output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            client_root.join("static/media".to_string()),
             environment,
         )
+        .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
         .build(),
     )

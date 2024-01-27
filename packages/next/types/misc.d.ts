@@ -174,10 +174,6 @@ declare module 'next/dist/compiled/babel/preset-env' {
   const anyType: any
   export default anyType
 }
-declare module 'watchpack' {
-  const anyType: any
-  export default anyType
-}
 declare module 'next/dist/compiled/babel/core' {
   export * from '@babel/core'
 }
@@ -276,8 +272,8 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/micromatch' {
-  import m from 'micromatch'
+declare module 'next/dist/compiled/picomatch' {
+  import m from 'picomatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
@@ -298,6 +294,10 @@ declare module 'next/dist/compiled/send' {
 }
 declare module 'next/dist/compiled/source-map' {
   import m from 'source-map'
+  export = m
+}
+declare module 'next/dist/compiled/source-map08' {
+  import m from 'source-map08'
   export = m
 }
 declare module 'next/dist/compiled/string-hash' {

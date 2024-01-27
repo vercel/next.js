@@ -19,7 +19,7 @@ workspace = true
 [dependencies]
 anyhow = "1.0.66"
 console_error_panic_hook = "0.1.6"
-next-swc = { workspace = true }
+next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
 parking_lot_core = "=0.8.0"
 path-clean = "0.1"

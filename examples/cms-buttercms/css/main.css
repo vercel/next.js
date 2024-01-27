@@ -5,7 +5,7 @@ html {
 }
 
 body {
-  font-family: 'Sen', sans-serif;
+  font-family: "Sen", sans-serif;
   font-weight: normal;
   font-style: normal;
   color: rgba(0, 0, 0, 0.7);
@@ -217,7 +217,7 @@ p {
 }
 
 .btn-hover::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 0%;
   height: 0%;
@@ -966,7 +966,7 @@ p {
 }
 
 .hero-section::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 862px;
   height: 862px;
@@ -1057,7 +1057,7 @@ p {
 ================================== */
 .feature-section {
   position: relative;
-  background-image: url('../public/images/common-bg.svg');
+  background-image: url("../public/images/common-bg.svg");
   background-size: cover;
   background-position: bottom center;
   padding-top: 180px;
@@ -1100,7 +1100,7 @@ p {
 
 .single-feature .feature-icon::before,
 .single-feature .feature-icon::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 100%;
   height: 100%;
@@ -1220,7 +1220,7 @@ p {
 ======================== */
 .blog-section {
   padding-top: 160px;
-  background-image: url('../public/images/common-bg.svg');
+  background-image: url("../public/images/common-bg.svg");
   background-size: cover;
   background-position: bottom-center;
 }
@@ -1366,7 +1366,7 @@ p {
 .single-blog.standard::after,
 .standard.single-post::after,
 .standard.blog-roll-card::after {
-  content: '';
+  content: "";
   position: absolute;
   background: #37c2cc;
   border-radius: 50%;
@@ -1455,7 +1455,7 @@ p {
 }
 
 .breadcrumb-nav li::after {
-  content: '';
+  content: "";
   font-size: 10px;
   position: relative;
   font-family: lineIcons;
@@ -1463,7 +1463,7 @@ p {
 }
 
 .breadcrumb-nav li:last-child::after {
-  content: '';
+  content: "";
 }
 
 .single-post,
@@ -1552,7 +1552,7 @@ p {
   .single-post-meta-info li::before,
   .blog-roll-card-meta-info li::before {
     position: absolute;
-    content: '';
+    content: "";
     right: -5px;
     top: 50%;
     background-color: #d2d2d2;
@@ -1725,7 +1725,7 @@ p {
 		TESTIMONIAL CSS
 =========================== */
 .testimonial-section {
-  background-image: url('../public/images/testimonial/testimonial-bg.svg');
+  background-image: url("../public/images/testimonial/testimonial-bg.svg");
   background-size: cover;
   background-position: bottom center;
   padding-top: 75px;

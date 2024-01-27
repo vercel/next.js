@@ -1,5 +1,4 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-// import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
   | {
@@ -33,7 +32,7 @@ export type OriginalStackFrame =
       sourcePackage?: string
     }
 
-export function getOriginalStackFrame(
+function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
   errorMessage: string
@@ -121,6 +120,12 @@ export function getOriginalStackFrames(
   )
 }
 
+function formatFrameSourceFile(file: string) {
+  return file
+    .replace(/^webpack-internal:(\/)+(\.)?/, '')
+    .replace(/^webpack:(\/)+(\.)?/, '')
+}
+
 export function getFrameSource(frame: StackFrame): string {
   let str = ''
   try {
@@ -144,8 +149,9 @@ export function getFrameSource(frame: StackFrame): string {
     // meaningful.
     str += u.pathname
     str += ' '
+    str = formatFrameSourceFile(str)
   } catch {
-    str += (frame.file || '(unknown)') + ' '
+    str += formatFrameSourceFile(frame.file || '(unknown)') + ' '
   }
 
   if (frame.lineNumber != null) {

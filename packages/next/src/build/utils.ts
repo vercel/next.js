@@ -28,7 +28,15 @@ import '../server/require-hook'
 import '../server/node-polyfill-crypto'
 import '../server/node-environment'
 
-import { green, yellow, red, cyan, bold, underline } from '../lib/picocolors'
+import {
+  green,
+  yellow,
+  red,
+  cyan,
+  white,
+  bold,
+  underline,
+} from '../lib/picocolors'
 import getGzipSize from 'next/dist/compiled/gzip-size'
 import textTable from 'next/dist/compiled/text-table'
 import path from 'path'
@@ -72,7 +80,10 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/future/route-kind'
 import { isAppRouteRouteModule } from '../server/future/route-modules/checks'
+import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
+import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
+import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -386,12 +397,7 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    // green for 0-130kb
-    if (_size < 130 * 1000) return green(size)
-    // yellow for 130-170kb
-    if (_size < 170 * 1000) return yellow(size)
-    // red for >= 170kb
-    return red(bold(size))
+    return white(bold(size))
   }
 
   const MIN_DURATION = 300
@@ -623,7 +629,7 @@ export async function printTreeView(
       '',
     ])
     const sharedCssFiles: string[] = []
-    ;[
+    const sharedJsChunks = [
       ...sharedFiles
         .filter((file) => {
           if (file.endsWith('.css')) {
@@ -635,19 +641,35 @@ export async function printTreeView(
         .map((e) => e.replace(buildId, '<buildId>'))
         .sort(),
       ...sharedCssFiles.map((e) => e.replace(buildId, '<buildId>')).sort(),
-    ].forEach((fileName, index, { length }) => {
-      const innerSymbol = index === length - 1 ? '└' : '├'
+    ]
+
+    // if the some chunk are less than 10kb or we don't know the size, we only show the total size of the rest
+    const tenKbLimit = 10 * 1000
+    let restChunkSize = 0
+    let restChunkCount = 0
+    sharedJsChunks.forEach((fileName, index, { length }) => {
+      const innerSymbol = index + restChunkCount === length - 1 ? '└' : '├'
 
       const originalName = fileName.replace('<buildId>', buildId)
       const cleanName = getCleanName(fileName)
       const size = stats.sizes.get(originalName)
 
+      if (!size || size < tenKbLimit) {
+        restChunkCount++
+        restChunkSize += size || 0
+        return
+      }
+
+      messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
+    })
+
+    if (restChunkCount > 0) {
       messages.push([
-        `  ${innerSymbol} ${cleanName}`,
-        typeof size === 'number' ? prettyBytes(size) : '',
+        `  └ other shared chunks (total)`,
+        prettyBytes(restChunkSize),
         '',
       ])
-    })
+    }
   }
 
   // If enabled, then print the tree for the app directory.
@@ -1283,7 +1305,7 @@ export async function buildAppStaticPaths({
   configFileName,
   generateParams,
   isrFlushToDisk,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   requestHeaders,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
@@ -1294,10 +1316,10 @@ export async function buildAppStaticPaths({
   page: string
   configFileName: string
   generateParams: GenerateParamsResults
-  incrementalCacheHandlerPath?: string
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
+  cacheHandler?: string
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   ppr: boolean
@@ -1307,11 +1329,12 @@ export async function buildAppStaticPaths({
 
   let CacheHandler: any
 
-  if (incrementalCacheHandlerPath) {
-    CacheHandler = require(path.isAbsolute(incrementalCacheHandlerPath)
-      ? incrementalCacheHandlerPath
-      : path.join(dir, incrementalCacheHandlerPath))
-    CacheHandler = CacheHandler.default || CacheHandler
+  if (cacheHandler) {
+    CacheHandler = interopDefault(
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
+    )
   }
 
   const incrementalCache = new IncrementalCache({
@@ -1461,7 +1484,7 @@ export async function isPageStatic({
   originalAppPath,
   isrFlushToDisk,
   maxMemoryCacheSize,
-  incrementalCacheHandlerPath,
+  cacheHandler,
   ppr,
 }: {
   dir: string
@@ -1479,7 +1502,7 @@ export async function isPageStatic({
   originalAppPath?: string
   isrFlushToDisk?: boolean
   maxMemoryCacheSize?: number
-  incrementalCacheHandlerPath?: string
+  cacheHandler?: string
   nextConfigOutput: 'standalone' | 'export'
   ppr: boolean
 }): Promise<{
@@ -1557,7 +1580,13 @@ export async function isPageStatic({
       const routeModule: RouteModule =
         componentsResult.ComponentMod?.routeModule
 
+      let supportsPPR = false
+
       if (pageType === 'app') {
+        if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+          supportsPPR = true
+        }
+
         const ComponentMod: AppPageModule = componentsResult.ComponentMod
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
@@ -1627,7 +1656,7 @@ export async function isPageStatic({
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
         // TODO: (PPR) remove this once PPR is enabled by default
-        if (appConfig.dynamic === 'force-dynamic' && !ppr) {
+        if (appConfig.dynamic === 'force-dynamic' && !supportsPPR) {
           appConfig.revalidate = 0
         }
 
@@ -1645,7 +1674,7 @@ export async function isPageStatic({
             requestHeaders: {},
             isrFlushToDisk,
             maxMemoryCacheSize,
-            incrementalCacheHandlerPath,
+            cacheHandler,
             ppr,
             ComponentMod,
           }))
@@ -1722,12 +1751,18 @@ export async function isPageStatic({
         isStatic = true
       }
 
-      // When PPR is enabled, any route may contain or be completely static, so
+      // When PPR is enabled, any route may be completely static, so
       // mark this route as static.
       let isPPR = false
-      if (ppr && routeModule.definition.kind === RouteKind.APP_PAGE) {
+      if (supportsPPR) {
         isPPR = true
         isStatic = true
+      }
+
+      // interception routes depend on `Next-URL` and `Next-Router-State-Tree` request headers and thus cannot be prerendered
+      if (isInterceptionRouteAppPath(page)) {
+        isStatic = false
+        isPPR = false
       }
 
       return {
@@ -2049,13 +2084,6 @@ const dir = path.join(__dirname)
 
 process.env.NODE_ENV = 'production'
 process.chdir(__dirname)
-
-// Make sure commands gracefully respect termination signals (e.g. from Docker)
-// Allow the graceful termination to be manually configurable
-if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-  process.on('SIGTERM', () => process.exit(0))
-  process.on('SIGINT', () => process.exit(0))
-}
 
 const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'

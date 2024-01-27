@@ -55,7 +55,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
@@ -75,7 +75,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       minimalMode: this.minimalMode,
       fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk: false,
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,

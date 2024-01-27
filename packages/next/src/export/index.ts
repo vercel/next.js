@@ -505,7 +505,11 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
-    experimental: { ppr: nextConfig.experimental.ppr === true },
+    experimental: {
+      ppr: nextConfig.experimental.ppr === true,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+    },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -559,9 +563,10 @@ export async function exportAppImpl(
   ]
 
   const filteredPaths = exportPaths.filter(
-    // Remove API routes
     (route) =>
-      exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
+      exportPathMap[route]._isAppDir ||
+      // Remove API routes
+      !isAPIRoute(exportPathMap[route].page)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -692,11 +697,10 @@ export async function exportAppImpl(
           parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
-          isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
           fetchCache: true,
           fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          incrementalCacheHandlerPath:
-            nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
           enabledDirectories,
         })

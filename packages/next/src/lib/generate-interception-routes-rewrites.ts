@@ -44,7 +44,8 @@ function voidParamsBeforeInterceptionMarker(path: string): string {
 }
 
 export function generateInterceptionRoutesRewrites(
-  appPaths: string[]
+  appPaths: string[],
+  basePath = ''
 ): Rewrite[] {
   const rewrites: Rewrite[] = []
 
@@ -70,8 +71,8 @@ export function generateInterceptionRoutesRewrites(
         .slice(2, -3)
 
       rewrites.push({
-        source: normalizedInterceptedRoute,
-        destination: normalizedAppPath,
+        source: `${basePath}${normalizedInterceptedRoute}`,
+        destination: `${basePath}${normalizedAppPath}`,
         has: [
           {
             type: 'header',

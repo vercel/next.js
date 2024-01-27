@@ -5,7 +5,7 @@ use turbopack_binding::turbopack::{
         asset::{Asset, AssetContent},
         chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
         ident::AssetIdent,
-        module::{Module, Modules},
+        module::Module,
         reference::{ModuleReference, ModuleReferences},
         resolve::ModuleResolveResult,
     },
@@ -20,13 +20,13 @@ use turbopack_binding::turbopack::{
 #[turbo_tasks::value]
 pub struct IncludeModulesModule {
     ident: Vc<AssetIdent>,
-    modules: Vc<Modules>,
+    modules: Vec<Vc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeModulesModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, modules: Vc<Modules>) -> Vc<Self> {
+    pub fn new(ident: Vc<AssetIdent>, modules: Vec<Vc<Box<dyn Module>>>) -> Vc<Self> {
         Self { ident, modules }.cell()
     }
 }
@@ -48,7 +48,6 @@ impl Module for IncludeModulesModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(
             self.modules
-                .await?
                 .iter()
                 .map(|&module| async move {
                     Ok(Vc::upcast(

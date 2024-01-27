@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use next_core::{
-    create_page_loader_entry_module, get_asset_path_from_pathname,
+    create_page_loader_entry_module,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -8,7 +8,6 @@ use next_core::{
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
-    next_manifests::{BuildManifest, PagesManifest},
     next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -25,21 +24,15 @@ use turbo_tasks::Vc;
 use turbopack_binding::{
     turbo::{tasks::Value, tasks_fs::FileSystemPath},
     turbopack::{
-        build::BuildChunkingContext,
         core::{
-            chunk::{ChunkingContext, EvaluatableAssets},
+            chunk::EvaluatableAssets,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             file_source::FileSource,
-            module::Module,
-            output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
         },
-        ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            EcmascriptModuleAsset,
-        },
+        ecmascript::{chunk::EcmascriptChunkPlaceable, EcmascriptModuleAsset},
         node::execution_context::ExecutionContext,
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
@@ -357,6 +350,7 @@ async fn get_page_entry_for_file(
         ssr_module_context,
         source,
         Vc::cell(original_name),
+        todo_get_pages_structure(),
         NextRuntime::NodeJs,
         next_config,
     );
@@ -377,64 +371,13 @@ async fn get_page_entry_for_file(
     .cell())
 }
 
+fn todo_get_pages_structure() -> Vc<PagesStructure> {
+    todo!("add pages structure to next-build");
+}
+
 /// Computes the pathname for a given path.
 #[turbo_tasks::function]
 async fn pathname_from_path(next_router_path: Vc<FileSystemPath>) -> Result<Vc<String>> {
     let pathname = next_router_path.await?;
     Ok(Vc::cell(pathname.path.clone()))
-}
-
-/// Computes the chunks of page entries, adds their paths to the corresponding
-/// manifests, and pushes the assets to the `all_chunks` vec.
-pub async fn compute_page_entries_chunks(
-    page_entries: &PageEntries,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<BuildChunkingContext>,
-    node_root: Vc<FileSystemPath>,
-    pages_manifest_dir_path: &FileSystemPath,
-    client_relative_path: &FileSystemPath,
-    pages_manifest: &mut PagesManifest,
-    build_manifest: &mut BuildManifest,
-    all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
-) -> Result<()> {
-    for page_entry in page_entries.entries.iter() {
-        let page_entry = page_entry.await?;
-        let pathname = page_entry.pathname.await?;
-        let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
-
-        let ssr_entry_chunk = ssr_chunking_context.entry_chunk_group(
-            node_root.join(format!("server/pages/{asset_path}")),
-            Vc::upcast(page_entry.ssr_module),
-            page_entries.ssr_runtime_entries,
-        );
-        all_chunks.push(ssr_entry_chunk);
-
-        let chunk_path = ssr_entry_chunk.ident().path().await?;
-        if let Some(asset_path) = pages_manifest_dir_path.get_path_to(&chunk_path) {
-            pages_manifest
-                .pages
-                .insert(pathname.clone_value(), asset_path.to_string());
-        }
-
-        let client_chunks = client_chunking_context.evaluated_chunk_group(
-            page_entry.client_module.ident(),
-            page_entries
-                .client_runtime_entries
-                .with_entry(Vc::upcast(page_entry.client_module)),
-        );
-
-        let build_manifest_pages_entry = build_manifest
-            .pages
-            .entry(pathname.clone_value())
-            .or_default();
-
-        for chunk in client_chunks.await?.iter().copied() {
-            all_chunks.push(chunk);
-            let chunk_path = chunk.ident().path().await?;
-            if let Some(asset_path) = client_relative_path.get_path_to(&chunk_path) {
-                build_manifest_pages_entry.push(asset_path.to_string());
-            }
-        }
-    }
-    Ok(())
 }
