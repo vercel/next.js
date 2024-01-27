@@ -1170,7 +1170,6 @@
     ],
     "failed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
-      "Error overlay - RSC build errors should contain nextjs version check in error overlay",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
@@ -1185,6 +1184,7 @@
   },
   "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
     "passed": [
+      "Error overlay - RSC runtime errors should contain nextjs version check in error overlay",
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
       "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
       "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
@@ -1959,11 +1959,11 @@
   },
   "test/development/next-font/build-errors.test.ts": {
     "passed": [],
-    "failed": [
-      "build-errors Skipped in webpack should show a module not found error if local font file can' be resolved",
-      "build-errors Skipped in webpack should show a next/font error when input is wrong"
+    "failed": [],
+    "pending": [
+      "next/font build-errors should show a module not found error if local font file can' be resolved",
+      "next/font build-errors should show a next/font error when input is wrong"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2132,10 +2132,10 @@
     "runtimeError": false
   },
   "test/development/pages-dir/custom-app-hmr/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "custom-app-hmr should not do full reload when simply editing _app.js"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2327,6 +2327,7 @@
       "app-dir action handling fetch actions should revalidate when cookies.set is called",
       "app-dir action handling fetch actions should revalidate when cookies.set is called in a client action",
       "app-dir action handling fetch actions should store revalidation data in the prefetch cache",
+      "app-dir action handling redirects merges cookies correctly when redirecting",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 307 status code",
       "app-dir action handling redirects redirects properly when server action handler redirects with a 308 status code",
       "app-dir action handling redirects redirects properly when server action handler uses `permanentRedirect`",
@@ -3193,13 +3194,13 @@
   },
   "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "app-dir create root layout page.js find available dir create root layout",
       "app-dir create root layout page.js root layout in app create root layout",
       "app-dir create root layout page.js root layout in route group create root layout",
       "app-dir create root layout page.tsx create root layout"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -3355,11 +3356,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/externals/externals.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "externals-app should have externals for those in config.experimental.serverComponentsExternalPackages",
       "externals-app uses externals for predefined list in server-external-packages.json"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3387,11 +3388,10 @@
   },
   "test/e2e/app-dir/global-error/catch-all/index.test.ts": {
     "passed": [
+      "app dir - global error - with catch-all route should render 404 page correctly",
       "app dir - global error - with catch-all route should render catch-all route correctly"
     ],
-    "failed": [
-      "app dir - global error - with catch-all route should render 404 page correctly"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4070,6 +4070,15 @@
       "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
       "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/parallel-routes-layouts/parallel-routes-layouts.test.ts": {
+    "passed": [
+      "parallel-routes-layouts should properly render layouts for multiple slots"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4936,12 +4945,12 @@
     "runtimeError": false
   },
   "test/e2e/edge-runtime-uses-edge-light-import-specifier-for-packages/edge-runtime-uses-edge-light-import-specifier-for-packages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge-runtime uses edge-light import specifier for packages app-dir imports the correct module",
       "edge-runtime uses edge-light import specifier for packages pages import the correct module",
       "edge-runtime uses edge-light import specifier for packages pages/api endpoints import the correct module"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6847,12 +6856,13 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/dynamicapiroute-dev.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'error'",
-      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-static'",
       "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute undefined"
+    ],
+    "failed": [
+      "app dir - with output export - dynamic api route dev development mode should work in dev with dynamicApiRoute 'force-dynamic'"
     ],
     "pending": [],
     "flakey": [],
@@ -6872,13 +6882,12 @@
   },
   "test/integration/app-dir-export/test/dynamicpage-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'"
-    ],
-    "failed": [
+      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'error'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-static'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage undefined"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6906,11 +6915,11 @@
     "runtimeError": false
   },
   "test/integration/app-dir-export/test/trailing-slash-dev.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'false'",
       "app dir - with output export - trailing slash dev development mode should work in dev with trailingSlash 'true'"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7799,14 +7808,14 @@
       "Ordering with Global CSS and Modules (dev) should not execute scripts in any order"
     ],
     "failed": [
-      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
-      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)"
+      "Basic CSS Modules Ordering Development Mode should have correct color on index page (on nav)"
     ],
     "pending": [
       "Basic CSS Modules Ordering production mode should have correct color on index page (on hover)",
       "Basic CSS Modules Ordering production mode should have correct color on index page (on load)",
       "Basic CSS Modules Ordering production mode should have correct color on index page (on nav)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on hover)",
+      "CSS Modules Composes Ordering Development Mode should have correct color on index page (on load)",
       "CSS Modules Composes Ordering production mode should have correct CSS injection order",
       "CSS Modules Composes Ordering production mode should have correct color on index page (on hover)",
       "CSS Modules Composes Ordering production mode should have correct color on index page (on load)",
@@ -9033,17 +9042,17 @@
       "Env Config dev mode with hot reload should load env from .env",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
+      "Env Config test environment should have process environment override .env",
+      "Env Config test environment should load env from .env",
       "Env Config test environment should provide env correctly for API routes",
+      "Env Config test environment should provide env correctly for SSR",
+      "Env Config test environment should provide env for SSG",
       "Env Config test environment should provide global env to next.config.js"
     ],
     "failed": [
       "Env Config dev mode should inline global values during build",
       "Env Config dev mode with hot reload should inline global values during build",
-      "Env Config test environment should have process environment override .env",
-      "Env Config test environment should inline global values during build",
-      "Env Config test environment should load env from .env",
-      "Env Config test environment should provide env correctly for SSR",
-      "Env Config test environment should provide env for SSG"
+      "Env Config test environment should inline global values during build"
     ],
     "pending": [
       "Env Config production mode should have process environment override .env",
@@ -10749,13 +10758,12 @@
   },
   "test/integration/filesystempublicroutes/test/index.test.js": {
     "passed": [
-      "FileSystemPublicRoutes should route to public folder files",
-      "FileSystemPublicRoutes should still handle /_next routes"
-    ],
-    "failed": [
       "FileSystemPublicRoutes should not route to the index page",
-      "FileSystemPublicRoutes should route to exportPathMap defined routes in development"
+      "FileSystemPublicRoutes should route to exportPathMap defined routes in development",
+      "FileSystemPublicRoutes should route to public folder files",
+      "FileSystemPublicRoutes should serve JavaScript files correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12564,12 +12572,12 @@
     "runtimeError": false
   },
   "test/integration/jsconfig-baseurl/test/index.test.js": {
-    "passed": ["TypeScript Features default behavior should render the page"],
+    "passed": ["jsconfig.json baseurl default behavior should render the page"],
     "failed": [
-      "TypeScript Features default behavior should have correct module not found error"
+      "jsconfig.json baseurl default behavior should have correct module not found error"
     ],
     "pending": [
-      "TypeScript Features should build production mode should trace correctly"
+      "jsconfig.json baseurl should build production mode should trace correctly"
     ],
     "flakey": [],
     "runtimeError": false
@@ -13060,10 +13068,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/image-from-node-modules/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component Tests In Dev Mode should apply image config for node_modules"
     ],
+    "failed": [],
     "pending": [
       "Image Component Tests In Prod Mode production mode should apply image config for node_modules"
     ],
@@ -13270,20 +13278,19 @@
     "passed": [
       "Static Image Component Tests dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests dev mode Should automatically provide an image height and width",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
       "Static Image Component Tests dev mode should add a data URL placeholder to an image",
       "Static Image Component Tests dev mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
       "Static Image Component Tests dev mode should add placeholder with blurDataURL and fill",
+      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
       "Static Image Component Tests dev mode should load direct imported image",
       "Static Image Component Tests dev mode should use height prop to adjust both width and height",
       "Static Image Component Tests dev mode should use width and height prop to override import",
       "Static Image Component Tests dev mode should use width prop to adjust both width and height"
     ],
-    "failed": [
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
-    ],
+    "failed": [],
     "pending": [
       "Build Error Tests production mode should throw build error when import statement is used with missing file",
       "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
@@ -13307,11 +13314,10 @@
   },
   "test/integration/next-image-new/asset-prefix/test/index.test.js": {
     "passed": [
+      "Image Component assetPrefix Tests dev mode should include assetPrefix when placeholder=blur during next dev",
       "Image Component assetPrefix Tests dev mode should not log a deprecation warning about using `images.domains`"
     ],
-    "failed": [
-      "Image Component assetPrefix Tests dev mode should include assetPrefix when placeholder=blur during next dev"
-    ],
+    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests production mode should not log a deprecation warning about using `images.domains`",
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
@@ -13343,16 +13349,15 @@
     "passed": [
       "Static Image Component Tests for basePath dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests for basePath dev mode Should automatically provide an image height and width",
+      "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported jpg",
+      "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported png",
       "Static Image Component Tests for basePath dev mode should add a data URL placeholder to an image",
+      "Static Image Component Tests for basePath dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
       "Static Image Component Tests for basePath dev mode should use height prop to adjust both width and height",
       "Static Image Component Tests for basePath dev mode should use width and height prop to override import",
       "Static Image Component Tests for basePath dev mode should use width prop to adjust both width and height"
     ],
-    "failed": [
-      "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported jpg",
-      "Static Image Component Tests for basePath dev mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests for basePath dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
-    ],
+    "failed": [],
     "pending": [
       "Build Error Tests production mode should throw build error when import statement is used with missing file",
       "Static Image Component Tests for basePath production mode Should allow an image with a static src to omit height and width",
@@ -13372,11 +13377,10 @@
   },
   "test/integration/next-image-new/both-basepath-trailingslash/test/index.test.ts": {
     "passed": [
+      "Image Component basePath + trailingSlash Tests dev mode should correctly load image src from import",
       "Image Component basePath + trailingSlash Tests dev mode should correctly load image src from string"
     ],
-    "failed": [
-      "Image Component basePath + trailingSlash Tests dev mode should correctly load image src from import"
-    ],
+    "failed": [],
     "pending": [
       "Image Component basePath + trailingSlash Tests production mode should correctly load image src from import",
       "Image Component basePath + trailingSlash Tests production mode should correctly load image src from string"
@@ -13405,6 +13409,7 @@
       "Image Component Default Tests dev mode should handle the styles prop appropriately",
       "Image Component Default Tests dev mode should have blurry placeholder when enabled",
       "Image Component Default Tests dev mode should have data url placeholder when enabled",
+      "Image Component Default Tests dev mode should lazy load with placeholder=blur",
       "Image Component Default Tests dev mode should load the images",
       "Image Component Default Tests dev mode should not pass through user-provided srcset (causing a flash)",
       "Image Component Default Tests dev mode should not warn when Image is child of p",
@@ -13442,9 +13447,7 @@
       "Image Component Default Tests dev mode should work with image with blob src",
       "Image Component Default Tests dev mode should work with sizes and automatically use responsive srcset"
     ],
-    "failed": [
-      "Image Component Default Tests dev mode should lazy load with placeholder=blur"
-    ],
+    "failed": [],
     "pending": [
       "Image Component Default Tests production mode Fill-mode tests should add 100% width and height to fill images",
       "Image Component Default Tests production mode Fill-mode tests should add position styles to fill images",
@@ -13491,21 +13494,20 @@
     "passed": [
       "Static Image Component Tests dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests dev mode Should automatically provide an image height and width",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
+      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
       "Static Image Component Tests dev mode should add a data URL placeholder to an image",
       "Static Image Component Tests dev mode should add placeholder even when blurDataURL aspect ratio does not match width/height ratio",
       "Static Image Component Tests dev mode should add placeholder with blurDataURL and fill",
+      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image",
       "Static Image Component Tests dev mode should load direct imported image",
       "Static Image Component Tests dev mode should load staticprops imported image",
       "Static Image Component Tests dev mode should use height prop to adjust both width and height",
       "Static Image Component Tests dev mode should use width and height prop to override import",
       "Static Image Component Tests dev mode should use width prop to adjust both width and height"
     ],
-    "failed": [
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported jpg",
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png",
-      "Static Image Component Tests dev mode should add a blur placeholder a statically imported png with fill",
-      "Static Image Component Tests dev mode should have <head> containing <meta name=\"viewport\"> followed by <link rel=\"preload\"> for priority image"
-    ],
+    "failed": [],
     "pending": [
       "Build Error Tests production mode should throw build error when import statement is used with missing file",
       "Static Image Component Tests production mode Should allow an image with a static src to omit height and width",
@@ -13536,18 +13538,19 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/image-from-node-modules/test/index.test.ts": {
-    "passed": [],
-    "failed": [
-      "Image Component from node_modules dev mode should apply image config for node_modules",
-      "Image Component from node_modules prod mode should apply image config for node_modules"
+    "passed": [
+      "Image Component from node_modules dev mode should apply image config for node_modules"
     ],
-    "pending": [],
+    "failed": [],
+    "pending": [
+      "Image Component from node_modules prod mode production mode should apply image config for node_modules"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-    "passed": [],
-    "failed": ["Missing Import Image Tests dev mode should show error"],
+    "passed": ["Missing Import Image Tests dev mode should show error"],
+    "failed": [],
     "pending": ["Missing Import Image Tests production mode should show error"],
     "flakey": [],
     "runtimeError": false
@@ -15458,11 +15461,11 @@
       "TypeScript Features default behavior should respond to sync API route correctly"
     ],
     "failed": [
-      "TypeScript Features default behavior should render the angle bracket type assertions page",
-      "TypeScript Features default behavior should resolve files in correct order"
+      "TypeScript Features default behavior should render the angle bracket type assertions page"
     ],
     "pending": [
       "TypeScript Features default behavior should report type checking to stdout",
+      "TypeScript Features default behavior should resolve files in correct order",
       "TypeScript Features production mode should build the app",
       "TypeScript Features production mode should build the app with functions in next.config.js",
       "TypeScript Features production mode should compile with different types should compile async getInitialProps for _error",
@@ -15585,10 +15588,9 @@
   },
   "test/integration/worker-webpack5/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "Web Workers with webpack 5 dev mode should pass on both client and worker"
-    ],
+    "failed": [],
     "pending": [
+      "Web Workers with webpack 5 dev mode should pass on both client and worker",
       "Web Workers with webpack 5 production mode should pass on both client and worker"
     ],
     "flakey": [],
