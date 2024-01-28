@@ -1,10 +1,52 @@
 # Turso
 
+[Turso](https://turso.tech) is a SQLite-compatible database built on libSQL, the Open Contribution fork of SQLite. It enables scaling to hundreds of thousands of databases per organization and supports replication to any location, including your own servers, for microsecond-latency access.
+
+* [Turso Documentation](https://docs.turso.tech)
+* [Turso Support](https://discord.com/invite/4B5D7hYwub)
+
 ## Features
 
 * Uses SQLite `dev.db` locally
 * App Router
 * Server Actions
+
+## How to use
+
+You can run this example locally using SQLite. The example will automatically create a `todos` table using the file `dev.db`.
+
+Create a new Next app using the `with-turso` example:
+
+```bash
+npx create-next-app --example with-turso with-turso-app
+```
+
+```bash
+yarn create next-app --example with-turso with-turso-app
+```
+
+```bash
+pnpm create next-app --example with-turso with-turso-app
+```
+
+Then install the dependencies and run the Next.js development server:
+
+```bash
+npm install
+npm run dev
+
+# or
+
+yarn install
+yarn dev
+
+# or
+#
+pnpm install
+pnpm dev
+```
+
+You should now be able to go to [http://localhost:3000](http://localhost:3000).
 
 ## Deploy to Vercel
 
