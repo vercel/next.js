@@ -12832,10 +12832,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/asset-prefix/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component assetPrefix Tests dev mode should include assetPrefix when placeholder=blur during next dev"
     ],
+    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
     ],

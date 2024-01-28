@@ -32,7 +32,7 @@ describe('Image Component assetPrefix Tests', () => {
           `document.getElementById('${id}').style['background-image']`
         )
         if (process.env.TURBOPACK) {
-          expect(bgImage).toContain('data:image/svg+xml;')
+          expect(bgImage).toContain('data:image/jpeg;')
         } else {
           expect(bgImage).toMatch(
             /\/_next\/image\?url=https%3A%2F%2Fexample.com%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
