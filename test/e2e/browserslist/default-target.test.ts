@@ -31,7 +31,7 @@ describe('default browserslist target', () => {
               const res = await fetchViaHTTP(next.url, src)
               const code = await res.text()
               // Default compiles for ES Modules output
-              if (code.includes('()=>')) {
+              if (code.includes('async ()=>')) {
                 return src
               }
               return false

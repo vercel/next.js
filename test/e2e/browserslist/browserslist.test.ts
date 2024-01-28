@@ -33,7 +33,7 @@ const appDir = path.join(__dirname, 'app')
               const src = $(el).attr('src')
               const res = await fetchViaHTTP(next.url, src)
               const code = await res.text()
-              if (code.includes('()=>')) {
+              if (code.includes('async ()=>')) {
                 return src
               }
               return false
