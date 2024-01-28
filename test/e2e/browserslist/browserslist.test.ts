@@ -5,7 +5,8 @@ import path from 'path'
 import cheerio from 'cheerio'
 const appDir = path.join(__dirname, 'app')
 
-describe('Browserslist', () => {
+// TODO: Implement Browserslist support in Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)('Browserslist', () => {
   let next: NextInstance
 
   beforeAll(async () => {
