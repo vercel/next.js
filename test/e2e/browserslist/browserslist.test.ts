@@ -12,9 +12,9 @@ describe('Browserslist', () => {
     next = await createNext({
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
-        '.browserslistrc': 'Chrome 73',
+        // In Chrome 45 arrow functions are introduced, by
+        '.browserslistrc': 'Chrome 42',
       },
-      dependencies: {},
     })
   })
   afterAll(() => next.destroy())
@@ -23,21 +23,23 @@ describe('Browserslist', () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
-    let finished = false
-    await Promise.all(
-      $('script')
-        .toArray()
-        .map(async (el) => {
-          const src = $(el).attr('src')
-          if (!src) return
-          if (src.includes('/index')) {
-            const res = await fetchViaHTTP(next.url, src)
-            const code = await res.text()
-            expect(code).toMatch('()=>')
-            finished = true
-          }
-        })
-    )
-    expect(finished).toBe(true)
+    expect(
+      (
+        await Promise.all(
+          $('script')
+            .toArray()
+            .map(async (el) => {
+              const src = $(el).attr('src')
+              const res = await fetchViaHTTP(next.url, src)
+              const code = await res.text()
+              if (code.includes('()=>')) {
+                return src
+              }
+              return false
+            })
+        )
+      ) // Filter out false values
+        .filter((item) => item)
+    ).toBeEmpty()
   })
 })

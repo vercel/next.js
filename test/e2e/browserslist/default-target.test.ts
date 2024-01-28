@@ -13,7 +13,6 @@ describe('default browserslist target', () => {
       files: {
         pages: new FileRef(path.join(appDir, 'pages')),
       },
-      dependencies: {},
     })
   })
   afterAll(() => next.destroy())
@@ -22,21 +21,25 @@ describe('default browserslist target', () => {
     const html = await renderViaHTTP(next.url, '/')
     const $ = cheerio.load(html)
 
-    let finished = false
-    await Promise.all(
-      $('script')
-        .toArray()
-        .map(async (el) => {
-          const src = $(el).attr('src')
-          if (!src) return
-          if (src.includes('/index')) {
-            const res = await fetchViaHTTP(next.url, src)
-            const code = await res.text()
-            expect(code).toMatch('()=>')
-            finished = true
-          }
-        })
-    )
-    expect(finished).toBe(true)
+    expect(
+      (
+        await Promise.all(
+          $('script')
+            .toArray()
+            .map(async (el) => {
+              const src = $(el).attr('src')
+              const res = await fetchViaHTTP(next.url, src)
+              const code = await res.text()
+              // Default compiles for ES Modules output
+              if (code.includes('()=>')) {
+                return src
+              }
+              return false
+            })
+        )
+      )
+        // Filter out false values
+        .filter((item) => item)
+    ).not.toBeEmpty()
   })
 })
