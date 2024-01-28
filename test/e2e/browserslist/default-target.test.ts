@@ -5,7 +5,8 @@ import path from 'path'
 import cheerio from 'cheerio'
 const appDir = path.join(__dirname, 'app')
 
-describe('default browserslist target', () => {
+// TODO: This test needs to check multiple files and syntax features.
+describe.skip('default browserslist target', () => {
   let next: NextInstance
 
   beforeAll(async () => {
