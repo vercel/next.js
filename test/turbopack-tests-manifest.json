@@ -1516,20 +1516,19 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
-    "passed": [
-      "optimizePackageImports should handle recursive wildcard exports",
-      "optimizePackageImports should not break \"use client\" directive in optimized packages",
-      "optimizePackageImports should support \"use client\" directive in barrel file"
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Skipped in Turbopack optimizePackageImports app - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports app - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports pages - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports pages - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports should handle recursive wildcard exports",
+      "Skipped in Turbopack optimizePackageImports should not break \"use client\" directive in optimized packages",
+      "Skipped in Turbopack optimizePackageImports should support \"use client\" directive in barrel file",
+      "Skipped in Turbopack optimizePackageImports should support MUI",
+      "Skipped in Turbopack optimizePackageImports should support visx"
     ],
-    "failed": [
-      "optimizePackageImports app - should optimize recursive wildcard export mapping",
-      "optimizePackageImports app - should render the icons correctly without creating all the modules",
-      "optimizePackageImports pages - should optimize recursive wildcard export mapping",
-      "optimizePackageImports pages - should render the icons correctly without creating all the modules",
-      "optimizePackageImports should support MUI",
-      "optimizePackageImports should support visx"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -6252,8 +6251,11 @@
   },
   "test/e2e/swc-warnings/index.test.ts": {
     "passed": [],
-    "failed": ["can force swc should not have warning"],
-    "pending": ["swc warnings by default should have warning"],
+    "failed": [],
+    "pending": [
+      "can force swc should not have warning",
+      "swc warnings by default should have warning"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -6882,8 +6884,8 @@
   },
   "test/integration/app-dir-export/test/dynamicpage-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'error'",
+      "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-dynamic'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage 'force-static'",
       "app dir - with output export - dynamic page dev development mode should work in dev with dynamicPage undefined"
     ],
@@ -14573,10 +14575,10 @@
   },
   "test/integration/route-load-cancel-css/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "route cancel via CSS should cancel slow page loads on re-navigation"
+    "failed": [],
+    "pending": [
+      "route cancel via CSS production mode should cancel slow page loads on re-navigation"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
