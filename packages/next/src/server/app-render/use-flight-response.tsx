@@ -10,6 +10,7 @@ const INLINE_FLIGHT_PAYLOAD_DATA = 1
 const INLINE_FLIGHT_PAYLOAD_FORM_STATE = 2
 
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
+const encoder = new TextEncoder()
 
 /**
  * Render Flight stream.
@@ -55,101 +56,37 @@ export function useFlightStream<T>(
 }
 
 /**
- * The eager form of this function will return a readable stream that has a complete property
- * which can be awaited. The reason for doing this eagerly is that during certain render modes
- * we may want to ensure the entire react server stream has completed before making a determination
- * such as whether a dynamic API was used. In other render modes we may not care to track this
- * and want to maximize the use of backpressure with the underlying streams.
- *
- * @param flightStream The RSC render stream
- * @param nonce optionally a nonce used during this particular render
- * @param formState optionally the formState used with this particular render
- * @returns a Promise<ReadableStream> which resolves when the underlying flight stream has been completely consumed
+ * There are times when an SSR render may be finished but the RSC render
+ * is ongoing and we need to wait for it to complete to make some determination
+ * about how the handle the render. This function will drain the RSC reader and
+ * resolve when completed. This will generally require teeing the RSC stream and it
+ * should be noted that it will cause all the RSC chunks to queue in the underlying
+ * ReadableStream however given Flight currently is a push stream that doesn't respond
+ * to backpressure this shouldn't change how much memory is maximally consumed
  */
-export async function createEagerInlinedDataReadableStream(
-  flightStream: ReadableStream<Uint8Array>,
-  nonce: string | undefined,
-  formState: unknown | null
-): Promise<ReadableStream<Uint8Array>> {
-  const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
-    : '<script>'
-
-  const decoder = new TextDecoder('utf-8', { fatal: true })
-  const decoderOptions = { stream: true }
-
-  const encoder = new TextEncoder()
-
+export async function flightRenderComplete(
+  flightStream: ReadableStream<Uint8Array>
+): Promise<void> {
   const flightReader = flightStream.getReader()
 
-  return new Promise((resolve, reject) => {
-    const readable = new ReadableStream({
-      type: 'bytes',
-      start(controller) {
-        async function eagerlyEnqueue() {
-          try {
-            controller.enqueue(
-              encoder.encode(
-                `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-                )});self.__next_f.push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-                )})</script>`
-              )
-            )
-
-            while (true) {
-              const { done, value } = await flightReader.read()
-              if (done) {
-                const chunkAsString = decoder.decode(value, { stream: false })
-                if (chunkAsString.length) {
-                  controller.enqueue(
-                    encoder.encode(
-                      `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                        JSON.stringify([
-                          INLINE_FLIGHT_PAYLOAD_DATA,
-                          chunkAsString,
-                        ])
-                      )})</script>`
-                    )
-                  )
-                }
-                controller.close()
-                resolve(readable)
-                break
-              }
-              const chunkAsString = decoder.decode(value, decoderOptions)
-              controller.enqueue(
-                encoder.encode(
-                  `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                    JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
-                  )})</script>`
-                )
-              )
-            }
-          } catch (error) {
-            // There was a problem in the upstream reader or during encoding and enqueuing
-            // forward the error downstream
-            controller.error(error)
-            reject(error)
-          }
+  return new Promise(async (resolve, reject) => {
+    try {
+      while (true) {
+        const { done } = await flightReader.read()
+        if (done) {
+          resolve()
+          return
         }
-
-        // We start reading the stream eagerly in the start method to ensure we drain
-        // the underlying react stream as quickly as possible. While this will increase memory
-        // usage it will allow us to make a correct determination of whether the flight render
-        // used dynamic APIs prior to deciding whether we will continue the stream or not
-        eagerlyEnqueue()
-      },
-    })
+      }
+    } catch (error) {
+      reject(error)
+    }
   })
 }
 
 /**
- * The lazy form of this function will return a readable stream which will pull
- * from the underlying react stream as capacity allows. This is useful when we do not
- * need to track the completion of the underlying RSC stream prior to making certain determinations
- * such as whether a dynamic API was used during a prerender.
+ * Creates a ReadableStream provides inline script tag chunks for writing hydration
+ * data to the client outside the React render itself.
  *
  * @param flightStream The RSC render stream
  * @param nonce optionally a nonce used during this particular render
@@ -168,23 +105,13 @@ export function createInlinedDataReadableStream(
   const decoder = new TextDecoder('utf-8', { fatal: true })
   const decoderOptions = { stream: true }
 
-  const encoder = new TextEncoder()
-
   const flightReader = flightStream.getReader()
 
   const readable = new ReadableStream({
     type: 'bytes',
     start(controller) {
       try {
-        controller.enqueue(
-          encoder.encode(
-            `${startScriptTag}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-            )});self.__next_f.push(${htmlEscapeJsonString(
-              JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-            )})</script>`
-          )
-        )
+        writeInitialInstructions(controller, startScriptTag, formState)
       } catch (error) {
         // during encoding or enqueueing forward the error downstream
         controller.error(error)
@@ -196,24 +123,12 @@ export function createInlinedDataReadableStream(
         if (done) {
           const tail = decoder.decode(value, { stream: false })
           if (tail.length) {
-            controller.enqueue(
-              encoder.encode(
-                `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                  JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, tail])
-                )})</script>`
-              )
-            )
+            writeFlightDataInstruction(controller, startScriptTag, tail)
           }
           controller.close()
         } else {
           const chunkAsString = decoder.decode(value, decoderOptions)
-          controller.enqueue(
-            encoder.encode(
-              `${startScriptTag}self.__next_f.push(${htmlEscapeJsonString(
-                JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
-              )})</script>`
-            )
-          )
+          writeFlightDataInstruction(controller, startScriptTag, chunkAsString)
         }
       } catch (error) {
         // There was a problem in the upstream reader or during decoding or enqueuing
@@ -224,4 +139,34 @@ export function createInlinedDataReadableStream(
   })
 
   return readable
+}
+
+function writeInitialInstructions(
+  controller: ReadableStreamDefaultController,
+  scriptStart: string,
+  formState: unknown | null
+) {
+  controller.enqueue(
+    encoder.encode(
+      `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+      )});self.__next_f.push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+      )})</script>`
+    )
+  )
+}
+
+function writeFlightDataInstruction(
+  controller: ReadableStreamDefaultController,
+  scriptStart: string,
+  chunkAsString: string
+) {
+  controller.enqueue(
+    encoder.encode(
+      `${scriptStart}self.__next_f.push(${htmlEscapeJsonString(
+        JSON.stringify([INLINE_FLIGHT_PAYLOAD_DATA, chunkAsString])
+      )})</script>`
+    )
+  )
 }

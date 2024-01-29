@@ -136,10 +136,16 @@ export function trackDynamicDataAccessed(
  */
 type PostponeProps = {
   reason: string
+  prerenderState: PrerenderState
+  pathname: string
 }
-export function Postpone({ reason }: PostponeProps): never {
+export function Postpone({
+  reason,
+  prerenderState,
+  pathname,
+}: PostponeProps): never {
   assertPostpone()
-  return React.unstable_postpone(reason)
+  postponeWithTracking(prerenderState, reason, pathname)
 }
 
 // @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
@@ -160,7 +166,7 @@ function postponeWithTracking(
   prerenderState: PrerenderState,
   expression: string,
   pathname: string
-) {
+): never {
   const reason =
     `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +

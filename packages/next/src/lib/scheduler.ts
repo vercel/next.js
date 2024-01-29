@@ -32,3 +32,7 @@ export const scheduleImmediate = <T = void>(cb: ScheduledFn<T>): void => {
     setImmediate(cb)
   }
 }
+
+export function atLeastOneTask() {
+  return new Promise<void>((resolve) => scheduleImmediate(resolve))
+}
