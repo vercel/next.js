@@ -192,12 +192,10 @@ function createUrlAndImportVisitor(
 
 function createIcssVisitor({
   imports,
-  exports,
   replacements,
   replacedUrls,
 }: {
   imports: CssImport[]
-  exports: CssExport[]
   replacements: ApiReplacement[]
   replacedUrls: Map<number, string>
 }): Visitor<{}> {
@@ -334,7 +332,6 @@ export async function LightningCssLoader(
         ),
         createIcssVisitor({
           imports: icssImports,
-          exports,
           replacements,
           replacedUrls: icssReplacedUrls,
         }),
@@ -364,12 +361,12 @@ export async function LightningCssLoader(
           let value = v.name
           console.log('composes', v.composes)
           for (const compose of v.composes) {
-            value += ` ${compose}`
+            value += ` ${compose.name}`
           }
 
           exports.push({
             name,
-            value: moduleExports[name].name,
+            value,
           })
         }
       }
