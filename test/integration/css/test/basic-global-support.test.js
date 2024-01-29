@@ -60,7 +60,7 @@ describe('Basic Global Support with special characters in path', () => {
       beforeAll(async () => {
         nextConfig.write(
           `
-const config = require('../next.config.js');
+const config = require('../../next.config.js');
 module.exports = {
 ...config,
 experimental: {
