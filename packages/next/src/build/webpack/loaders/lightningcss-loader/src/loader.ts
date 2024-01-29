@@ -24,6 +24,8 @@ import { stringifyRequest } from '../../../stringify-request'
 
 const encoder = new TextEncoder()
 
+const moduleRegExp = /\.module\.\w+$/i
+
 function createVisitor(
   visitorOptions: VisitorOptions,
   apis: ApiParam[],
@@ -245,13 +247,14 @@ export async function LightningCssLoader(
         replacements,
         replacedUrls
       ),
-      cssModules: options.modules
-        ? {
-            pattern: process.env.__NEXT_TEST_MODE
-              ? '[name]__[local]'
-              : '[name]__[hash]__[local]',
-          }
-        : undefined,
+      cssModules:
+        options.modules && moduleRegExp.test(this.resourcePath)
+          ? {
+              pattern: process.env.__NEXT_TEST_MODE
+                ? '[name]__[local]'
+                : '[name]__[hash]__[local]',
+            }
+          : undefined,
       filename: this.resourcePath,
       code: encoder.encode(source),
       sourceMap: this.sourceMap,
