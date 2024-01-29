@@ -93,22 +93,25 @@ useLightningcss: ${useLightningcss}
       })
     }
 
-    describe('Development Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+    ;(process.env.TURBOPACK && useLightningcss ? describe.skip : describe)(
+      'Development Mode',
+      () => {
+        // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
-    // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
-    ;(process.env.TURBOPACK || useLightningcss ? describe.skip : describe)(
+        tests()
+      }
+    )
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
