@@ -6624,14 +6624,13 @@
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
+      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP dev mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP dev mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP dev mode should not contain missing files warning",
       "AMP Usage AMP dev no-warn should not warn on valid amp"
     ],
-    "failed": [
-      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags"
-    ],
+    "failed": [],
     "pending": [
       "AMP Usage AMP dev mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP dev mode should detect changes and refresh an AMP page",
@@ -6950,11 +6949,12 @@
     "passed": [
       "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
-    "failed": [],
+    "failed": [
+      "development mode _app chunks should be attached to de dom before page chunks"
+    ],
     "pending": [
       "Root components import order production mode _app chunks should be attached to de dom before page chunks",
-      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects",
-      "development mode _app chunks should be attached to de dom before page chunks"
+      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
     "flakey": [],
     "runtimeError": false
