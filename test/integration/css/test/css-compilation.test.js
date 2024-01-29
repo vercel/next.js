@@ -313,7 +313,7 @@ module.exports = {
           )
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
+          ).toMatchSnapshot()
         })
       })
     })
