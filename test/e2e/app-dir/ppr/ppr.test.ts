@@ -9,7 +9,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     it('should indicate the feature is experimental', async () => {
       await check(() => {
-        return next.cliOutput.includes('Experiments (with caution)') &&
+        return next.cliOutput.includes('Experiments (use with caution)') &&
           next.cliOutput.includes('ppr')
           ? 'success'
           : 'fail'
