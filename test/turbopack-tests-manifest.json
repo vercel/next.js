@@ -6950,12 +6950,11 @@
     "passed": [
       "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
-    "failed": [
-      "development mode _app chunks should be attached to de dom before page chunks"
-    ],
+    "failed": [],
     "pending": [
       "Root components import order production mode _app chunks should be attached to de dom before page chunks",
-      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
+      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects",
+      "development mode _app chunks should be attached to de dom before page chunks"
     ],
     "flakey": [],
     "runtimeError": false
@@ -12832,10 +12831,10 @@
     "runtimeError": false
   },
   "test/integration/next-image-legacy/asset-prefix/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Component assetPrefix Tests dev mode should include assetPrefix when placeholder=blur during next dev"
     ],
+    "failed": [],
     "pending": [
       "Image Component assetPrefix Tests production mode should use base64 data url with placeholder=blur during next start"
     ],
@@ -13688,15 +13687,6 @@
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/no-duplicate-compile-error/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "no duplicate compile error output should not show compile error on page refresh"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
