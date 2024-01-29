@@ -1,7 +1,12 @@
 import type { LoaderContext } from 'webpack'
 import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
 import { ECacheKey } from './interface'
-import { transform as transformCss, type Url, type Visitor } from 'lightningcss'
+import {
+  composeVisitors,
+  transform as transformCss,
+  type Url,
+  type Visitor,
+} from 'lightningcss'
 import { getTargets } from './utils'
 import {
   getImportCode,
@@ -26,7 +31,7 @@ const encoder = new TextEncoder()
 
 const moduleRegExp = /\.module\.\w+$/i
 
-function createVisitor(
+function createUrlAndImportVisitor(
   visitorOptions: VisitorOptions,
   apis: ApiParam[],
   imports: CssImport[],
@@ -185,6 +190,50 @@ function createVisitor(
   }
 }
 
+function createIcssVisitor({
+  imports,
+  replacedUrls,
+}: {
+  imports: CssImport[]
+  replacedUrls: Map<number, string>
+}): Visitor<{}> {
+  let urlIndex = -1
+
+  return {
+    Declaration: {
+      composes(node) {
+        if (node.property === 'unparsed') {
+          return
+        }
+
+        const specifier = node.value.from
+
+        if (specifier?.type !== 'file') {
+          return
+        }
+
+        let url = specifier.value
+        if (!url) {
+          return
+        }
+
+        urlIndex++
+
+        replacedUrls.set(urlIndex, url)
+        url = `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${urlIndex}__`
+
+        imports.push({
+          type: 'icss_import',
+          importName: `___CSS_LOADER_ICSS_IMPORT_${imports.length}___`,
+          icss: true,
+          url,
+          index: urlIndex,
+        })
+      },
+    },
+  }
+}
+
 const LOADER_NAME = `lightningcss-loader`
 export async function LightningCssLoader(
   this: LoaderContext<ILightningCssLoaderConfig>,
@@ -208,6 +257,7 @@ export async function LightningCssLoader(
 
   const exports: CssExport[] = []
   const imports: CssImport[] = []
+  const icssImports: CssImport[] = []
   const apis: ApiParam[] = []
   const replacements: ApiReplacement[] = []
 
@@ -223,22 +273,8 @@ export async function LightningCssLoader(
   }
   const transform = implementation?.transformCss ?? transformCss
 
-  const urlResolver = this.getResolve({
-    conditionNames: ['asset'],
-    mainFields: ['asset'],
-    mainFiles: [],
-    extensions: [],
-  })
-
-  const importResolver = this.getResolve({
-    conditionNames: ['style'],
-    extensions: ['.css'],
-    mainFields: ['css', 'style', 'main', '...'],
-    mainFiles: ['index', '...'],
-    restrictions: [/\.css$/i],
-  })
-
   const replacedUrls = new Map<number, string>()
+  const icssReplacedUrls = new Map<number, string>()
   const replacedImportUrls = new Map<number, string>()
 
   try {
@@ -248,24 +284,30 @@ export async function LightningCssLoader(
       exports: moduleExports,
     } = transform({
       ...opts,
-      visitor: createVisitor(
-        {
-          urlHandler: (url) =>
-            stringifyRequest(
-              this,
-              getPreRequester(this)(options.importLoaders ?? 0) + url
-            ),
-          urlFilter: getFilter(options.url, this.resourcePath),
-          importFilter: getFilter(options.import, this.resourcePath),
+      visitor: composeVisitors([
+        createUrlAndImportVisitor(
+          {
+            urlHandler: (url) =>
+              stringifyRequest(
+                this,
+                getPreRequester(this)(options.importLoaders ?? 0) + url
+              ),
+            urlFilter: getFilter(options.url, this.resourcePath),
+            importFilter: getFilter(options.import, this.resourcePath),
 
-          context: this.context,
-        },
-        apis,
-        imports,
-        replacements,
-        replacedUrls,
-        replacedImportUrls
-      ),
+            context: this.context,
+          },
+          apis,
+          imports,
+          replacements,
+          replacedUrls,
+          replacedImportUrls
+        ),
+        createIcssVisitor({
+          imports: icssImports,
+          replacedUrls: icssReplacedUrls,
+        }),
+      ]),
       cssModules:
         options.modules && moduleRegExp.test(this.resourcePath)
           ? {
@@ -295,35 +337,80 @@ export async function LightningCssLoader(
       }
     }
 
-    for (const [index, url] of replacedUrls.entries()) {
-      const [pathname, ,] = url.split(/(\?)?#/, 3)
+    if (replacedUrls.size !== 0) {
+      const urlResolver = this.getResolve({
+        conditionNames: ['asset'],
+        mainFields: ['asset'],
+        mainFiles: [],
+        extensions: [],
+      })
 
-      const request = requestify(pathname, this.rootContext)
-      const resolvedUrl = await resolveRequests(urlResolver, this.context, [
-        ...new Set([request, url]),
-      ])
+      for (const [index, url] of replacedUrls.entries()) {
+        const [pathname, ,] = url.split(/(\?)?#/, 3)
 
-      for (const importItem of imports) {
-        importItem.url = importItem.url.replace(
-          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
-          resolvedUrl ?? url
-        )
+        const request = requestify(pathname, this.rootContext)
+        const resolvedUrl = await resolveRequests(urlResolver, this.context, [
+          ...new Set([request, url]),
+        ])
+
+        for (const importItem of imports) {
+          importItem.url = importItem.url.replace(
+            `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+            resolvedUrl ?? url
+          )
+        }
       }
     }
 
-    for (const [index, url] of replacedImportUrls.entries()) {
-      const [pathname, ,] = url.split(/(\?)?#/, 3)
+    if (replacedImportUrls.size !== 0) {
+      const importResolver = this.getResolve({
+        conditionNames: ['style'],
+        extensions: ['.css'],
+        mainFields: ['css', 'style', 'main', '...'],
+        mainFiles: ['index', '...'],
+        restrictions: [/\.css$/i],
+      })
 
-      const request = requestify(pathname, this.rootContext)
-      const resolvedUrl = await resolveRequests(importResolver, this.context, [
-        ...new Set([request, url]),
-      ])
+      for (const [index, url] of replacedImportUrls.entries()) {
+        const [pathname, ,] = url.split(/(\?)?#/, 3)
 
-      for (const importItem of imports) {
-        importItem.url = importItem.url.replace(
-          `__NEXT_LIGHTNINGCSS_LOADER_IMPORT_URL_REPLACE_${index}__`,
-          resolvedUrl ?? url
+        const request = requestify(pathname, this.rootContext)
+        const resolvedUrl = await resolveRequests(
+          importResolver,
+          this.context,
+          [...new Set([request, url])]
         )
+
+        for (const importItem of imports) {
+          importItem.url = importItem.url.replace(
+            `__NEXT_LIGHTNINGCSS_LOADER_IMPORT_URL_REPLACE_${index}__`,
+            resolvedUrl ?? url
+          )
+        }
+      }
+    }
+    if (icssReplacedUrls.size !== 0) {
+      const icssResolver = this.getResolve({
+        conditionNames: ['style'],
+        extensions: [],
+        mainFields: ['css', 'style', 'main', '...'],
+        mainFiles: ['index', '...'],
+      })
+
+      for (const [index, url] of icssReplacedUrls.entries()) {
+        const [pathname, ,] = url.split(/(\?)?#/, 3)
+
+        const request = requestify(pathname, this.rootContext)
+        const resolvedUrl = await resolveRequests(icssResolver, this.context, [
+          ...new Set([request, url]),
+        ])
+
+        for (const importItem of icssImports) {
+          importItem.url = importItem.url.replace(
+            `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${index}__`,
+            resolvedUrl ?? url
+          )
+        }
       }
     }
 
