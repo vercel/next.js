@@ -27,7 +27,19 @@ describe('CSS Support', () => {
       describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
         beforeAll(async () => {
           nextConfig.write(
-            `module.exports = { experimental: { useLightningcss: ${useLightningcss} } }`
+            `module.exports = {
+              onDemandEntries: {
+                // Make sure entries are not getting disposed.
+                maxInactiveAge: 1000 * 60 * 60,
+              },
+              webpack(cfg) {
+                cfg.devtool = 'source-map'
+                return cfg
+              },
+              experimental: {
+                useLightningcss: ${useLightningcss}
+              }
+            }`
           )
         })
 
