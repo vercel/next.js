@@ -78,7 +78,6 @@ export interface VisitorOptions {
   urlHandler: (url: any) => string
 
   context: string
-  urlResolver(context: string, request: string): Promise<string>
 }
 
 export interface ModulesOptions {

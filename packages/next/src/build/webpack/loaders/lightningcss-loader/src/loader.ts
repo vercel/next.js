@@ -31,7 +31,8 @@ function createVisitor(
   apis: ApiParam[],
   imports: CssImport[],
   replacements: ApiReplacement[],
-  replacedUrls: Map<number, string>
+  replacedUrls: Map<number, string>,
+  replacedImportUrls: Map<number, string>
 ): Visitor<{}> {
   const importUrlToNameMap = new Map<string, string>()
 
@@ -39,6 +40,7 @@ function createVisitor(
   const urlToNameMap = new Map()
   const urlToReplacementMap = new Map()
   let urlIndex = -1
+  let importUrlIndex = -1
 
   function handleUrl(u: Url): Url {
     let url = u.url
@@ -135,6 +137,12 @@ function createVisitor(
           }
         }
         let url = node.value.url
+
+        importUrlIndex++
+
+        replacedImportUrls.set(importUrlIndex, url)
+        url = `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${importUrlIndex}__`
+
         // TODO: Use identical logic as valueParser.stringify()
         const media = JSON.stringify(node.value.media.mediaQueries)
         const isRequestable = isUrlRequestable(url)
@@ -220,7 +228,16 @@ export async function LightningCssLoader(
     extensions: [],
   })
 
+  const importResolver = this.getResolve({
+    conditionNames: ['style'],
+    extensions: ['.css'],
+    mainFields: ['css', 'style', 'main', '...'],
+    mainFiles: ['index', '...'],
+    restrictions: [/\.css$/i],
+  })
+
   const replacedUrls = new Map<number, string>()
+  const replacedImportUrls = new Map<number, string>()
 
   try {
     const {
@@ -240,12 +257,12 @@ export async function LightningCssLoader(
           importFilter: getFilter(options.import, this.resourcePath),
 
           context: this.context,
-          urlResolver,
         },
         apis,
         imports,
         replacements,
-        replacedUrls
+        replacedUrls,
+        replacedImportUrls
       ),
       cssModules:
         options.modules && moduleRegExp.test(this.resourcePath)
@@ -281,6 +298,22 @@ export async function LightningCssLoader(
 
       const request = requestify(pathname, this.rootContext)
       const resolvedUrl = await resolveRequests(urlResolver, this.context, [
+        ...new Set([request, url]),
+      ])
+
+      for (const importItem of imports) {
+        importItem.url = importItem.url.replace(
+          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+          resolvedUrl ?? url
+        )
+      }
+    }
+
+    for (const [index, url] of replacedImportUrls.entries()) {
+      const [pathname, ,] = url.split(/(\?)?#/, 3)
+
+      const request = requestify(pathname, this.rootContext)
+      const resolvedUrl = await resolveRequests(importResolver, this.context, [
         ...new Set([request, url]),
       ])
 
