@@ -559,6 +559,8 @@ function getNumberOfWorkers(config: NextConfigComplete) {
 }
 
 const staticWorkerPath = require.resolve('./worker')
+type StaticWorker = typeof import('./worker')
+
 function createStaticWorker(
   config: NextConfigComplete,
   incrementalCacheIpcPort?: number,
@@ -570,8 +572,9 @@ function createStaticWorker(
   return new Worker(staticWorkerPath, {
     timeout: timeout * 1000,
     logger: Log,
-    onRestart: (method, [arg], attempts) => {
+    onRestart: (method, args_, attempts) => {
       if (method === 'exportPage') {
+        const [arg] = args_ as Parameters<StaticWorker['exportPage']>
         const pagePath = arg.path
         if (attempts >= 3) {
           throw new Error(
@@ -582,7 +585,13 @@ function createStaticWorker(
           `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
         )
       } else {
-        const pagePath = arg.path
+        const [arg] = args_ as Parameters<
+          | StaticWorker['getDefinedNamedExports']
+          | StaticWorker['hasCustomGetInitialProps']
+          | StaticWorker['isPageStatic']
+        >
+
+        const pagePath = arg.page
         if (attempts >= 2) {
           throw new Error(
             `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
@@ -1602,12 +1611,12 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await pagesStaticWorkers.hasCustomGetInitialProps(
-                '/_error',
+              (await pagesStaticWorkers.hasCustomGetInitialProps({
+                page: '/_error',
                 distDir,
                 runtimeEnvConfig,
-                false
-              ))
+                checkingApp: false,
+              }))
           )
 
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
@@ -1630,18 +1639,18 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
-          pagesStaticWorkers.hasCustomGetInitialProps(
-            appPageToCheck,
+          pagesStaticWorkers.hasCustomGetInitialProps({
+            page: appPageToCheck,
             distDir,
             runtimeEnvConfig,
-            true
-          )
+            checkingApp: true,
+          })
 
-        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
-          appPageToCheck,
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports({
+          page: appPageToCheck,
           distDir,
-          runtimeEnvConfig
-        )
+          runtimeEnvConfig,
+        })
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
