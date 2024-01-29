@@ -16,10 +16,10 @@ describe('Basic Global Support', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -108,10 +108,10 @@ describe('Basic Global Support with src/ dir', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -154,10 +154,10 @@ describe('Multi Global Support', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -199,10 +199,10 @@ describe('Nested @import() Global Support', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -245,10 +245,10 @@ describe('Multi Global Support (reversed)', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -290,10 +290,10 @@ describe('CSS URL via `file-loader`', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
