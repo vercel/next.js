@@ -1,0 +1,13 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Multi Global Support (reversed) production mode useLightnincsss(false) should've emitted a single CSS file 1`] = `".blue-text{color:blue}.red-text{color:red}"`;
+
+exports[`Multi Global Support (reversed) production mode useLightnincsss(true) should've emitted a single CSS file 1`] = `".blue-text{color:#00f}.red-text{color:red}"`;
+
+exports[`Multi Global Support production mode useLightnincsss(false) should've emitted a single CSS file 1`] = `".red-text{color:red}.blue-text{color:blue}"`;
+
+exports[`Multi Global Support production mode useLightnincsss(true) should've emitted a single CSS file 1`] = `".red-text{color:red}.blue-text{color:#00f}"`;
+
+exports[`Nested @import() Global Support production mode useLightnincsss(false) should've emitted a single CSS file 1`] = `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`;
+
+exports[`Nested @import() Global Support production mode useLightnincsss(true) should've emitted a single CSS file 1`] = `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:#00f}"`;
