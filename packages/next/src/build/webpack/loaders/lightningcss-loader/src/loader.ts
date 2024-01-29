@@ -232,7 +232,7 @@ function createIcssVisitor({
           type: 'icss_import',
           importName,
           icss: true,
-          url: JSON.stringify(urlHandler(url)),
+          url: urlHandler(url),
           index,
         })
 
