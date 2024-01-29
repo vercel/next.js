@@ -54,9 +54,7 @@ impl Module for EcmascriptModuleLocalsModule {
 impl Asset for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
-        // This is not reachable because EcmascriptModuleLocalsModule implements
-        // ChunkableModule and ChunkableModule::as_chunk_item is called instead.
-        todo!("EcmascriptModuleLocalsModule::content is not implemented")
+        self.module.content()
     }
 }
 
