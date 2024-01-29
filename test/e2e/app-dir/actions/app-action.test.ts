@@ -1048,6 +1048,27 @@ createNextDescribe(
         expect(responseCodes).toEqual([303])
       })
 
+      it('merges cookies correctly when redirecting', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+
+        // set foo and bar to be both 1, and verify
+        await browser.eval(
+          `document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`
+        )
+        await browser.refresh()
+        expect(await browser.elementByCss('h1').text()).toBe('foo=1; bar=1')
+
+        // delete foo and set bar to 2, redirect
+        await browser.elementById('redirect-with-cookie-mutation').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target/
+        )
+
+        // verify that the cookies were merged correctly
+        expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
+      })
+
       it.each(['307', '308'])(
         `redirects properly when server action handler redirects with a %s status code`,
         async (statusCode) => {
