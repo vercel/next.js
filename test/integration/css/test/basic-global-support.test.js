@@ -354,63 +354,47 @@ experimental: {
 describe('CSS URL via `file-loader` and asset prefix (1)', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
-    const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
-      beforeAll(async () => {
-        nextConfig.write(
-          `
-const config = require('../next.config.js');
-module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
-}`
-        )
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
       })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
 
-      it('should compile successfully', async () => {
-        const { code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        })
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-      it(`should've emitted expected files`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
-        const mediaFolder = join(appDir, '.next/static/media')
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
+      )
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
-        )
-
-        const mediaFiles = await readdir(mediaFolder)
-        expect(mediaFiles.length).toBe(3)
-        expect(
-          mediaFiles
-            .map((fileName) =>
-              /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
-            )
-            .sort()
-        ).toMatchInlineSnapshot(`
-        [
-          "dark.svg",
-          "dark2.svg",
-          "light.svg",
-        ]
-      `)
-      })
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map((fileName) =>
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+      [
+        "dark.svg",
+        "dark2.svg",
+        "light.svg",
+      ]
+    `)
     })
   })
 })
@@ -418,63 +402,47 @@ experimental: {
 describe('CSS URL via `file-loader` and asset prefix (2)', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
-    const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
-      beforeAll(async () => {
-        nextConfig.write(
-          `
-const config = require('../next.config.js');
-module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
-}`
-        )
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+    })
+
+    it('should compile successfully', async () => {
+      const { code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
       })
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
+    it(`should've emitted expected files`, async () => {
+      const cssFolder = join(appDir, '.next/static/css')
+      const mediaFolder = join(appDir, '.next/static/media')
 
-      it('should compile successfully', async () => {
-        const { code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        })
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-      it(`should've emitted expected files`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
-        const mediaFolder = join(appDir, '.next/static/media')
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
+      )
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
-
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /^\.red-text\{color:red;background-image:url\(\/foo\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/foo\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/foo\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
-        )
-
-        const mediaFiles = await readdir(mediaFolder)
-        expect(mediaFiles.length).toBe(3)
-        expect(
-          mediaFiles
-            .map((fileName) =>
-              /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
-            )
-            .sort()
-        ).toMatchInlineSnapshot(`
-        [
-          "dark.svg",
-          "dark2.svg",
-          "light.svg",
-        ]
-      `)
-      })
+      const mediaFiles = await readdir(mediaFolder)
+      expect(mediaFiles.length).toBe(3)
+      expect(
+        mediaFiles
+          .map((fileName) =>
+            /^(.+?)\..{8}\.(.+?)$/.exec(fileName).slice(1).join('.')
+          )
+          .sort()
+      ).toMatchInlineSnapshot(`
+      [
+        "dark.svg",
+        "dark2.svg",
+        "light.svg",
+      ]
+    `)
     })
   })
 })
