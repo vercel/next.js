@@ -24,7 +24,7 @@ describeVariants.each(['default'])(
     describe('in dev server', () => {
       const { next } = nextTestSetup({
         files: __dirname,
-        dependencies: { lightningcss: '^1' },
+        dependencies: { lightningcss: '^1.23.0' },
         packageJson: {
           browserslist: ['chrome 100'],
         },
