@@ -297,10 +297,10 @@ describe('Ordering with Global CSS and Modules (prod)', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
@@ -352,10 +352,10 @@ experimental: {
           `
 const config = require('../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
