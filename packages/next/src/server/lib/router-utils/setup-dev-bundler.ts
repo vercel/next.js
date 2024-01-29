@@ -97,7 +97,7 @@ import {
   isInstrumentationHookFile,
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
-} from '../../../build/worker'
+} from '../../../build/utils'
 import {
   createOriginalStackFrame,
   getErrorSource,
