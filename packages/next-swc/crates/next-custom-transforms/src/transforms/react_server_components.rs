@@ -642,7 +642,10 @@ pub fn server_components<C: Comments>(
     as_folder(ReactServerComponents {
         is_react_server_layer,
         comments,
-        filepath: filename.to_string(),
+        filepath: match filename {
+            FileName::Custom(path) => format!("<{}>", path),
+            _ => filename.to_string(),
+        },
         app_dir,
         export_names: vec![],
         invalid_server_imports: vec![

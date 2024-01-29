@@ -115,7 +115,6 @@ import {
   isReservedPage,
   isAppBuiltinNotFoundPage,
   serializePageInfos,
-  isReservedAppPage,
 } from './utils'
 import type { PageInfo, PageInfos, AppConfig } from './utils'
 import { writeBuildId } from './write-build-id'
@@ -162,7 +161,6 @@ import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
-import { isDefaultRoute } from '../lib/is-default-route'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 
 interface ExperimentalBypassForInfo {
@@ -934,9 +932,7 @@ export default async function build(
                 validFileMatcher.isAppRouterPage(absolutePath) ||
                 // For now we only collect the root /not-found page in the app
                 // directory as the 404 fallback
-                validFileMatcher.isRootNotFound(absolutePath) ||
-                // Default slots are also valid pages, and need to be considered during path normalization
-                validFileMatcher.isDefaultSlot(absolutePath),
+                validFileMatcher.isRootNotFound(absolutePath),
               ignorePartFilter: (part) => part.startsWith('_'),
             })
           )
@@ -1795,10 +1791,7 @@ export default async function build(
                     pageType === 'app' &&
                     staticInfo?.rsc !== RSC_MODULE_TYPES.client
 
-                  if (
-                    (pageType === 'app' && !isReservedAppPage(page)) ||
-                    (pageType === 'pages' && !isReservedPage(page))
-                  ) {
+                  if (pageType === 'app' || !isReservedPage(page)) {
                     try {
                       let edgeInfo: any
 
@@ -2499,7 +2492,6 @@ export default async function build(
             routes.forEach((route) => {
               if (isDynamicRoute(page) && route === page) return
               if (route === '/_not-found') return
-              if (isDefaultRoute(page)) return
 
               const {
                 revalidate = appConfig.revalidate ?? false,
