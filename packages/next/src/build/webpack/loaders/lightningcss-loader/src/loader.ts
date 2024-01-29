@@ -141,7 +141,7 @@ function createVisitor(
         importUrlIndex++
 
         replacedImportUrls.set(importUrlIndex, url)
-        url = `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${importUrlIndex}__`
+        url = `__NEXT_LIGHTNINGCSS_LOADER_IMPORT_URL_REPLACE_${importUrlIndex}__`
 
         // TODO: Use identical logic as valueParser.stringify()
         const media = node.value.media.mediaQueries.length
@@ -321,7 +321,7 @@ export async function LightningCssLoader(
 
       for (const importItem of imports) {
         importItem.url = importItem.url.replace(
-          `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${index}__`,
+          `__NEXT_LIGHTNINGCSS_LOADER_IMPORT_URL_REPLACE_${index}__`,
           resolvedUrl ?? url
         )
       }
