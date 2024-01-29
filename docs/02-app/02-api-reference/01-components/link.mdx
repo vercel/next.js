@@ -183,9 +183,9 @@ export default function Page() {
 
 <AppOnly>
 
-Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
+Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and its data in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
 
-- `null` (default): Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched. For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
+- **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
 - `true`: The full route will be prefetched for both static and dynamic routes.
 - `false`: Prefetching will be disabled.
 
@@ -217,9 +217,10 @@ export default function Page() {
 
 <PagesOnly>
 
-**Defaults to `true`.** When `true`, `next/link` will prefetch the page (denoted by the `href`) in the background. This improves the performance of client-side navigations. Any `<Link />` in the viewport (initially or through scroll) will be prefetched and loaded in the background.
+Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and data in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
 
-Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+- **`true` (default)**: The full route and its data will be prefetched.
+- `false`: Prefetching will be disabled.
 
 ```tsx filename="pages/index.tsx" switcher
 import Link from 'next/link'
