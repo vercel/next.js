@@ -144,7 +144,9 @@ function createVisitor(
         url = `__NEXT_LIGHTNINGCSS_LOADER_URL_REPLACE_${importUrlIndex}__`
 
         // TODO: Use identical logic as valueParser.stringify()
-        const media = JSON.stringify(node.value.media.mediaQueries)
+        const media = node.value.media.mediaQueries.length
+          ? JSON.stringify(node.value.media.mediaQueries)
+          : undefined
         const isRequestable = isUrlRequestable(url)
         let prefix: string | undefined
         if (isRequestable) {
