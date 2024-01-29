@@ -99,11 +99,10 @@ pub enum ModuleType {
     },
     Typescript {
         transforms: Vc<EcmascriptInputTransforms>,
-        #[turbo_tasks(trace_ignore)]
-        options: EcmascriptOptions,
-    },
-    TypescriptWithTypes {
-        transforms: Vc<EcmascriptInputTransforms>,
+        // parse JSX syntax.
+        tsx: bool,
+        // follow references to imported types.
+        analyze_types: bool,
         #[turbo_tasks(trace_ignore)]
         options: EcmascriptOptions,
     },

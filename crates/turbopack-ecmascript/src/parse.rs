@@ -278,13 +278,12 @@ async fn parse_content(
                             auto_accessors: true,
                             explicit_resource_management: true,
                         }),
-                        EcmascriptModuleAssetType::Typescript
-                        | EcmascriptModuleAssetType::TypescriptWithTypes => {
+                        EcmascriptModuleAssetType::Typescript { tsx, .. } => {
                             Syntax::Typescript(TsConfig {
                                 decorators: true,
                                 dts: false,
                                 no_early_errors: true,
-                                tsx: true,
+                                tsx,
                                 disallow_ambiguous_jsx_like: false,
                             })
                         }
@@ -293,7 +292,7 @@ async fn parse_content(
                                 decorators: true,
                                 dts: true,
                                 no_early_errors: true,
-                                tsx: true,
+                                tsx: false,
                                 disallow_ambiguous_jsx_like: false,
                             })
                         }
@@ -330,8 +329,7 @@ async fn parse_content(
 
             let is_typescript = matches!(
                 ty,
-                EcmascriptModuleAssetType::Typescript
-                    | EcmascriptModuleAssetType::TypescriptWithTypes
+                EcmascriptModuleAssetType::Typescript { .. }
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
             parsed_program.visit_mut_with(&mut resolver(

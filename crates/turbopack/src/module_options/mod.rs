@@ -257,67 +257,70 @@ impl ModuleOptions {
                 })],
             ),
             ModuleRule::new_all(
-                ModuleRuleCondition::any(vec![
-                    ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                    ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-                ]),
-                vec![if enable_types {
-                    ModuleRuleEffect::ModuleType(ModuleType::TypescriptWithTypes {
-                        transforms: ts_app_transforms,
-                        options: ecmascript_options,
-                    })
-                } else {
-                    ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                        transforms: ts_app_transforms,
-                        options: ecmascript_options,
-                    })
-                }],
+                ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: false,
+                    analyze_types: enable_types,
+                    options: ecmascript_options,
+                })],
             ),
             ModuleRule::new_all(
-                ModuleRuleCondition::any(vec![
-                    ModuleRuleCondition::ResourcePathEndsWith(".mts".to_string()),
-                    ModuleRuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
-                ]),
-                vec![if enable_types {
-                    ModuleRuleEffect::ModuleType(ModuleType::TypescriptWithTypes {
-                        transforms: ts_app_transforms,
-                        options: EcmascriptOptions {
-                            specified_module_type: SpecifiedModuleType::EcmaScript,
-                            ..ecmascript_options
-                        },
-                    })
-                } else {
-                    ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                        transforms: ts_app_transforms,
-                        options: EcmascriptOptions {
-                            specified_module_type: SpecifiedModuleType::EcmaScript,
-                            ..ecmascript_options
-                        },
-                    })
-                }],
+                ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: true,
+                    analyze_types: enable_types,
+                    options: ecmascript_options,
+                })],
             ),
             ModuleRule::new_all(
-                ModuleRuleCondition::any(vec![
-                    ModuleRuleCondition::ResourcePathEndsWith(".cts".to_string()),
-                    ModuleRuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
-                ]),
-                vec![if enable_types {
-                    ModuleRuleEffect::ModuleType(ModuleType::TypescriptWithTypes {
-                        transforms: ts_app_transforms,
-                        options: EcmascriptOptions {
-                            specified_module_type: SpecifiedModuleType::CommonJs,
-                            ..ecmascript_options
-                        },
-                    })
-                } else {
-                    ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                        transforms: ts_app_transforms,
-                        options: EcmascriptOptions {
-                            specified_module_type: SpecifiedModuleType::CommonJs,
-                            ..ecmascript_options
-                        },
-                    })
-                }],
+                ModuleRuleCondition::ResourcePathEndsWith(".mts".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: false,
+                    analyze_types: enable_types,
+                    options: EcmascriptOptions {
+                        specified_module_type: SpecifiedModuleType::EcmaScript,
+                        ..ecmascript_options
+                    },
+                })],
+            ),
+            ModuleRule::new_all(
+                ModuleRuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: true,
+                    analyze_types: enable_types,
+                    options: EcmascriptOptions {
+                        specified_module_type: SpecifiedModuleType::EcmaScript,
+                        ..ecmascript_options
+                    },
+                })],
+            ),
+            ModuleRule::new_all(
+                ModuleRuleCondition::ResourcePathEndsWith(".cts".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: false,
+                    analyze_types: enable_types,
+                    options: EcmascriptOptions {
+                        specified_module_type: SpecifiedModuleType::CommonJs,
+                        ..ecmascript_options
+                    },
+                })],
+            ),
+            ModuleRule::new_all(
+                ModuleRuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                    transforms: ts_app_transforms,
+                    tsx: true,
+                    analyze_types: enable_types,
+                    options: EcmascriptOptions {
+                        specified_module_type: SpecifiedModuleType::CommonJs,
+                        ..ecmascript_options
+                    },
+                })],
             ),
             ModuleRule::new(
                 ModuleRuleCondition::ResourcePathEndsWith(".d.ts".to_string()),

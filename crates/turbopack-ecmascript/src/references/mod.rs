@@ -395,9 +395,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     // Is this a typescript file that requires analzying type references?
     let analyze_types = match &*ty {
-        EcmascriptModuleAssetType::TypescriptWithTypes
-        | EcmascriptModuleAssetType::TypescriptDeclaration => true,
-        EcmascriptModuleAssetType::Typescript | EcmascriptModuleAssetType::Ecmascript => false,
+        EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
+        EcmascriptModuleAssetType::TypescriptDeclaration => true,
+        EcmascriptModuleAssetType::Ecmascript => false,
     };
 
     let parsed = if let Some(part) = part {
