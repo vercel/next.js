@@ -214,9 +214,8 @@ createNextDescribe(
       it('should not have duplicate config warnings', async () => {
         await next.fetch('/')
         expect(
-          stripAnsi(next.cliOutput).match(
-            /Experiments \(use at your own risk\):/g
-          ).length
+          stripAnsi(next.cliOutput).match(/Experiments \(use with caution\):/g)
+            .length
         ).toBe(1)
       })
     }
