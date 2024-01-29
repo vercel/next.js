@@ -182,9 +182,7 @@ experimental: {
 
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`".red-text{color:red}.blue-text{color:blue}"`)
+        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchSnapshot()
       })
     })
   })
@@ -229,11 +227,7 @@ experimental: {
 
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".red-text{color:purple;font-weight:bolder;color:red}.blue-text{color:orange;font-weight:bolder;color:blue}"`
-        )
+        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchSnapshot()
       })
     })
   })
@@ -279,9 +273,7 @@ experimental: {
 
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`".blue-text{color:blue}.red-text{color:red}"`)
+        expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchSnapshot()
       })
     })
   })
