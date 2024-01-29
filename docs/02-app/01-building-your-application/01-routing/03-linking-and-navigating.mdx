@@ -188,7 +188,7 @@ For a full list of `useRouter` methods, see the [API reference](/docs/app/api-re
 
 For [Server Components](/docs/app/building-your-application/rendering/server-components), use the `redirect` function instead.
 
-```tsx filename="app/team/[id]/page.js"
+```tsx filename="app/team/[id]/page.tsx" switcher
 import { redirect } from 'next/navigation'
 
 async function fetchTeam(id: string) {
