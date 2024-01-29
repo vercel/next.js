@@ -320,7 +320,7 @@ experimental: {
         expect(cssFiles.length).toBe(1)
         const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
         expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-          /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:blue\}$/
+          /^\.red-text\{color:red;background-image:url\(\/_next\/static\/media\/dark\.[a-f0-9]{8}\.svg\) url\(\/_next\/static\/media\/dark2\.[a-f0-9]{8}\.svg\)\}\.blue-text\{color:orange;font-weight:bolder;background-image:url\(\/_next\/static\/media\/light\.[a-f0-9]{8}\.svg\);color:(?:blue|#00f)\}$/
         )
 
         const mediaFiles = await readdir(mediaFolder)
