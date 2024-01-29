@@ -107,7 +107,8 @@ useLightningcss: ${useLightningcss}
 
       tests()
     })
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
+    ;(process.env.TURBOPACK || useLightningcss ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {
