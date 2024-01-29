@@ -34,8 +34,8 @@ export interface ApiReplacement {
   replacementName: string
   localName?: string
   importName: string
-  needQuotes: boolean
-  hash: string
+  needQuotes?: boolean
+  hash?: string
 }
 
 export function getImportCode(
