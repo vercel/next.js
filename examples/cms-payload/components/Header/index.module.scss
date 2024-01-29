@@ -1,0 +1,36 @@
+@use "../../css/queries.scss" as *;
+
+.header {
+  padding: var(--base) 0;
+  z-index: var(--header-z-index);
+}
+
+.wrap {
+  display: flex;
+  justify-content: space-between;
+}
+
+.nav {
+  a {
+    text-decoration: none;
+    margin-left: var(--base);
+  }
+
+  @include mid-break {
+    display: none;
+  }
+}
+
+.mobileMenuToggler {
+  all: unset;
+  cursor: pointer;
+  display: none;
+
+  &[aria-expanded="true"] {
+    transform: rotate(-25deg);
+  }
+
+  @include mid-break {
+    display: block;
+  }
+}

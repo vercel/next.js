@@ -2,7 +2,6 @@ import { createNext } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import { check, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-// @ts-expect-error missing types
 import stripAnsi from 'strip-ansi'
 
 describe('typescript-auto-install', () => {
@@ -12,9 +11,9 @@ describe('typescript-auto-install', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>hello world</p>
-          } 
+          }
         `,
       },
       env: {
@@ -27,8 +26,6 @@ describe('typescript-auto-install', () => {
         RUN_ID: '',
         BUILD_NUMBER: '',
       },
-      startCommand: 'yarn next dev',
-      installCommand: 'yarn',
       dependencies: {},
     })
   })

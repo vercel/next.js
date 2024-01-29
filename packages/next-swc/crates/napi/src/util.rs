@@ -26,22 +26,16 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::{cell::RefCell, env, path::PathBuf};
+use std::{cell::RefCell, path::PathBuf};
 
 use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
-#[cfg(feature = "crash-report")]
-use sentry::{init, types::Dsn, ClientInitGuard, ClientOptions};
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
 
-static TARGET_TRIPLE: &str = include_str!(concat!(env!("OUT_DIR"), "/triple.txt"));
-#[allow(unused)]
-static PACKAGE_VERSION: &str = include_str!(concat!(env!("OUT_DIR"), "/package.txt"));
-
 #[napi]
 pub fn get_target_triple() -> String {
-    TARGET_TRIPLE.to_owned()
+    crate::build::BUILD_TARGET.to_string()
 }
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
@@ -52,6 +46,45 @@ pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
 }
 
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
+
+#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
+#[napi]
+pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<dhat::Profiler>>>> {
+    #[cfg(feature = "__internal_dhat-heap")]
+    {
+        println!("[dhat-heap]: Initializing heap profiler");
+        let _profiler = dhat::Profiler::new_heap();
+        return Ok(External::new(RefCell::new(Some(_profiler))));
+    }
+
+    #[cfg(feature = "__internal_dhat-ad-hoc")]
+    {
+        println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
+        let _profiler = dhat::Profiler::new_ad_hoc();
+        return Ok(External::new(RefCell::new(Some(_profiler))));
+    }
+}
+
+#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
+#[napi]
+pub fn teardown_heap_profiler(guard_external: External<RefCell<Option<dhat::Profiler>>>) {
+    let guard_cell = &*guard_external;
+
+    if let Some(guard) = guard_cell.take() {
+        println!("[dhat]: Teardown profiler");
+        drop(guard);
+    }
+}
+
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[napi]
+pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
+    Ok(External::new(RefCell::new(Some(0))))
+}
+
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[napi]
+pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
 
 /// Initialize tracing subscriber to emit traces. This configures subscribers
 /// for Trace Event Format (https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview).
@@ -89,85 +122,6 @@ pub fn init_custom_trace_subscriber(
 /// trace may drop traces in the buffer.
 #[napi]
 pub fn teardown_trace_subscriber(guard_external: External<RefCell<Option<FlushGuard>>>) {
-    let guard_cell = &*guard_external;
-
-    if let Some(guard) = guard_cell.take() {
-        drop(guard);
-    }
-}
-
-#[cfg(all(
-    all(target_os = "windows", target_arch = "aarch64"),
-    feature = "crash-report"
-))]
-#[napi]
-pub fn init_crash_reporter() -> External<RefCell<Option<usize>>> {
-    let guard: Option<usize> = None;
-    let guard_cell = RefCell::new(guard);
-    External::new(guard_cell)
-}
-
-/// Initialize crash reporter to collect unexpected native next-swc crashes.
-#[cfg(all(
-    not(all(target_os = "windows", target_arch = "aarch64")),
-    feature = "crash-report"
-))]
-#[napi]
-pub fn init_crash_reporter() -> External<RefCell<Option<ClientInitGuard>>> {
-    use std::{borrow::Cow, str::FromStr};
-
-    // Attempts to follow https://nextjs.org/telemetry's debug behavior.
-    // However, this is techinically not identical to the behavior of the telemetry
-    // itself as sentry's debug option does not provides full payuload output.
-    let debug = env::var("NEXT_TELEMETRY_DEBUG").map_or_else(|_| false, |v| v == "1");
-
-    let guard = {
-        let dsn = if debug {
-            None
-        } else {
-            Dsn::from_str(
-                "https://7619e5990e3045cda747e50e6ed087a7@o205439.ingest.sentry.io/6528434",
-            )
-            .ok()
-        };
-
-        Some(init(ClientOptions {
-            release: Some(Cow::Borrowed(PACKAGE_VERSION)),
-            dsn,
-            debug,
-            // server_name includes device host name, which _can_ be considered as PII depends on
-            // the machine name.
-            server_name: Some(Cow::Borrowed("[REDACTED]")),
-            ..Default::default()
-        }))
-    };
-
-    let guard_cell = RefCell::new(guard);
-    External::new(guard_cell)
-}
-
-#[cfg(all(
-    all(target_os = "windows", target_arch = "aarch64"),
-    feature = "crash-report"
-))]
-#[napi]
-pub fn teardown_crash_reporter(guard_external: External<RefCell<Option<usize>>>) {
-    let guard_cell = &*guard_external;
-
-    if let Some(guard) = guard_cell.take() {
-        drop(guard);
-    }
-}
-
-/// Trying to drop crash reporter guard if exists. This is the way to hold
-/// guards to not to be dropped immediately after crash reporter is initialized
-/// in napi context.
-#[cfg(all(
-    not(all(target_os = "windows", target_arch = "aarch64")),
-    feature = "crash-report"
-))]
-#[napi]
-pub fn teardown_crash_reporter(guard_external: External<RefCell<Option<ClientInitGuard>>>) {
     let guard_cell = &*guard_external;
 
     if let Some(guard) = guard_cell.take() {

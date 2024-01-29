@@ -1,16 +1,17 @@
 import { config } from 'dotenv'
 
-import fetch from 'node-fetch'
-import chalk from 'chalk'
 import execa from 'execa'
 import path from 'path'
 import url from 'url'
 import { generatePackageJson } from './generate-package-json.js'
 import { Listr } from 'listr2'
+import { forceCrash } from './bench.js'
+import { red } from '../../packages/next/dist/lib/picocolors.js'
+import { resetProject } from '../../scripts/reset-project.mjs'
 
 config()
 
-const TEST_PROJECT_NAME = process.env.VERCEL_TEST_PROJECT_NAME
+export const TEST_PROJECT_NAME = process.env.VERCEL_TEST_PROJECT_NAME
 const ORIGIN_PROJECT_NAME = TEST_PROJECT_NAME + '-origin'
 const HEAD_PROJECT_NAME = TEST_PROJECT_NAME + '-head'
 
@@ -35,7 +36,11 @@ export async function generateProjects() {
               {
                 title: 'Resetting project',
                 task: async () => {
-                  await resetProject(ORIGIN_PROJECT_NAME)
+                  await resetProject({
+                    teamId: TEST_TEAM_NAME,
+                    projectName: ORIGIN_PROJECT_NAME,
+                    disableDeploymentProtection: true,
+                  })
                 },
               },
               {
@@ -72,7 +77,11 @@ export async function generateProjects() {
               {
                 title: 'Resetting project',
                 task: async () => {
-                  await resetProject(HEAD_PROJECT_NAME)
+                  await resetProject({
+                    teamId: TEST_TEAM_NAME,
+                    projectName: HEAD_PROJECT_NAME,
+                    disableDeploymentProtection: true,
+                  })
                 },
               },
               {
@@ -115,51 +124,6 @@ export async function cleanupProjectFolders() {
   ])
 }
 
-async function resetProject(projectName) {
-  const deleteRes = await fetch(
-    `https://vercel.com/api/v8/projects/${encodeURIComponent(
-      projectName
-    )}?teamId=${TEST_TEAM_NAME}`,
-    {
-      method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${TEST_TOKEN}`,
-      },
-    }
-  )
-
-  if (!deleteRes.ok && deleteRes.status !== 404) {
-    throw new Error(
-      `Failed to delete project got status ${
-        deleteRes.status
-      }, ${await deleteRes.text()}`
-    )
-  }
-
-  const createRes = await fetch(
-    `https://vercel.com/api/v8/projects?teamId=${TEST_TEAM_NAME}`,
-    {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        Authorization: `Bearer ${TEST_TOKEN}`,
-      },
-      body: JSON.stringify({
-        framework: 'nextjs',
-        name: projectName,
-      }),
-    }
-  )
-
-  if (!createRes.ok) {
-    throw new Error(
-      `Failed to create project got status ${
-        createRes.status
-      }, ${await createRes.text()}`
-    )
-  }
-}
-
 export async function deployProject(projectName, appFolder) {
   try {
     const vercelFlags = ['--scope', TEST_TEAM_NAME]
@@ -197,6 +161,7 @@ export async function deployProject(projectName, appFolder) {
           : []),
         '--force',
         ...vercelFlags,
+        ...(forceCrash ? ['--env', 'CRASH_FUNCTION=1'] : []),
       ],
       {
         cwd: appFolder,
@@ -212,7 +177,7 @@ export async function deployProject(projectName, appFolder) {
 
     return deployRes.stdout
   } catch (err) {
-    console.log(chalk.red('Deployment failed: ', err))
+    console.log(red('Deployment failed: ', err))
     throw err
   }
 }

@@ -1,48 +1,38 @@
-import { createNext } from 'e2e-utils'
+import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { join } from 'path'
+createNextDescribe(
+  'watch-config-file',
+  {
+    files: join(__dirname, 'fixture'),
+  },
+  ({ next }) => {
+    it('should output config file change', async () => {
+      await check(async () => next.cliOutput, /ready/i)
 
-describe('watch-config-file', () => {
-  let next: NextInstance
+      await check(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `
+            console.log(${Date.now()})
+            const nextConfig = {
+              reactStrictMode: true,
+              async redirects() {
+                  return [
+                    {
+                      source: '/about',
+                      destination: '/',
+                      permanent: false,
+                    },
+                  ]
+                },
+            }
+            module.exports = nextConfig`
+        )
+        return next.cliOutput
+      }, /Found a change in next\.config\.js\. Restarting the server to apply the changes\.\.\./)
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/index.js': `
-          export default function Page() { 
-            return <p>hello world</p>
-          } 
-        `,
-        'next.config.js': `
-        const nextConfig = {
-          reactStrictMode: true,
-        }
-        
-        module.exports = nextConfig        
-        `,
-      },
-      dependencies: {},
-      skipStart: true,
+      await check(() => next.fetch('/about').then((res) => res.status), 200)
     })
-  })
-  afterAll(() => next.destroy())
-
-  it('should output config file change', async () => {
-    // next dev test-dir
-    await next.start(true)
-    let i = 1
-
-    await check(async () => {
-      await next.patchFile(
-        'next.config.js',
-        `
-          /** changed - ${i} **/  
-          const nextConfig = {
-            reactStrictMode: true,
-          }
-          module.exports = nextConfig`
-      )
-      return next.cliOutput
-    }, /Found a change in next.config.js. Restart the server to see the changes in effect./)
-  })
-})
+  }
+)

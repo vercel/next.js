@@ -1,10 +1,7 @@
-// @ts-check
-
-/**
- * @type {import('next').NextConfig}
- **/
+/** @type {import('next').NextConfig} */
 const nextConfig = {
-  basePath: '/gh-pages-test',
-}
+  output: "export",
+  basePath: "/gh-pages-test",
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

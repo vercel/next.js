@@ -12,3 +12,19 @@ export default function Page() {
     </>
   )
 }
+
+export function getStaticPaths() {
+  return {
+    paths: ['/static-ssg/first'],
+    fallback: 'blocking',
+  }
+}
+
+export function getStaticProps({ params }) {
+  return {
+    props: {
+      now: Date.now(),
+      params,
+    },
+  }
+}

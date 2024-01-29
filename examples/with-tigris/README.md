@@ -60,7 +60,7 @@ tigris dev start
 npm run dev
 ```
 
-> Note: This step uses a custom dev & build script to initialize Tigris database and collection for
+> Note: This step uses a custom dev & build script to initialize Tigris collections for
 > the app and requires [ts-node](https://www.npmjs.com/package/ts-node#installation) to be installed.
 
 :tada: All done. You should be able to use app on `localhost:3000` in browser. Feel free to play
@@ -95,10 +95,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ├── package.json
 ├── lib
 │   ├── tigris.ts
-├── models
-│   └── tigris
-│       └── todoStarterApp
-│           └── todoItems.ts
+├── db
+│   └── models
+│       └── todoItems.ts
 └── pages
     ├── index.tsx
     └── api
@@ -114,13 +113,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 <details>
 <summary> 🪢 Tigris schema definition</summary>
 
-[models/tigris/todoStarterApp/todoItems.ts](models/tigris/todoStarterApp/todoItems.ts) - The to-do list app
-has a single collection `todoItems` that stores the to-do items in `todoStarterApp` database. The
-Database and Collection get automatically provisioned by the [setup script](scripts/setup.ts).
-
-This is an inspiration from Next.js based file system router. Create a folder or drop a schema file
-inside database folder under `models/tigris/`, and you're able to instantly create Databases and
-Collections in Tigris for your application.
+[db/models/todoItems.ts](db/models/todoItems.ts) - The to-do list app has a single collection
+`todoItems` that stores the to-do items. The Collection gets automatically provisioned by the
+[setup script](scripts/setup.ts).
 
 </details>
 
@@ -166,6 +161,6 @@ free to add more functionalities or customize App for your use-case and learn mo
 [typescript-url]: https://www.typescriptlang.org/
 [vercel]: https://img.shields.io/badge/vercel-F22F46?style=for-the-badge&logo=vercel&logoColor=white
 [vercel-url]: https://vercel.com/
-[deploy-url]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ftigrisdata%2Ftigris-vercel-starter&project-name=todo-list-app-tigris&repo-name=todo-list-webapp-tigris&demo-title=My%20To-do%20list%20webapp&demo-description=A%20To-do%20list%20webapp%20using%20NextJS%20and%20Tigris&integration-ids=oac_Orjx197uMuJobdSaEpVv2Zn8
+[deploy-url]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Ftigrisdata%2Ftigris-vercel-starter&project-name=todo-list-app-tigris&repo-name=todo-list-webapp-tigris&demo-title=My%20To-do%20list%20webapp&demo-description=A%20To-do%20list%20webapp%20using%20Next.js%20and%20Tigris&integration-ids=oac_Orjx197uMuJobdSaEpVv2Zn8
 [next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
 [next-url]: https://nextjs.org/

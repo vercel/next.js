@@ -20,7 +20,7 @@ let appWithPartytownMissingDir = join(__dirname, '../partytown-missing')
 let server
 let appPort
 
-const runTests = (isDev = false) => {
+const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
   // Don't skip the test case for dev mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
@@ -70,7 +70,7 @@ const runTests = (isDev = false) => {
       )
       expect(filteredLogs.length).toBe(0)
 
-      async function test(id) {
+      async function test(id, css) {
         const script = await browser.elementById(id)
         const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
@@ -81,12 +81,20 @@ const runTests = (isDev = false) => {
         expect(script).toBeDefined()
         expect(dataAttr).toBeDefined()
 
+        if (css) {
+          const cssTag = await browser.elementByCss(`link[href="${css}"]`)
+          expect(cssTag).toBeDefined()
+        }
+
         // Script is inserted at the end
         expect(endScripts.length).toBe(1)
       }
 
       // lazyOnload script in page
-      await test('scriptLazyOnload')
+      await test(
+        'scriptLazyOnload',
+        'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css'
+      )
       // lazyOnload script in _document
       await test('documentLazyOnload')
     } finally {
@@ -243,17 +251,23 @@ const runTests = (isDev = false) => {
     }
   })
 
-  it('Error message is shown if Partytown is not installed locally', async () => {
-    const { stdout, stderr } = await nextBuild(appWithPartytownMissingDir, [], {
-      stdout: true,
-      stderr: true,
-    })
-    const output = stdout + stderr
+  if (!isDev) {
+    it('Error message is shown if Partytown is not installed locally', async () => {
+      const { stdout, stderr } = await nextBuild(
+        appWithPartytownMissingDir,
+        [],
+        {
+          stdout: true,
+          stderr: true,
+        }
+      )
+      const output = stdout + stderr
 
-    expect(output.replace(/\n|\r/g, '')).toMatch(
-      /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
-    )
-  })
+      expect(output.replace(/\n|\r/g, '')).toMatch(
+        /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
+      )
+    })
+  }
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
     let browser
@@ -309,21 +323,23 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 })
 
 describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-    const app = nextServer({
-      dir: appDir,
-      dev: false,
-      quiet: true,
+      const app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
+      })
+
+      server = await startApp(app)
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
     })
 
-    server = await startApp(app)
-    appPort = server.address().port
+    runTests(false)
   })
-  afterAll(async () => {
-    await stopApp(server)
-  })
-
-  runTests(false)
 })

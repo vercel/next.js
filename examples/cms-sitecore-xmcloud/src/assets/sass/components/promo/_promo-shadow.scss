@@ -1,0 +1,43 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.promo-shadow {
+  max-width: 960px;
+  padding: 0;
+  border-top-width: 3px;
+  border-top-color: $promo-shadow-border;
+  border-style: solid;
+  overflow: visible;
+  position: relative;
+  &.promo {
+    float: left;
+  }
+  > .component-content {
+    @include respond-to(all-mobile) {
+      margin: 0 10px 30px 10px;
+    }
+    padding: 15px;
+    margin: 0 0 30px 0;
+    &:before,
+    &:after {
+      opacity: 0.7;
+      box-shadow: 0 17px 10px rgba(0, 0, 0, 0.7);
+      position: absolute;
+      z-index: -1;
+      height: 20%;
+      max-height: 100px;
+      max-width: 460px;
+      width: 47%;
+      content: "";
+      bottom: 10px;
+    }
+    &:before {
+      left: 2%;
+      transform: rotate(-3deg);
+    }
+    &:after {
+      right: 2%;
+      transform: rotate(3deg);
+    }
+  }
+}

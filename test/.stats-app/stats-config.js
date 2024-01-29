@@ -36,6 +36,10 @@ const clientGlobs = [
       '.next/server/edge-runtime-webpack.js',
     ],
   },
+  {
+    name: 'Next Runtimes',
+    globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
+  },
 ]
 
 const renames = [
@@ -64,9 +68,9 @@ const renames = [
 module.exports = {
   commentHeading: 'Stats from current PR',
   commentReleaseHeading: 'Stats from current release',
-  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next build',
-  appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next start --port $PORT',
-  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 yarn next --port $PORT',
+  appBuildCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next build',
+  appStartCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next start --port $PORT',
+  appDevCommand: 'NEXT_TELEMETRY_DISABLED=1 pnpm next --port $PORT',
   mainRepo: 'vercel/next.js',
   mainBranch: 'canary',
   autoMergeMain: true,
@@ -79,11 +83,6 @@ module.exports = {
           path: 'next.config.js',
           content: `
             module.exports = {
-              experimental: {
-                appDir: true,
-                // remove after next stable release (current v12.3.1)
-                serverComponents: true,
-              },
               generateBuildId: () => 'BUILD_ID',
               webpack(config) {
                 config.optimization.minimize = false
@@ -101,11 +100,6 @@ module.exports = {
           path: 'next.config.js',
           content: `
           module.exports = {
-              experimental: {
-                appDir: true,
-                // remove after next stable relase (current v12.3.1)
-                serverComponents: true,
-              },
               generateBuildId: () => 'BUILD_ID'
             }
           `,

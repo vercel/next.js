@@ -159,6 +159,14 @@ describe('manual-client-base-path', () => {
     await check(() => browser.elementByCss('#page').text(), 'index page')
     expect(await browser.eval('window.location.pathname')).toBe('/')
 
+    await browser.elementByCss('#to-another-slash').click()
+    await check(() => browser.elementByCss('#page').text(), 'another page')
+    expect(await browser.eval('window.location.pathname')).toBe('/another')
+
+    await browser.back()
+    await check(() => browser.elementByCss('#page').text(), 'index page')
+    expect(await browser.eval('window.location.pathname')).toBe('/')
+
     await browser.elementByCss('#to-dynamic').click()
     await check(() => browser.elementByCss('#page').text(), 'dynamic page')
     expect(await browser.eval('window.location.pathname')).toBe(

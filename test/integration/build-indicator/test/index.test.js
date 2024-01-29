@@ -3,7 +3,8 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp, waitFor } from 'next-test-utils'
+import { findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '..')
 const nextConfig = join(appDir, 'next.config.js')
@@ -19,7 +20,7 @@ const installCheckVisible = (browser) => {
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
-    }, 50)
+    }, 5)
   })()`)
 }
 
@@ -46,8 +47,11 @@ describe('Build Activity Indicator', () => {
     })
     await fs.remove(configPath)
 
-    expect(stderr).toContain(
-      `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+    await check(
+      () => stripAnsi(stderr),
+      new RegExp(
+        `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+      )
     )
 
     if (app) {
@@ -69,15 +73,16 @@ describe('Build Activity Indicator', () => {
       expect(html).toMatch(/__next-build-watcher/)
       await browser.close()
     })
-
-    it('Shows the build indicator when a page is built during navigation', async () => {
-      const browser = await webdriver(appPort, '/')
-      await installCheckVisible(browser)
-      await browser.elementByCss('#to-a').click()
-      await waitFor(500)
-      const wasVisible = await browser.eval('window.showedBuilder')
-      expect(wasVisible).toBe(true)
-      await browser.close()
+    ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
+      it('Shows the build indicator when a page is built during navigation', async () => {
+        const browser = await webdriver(appPort, '/')
+        await installCheckVisible(browser)
+        await browser.elementByCss('#to-a').click()
+        await waitFor(500)
+        const wasVisible = await browser.eval('window.showedBuilder')
+        expect(wasVisible).toBe(true)
+        await browser.close()
+      })
     })
 
     it('Shows build indicator when page is built from modifying', async () => {

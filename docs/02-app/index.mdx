@@ -1,0 +1,71 @@
+---
+title: App Router
+description: Use the new App Router with Next.js' and React's latest features, including Layouts, Server Components, Suspense, and more.
+---
+
+The Next.js App Router is a new paradigm for building applications using React's latest features. If you're already familiar with Next.js, you'll find that the App Router is a natural evolution of the existing file-system based router in the [Pages Router](/docs/pages).
+
+For new applications, **we recommend using the App Router**. For existing applications, you can [incrementally adopt the App Router](/docs/app/building-your-application/upgrading/app-router-migration). It's also possible to use both routers in the same application.
+
+## Frequently Asked Questions
+
+### How can I access the request object in a layout?
+
+You intentionally cannot access the raw request object. However, you can access [`headers`](/docs/app/api-reference/functions/headers) and [`cookies`](/docs/app/api-reference/functions/cookies) through server-only functions. You can also [set cookies](#how-can-i-set-cookies).
+
+[Layouts](/docs/app/building-your-application/routing/pages-and-layouts#layouts) do not rerender. They can be cached and reused to avoid unnecessary computation when navigating between pages. By restricting layouts from accessing the raw request, Next.js can prevent the execution of potentially slow or expensive user code within the layout, which could negatively impact performance.
+
+This design also enforces consistent and predictable behavior for layouts across different pages, which simplifies development and debugging.
+
+Depending on the UI pattern you're building, [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) allow you to render multiple pages in the same layout, and pages have access to the route segments as well as the URL search params.
+
+### How can I access the URL on a page?
+
+By default, pages are Server Components. You can access the route segments through the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) prop and the URL search params through the [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop for a given page.
+
+If you are using Client Components, you can use [`usePathname`](/docs/app/api-reference/functions/use-pathname), [`useSelectedLayoutSegment`](/docs/app/api-reference/functions/use-selected-layout-segment), and [`useSelectedLayoutSegments`](/docs/app/api-reference/functions/use-selected-layout-segments) for more complex routes.
+
+Further, depending on the UI pattern you're building, [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) allow you to render multiple pages in the same layout, and pages have access to the route segments as well as the URL search params.
+
+### How can I redirect from a Server Component?
+
+You can use [`redirect`](/docs/app/api-reference/functions/redirect) to redirect from a page to a relative or absolute URL. [`redirect`](/docs/app/api-reference/functions/redirect) is a temporary (307) redirect, while [`permanentRedirect`](/docs/app/api-reference/functions/permanentRedirect) is a permanent (308) redirect. When these functions are used while streaming UI, they will insert a meta tag to emit the redirect on the client side.
+
+### How can I handle authentication with the App Router?
+
+Here are some common authentication solutions that support the App Router:
+
+- [NextAuth.js](https://next-auth.js.org/configuration/nextjs#in-app-router)
+- [Clerk](https://clerk.com/docs/quickstarts/nextjs)
+- [Auth0](https://github.com/auth0/nextjs-auth0#app-router)
+- [Stytch](https://stytch.com/docs/example-apps/frontend/nextjs)
+- [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk/)
+- Or manually handling sessions or JWTs
+
+### How can I set cookies?
+
+You can set cookies in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#cookies) or [Route Handlers](/docs/app/building-your-application/routing/route-handlers) using the [`cookies`](/docs/app/api-reference/functions/cookies) function.
+
+Since HTTP does not allow setting cookies after streaming starts, you cannot set cookies from a page or layout directly. You can also set cookies from [Middleware](/docs/app/building-your-application/routing/middleware#using-cookies).
+
+### How can I build multi-tenant apps?
+
+If you are looking to build a single Next.js application that serves multiple tenants, we have [built an example](https://vercel.com/templates/next.js/platforms-starter-kit) showing our recommended architecture.
+
+### How can I invalidate the App Router cache?
+
+There are multiple layers of caching in Next.js, and thus, multiple ways to invalidate different parts of the cache. [Learn more about caching](/docs/app/building-your-application/caching).
+
+### Are there any comprehensive, open-source applications built on the App Router?
+
+Yes. You can view [Next.js Commerce](https://vercel.com/templates/next.js/nextjs-commerce) or the [Platforms Starter Kit](https://vercel.com/templates/next.js/platforms-starter-kit) for two larger examples of using the App Router that are open-source.
+
+## Learn More
+
+- [Routing Fundamentals](/docs/app/building-your-application/routing)
+- [Data Fetching, Caching, and Revalidating](/docs/app/building-your-application/data-fetching/fetching-caching-and-revalidating)
+- [Forms and Mutations](/docs/app/building-your-application/data-fetching/server-actions-and-mutations)
+- [Caching](/docs/app/building-your-application/caching)
+- [Rendering Fundamentals](/docs/app/building-your-application/rendering)
+- [Server Components](/docs/app/building-your-application/rendering/server-components)
+- [Client Components](/docs/app/building-your-application/rendering/client-components)

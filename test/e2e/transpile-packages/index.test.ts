@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'test/lib/next-modes/base'
 import webdriver from 'next-webdriver'
+import { shouldRunTurboDevTest } from '../../lib/next-test-utils'
 
 describe('transpile packages', () => {
   let next: NextInstance
@@ -23,7 +24,9 @@ describe('transpile packages', () => {
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
           build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          dev: `yarn setup && next ${
+            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+          }`,
           start: 'next start',
         },
       },
@@ -35,8 +38,7 @@ describe('transpile packages', () => {
   afterAll(() => next.destroy())
 
   const { isNextDeploy } = global as any
-  const isReact17 = process.env.NEXT_TEST_REACT_VERSION === '^17'
-  if (isNextDeploy || isReact17) {
+  if (isNextDeploy) {
     it('should skip tests for next-deploy and react 17', () => {})
     return
   }
@@ -80,6 +82,19 @@ describe('transpile packages', () => {
           `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
         )
       ).toBe('rgb(0, 0, 255)')
+    })
+  })
+  describe('optional deps', () => {
+    it('should not throw an error when optional deps are not installed', async () => {
+      expect(next.cliOutput).not.toContain(
+        "Module not found: Error: Can't resolve 'foo'"
+      )
+    })
+
+    it('should hide dynammic module dependency errors from node_modules', async () => {
+      expect(next.cliOutput).not.toContain(
+        'Critical dependency: the request of a dependency is an expression'
+      )
     })
   })
 })

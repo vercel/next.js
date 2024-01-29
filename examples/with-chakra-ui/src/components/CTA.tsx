@@ -1,6 +1,6 @@
-import { Link as ChakraLink, Button } from '@chakra-ui/react'
+import { Link as ChakraLink, Button } from "@chakra-ui/react";
 
-import { Container } from './Container'
+import { Container } from "./Container";
 
 export const CTA = () => (
   <Container
@@ -27,7 +27,7 @@ export const CTA = () => (
     <Button
       as={ChakraLink}
       isExternal
-      href="https://github.com/vercel/next.js/blob/canary/examples/with-chakra-ui-typescript"
+      href="https://github.com/vercel/next.js/blob/canary/examples/with-chakra-ui"
       variant="solid"
       colorScheme="green"
       rounded="button"
@@ -38,4 +38,4 @@ export const CTA = () => (
       View Repo
     </Button>
   </Container>
-)
+);

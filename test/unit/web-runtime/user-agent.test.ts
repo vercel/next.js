@@ -53,7 +53,7 @@ it('parse user agent from a NextRequest instance', () => {
     browser: { name: 'Chrome', version: '89.0.4389.90', major: '89' },
     engine: { name: 'Blink', version: '89.0.4389.90' },
     os: { name: 'Mac OS', version: '11.2.3' },
-    device: { vendor: undefined, model: undefined, type: undefined },
+    device: { vendor: 'Apple', model: 'Macintosh', type: undefined },
     cpu: { architecture: undefined },
     isBot: false,
   })

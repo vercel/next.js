@@ -27,6 +27,7 @@ const getEnvFromHtml = async (path) => {
   const env = JSON.parse($('p').text())
   env.nextConfigEnv = $('#nextConfigEnv').text()
   env.nextConfigPublicEnv = $('#nextConfigPublicEnv').text()
+  env.nextConfigNewPublicEnv = $('#nextConfigNewPublicEnv').text()
   return env
 }
 
@@ -66,6 +67,7 @@ const runTests = (mode = 'dev', didReload = false) => {
     }
     expect(data.nextConfigEnv).toBe('hello from next.config.js')
     expect(data.nextConfigPublicEnv).toBe('hello again from next.config.js')
+    expect(data.nextConfigNewPublicEnv).toBe('hello set in next.config.js')
   }
 
   it('should have process environment override .env', async () => {
@@ -201,7 +203,7 @@ describe('Env Config', () => {
         }
         await check(() => {
           return output.substring(outputIndex)
-        }, /Loaded env from/)
+        }, /Reload env:/)
       })
       afterAll(async () => {
         for (const { file, content } of originalContents) {
@@ -235,9 +237,9 @@ describe('Env Config', () => {
           )
 
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).not.toContain('.env.local')
 
@@ -260,9 +262,9 @@ describe('Env Config', () => {
           )
 
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
@@ -305,9 +307,9 @@ describe('Env Config', () => {
             )
           )
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).not.toContain('.env.local')
 
@@ -320,9 +322,9 @@ describe('Env Config', () => {
             envLocalContent + `\nNEXT_PUBLIC_TEST_DEST=overridden`
           )
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
@@ -332,9 +334,9 @@ describe('Env Config', () => {
 
           await fs.writeFile(envLocalFile, envLocalContent)
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
@@ -362,8 +364,7 @@ describe('Env Config', () => {
 
     runTests('test')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir, [], {
         env: {

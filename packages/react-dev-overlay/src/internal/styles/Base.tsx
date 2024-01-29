@@ -17,6 +17,14 @@ export function Base() {
           --size-font-big: 20px;
           --size-font-bigger: 24px;
 
+          --color-background: white;
+          --color-font: #757575;
+          --color-backdrop: rgba(17, 17, 17, 0.2);
+
+          --color-stack-h6: #222;
+          --color-stack-headline: #666;
+          --color-stack-subline: #999;
+
           --color-accents-1: #808080;
           --color-accents-2: #222222;
           --color-accents-3: #404040;
@@ -46,6 +54,20 @@ export function Base() {
           --color-ansi-bright-yellow: #ffd966;
         }
 
+        @media (prefers-color-scheme: dark) {
+          :host {
+            --color-background: rgb(28, 28, 30);
+            --color-font: white;
+            --color-backdrop: rgb(44, 44, 46);
+
+            --color-stack-h6: rgb(200, 200, 204);
+            --color-stack-headline: rgb(99, 99, 102);
+            --color-stack-subline: rgba(142, 142, 147);
+
+            --color-accents-3: rgb(118, 118, 118);
+          }
+        }
+
         .mono {
           font-family: var(--font-stack-monospace);
         }
@@ -59,25 +81,6 @@ export function Base() {
           margin-bottom: var(--size-gap);
           font-weight: 500;
           line-height: 1.5;
-        }
-
-        h1 {
-          font-size: 40px;
-        }
-        h2 {
-          font-size: 32px;
-        }
-        h3 {
-          font-size: 28px;
-        }
-        h4 {
-          font-size: 24px;
-        }
-        h5 {
-          font-size: 20px;
-        }
-        h6 {
-          font-size: 16px;
         }
       `}
     </style>

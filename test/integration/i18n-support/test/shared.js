@@ -26,6 +26,7 @@ export const nonDomainLocales = [
   'fr',
   'en',
 ]
+const defaultLocales = ['en-US', 'do', 'go']
 export const locales = [...nonDomainLocales, ...domainLocales]
 
 async function addDefaultLocaleCookie(browser) {
@@ -47,7 +48,6 @@ export function runTests(ctx) {
         `${basePath}en`,
         `/en${basePath}`,
       ]) {
-        console.error('checking', pathname)
         const res = await fetchViaHTTP(ctx.appPort, pathname, undefined, {
           redirect: 'manual',
         })
@@ -64,15 +64,16 @@ export function runTests(ctx) {
 
     for (const locale of locales) {
       for (const asset of assets) {
+        require('console').log({ locale, asset })
         // _next/static asset
         const res = await fetchViaHTTP(
           ctx.appPort,
-          `${ctx.basePath || ''}/${locale}/_next/static/${asset}`,
+          `${ctx.basePath || ''}/${locale}/_next/static/${encodeURI(asset)}`,
           undefined,
           { redirect: 'manual' }
         )
 
-        if (locale !== 'en-US') {
+        if (!defaultLocales.includes(locale)) {
           expect(res.status).toBe(404)
           expect(await res.text()).toContain('could not be found')
         } else {
@@ -80,6 +81,23 @@ export function runTests(ctx) {
           expect(res.status).toBe(200)
         }
       }
+    }
+  })
+
+  it('should serve public file on locale domain', async () => {
+    for (const host of ['example.do', 'example.com']) {
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        `${ctx.basePath || ''}/files/texts/file.txt`,
+        undefined,
+        {
+          headers: {
+            host,
+          },
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('hello from file.txt')
     }
   })
 
@@ -92,7 +110,7 @@ export function runTests(ctx) {
         { redirect: 'manual' }
       )
 
-      if (locale !== 'en-US') {
+      if (!defaultLocales.includes(locale)) {
         expect(res.status).toBe(404)
         expect(await res.text()).toContain('could not be found')
       } else {
@@ -386,6 +404,9 @@ export function runTests(ctx) {
       const href = await browser.elementByCss(element).getAttribute('href')
       expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
 
     browser = await webdriver(
       ctx.appPort,
@@ -405,6 +426,9 @@ export function runTests(ctx) {
         `https://example.com${ctx.basePath || ''}/go-BE${pathname}`
       )
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
   })
 
   // The page is accessible on subpath as well as on the domain url without subpath.
@@ -428,6 +452,9 @@ export function runTests(ctx) {
         expect(href).toBe(`https://example.com${ctx.basePath || ''}${pathname}`)
       }
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
 
     browser = await webdriver(ctx.appPort, `${ctx.basePath || ''}/go-BE`)
 
@@ -448,6 +475,9 @@ export function runTests(ctx) {
         )
       }
     }
+    expect(
+      await browser.elementByCss('#to-external').getAttribute('href')
+    ).toBe('https://nextjs.org/')
   })
 
   it('should render the correct href with locale domains but not on a locale domain', async () => {
@@ -748,380 +778,380 @@ export function runTests(ctx) {
           .replace(new RegExp(escapeRegex(ctx.buildId), 'g'), 'BUILD_ID')
       ).toMatchInlineSnapshot(`
         "{
-          \\"/do\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/do-BE\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/do-BE/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/do-BE/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/do-BE/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/do-BE/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json\\"
-          },
-          \\"/do-BE/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/do/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/do/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/do/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/do/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/do/gsp/fallback/always.json\\"
-          },
-          \\"/do/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/en\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/en-US\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/en-US/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/en-US/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/en-US/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/en-US/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/always.json\\"
-          },
-          \\"/en-US/gsp/fallback/first\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/first.json\\"
-          },
-          \\"/en-US/gsp/fallback/second\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/fallback/second.json\\"
-          },
-          \\"/en-US/gsp/no-fallback/first\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json\\"
-          },
-          \\"/en-US/gsp/no-fallback/second\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json\\"
-          },
-          \\"/en-US/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/en-US/not-found/blocking-fallback/first\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/not-found/blocking-fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json\\"
-          },
-          \\"/en-US/not-found/blocking-fallback/second\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/not-found/blocking-fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json\\"
-          },
-          \\"/en-US/not-found/fallback/first\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/not-found/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/fallback/first.json\\"
-          },
-          \\"/en-US/not-found/fallback/second\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/not-found/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en-US/not-found/fallback/second.json\\"
-          },
-          \\"/en/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/en/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/en/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/en/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/en/gsp/fallback/always.json\\"
-          },
-          \\"/en/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/fr\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/fr-BE\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/fr-BE/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/fr-BE/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/fr-BE/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/fr-BE/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json\\"
-          },
-          \\"/fr-BE/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/fr/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/fr/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/fr/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/fr/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/fr/gsp/fallback/always.json\\"
-          },
-          \\"/fr/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/go\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/go-BE\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/go-BE/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/go-BE/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/go-BE/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/go-BE/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json\\"
-          },
-          \\"/go-BE/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/go/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/go/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/go/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/go/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/go/gsp/fallback/always.json\\"
-          },
-          \\"/go/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/nl\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/nl-BE\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/nl-BE/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/nl-BE/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/nl-BE/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/nl-BE/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json\\"
-          },
-          \\"/nl-BE/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/nl-NL\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/index.json\\"
-          },
-          \\"/nl-NL/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/nl-NL/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/nl-NL/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/nl-NL/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json\\"
-          },
-          \\"/nl-NL/gsp/no-fallback/second\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/no-fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json\\"
-          },
-          \\"/nl-NL/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
-          },
-          \\"/nl/404\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/404.json\\"
-          },
-          \\"/nl/frank\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/frank.json\\"
-          },
-          \\"/nl/gsp\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp.json\\"
-          },
-          \\"/nl/gsp/fallback/always\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": \\"/gsp/fallback/[slug]\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/nl/gsp/fallback/always.json\\"
-          },
-          \\"/nl/not-found\\": {
-            \\"initialRevalidateSeconds\\": false,
-            \\"srcRoute\\": null,
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found.json\\"
+          "/do": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/do-BE": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/do-BE/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/do-BE/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/do-BE/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/do-BE/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/do-BE/gsp/fallback/always.json"
+          },
+          "/do-BE/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/do/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/do/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/do/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/do/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/do/gsp/fallback/always.json"
+          },
+          "/do/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/en": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/en-US": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/en-US/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/en-US/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/en-US/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/en-US/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/always.json"
+          },
+          "/en-US/gsp/fallback/first": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/first.json"
+          },
+          "/en-US/gsp/fallback/second": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/fallback/second.json"
+          },
+          "/en-US/gsp/no-fallback/first": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/no-fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/first.json"
+          },
+          "/en-US/gsp/no-fallback/second": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/no-fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/gsp/no-fallback/second.json"
+          },
+          "/en-US/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/en-US/not-found/blocking-fallback/first": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/not-found/blocking-fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/first.json"
+          },
+          "/en-US/not-found/blocking-fallback/second": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/not-found/blocking-fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/blocking-fallback/second.json"
+          },
+          "/en-US/not-found/fallback/first": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/not-found/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/first.json"
+          },
+          "/en-US/not-found/fallback/second": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/not-found/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en-US/not-found/fallback/second.json"
+          },
+          "/en/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/en/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/en/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/en/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/en/gsp/fallback/always.json"
+          },
+          "/en/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/fr": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/fr-BE": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/fr-BE/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/fr-BE/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/fr-BE/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/fr-BE/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/fr-BE/gsp/fallback/always.json"
+          },
+          "/fr-BE/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/fr/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/fr/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/fr/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/fr/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/fr/gsp/fallback/always.json"
+          },
+          "/fr/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/go": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/go-BE": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/go-BE/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/go-BE/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/go-BE/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/go-BE/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/go-BE/gsp/fallback/always.json"
+          },
+          "/go-BE/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/go/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/go/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/go/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/go/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/go/gsp/fallback/always.json"
+          },
+          "/go/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/nl": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/nl-BE": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/nl-BE/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/nl-BE/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/nl-BE/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/nl-BE/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/nl-BE/gsp/fallback/always.json"
+          },
+          "/nl-BE/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/nl-NL": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/index.json"
+          },
+          "/nl-NL/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/nl-NL/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/nl-NL/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/nl-NL/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/fallback/always.json"
+          },
+          "/nl-NL/gsp/no-fallback/second": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/no-fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/nl-NL/gsp/no-fallback/second.json"
+          },
+          "/nl-NL/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
+          },
+          "/nl/404": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/404.json"
+          },
+          "/nl/frank": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/frank.json"
+          },
+          "/nl/gsp": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/gsp.json"
+          },
+          "/nl/gsp/fallback/always": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": "/gsp/fallback/[slug]",
+            "dataRoute": "/_next/data/BUILD_ID/nl/gsp/fallback/always.json"
+          },
+          "/nl/not-found": {
+            "initialRevalidateSeconds": false,
+            "srcRoute": null,
+            "dataRoute": "/_next/data/BUILD_ID/not-found.json"
           }
         }"
       `)
@@ -1136,29 +1166,29 @@ export function runTests(ctx) {
           )
       ).toMatchInlineSnapshot(`
         "{
-          \\"/gsp/fallback/[slug]\\": {
-            \\"routeRegex\\": \\"^\\\\/gsp\\\\/fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp/fallback/[slug].json\\",
-            \\"fallback\\": \\"/gsp/fallback/[slug].html\\",
-            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/gsp\\\\/fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          "/gsp/fallback/[slug]": {
+            "routeRegex": "^\\/gsp\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/gsp/fallback/[slug].json",
+            "fallback": "/gsp/fallback/[slug].html",
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/fallback\\/([^\\/]+?)\\.json$"
           },
-          \\"/gsp/no-fallback/[slug]\\": {
-            \\"routeRegex\\": \\"^\\\\/gsp\\\\/no\\\\-fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/gsp/no-fallback/[slug].json\\",
-            \\"fallback\\": false,
-            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/gsp\\\\/no\\\\-fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          "/gsp/no-fallback/[slug]": {
+            "routeRegex": "^\\/gsp\\/no\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/gsp/no-fallback/[slug].json",
+            "fallback": false,
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/gsp\\/no\\-fallback\\/([^\\/]+?)\\.json$"
           },
-          \\"/not-found/blocking-fallback/[slug]\\": {
-            \\"routeRegex\\": \\"^\\\\/not\\\\-found\\\\/blocking\\\\-fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json\\",
-            \\"fallback\\": null,
-            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/not\\\\-found\\\\/blocking\\\\-fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          "/not-found/blocking-fallback/[slug]": {
+            "routeRegex": "^\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/not-found/blocking-fallback/[slug].json",
+            "fallback": null,
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/blocking\\-fallback\\/([^\\/]+?)\\.json$"
           },
-          \\"/not-found/fallback/[slug]\\": {
-            \\"routeRegex\\": \\"^\\\\/not\\\\-found\\\\/fallback\\\\/([^\\\\/]+?)(?:\\\\/)?$\\",
-            \\"dataRoute\\": \\"/_next/data/BUILD_ID/not-found/fallback/[slug].json\\",
-            \\"fallback\\": \\"/not-found/fallback/[slug].html\\",
-            \\"dataRouteRegex\\": \\"^\\\\/_next\\\\/data\\\\/BUILD_ID\\\\/not\\\\-found\\\\/fallback\\\\/([^\\\\/]+?)\\\\.json$\\"
+          "/not-found/fallback/[slug]": {
+            "routeRegex": "^\\/not\\-found\\/fallback\\/([^\\/]+?)(?:\\/)?$",
+            "dataRoute": "/_next/data/BUILD_ID/not-found/fallback/[slug].json",
+            "fallback": "/not-found/fallback/[slug].html",
+            "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/not\\-found\\/fallback\\/([^\\/]+?)\\.json$"
           }
         }"
       `)
@@ -1240,7 +1270,12 @@ export function runTests(ctx) {
 
       const parsed = url.parse(res.headers.get('location'), true)
       expect(parsed.pathname).toBe(path)
-      expect(parsed.hostname).toBe(hostname)
+
+      if (hostname === 'localhost') {
+        expect(parsed.hostname).toBeOneOf([hostname, '127.0.0.1'])
+      } else {
+        expect(parsed.hostname).toBe(hostname)
+      }
       expect(parsed.query).toEqual(query)
     }
   })
@@ -1355,8 +1390,9 @@ export function runTests(ctx) {
     })
   })
 
-  it('should rewrite to API route correctly', async () => {
-    for (const locale of locales) {
+  it.each(locales)(
+    'should rewrite to API route correctly for %s locale',
+    async (locale) => {
       const res = await fetchViaHTTP(
         ctx.appPort,
         `${ctx.basePath || ''}${
@@ -1368,13 +1404,14 @@ export function runTests(ctx) {
         }
       )
 
+      expect(res.headers.get('content-type')).toContain('application/json')
       const data = await res.json()
       expect(data).toEqual({
         hello: true,
         query: {},
       })
     }
-  })
+  )
 
   it('should apply rewrites correctly', async () => {
     let res = await fetchViaHTTP(
@@ -2095,7 +2132,7 @@ export function runTests(ctx) {
     }
   })
 
-  it('should handle locales with domain', async () => {
+  describe('should handle locales with domain', () => {
     const domainItems = [
       {
         // used for testing, this should not be needed in most cases
@@ -2111,70 +2148,65 @@ export function runTests(ctx) {
         locales: ['go-BE'],
       },
     ]
-    const domainLocales = domainItems.reduce((prev, cur) => {
-      return [...prev, ...cur.locales]
-    }, [])
 
-    const checkDomainLocales = async (
-      domainDefault = '',
-      domain = '',
-      locale = ''
-    ) => {
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath || '/'}`,
-        undefined,
-        {
-          headers: {
-            host: domain,
-            'accept-language': locale,
-          },
-          redirect: 'manual',
+    // For each domain, check that the locale is handled correctly.
+    describe.each(domainItems)('for domain $domain', ({ domain }) => {
+      // For each locale in all the domains, check that the locale is handled
+      // correctly.
+      it.each(domainItems.reduce((prev, cur) => [...prev, ...cur.locales], []))(
+        'should handle locale %s',
+        async (locale) => {
+          const res = await fetchViaHTTP(
+            ctx.appPort,
+            `${ctx.basePath || '/'}`,
+            undefined,
+            {
+              headers: {
+                host: domain,
+                'accept-language': locale,
+              },
+              redirect: 'manual',
+            }
+          )
+
+          const expectedDomainItem = domainItems.find(
+            (item) =>
+              item.defaultLocale === locale || item.locales.includes(locale)
+          )
+
+          const shouldRedirect =
+            expectedDomainItem.domain !== domain ||
+            locale !== expectedDomainItem.defaultLocale
+
+          if (shouldRedirect) {
+            expect(res.status).toBe(307)
+          } else {
+            expect(res.status).toBe(200)
+          }
+
+          if (shouldRedirect) {
+            const parsedUrl = url.parse(res.headers.get('location'), true)
+
+            const expectedPathname = `/${
+              expectedDomainItem.defaultLocale === locale ? '' : locale
+            }`
+            expect(parsedUrl.pathname).toBe(expectedPathname)
+            expect(parsedUrl.query).toEqual({})
+            expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
+          } else {
+            const html = await res.text()
+            const $ = cheerio.load(html)
+
+            expect($('html').attr('lang')).toBe(locale)
+            expect($('#router-locale').text()).toBe(locale)
+            expect(JSON.parse($('#router-locales').text())).toEqual(locales)
+            // this will not be the domain's defaultLocale since we don't
+            // generate a prerendered version for each locale domain currently
+            expect($('#router-default-locale').text()).toBe('en-US')
+          }
         }
       )
-      const expectedDomainItem = domainItems.find(
-        (item) => item.defaultLocale === locale || item.locales.includes(locale)
-      )
-      const shouldRedirect =
-        expectedDomainItem.domain !== domain ||
-        locale !== expectedDomainItem.defaultLocale
-
-      console.log('checking', {
-        domain,
-        locale,
-        shouldRedirect,
-        expectedDomainItem,
-        status: res.status,
-      })
-
-      expect(res.status).toBe(shouldRedirect ? 307 : 200)
-
-      if (shouldRedirect) {
-        const parsedUrl = url.parse(res.headers.get('location'), true)
-
-        expect(parsedUrl.pathname).toBe(
-          `/${expectedDomainItem.defaultLocale === locale ? '' : locale}`
-        )
-        expect(parsedUrl.query).toEqual({})
-        expect(parsedUrl.hostname).toBe(expectedDomainItem.domain)
-      } else {
-        const html = await res.text()
-        const $ = cheerio.load(html)
-
-        expect($('html').attr('lang')).toBe(locale)
-        expect($('#router-locale').text()).toBe(locale)
-        expect(JSON.parse($('#router-locales').text())).toEqual(locales)
-        // this will not be the domain's defaultLocale since we don't
-        // generate a prerendered version for each locale domain currently
-        expect($('#router-default-locale').text()).toBe('en-US')
-      }
-    }
-
-    for (const item of domainItems) {
-      for (const locale of domainLocales) {
-        await checkDomainLocales(item.defaultLocale, item.domain, locale)
-      }
-    }
+    })
   })
 
   it('should provide defaultLocale correctly for locale domain', async () => {

@@ -6,7 +6,7 @@ A simple blog application built with Next.js, TypeScript, [React](https://reactj
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-edgedb&project-name=with-edgedb&repository-name=with-edgedb&env=EDGEDB_DSN)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-edgedb&project-name=with-edgedb&repository-name=with-edgedb&env=EDGEDB_DSN)
 
 ## How to use
 
@@ -75,7 +75,7 @@ $ npx edgeql-js
 The query builder consists of several files that are generated into the `dbschema/edgeql-js` directory. Import it like so:
 
 ```ts
-import e from './dbschema/edgeql-js'
+import e from "./dbschema/edgeql-js";
 ```
 
 ### Seed the database

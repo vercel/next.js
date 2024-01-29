@@ -1,0 +1,10 @@
+{
+  "name": "@vercel/turbopack-next",
+  "version": "0.0.0",
+  "description": "turbopack next runtime",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "check": "tsc --noEmit"
+  }
+}

@@ -1,9 +1,8 @@
 import { fetchData } from '../lib/fetch-data'
 
-export const config = {
-  unstable_includeFiles: ['include-me/*'],
-  unstable_excludeFiles: ['public/exclude-me/**/*'],
-}
+import('../lib/my-component').then((mod) => {
+  console.log(mod.Button)
+})
 
 export default function Page() {
   return 'index page'

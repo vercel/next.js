@@ -5,24 +5,24 @@ One of the strengths of GraphQL is [enforcing data types on runtime](https://gra
 This template gives you the best start to use GraphQL with fully typed queries (client-side) and resolvers (server-side), all this with minimum bundle size 📦
 
 ```tsx
-import { useQuery } from '@apollo/client'
-import { ViewerDocument } from 'lib/graphql-operations'
+import { useQuery } from "@apollo/client";
+import { ViewerDocument } from "lib/graphql-operations";
 
 const News = () => {
   // Typed already️⚡️
   const {
     data: { viewer },
-  } = useQuery(ViewerDocument)
+  } = useQuery(ViewerDocument);
 
-  return <div>{viewer.name}</div>
-}
+  return <div>{viewer.name}</div>;
+};
 ```
 
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-typescript-graphql)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-typescript-graphql&project-name=with-typescript-graphql&repository-name=with-typescript-graphql)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-typescript-graphql&project-name=with-typescript-graphql&repository-name=with-typescript-graphql)
 
 ## How to use
 

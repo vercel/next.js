@@ -13,8 +13,9 @@ import inquirer from 'inquirer'
 import meow from 'meow'
 import path from 'path'
 import execa from 'execa'
-import chalk from 'chalk'
+import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
+import { uninstallPackage } from '../lib/uninstall-package'
 
 export const jscodeshiftExecutable = require.resolve('.bin/jscodeshift')
 export const transformerDirectory = path.join(__dirname, '../', 'transforms')
@@ -26,7 +27,7 @@ export function checkGitStatus(force) {
     clean = isGitClean.sync(process.cwd())
     errorMessage = 'Git directory is not clean'
   } catch (err) {
-    if (err && err.stderr && err.stderr.indexOf('Not a git repository') >= 0) {
+    if (err && err.stderr && err.stderr.includes('Not a git repository')) {
       clean = true
     }
   }
@@ -37,7 +38,7 @@ export function checkGitStatus(force) {
     } else {
       console.log('Thank you for using @next/codemod!')
       console.log(
-        chalk.yellow(
+        yellow(
           '\nBut before we continue, please stash or commit your git changes.'
         )
       )
@@ -77,7 +78,6 @@ export function runTransform({ files, flags, transformer }) {
   args.push('--ignore-pattern=**/.next/**')
 
   args.push('--extensions=tsx,ts,jsx,js')
-  args.push('--parser=tsx')
 
   args = args.concat(['--transform', transformerPath])
 
@@ -96,6 +96,17 @@ export function runTransform({ files, flags, transformer }) {
 
   if (result.failed) {
     throw new Error(`jscodeshift exited with code ${result.exitCode}`)
+  }
+
+  if (!dry && transformer === 'built-in-next-font') {
+    console.log('Uninstalling `@next/font`')
+    try {
+      uninstallPackage('@next/font')
+    } catch {
+      console.error(
+        "Couldn't uninstall `@next/font`, please uninstall it manually"
+      )
+    }
   }
 }
 
@@ -121,8 +132,16 @@ const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'cra-to-next',
   },
   {
-    name: 'new-link: Ensures your <Link> usage is backwards compatible. Used in combination with experimental newNextLinkBehavior',
+    name: 'new-link: Ensures your <Link> usage is backwards compatible.',
     value: 'new-link',
+  },
+  {
+    name: 'next-og-import: Transforms imports from `next/server` to `next/og` for usage of Dynamic OG Image Generation.',
+    value: 'next-og-import',
+  },
+  {
+    name: 'metadata-to-viewport-export: Migrates certain viewport related metadata from the `metadata` export to a new `viewport` export.',
+    value: 'metadata-to-viewport-export',
   },
   {
     name: 'next-image-to-legacy-image: safely migrate Next.js 10, 11, 12 applications importing `next/image` to the renamed `next/legacy/image` import in Next.js 13',
@@ -131,6 +150,10 @@ const TRANSFORMER_INQUIRER_CHOICES = [
   {
     name: 'next-image-experimental (experimental): dangerously migrates from `next/legacy/image` to the new `next/image` by adding inline styles and removing unused props',
     value: 'next-image-experimental',
+  },
+  {
+    name: 'built-in-next-font: Uninstall `@next/font` and transform imports to `next/font`',
+    value: 'built-in-next-font',
   },
 ]
 

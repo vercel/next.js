@@ -1,21 +1,23 @@
-const { BLOG_URL } = process.env
+const { BLOG_URL } = process.env;
 
 /** @type {import('next').NextConfig} */
-module.exports = {
+const nextConfig = {
   async rewrites() {
     return [
       {
-        source: '/:path*',
+        source: "/:path*",
         destination: `/:path*`,
       },
       {
-        source: '/blog',
+        source: "/blog",
         destination: `${BLOG_URL}/blog`,
       },
       {
-        source: '/blog/:path*',
+        source: "/blog/:path*",
         destination: `${BLOG_URL}/blog/:path*`,
       },
-    ]
+    ];
   },
-}
+};
+
+module.exports = nextConfig;

@@ -4,6 +4,9 @@ import * as path from 'path'
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
+const convertToCorrectSeparator = (str: string) =>
+  str.replace(/[\\/]/g, path.sep)
+
 export = defineRule({
   meta: {
     docs: {
@@ -20,11 +23,20 @@ export = defineRule({
 
     return {
       'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(
-        node
+        node: any
       ) {
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
+        const pathname = convertToCorrectSeparator(context.getFilename())
+
+        const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
+
+        // This rule shouldn't fire in `app/`
+        if (isInAppDir) {
+          return
+        }
+
         if (!scriptImportName) {
           return
         }
@@ -45,7 +57,7 @@ export = defineRule({
           return
         }
 
-        const document = context.getFilename().split('pages')[1]
+        const document = context.getFilename().split('pages', 2)[1]
         if (document && path.parse(document).name.startsWith('_document')) {
           return
         }

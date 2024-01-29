@@ -1,4 +1,6 @@
+import path from 'path'
 import {
+  SRC_DIR_NAMES,
   TemplateMode,
   TemplateType,
 } from '../../../../packages/create-next-app/templates'
@@ -28,12 +30,17 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom', 'eslint', 'eslint-config-next'],
-    devDeps: [],
+    deps: ['next', 'react', 'react-dom'],
+    devDeps: ['eslint', 'eslint-config-next'],
   },
   default: {
     js: {
-      files: ['pages/index.js', 'pages/_app.js', 'pages/api/hello.js'],
+      files: [
+        'pages/index.js',
+        'pages/_app.js',
+        'pages/api/hello.js',
+        'jsconfig.json',
+      ],
       deps: [],
       devDeps: [],
     },
@@ -45,31 +52,102 @@ export const projectSpecification: ProjectSpecification = {
         'tsconfig.json',
         'next-env.d.ts',
       ],
-      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
-      devDeps: [],
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+      ],
+    },
+  },
+  'default-tw': {
+    js: {
+      files: [
+        'jsconfig.json',
+        'pages/_app.js',
+        'pages/api/hello.js',
+        'pages/index.js',
+        'postcss.config.js',
+        'tailwind.config.js',
+      ],
+      deps: [],
+      devDeps: ['autoprefixer', 'postcss', 'tailwindcss'],
+    },
+    ts: {
+      files: [
+        'next-env.d.ts',
+        'pages/_app.tsx',
+        'pages/api/hello.ts',
+        'pages/index.tsx',
+        'postcss.config.js',
+        'tailwind.config.ts',
+        'tsconfig.json',
+      ],
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react-dom',
+        '@types/react',
+        'autoprefixer',
+        'postcss',
+        'tailwindcss',
+        'typescript',
+      ],
     },
   },
   app: {
     js: {
       deps: [],
       devDeps: [],
+      files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
+    },
+    ts: {
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+      ],
       files: [
-        'app/page.jsx',
-        'app/head.jsx',
-        'app/layout.jsx',
-        'pages/api/hello.js',
+        'app/page.tsx',
+        'app/layout.tsx',
+        'tsconfig.json',
+        'next-env.d.ts',
+      ],
+    },
+  },
+  'app-tw': {
+    js: {
+      deps: [],
+      devDeps: ['autoprefixer', 'postcss', 'tailwindcss'],
+      files: [
+        'app/layout.js',
+        'app/page.js',
+        'jsconfig.json',
+        'postcss.config.js',
+        'tailwind.config.js',
       ],
     },
     ts: {
-      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
-      devDeps: [],
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react-dom',
+        '@types/react',
+        'autoprefixer',
+        'postcss',
+        'tailwindcss',
+        'typescript',
+      ],
       files: [
-        'app/page.tsx',
-        'app/head.tsx',
         'app/layout.tsx',
-        'pages/api/hello.ts',
-        'tsconfig.json',
+        'app/page.tsx',
         'next-env.d.ts',
+        'postcss.config.js',
+        'tailwind.config.ts',
+        'tsconfig.json',
       ],
     },
   },
@@ -79,15 +157,24 @@ export type GetProjectSettingsArgs = {
   template: TemplateType
   mode: TemplateMode
   setting: keyof ProjectSettings
+  srcDir?: boolean
 }
+
+export const mapSrcFiles = (files: string[], srcDir?: boolean) =>
+  files.map((file) =>
+    srcDir && SRC_DIR_NAMES.some((name) => file.startsWith(name))
+      ? path.join('src', file)
+      : file
+  )
 
 export const getProjectSetting = ({
   template,
   mode,
   setting,
+  srcDir,
 }: GetProjectSettingsArgs) => {
   return [
     ...projectSpecification.global[setting],
-    ...projectSpecification[template][mode][setting],
+    ...mapSrcFiles(projectSpecification[template][mode][setting], srcDir),
   ]
 }

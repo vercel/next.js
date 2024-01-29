@@ -1,3 +1,4 @@
 packages:
   - 'packages/*'
-  - 'bench/vercel/'
+  - 'bench/*'
+  - 'packages/next-swc/crates/next-core/js'

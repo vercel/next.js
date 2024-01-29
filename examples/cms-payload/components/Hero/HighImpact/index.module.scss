@@ -1,0 +1,49 @@
+@import "../../../css/queries";
+
+.hero {
+  padding-top: calc(var(--base) * 3);
+
+  @include mid-break {
+    padding-top: var(--base);
+  }
+}
+
+.media {
+  margin-top: calc(var(--base) * 3);
+  width: calc(100% + var(--gutter-h));
+  position: relative;
+
+  @include mid-break {
+    margin-top: var(--base);
+    margin-left: calc(var(--gutter-h) * -1);
+    width: calc(100% + var(--gutter-h) * 2);
+  }
+}
+
+.links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  position: absolute;
+  background: white;
+  padding: 0 48px 24px 0;
+
+  li {
+    margin-right: 12px;
+  }
+
+  @include mid-break {
+    position: static;
+    padding: 0 var(--gutter-h);
+    display: block;
+
+    li {
+      margin-right: 0;
+
+      > * {
+        width: 100%;
+      }
+    }
+  }
+}

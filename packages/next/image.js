@@ -1,1 +1,1 @@
-module.exports = require('./dist/client/image')
+module.exports = require('./dist/shared/lib/image-external')

@@ -19,6 +19,7 @@ const writeJson = async (filePath, data) =>
 
 ;(async function () {
   const packages = await fs.readdir(path.join(cwd, 'packages'))
+
   const pkgJsonData = new Map()
   const pkgNames = []
   await Promise.all(
@@ -63,4 +64,13 @@ const writeJson = async (filePath, data) =>
   await normalizeVersions(path.join(cwd, 'lerna.json'))
   await fs.unlink(path.join(cwd, 'pnpm-lock.yaml'))
   await fs.writeFile(path.join(cwd, 'pnpm-lock.yaml'), '')
+
+  const rootPkgJsonPath = path.join(cwd, 'package.json')
+  await writeJson(rootPkgJsonPath, {
+    name: 'nextjs-project',
+    version: '0.0.0',
+    private: true,
+    workspaces: ['packages/*'],
+    scripts: {},
+  })
 })()

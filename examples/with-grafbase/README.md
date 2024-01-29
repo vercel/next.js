@@ -4,15 +4,11 @@ This example shows to use [Grafbase](https://grafbase.com) with Next.js. This ex
 
 ## Demo
 
-You can see a demo of this online at [https://grafbase-with-nextjs-rsc.grafbase-vercel.dev](https://grafbase-with-nextjs-rsc.grafbase-vercel.dev).
+You can see a demo of this online at [https://nextjs-rsc-demo.grafbase-vercel.dev](https://nextjs-rsc-demo.grafbase-vercel.dev).
 
-## Deploy
+## Deploy to Vercel
 
-First deploy this to Grafbase to get your backend API URL and Key:
-
-[![Deploy to Grafbase](https://grafbase.com/button)](https://grafbase.com/new/configure?template=NextExample&source=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase)
-
-Then deploy this example using [Vercel](https://vercel.com):
+Make sure to provide your `GRAFBASE_API_URL` and `GRAFBASE_API_KEY` to Vercel as environment variables when deploying.
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-grafbase&env=GRAFBASE_API_URL,GRAFBASE_API_KEY)
 

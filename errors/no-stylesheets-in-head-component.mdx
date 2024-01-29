@@ -1,0 +1,43 @@
+---
+title: No Stylesheets In Head Component
+---
+
+## Why This Error Occurred
+
+A `<link rel="stylesheet">` tag was added using the `next/head` component.
+
+We don't recommend this pattern because it will potentially break when used with Suspense and/or streaming. In these contexts, `next/head` tags aren't:
+
+- guaranteed to be included in the initial SSR response, so loading could be delayed until client-side rendering, regressing performance.
+
+- loaded in any particular order. The order that the app's Suspense boundaries resolve will determine the loading order of your stylesheets.
+
+## Possible Ways to Fix It
+
+#### Document
+
+Add the stylesheet in a custom `Document` component.
+
+```jsx filename="pages/_document.js"
+import { Html, Head, Main, NextScript } from 'next/document'
+
+export default function Document() {
+  return (
+    <Html>
+      <Head>
+        <link rel="stylesheet" href="..." />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  )
+}
+```
+
+Note that the functional syntax for `Document` above is preferred over the `class` syntax, so that it will be compatible with React Server Components down the line.
+
+## Useful Links
+
+- [Custom Document](/docs/pages/building-your-application/routing/custom-document)

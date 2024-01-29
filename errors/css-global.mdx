@@ -1,0 +1,54 @@
+---
+title: 'Global CSS Must Be in Your Custom `<App>`'
+---
+
+## Why This Error Occurred
+
+An attempt to import Global CSS from a file outside of [`pages/_app.js`](/docs/pages/building-your-application/routing/custom-app) was made.
+
+Global CSS cannot be used in files other than your [custom `_app.js` file](/docs/pages/building-your-application/routing/custom-app) due to ordering problems and side-effects.
+
+## Possible Ways to Fix It
+
+There are two possible ways to fix this error:
+
+- Move all global CSS imports to your [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app).
+- If you do not wish your stylesheet to be global, update it to use [CSS Modules](/docs/pages/building-your-application/styling/css-modules). This will allow you to import the stylesheet and scope the styles to a specific component.
+
+#### Example
+
+Consider the stylesheet named [`styles.css`](/docs/pages/building-your-application/styling/css-modules)
+
+```css filename="styles.css"
+body {
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+**Global CSS**:
+
+Create a [`pages/_app.js` file](/docs/pages/building-your-application/routing/custom-app) if not already present. Then import the `styles.css` file:
+
+```jsx filename="pages/_app.js"
+import '../styles.css'
+
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+**CSS Modules**:
+
+Rename the `styles.css` file to `styles.module.css`. Then import the file in the component or page where you want to use the styles.
+
+```jsx filename="pages/index.js"
+import styles from '../../styles.module.css'
+
+export default function Home() {
+  return <div className={styles.container}>Hello World</div>
+}
+```

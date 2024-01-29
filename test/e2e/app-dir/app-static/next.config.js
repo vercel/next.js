@@ -1,20 +1,17 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
-  experimental: {
-    appDir: true,
+  logging: {
+    fetches: {},
   },
-  // assetPrefix: '/assets',
+  cacheHandler: process.env.CUSTOM_CACHE_HANDLER,
+
   rewrites: async () => {
     return {
       // beforeFiles: [ { source: '/assets/:path*', destination: '/:path*' } ],
       afterFiles: [
         {
-          source: '/rewritten-to-dashboard',
-          destination: '/dashboard',
-        },
-        {
           source: '/rewritten-use-search-params',
-          destination:
-            '/hooks/use-search-params/slug?first=value&second=other%20value&third',
+          destination: '/hooks/use-search-params/with-suspense',
         },
         {
           source: '/rewritten-use-pathname',

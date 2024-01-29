@@ -10,7 +10,7 @@ Since `next-remote-watch` uses undocumented Next.js APIs, it doesn't replace the
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mdx-remote&project-name=with-mdx-remote&repository-name=with-mdx-remote)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mdx-remote&project-name=with-mdx-remote&repository-name=with-mdx-remote)
 
 ## How to use
 
@@ -39,22 +39,22 @@ When using `next-mdx-remote`, you can pass custom components to the MDX renderer
 For example, here's how you can change `getStaticProps` to pass a list of component names, checking the names in the page render function to see which components need to be dynamically loaded.
 
 ```js
-import dynamic from 'next/dynamic'
-import Test from '../components/test'
+import dynamic from "next/dynamic";
+import Test from "../components/test";
 
-const SomeHeavyComponent = dynamic(() => import('SomeHeavyComponent'))
+const SomeHeavyComponent = dynamic(() => import("SomeHeavyComponent"));
 
-const defaultComponents = { Test }
+const defaultComponents = { Test };
 
 export function SomePage({ mdxSource, componentNames }) {
   const components = {
     ...defaultComponents,
-    SomeHeavyComponent: componentNames.includes('SomeHeavyComponent')
+    SomeHeavyComponent: componentNames.includes("SomeHeavyComponent")
       ? SomeHeavyComponent
       : null,
-  }
+  };
 
-  return <MDXRemote {...mdxSource} components={components} />
+  return <MDXRemote {...mdxSource} components={components} />;
 }
 
 export async function getStaticProps() {
@@ -63,21 +63,21 @@ export async function getStaticProps() {
   ---
 
   Some **mdx** text, with a default component <Test name={title}/> and a Heavy component <SomeHeavyComponent />
-  `
+  `;
 
-  const { content, data } = matter(source)
+  const { content, data } = matter(source);
 
   const componentNames = [
-    /<SomeHeavyComponent/.test(content) ? 'SomeHeavyComponent' : null,
-  ].filter(Boolean)
+    /<SomeHeavyComponent/.test(content) ? "SomeHeavyComponent" : null,
+  ].filter(Boolean);
 
-  const mdxSource = await serialize(content)
+  const mdxSource = await serialize(content);
 
   return {
     props: {
       mdxSource,
       componentNames,
     },
-  }
+  };
 }
 ```

@@ -1,0 +1,17 @@
+{
+  "name": "with-zones",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "build": "yarn next build apps/host && yarn next build apps/guest",
+    "start": "NODE_ENV=production node server.js"
+  },
+  "dependencies": {
+    "@types/react": "18.0.28",
+    "next": "canary",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^4.9.3"
+  }
+}

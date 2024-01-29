@@ -1,17 +1,16 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import retry from 'async-retry'
-import chalk from 'chalk'
+import { red, green, cyan } from 'picocolors'
 import fs from 'fs'
 import path from 'path'
+import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
   getRepoInfo,
   existsInRepo,
   hasRepo,
-  RepoInfo,
 } from './helpers/examples'
-import { makeDir } from './helpers/make-dir'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
@@ -19,12 +18,8 @@ import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
 import type { PackageManager } from './helpers/get-pkg-manager'
 
-import {
-  getTemplateFile,
-  installTemplate,
-  TemplateMode,
-  TemplateType,
-} from './templates'
+import type { TemplateMode, TemplateType } from './templates'
+import { getTemplateFile, installTemplate } from './templates'
 
 export class DownloadError extends Error {}
 
@@ -34,28 +29,41 @@ export async function createApp({
   example,
   examplePath,
   typescript,
+  tailwind,
   eslint,
-  experimentalApp,
+  appRouter,
+  srcDir,
+  importAlias,
 }: {
   appPath: string
   packageManager: PackageManager
   example?: string
   examplePath?: string
   typescript: boolean
+  tailwind: boolean
   eslint: boolean
-  experimentalApp: boolean
+  appRouter: boolean
+  srcDir: boolean
+  importAlias: string
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = experimentalApp ? 'app' : 'default'
+  const template: TemplateType = appRouter
+    ? tailwind
+      ? 'app-tw'
+      : 'app'
+    : tailwind
+    ? 'default-tw'
+    : 'default'
 
   if (example) {
     let repoUrl: URL | undefined
 
     try {
       repoUrl = new URL(example)
-    } catch (error: any) {
-      if (error.code !== 'ERR_INVALID_URL') {
+    } catch (error: unknown) {
+      const err = error as Error & { code: string | undefined }
+      if (err.code !== 'ERR_INVALID_URL') {
         console.error(error)
         process.exit(1)
       }
@@ -64,7 +72,7 @@ export async function createApp({
     if (repoUrl) {
       if (repoUrl.origin !== 'https://github.com') {
         console.error(
-          `Invalid URL: ${chalk.red(
+          `Invalid URL: ${red(
             `"${example}"`
           )}. Only GitHub repositories are supported. Please use a GitHub URL and try again.`
         )
@@ -75,7 +83,7 @@ export async function createApp({
 
       if (!repoInfo) {
         console.error(
-          `Found invalid GitHub URL: ${chalk.red(
+          `Found invalid GitHub URL: ${red(
             `"${example}"`
           )}. Please fix the URL and try again.`
         )
@@ -86,7 +94,7 @@ export async function createApp({
 
       if (!found) {
         console.error(
-          `Could not locate the repository for ${chalk.red(
+          `Could not locate the repository for ${red(
             `"${example}"`
           )}. Please check that the repository exists and try again.`
         )
@@ -97,10 +105,10 @@ export async function createApp({
 
       if (!found) {
         console.error(
-          `Could not locate an example named ${chalk.red(
+          `Could not locate an example named ${red(
             `"${example}"`
           )}. It could be due to the following:\n`,
-          `1. Your spelling of example ${chalk.red(
+          `1. Your spelling of example ${red(
             `"${example}"`
           )} might be incorrect.\n`,
           `2. You might not be connected to the internet or you are behind a proxy.`
@@ -124,7 +132,7 @@ export async function createApp({
 
   const appName = path.basename(root)
 
-  await makeDir(root)
+  fs.mkdirSync(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }
@@ -133,7 +141,7 @@ export async function createApp({
   const isOnline = !useYarn || (await getOnline())
   const originalDirectory = process.cwd()
 
-  console.log(`Creating a new Next.js app in ${chalk.green(root)}.`)
+  console.log(`Creating a new Next.js app in ${green(root)}.`)
   console.log()
 
   process.chdir(root)
@@ -149,7 +157,7 @@ export async function createApp({
       if (repoInfo) {
         const repoInfo2 = repoInfo
         console.log(
-          `Downloading files from repo ${chalk.cyan(
+          `Downloading files from repo ${cyan(
             example
           )}. This might take a moment.`
         )
@@ -159,7 +167,7 @@ export async function createApp({
         })
       } else {
         console.log(
-          `Downloading files for example ${chalk.cyan(
+          `Downloading files for example ${cyan(
             example
           )}. This might take a moment.`
         )
@@ -203,7 +211,7 @@ export async function createApp({
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
 
-      await install(root, null, { packageManager, isOnline })
+      await install(packageManager, isOnline)
       console.log()
     }
   } else {
@@ -218,7 +226,10 @@ export async function createApp({
       mode,
       packageManager,
       isOnline,
+      tailwind,
       eslint,
+      srcDir,
+      importAlias,
     })
   }
 
@@ -234,26 +245,24 @@ export async function createApp({
     cdpath = appPath
   }
 
-  console.log(`${chalk.green('Success!')} Created ${appName} at ${appPath}`)
+  console.log(`${green('Success!')} Created ${appName} at ${appPath}`)
 
   if (hasPackageJson) {
     console.log('Inside that directory, you can run several commands:')
     console.log()
-    console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
+    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}dev`))
     console.log('    Starts the development server.')
     console.log()
-    console.log(chalk.cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
+    console.log(cyan(`  ${packageManager} ${useYarn ? '' : 'run '}build`))
     console.log('    Builds the app for production.')
     console.log()
-    console.log(chalk.cyan(`  ${packageManager} start`))
+    console.log(cyan(`  ${packageManager} start`))
     console.log('    Runs the built app in production mode.')
     console.log()
     console.log('We suggest that you begin by typing:')
     console.log()
-    console.log(chalk.cyan('  cd'), cdpath)
-    console.log(
-      `  ${chalk.cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`
-    )
+    console.log(cyan('  cd'), cdpath)
+    console.log(`  ${cyan(`${packageManager} ${useYarn ? '' : 'run '}dev`)}`)
   }
   console.log()
 }

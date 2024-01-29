@@ -13,7 +13,7 @@ describe('Middleware source maps', () => {
           export default function () { return <div>Hello, world!</div> }
         `,
         'pages/api/edge.js': `
-          export const config = { runtime: 'experimental-edge' };
+          export const config = { runtime: 'edge' };
           export default function (req) {
             return new Response("Hello from " + req.url);
           }

@@ -290,6 +290,7 @@ describe('Prerender Preview Mode', () => {
 
     it('should return cookies to be expired after dev server reboot', async () => {
       await killApp(app)
+      appPort = await findPort()
       app = await launchApp(appDir, appPort)
 
       const res = await fetchViaHTTP(
@@ -302,7 +303,7 @@ describe('Prerender Preview Mode', () => {
 
       const body = await res.text()
       // "err":{"name":"TypeError","message":"Cannot read property 'previewModeId' of undefined"
-      expect(body).not.toContain('err')
+      expect(body).not.toContain('"err"')
       expect(body).not.toContain('TypeError')
       expect(body).not.toContain('previewModeId')
 
@@ -379,8 +380,7 @@ describe('Prerender Preview Mode', () => {
       await killApp(app)
     })
   })
-
-  describe('Server Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     runTests()
   })
 })

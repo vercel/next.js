@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "exports": "./dist/index.js",
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "build": "pnpm types && ncc build lib/index.js -m -o dist --license licenses.txt",
+    "types": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.0",
+    "@vercel/ncc": "0.34.0",
+    "typescript": "5.1.6"
+  },
+  "dependencies": {
+    "@actions/core": "1.10.0",
+    "@actions/github": "5.1.1"
+  }
+}

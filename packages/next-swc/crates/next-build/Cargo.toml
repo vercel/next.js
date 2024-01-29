@@ -1,0 +1,63 @@
+[package]
+name = "next-build"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+serializable = []
+profile = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-recursion = { workspace = true }
+console-subscriber = { workspace = true, optional = true }
+dunce = { workspace = true }
+next-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
+indoc = { workspace = true }
+indexmap = { workspace = true }
+mime_guess = "2.0.4"
+base64 = "0.21.0"
+
+turbopack-binding = { workspace = true, features = [
+  "__turbo_tasks",
+  "__turbo_tasks_memory",
+  "__turbo_tasks_env",
+  "__turbo_tasks_fs",
+  "__turbo_tasks_memory",
+  "__turbopack",
+  "__turbopack_build",
+  "__turbopack_cli_utils",
+  "__turbopack_core",
+  "__turbopack_dev",
+  "__turbopack_ecmascript",
+  "__turbopack_ecmascript_runtime",
+  "__turbopack_env",
+  "__turbopack_node",
+] }
+turbo-tasks = { workspace = true }
+
+[build-dependencies]
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }
+vergen = { version = "7.3.2", default-features = false, features = [
+  "cargo",
+  "build",
+] }

@@ -1,4 +1,4 @@
-import { use } from 'react'
+import Link from 'next/link'
 
 export const revalidate = 0
 
@@ -8,12 +8,15 @@ async function getData() {
     message: 'Welcome to the dashboard',
   }
 }
-export default function DashboardPage(props) {
-  const { message } = use(getData())
+export default async function DashboardPage(props) {
+  const { message } = await getData()
 
   return (
     <>
       <p id="dashboard-page">{message}</p>
+      <Link href="/static-page" id="to-static-page">
+        To Static Page
+      </Link>
     </>
   )
 }

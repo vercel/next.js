@@ -1,4 +1,5 @@
-import { StackFrame } from 'stacktrace-parser'
+// @ts-ignore Package Exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export const TYPE_BUILD_OK = 'build-ok'
 export const TYPE_BUILD_ERROR = 'build-error'
@@ -18,6 +19,7 @@ export type UnhandledError = {
   type: typeof TYPE_UNHANDLED_ERROR
   reason: Error
   frames: StackFrame[]
+  componentStack?: string[]
 }
 export type UnhandledRejection = {
   type: typeof TYPE_UNHANDLED_REJECTION

@@ -1,11 +1,40 @@
 /* eslint-disable import/no-extraneous-dependencies */
+declare module 'next/package.json'
+declare module 'next/dist/compiled/@napi-rs/triples'
+declare module 'next/dist/compiled/postcss-value-parser'
+declare module 'next/dist/compiled/icss-utils'
+declare module 'next/dist/compiled/postcss-modules-values'
+declare module 'next/dist/compiled/postcss-modules-local-by-default'
+declare module 'next/dist/compiled/postcss-modules-extract-imports'
+declare module 'next/dist/compiled/postcss-modules-scope'
 declare module 'next/dist/compiled/babel/plugin-transform-modules-commonjs'
 declare module 'next/dist/compiled/babel/plugin-syntax-jsx'
+declare module 'next/dist/compiled/loader-utils2'
 declare module 'next/dist/compiled/react-server-dom-webpack/client'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-webpack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-webpack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-webpack/server.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.edge'
+declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
+declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
+declare module 'next/dist/client/app-call-server'
+declare module 'next/dist/compiled/react-dom/server'
+declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/react-dom/server.browser'
 declare module 'next/dist/compiled/browserslist'
-declare module 'react-dom/server.browser'
+
+declare module 'react-server-dom-webpack/client'
+declare module 'react-server-dom-webpack/server.edge'
+declare module 'react-server-dom-webpack/server.node'
+declare module 'react-server-dom-webpack/client.edge'
+
+declare module 'VAR_MODULE_GLOBAL_ERROR'
+declare module 'VAR_USERLAND'
+declare module 'VAR_MODULE_DOCUMENT'
+declare module 'VAR_MODULE_APP'
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
   export * from '@next/react-dev-overlay/dist/client'
@@ -15,22 +44,28 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
   export * from '@next/react-dev-overlay/dist/middleware'
 }
 
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
+  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
+}
+
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
+}
+
+declare module 'next/dist/compiled/node-fetch' {
+  import fetch from 'node-fetch'
+  export * from 'node-fetch'
+  export default fetch
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import m from 'node-fetch'
-  export default m
-  export * from 'node-fetch'
+declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
+  export * from '@mswjs/interceptors/ClientRequest'
 }
-
-declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
@@ -38,11 +73,6 @@ declare module 'next/dist/compiled/jest-worker' {
 
 declare module 'next/dist/compiled/react-is' {
   export * from 'react-is'
-}
-
-declare module 'next/dist/compiled/chalk' {
-  import m from 'chalk'
-  export = m
 }
 
 declare module 'next/dist/compiled/cssnano-simple' {
@@ -83,6 +113,11 @@ declare module 'next/dist/compiled/amphtml-validator' {
   import m from 'amphtml-validator'
   export = m
 }
+
+declare module 'next/dist/compiled/superstruct' {
+  import m from 'superstruct'
+  export = m
+}
 declare module 'next/dist/compiled/async-retry'
 declare module 'next/dist/compiled/async-sema' {
   import m from 'async-sema'
@@ -117,6 +152,13 @@ declare module 'next/dist/compiled/arg/index.js' {
 
 declare module 'next/dist/compiled/babel/code-frame' {
   export * from '@babel/code-frame'
+}
+
+declare module 'next/dist/compiled/@next/font/dist/google' {
+  export * from '@next/font/google'
+}
+declare module 'next/dist/compiled/@next/font/dist/local' {
+  export * from '@next/font/local'
 }
 declare module 'next/dist/compiled/babel/traverse' {
   import traverse from '@babel/traverse'
@@ -230,8 +272,8 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/micromatch' {
-  import m from 'micromatch'
+declare module 'next/dist/compiled/picomatch' {
+  import m from 'picomatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
@@ -252,6 +294,10 @@ declare module 'next/dist/compiled/send' {
 }
 declare module 'next/dist/compiled/source-map' {
   import m from 'source-map'
+  export = m
+}
+declare module 'next/dist/compiled/source-map08' {
+  import m from 'source-map08'
   export = m
 }
 declare module 'next/dist/compiled/string-hash' {
@@ -331,13 +377,12 @@ declare module 'next/dist/compiled/edge-runtime' {
   export = m
 }
 
-declare module 'next/dist/compiled/@edge-runtime/primitives' {
-  import * as m from '@edge-runtime/primitives'
-  export = m
+declare module 'next/dist/compiled/@edge-runtime/cookies' {
+  export * from '@edge-runtime/cookies'
 }
 
-declare module 'next/dist/compiled/@segment/ajv-human-errors' {
-  import * as m from '@segment/ajv-human-errors'
+declare module 'next/dist/compiled/@edge-runtime/primitives' {
+  import * as m from '@edge-runtime/primitives'
   export = m
 }
 
@@ -379,6 +424,15 @@ declare module 'next/dist/compiled/shell-quote' {
   export = m
 }
 
+declare module 'next/dist/compiled/@vercel/og/satori-types' {
+  export * from 'satori'
+}
+declare module 'next/dist/compiled/@vercel/og' {
+  export * from '@vercel/og'
+}
+declare module 'next/dist/compiled/@vercel/og/index.node'
+declare module 'next/dist/compiled/@vercel/og/index.edge'
+
 declare namespace NodeJS {
   interface ProcessVersions {
     pnp?: string
@@ -413,4 +467,14 @@ declare module 'next/dist/compiled/watchpack' {
 
 declare module 'next/dist/compiled/is-animated' {
   export default function isAnimated(buffer: Buffer): boolean
+}
+
+declare module 'next/dist/compiled/@opentelemetry/api' {
+  import * as m from '@opentelemetry/api'
+  export = m
+}
+
+declare module 'next/dist/compiled/zod' {
+  import * as m from 'zod'
+  export = m
 }

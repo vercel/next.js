@@ -1,4 +1,4 @@
-import { API, FileInfo, JSXElement, Options } from 'jscodeshift'
+import type { API, FileInfo, JSXElement, Options } from 'jscodeshift'
 
 export const indexContext = {
   multipleRenderRoots: false,
@@ -10,7 +10,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
   let hasModifications = false
   let foundReactRender = 0

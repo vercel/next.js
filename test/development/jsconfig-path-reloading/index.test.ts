@@ -43,6 +43,8 @@ describe('jsconfig-path-reloading', () => {
 
       if (addAfterStart) {
         await next.patchFile(tsConfigFile, tsConfigContent)
+        // wait a bit for the file watcher to pick up the change
+        await new Promise((resolve) => setTimeout(resolve, 200))
       }
     })
     afterAll(() => next.destroy())
@@ -70,8 +72,8 @@ describe('jsconfig-path-reloading', () => {
         const html = await browser.eval('document.documentElement.innerHTML')
         expect(html).toContain('first button')
         expect(html).toContain('second button')
-        expect(html).toContain('first-data')
-        expect(html).not.toContain('second-data')
+        expect(html).toContain('id="first-data"')
+        expect(html).not.toContain('id="second-data"')
 
         await next.patchFile(
           indexPage,
@@ -81,7 +83,7 @@ describe('jsconfig-path-reloading', () => {
           )}`
         )
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
 
         await next.patchFile(
@@ -102,7 +104,7 @@ describe('jsconfig-path-reloading', () => {
           )
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -114,7 +116,8 @@ describe('jsconfig-path-reloading', () => {
         await next.patchFile(tsConfigFile, tsconfigContent)
         await check(async () => {
           const html3 = await browser.eval('document.documentElement.innerHTML')
-          return html3.includes('first-data') && !html3.includes('second-data')
+          return html3.includes('id="first-data"') &&
+            !html3.includes('second-data')
             ? 'success'
             : html3
         }, 'success')
@@ -156,7 +159,7 @@ describe('jsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')

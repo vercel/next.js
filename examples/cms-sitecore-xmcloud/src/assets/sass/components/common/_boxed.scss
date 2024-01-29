@@ -1,0 +1,16 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.boxed {
+  box-sizing: border-box;
+  margin: 20px 0;
+  @include respond-to(tablet) {
+    padding: 10px;
+  }
+  @include respond-to(mobile) {
+    padding: 10px;
+  }
+  > div {
+    @include wrapper();
+  }
+}

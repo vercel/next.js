@@ -1,0 +1,105 @@
+html {
+  font-size: 62.5%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin-bottom: 0px;
+  height: auto !important;
+}
+
+body {
+  @include opensans-font-stack();
+  position: relative;
+  overflow: auto;
+  color: $text-basic;
+  font-size: 16px;
+  line-height: 1.5;
+  background: $page-bg;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+  height: auto !important;
+  &.on-page-editor {
+    background: $page-bg-editor !important;
+  }
+}
+
+a {
+  color: $text-basic;
+  cursor: pointer;
+  font-size: 0.85em;
+  &:hover {
+    color: $text-basic-active;
+  }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: bold;
+}
+
+h1 {
+  font-size: 2em;
+}
+
+h2 {
+  font-size: 1.5em;
+}
+
+h3 {
+  font-size: 1.2em;
+}
+
+h4 {
+  font-size: 1em;
+}
+
+h5 {
+  font-size: 0.83em;
+}
+
+h6 {
+  font-size: 0.67em;
+}
+
+ul li {
+  list-style-type: none;
+}
+
+.xa-variable {
+  border: 0px;
+  padding: 1px;
+  margin: 0px;
+  background-color: #ebebe4;
+  color: #545454;
+  user-select: none;
+  pointer-events: none;
+}
+
+//Navigation Bar fix
+#breadcrumbMenuSubcontrol_context_menu * {
+  box-sizing: initial;
+}
+
+//End navigation bar fix
+.menu-mobile-navigate {
+  display: none;
+}
+
+#header,
+#content,
+#footer,
+.sc-jss-empty-placeholder {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.sc-jss-placeholder-error {
+  background: #ff0000;
+  outline: 5px solid #e36565;
+  padding: 10px;
+  color: #fff;
+  max-width: 500px;
+}

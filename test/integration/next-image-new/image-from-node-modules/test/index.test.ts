@@ -14,29 +14,33 @@ let appPort
 let app
 
 function runTests() {
-  // This feature was added in PR #31065.
-  // Skip this test until we promote `next/image` from
-  // experimental to stable status.
-  it.skip('should apply image config for node_modules', async () => {
+  it('should apply image config for node_modules', async () => {
     const browser = await webdriver(appPort, '/')
     const src = await browser
       .elementById('image-from-node-modules')
       .getAttribute('src')
     expect(src).toMatch('i.imgur.com')
+
+    const srcset = await browser
+      .elementById('image-from-node-modules')
+      .getAttribute('srcset')
+    expect(srcset).toMatch('1234')
   })
 }
 
 describe('Image Component from node_modules prod mode', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  runTests()
+    runTests()
+  })
 })
 
 describe('Image Component from node_modules dev mode', () => {

@@ -2,6 +2,15 @@
 
 // Extend the NodeJS namespace with Next.js-defined properties
 declare namespace NodeJS {
+  // only for rust, see https://github.com/napi-rs/napi-rs/issues/1630
+  interface TTY {
+    setBlocking(blocking: boolean): void
+  }
+
+  interface WriteStream {
+    _handle?: TTY
+  }
+
   interface Process {
     /**
      * @deprecated Use `typeof window` instead
@@ -39,7 +48,8 @@ interface Window {
 }
 
 interface NextFetchRequestConfig {
-  revalidate?: number
+  revalidate?: number | false
+  tags?: string[]
 }
 
 interface RequestInit {

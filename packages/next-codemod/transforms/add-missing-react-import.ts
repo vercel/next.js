@@ -1,4 +1,10 @@
-import { API, Collection, FileInfo, JSCodeshift, Options } from 'jscodeshift'
+import type {
+  API,
+  Collection,
+  FileInfo,
+  JSCodeshift,
+  Options,
+} from 'jscodeshift'
 
 function addReactImport(j: JSCodeshift, root: Collection) {
   // We create an import specifier, this is the value of an import, eg:
@@ -46,7 +52,7 @@ export default function transformer(
   api: API,
   options: Options
 ) {
-  const j = api.jscodeshift
+  const j = api.jscodeshift.withParser('tsx')
   const root = j(file.source)
 
   const hasReactImport = (r) => {

@@ -26,9 +26,9 @@ IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
 
-use std::fs::read_to_string;
 use std::{
     cell::RefCell,
+    fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
     sync::Arc,
@@ -37,11 +37,10 @@ use std::{
 use anyhow::{anyhow, bail, Context as _};
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
-use next_swc::{custom_before_pass, TransformOptions};
-use swc_core::common::comments::SingleThreadedComments;
-use swc_core::{
+use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use turbopack_binding::swc::core::{
     base::{try_with_handler, Compiler, TransformOutput},
-    common::{errors::ColorConfig, FileName, GLOBALS},
+    common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::transforms::base::pass::noop,
 };
 
@@ -62,6 +61,11 @@ pub struct TransformTask {
     pub options: Buffer,
 }
 
+#[inline]
+fn skip_filename() -> bool {
+    cfg!(debug_assertions)
+}
+
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
@@ -72,9 +76,9 @@ impl Task for TransformTask {
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
-                    swc_core::base::HandlerOpts {
-                        color: ColorConfig::Never,
-                        skip_filename: true,
+                    turbopack_binding::swc::core::base::HandlerOpts {
+                        color: ColorConfig::Always,
+                        skip_filename: skip_filename(),
                     },
                     |handler| {
                         self.c.run(|| {
@@ -103,7 +107,9 @@ impl Task for TransformTask {
                                     )
                                 }
                             };
-                            let options = options.patch(&fm);
+                            let unresolved_mark = Mark::new();
+                            let mut options = options.patch(&fm);
+                            options.swc.unresolved_mark = Some(unresolved_mark);
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
@@ -122,6 +128,7 @@ impl Task for TransformTask {
                                         &options,
                                         comments.clone(),
                                         eliminated_packages.clone(),
+                                        unresolved_mark,
                                     )
                                 },
                                 |_| noop(),

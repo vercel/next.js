@@ -1,10 +1,6 @@
 import * as React from 'react'
-import {
-  TYPE_UNHANDLED_ERROR,
-  TYPE_UNHANDLED_REJECTION,
-  UnhandledError,
-  UnhandledRejection,
-} from '../bus'
+import type { UnhandledError, UnhandledRejection } from '../bus'
+import { TYPE_UNHANDLED_ERROR, TYPE_UNHANDLED_REJECTION } from '../bus'
 import {
   Dialog,
   DialogBody,
@@ -14,7 +10,8 @@ import {
 import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
-import { getErrorByType, ReadyRuntimeError } from '../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../helpers/getErrorByType'
+import { getErrorByType } from '../helpers/getErrorByType'
 import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
@@ -49,15 +46,20 @@ const HotlinkedText: React.FC<{
 }> = function HotlinkedText(props) {
   const { text } = props
 
-  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
+  const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
   return (
     <>
       {linkRegex.test(text)
         ? text.split(' ').map((word, index, array) => {
             if (linkRegex.test(word)) {
+              const link = linkRegex.exec(word)
               return (
                 <React.Fragment key={`link-${index}`}>
-                  <a href={word}>{word}</a>
+                  {link && (
+                    <a href={link[0]} target="_blank" rel="noreferrer noopener">
+                      {word}
+                    </a>
+                  )}
                   {index === array.length - 1 ? '' : ' '}
                 </React.Fragment>
               )
@@ -324,11 +326,12 @@ export const styles = css`
     color: var(--color-ansi-red);
   }
 
-  .nextjs-container-errors-body > h5:not(:first-child) {
+  .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
-  .nextjs-container-errors-body > h5 {
+  .nextjs-container-errors-body > h2 {
     margin-bottom: var(--size-gap);
+    font-size: var(--size-font-big);
   }
 
   .nextjs-toast-errors-parent {

@@ -1,0 +1,45 @@
+---
+title: 'No `styled-jsx` in `_document`'
+---
+
+> Prevent usage of `styled-jsx` in `pages/_document.js`.
+
+## Why This Error Occurred
+
+Custom CSS like `styled-jsx` is not allowed in a [Custom Document](/docs/pages/building-your-application/routing/custom-document).
+
+## Possible Ways to Fix It
+
+If you need shared CSS for all of your pages, take a look at the [Custom `App`](/docs/pages/building-your-application/routing/custom-app) file or define a custom layout.
+
+For example, consider the following stylesheet named `styles.css`:
+
+```css filename="styles.css"
+body {
+  font-family: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica',
+    'Arial', sans-serif;
+  padding: 20px 20px 60px;
+  max-width: 680px;
+  margin: 0 auto;
+}
+```
+
+Create a `pages/_app.{js,tsx}` file if not already present. Then, import the `styles.css` file.
+
+```jsx filename="pages/_app.js"
+import '../styles.css'
+
+// This default export is required in a new `pages/_app.js` file.
+export default function MyApp({ Component, pageProps }) {
+  return <Component {...pageProps} />
+}
+```
+
+These styles (`styles.css`) will apply to all pages and components in your application.
+
+## Useful Links
+
+- [Custom Document Caveats](/docs/pages/building-your-application/routing/custom-document#caveats)
+- [Layouts](/docs/pages/building-your-application/routing/pages-and-layouts#layout-pattern)
+- [Built in CSS Support](/docs/pages/building-your-application/styling)
+- [Custom `App`](/docs/pages/building-your-application/routing/custom-app)

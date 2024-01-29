@@ -1,0 +1,20 @@
+---
+title: 'Failed to fetch `devPagesManifest`'
+---
+
+## Why This Error Occurred
+
+The network request to load `_devPagesManifest.json` did not succeed.
+
+The dev pages manifest file is used by `next/link` to retrieve the list of pages to be (pre-)loaded by Next.js.
+If it fails, Next.js cannot properly navigate and link between pages.
+
+## Possible Ways to Fix It
+
+- Make sure your browser developer tools, extensions, and any other network tools aren't blocking that request.
+- If you're running your Next.js application through a proxy, nginx, or other network layer, make sure links like `/_next/*` are configured to be allowed.
+
+## Useful Links
+
+- [Original GitHub Issue Thread](https://github.com/vercel/next.js/issues/16874)
+- [GitHub Issue Thread With Reproduction](https://github.com/vercel/next.js/issues/38047)

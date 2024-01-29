@@ -1,5 +1,15 @@
-const About = () => {
-  return <div>About us</div>
-}
+import Link from "next/link";
 
-export default About
+const About = () => {
+  return (
+    <div>
+      <h1>About</h1>
+      <p>Now you are on the About page!</p>
+      <p>
+        Go back to the <Link href="/">Home</Link> page.
+      </p>
+    </div>
+  );
+};
+
+export default About;

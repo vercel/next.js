@@ -1,0 +1,29 @@
+---
+title: 'Experimental `appDir: true`'
+---
+
+## Why This Error Occurred
+
+Your project contains a directory named `app/`. Since Next.js 13, this is a [reserved name](/blog/next-13#new-app-directory-beta).
+
+## Possible Ways to Fix It
+
+To use the new app directory and its features, please add `appDir: true` to your configuration in `next.config.js` under `experimental`.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    appDir: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+If you do not want to use the new `app/` directory features yet, but have a directory named `app/`, rename the directory to something else.
+
+## Useful Links
+
+- [Next.js 13 App directory](/blog/next-13#new-app-directory-beta)
+- [App directory documentation](/docs/app/building-your-application)

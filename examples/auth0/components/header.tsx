@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 type HeaderProps = {
-  user?: any
-  loading: boolean
-}
+  user?: any;
+  loading: boolean;
+};
 
 const Header = ({ user, loading }: HeaderProps) => {
   return (
@@ -11,31 +11,25 @@ const Header = ({ user, loading }: HeaderProps) => {
       <nav>
         <ul>
           <li>
-            <Link href="/" legacyBehavior>
-              <a>Home</a>
-            </Link>
+            <Link href="/">Home</Link>
           </li>
           <li>
-            <Link href="/about" legacyBehavior>
-              <a>About</a>
-            </Link>
+            <Link href="/about">About</Link>
           </li>
           <li>
-            <Link href="/advanced/api-profile" legacyBehavior>
-              <a>API rendered profile (advanced)</a>
+            <Link href="/advanced/api-profile">
+              API rendered profile (advanced)
             </Link>
           </li>
           {!loading &&
             (user ? (
               <>
                 <li>
-                  <Link href="/profile" legacyBehavior>
-                    <a>Client rendered profile</a>
-                  </Link>
+                  <Link href="/profile">Client rendered profile</Link>
                 </li>
                 <li>
-                  <Link href="/advanced/ssr-profile" legacyBehavior>
-                    <a>Server rendered profile (advanced)</a>
+                  <Link href="/advanced/ssr-profile">
+                    Server rendered profile (advanced)
                   </Link>
                 </li>
                 <li>
@@ -86,7 +80,7 @@ const Header = ({ user, loading }: HeaderProps) => {
         }
       `}</style>
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

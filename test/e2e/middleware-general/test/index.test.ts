@@ -4,7 +4,12 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { NextInstance } from 'test/lib/next-modes/base'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import {
+  check,
+  fetchViaHTTP,
+  shouldRunTurboDevTest,
+  waitFor,
+} from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -13,45 +18,72 @@ describe('Middleware Runtime', () => {
   let next: NextInstance
 
   const setup = ({ i18n }: { i18n: boolean }) => {
-    let nextConfigContent = ''
-    const nextConfigPath = join(__dirname, '../app/next.config.js')
-
     afterAll(async () => {
       await next.destroy()
-
-      if (nextConfigContent) {
-        await fs.writeFile(nextConfigPath, nextConfigContent)
-      }
     })
     beforeAll(async () => {
-      if (!i18n) {
-        nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
-        await fs.writeFile(
-          nextConfigPath,
-          nextConfigContent.replace('i18n', '__i18n')
-        )
-      }
       next = await createNext({
         files: {
-          'next.config.js': new FileRef(
-            join(__dirname, '../app/next.config.js')
-          ),
           'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
           ),
         },
+        nextConfig: {
+          experimental: {
+            webpackBuildWorker: true,
+          },
+          ...(i18n
+            ? {
+                i18n: {
+                  locales: ['en', 'fr', 'nl'],
+                  defaultLocale: 'en',
+                },
+              }
+            : {}),
+          async redirects() {
+            return [
+              {
+                source: '/redirect-1',
+                destination: '/somewhere/else',
+                permanent: false,
+              },
+            ]
+          },
+          async rewrites() {
+            return [
+              {
+                source: '/rewrite-1',
+                destination: '/ssr-page?from=config',
+              },
+              {
+                source: '/rewrite-2',
+                destination: '/about/a?from=next-config',
+              },
+              {
+                source: '/sha',
+                destination: '/shallow',
+              },
+              {
+                source: '/rewrite-3',
+                destination: '/blog/middleware-rewrite?hello=config',
+              },
+            ]
+          },
+        },
         packageJson: {
           scripts: {
             setup: `cp -r ./shared-package ./node_modules`,
-            build: 'yarn setup && next build',
-            dev: 'yarn setup && next dev',
+            build: 'pnpm run setup && next build',
+            dev: `pnpm run setup && next ${
+              shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
+            }`,
             start: 'next start',
           },
         },
-        startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-        buildCommand: 'yarn build',
+        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+        buildCommand: 'pnpm run build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
@@ -70,6 +102,34 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should work with notFound: true correctly', async () => {
+      const browser = await next.browser('/ssr-page')
+      await browser.eval('window.beforeNav = 1')
+      await browser.eval('window.next.router.push("/ssg/not-found-1")')
+
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+
+      await browser.refresh()
+      await check(
+        () => browser.eval('document.documentElement.innerHTML'),
+        /This page could not be found/
+      )
+    })
+
+    it('should be able to rewrite on _next/static/chunks/pages/ 404', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        '/_next/static/chunks/pages/_app-non-existent.js'
+      )
+
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('Example Domain')
+    })
+
     if ((global as any).isNextDev) {
       it('refreshes the page when middleware changes ', async () => {
         const browser = await webdriver(next.url, `/about`)
@@ -99,7 +159,7 @@ describe('Middleware Runtime', () => {
           `/_next/static/${next.buildId}/_devMiddlewareManifest.json`
         )
         const matchers = await res.json()
-        expect(matchers).toEqual([{ regexp: '.*' }])
+        expect(matchers).toEqual([{ regexp: '.*', originalSource: '/:path*' }])
       })
     }
 
@@ -110,18 +170,13 @@ describe('Middleware Runtime', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            env: [
-              'MIDDLEWARE_TEST',
-              'ANOTHER_MIDDLEWARE_TEST',
-              'STRING_ENV_VAR',
-            ],
             files: expect.arrayContaining([
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
             ]),
             name: 'middleware',
             page: '/',
-            matchers: [{ regexp: '^/.*$' }],
+            matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],
             wasm: [],
             assets: [],
             regions: 'auto',
@@ -136,7 +191,7 @@ describe('Middleware Runtime', () => {
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
           'regions',
-          'default'
+          'auto'
         )
       })
 
@@ -243,7 +298,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct dynamic route params on client-transition to dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/blog/first")')
       await browser.waitForElementByCss('#blog')
@@ -357,7 +416,11 @@ describe('Middleware Runtime', () => {
     })
 
     it('should have correct route params for rewrite from config non-dynamic route', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await webdriver(next.url, '/404')
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval('window.next.router.push("/rewrite-1")')
 
@@ -393,7 +456,11 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('Hello World')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
+      await check(
+        () => browser.eval('next.router.isReady ? "yes" : "nope"'),
+        'yes'
+      )
       await browser.eval('window.beforeNav = 1')
       await browser.eval(`next.router.push('/rewrite-1')`)
       await check(async () => {
@@ -408,7 +475,7 @@ describe('Middleware Runtime', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('AboutA')
 
-      const browser = await webdriver(next.url, `/`)
+      const browser = await webdriver(next.url, `/404`)
       await browser.eval(`next.router.push('/rewrite-2')`)
       await check(async () => {
         const content = await browser.eval('document.documentElement.innerHTML')
@@ -441,22 +508,22 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    it('should contain process polyfill', async () => {
+    it('allows to access env variables', async () => {
       const res = await fetchViaHTTP(next.url, `/global`)
-      expect(readMiddlewareJSON(res)).toEqual({
-        process: {
-          env: {
-            ANOTHER_MIDDLEWARE_TEST: 'asdf2',
-            STRING_ENV_VAR: 'asdf3',
-            MIDDLEWARE_TEST: 'asdf',
-            ...((global as any).isNextDeploy
-              ? {}
-              : {
-                  NEXT_RUNTIME: 'edge',
-                }),
-          },
-        },
-      })
+      const json = readMiddlewareJSON(res)
+
+      for (const [key, value] of Object.entries({
+        ANOTHER_MIDDLEWARE_TEST: 'asdf2',
+        STRING_ENV_VAR: 'asdf3',
+        MIDDLEWARE_TEST: 'asdf',
+        ...((global as any).isNextDeploy
+          ? {}
+          : {
+              NEXT_RUNTIME: 'edge',
+            }),
+      })) {
+        expect(json.process.env[key]).toBe(value)
+      }
     })
 
     it(`should contain \`globalThis\``, async () => {
@@ -667,7 +734,7 @@ describe('Middleware Runtime', () => {
 
       // Check that no server requests were made to ?hello=world,
       // as it's a shallow request.
-      expect(requests).toEqual([
+      expect(requests.filter((req) => req.includes('_next/data'))).toEqual([
         `${next.url}/_next/data/${next.buildId}${
           i18n ? '/en' : ''
         }/sha.json?hello=goodbye`,

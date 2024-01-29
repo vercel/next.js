@@ -1,24 +1,62 @@
 export type Event = 'request'
 
-// This is the base Browser interface all browser
-// classes should build off of, it is the bare
-// methods we aim to support across tests
-export class BrowserInterface {
-  private promise: any
-  private then: any
-  private catch: any
+/**
+ * This is the base Browser interface all browser
+ * classes should build off of, it is the bare
+ * methods we aim to support across tests
+ *
+ * They will always await last executed command.
+ * The interface is mutable - it doesn't have to be in sequence.
+ *
+ * You can manually await this interface to wait for completion of the last scheduled command.
+ */
+export abstract class BrowserInterface implements PromiseLike<any> {
+  private promise?: Promise<any>
+  then: Promise<any>['then']
+  catch: Promise<any>['catch']
+  finally: Promise<any>['finally'];
 
-  protected chain(nextCall: any): BrowserInterface {
+  // necessary for the type of the function below
+  readonly [Symbol.toStringTag]: string = 'BrowserInterface'
+
+  protected chain<T>(
+    nextCall: (current: any) => T | PromiseLike<T>
+  ): BrowserInterface & Promise<T> {
     if (!this.promise) {
       this.promise = Promise.resolve(this)
     }
     this.promise = this.promise.then(nextCall)
     this.then = (...args) => this.promise.then(...args)
     this.catch = (...args) => this.promise.catch(...args)
+    this.finally = (...args) => this.promise.finally(...args)
     return this
   }
 
-  async setup(browserName: string, locale?: string): Promise<void> {}
+  /**
+   * This function will run in chain - it will wait for previous commands.
+   * But it won't have an effect on chain value and chain will still be green if this throws.
+   */
+  protected chainWithReturnValue<T>(
+    callback: (...args: any[]) => Promise<T>
+  ): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      this.chain(async (...args: any[]) => {
+        try {
+          resolve(await callback(...args))
+        } catch (error) {
+          reject(error)
+        }
+      })
+    })
+  }
+
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    ignoreHttpsErrors: boolean,
+    headless: boolean
+  ): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
 
@@ -52,16 +90,23 @@ export class BrowserInterface {
   moveTo(): BrowserInterface {
     return this
   }
+  // TODO(NEXT-290): type this correctly as awaitable
   waitForElementByCss(selector: string, timeout?: number): BrowserInterface {
     return this
   }
   waitForCondition(snippet: string, timeout?: number): BrowserInterface {
     return this
   }
-  back(): BrowserInterface {
+  /**
+   * Use browsers `go back` functionality.
+   */
+  back(options?: any): BrowserInterface {
     return this
   }
-  forward(): BrowserInterface {
+  /**
+   * Use browsers `go forward` functionality. Inverse of back.
+   */
+  forward(options?: any): BrowserInterface {
     return this
   }
   refresh(): BrowserInterface {
@@ -80,14 +125,35 @@ export class BrowserInterface {
   off(event: Event, cb: (...args: any[]) => void) {}
   async loadPage(
     url: string,
-    { disableCache: boolean, beforePageLoad: Function }
+    {
+      disableCache,
+      cpuThrottleRate,
+      beforePageLoad,
+      pushErrorAsConsoleLog,
+    }: {
+      disableCache?: boolean
+      cpuThrottleRate?: number
+      beforePageLoad?: Function
+      pushErrorAsConsoleLog?: boolean
+    }
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
 
-  async getValue(): Promise<any> {}
-  async getAttribute(name: string): Promise<any> {}
-  async eval(snippet: string | Function): Promise<any> {}
-  async evalAsync(snippet: string | Function): Promise<any> {}
+  async getValue<T = any>(): Promise<T> {
+    return
+  }
+  async getAttribute<T = any>(name: string): Promise<T> {
+    return
+  }
+  async eval<T = any>(snippet: string | Function, ...args: any[]): Promise<T> {
+    return
+  }
+  async evalAsync<T = any>(
+    snippet: string | Function,
+    ...args: any[]
+  ): Promise<T> {
+    return
+  }
   async text(): Promise<string> {
     return ''
   }
@@ -108,4 +174,6 @@ export class BrowserInterface {
   async url(): Promise<string> {
     return ''
   }
+
+  async waitForIdleNetwork(): Promise<void> {}
 }

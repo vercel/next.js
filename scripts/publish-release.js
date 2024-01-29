@@ -2,22 +2,20 @@
 // @ts-check
 
 const path = require('path')
-const { readdir } = require('fs/promises')
+const execa = require('execa')
+const { Sema } = require('async-sema')
 const { execSync } = require('child_process')
-const { readJson } = require('fs-extra')
+const fs = require('fs')
 
 const cwd = process.cwd()
 
 ;(async function () {
   let isCanary = true
 
-  if (!process.env.NPM_TOKEN) {
-    console.log('No NPM_TOKEN, exiting...')
-    return
-  }
-
   try {
-    const tagOutput = execSync('git describe --exact-match').toString()
+    const tagOutput = execSync(
+      `node ${path.join(__dirname, 'check-is-release.js')}`
+    ).toString()
     console.log(tagOutput)
 
     if (tagOutput.trim().startsWith('v')) {
@@ -34,16 +32,32 @@ const cwd = process.cwd()
   }
   console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
 
+  if (!process.env.NPM_TOKEN) {
+    console.log('No NPM_TOKEN, exiting...')
+    return
+  }
+
   const packagesDir = path.join(cwd, 'packages')
-  const packageDirs = await readdir(packagesDir)
+  const packageDirs = fs.readdirSync(packagesDir)
+  const publishSema = new Sema(2)
 
   const publish = async (pkg, retry = 0) => {
     try {
-      execSync(
-        `npm publish ${path.join(packagesDir, pkg)} --access public${
-          isCanary ? ' --tag canary' : ''
-        }`
+      await publishSema.acquire()
+      await execa(
+        `npm`,
+        [
+          'publish',
+          `${path.join(packagesDir, pkg)}`,
+          '--access',
+          'public',
+          '--ignore-scripts',
+          ...(isCanary ? ['--tag', 'canary'] : []),
+        ],
+        { stdio: 'inherit' }
       )
+      // Return here to avoid retry logic
+      return
     } catch (err) {
       console.error(`Failed to publish ${pkg}`, err)
 
@@ -57,27 +71,106 @@ const cwd = process.cwd()
         return
       }
 
-      if (retry < 3) {
-        const retryDelaySeconds = 15
-        console.log(`retrying in ${retryDelaySeconds}s`)
-        await new Promise((resolve) =>
-          setTimeout(resolve, retryDelaySeconds * 1000)
-        )
-        await publish(pkg, retry + 1)
+      if (retry >= 3) {
+        throw err
       }
-      throw err
+    } finally {
+      publishSema.release()
     }
-  }
-
-  for (const packageDir of packageDirs) {
-    const pkgJson = await readJson(
-      path.join(packagesDir, packageDir, 'package.json')
+    // Recursive call need to be outside of the publishSema
+    const retryDelaySeconds = 15
+    console.log(`retrying in ${retryDelaySeconds}s`)
+    await new Promise((resolve) =>
+      setTimeout(resolve, retryDelaySeconds * 1000)
     )
-
-    if (pkgJson.private) {
-      console.log(`Skipping private package ${packageDir}`)
-      continue
-    }
-    await publish(packageDir)
+    await publish(pkg, retry + 1)
   }
+
+  const undraft = async () => {
+    const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
+
+    if (!githubToken) {
+      throw new Error(`Missing RELEASE_BOT_GITHUB_TOKEN`)
+    }
+
+    if (isCanary) {
+      try {
+        const ghHeaders = {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${githubToken}`,
+          'X-GitHub-Api-Version': '2022-11-28',
+        }
+        const { version: _version } = require('../lerna.json')
+        const version = `v${_version}`
+
+        let release
+        let releasesData
+
+        // The release might take a minute to show up in
+        // the list so retry a bit
+        for (let i = 0; i < 6; i++) {
+          try {
+            const releaseUrlRes = await fetch(
+              `https://api.github.com/repos/vercel/next.js/releases`,
+              {
+                headers: ghHeaders,
+              }
+            )
+            releasesData = await releaseUrlRes.json()
+
+            release = releasesData.find(
+              (release) => release.tag_name === version
+            )
+          } catch (err) {
+            console.log(`Fetching release failed`, err)
+          }
+          if (!release) {
+            console.log(`Retrying in 10s...`)
+            await new Promise((resolve) => setTimeout(resolve, 10 * 1000))
+          }
+        }
+
+        if (!release) {
+          console.log(`Failed to find release`, releasesData)
+          return
+        }
+
+        const undraftRes = await fetch(release.url, {
+          headers: ghHeaders,
+          method: 'PATCH',
+          body: JSON.stringify({
+            draft: false,
+            name: version,
+          }),
+        })
+
+        if (undraftRes.ok) {
+          console.log('un-drafted canary release successfully')
+        } else {
+          console.log(`Failed to undraft`, await undraftRes.text())
+        }
+      } catch (err) {
+        console.error(`Failed to undraft release`, err)
+      }
+    }
+  }
+
+  await Promise.allSettled(
+    packageDirs.map(async (packageDir) => {
+      const pkgJson = JSON.parse(
+        await fs.promises.readFile(
+          path.join(packagesDir, packageDir, 'package.json'),
+          'utf-8'
+        )
+      )
+
+      if (pkgJson.private) {
+        console.log(`Skipping private package ${packageDir}`)
+        return
+      }
+      await publish(packageDir)
+    })
+  )
+
+  await undraft()
 })()

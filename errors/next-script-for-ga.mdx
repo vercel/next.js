@@ -1,0 +1,75 @@
+---
+title: Using Google Analytics with Next.js (through `next/script`)
+---
+
+> Prefer `next/script` component when using the inline script for Google Analytics.
+
+## Why This Error Occurred
+
+An inline script was used for Google Analytics which might impact your webpage's performance. Instead, we recommend using `next/script` through the `@next/third-parties` library.
+
+## Possible Ways to Fix It
+
+#### Use `@next/third-parties` to add Google Analytics
+
+**`@next/third-parties`** is a library that provides a collection of components and utilities that improve the performance and developer experience of loading popular third-party libraries in your Next.js application. It is available with Next.js 14 (install `next@latest`).
+
+The `GoogleAnalytics` component can be used to include [Google Analytics
+4](https://developers.google.com/analytics/devguides/collection/ga4) to your page via the Google tag (`gtag.js`). By default, it fetches the original scripts after hydration occurs on the page.
+
+> **Recommendation**: If Google Tag Manager is already included in your application, you can
+> configure Google Analytics directly using it, rather than including Google Analytics as a separate component. Refer to the [documentation](https://developers.google.com/analytics/devguides/collection/ga4/tag-options#what-is-gtm)
+> to learn more about the differences between Tag Manager and `gtag.js`.
+
+To load Google Analytics for all routes, include the component directly in your root layout and pass in your measurement ID:
+
+```tsx filename="app/layout.tsx" switcher
+import { GoogleAnalytics } from '@next/third-parties/google'
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleAnalytics gaId="G-XYZ" />
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { GoogleAnalytics } from '@next/third-parties/google'
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+      <GoogleAnalytics gaId="G-XYZ" />
+    </html>
+  )
+}
+```
+
+To load Google Analytics for a single route, include the component in your page file:
+
+```jsx filename="app/page.js"
+import { GoogleAnalytics } from '@next/third-parties/google'
+
+export default function Page() {
+  return <GoogleAnalytics gaId="G-XYZ" />
+}
+```
+
+> **Good to know:**
+>
+> - If you are using the Pages Router, please refer to the [`pages/` documentation](/docs/pages/building-your-application/optimizing/third-party-libraries).
+> - `@next/third-parties` also supports [Google Tag Manager](/docs/app/building-your-application/optimizing/third-party-libraries#google-tag-manager) and other third parties.
+> - Using `@next/third-parties` is not required. You can also use the `next/script` component directly. Refer to the [`next/script` documentation](/docs/app/building-your-application/optimizing/scripts) to learn more.
+
+## Useful Links
+
+- [`@next/third-parties` Documentation](/docs/app/building-your-application/optimizing/third-party-libraries)
+- [`next/script` Documentation](/docs/app/building-your-application/optimizing/scripts)

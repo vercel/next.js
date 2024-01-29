@@ -1,0 +1,6 @@
+// Make development mode typescript module resolving and jsx parsing correct for all tests.
+// We want to apply the compiler options to the testing app, but we don't want to do strict type checking for them.
+// e.g. testing app could have import a from '3rd-lib-nextjs-ws-doesnt-have'
+{
+  "extends": "../tsconfig.base.json"
+}

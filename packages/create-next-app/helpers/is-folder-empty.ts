@@ -1,5 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
-import chalk from 'chalk'
+import { green, blue } from 'picocolors'
 import fs from 'fs'
 import path from 'path'
 
@@ -27,22 +27,23 @@ export function isFolderEmpty(root: string, name: string): boolean {
     '.yarn',
   ]
 
-  const conflicts = fs
-    .readdirSync(root)
-    .filter((file) => !validFiles.includes(file))
-    // Support IntelliJ IDEA-based editors
-    .filter((file) => !/\.iml$/.test(file))
+  const conflicts = fs.readdirSync(root).filter(
+    (file) =>
+      !validFiles.includes(file) &&
+      // Support IntelliJ IDEA-based editors
+      !/\.iml$/.test(file)
+  )
 
   if (conflicts.length > 0) {
     console.log(
-      `The directory ${chalk.green(name)} contains files that could conflict:`
+      `The directory ${green(name)} contains files that could conflict:`
     )
     console.log()
     for (const file of conflicts) {
       try {
         const stats = fs.lstatSync(path.join(root, file))
         if (stats.isDirectory()) {
-          console.log(`  ${chalk.blue(file)}/`)
+          console.log(`  ${blue(file)}/`)
         } else {
           console.log(`  ${file}`)
         }

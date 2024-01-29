@@ -8,7 +8,7 @@ const mockedGoogleFontResponses = require.resolve(
   './google-font-mocked-responses.js'
 )
 
-describe('@next/font/google basepath', () => {
+describe('next/font/google basepath', () => {
   let next: NextInstance
 
   if ((global as any).isNextDeploy) {
@@ -23,9 +23,6 @@ describe('@next/font/google basepath', () => {
         'next.config.js': new FileRef(
           join(__dirname, 'basepath/next.config.js')
         ),
-      },
-      dependencies: {
-        '@next/font': 'canary',
       },
       env: {
         NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
@@ -46,9 +43,10 @@ describe('@next/font/google basepath', () => {
     expect($('link[as="font"]').get(0).attribs).toEqual({
       as: 'font',
       crossorigin: 'anonymous',
-      href: '/dashboard/_next/static/media/0812efcfaefec5ea.p.woff2',
+      href: '/dashboard/_next/static/media/0812efcfaefec5ea-s.p.woff2',
       rel: 'preload',
       type: 'font/woff2',
+      'data-next-font': 'size-adjust',
     })
   })
 })
