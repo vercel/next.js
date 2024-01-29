@@ -35,7 +35,7 @@ There are a few ways you can handle redirects in Next.js. This page will go thro
 
 <AppOnly>
 
-## `redirect` function
+## `redirect` Function
 
 The `redirect` function allows you to redirect the user to another URL. You can call `redirect` in [Server Components](/docs/app/building-your-application/rendering/server-components), [Route Handlers](/docs/app/building-your-application/routing/route-handlers), and [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
@@ -80,7 +80,7 @@ export async function createPost(id) {
 > **Good to know**:
 >
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
-> - `redirect` internally throws an error so should be called outside of `try/catch` blocks.
+> - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
@@ -139,7 +139,7 @@ See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/pe
 
 </AppOnly>
 
-## `useRouter()` Hook
+## `useRouter()` hook
 
 <AppOnly>
 
