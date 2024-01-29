@@ -76,6 +76,16 @@ export default function Counter() {
           redirect external
         </button>
       </form>
+      <form>
+        <button
+          id="redirect-absolute"
+          formAction={() =>
+            redirectAction(location.origin + '/redirect-target')
+          }
+        >
+          redirect internal with domain
+        </button>
+      </form>
       <form action={getHeaders}>
         <button type="submit" id="get-header">
           submit
