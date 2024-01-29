@@ -117,10 +117,8 @@ async fn apply_module_type(
         }
         | ModuleType::Typescript {
             transforms,
-            options,
-        }
-        | ModuleType::TypescriptWithTypes {
-            transforms,
+            tsx: _,
+            analyze_types: _,
             options,
         }
         | ModuleType::TypescriptDeclaration {
@@ -128,8 +126,10 @@ async fn apply_module_type(
             options,
         } => {
             let context_for_module = match module_type {
-                ModuleType::TypescriptWithTypes { .. }
-                | ModuleType::TypescriptDeclaration { .. } => {
+                ModuleType::Typescript { analyze_types, .. } if *analyze_types => {
+                    module_asset_context.with_types_resolving_enabled()
+                }
+                ModuleType::TypescriptDeclaration { .. } => {
                     module_asset_context.with_types_resolving_enabled()
                 }
                 _ => module_asset_context,
@@ -145,11 +145,13 @@ async fn apply_module_type(
                 ModuleType::Ecmascript { .. } => {
                     builder = builder.with_type(EcmascriptModuleAssetType::Ecmascript)
                 }
-                ModuleType::Typescript { .. } => {
-                    builder = builder.with_type(EcmascriptModuleAssetType::Typescript)
-                }
-                ModuleType::TypescriptWithTypes { .. } => {
-                    builder = builder.with_type(EcmascriptModuleAssetType::TypescriptWithTypes)
+                ModuleType::Typescript {
+                    tsx, analyze_types, ..
+                } => {
+                    builder = builder.with_type(EcmascriptModuleAssetType::Typescript {
+                        tsx: *tsx,
+                        analyze_types: *analyze_types,
+                    })
                 }
                 ModuleType::TypescriptDeclaration { .. } => {
                     builder = builder.with_type(EcmascriptModuleAssetType::TypescriptDeclaration)
@@ -476,16 +478,13 @@ async fn process_default_internal(
                             }),
                             Some(ModuleType::Typescript {
                                 transforms,
+                                tsx,
+                                analyze_types,
                                 options,
                             }) => Some(ModuleType::Typescript {
                                 transforms: transforms.extend(*additional_transforms),
-                                options,
-                            }),
-                            Some(ModuleType::TypescriptWithTypes {
-                                transforms,
-                                options,
-                            }) => Some(ModuleType::TypescriptWithTypes {
-                                transforms: transforms.extend(*additional_transforms),
+                                tsx,
+                                analyze_types,
                                 options,
                             }),
                             Some(ModuleType::Mdx {

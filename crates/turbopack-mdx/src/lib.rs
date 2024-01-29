@@ -134,7 +134,10 @@ async fn into_ecmascript_module_asset(
     Ok(EcmascriptModuleAsset::new(
         Vc::upcast(source),
         this.asset_context,
-        Value::new(EcmascriptModuleAssetType::Typescript),
+        Value::new(EcmascriptModuleAssetType::Typescript {
+            tsx: true,
+            analyze_types: false,
+        }),
         this.transforms,
         Value::new(Default::default()),
         this.asset_context.compile_time_info(),
