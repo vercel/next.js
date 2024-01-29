@@ -191,11 +191,13 @@ function createUrlAndImportVisitor(
 }
 
 function createIcssVisitor({
+  apis,
   imports,
   replacements,
   replacedUrls,
   urlHandler,
 }: {
+  apis: ApiParam[]
   imports: CssImport[]
   replacements: ApiReplacement[]
   replacedUrls: Map<number, string>
@@ -235,6 +237,8 @@ function createIcssVisitor({
           url: urlHandler(url),
           index,
         })
+
+        apis.push({ importName, dedupe: true, index })
 
         const newNames: string[] = []
 
@@ -333,6 +337,7 @@ export async function LightningCssLoader(
           replacedImportUrls
         ),
         createIcssVisitor({
+          apis,
           imports: icssImports,
           replacements,
           replacedUrls: icssReplacedUrls,
@@ -366,7 +371,6 @@ export async function LightningCssLoader(
         if (Object.prototype.hasOwnProperty.call(moduleExports, name)) {
           const v = moduleExports[name]
           let value = v.name
-          console.log('composes', v.composes)
           for (const compose of v.composes) {
             value += ` ${compose.name}`
           }
@@ -447,7 +451,6 @@ export async function LightningCssLoader(
           ...new Set([url, request]),
         ])
 
-        console.log('resolvedUrl', resolvedUrl)
         for (const importItem of icssImports) {
           importItem.url = importItem.url.replace(
             `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${index}__`,
@@ -458,11 +461,6 @@ export async function LightningCssLoader(
     }
 
     imports.push(...icssImports)
-
-    console.log('api', apis)
-    console.log('replacements', replacements)
-    console.log('imports', imports)
-    console.log('exports', exports)
 
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
@@ -475,7 +473,7 @@ export async function LightningCssLoader(
     const exportCode = getExportCode(exports, replacements, options)
 
     const esCode = `${importCode}${moduleCode}${exportCode}`
-    console.log('esCode', esCode)
+
     done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
     console.error('lightningcss-loader error', error)

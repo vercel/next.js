@@ -28,6 +28,7 @@ export interface ApiParam {
   media?: string
 
   dedupe?: boolean
+  index?: number
 }
 
 export interface ApiReplacement {
