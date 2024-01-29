@@ -25,7 +25,7 @@ export interface ApiParam {
 
   layer?: string
   supports?: string
-  media: string
+  media?: string
 
   dedupe?: boolean
 }
