@@ -62,10 +62,10 @@ describe('Basic Global Support with special characters in path', () => {
           `
 const config = require('../../next.config.js');
 module.exports = {
-...config,
-experimental: {
-  useLightningcss: ${useLightningcss}
-}
+  ...config,
+  experimental: {
+    useLightningcss: ${useLightningcss}
+  }
 }`
         )
       })
