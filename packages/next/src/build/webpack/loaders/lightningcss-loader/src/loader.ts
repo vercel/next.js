@@ -194,10 +194,12 @@ function createIcssVisitor({
   imports,
   replacements,
   replacedUrls,
+  urlHandler,
 }: {
   imports: CssImport[]
   replacements: ApiReplacement[]
   replacedUrls: Map<number, string>
+  urlHandler: (url: any) => string
 }): Visitor<{}> {
   let index = -1
   let replacementIndex = -1
@@ -230,7 +232,7 @@ function createIcssVisitor({
           type: 'icss_import',
           importName,
           icss: true,
-          url: JSON.stringify(url),
+          url: JSON.stringify(urlHandler(url)),
           index,
         })
 
@@ -334,6 +336,11 @@ export async function LightningCssLoader(
           imports: icssImports,
           replacements,
           replacedUrls: icssReplacedUrls,
+          urlHandler: (url: string) =>
+            stringifyRequest(
+              this,
+              getPreRequester(this)(options.importLoaders) + url
+            ),
         }),
       ]),
       cssModules:
@@ -437,9 +444,10 @@ export async function LightningCssLoader(
 
         const request = requestify(pathname, this.rootContext)
         const resolvedUrl = await resolveRequests(icssResolver, this.context, [
-          ...new Set([request, url]),
+          ...new Set([url, request]),
         ])
 
+        console.log('resolvedUrl', resolvedUrl)
         for (const importItem of icssImports) {
           importItem.url = importItem.url.replace(
             `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${index}__`,
