@@ -93,7 +93,7 @@ useLightningcss: ${useLightningcss}
       })
     }
 
-    ;(process.env.TURBOPACK && useLightningcss ? describe.skip : describe)(
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
       'Development Mode',
       () => {
         // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
