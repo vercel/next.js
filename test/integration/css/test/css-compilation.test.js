@@ -30,7 +30,7 @@ describe('CSS Support', () => {
             `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
@@ -102,7 +102,7 @@ module.exports = {
             `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
@@ -158,7 +158,7 @@ module.exports = {
             `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
@@ -232,7 +232,7 @@ module.exports = {
             `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
@@ -280,7 +280,7 @@ module.exports = {
             `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
@@ -332,7 +332,7 @@ describe('CSS Property Ordering', () => {
           `
 const config = require('../next.config.js');
 module.exports = {
-  ..config
+  ...config,
   experimental: {
     useLightningcss: ${useLightningcss}
   }
