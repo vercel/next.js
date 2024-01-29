@@ -13690,15 +13690,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/no-duplicate-compile-error/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "no duplicate compile error output should not show compile error on page refresh"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/no-op-export/test/index.test.js": {
     "passed": [],
     "failed": [],
