@@ -192,12 +192,17 @@ function createUrlAndImportVisitor(
 
 function createIcssVisitor({
   imports,
+  exports,
+  replacements,
   replacedUrls,
 }: {
   imports: CssImport[]
+  exports: CssExport[]
+  replacements: ApiReplacement[]
   replacedUrls: Map<number, string>
 }): Visitor<{}> {
-  let urlIndex = -1
+  let index = -1
+  let replacementIndex = -1
 
   return {
     Declaration: {
@@ -217,18 +222,42 @@ function createIcssVisitor({
           return
         }
 
-        urlIndex++
+        index++
 
-        replacedUrls.set(urlIndex, url)
-        url = `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${urlIndex}__`
+        replacedUrls.set(index, url)
+        url = `__NEXT_LIGHTNINGCSS_LOADER_ICSS_URL_REPLACE_${index}__`
 
+        const importName = `___CSS_LOADER_ICSS_IMPORT_${imports.length}___`
         imports.push({
           type: 'icss_import',
-          importName: `___CSS_LOADER_ICSS_IMPORT_${imports.length}___`,
+          importName,
           icss: true,
-          url,
-          index: urlIndex,
+          url: JSON.stringify(url),
+          index,
         })
+
+        const newNames: string[] = []
+
+        for (const localName of node.value.names) {
+          replacementIndex++
+          const replacementName = `___CSS_LOADER_ICSS_IMPORT_${index}_REPLACEMENT_${replacementIndex}___`
+
+          replacements.push({
+            replacementName,
+            importName,
+            localName,
+          })
+          newNames.push(replacementName)
+        }
+
+        return {
+          property: 'composes',
+          value: {
+            loc: node.value.loc,
+            names: newNames,
+            from: specifier,
+          },
+        }
       },
     },
   }
@@ -305,6 +334,8 @@ export async function LightningCssLoader(
         ),
         createIcssVisitor({
           imports: icssImports,
+          exports,
+          replacements,
           replacedUrls: icssReplacedUrls,
         }),
       ]),
@@ -329,6 +360,13 @@ export async function LightningCssLoader(
     if (moduleExports) {
       for (const name in moduleExports) {
         if (Object.prototype.hasOwnProperty.call(moduleExports, name)) {
+          const v = moduleExports[name]
+          let value = v.name
+          console.log('composes', v.composes)
+          for (const compose of v.composes) {
+            value += ` ${compose}`
+          }
+
           exports.push({
             name,
             value: moduleExports[name].name,
@@ -414,6 +452,13 @@ export async function LightningCssLoader(
       }
     }
 
+    imports.push(...icssImports)
+
+    console.log('api', apis)
+    console.log('replacements', replacements)
+    console.log('imports', imports)
+    console.log('exports', exports)
+
     const importCode = getImportCode(imports, options)
     const moduleCode = getModuleCode(
       { css: cssCodeAsString, map },
@@ -425,6 +470,7 @@ export async function LightningCssLoader(
     const exportCode = getExportCode(exports, replacements, options)
 
     const esCode = `${importCode}${moduleCode}${exportCode}`
+    console.log('esCode', esCode)
     done(null, esCode, map && JSON.parse(map.toString()))
   } catch (error: unknown) {
     console.error('lightningcss-loader error', error)
