@@ -3,6 +3,7 @@ import cheerio from 'cheerio'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
   findPort,
+  File,
   killApp,
   nextBuild,
   nextStart,
@@ -17,79 +18,67 @@ describe('CSS Support', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     describe('CSS Compilation and Prefixing', () => {
       const appDir = join(fixturesDir, 'compilation-and-prefixing')
+      const nextConfig = new File(join(appDir, 'next.config.js'))
 
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
       })
 
-      it('should compile successfully', async () => {
-        const { code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
+      describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
+        beforeAll(async () => {
+          nextConfig.write(
+            `module.exports = { experimental: { useLightningcss: ${useLightningcss} } }`
+          )
         })
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
-      })
 
-      it(`should've compiled and prefixed`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+        afterAll(async () => {
+          nextConfig.delete()
+        })
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        it('should compile successfully', async () => {
+          const { code, stdout } = await nextBuild(appDir, [], {
+            stdout: true,
+          })
+          expect(code).toBe(0)
+          expect(stdout).toMatch(/Compiled successfully/)
+        })
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `"@media (min-width:480px) and (max-width:767px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
-        )
+        it(`should've compiled and prefixed`, async () => {
+          const cssFolder = join(appDir, '.next/static/css')
 
-        // Contains a source map
-        expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-      })
+          const files = await readdir(cssFolder)
+          const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-      it(`should've emitted a source map`, async () => {
-        const cssFolder = join(appDir, '.next/static/css')
+          expect(cssFiles.length).toBe(1)
+          const cssContent = await readFile(
+            join(cssFolder, cssFiles[0]),
+            'utf8'
+          )
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchSnapshot()
 
-        const files = await readdir(cssFolder)
-        const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
+          // Contains a source map
+          expect(cssContent).toMatch(
+            /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
+          )
+        })
 
-        expect(cssMapFiles.length).toBe(1)
-        const cssMapContent = (
-          await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
-        ).trim()
+        it(`should've emitted a source map`, async () => {
+          const cssFolder = join(appDir, '.next/static/css')
 
-        const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
-        expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-          {
-            "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
-            "sourcesContent": [
-              "@media (480px <= width < 768px) {
-            ::placeholder {
-              color: green;
-            }
-          }
+          const files = await readdir(cssFolder)
+          const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
 
-          .flex-parsing {
-            flex: 0 0 calc(50% - var(--vertical-gutter));
-          }
+          expect(cssMapFiles.length).toBe(1)
+          const cssMapContent = (
+            await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
+          ).trim()
 
-          .transform-parsing {
-            transform: translate3d(0px, 0px);
-          }
-
-          .css-grid-shorthand {
-            grid-column: span 2;
-          }
-
-          .g-docs-sidenav .filter::-webkit-input-placeholder {
-            opacity: 80%;
-          }
-          ",
-            ],
-            "version": 3,
-          }
-        `)
+          const { version, mappings, sourcesContent } =
+            JSON.parse(cssMapContent)
+          expect({ version, mappings, sourcesContent }).toMatchSnapshot()
+        })
       })
     })
 
