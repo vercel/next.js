@@ -229,13 +229,19 @@ pub async fn parse_segment_config_from_source(
 
     let result = &*parse(
         source,
-        turbo_tasks::Value::new(
-            if path.path.ends_with(".ts") || path.path.ends_with(".tsx") {
-                EcmascriptModuleAssetType::Typescript
-            } else {
-                EcmascriptModuleAssetType::Ecmascript
-            },
-        ),
+        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        }),
         EcmascriptInputTransforms::empty(),
     )
     .await?;
