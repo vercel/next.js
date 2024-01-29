@@ -11,6 +11,6 @@ export default ({ params: { slug } }) => {
   )
 }
 
-export const generateStaticParams = async () => {
+export async function generateStaticParams() {
   return [{ slug: 'a' }]
 }

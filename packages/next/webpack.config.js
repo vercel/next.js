@@ -141,7 +141,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: 'production',
+    mode: 'development',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
@@ -150,26 +150,26 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       libraryTarget: 'commonjs2',
     },
     devtool: 'source-map',
-    optimization: {
-      moduleIds: 'named',
-      minimize: true,
-      concatenateModules: true,
-      minimizer: [
-        new TerserPlugin({
-          minify: TerserPlugin.swcMinify,
-          terserOptions: {
-            compress: {
-              dead_code: true,
-              // Zero means no limit.
-              passes: 0,
-            },
-            format: {
-              preamble: '',
-            },
-          },
-        }),
-      ],
-    },
+    // optimization: {
+    //   moduleIds: 'named',
+    //   minimize: true,
+    //   concatenateModules: true,
+    //   minimizer: [
+    //     new TerserPlugin({
+    //       minify: TerserPlugin.swcMinify,
+    //       terserOptions: {
+    //         compress: {
+    //           dead_code: true,
+    //           // Zero means no limit.
+    //           passes: 0,
+    //         },
+    //         format: {
+    //           preamble: '',
+    //         },
+    //       },
+    //     }),
+    //   ],
+    // },
     plugins: [
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
