@@ -65,27 +65,26 @@ Optionally, a config object can be exported alongside the Middleware function. T
 
 Additionally, `matcher` supports complex path specifications through regular expressions, enabling precise control over which paths to include or exclude.
 
-Within the `matcher`, there are two key components:
+In the matcher configuration, several key options are available:
 
-- **`source`**: This defines the paths or patterns to match. It's essentially a set of rules that the Middleware uses to determine which paths to act on. For instance, you can create a pattern in `source` to exclude paths beginning with 'api' or '\_next/static', focusing the Middleware's operation on other specified paths.
-- **`missing`**: This specifies conditions based on the absence of certain elements in the request. It allows you to run the Middleware only when specific criteria, like missing headers or query parameters, are met. It's a way to ensure that the Middleware activates only in certain scenarios, adding an extra layer of control.
+- `source`: The path or pattern used to match the request paths. It can be a simple string for direct path matching or a pattern for more complex matching.
+- `regexp` (optional): A regular expression string that fine-tunes the matching based on the source. It provides additional control over which paths are included or excluded.
+- `locale` (optional): A boolean key that, when set to false, ignores locale-based routing in path matching.
+- `has` (optional): Specifies conditions based on the presence of specific request elements such as headers, query parameters, or cookies.
+- `missing` (optional): Focuses on conditions where certain request elements are absent, like missing headers or cookies.
 
 ```js filename="middleware.js"
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
     {
-      source: '/((?!api|_next/static|_next/image|favicon.ico).*)',
-      missing: [
-        { type: 'header', key: 'next-router-prefetch' },
-        { type: 'header', key: 'purpose', value: 'prefetch' },
+      source: '/api/*',
+      regexp: '^/api/(.*)',
+      locale: false,
+      has: [
+        { type: 'header', key: 'Authorization', value: 'Bearer Token' },
+        { type: 'query', key: 'userId', value: '123' },
       ],
+      missing: [{ type: 'cookie', key: 'session', value: 'active' }],
     },
   ],
 }
