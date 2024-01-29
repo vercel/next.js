@@ -63,7 +63,6 @@ export function markCurrentScopeAsDynamic(
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
-    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
@@ -110,7 +109,6 @@ export function trackDynamicDataAccessed(
     // We are in a prerender (PPR enabled, during build)
     store.prerenderState
   ) {
-    assertPostpone()
     // We track that we had a dynamic scope that postponed.
     // This will be used by the renderer to decide whether
     // the prerender requires a resume
@@ -136,10 +134,15 @@ export function trackDynamicDataAccessed(
  */
 type PostponeProps = {
   reason: string
+  prerenderState: PrerenderState
+  pathname: string
 }
-export function Postpone({ reason }: PostponeProps): never {
-  assertPostpone()
-  return React.unstable_postpone(reason)
+export function Postpone({
+  reason,
+  prerenderState,
+  pathname,
+}: PostponeProps): never {
+  postponeWithTracking(prerenderState, reason, pathname)
 }
 
 // @TODO refactor patch-fetch and this function to better model dynamic semantics. Currently this implementation
@@ -151,7 +154,6 @@ export function trackDynamicFetch(
   expression: string
 ) {
   if (store.prerenderState) {
-    assertPostpone()
     postponeWithTracking(store.prerenderState, expression, store.urlPathname)
   }
 }
@@ -160,7 +162,8 @@ function postponeWithTracking(
   prerenderState: PrerenderState,
   expression: string,
   pathname: string
-) {
+): never {
+  assertPostpone()
   const reason =
     `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` +
     `React throws this special object to indicate where. It should not be caught by ` +
@@ -179,4 +182,20 @@ function assertPostpone() {
       `Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`
     )
   }
+}
+
+/**
+ * This is a bit of a hack to allow us to abort a render using a Postpone instance instead of an Error which changes React's
+ * abort semantics slightly.
+ */
+export function createPostponedAbortSignal(reason: string): AbortSignal {
+  assertPostpone()
+  const controller = new AbortController()
+  // We get our hands on a postpone instance by calling postpone and catching the throw
+  try {
+    React.unstable_postpone(reason)
+  } catch (x: unknown) {
+    controller.abort(x)
+  }
+  return controller.signal
 }

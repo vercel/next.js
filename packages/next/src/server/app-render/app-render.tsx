@@ -28,9 +28,9 @@ import {
   concatStreams,
   renderToInitialFizzStream,
   continueFizzStream,
-  continueDynamicDataPrerender,
+  continueDynamicPrerender,
   continueStaticPrerender,
-  continueResumeRender,
+  continueDynamicHTMLResume,
   continueDynamicDataResume,
 } from '../stream-utils/node-web-streams-helper'
 import { canSegmentBeOverridden } from '../../client/components/match-segments'
@@ -80,17 +80,22 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer, DYNAMIC_DATA } from './static/static-renderer'
-import { DetachedPromise } from '../../lib/detached-promise'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
   useFlightStream,
-  createEagerInlinedDataReadableStream,
   createInlinedDataReadableStream,
+  flightRenderComplete,
 } from './use-flight-response'
-import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import {
+  StaticGenBailoutError,
+  isStaticGenBailoutError,
+} from '../../client/components/static-generation-bailout'
 import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
-import { usedDynamicAPIs } from './dynamic-rendering'
+import {
+  usedDynamicAPIs,
+  createPostponedAbortSignal,
+} from './dynamic-rendering'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -766,8 +771,6 @@ async function renderToHTMLOrFlightImpl(
     return generateFlight(ctx)
   }
 
-  const hasPostponed = typeof renderOpts.postponed === 'string'
-
   // Create the resolver that can get the flight payload when it's ready or
   // throw the error if it occurred. If we are not generating static HTML, we
   // don't need to generate the flight payload because it's a dynamic request
@@ -807,11 +810,6 @@ async function renderToHTMLOrFlightImpl(
     createServerInsertedHTML()
 
   getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
-
-  // Create a promise that will help us signal when the headers have been
-  // written to the metadata for static generation as they aren't written to the
-  // response directly.
-  const onHeadersFinished = new DetachedPromise<void>()
 
   const renderToStream = getTracer().wrap(
     AppRenderSpan.getBodyResult,
@@ -864,7 +862,7 @@ async function renderToHTMLOrFlightImpl(
       )
 
       // We are going to consume this render both for SSR and for inlining the flight data
-      const [renderStream, dataStream] = serverStream.tee()
+      let [renderStream, dataStream] = serverStream.tee()
 
       const children = (
         <HeadManagerContext.Provider
@@ -884,10 +882,35 @@ async function renderToHTMLOrFlightImpl(
         </HeadManagerContext.Provider>
       )
 
+      const isResume = !!renderOpts.postponed
+
+      const onHeaders = staticGenerationStore.prerenderState
+        ? // During prerender we write headers to metadata
+          (headers: Headers) => {
+            headers.forEach((value, key) => {
+              metadata.headers ??= {}
+              metadata.headers[key] = value
+            })
+          }
+        : isStaticGeneration || isResume
+        ? // During static generation and during resumes we don't
+          // ask React to emit headers. For Resume this is just not supported
+          // For static generation we know there will be an entire HTML document
+          // output and so moving from tag to header for preloading can only
+          // server to alter preloading priorities in unwanted ways
+          undefined
+        : // During dynamic renders that are not resumes we write
+          // early headers to the response
+          (headers: Headers) => {
+            headers.forEach((value, key) => {
+              res.appendHeader(key, value)
+            })
+          }
+
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
-        hasPostponed,
+        serverCapturedErrors: allCapturedErrors,
       })
 
       const renderer = createStaticRenderer({
@@ -900,24 +923,7 @@ async function renderToHTMLOrFlightImpl(
           : null,
         streamOptions: {
           onError: htmlRendererErrorHandler,
-          onHeaders: (headers: Headers) => {
-            // If this is during static generation, we shouldn't write to the
-            // headers object directly, instead we should add to the render
-            // result.
-            if (isStaticGeneration) {
-              headers.forEach((value, key) => {
-                metadata.headers ??= {}
-                metadata.headers[key] = value
-              })
-
-              // Resolve the promise to continue the stream.
-              onHeadersFinished.resolve()
-            } else {
-              headers.forEach((value, key) => {
-                res.appendHeader(key, value)
-              })
-            }
-          },
+          onHeaders,
           maxHeadersLength: 600,
           nonce,
           bootstrapScripts: [bootstrapScript],
@@ -937,7 +943,7 @@ async function renderToHTMLOrFlightImpl(
            *                      We will need to resume this result when requests are handled and we don't include
            *                      any server inserted HTML or inlined flight data in the static HTML
            *
-           *   Dynamic Data:      The prerender has no dynamic holes but dynamic APIs were used. We want will not
+           *   Dynamic Data:      The prerender has no dynamic holes but dynamic APIs were used. We will not
            *                      resume this render when requests are handled but we will generate new inlined
            *                      flight data since it is dynamic and differences may end up reconciling on the client
            *
@@ -950,59 +956,59 @@ async function renderToHTMLOrFlightImpl(
             if (postponed) {
               // This is the Dynamic HTML case.
               metadata.postponed = JSON.stringify(postponed)
-              // we return the stream as is, expecting a resume later when a request is handled
-              return { stream }
             } else {
               // This is the Dynamic Data case
               metadata.postponed = JSON.stringify(DYNAMIC_DATA)
-              // we continue the HTML stream, but omit the inlined flight data. This will be appended
-              // later when a request is handled but it will not resume like the Dynamic HTML case
-              return {
-                stream: await continueDynamicDataPrerender(stream, {
-                  getServerInsertedHTML: () =>
-                    getServerInsertedHTML(allCapturedErrors),
-                }),
-              }
+            }
+            // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
+            // server inserted html in the static response because the html that is part of the prerender may depend on it
+            // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
+            // require the same set so we unify the code path here
+            return {
+              stream: await continueDynamicPrerender(stream, {
+                getServerInsertedHTML,
+              }),
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
             // We wait for the RSC stream to complete and check again if dynamic was used
-            const eagerInlinedDataStream =
-              await createEagerInlinedDataReadableStream(
-                dataStream,
-                nonce,
-                formState
-              )
+            const [original, flightSpy] = dataStream.tee()
+            dataStream = original
+
+            await flightRenderComplete(flightSpy)
 
             if (usedDynamicAPIs(prerenderState)) {
+              // This is the same logic above just repeated after ensuring the RSC stream itself has completed
               if (postponed) {
                 // This is the Dynamic HTML case.
                 metadata.postponed = JSON.stringify(postponed)
-                // we return the stream as is, expecting a resume later when a request is handled
-                return { stream }
               } else {
                 // This is the Dynamic Data case
                 metadata.postponed = JSON.stringify(DYNAMIC_DATA)
-                // we continue the HTML stream, but omit the inlined flight data. This will be appended
-                // later when a request is handled but it will not resume like the Dynamic HTML case
-                return {
-                  stream: await continueDynamicDataPrerender(stream, {
-                    getServerInsertedHTML: () =>
-                      getServerInsertedHTML(allCapturedErrors),
-                  }),
-                }
+              }
+              // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
+              // server inserted html in the static response because the html that is part of the prerender may depend on it
+              // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
+              // require the same set so we unify the code path here
+              return {
+                stream: await continueDynamicPrerender(stream, {
+                  getServerInsertedHTML,
+                }),
               }
             } else {
               // This is the Static case
               // We still have not used any dynamic APIs. At this point we can produce an entirely static prerender response
               let renderedHTMLStream = stream
 
+              if (staticGenerationStore.forceDynamic) {
+                throw new StaticGenBailoutError(
+                  'Invariant: a Page with `dynamic = "force-dynamic"` did not trigger the dynamic pathway. This is a bug in Next.js'
+                )
+              }
+
               if (postponed) {
                 // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
                 // so we can set all the postponed boundaries to client render mode before we store the HTML response
-                const controller = new AbortController()
-                controller.abort('static prerender resume')
-
                 const resumeRenderer = createStaticRenderer({
                   ppr: true,
                   isStaticGeneration: false,
@@ -1010,7 +1016,9 @@ async function renderToHTMLOrFlightImpl(
                   // provided to React.
                   postponed: JSON.parse(JSON.stringify(postponed)),
                   streamOptions: {
-                    signal: controller.signal,
+                    signal: createPostponedAbortSignal(
+                      'static prerender resume'
+                    ),
                     onError: htmlRendererErrorHandler,
                     nonce,
                   },
@@ -1041,20 +1049,19 @@ async function renderToHTMLOrFlightImpl(
                 const { stream: resumeStream } = await resumeRenderer.render(
                   resumeChildren
                 )
-
+                // First we write everything from the prerender, then we write everything from the aborted resume render
                 renderedHTMLStream = concatStreams(stream, resumeStream)
               }
 
               return {
-                stream: await continueStaticPrerender(
-                  // First we write everything from the prerender, then we write everything from the aborted resume render
-                  renderedHTMLStream,
-                  {
-                    inlinedDataStream: eagerInlinedDataStream,
-                    getServerInsertedHTML: () =>
-                      getServerInsertedHTML(allCapturedErrors),
-                  }
-                ),
+                stream: await continueStaticPrerender(renderedHTMLStream, {
+                  inlinedDataStream: createInlinedDataReadableStream(
+                    dataStream,
+                    nonce,
+                    formState
+                  ),
+                  getServerInsertedHTML,
+                }),
               }
             }
           }
@@ -1068,10 +1075,9 @@ async function renderToHTMLOrFlightImpl(
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueResumeRender(stream, {
+              stream: await continueDynamicHTMLResume(stream, {
                 inlinedDataStream,
-                getServerInsertedHTML: () =>
-                  getServerInsertedHTML(allCapturedErrors),
+                getServerInsertedHTML,
               }),
             }
           } else {
@@ -1082,27 +1088,23 @@ async function renderToHTMLOrFlightImpl(
               }),
             }
           }
-        }
-
-        return {
-          stream: await continueFizzStream(stream, {
-            inlinedDataStream: createInlinedDataReadableStream(
-              dataStream,
-              nonce,
-              formState
-            ),
-            isStaticGeneration: isStaticGeneration || generateStaticHTML,
-            getServerInsertedHTML: () =>
-              getServerInsertedHTML(allCapturedErrors),
-            serverInsertedHTMLToHead: !renderOpts.postponed,
-            // If this is a resume render, we don't want to validate the root layout as it's already
-            // partially rendered.
-            validateRootLayout: !renderOpts.postponed
-              ? validateRootLayout
-              : undefined,
-            // App Render doesn't need to inject any additional suffixes.
-            suffix: undefined,
-          }),
+        } else {
+          // This may be a static render or a dynamic render
+          // @TODO factor this further to make the render types more clearly defined and remove
+          // the deluge of optional params that passed to configure the various behaviors
+          return {
+            stream: await continueFizzStream(stream, {
+              inlinedDataStream: createInlinedDataReadableStream(
+                dataStream,
+                nonce,
+                formState
+              ),
+              isStaticGeneration: isStaticGeneration || generateStaticHTML,
+              getServerInsertedHTML,
+              serverInsertedHTMLToHead: true,
+              validateRootLayout,
+            }),
+          }
         }
       } catch (err) {
         if (
@@ -1129,8 +1131,6 @@ async function renderToHTMLOrFlightImpl(
         // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
-          console.log()
-
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
             const stack = getStackWithoutErrorMessage(err)
             error(
@@ -1229,10 +1229,13 @@ async function renderToHTMLOrFlightImpl(
                 formState
               ),
               isStaticGeneration,
-              getServerInsertedHTML: () => getServerInsertedHTML([]),
+              getServerInsertedHTML: makeGetServerInsertedHTML({
+                polyfills,
+                renderServerInsertedHTML,
+                serverCapturedErrors: [],
+              }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,
-              suffix: undefined,
             }),
           }
         } catch (finalErr: any) {
@@ -1319,25 +1322,6 @@ async function renderToHTMLOrFlightImpl(
   // sending it back to be sent to the client.
   response.stream = await result.toUnchunkedString(true)
 
-  // Timeout after 1.5 seconds for the headers to write. If it takes
-  // longer than this it's more likely that the stream has stalled and
-  // there is a React bug. The headers will then be updated in the render
-  // result below when the metadata is re-added to the new render result.
-  const onTimeout = new DetachedPromise<never>()
-  const timeout = setTimeout(() => {
-    onTimeout.reject(
-      new Error(
-        'Timeout waiting for headers to be emitted, this is a bug in Next.js'
-      )
-    )
-  }, 1500)
-
-  // Race against the timeout and the headers being written.
-  await Promise.race([onHeadersFinished.promise, onTimeout.promise])
-
-  // It got here, which means it did not reject, so clear the timeout to avoid
-  // it from rejecting again (which is a no-op anyways).
-  clearTimeout(timeout)
   const buildFailingError =
     digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 

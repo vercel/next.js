@@ -125,6 +125,7 @@ export function createStaticRenderer({
   isStaticGeneration,
   postponed,
   streamOptions: {
+    signal,
     onError,
     onPostpone,
     onHeaders,
@@ -136,27 +137,55 @@ export function createStaticRenderer({
 }: Options): Renderer {
   if (ppr) {
     if (isStaticGeneration) {
+      // This is a Prerender
       return new StaticRenderer({
+        signal,
         onError,
         onPostpone,
+        // We want to capture headers because we may not end up with a shell
+        // and being able to send headers is the next best thing
         onHeaders,
         maxHeadersLength,
         bootstrapScripts,
       })
-    }
-
-    if (postponed === DYNAMIC_DATA) {
-      return new VoidRenderer()
-    } else if (postponed) {
-      return new StaticResumeRenderer(postponed, {
-        onError,
-        nonce,
-      })
+    } else {
+      // This is a Resume
+      if (postponed === DYNAMIC_DATA) {
+        // The HTML was complete, we don't actually need to render anything
+        return new VoidRenderer()
+      } else if (postponed) {
+        // The HTML had dynamic holes and we need to resume it
+        return new StaticResumeRenderer(postponed, {
+          signal,
+          onError,
+          onPostpone,
+          nonce,
+        })
+      }
     }
   }
 
+  if (isStaticGeneration) {
+    // This is a static render (without PPR)
+    return new ServerRenderer({
+      signal,
+      onError,
+      // We don't pass onHeaders. In static builds we will either have no output
+      // or the entire page. In either case preload headers aren't necessary and could
+      // alter the prioritiy of relative loading of resources so we opt to keep them
+      // as tags exclusively.
+      nonce,
+      bootstrapScripts,
+      formState,
+    })
+  }
+
+  // This is a dynamic render (without PPR)
   return new ServerRenderer({
+    signal,
     onError,
+    // Static renders are streamed in realtime so sending headers early is
+    // generally good because it will likely go out before the shell is ready.
     onHeaders,
     maxHeadersLength,
     nonce,

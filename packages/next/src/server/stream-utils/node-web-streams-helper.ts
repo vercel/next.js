@@ -4,11 +4,16 @@ import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { scheduleImmediate } from '../../lib/scheduler'
+import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
 
 export type ReactReadableStream = ReadableStream<Uint8Array> & {
   allReady?: Promise<void> | undefined
 }
+
+// We can share the same encoder instance everywhere
+// Notably we cannot do the same for TextDecoder because it is stateful
+// when handling streaming data
+const encoder = new TextEncoder()
 
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
@@ -30,7 +35,6 @@ export function chainStreams<T>(
 }
 
 export function streamFromString(str: string): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder()
   return new ReadableStream({
     start(controller) {
       controller.enqueue(encoder.encode(str))
@@ -73,7 +77,8 @@ export function createBufferedTransformStream(): TransformStream<
   Uint8Array,
   Uint8Array
 > {
-  let buffer: Uint8Array = new Uint8Array()
+  let bufferedChunks: Array<Uint8Array> = []
+  let bufferSize: number = 0
   let pending: DetachedPromise<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
@@ -85,8 +90,16 @@ export function createBufferedTransformStream(): TransformStream<
 
     scheduleImmediate(() => {
       try {
-        controller.enqueue(buffer)
-        buffer = new Uint8Array()
+        const chunk = new Uint8Array(bufferSize)
+        let copiedBytes = 0
+        for (let i = 0; i < bufferedChunks.length; i++) {
+          const bufferedChunk = bufferedChunks[i]
+          chunk.set(bufferedChunk, copiedBytes)
+          copiedBytes += bufferedChunk.byteLength
+        }
+        bufferedChunks.length = 0
+        bufferSize = 0
+        controller.enqueue(chunk)
       } catch {
         // If an error occurs while enqueuing it can't be due to this
         // transformers fault. It's likely due to the controller being
@@ -101,10 +114,8 @@ export function createBufferedTransformStream(): TransformStream<
   return new TransformStream({
     transform(chunk, controller) {
       // Combine the previous buffer with the new chunk.
-      const combined = new Uint8Array(buffer.length + chunk.byteLength)
-      combined.set(buffer)
-      combined.set(chunk, buffer.length)
-      buffer = combined
+      bufferedChunks.push(chunk)
+      bufferSize += chunk.byteLength
 
       // Flush the buffer to the controller.
       flush(controller)
@@ -120,7 +131,6 @@ export function createBufferedTransformStream(): TransformStream<
 function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
-  const encoder = new TextEncoder()
   return new TransformStream({
     transform: async (chunk, controller) => {
       const html = await getServerInsertedHTML()
@@ -153,11 +163,15 @@ function createHeadInsertionTransformStream(
   let inserted = false
   let freezing = false
 
-  const encoder = new TextEncoder()
   const decoder = new TextDecoder()
+
+  // We need to track if this transform saw any bytes because if it didn't
+  // we won't want to insert any server HTML at all
+  let hasBytes = false
 
   return new TransformStream({
     async transform(chunk, controller) {
+      hasBytes = true
       // While react is flushing chunks, we don't apply insertions
       if (freezing) {
         controller.enqueue(chunk)
@@ -191,9 +205,11 @@ function createHeadInsertionTransformStream(
     },
     async flush(controller) {
       // Check before closing if there's anything remaining to insert.
-      const insertion = await insert()
-      if (insertion) {
-        controller.enqueue(encoder.encode(insertion))
+      if (hasBytes) {
+        const insertion = await insert()
+        if (insertion) {
+          controller.enqueue(encoder.encode(insertion))
+        }
       }
     },
   })
@@ -206,8 +222,6 @@ function createDeferredSuffixStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
   let pending: DetachedPromise<void> | undefined
-
-  const encoder = new TextEncoder()
 
   const flush = (controller: TransformStreamDefaultController) => {
     const detached = new DetachedPromise<void>()
@@ -253,10 +267,14 @@ function createDeferredSuffixStream(
 function createMergedTransformStream(
   stream: ReadableStream<Uint8Array>
 ): TransformStream<Uint8Array, Uint8Array> {
-  let started = false
-  let pending: DetachedPromise<void> | null = null
+  let pull: Promise<void> | null = null
+  let donePulling = false
 
-  const start = (controller: TransformStreamDefaultController) => {
+  async function startPulling(controller: TransformStreamDefaultController) {
+    if (pull) {
+      return
+    }
+
     const reader = stream.getReader()
 
     // NOTE: streaming flush
@@ -265,26 +283,25 @@ function createMergedTransformStream(
     // implementation, e.g. with a specific high-water mark. To ensure it's
     // the safe timing to pipe the data stream, this extra tick is
     // necessary.
-    const detached = new DetachedPromise<void>()
-    pending = detached
 
-    // We use `setTimeout/setImmediate` here to ensure that it's inserted after
-    // flushing the shell. Note that this implementation might get stale if impl
-    // details of Fizz change in the future.
-    scheduleImmediate(async () => {
-      try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) return
+    // We don't start reading until we've left the current Task to ensure
+    // that it's inserted after flushing the shell. Note that this implementation
+    // might get stale if impl details of Fizz change in the future.
+    await atLeastOneTask()
 
-          controller.enqueue(value)
+    try {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) {
+          donePulling = true
+          return
         }
-      } catch (err) {
-        controller.error(err)
-      } finally {
-        detached.resolve()
+
+        controller.enqueue(value)
       }
-    })
+    } catch (err) {
+      controller.error(err)
+    }
   }
 
   return new TransformStream({
@@ -292,18 +309,15 @@ function createMergedTransformStream(
       controller.enqueue(chunk)
 
       // Start the streaming if it hasn't already been started yet.
-      if (started) return
-      started = true
-
-      start(controller)
+      if (!pull) {
+        pull = startPulling(controller)
+      }
     },
-    flush() {
-      // If the data stream promise is defined, then return it as its completion
-      // will be the completion of the stream.
-      if (!pending) return
-      if (!started) return
-
-      return pending.promise
+    flush(controller) {
+      if (donePulling) {
+        return
+      }
+      return pull || startPulling(controller)
     },
   })
 }
@@ -318,7 +332,6 @@ function createMoveSuffixStream(
 ): TransformStream<Uint8Array, Uint8Array> {
   let foundSuffix = false
 
-  const encoder = new TextEncoder()
   const decoder = new TextDecoder()
 
   return new TransformStream({
@@ -363,6 +376,43 @@ function createMoveSuffixStream(
   })
 }
 
+function createStripDocumentClosingTagsTransform(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  const decoder = new TextDecoder()
+  return new TransformStream({
+    transform(chunk, controller) {
+      // We rely on the assumption that chunks will never break across a code unit.
+      // This is reasonable because we currently concat all of React's output from a single
+      // flush into one chunk before streaming it forward which means the chunk will represent
+      // a single coherent utf-8 string. This is not safe to use if we change our streaming to no
+      // longer do this large buffered chunk
+      let originalContent = decoder.decode(chunk)
+      let content = originalContent
+
+      if (
+        content === '</body></html>' ||
+        content === '</body>' ||
+        content === '</html>'
+      ) {
+        // the entire chunk is the closing tags.
+        return
+      } else {
+        // We assume these tags will go at together at the end of the document and that
+        // they won't appear anywhere else in the document. This is not really a safe assumption
+        // but until we revamp our streaming infra this is a performant way to string the tags
+        content = content.replace('</body>', '').replace('</html>', '')
+        if (content.length !== originalContent.length) {
+          return controller.enqueue(encoder.encode(content))
+        }
+      }
+
+      controller.enqueue(chunk)
+    },
+  })
+}
+
 export function createRootLayoutValidatorStream(
   assetPrefix = '',
   getTree: () => FlightRouterState
@@ -370,7 +420,6 @@ export function createRootLayoutValidatorStream(
   let foundHtml = false
   let foundBody = false
 
-  const encoder = new TextEncoder()
   const decoder = new TextDecoder()
 
   let content = ''
@@ -446,7 +495,7 @@ export type ContinueStreamOptions = {
   /**
    * Suffix to inject after the buffered data, but before the close tags.
    */
-  suffix: string | undefined
+  suffix?: string | undefined
 }
 
 export async function continueFizzStream(
@@ -507,20 +556,21 @@ export async function continueFizzStream(
   ])
 }
 
-type ContinueDynamicDataPrerenderOptions = {
+type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
 }
 
-export async function continueDynamicDataPrerender(
+export async function continueDynamicPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
-  { getServerInsertedHTML }: ContinueDynamicDataPrerenderOptions
+  { getServerInsertedHTML }: ContinueDynamicPrerenderOptions
 ) {
   return (
     prerenderStream
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
+      .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
-      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
   )
 }
 
@@ -540,7 +590,7 @@ export async function continueStaticPrerender(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
-      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
@@ -553,7 +603,7 @@ type ContinueResumeOptions = {
   getServerInsertedHTML: () => Promise<string>
 }
 
-export async function continueResumeRender(
+export async function continueDynamicHTMLResume(
   renderStream: ReadableStream<Uint8Array>,
   { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
 ) {
@@ -564,7 +614,7 @@ export async function continueResumeRender(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
-      .pipeThrough(createInsertedHTMLStream(getServerInsertedHTML))
+      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
