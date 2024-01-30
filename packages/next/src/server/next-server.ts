@@ -373,6 +373,8 @@ export default class NextNodeServer extends BaseServer {
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
+    if (!this.enabledDirectories.app) return []
+
     const routesManifest = this.getRoutesManifest()
     return (
       routesManifest?.rewrites.beforeFiles

@@ -44,6 +44,9 @@ const subresourceIntegrityManifest = sriEnabled
   : undefined
 const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 
+const interceptionRouteRewrites =
+  maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
+
 const render = getRender({
   pagesType: PAGE_TYPES.APP,
   dev,
@@ -65,6 +68,7 @@ const render = getRender({
   buildId: 'VAR_BUILD_ID',
   nextFontManifest,
   incrementalCacheHandler,
+  interceptionRouteRewrites,
 })
 
 export const ComponentMod = pageMod
