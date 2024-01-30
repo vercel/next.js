@@ -63,7 +63,7 @@ Optionally, a config object can be exported alongside the Middleware function. T
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Middleware to both `/about` and `/contact`.
 
-Additionally, `matcher` supports complex path specifications through regular expressions, enabling precise control over which paths to include or exclude.
+Additionally, `matcher` supports complex path specifications through regular expressions, such as `matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)']`, enabling precise control over which paths to include or exclude.
 
 In the matcher configuration, several key options are available:
 
