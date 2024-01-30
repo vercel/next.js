@@ -1084,6 +1084,7 @@
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
+      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
       "Error recovery app turbo displays build error on initial page load",
@@ -1092,7 +1093,6 @@
       "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo client component can recover from syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo stuck error"
@@ -13687,15 +13687,6 @@
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/no-duplicate-compile-error/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "no duplicate compile error output should not show compile error on page refresh"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
