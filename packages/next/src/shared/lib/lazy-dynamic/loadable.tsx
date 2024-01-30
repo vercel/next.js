@@ -1,7 +1,6 @@
 import { Suspense, lazy } from 'react'
 import { BailoutToCSR } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
-import { isClientReference } from '../../../lib/client-reference'
 
 // Normalize loader to return the module as form { default: Component } for `React.lazy`.
 // Also for backward compatible since next/dynamic allows to resolve a component directly with loader
@@ -9,13 +8,17 @@ import { isClientReference } from '../../../lib/client-reference'
 function convertModule<P>(mod: React.ComponentType<P> | ComponentModule<P>): {
   default: React.ComponentType<P>
 } {
-  // If it's client component, it's already a component type. We don't access the default property into the module,
-  // client module proxy can manage it and map to the right property.
-  const isClientComponentModule = isClientReference(mod)
+  // Check "default" prop before accessing it, as it could be client reference proxy that could break it reference.
+  // Cases:
+  // mod: { default: Component }
+  // mod: Component
+  // mod: { $$typeof, default: proxy(Component) }
+  // mod: proxy(Component)
+  const hasDefault = 'default' in mod
   return {
-    default: isClientComponentModule
-      ? (mod as React.ComponentType<P>)
-      : (mod as ComponentModule<P>)?.default ?? mod,
+    default: hasDefault
+      ? (mod as ComponentModule<P>).default
+      : (mod as React.ComponentType<P>),
   }
 }
 

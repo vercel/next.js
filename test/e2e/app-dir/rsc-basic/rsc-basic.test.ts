@@ -207,11 +207,6 @@ createNextDescribe(
       expect(html).toContain('dynamic data!')
     })
 
-    it('should support dynamic import with accessing named exports from client component', async () => {
-      const $ = await next.render$('/dynamic/named-export')
-      expect($('#client-button').text()).toBe('this is a client button')
-    })
-
     if (isPPREnabledByDefault) {
       // TODO: Figure out why this test is flaky when PPR is enabled
     } else {
