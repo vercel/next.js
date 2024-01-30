@@ -22,7 +22,7 @@ function readonlyURLSearchParamsError() {
   return new Error('ReadonlyURLSearchParams cannot be modified')
 }
 
-export class ReadonlyURLSearchParams {
+export class ReadonlyURLSearchParams extends URLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
   entries: URLSearchParams['entries']
@@ -35,32 +35,38 @@ export class ReadonlyURLSearchParams {
   toString: URLSearchParams['toString']
   size: any | URLSearchParams['size']
 
-  constructor(urlSearchParams: URLSearchParams) {
-    this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
+  constructor(init: URLSearchParams) {
+    super(init)
 
-    this.entries = urlSearchParams.entries.bind(urlSearchParams)
-    this.forEach = urlSearchParams.forEach.bind(urlSearchParams)
-    this.get = urlSearchParams.get.bind(urlSearchParams)
-    this.getAll = urlSearchParams.getAll.bind(urlSearchParams)
-    this.has = urlSearchParams.has.bind(urlSearchParams)
-    this.keys = urlSearchParams.keys.bind(urlSearchParams)
-    this.values = urlSearchParams.values.bind(urlSearchParams)
-    this.toString = urlSearchParams.toString.bind(urlSearchParams)
-    this.size = urlSearchParams.size
+    this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = init
+
+    this.entries = init.entries.bind(init)
+    this.forEach = init.forEach.bind(init)
+    this.get = init.get.bind(init)
+    this.getAll = init.getAll.bind(init)
+    this.has = init.has.bind(init)
+    this.keys = init.keys.bind(init)
+    this.values = init.values.bind(init)
+    this.toString = init.toString.bind(init)
+    this.size = init.size
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
   }
 
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   append() {
     throw readonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   delete() {
     throw readonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   set() {
     throw readonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   sort() {
     throw readonlyURLSearchParamsError()
   }
