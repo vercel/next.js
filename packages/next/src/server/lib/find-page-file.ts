@@ -98,6 +98,7 @@ export function createValidFileMatcher(
    *
    * /robots.txt|<ext>
    * /sitemap.xml|<ext>
+   * /sitemap-index.xml|<ext>
    * /favicon.ico
    * /manifest.json|<ext>
    * <route>/icon.png|jpg|<ext>

@@ -582,11 +582,17 @@ type SitemapFile = Array<{
   priority?: number
 }>
 
+type SitemapIndexFile = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+
 type ResolvingMetadata = Promise<ResolvedMetadata>
 declare namespace MetadataRoute {
   // eslint-disable-next-line @typescript-eslint/no-shadow
   export type Robots = RobotsFile
   export type Sitemap = SitemapFile
+  export type SitemapIndex = SitemapIndexFile
   export type Manifest = ManifestFile
 }
 

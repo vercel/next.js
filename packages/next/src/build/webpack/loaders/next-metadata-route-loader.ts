@@ -39,6 +39,7 @@ function getContentType(resourcePath: string) {
   if (name === 'sitemap') return 'application/xml'
   if (name === 'robots') return 'text/plain'
   if (name === 'manifest') return 'application/manifest+json'
+  if (name === 'sitemap-index') return 'application/xml'
 
   if (ext === 'png' || ext === 'jpeg' || ext === 'ico' || ext === 'svg') {
     return imageExtMimeTypeMap[ext]
@@ -243,7 +244,11 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
 
     let code = ''
     if (isDynamic === '1') {
-      if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
+      if (
+        fileBaseName === 'robots' ||
+        fileBaseName === 'manifest' ||
+        fileBaseName === 'sitemap-index'
+      ) {
         code = getDynamicTextRouteCode(resourcePath)
       } else if (fileBaseName === 'sitemap') {
         code = await getDynamicSiteMapRouteCode(resourcePath, page, this)
