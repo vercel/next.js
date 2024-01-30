@@ -14,10 +14,6 @@ import { clientHookInServerComponentError } from './client-hook-in-server-compon
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
-const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
-  'internal for urlsearchparams readonly'
-)
-
 /** @internal */
 class ReadonlyURLSearchParamsError extends Error {
   constructor() {
@@ -28,17 +24,6 @@ class ReadonlyURLSearchParamsError extends Error {
 }
 
 export class ReadonlyURLSearchParams extends URLSearchParams {
-  [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
-
-  constructor(init: URLSearchParams) {
-    super(init)
-
-    this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = init
-  }
-  [Symbol.iterator]() {
-    return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
-  }
-
   /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   append() {
     throw new ReadonlyURLSearchParamsError()
