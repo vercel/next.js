@@ -193,6 +193,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             cssProp: z.boolean().optional(),
           }),
         ]),
+        styledJsx: z.optional(
+          z.object({
+            useLightningcss: z.boolean().optional(),
+          })
+        ),
       })
       .optional(),
     compress: z.boolean().optional(),
