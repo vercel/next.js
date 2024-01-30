@@ -38,9 +38,13 @@ describe('Image Component assetPrefix Tests', () => {
       const bgImage = await browser.eval(
         `document.getElementById('${id}').style['background-image']`
       )
-      expect(bgImage).toMatch(
-        /\/_next\/image\?url=https%3A%2F%2Fexample\.vercel\.sh%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
-      )
+      if (process.env.TURBOPACK) {
+        expect(bgImage).toContain('data:image/svg+xml;')
+      } else {
+        expect(bgImage).toMatch(
+          /\/_next\/image\?url=https%3A%2F%2Fexample\.vercel\.sh%2Fpre%2F_next%2Fstatic%2Fmedia%2Ftest(.+).jpg&w=8&q=70/
+        )
+      }
     })
 
     it('should not log a deprecation warning about using `images.domains`', async () => {
