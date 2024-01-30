@@ -18,8 +18,13 @@ const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
 )
 
-function readonlyURLSearchParamsError() {
-  return new Error('ReadonlyURLSearchParams cannot be modified')
+/** @internal */
+export class ReadonlyURLSearchParamsError extends Error {
+  constructor() {
+    super(
+      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */'
+    )
+  }
 }
 
 export class ReadonlyURLSearchParams extends URLSearchParams {
@@ -36,19 +41,19 @@ export class ReadonlyURLSearchParams extends URLSearchParams {
 
   /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   append() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
   /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   delete() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
   /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   set() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
   /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   sort() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
 }
 
