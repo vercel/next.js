@@ -536,7 +536,7 @@ export async function imageOptimizer(
   if (isAbsolute) {
     const upstreamRes = await fetch(href, {
       headers: {
-        "Accept": "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+        Accept: 'image/avif,image/webp,image/*,*/*'
       }
     })
 
