@@ -19,10 +19,10 @@ const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
 )
 
 /** @internal */
-export class ReadonlyURLSearchParamsError extends Error {
+class ReadonlyURLSearchParamsError extends Error {
   constructor() {
     super(
-      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */'
+      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams'
     )
   }
 }
