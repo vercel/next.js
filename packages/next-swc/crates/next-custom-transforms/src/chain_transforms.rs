@@ -1,9 +1,7 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use anyhow::bail;
 use either::Either;
 use fxhash::FxHashSet;
-use lightningcss::targets::Browsers;
 use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
 use swc_core::ecma::visit::as_folder;
@@ -16,11 +14,7 @@ use turbopack_binding::swc::{
             FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         },
         ecma::{
-            ast::EsVersion,
-            parser::parse_file_as_module,
-            preset_env::{Version, Versions},
-            transforms::base::pass::noop,
-            visit::Fold,
+            ast::EsVersion, parser::parse_file_as_module, transforms::base::pass::noop, visit::Fold,
         },
     },
     custom_transform::modularize_imports,
@@ -171,38 +165,7 @@ where
                     browsers: target_browsers,
                 },
                 turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
-                    process_css: if config.use_lightningcss || target_browsers.is_any_target() {
-                        None
-                    } else {
-                        let targets = lightningcss::targets::Targets {
-                            browsers: Some(convert_browsers_to_lightningcss(&target_browsers)),
-                            ..Default::default()
-                        };
-
-                        Some(Box::new(move |css| {
-                            let ss = lightningcss::stylesheet::StyleSheet::parse(
-                                css,
-                                Default::default(),
-                            );
-
-                            let ss = match ss {
-                                Ok(v) => v,
-                                Err(err) => {
-                                    bail!("failed to parse css: {}", err)
-                                }
-                            };
-
-                            let output = ss.to_css(lightningcss::stylesheet::PrinterOptions {
-                                minify: true,
-                                source_map: None,
-                                project_root: None,
-                                targets,
-                                analyze_dependencies: None,
-                                pseudo_classes: None,
-                            })?;
-                            Ok(output.code)
-                        }))
-                    },
+                    process_css: None,
                 },
             ),
         )
@@ -360,23 +323,5 @@ impl TransformOptions {
         }
 
         self
-    }
-}
-
-fn convert_browsers_to_lightningcss(browsers: &Versions) -> Browsers {
-    fn convert(v: Option<Version>) -> Option<u32> {
-        v.map(|v| v.major << 16 | v.minor << 8 | v.patch)
-    }
-
-    Browsers {
-        android: convert(browsers.android),
-        chrome: convert(browsers.chrome),
-        edge: convert(browsers.edge),
-        firefox: convert(browsers.firefox),
-        ie: convert(browsers.ie),
-        ios_saf: convert(browsers.ios),
-        opera: convert(browsers.opera),
-        safari: convert(browsers.safari),
-        samsung: convert(browsers.samsung),
     }
 }

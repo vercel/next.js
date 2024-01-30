@@ -312,7 +312,7 @@ const nextDev: CliCommand = async (args) => {
     try {
       if (!!args['--experimental-https']) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined

@@ -208,9 +208,9 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      autoprefixer: "^10.0.1",
+      autoprefixer: "^10.4.17",
       postcss: "^8",
-      tailwindcss: "^3.3.0",
+      tailwindcss: "^3.4.1",
     };
   }
 
