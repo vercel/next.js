@@ -21,7 +21,7 @@ use super::{
 use crate::DevChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
-pub(super) struct EcmascriptDevChunkContent {
+pub struct EcmascriptDevChunkContent {
     pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
     pub(super) chunking_context: Vc<DevChunkingContext>,
     pub(super) chunk: Vc<EcmascriptDevChunk>,
@@ -44,6 +44,13 @@ impl EcmascriptDevChunkContent {
             chunk,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn entries(
+        self: Vc<EcmascriptDevChunkContent>,
+    ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
+        Ok(self.await?.entries)
     }
 }
 
