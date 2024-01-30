@@ -137,9 +137,13 @@ createNextDescribe(
       await retry(async () => {
         expect(await hasRedbox(browser)).toBe(true)
       })
-      await expect(await getVersionCheckerText(browser)).toContain(
-        `Next.js is up to date${process.env.TURBOPACK ? ' (turbo)' : ''}`
-      )
+      const versionText = await getVersionCheckerText(browser)
+      await expect(versionText).toMatch(/Next.js \(\w+\)/)
+      if (process.env.TURBOPACK) {
+        await expect(versionText).toContain('(turbo)')
+      } else {
+        await expect(versionText).not.toContain('(turbo)')
+      }
     })
   }
 )
