@@ -25,30 +25,10 @@ function readonlyURLSearchParamsError() {
 export class ReadonlyURLSearchParams extends URLSearchParams {
   [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
 
-  entries: URLSearchParams['entries']
-  forEach: URLSearchParams['forEach']
-  get: URLSearchParams['get']
-  getAll: URLSearchParams['getAll']
-  has: URLSearchParams['has']
-  keys: URLSearchParams['keys']
-  values: URLSearchParams['values']
-  toString: URLSearchParams['toString']
-  size: any | URLSearchParams['size']
-
   constructor(init: URLSearchParams) {
     super(init)
 
     this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = init
-
-    this.entries = init.entries.bind(init)
-    this.forEach = init.forEach.bind(init)
-    this.get = init.get.bind(init)
-    this.getAll = init.getAll.bind(init)
-    this.has = init.has.bind(init)
-    this.keys = init.keys.bind(init)
-    this.values = init.values.bind(init)
-    this.toString = init.toString.bind(init)
-    this.size = init.size
   }
   [Symbol.iterator]() {
     return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
