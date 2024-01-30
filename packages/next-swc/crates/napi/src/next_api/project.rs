@@ -854,7 +854,7 @@ pub async fn project_trace_source(
                     };
 
                     let entries = content.entries().await?;
-                    let entry = entries.get(&ModuleId::String(module));
+                    let entry = entries.get(&ModuleId::String(module).cell().await?);
                     let map = match entry {
                         Some(entry) => *entry.code.generate_source_map().await?,
                         None => None,
