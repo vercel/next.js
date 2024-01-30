@@ -65,7 +65,7 @@ The `matcher` option allows you to target specific paths for the Middleware to r
 
 Additionally, `matcher` supports complex path specifications through regular expressions, enabling precise control over which paths to include or exclude.
 
-In the matcher configuration, several key options are available:
+The `matcher` option also accepts an array of objects with the following keys:
 
 - `source`: The path or pattern used to match the request paths. It can be a simple string for direct path matching or a pattern for more complex matching.
 - `regexp` (optional): A regular expression string that fine-tunes the matching based on the source. It provides additional control over which paths are included or excluded.
