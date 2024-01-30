@@ -419,7 +419,7 @@ function Router({
       dispatch({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
-        tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        tree: window.history.state.?__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
 
@@ -474,7 +474,7 @@ function Router({
         dispatch({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          tree: window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })
     }
@@ -548,7 +548,7 @@ function Router({
         dispatch({
           type: ACTION_RESTORE,
           url: new URL(window.location.href),
-          tree: state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          tree: state?.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })
     }
