@@ -95,7 +95,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     // noise to the output
   }
 
-  if (traceUploadUrl && !process.env.NEXT_TRACE_UPLOAD_DISABLED) {
+  if (traceUploadUrl) {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
