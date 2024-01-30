@@ -41,6 +41,11 @@ The issue will receive [this comment](https://github.com/vercel/next.js/blob/can
 The provided reproduction is too complex or requires too many steps to reproduce. If a simplified reproduction is not provided for more than 30 days, the issue becomes stale and will be automatically closed. If a reproduction is provided within 30 days, a `needs triage` label is added, indicating that the issue needs another look from a maintainer.
 The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/simplify-reproduction.md)
 
+4. `good first issue`
+
+The issue is considered beginner-friendly enough to be a good starting point for someone new to the project who wants to contribute.
+The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/good-first-issue.md)
+
 ## Verified issues
 
 If an issue is verified, it will receive the `linear: next`, `linear: dx` or `linear: web` label and will be tracked by the maintainers. Additionally, one or more `area:` label(s) can be added to indicate which part of Next.js is affected.
