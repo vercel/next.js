@@ -1544,8 +1544,8 @@
     "runtimeError": false
   },
   "test/development/basic/emotion-swc/emotion-swc.test.ts": {
-    "passed": [],
-    "failed": ["emotion SWC option should have styling from the css prop"],
+    "passed": ["emotion SWC option should have styling from the css prop"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

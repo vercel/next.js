@@ -6,8 +6,9 @@ createNextDescribe(
   {
     files: join(__dirname, 'fixture'),
     dependencies: {
-      '@emotion/react': '11.10.4',
-      '@emotion/styled': '11.10.4',
+      '@emotion/react': '11.10.5',
+      '@emotion/styled': '11.10.5',
+      '@emotion/cache': '11.10.5',
     },
   },
   ({ next }) => {
