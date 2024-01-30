@@ -36,6 +36,7 @@ use turbopack_binding::{
             source_map::{GenerateSourceMap, Token},
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
+        dev::ecmascript::EcmascriptDevChunkContent,
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
             exit::ExitGuard,
@@ -804,12 +805,16 @@ pub async fn project_trace_source(
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let file = match Url::parse(&frame.file) {
+            let (file, module) = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    "file" => {
+                        let path = urlencoding::decode(url.path())?.to_string();
+                        let module = url.query_pairs().find(|(k, _)| k == "id");
+                        (path, module.map(|(_, m)| m.into_owned()))
+                    }
                     _ => bail!("Unknown url scheme"),
                 },
-                Err(_) => frame.file.to_string(),
+                Err(_) => (frame.file.to_string(), None),
             };
 
             let Some(chunk_base) = file.strip_prefix(
@@ -837,18 +842,40 @@ pub async fn project_trace_source(
                     .join(chunk_base.to_owned())
             };
 
-            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
-                project.container.get_versioned_content(path),
-            )
-            .await?
-            else {
-                bail!("Could not GenerateSourceMap")
-            };
+            let content_vc = project.container.get_versioned_content(path);
+            let map = match module {
+                Some(module) => {
+                    let Some(content) =
+                        Vc::try_resolve_downcast_type::<EcmascriptDevChunkContent>(content_vc)
+                            .await?
+                    else {
+                        bail!("Was not EcmascriptDevChunkContent")
+                    };
 
-            let map = versioned
-                .generate_source_map()
-                .await?
-                .context("Chunk is missing a sourcemap")?;
+                    let content = &*content.await?;
+                    let entries = &*content.entries.await?;
+                    let mut map = None;
+                    for (id, val) in entries {
+                        if id.to_string() == module {
+                            map = *val.code.generate_source_map().await?;
+                            break;
+                        }
+                    }
+                    map.context("Entry is missing sourcemap")?
+                }
+                None => {
+                    let Some(versioned) =
+                        Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(content_vc).await?
+                    else {
+                        bail!("Could not GenerateSourceMap")
+                    };
+
+                    versioned
+                        .generate_source_map()
+                        .await?
+                        .context("Chunk is missing a sourcemap")?
+                }
+            };
 
             let token = map
                 .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)

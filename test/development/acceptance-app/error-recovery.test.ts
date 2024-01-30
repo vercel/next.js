@@ -110,7 +110,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     }
   )
 
-  test('can recover from a event handler error', async () => {
+  test.only('can recover from a event handler error', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -133,6 +133,8 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         }
       `
     )
+
+    // await new Promise(() => {})
 
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
@@ -212,7 +214,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         'index.js',
         outdent`
           import Child from './child'
-  
+
           export default function Index() {
             return (
               <main>
