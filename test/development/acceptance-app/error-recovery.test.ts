@@ -134,8 +134,6 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       `
     )
 
-    // await new Promise(() => {})
-
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('0')
@@ -229,7 +227,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         'index.js',
         outdent`
           import Child from './child'
-
+  
           export default function Index() {
             return (
               <main>
