@@ -22,7 +22,7 @@ use turbopack_ecmascript::chunk::{
 /// computing updates.
 #[turbo_tasks::value]
 #[derive(Debug)]
-pub(super) struct EcmascriptDevChunkContentEntry {
+pub struct EcmascriptDevChunkContentEntry {
     pub code: Vc<Code>,
     pub hash: Vc<u64>,
 }
@@ -41,7 +41,7 @@ impl EcmascriptDevChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(super) struct EcmascriptDevChunkContentEntries(
+pub struct EcmascriptDevChunkContentEntries(
     IndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );
 
