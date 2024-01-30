@@ -1,7 +1,7 @@
 import { sayHello } from "@/actions/sayHello";
 
 export default function Home() {
-  const sayHelloJohn = sayHello.bind(null, "John")
+  const sayHelloJohn = sayHello.bind(null, "John");
   return (
     <main>
       <div>
