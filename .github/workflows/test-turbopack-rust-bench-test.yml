@@ -33,11 +33,6 @@ jobs:
         with:
           save-cache: true
 
-      - name: Setup Go
-        uses: ./.github/actions/setup-go
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-
       - name: Setup Node.js
         uses: ./.github/actions/setup-node
         with:
