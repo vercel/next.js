@@ -30,6 +30,7 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
+            chunk::ModuleId,
             diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
             issue::PlainIssue,
@@ -853,13 +854,11 @@ pub async fn project_trace_source(
                     };
 
                     let entries = content.entries().await?;
-                    let mut map = None;
-                    for (id, val) in entries {
-                        if id.to_string() == module {
-                            map = *val.code.generate_source_map().await?;
-                            break;
-                        }
-                    }
+                    let entry = entries.get(&ModuleId::String(module));
+                    let map = match entry {
+                        Some(entry) => *entry.code.generate_source_map().await?,
+                        None => None,
+                    };
                     map.context("Entry is missing sourcemap")?
                 }
                 None => {
