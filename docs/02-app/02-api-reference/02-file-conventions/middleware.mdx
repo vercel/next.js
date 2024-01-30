@@ -58,7 +58,7 @@ Optionally, a config object can be exported alongside the Middleware function. T
 
 #### Matcher
 
-[`matcher`](/docs/app/building-your-application/routing/middleware#matcher) is a feature in Middleware that allows you to target specific paths for the Middleware to operate on. You can specify these paths in several ways:
+The `matcher` option allows you to target specific paths for the Middleware to run on. You can specify these paths in several ways:
 
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Middleware to both `/about` and `/contact`.
