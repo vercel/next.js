@@ -852,8 +852,7 @@ pub async fn project_trace_source(
                         bail!("Was not EcmascriptDevChunkContent")
                     };
 
-                    let content = &*content.await?;
-                    let entries = &*content.entries.await?;
+                    let entries = content.entries().await?;
                     let mut map = None;
                     for (id, val) in entries {
                         if id.to_string() == module {

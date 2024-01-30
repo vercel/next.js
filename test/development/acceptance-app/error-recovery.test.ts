@@ -6,7 +6,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 describe.each(['default', 'turbo'])('Error recovery app %s', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       react: 'latest',
@@ -110,7 +110,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     }
   )
 
-  test.only('can recover from a event handler error', async () => {
+  test('can recover from a event handler error', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.patch(
@@ -145,17 +145,32 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     ).toBe('1')
 
     await session.waitForAndOpenRuntimeError()
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (7:10) @ eval
 
-         5 |   const increment = useCallback(() => {
-         6 |     setCount(c => c + 1)
-      >  7 |     throw new Error('oops')
-           |          ^
-         8 |   }, [setCount])
-         9 |   return (
-        10 |     <main>"
-    `)
+    if (isTurbopack) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "index.js (7:5) @ eval
+
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |     ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+              "index.js (7:10) @ eval
+
+                 5 |   const increment = useCallback(() => {
+                 6 |     setCount(c => c + 1)
+              >  7 |     throw new Error('oops')
+                   |          ^
+                 8 |   }, [setCount])
+                 9 |   return (
+                10 |     <main>"
+          `)
+    }
 
     await session.patch(
       'index.js',
