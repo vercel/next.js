@@ -25,7 +25,7 @@ program
   .version(`Next.js v${process.env.__NEXT_VERSION}`, '-v, --version')
 
 program.command('export').error(
-  `The "next export" command has been removed in favor of "output: export" in next.config.js.\nLearn more: ${cyan(
+  `The \`next export\` command has been removed in favor of \`output: export\` in next.config.js.\nLearn more: ${cyan(
     'https://nextjs.org/docs/advanced-features/static-html-export'
   )}
 `,
