@@ -6,3 +6,5 @@ pub(crate) mod list;
 pub(crate) mod merged;
 pub(crate) mod update;
 pub(crate) mod version;
+
+pub use content::EcmascriptDevChunkContent;
