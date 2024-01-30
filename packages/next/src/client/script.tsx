@@ -11,6 +11,7 @@ const ScriptCache = new Map()
 const LoadCache = new Set()
 
 export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
+  src?: string
   strategy?: 'afterInteractive' | 'lazyOnload' | 'beforeInteractive' | 'worker'
   id?: string
   onLoad?: (e: any) => void
