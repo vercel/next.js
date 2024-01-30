@@ -58,14 +58,14 @@ Optionally, a config object can be exported alongside the Middleware function. T
 
 #### Matcher
 
-[`matcher`](/docs/app/building-your-application/routing/middleware#matcher) is a feature in Middleware that allows you to target specific paths for the Middleware to operate on. You can specify these paths in several ways:
+The `matcher` option allows you to target specific paths for the Middleware to run on. You can specify these paths in several ways:
 
 - For a single path: Directly use a string to define the path, like `'/about'`.
 - For multiple paths: Use an array to list multiple paths, such as `matcher: ['/about', '/contact']`, which applies the Middleware to both `/about` and `/contact`.
 
 Additionally, `matcher` supports complex path specifications through regular expressions, such as `matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)']`, enabling precise control over which paths to include or exclude.
 
-In the matcher configuration, several key options are available:
+The `matcher` option also accepts an array of objects with the following keys:
 
 - `source`: The path or pattern used to match the request paths. It can be a simple string for direct path matching or a pattern for more complex matching.
 - `regexp` (optional): A regular expression string that fine-tunes the matching based on the source. It provides additional control over which paths are included or excluded.

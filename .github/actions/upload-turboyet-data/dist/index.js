@@ -1208,8 +1208,10 @@ async function main() {
       suiteFailCount += result.data.numFailedTests
 
       let suiteName = result.data.testResults[0].name
-      // remove "/home/runner/work/turbo/turbo/" from the beginning of suiteName
-      suiteName = suiteName.slice(30)
+      // remove "/root/actions-runner/_work/next.js/next.js/" from the beginning of suiteName
+      suiteName = suiteName.slice(
+        '/root/actions-runner/_work/next.js/next.js/'.length
+      )
       if (suitePassCount > 0) {
         passingTests += `${suiteName}\n`
       }

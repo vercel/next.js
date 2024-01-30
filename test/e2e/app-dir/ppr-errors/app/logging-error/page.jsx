@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
 export default async function Page() {
@@ -13,7 +13,7 @@ async function Foobar() {
   try {
     cookies()
   } catch (err) {
-    console.log('Logged error: ' + err.message)
+    console.log('User land logged error: ' + err.message)
   }
   cookies() // still postpones so doesn't fail build
   return null
