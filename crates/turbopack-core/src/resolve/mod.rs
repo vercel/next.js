@@ -56,7 +56,7 @@ pub use alias_map::{
 };
 pub use remap::{ResolveAliasMap, SubpathValue};
 
-use crate::issue::IssueSeverity;
+use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
@@ -2042,7 +2042,7 @@ pub async fn handle_resolve_error(
                 request_type: format!("{} request", reference_type.into_value()),
                 request,
                 resolve_options,
-                error_message: Some(err.to_string()),
+                error_message: Some(format!("{}", PrettyPrintError(&err))),
                 source,
             }
             .cell()

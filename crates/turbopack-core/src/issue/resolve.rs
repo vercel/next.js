@@ -1,14 +1,17 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks::{ReadRef, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, OptionIssueSource, OptionStyledString, StyledString};
 use crate::{
     error::PrettyPrintError,
     issue::IssueSeverity,
-    resolve::{options::ResolveOptions, parse::Request},
+    resolve::{
+        options::{ImportMap, ResolveOptions},
+        parse::Request,
+    },
 };
 
 #[turbo_tasks::value(shared)]
@@ -81,12 +84,7 @@ impl Issue for ResolvingIssue {
             request_type = self.request_type,
         )?;
         if let Some(import_map) = &self.resolve_options.await?.import_map {
-            let result = import_map
-                .await?
-                .lookup(self.file_path, self.request)
-                .await?;
-
-            match result.cell().to_string().await {
+            match lookup_import_map(*import_map, self.file_path, self.request).await {
                 Ok(str) => writeln!(detail, "Import map: {}", str)?,
                 Err(err) => {
                     writeln!(
@@ -107,4 +105,14 @@ impl Issue for ResolvingIssue {
 
     // TODO add sub_issue for a description of resolve_options
     // TODO add source link
+}
+
+async fn lookup_import_map(
+    import_map: Vc<ImportMap>,
+    file_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
+) -> Result<ReadRef<String>> {
+    let result = import_map.await?.lookup(file_path, request).await?;
+
+    result.cell().to_string().await
 }
