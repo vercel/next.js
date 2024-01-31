@@ -546,10 +546,6 @@ export async function initialize(opts: {
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
   }
-
-  if (!renderServerOpts.serverFields) {
-    renderServerOpts.serverFields = {}
-  }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
   // pre-initialize workers
