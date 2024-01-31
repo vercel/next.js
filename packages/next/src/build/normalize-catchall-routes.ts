@@ -47,7 +47,17 @@ export function normalizeCatchAllRoutes(
         // check if appPath is a catch-all OR is not more specific than the catch-all
         (isCatchAllRoute(appPath) || !isMoreSpecific(appPath, catchAllRoute))
       ) {
-        appPaths[appPath].push(catchAllRoute)
+        if (isOptionalCatchAll(catchAllRoute)) {
+          // optional catch-all routes should match both the root segment and any segment after it
+          // for example, `/[[...slug]]` should match `/` and `/foo` and `/foo/bar`
+          appPaths[appPath].push(catchAllRoute)
+        } else if (isCatchAll(catchAllRoute)) {
+          // regular catch-all (single bracket) should only match segments after it
+          // for example, `/[...slug]` should match `/foo` and `/foo/bar` but not `/`
+          if (normalizedCatchAllRouteBasePath !== appPath) {
+            appPaths[appPath].push(catchAllRoute)
+          }
+        }
       }
     }
   }
@@ -80,7 +90,15 @@ function isMatchableSlot(segment: string): boolean {
 const catchAllRouteRegex = /\[?\[\.\.\./
 
 function isCatchAllRoute(pathname: string): boolean {
-  return pathname.includes('[...') || pathname.includes('[[...')
+  return isOptionalCatchAll(pathname) || isCatchAll(pathname)
+}
+
+function isOptionalCatchAll(pathname: string): boolean {
+  return pathname.includes('[[...')
+}
+
+function isCatchAll(pathname: string): boolean {
+  return pathname.includes('[...')
 }
 
 // test to see if a path is more specific than a catch-all route
