@@ -534,7 +534,7 @@ async fn hmr_update(
     state: Vc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
     let update_operation = project.hmr_update(identifier, state);
-    let update = update_operation.strongly_consistent().await?;
+    let update = update_operation.await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
     Ok(HmrUpdateWithIssues {
@@ -566,9 +566,7 @@ pub fn project_hmr_events(
                 async move {
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
-                    let update = hmr_update(project, identifier, state)
-                        .strongly_consistent()
-                        .await?;
+                    let update = hmr_update(project, identifier, state).await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
