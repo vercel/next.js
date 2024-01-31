@@ -84,8 +84,18 @@ export function createErrorHandler({
       }
     }
 
+    // If the error already has a digest, respect the original digest,
+    // so it won't get re-generated into another new error.
+    if (!err.digest) {
+      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+      const computedDigest = stringHash(
+        err.message + err.stack + (err.digest || '')
+      ).toString()
+      err.digest = computedDigest
+    }
+
     capturedErrors.push(err)
-    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-    return stringHash(err.message + err.stack + (err.digest || '')).toString()
+
+    return err.digest
   }
 }

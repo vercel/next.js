@@ -987,7 +987,12 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (err) {
+      } catch (caughtError: any) {
+        const originalError = capturedErrors.find(
+          (e: any) => e.digest === caughtError.digest
+        )
+        const err = originalError || caughtError
+
         if (
           isStaticGenBailoutError(err) ||
           (typeof err === 'object' &&

@@ -455,6 +455,7 @@ export type ContinueStreamOptions = {
    * Suffix to inject after the buffered data, but before the close tags.
    */
   suffix: string | undefined
+  signal?: AbortSignal
 }
 
 export async function continueFizzStream(
