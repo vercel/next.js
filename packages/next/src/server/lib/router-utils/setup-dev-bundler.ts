@@ -359,11 +359,11 @@ async function startWatcher(opts: SetupOpts) {
             {
               start: {
                 line: start.line + 1,
-                column: start.column + 1,
+                column: start.column,
               },
               end: {
                 line: end.line + 1,
-                column: end.column + 1,
+                column: end.column,
               },
             },
             { forceColor: true }

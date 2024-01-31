@@ -6,7 +6,7 @@ import { check } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       'styled-components': '5.1.0',
@@ -325,11 +325,19 @@ describe('ReactRefreshRegression app', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "  1 | 'use client'
-      > 2 | export default function Page() { throw new Error('boom'); }
-          |                                       ^"
-    `)
+    if (isTurbopack) {
+      expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+        "  1 | 'use client'
+        > 2 | export default function Page() { throw new Error('boom'); }
+            |                                        ^"
+      `)
+    } else {
+      expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+              "  1 | 'use client'
+              > 2 | export default function Page() { throw new Error('boom'); }
+                  |                                       ^"
+          `)
+    }
 
     await cleanup()
   })

@@ -16,7 +16,9 @@ interface Project {
 }
 
 interface TurbopackStackFrame {
+  // 1-based
   column: number | null
+  // 1-based
   file: string
   isServer: boolean
   line: number

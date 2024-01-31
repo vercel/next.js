@@ -791,7 +791,9 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
+    // 1-indexed, unlike source map tokens
     pub column: Option<u32>,
+    // 1-indexed, unlike source map tokens
     pub file: String,
     pub is_server: bool,
     pub line: u32,
@@ -876,7 +878,10 @@ pub async fn project_trace_source(
             };
 
             let token = map
-                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
+                .lookup_token(
+                    frame.line as usize - 1,
+                    frame.column.unwrap_or(1) as usize - 1,
+                )
                 .await?
                 .clone_value()
                 .context("Unable to trace token from sourcemap")?;
@@ -893,8 +898,8 @@ pub async fn project_trace_source(
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
                 method_name: token.name,
-                line: token.original_line as u32,
-                column: Some(token.original_column as u32),
+                line: token.original_line as u32 + 1,
+                column: Some(token.original_column as u32 + 1),
                 is_server: frame.is_server,
             }))
         })
