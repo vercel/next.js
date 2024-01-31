@@ -55,7 +55,9 @@ describe('app dir - next/font', () => {
                 className: expect.stringMatching(/^__className_.{6}$/),
                 variable: expect.stringMatching(/^__variable_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font1_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
+                  ),
                 },
               })
               // page
@@ -63,14 +65,18 @@ describe('app dir - next/font', () => {
                 className: expect.stringMatching(/^__className_.{6}$/),
                 variable: expect.stringMatching(/^__variable_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font2_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font2_.{6}', '__font2_Fallback_.{6}'$/
+                  ),
                 },
               })
               // Comp
               expect(JSON.parse($('#root-comp').text())).toEqual({
                 className: expect.stringMatching(/^__className_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font3_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font3_.{6}', '__font3_Fallback_.{6}'$/
+                  ),
                   fontStyle: 'italic',
                   fontWeight: 900,
                 },
@@ -85,7 +91,9 @@ describe('app dir - next/font', () => {
                 className: expect.stringMatching(/^__className_.{6}$/),
                 variable: expect.stringMatching(/^__variable_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font1_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
+                  ),
                 },
               })
 
@@ -93,7 +101,9 @@ describe('app dir - next/font', () => {
               expect(JSON.parse($('#client-layout').text())).toEqual({
                 className: expect.stringMatching(/^__className_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font4_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font4_.{6}', '__font4_Fallback_.{6}'$/
+                  ),
                   fontWeight: 100,
                 },
               })
@@ -101,7 +111,9 @@ describe('app dir - next/font', () => {
               expect(JSON.parse($('#client-page').text())).toEqual({
                 className: expect.stringMatching(/^__className_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font5_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font5_.{6}', '__font5_Fallback_.{6}'$/
+                  ),
                   fontStyle: 'italic',
                 },
               })
@@ -109,7 +121,9 @@ describe('app dir - next/font', () => {
               expect(JSON.parse($('#client-comp').text())).toEqual({
                 className: expect.stringMatching(/^__className_.{6}$/),
                 style: {
-                  fontFamily: expect.stringMatching(/^'__font6_.{6}'$/),
+                  fontFamily: expect.stringMatching(
+                    /^'__font6_.{6}', '__font6_Fallback_.{6}'$/
+                  ),
                 },
               })
             })
@@ -117,11 +131,13 @@ describe('app dir - next/font', () => {
             it('should transform code in node_modules', async () => {
               const $ = await next.render$('/third-party')
               expect(JSON.parse($('#third-party-page').text())).toEqual({
-                className: '__className_3953ad',
+                className: expect.stringMatching(/^__className_.{6}$/),
                 style: {
-                  fontFamily: "'__font1_3953ad'",
+                  fontFamily: expect.stringMatching(
+                    /^'__font1_.{6}', '__font1_Fallback_.{6}'$/
+                  ),
                 },
-                variable: '__variable_3953ad',
+                variable: expect.stringMatching(/^__variable_.{6}$/),
               })
             })
           })
@@ -135,7 +151,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
                 )
-              ).toMatch(/^__font1_.{6}$/)
+              ).toMatch(/^__font1_.{6}, __font1_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -152,7 +168,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-page")).fontFamily'
                 )
-              ).toMatch(/^__font2_.{6}$/)
+              ).toMatch(/^__font2_.{6}, __font2_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-page")).fontWeight'
@@ -169,7 +185,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-comp")).fontFamily'
                 )
-              ).toMatch(/^__font3_.{6}$/)
+              ).toMatch(/^__font3_.{6}, __font3_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-comp")).fontWeight'
@@ -190,7 +206,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-layout")).fontFamily'
                 )
-              ).toMatch(/^__font1_.{6}$/)
+              ).toMatch(/^__font1_.{6}, __font1_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#root-layout")).fontWeight'
@@ -207,7 +223,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-layout")).fontFamily'
                 )
-              ).toMatch(/^__font4_.{6}$/)
+              ).toMatch(/^__font4_.{6}, __font4_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-layout")).fontWeight'
@@ -224,7 +240,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-page")).fontFamily'
                 )
-              ).toMatch(/^__font5_.{6}$/)
+              ).toMatch(/^__font5_.{6}, __font5_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-page")).fontWeight'
@@ -241,7 +257,7 @@ describe('app dir - next/font', () => {
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-comp")).fontFamily'
                 )
-              ).toMatch(/^__font6_.{6}$/)
+              ).toMatch(/^__font6_.{6}, __font6_Fallback_.{6}$/)
               expect(
                 await browser.eval(
                   'getComputedStyle(document.querySelector("#client-comp")).fontWeight'
@@ -268,21 +284,21 @@ describe('app dir - next/font', () => {
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/b2104791981359ae-s.p.woff2',
+                    href: '/_next/static/media/f1d1a01b6d3e0953-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/b61859a50be14c53-s.p.woff2',
+                    href: '/_next/static/media/92f44bb82993d879-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+                    href: '/_next/static/media/934c4b7cb736f2a3-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
@@ -300,21 +316,21 @@ describe('app dir - next/font', () => {
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/e1053f04babc7571-s.p.woff2',
+                    href: '/_next/static/media/1ad1613b8b1aead5-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+                    href: '/_next/static/media/934c4b7cb736f2a3-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/feab2c68f2a8e9a4-s.p.woff2',
+                    href: '/_next/static/media/6376730d43ea1694-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
@@ -332,14 +348,14 @@ describe('app dir - next/font', () => {
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/75c5faeeb9c86969-s.p.woff2',
+                    href: '/_next/static/media/7881252a527aaa0c-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+                    href: '/_next/static/media/934c4b7cb736f2a3-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
@@ -357,14 +373,14 @@ describe('app dir - next/font', () => {
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/568e4c6d8123c4d6-s.p.woff2',
+                    href: '/_next/static/media/beb742c171df2176-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
                   {
                     as: 'font',
                     crossorigin: '',
-                    href: '/_next/static/media/e9b9dc0d8ba35f48-s.p.woff2',
+                    href: '/_next/static/media/934c4b7cb736f2a3-s.p.woff2',
                     rel: 'preload',
                     type: 'font/woff2',
                   },
@@ -412,7 +428,7 @@ describe('app dir - next/font', () => {
               expect(preloadBeforeNavigation.length).toBe(1)
               expect(
                 await preloadBeforeNavigation[0].getAttribute('href')
-              ).toBe('/_next/static/media/c287665b44f047d4-s.p.woff2')
+              ).toBe('/_next/static/media/0ae584388df2bd05-s.p.woff2')
 
               // Navigate to a page that also imports that font
               await browser.elementByCss('a').click()
@@ -424,7 +440,7 @@ describe('app dir - next/font', () => {
               )
               expect(preloadAfterNavigation.length).toBe(1)
               expect(await preloadAfterNavigation[0].getAttribute('href')).toBe(
-                '/_next/static/media/c287665b44f047d4-s.p.woff2'
+                '/_next/static/media/0ae584388df2bd05-s.p.woff2'
               )
             })
           })
@@ -439,7 +455,7 @@ describe('app dir - next/font', () => {
                 await next.patchFile(
                   'fonts/index.js',
                   font1Content.replace(
-                    './font1.woff2',
+                    './font1_roboto.woff2',
                     './does-not-exist.woff2'
                   )
                 )

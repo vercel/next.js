@@ -118,17 +118,19 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (1:13) @ __TURBOPACK__default__export__
+"index.js (3:2) @ __TURBOPACK__default__export__
 
-> 1 | export default () => {
-    |             ^
+  1 | export default () => {
   2 |   if (typeof window !== 'undefined') {
-  3 |     throw new Error('test')
-  4 |   }"
+> 3 |     throw new Error('test')
+    |  ^
+  4 |   }
+  5 |
+  6 |   return null"
 `;
 
 exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
-"FunctionDefault.js (0:24) @ FunctionDefault
+"FunctionDefault.js (0:67) @ FunctionDefault
 
   1 | export default function FunctionDefault() { throw new Error('no'); }"
 `;
@@ -162,13 +164,13 @@ exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app turbo should strip whitespace correctly with newline 1`] = `
-"index.js (5:18) @ onClick
+"index.js (7:6) @ onClick
 
-  3 |     <>
-  4 |       <p>index page</p>
-> 5 |
-    | ^
-  6 |       <a onClick={() => {
-  7 |         throw new Error('idk')
-  8 |       }}>"
+   5 |
+   6 |       <a onClick={() => {
+>  7 |         throw new Error('idk')
+     |      ^
+   8 |       }}>
+   9 |         click me
+  10 |       </a>"
 `;
