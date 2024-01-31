@@ -119,7 +119,8 @@
       "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
-      "normalizeCatchallRoutes should not add the catch-all to the interception route"
+      "normalizeCatchallRoutes should not add the catch-all to the interception route",
+      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
     ],
     "failed": [],
     "pending": [],
@@ -1084,6 +1085,7 @@
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
+      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
       "Error recovery app turbo displays build error on initial page load",
@@ -1092,7 +1094,6 @@
       "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo client component can recover from syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo stuck error"
@@ -3870,11 +3871,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
-    "passed": [],
+    "passed": [
+      "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
+      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client"
+    ],
     "failed": [
       "app dir - next/font app app dir - next-font Dev errors should recover on font loader error",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
@@ -4115,10 +4117,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-catchall should match both the catch-all page & slot",
-      "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+      "parallel-routes-catchall should match correctly when defining an explicit page & slot"
+    ],
+    "failed": [
       "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
       "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
     ],
@@ -4764,8 +4767,17 @@
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
-    "failed": ["Browserslist should apply browserslist target"],
-    "pending": [],
+    "failed": [],
+    "pending": ["Browserslist should apply browserslist target"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/browserslist/default-target.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "default browserslist target should apply default browserslist target"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -6677,14 +6689,13 @@
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
+      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP dev mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP dev mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP dev mode should not contain missing files warning",
       "AMP Usage AMP dev no-warn should not warn on valid amp"
     ],
-    "failed": [
-      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags"
-    ],
+    "failed": [],
     "pending": [
       "AMP Usage AMP dev mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP dev mode should detect changes and refresh an AMP page",
@@ -7007,7 +7018,7 @@
     "pending": [
       "Root components import order production mode _app chunks should be attached to de dom before page chunks",
       "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects",
-      "development mode _app chunks should be attached to de dom before page chunks"
+      "development mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks"
     ],
     "flakey": [],
     "runtimeError": false
@@ -12929,15 +12940,14 @@
   },
   "test/integration/next-image-legacy/base-path/test/static.test.ts": {
     "passed": [
+      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported jpg",
+      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported png",
       "Static Image Component Tests for basePath dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests for basePath dev mode Should allow provided width and height to override intrinsic",
       "Static Image Component Tests for basePath dev mode Should automatically provide an image height and width",
       "Static Image Component Tests for basePath dev mode Should use immutable cache-control header for static import"
     ],
-    "failed": [
-      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported jpg",
-      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported png"
-    ],
+    "failed": [],
     "pending": [
       "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file",
       "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported jpg",
@@ -13247,6 +13257,7 @@
       "Image Component Default Tests dev mode should handle the styles prop appropriately",
       "Image Component Default Tests dev mode should have blurry placeholder when enabled",
       "Image Component Default Tests dev mode should have data url placeholder when enabled",
+      "Image Component Default Tests dev mode should lazy load with placeholder=blur",
       "Image Component Default Tests dev mode should load the images",
       "Image Component Default Tests dev mode should not pass through user-provided srcset (causing a flash)",
       "Image Component Default Tests dev mode should not warn when Image is child of p",
@@ -13284,9 +13295,7 @@
       "Image Component Default Tests dev mode should work with image with blob src",
       "Image Component Default Tests dev mode should work with sizes and automatically use responsive srcset"
     ],
-    "failed": [
-      "Image Component Default Tests dev mode should lazy load with placeholder=blur"
-    ],
+    "failed": [],
     "pending": [
       "Image Component Default Tests production mode Fill-mode tests should add 100% width and height to fill images",
       "Image Component Default Tests production mode Fill-mode tests should add position styles to fill images",
@@ -15497,6 +15506,7 @@
   "test/integration/typescript/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should not fail to render when an inactive page has an error",
+      "TypeScript Features default behavior should render the angle bracket type assertions page",
       "TypeScript Features default behavior should render the cookies page",
       "TypeScript Features default behavior should render the cookies page with cookies",
       "TypeScript Features default behavior should render the generics page",
@@ -15504,9 +15514,7 @@
       "TypeScript Features default behavior should respond to async API route correctly",
       "TypeScript Features default behavior should respond to sync API route correctly"
     ],
-    "failed": [
-      "TypeScript Features default behavior should render the angle bracket type assertions page"
-    ],
+    "failed": [],
     "pending": [
       "TypeScript Features default behavior should report type checking to stdout",
       "TypeScript Features default behavior should resolve files in correct order",
