@@ -390,14 +390,9 @@ export function Modal({ children }) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          router.back()
-        }}
-      >
-        Close modal
-      </button>
+      <Link href="path/address">
+        Link Text
+      </Link>
       <div>{children}</div>
     </>
   )
