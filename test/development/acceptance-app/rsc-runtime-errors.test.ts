@@ -138,7 +138,7 @@ createNextDescribe(
         expect(await hasRedbox(browser)).toBe(true)
       })
       const versionText = await getVersionCheckerText(browser)
-      await expect(versionText).toMatch(/Next.js \(\w+\)/)
+      await expect(versionText).toMatch(/Next.js \([\w\.-]+\)/)
       if (process.env.TURBOPACK) {
         await expect(versionText).toContain('(turbo)')
       } else {
