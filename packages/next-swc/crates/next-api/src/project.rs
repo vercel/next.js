@@ -787,16 +787,19 @@ impl Project {
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
 
+            let client_relative_path = self.client_relative_path();
+            let node_root = self.node_root();
+
             self.await?
                 .versioned_content_map
-                .insert_output_assets(all_output_assets)
+                .insert_output_assets(all_output_assets, client_relative_path, node_root)
                 .await?;
 
             Ok(emit_assets(
                 *all_output_assets.await?,
                 self.node_root(),
-                self.client_relative_path(),
-                self.node_root(),
+                client_relative_path,
+                node_root,
             ))
         }
         .instrument(span)
@@ -812,18 +815,6 @@ impl Project {
             .await?
             .versioned_content_map
             .get(self.client_relative_path().join(identifier)))
-    }
-
-    #[turbo_tasks::function]
-    async fn hmr_content_and_write(
-        self: Vc<Self>,
-        identifier: String,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        Ok(self.await?.versioned_content_map.get_and_write(
-            self.client_relative_path().join(identifier),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -862,7 +853,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content_and_write(identifier).update(from))
+        Ok(self.hmr_content(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is

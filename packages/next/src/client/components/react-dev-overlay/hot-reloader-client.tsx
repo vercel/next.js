@@ -78,6 +78,7 @@ function reportHmrLatency(
   sendMessage: (message: string) => void,
   updatedModules: ReadonlyArray<string>
 ) {
+  if (!startLatency) return
   let endLatency = Date.now()
   sendMessage(
     JSON.stringify({
