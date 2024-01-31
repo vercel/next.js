@@ -333,10 +333,10 @@ describe('ReactRefreshRegression app', () => {
       `)
     } else {
       expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-              "  1 | 'use client'
-              > 2 | export default function Page() { throw new Error('boom'); }
-                  |                                       ^"
-          `)
+          "  1 | 'use client'
+          > 2 | export default function Page() { throw new Error('boom'); }
+              |                                       ^"
+      `)
     }
 
     await cleanup()
