@@ -559,22 +559,32 @@ function getNumberOfWorkers(config: NextConfigComplete) {
 }
 
 const staticWorkerPath = require.resolve('./worker')
-type StaticWorker = typeof import('./worker')
+const staticWorkerExposedMethods = [
+  'hasCustomGetInitialProps',
+  'isPageStatic',
+  'getDefinedNamedExports',
+  'exportPage',
+] as const
+type StaticWorker = typeof import('./worker') & Worker
+type PageDataCollectionKeys = Exclude<
+  (typeof staticWorkerExposedMethods)[number],
+  'exportPage'
+>
 
 function createStaticWorker(
   config: NextConfigComplete,
   incrementalCacheIpcPort?: number,
   incrementalCacheIpcValidationKey?: string
-) {
+): StaticWorker {
   let infoPrinted = false
   const timeout = config.staticPageGenerationTimeout || 0
 
   return new Worker(staticWorkerPath, {
     timeout: timeout * 1000,
     logger: Log,
-    onRestart: (method, args_, attempts) => {
+    onRestart: (method, args, attempts) => {
       if (method === 'exportPage') {
-        const [arg] = args_ as Parameters<StaticWorker['exportPage']>
+        const [arg] = args as Parameters<StaticWorker['exportPage']>
         const pagePath = arg.path
         if (attempts >= 3) {
           throw new Error(
@@ -585,12 +595,7 @@ function createStaticWorker(
           `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
         )
       } else {
-        const [arg] = args_ as Parameters<
-          | StaticWorker['getDefinedNamedExports']
-          | StaticWorker['hasCustomGetInitialProps']
-          | StaticWorker['isPageStatic']
-        >
-
+        const [arg] = args as Parameters<StaticWorker[PageDataCollectionKeys]>
         const pagePath = arg.page
         if (attempts >= 2) {
           throw new Error(
@@ -619,20 +624,8 @@ function createStaticWorker(
       },
     },
     enableWorkerThreads: config.experimental.workerThreads,
-    exposedMethods: [
-      'hasCustomGetInitialProps',
-      'isPageStatic',
-      'getDefinedNamedExports',
-      'exportPage',
-    ],
-  }) as Worker &
-    Pick<
-      typeof import('./worker'),
-      | 'hasCustomGetInitialProps'
-      | 'isPageStatic'
-      | 'getDefinedNamedExports'
-      | 'exportPage'
-    >
+    exposedMethods: staticWorkerExposedMethods,
+  }) as StaticWorker
 }
 
 async function writeFullyStaticExport(
