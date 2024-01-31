@@ -90,7 +90,7 @@ describe('ppr build errors', () => {
     describe('when a postpone call is caught and logged it should', () => {
       it('should include a message telling why', async () => {
         expect(stdout).toContain(
-          'Logged error: This page needs to bail out of prerendering at this point because it used cookies.'
+          'User land logged error: Route /logging-error needs to bail out of prerendering at this point because it used cookies.'
         )
       })
     })

@@ -64,32 +64,7 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match ty.into_value() {
-        ClientContextType::Pages { pages_dir } => {
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    request_to_import_mapping(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    request_to_import_mapping(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    request_to_import_mapping(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             let react_flavor =
                 if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
@@ -531,32 +506,7 @@ async fn insert_next_server_special_aliases(
     }
 
     match ty {
-        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    external_if_node(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    external_if_node(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    external_if_node(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }

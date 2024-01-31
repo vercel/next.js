@@ -80,6 +80,8 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { useFlightResponse } from './use-flight-response'
 import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -721,12 +723,19 @@ async function renderToHTMLOrFlightImpl(
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState =
-    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
-      ? parseAndValidateFlightRouterState(
-          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-        )
-      : undefined
+
+  const shouldProvideFlightRouterState =
+    isRSCRequest &&
+    (!isPrefetchRSCRequest ||
+      !renderOpts.experimental.ppr ||
+      // interception routes currently depend on the flight router state to extract dynamic params
+      isInterceptionRouteAppPath(pagePath))
+
+  let providedFlightRouterState = shouldProvideFlightRouterState
+    ? parseAndValidateFlightRouterState(
+        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+      )
+    : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -1006,8 +1015,9 @@ async function renderToHTMLOrFlightImpl(
           console.log()
 
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
+            const stack = getStackWithoutErrorMessage(err)
             error(
-              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
+              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
 
             throw err

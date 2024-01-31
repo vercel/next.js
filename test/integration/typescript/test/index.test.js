@@ -72,10 +72,15 @@ describe('TypeScript Features', () => {
       expect($('#value').text()).toBe('test')
     })
 
-    it('should resolve files in correct order', async () => {
-      const $ = await get$('/hello')
-      expect($('#imported-value').text()).toBe('OK')
-    })
+    // Turbopack has the correct behavior where `.ts` / `.tsx` is preferred over `.js` / `.jsx`. Webpack prefers `.js` / `.jsx`.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should resolve files in correct order',
+      async () => {
+        const $ = await get$('/hello')
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect($('#imported-value').text()).toBe('OK')
+      }
+    )
 
     // old behavior:
     it.skip('should report type checking to stdout', async () => {
