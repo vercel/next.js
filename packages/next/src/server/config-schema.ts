@@ -198,11 +198,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     compress: z.boolean().optional(),
     configOrigin: z.string().optional(),
     crossOrigin: z
-      .union([
-        z.literal(false),
-        z.literal('anonymous'),
-        z.literal('use-credentials'),
-      ])
+      .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     devIndicators: z
       .object({
