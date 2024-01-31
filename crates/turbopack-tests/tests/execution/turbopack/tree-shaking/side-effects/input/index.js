@@ -79,3 +79,11 @@ it("should run side effects of a reexporting module with side effects (async mod
   require("package-require-side-effect");
   expect(effects8).toEqual(["side-effect.js", "side-effect2.js", "index.js"]);
 });
+
+import { a as a9, b as b9 } from "package-partial";
+import { effects } from "package-partial/effect";
+it("should handle globs in sideEffects field", () => {
+  expect(a9).toBe("a");
+  expect(b9).toBe("b");
+  expect(effects).toEqual(["file.side.js", "dir/file.js"]);
+});
