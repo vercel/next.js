@@ -13,12 +13,8 @@ export function envProxy(envVars: EnvVars): RestoreOriginalFunction {
       envVars.add(key)
       return Reflect.get(target, key, receiver)
     },
-    set: (target, key, value, receiver) => {
-      Reflect.set(target, key, value, receiver)
-      return true
-    },
-    getOwnPropertyDescriptor(_target, _key) {
-      return { configurable: true, enumerable: true }
+    set: (target, key, value) => {
+      return Reflect.set(target, key, value)
     },
   })
 
