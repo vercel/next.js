@@ -40,6 +40,10 @@ async function webpackBuildWithWorker(
   prunedBuildContext.pluginState = pluginState
 
   const getWorker = (compilerName: string) => {
+    console.log(
+      'getWorker',
+      JSON.stringify(needsExperimentalReact(NextBuildContext.config!))
+    )
     const _worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain'],
       numWorkers: 1,
@@ -48,7 +52,7 @@ async function webpackBuildWithWorker(
         env: {
           ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
-          NEXT_EXPERIMENTAL_REACT: JSON.stringify(
+          __NEXT_EXPERIMENTAL_REACT: JSON.stringify(
             needsExperimentalReact(NextBuildContext.config!)
           ),
         },

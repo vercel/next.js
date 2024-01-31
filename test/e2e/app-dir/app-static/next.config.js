@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  experimental: {
+    webpackBuildWorker: false,
+    ppr: true,
+  },
   logging: {
     fetches: {},
   },

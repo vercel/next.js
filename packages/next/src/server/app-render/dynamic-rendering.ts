@@ -157,6 +157,10 @@ export function trackDynamicFetch(
   expression: string
 ) {
   if (store.prerenderState) {
+    console.log('React', React.version)
+    if (React.version.includes('canary')) {
+      console.trace('shouldnt happen')
+    }
     assertPostpone()
     postponeWithTracking(store.prerenderState, expression, store.urlPathname)
   }
