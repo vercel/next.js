@@ -1252,10 +1252,9 @@ async function startWatcher(opts: SetupOpts) {
     await writeManifests()
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    let versionInfo: VersionInfo = {
-      installed: '0.0.0',
-      staleness: 'unknown',
-    }
+    let versionInfo: VersionInfo = await getVersionInfo(
+      true || isTestMode || opts.telemetry.isEnabled
+    )
     const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
