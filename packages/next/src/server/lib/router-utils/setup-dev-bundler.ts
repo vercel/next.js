@@ -1042,7 +1042,9 @@ async function startWatcher(opts: SetupOpts) {
 
         for await (const data of subscription) {
           processIssues(id, data)
-          sendTurbopackMessage(data)
+          if (data.type !== 'issues') {
+            sendTurbopackMessage(data)
+          }
         }
       } catch (e) {
         // The client might be using an HMR session from a previous server, tell them
