@@ -7,10 +7,10 @@ import { TurborepoAccessTraceResult } from './result'
 
 /**
  * Trace access to the filesystem (TODO), environment variables, and TCP addresses and
- * merge the results into the parent TurborepoAccessTraceResult.
+ * merge the results into the parent `TurborepoAccessTraceResult`.
  *
  * @param f the function to trace
- * @param parent the TurborepoAccessTraceResult to merge the results into
+ * @param parent the `TurborepoAccessTraceResult` to merge the results into
  * @returns the result of the function
  */
 export function turborepoTraceAccess<T>(
@@ -47,28 +47,30 @@ export async function writeTurborepoAccessTraceResult({
 }) {
   const configTraceFile = process.env.TURBOREPO_TRACE_FILE
 
-  if (configTraceFile && traces.length > 0) {
-    // merge traces
-    const [accessTrace, ...otherTraces] = traces
-    for (const trace of otherTraces) {
-      accessTrace.merge(trace)
-    }
+  if (!configTraceFile || traces.length === 0) return
 
-    try {
-      // make sure the directory exists
-      await fs.mkdir(path.dirname(configTraceFile), { recursive: true })
-      await fs.writeFile(
-        configTraceFile,
-        JSON.stringify({
-          outputs: [`${distDir}/**`, `!${distDir}/cache/**`],
-          accessed: accessTrace.toPublicTrace(),
-        })
-      )
-    } catch (err) {
-      // if we can't write this file, we should bail out here to avoid
-      // the possibility of incorrect turborepo cache hits.
-      throw new Error(`Failed to write turborepo access trace file`)
-    }
+  // merge traces
+  const [accessTrace, ...otherTraces] = traces
+  for (const trace of otherTraces) {
+    accessTrace.merge(trace)
+  }
+
+  try {
+    // make sure the directory exists
+    await fs.mkdir(path.dirname(configTraceFile), { recursive: true })
+    await fs.writeFile(
+      configTraceFile,
+      JSON.stringify({
+        outputs: [`${distDir}/**`, `!${distDir}/cache/**`],
+        accessed: accessTrace.toPublicTrace(),
+      })
+    )
+  } catch (err) {
+    // if we can't write this file, we should bail out here to avoid
+    // the possibility of incorrect turborepo cache hits.
+    throw new Error(`Failed to write turborepo access trace file`, {
+      cause: err,
+    })
   }
 }
 

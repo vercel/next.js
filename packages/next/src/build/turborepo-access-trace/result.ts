@@ -14,8 +14,7 @@ export class TurborepoAccessTraceResult {
   ) {}
 
   /**
-   * Merge another TurborepoAccessTraceResult into this one, mutating this TurborepoAccessTraceResult.
-   *
+   * Merge another `TurborepoAccessTraceResult` into this one, mutating this `TurborepoAccessTraceResult`.
    */
   public merge(other: TurborepoAccessTraceResult) {
     other.envVars.forEach((envVar) => this.envVars.add(envVar))
@@ -26,9 +25,8 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Serialize this TurborepoAccessTraceResult into a serializable object. Used for passing
-   * the TurborepoAccessTraceResult between workers where Sets are not serializable.
-   *
+   * Serialize this `TurborepoAccessTraceResult` into a serializable object. Used for passing
+   * the `TurborepoAccessTraceResult` between workers where Sets are not serializable.
    */
   public serialize(): SerializableTurborepoAccessTraceResult {
     return {
@@ -39,8 +37,7 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Squash this TurborepoAccessTraceResult into a public trace object that can be written to a file
-   *
+   * Squash this `TurborepoAccessTraceResult` into a public trace object that can be written to a file
    */
   public toPublicTrace(): PublicTurborepoAccessTraceResult {
     return {
@@ -51,8 +48,7 @@ export class TurborepoAccessTraceResult {
   }
 
   /**
-   * Create an TurborepoAccessTraceResult from a serialized SerializableTurborepoAccessTraceResult
-   *
+   * Create an `TurborepoAccessTraceResult` from a serialized `SerializableTurborepoAccessTraceResult`
    */
   public static fromSerialized(
     serialized: SerializableTurborepoAccessTraceResult

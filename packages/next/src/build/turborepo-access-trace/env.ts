@@ -9,16 +9,16 @@ import type { EnvVars, RestoreOriginalFunction } from './types'
  */
 export function envProxy(envVars: EnvVars): RestoreOriginalFunction {
   const newEnv = new Proxy(process.env, {
-    get: (target, key) => {
+    get: (target, key, receiver) => {
       envVars.add(key)
-      return target[key as string]
+      return Reflect.get(target, key, receiver)
+    },
+    set: (target, key, value, receiver) => {
+      Reflect.set(target, key, value, receiver)
+      return true
     },
     getOwnPropertyDescriptor(_target, _key) {
       return { configurable: true, enumerable: true }
-    },
-    set: (target, key, value) => {
-      target[key as string] = value
-      return true
     },
   })
 
