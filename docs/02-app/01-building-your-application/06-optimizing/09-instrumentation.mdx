@@ -5,7 +5,7 @@ related:
   title: Learn more about Instrumentation
   links:
     - app/api-reference/file-conventions/instrumentation
-    - app/api-reference/next.config.js/instrumentationHook
+    - app/api-reference/next-config-js/instrumentationHook
 ---
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
@@ -14,9 +14,9 @@ Instrumentation is the process of using code to integrate monitoring and logging
 
 ## Convention
 
-To set up instrumentation, create `instrumentation.ts|js` file in the **root directory** of your project (or inside the `src` folder if using one).
+To set up instrumentation, create `instrumentation.ts|js` file in the **root directory** of your project (or inside the [`src`](/docs/app/building-your-application/configuring/src-directory) folder if using one).
 
-Then, export a `register` function from the file. This function will be called **once** when a new Next.js server instance is initiated.
+Then, export a `register` function in the file. This function will be called **once** when a new Next.js server instance is initiated.
 
 For example, to use Next.js with [OpenTelemetry](https://opentelemetry.io/) and [@vercel/otel](https://github.com/vercel/otel):
 
@@ -36,7 +36,7 @@ export function register() {
 }
 ```
 
-See the [Next.js with Open Telemetry example](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) for a complete implementation.
+See the [Next.js with OpenTelemetry example](https://github.com/vercel/next.js/tree/canary/examples/with-opentelemetry) for a complete implementation.
 
 > **Good to know**
 >
@@ -50,25 +50,7 @@ See the [Next.js with Open Telemetry example](https://github.com/vercel/next.js/
 
 Sometimes, it may be useful to import a file in your code because of the side effects it will cause. For example, you might import a file that defines a set of global variables, but never explicitly use the imported file in your code. You would still have access to the global variables the package has declared.
 
-You can import files with side effects in `instrumentation.ts`, which you might want to use in your `register` function:
-
-```ts filename="instrumentation.ts" switcher
-import { init } from 'package-init'
-
-export function register() {
-  init()
-}
-```
-
-```js filename="instrumentation.js" switcher
-import { init } from 'package-init'
-
-export function register() {
-  init()
-}
-```
-
-However, we recommend importing files with side effects using `import` from within your `register` function instead. The following example demonstrates a basic usage of `import` in a `register` function:
+We recommend importing files using JavaScript `import` syntax within your `register` function. The following example demonstrates a basic usage of `import` in a `register` function:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {
@@ -82,11 +64,13 @@ export async function register() {
 }
 ```
 
-By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing files.
+> **Good to know:**
+>
+> We recommend importing the file from within the `register` function, rather than at the top of the file. By doing this, you can colocate all of your side effects in one place in your code, and avoid any unintended consequences from importing globally at the top of the file.
 
 ### Importing runtime-specific code
 
-Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support either [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) or [Node.js](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime). You can the `NEXT_RUNTIME` environment variable to get the current environment. Importing runtime-specific code would look like this:
+Next.js calls `register` in all environments, so it's important to conditionally import any code that doesn't support specific runtimes (e.g. [Edge](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#edge-runtime) or [Node.js](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#nodejs-runtime)). You can use the `NEXT_RUNTIME` environment variable to get the current environment:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {
