@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, NextConfig, StyledComponentsTransformOptionsOrBoolean},
+    next_config::{JsConfig, NextConfig},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
