@@ -575,11 +575,29 @@ pub enum EmotionTransformOptionsOrBoolean {
     Options(EmotionTransformConfig),
 }
 
+impl EmotionTransformOptionsOrBoolean {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
     Boolean(bool),
     Options(StyledComponentsTransformConfig),
+}
+
+impl StyledComponentsTransformOptionsOrBoolean {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -604,6 +622,15 @@ pub enum ReactRemoveProperties {
 pub enum RemoveConsoleConfig {
     Boolean(bool),
     Config { exclude: Option<Vec<String>> },
+}
+
+impl RemoveConsoleConfig {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]

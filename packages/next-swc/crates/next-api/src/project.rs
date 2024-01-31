@@ -11,7 +11,7 @@ use next_core::{
     middleware::middleware_files,
     mode::NextMode,
     next_client::{get_client_chunking_context, get_client_compile_time_info},
-    next_config::{JsConfig, NextConfig},
+    next_config::{JsConfig, NextConfig, StyledComponentsTransformOptionsOrBoolean},
     next_server::{
         get_server_chunking_context, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context, ServerContextType,
@@ -593,16 +593,16 @@ impl Project {
         let compiler_options = config.compiler.as_ref();
         let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
         let styled_components_enabled = compiler_options
-            .map(|c| c.styled_components.is_some())
+            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
             .and_then(|c| c.react_remove_properties)
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .map(|c| c.remove_console.is_some())
+            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .map(|c| c.emotion.is_some())
+            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
