@@ -990,11 +990,11 @@
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression app can fast refresh a page with static generation"
+      "ReactRefreshRegression app can fast refresh a page with static generation",
+      "ReactRefreshRegression app shows an overlay for server-side error in client component"
     ],
     "failed": [
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
-      "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "pending": [
