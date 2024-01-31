@@ -29,4 +29,11 @@ Additionally, since `children` is an implicit slot, you also need to create a `d
 
 ## Props
 
-`default.js` does not receive any props.
+### `params` (optional)
+
+An object containing the [dynamic route parameters](/docs/app/building-your-application/routing/dynamic-routes) from the root segment down to the slot's subpages. For example:
+
+| Example                                    | URL          | `params`                            |
+| ------------------------------------------ | ------------ | ----------------------------------- |
+| `app/@sidebar/[artist]/default.js`         | `/zack`      | `{ artist: 'zack' }`                |
+| `app/@sidebar/[artist]/[album]/default.js` | `/zack/next` | `{ artist: 'zack', album: 'next' }` |

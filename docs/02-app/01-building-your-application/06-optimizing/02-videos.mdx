@@ -176,8 +176,6 @@ In your Vercel dashboard, navigate to the "Storage" tab and select your Vercel B
 
 Alternatively, you can upload your video using a server action. For detailed instructions, refer to the Vercel documentation on [server-side uploads](https://vercel.com/docs/storage/vercel-blob/server-upload). Vercel also supports [client-side uploads](https://vercel.com/docs/storage/vercel-blob/client-upload). This method may be preferable for certain use cases.
 
-> Good to know: Ensure to [add the necessary hostname](https://vercel.com/docs/storage/vercel-blob/server-upload) to your `next.config.js` to configure the domain from where the video files will be served.
-
 **2. Displaying the video in Next.js**
 
 Once the video is uploaded and stored, you can display it in your Next.js application. Here's an example of how to do this using the `<video>` tag and React Suspense:
