@@ -2,7 +2,7 @@ use std::mem::take;
 
 use anyhow::{anyhow, bail, Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Vc};
 use unicode_segmentation::GraphemeCursor;
 
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, Serialize, Deserialize)]
@@ -399,6 +399,24 @@ impl Glob {
     #[turbo_tasks::function]
     pub fn new(glob: String) -> Result<Vc<Self>> {
         Ok(Self::cell(Glob::try_from(glob.as_str())?))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn alternatives(globs: Vec<Vc<Glob>>) -> Result<Vc<Self>> {
+        if globs.len() == 1 {
+            return Ok(globs.into_iter().next().unwrap());
+        }
+        Ok(Self::cell(Glob {
+            expression: vec![GlobPart::Alternatives(
+                globs
+                    .into_iter()
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .map(|g| g.clone_value())
+                    .collect(),
+            )],
+        }))
     }
 }
 
