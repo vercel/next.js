@@ -879,8 +879,8 @@ pub async fn project_trace_source(
 
             let token = map
                 .lookup_token(
-                    frame.line as usize - 1,
-                    frame.column.unwrap_or(1) as usize - 1,
+                    (frame.line as usize).saturating_sub(1),
+                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
                 )
                 .await?
                 .clone_value()
