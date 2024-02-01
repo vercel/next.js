@@ -705,10 +705,7 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 ssr_chunking_context,
-                this.app_project
-                    .project()
-                    .next_config()
-                    .computed_asset_prefix(),
+                this.app_project.project().next_config(),
                 runtime,
             );
             server_assets.push(entry_manifest);
