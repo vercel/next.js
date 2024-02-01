@@ -193,7 +193,7 @@
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
-    "@vercel/nft": "0.26.2",
+    "@vercel/nft": "0.26.3",
     "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240117.3",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.35",
