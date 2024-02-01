@@ -4,12 +4,12 @@ import { ServerHtml } from '../../../components/server-html'
 
 export const dynamic = 'force-dynamic'
 
-export default () => {
+export default ({ searchParams }) => {
   return (
     <>
       <ServerHtml />
       <Suspense fallback="loading...">
-        <Optimistic />
+        <Optimistic searchParams={searchParams} />
       </Suspense>
     </>
   )

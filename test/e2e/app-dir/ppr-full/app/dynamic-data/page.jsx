@@ -2,12 +2,12 @@ import { Suspense } from 'react'
 import { Optimistic } from '../../components/optimistic'
 import { ServerHtml } from '../../components/server-html'
 
-export default () => {
+export default ({ searchParams }) => {
   return (
     <>
       <ServerHtml />
       <Suspense fallback="loading...">
-        <Optimistic />
+        <Optimistic searchParams={searchParams} />
       </Suspense>
     </>
   )

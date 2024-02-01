@@ -1,10 +1,7 @@
-import { headers } from 'next/headers'
-
-export async function Optimistic() {
+export async function Optimistic({ searchParams }) {
   try {
-    const h = headers()
-    return <div id="fooheader">foo header: {h.get('x-foo')}</div>
+    return <div id="foosearch">foo search: {searchParams.foo}</div>
   } catch (err) {
-    return <div id="fooheader">foo header: optimistic</div>
+    return <div id="foosearch">foo search: optimistic</div>
   }
 }

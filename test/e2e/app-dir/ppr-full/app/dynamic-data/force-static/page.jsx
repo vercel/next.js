@@ -5,12 +5,12 @@ import { ServerHtml } from '../../../components/server-html'
 export const dynamic = 'force-static'
 export const revalidate = 60
 
-export default () => {
+export default ({ searchParams }) => {
   return (
     <>
       <ServerHtml />
       <Suspense fallback="loading...">
-        <Optimistic />
+        <Optimistic searchParams={searchParams} />
       </Suspense>
     </>
   )
