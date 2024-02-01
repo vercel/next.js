@@ -1,13 +1,16 @@
 {
   "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
-    "strict": true,
-    "module": "esnext",
-    "target": "ES2017",
+    "declaration": true,
+    "declarationDir": "dist",
+    "emitDeclarationOnly": true,
     "esModuleInterop": true,
-    "moduleResolution": "node",
     "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "strict": true,
     "stripInternal": true,
+    "target": "ES2017",
     "verbatimModuleSyntax": true
   },
   "exclude": [
