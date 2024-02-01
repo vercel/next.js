@@ -89,7 +89,7 @@ export async function createOriginalStackFrame(
             {
               start: {
                 line: traced.frame.lineNumber,
-                column: traced.frame.column ?? 0,
+                column: traced.frame.column ?? 1,
               },
             },
             { forceColor: true }
