@@ -8,7 +8,7 @@
     "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "baseUrl": ".",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
