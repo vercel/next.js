@@ -2037,24 +2037,22 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     if (isAppPath) {
       res.setHeader('vary', RSC_VARY_HEADER)
 
-      if (isPrefetchRSCRequest) {
-        const couldBeRewritten = this.interceptionRouteRewrites?.some(
-          (rewrite) => {
-            return new RegExp(rewrite.regex).test(resolvedUrlPathname)
-          }
-        )
-
-        // Interception route responses can vary based on the `Next-URL` header as they're rewritten to different components.
-        // This means that multiple route interception responses can resolve to the same URL. We use the Vary header to signal this
-        // behavior to the client so that it can properly cache the response.
-        // If the request that we're handling is one that could have a different response based on the `Next-URL` header, or if
-        // we're handling an interception route, then we include `Next-URL` in the Vary header.
-        if (
-          couldBeRewritten ||
-          isInterceptionRouteAppPath(resolvedUrlPathname)
-        ) {
-          res.setHeader('vary', `${RSC_VARY_HEADER}, ${NEXT_URL}`)
+      const couldBeIntercepted = this.interceptionRouteRewrites?.some(
+        (rewrite) => {
+          return new RegExp(rewrite.regex).test(resolvedUrlPathname)
         }
+      )
+
+      // Interception route responses can vary based on the `Next-URL` header as they're rewritten to different components.
+      // This means that multiple route interception responses can resolve to the same URL. We use the Vary header to signal this
+      // behavior to the client so that it can properly cache the response.
+      // If the request that we're handling is one that could have a different response based on the `Next-URL` header, or if
+      // we're handling an interception route, then we include `Next-URL` in the Vary header.
+      if (
+        couldBeIntercepted ||
+        isInterceptionRouteAppPath(resolvedUrlPathname)
+      ) {
+        res.setHeader('vary', `${RSC_VARY_HEADER}, ${NEXT_URL}`)
       }
 
       if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
