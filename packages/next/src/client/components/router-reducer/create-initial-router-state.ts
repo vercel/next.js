@@ -3,11 +3,14 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   CacheNodeSeedData,
+  FlightData,
 } from '../../../server/app-render/types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
+import { createPrefetchCacheKey } from './reducers/prefetch-cache-utils'
+import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
   buildId: string
@@ -15,7 +18,7 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrl: string
   initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
-  isServer: boolean
+  initialFlightData: FlightData
   location: Location | null
   initialHead: ReactNode
 }
@@ -26,10 +29,11 @@ export function createInitialRouterState({
   initialSeedData,
   initialCanonicalUrl,
   initialParallelRoutes,
-  isServer,
+  initialFlightData,
   location,
   initialHead,
 }: InitialRouterStateParameters) {
+  const isServer = !location
   const rsc = initialSeedData[2]
 
   const cache: CacheNode = {
@@ -38,6 +42,25 @@ export function createInitialRouterState({
     prefetchRsc: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+  }
+
+  const prefetchCache = new Map<string, PrefetchCacheEntry>()
+
+  if (location && initialFlightData.length > 0) {
+    // Seed the prefetch cache with this page's data.
+    // This is to prevent needlessly re-prefetching a page that is already reusable,
+    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    const url = new URL(location.pathname, location.origin)
+    const cacheKey = createPrefetchCacheKey(url)
+
+    prefetchCache.set(cacheKey, {
+      data: Promise.resolve([initialFlightData, undefined, false, false]),
+      kind: PrefetchKind.AUTO,
+      lastUsedTime: null,
+      prefetchTime: Date.now(),
+      key: cacheKey,
+      treeAtTimeOfPrefetch: initialTree,
+    })
   }
 
   // When the cache hasn't been seeded yet we fill the cache with the head.
@@ -55,7 +78,7 @@ export function createInitialRouterState({
     buildId,
     tree: initialTree,
     cache,
-    prefetchCache: new Map(),
+    prefetchCache,
     pushRef: {
       pendingPush: false,
       mpaNavigation: false,

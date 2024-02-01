@@ -121,8 +121,8 @@ describe('prefetchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -150,6 +150,18 @@ describe('prefetchReducer', () => {
     const expectedState: ReturnType<typeof prefetchReducer> = {
       buildId: 'development',
       prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
         [
           '/linking/about',
           {
@@ -266,8 +278,8 @@ describe('prefetchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -277,8 +289,8 @@ describe('prefetchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -305,9 +317,31 @@ describe('prefetchReducer', () => {
     const prom = Promise.resolve(serverResponse)
     await prom
 
+    const prefetchCache = new Map<string, PrefetchCacheEntry>()
+    prefetchCache.set('/linking', {
+      data: expect.any(Promise),
+      kind: PrefetchKind.AUTO,
+      lastUsedTime: null,
+      prefetchTime: expect.any(Number),
+      treeAtTimeOfPrefetch: initialTree,
+      key: '/linking',
+    })
+
     const expectedState: ReturnType<typeof prefetchReducer> = {
       buildId: 'development',
       prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
         [
           '/linking/about',
           {

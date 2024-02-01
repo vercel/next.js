@@ -264,6 +264,7 @@ function Router({
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
+  initialFlightData,
   assetPrefix,
   missingSlots,
 }: AppRouterProps) {
@@ -275,11 +276,18 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
-        isServer,
         location: !isServer ? window.location : null,
         initialHead,
+        initialFlightData,
       }),
-    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
+    [
+      buildId,
+      initialSeedData,
+      initialCanonicalUrl,
+      initialTree,
+      initialHead,
+      initialFlightData,
+    ]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)

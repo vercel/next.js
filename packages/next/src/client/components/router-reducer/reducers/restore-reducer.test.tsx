@@ -2,7 +2,7 @@ import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_RESTORE } from '../router-reducer-types'
+import { ACTION_RESTORE, PrefetchKind } from '../router-reducer-types'
 import type { RestoreAction } from '../router-reducer-types'
 import { restoreReducer } from './restore-reducer'
 
@@ -84,8 +84,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RestoreAction = {
@@ -118,7 +118,19 @@ describe('serverPatchReducer', () => {
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
-      prefetchCache: new Map(),
+      prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
@@ -239,8 +251,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const state2 = createInitialRouterState({
@@ -249,8 +261,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -286,7 +298,19 @@ describe('serverPatchReducer', () => {
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
-      prefetchCache: new Map(),
+      prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,

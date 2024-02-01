@@ -144,6 +144,7 @@ export interface RenderOptsPartial {
   isPrefetch?: boolean
   experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
   postponed?: string
+  couldBeIntercepted?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

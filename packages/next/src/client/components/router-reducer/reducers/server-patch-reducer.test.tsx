@@ -135,8 +135,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
     })
     const action: ServerPatchAction = {
@@ -227,7 +227,37 @@ describe('serverPatchReducer', () => {
           "segmentPaths": [],
         },
         "nextUrl": "/linking/somewhere-else",
-        "prefetchCache": Map {},
+        "prefetchCache": Map {
+          "/linking/about" => {
+            "data": Promise {},
+            "key": "/linking/about",
+            "kind": "auto",
+            "lastUsedTime": null,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "about",
+                      {
+                        "children": [
+                          "",
+                          {},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
@@ -315,8 +345,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
     })
 
@@ -442,6 +472,35 @@ describe('serverPatchReducer', () => {
         },
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {
+          "/linking" => {
+            "data": Promise {},
+            "key": "/linking",
+            "kind": "auto",
+            "lastUsedTime": null,
+            "prefetchTime": 1690329600000,
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "about",
+                      {
+                        "children": [
+                          "",
+                          {},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
           "/linking/about" => {
             "data": Promise {},
             "key": "/linking/about",
@@ -520,8 +579,8 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes: new Map(),
-      isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
     })
 

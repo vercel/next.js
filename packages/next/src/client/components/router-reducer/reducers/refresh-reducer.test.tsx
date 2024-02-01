@@ -128,8 +128,8 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RefreshAction = {
@@ -271,8 +271,8 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -282,8 +282,8 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -452,8 +452,8 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -463,8 +463,8 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -627,64 +627,16 @@ describe('refreshReducer', () => {
       ],
     ])
 
-    const prefetchItem = {
-      canonicalUrlOverride: undefined,
-      flightData: [
-        [
-          '',
-          {
-            children: [
-              'linking',
-              {
-                children: [
-                  'about',
-                  {
-                    children: ['', {}],
-                  },
-                ],
-              },
-            ],
-          },
-          undefined,
-          undefined,
-          true,
-        ],
-        <>About</>,
-        <>Head</>,
-      ],
-      tree: [
-        '',
-        {
-          children: [
-            'linking',
-            {
-              children: [
-                'about',
-                {
-                  children: ['', {}],
-                },
-              ],
-            },
-          ],
-        },
-        undefined,
-        undefined,
-        true,
-      ],
-    }
-
     const state = createInitialRouterState({
       buildId,
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
-
-    state.prefetchCache.set('/linking/about', prefetchItem)
 
     const state2 = createInitialRouterState({
       buildId,
@@ -692,11 +644,10 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
+      initialFlightData: [['']],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
-    state2.prefetchCache.set('/linking/about', prefetchItem)
 
     const action: RefreshAction = {
       type: ACTION_REFRESH,

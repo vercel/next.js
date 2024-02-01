@@ -2261,6 +2261,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        couldBeIntercepted: this.pathCouldBeIntercepted(resolvedUrlPathname),
       }
 
       // Legacy render methods will return a render result that needs to be
