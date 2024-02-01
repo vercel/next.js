@@ -5,9 +5,13 @@ use turbopack_binding::turbopack::{
     ecmascript_plugin::transform::styled_components::{
         StyledComponentsTransformConfig, StyledComponentsTransformer,
     },
+    turbopack::module_options::ModuleRule,
 };
 
-use crate::next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean};
+use crate::{
+    next_config::{NextConfig, StyledComponentsTransformOptionsOrBoolean},
+    next_shared::transforms::get_ecma_transform_rule,
+};
 
 #[turbo_tasks::function]
 pub async fn get_styled_components_transform_plugin(
@@ -44,4 +48,30 @@ pub async fn get_styled_components_transform_plugin(
         .unwrap_or_default();
 
     Ok(transform_plugin)
+}
+
+pub async fn get_styled_components_transform_rule(
+    next_config: Vc<NextConfig>,
+) -> Result<Option<ModuleRule>> {
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
+
+    let module_rule = next_config
+        .await?
+        .compiler
+        .as_ref()
+        .map(|value| value.styled_components.as_ref())
+        .flatten()
+        .map(|config| match config {
+            StyledComponentsTransformOptionsOrBoolean::Boolean(true) => {
+                Some(StyledComponentsTransformer::new(&Default::default()))
+            }
+            StyledComponentsTransformOptionsOrBoolean::Options(value) => {
+                Some(StyledComponentsTransformer::new(value))
+            }
+            _ => None,
+        })
+        .flatten()
+        .map(|transformer| get_ecma_transform_rule(Box::new(transformer), enable_mdx_rs));
+
+    Ok(module_rule)
 }
