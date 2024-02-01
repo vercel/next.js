@@ -33,7 +33,6 @@ use crate::{
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
     raw_module::RawModule,
-    reference::ModuleReference,
     reference_type::ReferenceType,
     resolve::{
         pattern::{read_matches, PatternMatch},
@@ -75,7 +74,7 @@ pub enum ModuleResolveResultItem {
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: Vec<ModuleResolveResultItem>,
-    pub references: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
 impl Default for ModuleResolveResult {
@@ -88,40 +87,30 @@ impl ModuleResolveResult {
     pub fn unresolveable() -> Self {
         ModuleResolveResult {
             primary: Vec::new(),
-            references: Vec::new(),
+            affecting_sources: Vec::new(),
         }
     }
 
-    pub fn unresolveable_with_references(
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub fn unresolveable_with_affecting_sources(
+        affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: Vec::new(),
-            references,
+            affecting_sources,
         }
     }
 
     pub fn module(module: Vc<Box<dyn Module>>) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: vec![ModuleResolveResultItem::Module(module)],
-            references: Vec::new(),
+            affecting_sources: Vec::new(),
         }
     }
 
     pub fn output_asset(output_asset: Vc<Box<dyn OutputAsset>>) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: vec![ModuleResolveResultItem::OutputAsset(output_asset)],
-            references: Vec::new(),
-        }
-    }
-
-    pub fn module_with_references(
-        module: Vc<Box<dyn Module>>,
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
-    ) -> ModuleResolveResult {
-        ModuleResolveResult {
-            primary: vec![ModuleResolveResultItem::Module(module)],
-            references,
+            affecting_sources: Vec::new(),
         }
     }
 
@@ -131,7 +120,7 @@ impl ModuleResolveResult {
                 .into_iter()
                 .map(ModuleResolveResultItem::Module)
                 .collect(),
-            references: Vec::new(),
+            affecting_sources: Vec::new(),
         }
     }
 
@@ -141,44 +130,52 @@ impl ModuleResolveResult {
                 .into_iter()
                 .map(ModuleResolveResultItem::OutputAsset)
                 .collect(),
-            references: Vec::new(),
+            affecting_sources: Vec::new(),
         }
     }
 
-    pub fn modules_with_references(
+    pub fn modules_with_affecting_sources(
         modules: Vec<Vc<Box<dyn Module>>>,
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
+        affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: modules
                 .into_iter()
                 .map(ModuleResolveResultItem::Module)
                 .collect(),
-            references,
+            affecting_sources,
         }
     }
 
-    pub fn add_reference_ref(&mut self, reference: Vc<Box<dyn ModuleReference>>) {
-        self.references.push(reference);
+    pub fn primary_modules_iter(&self) -> impl Iterator<Item = Vc<Box<dyn Module>>> + '_ {
+        self.primary.iter().filter_map(|item| match *item {
+            ModuleResolveResultItem::Module(a) => Some(a),
+            _ => None,
+        })
     }
 
-    pub fn get_references(&self) -> &Vec<Vc<Box<dyn ModuleReference>>> {
-        &self.references
+    pub fn add_affecting_source_ref(&mut self, source: Vc<Box<dyn Source>>) {
+        self.affecting_sources.push(source);
     }
 
-    fn clone_with_references(
+    pub fn affecting_sources_iter(&self) -> impl Iterator<Item = Vc<Box<dyn Source>>> + '_ {
+        self.affecting_sources.iter().copied()
+    }
+
+    fn clone_with_affecting_sources(
         &self,
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
+        affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> ModuleResolveResult {
         ModuleResolveResult {
             primary: self.primary.clone(),
-            references,
+            affecting_sources,
         }
     }
 
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
         self.primary.extend(other.primary.iter().cloned());
-        self.references.extend(other.references.iter().copied());
+        self.affecting_sources
+            .extend(other.affecting_sources.iter().copied());
     }
 
     pub fn is_unresolveable_ref(&self) -> bool {
@@ -189,43 +186,45 @@ impl ModuleResolveResult {
 #[turbo_tasks::value_impl]
 impl ModuleResolveResult {
     #[turbo_tasks::function]
-    pub async fn with_reference(
+    pub async fn with_affecting_source(
         self: Vc<Self>,
-        reference: Vc<Box<dyn ModuleReference>>,
+        source: Vc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
-        this.add_reference_ref(reference);
+        this.add_affecting_source_ref(source);
         Ok(this.into())
     }
 
     #[turbo_tasks::function]
-    pub async fn with_references(
+    pub async fn with_affecting_sources(
         self: Vc<Self>,
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
+        sources: Vec<Vc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
         let mut this = self.await?.clone_value();
-        for reference in references {
-            this.add_reference_ref(reference);
+        for source in sources {
+            this.add_affecting_source_ref(source);
         }
         Ok(this.into())
     }
 
     /// Returns the first [ModuleResolveResult] that is not
     /// [ModuleResolveResult::Unresolveable] in the given list, while keeping
-    /// track of all the references in all the [ModuleResolveResult]s.
+    /// track of all the affecting_sources in all the [ModuleResolveResult]s.
     #[turbo_tasks::function]
     pub async fn select_first(results: Vec<Vc<ModuleResolveResult>>) -> Result<Vc<Self>> {
-        let mut references = vec![];
+        let mut affecting_sources = vec![];
         for result in &results {
-            references.extend(result.await?.get_references());
+            affecting_sources.extend(result.await?.affecting_sources_iter());
         }
         for result in results {
             let result_ref = result.await?;
             if !result_ref.is_unresolveable_ref() {
-                return Ok(result_ref.clone_with_references(references).cell());
+                return Ok(result_ref
+                    .clone_with_affecting_sources(affecting_sources)
+                    .cell());
             }
         }
-        Ok(ModuleResolveResult::unresolveable_with_references(references).into())
+        Ok(ModuleResolveResult::unresolveable_with_affecting_sources(affecting_sources).into())
     }
 
     #[turbo_tasks::function]
@@ -248,11 +247,11 @@ impl ModuleResolveResult {
     }
 
     #[turbo_tasks::function]
-    pub async fn alternatives_with_references(
+    pub async fn alternatives_with_affecting_sources(
         results: Vec<Vc<ModuleResolveResult>>,
-        references: Vec<Vc<Box<dyn ModuleReference>>>,
+        affecting_sources: Vec<Vc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        if references.is_empty() {
+        if affecting_sources.is_empty() {
             return Ok(Self::alternatives(results));
         }
         if results.len() == 1 {
@@ -260,7 +259,7 @@ impl ModuleResolveResult {
                 .into_iter()
                 .next()
                 .unwrap()
-                .with_references(references));
+                .with_affecting_sources(affecting_sources));
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
@@ -270,11 +269,11 @@ impl ModuleResolveResult {
                 let other = &*result;
                 current.merge_alternatives(other);
             }
-            current.references.extend(references);
+            current.affecting_sources.extend(affecting_sources);
             Ok(Self::cell(current))
         } else {
             Ok(Self::cell(
-                ModuleResolveResult::unresolveable_with_references(references),
+                ModuleResolveResult::unresolveable_with_affecting_sources(affecting_sources),
             ))
         }
     }
@@ -297,15 +296,7 @@ impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn primary_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let this = self.await?;
-        Ok(Vc::cell(
-            this.primary
-                .iter()
-                .filter_map(|item| match *item {
-                    ModuleResolveResultItem::Module(a) => Some(a),
-                    _ => None,
-                })
-                .collect(),
-        ))
+        Ok(Vc::cell(this.primary_modules_iter().collect()))
     }
 
     #[turbo_tasks::function]
@@ -435,8 +426,8 @@ impl ResolveResult {
         self.affecting_sources.push(reference);
     }
 
-    pub fn get_affecting_sources(&self) -> &Vec<Vc<Box<dyn Source>>> {
-        &self.affecting_sources
+    pub fn get_affecting_sources(&self) -> impl Iterator<Item = Vc<Box<dyn Source>>> + '_ {
+        self.affecting_sources.iter().copied()
     }
 
     fn clone_with_affecting_sources(
@@ -493,16 +484,10 @@ impl ResolveResult {
         })
     }
 
-    pub async fn map_module<A, AF, R, RF>(
-        &self,
-        source_fn: A,
-        affected_source_fn: R,
-    ) -> Result<ModuleResolveResult>
+    pub async fn map_module<A, AF>(&self, source_fn: A) -> Result<ModuleResolveResult>
     where
         A: Fn(Vc<Box<dyn Source>>) -> AF,
         AF: Future<Output = Result<ModuleResolveResultItem>>,
-        R: Fn(Vc<Box<dyn Source>>) -> RF,
-        RF: Future<Output = Result<Vc<Box<dyn ModuleReference>>>>,
     {
         Ok(ModuleResolveResult {
             primary: self
@@ -528,13 +513,7 @@ impl ResolveResult {
                 })
                 .try_join()
                 .await?,
-            references: self
-                .affecting_sources
-                .iter()
-                .copied()
-                .map(affected_source_fn)
-                .try_join()
-                .await?,
+            affecting_sources: self.affecting_sources.clone(),
         })
     }
 }
@@ -543,21 +522,15 @@ impl ResolveResult {
 impl ResolveResult {
     #[turbo_tasks::function]
     pub async fn as_raw_module_result(self: Vc<Self>) -> Result<Vc<ModuleResolveResult>> {
-        Ok(
-            self.await?
-                .map_module(
-                    |asset| async move {
-                        Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
-                            asset,
-                        ))))
-                    },
-                    |source| async move {
-                        Ok(Vc::upcast(AffectingResolvingAssetReference::new(source)))
-                    },
-                )
-                .await?
-                .cell(),
-        )
+        Ok(self
+            .await?
+            .map_module(|asset| async move {
+                Ok(ModuleResolveResultItem::Module(Vc::upcast(RawModule::new(
+                    asset,
+                ))))
+            })
+            .await?
+            .cell())
     }
 
     #[turbo_tasks::function]
@@ -584,20 +557,22 @@ impl ResolveResult {
 
     /// Returns the first [ResolveResult] that is not
     /// [ResolveResult::Unresolveable] in the given list, while keeping track
-    /// of all the references in all the [ResolveResult]s.
+    /// of all the affecting_sources in all the [ResolveResult]s.
     #[turbo_tasks::function]
     pub async fn select_first(results: Vec<Vc<ResolveResult>>) -> Result<Vc<Self>> {
-        let mut references = vec![];
+        let mut affecting_sources = vec![];
         for result in &results {
-            references.extend(result.await?.get_affecting_sources());
+            affecting_sources.extend(result.await?.get_affecting_sources());
         }
         for result in results {
             let result_ref = result.await?;
             if !result_ref.is_unresolveable_ref() {
-                return Ok(result_ref.clone_with_affecting_sources(references).cell());
+                return Ok(result_ref
+                    .clone_with_affecting_sources(affecting_sources)
+                    .cell());
             }
         }
-        Ok(ResolveResult::unresolveable_with_affecting_sources(references).into())
+        Ok(ResolveResult::unresolveable_with_affecting_sources(affecting_sources).into())
     }
 
     #[turbo_tasks::function]
@@ -1063,7 +1038,7 @@ pub async fn url_resolve(
             request,
             resolve_options,
         )
-        .with_affecting_sources(rel_result.await?.get_affecting_sources().clone())
+        .with_affecting_sources(rel_result.await?.get_affecting_sources().collect())
     } else {
         rel_result
     };
@@ -1114,7 +1089,7 @@ async fn handle_resolve_plugins(
     let result_value = result.await?;
 
     let mut new_primary = Vec::new();
-    let mut new_references = Vec::new();
+    let mut new_affecting_sources = Vec::new();
 
     for primary in result_value.primary.iter() {
         if let &ResolveResultItem::Source(source) = primary {
@@ -1126,7 +1101,7 @@ async fn handle_resolve_plugins(
                 let new_result = new_result.await?;
                 changed = true;
                 new_primary.extend(new_result.primary.iter().cloned());
-                new_references.extend(new_result.affecting_sources.iter().copied());
+                new_affecting_sources.extend(new_result.affecting_sources.iter().copied());
             } else {
                 new_primary.push(primary.clone());
             }
@@ -1140,7 +1115,7 @@ async fn handle_resolve_plugins(
     }
 
     let mut affecting_sources = result_value.affecting_sources.clone();
-    affecting_sources.append(&mut new_references);
+    affecting_sources.append(&mut new_affecting_sources);
 
     Ok(ResolveResult {
         primary: new_primary,
@@ -1975,38 +1950,6 @@ async fn resolve_package_internal_with_imports_field(
         Vc::<String>::default(),
     )
     .await
-}
-
-#[turbo_tasks::value]
-pub struct AffectingResolvingAssetReference {
-    source: Vc<Box<dyn Source>>,
-}
-
-#[turbo_tasks::value_impl]
-impl AffectingResolvingAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
-        Self::cell(AffectingResolvingAssetReference { source })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for AffectingResolvingAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(RawModule::new(self.source))).into()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for AffectingResolvingAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "resolving is affected by {}",
-            self.source.ident().to_string().await?
-        )))
-    }
 }
 
 pub async fn handle_resolve_error(

@@ -136,6 +136,8 @@ pub struct ModuleOptionsContext {
     pub enable_jsx: Option<Vc<JsxTransformOptions>>,
     pub enable_postcss_transform: Option<Vc<PostCssTransformOptions>>,
     pub enable_webpack_loaders: Option<Vc<WebpackLoadersOptions>>,
+    /// Follow type references and resolve declaration files in additional to
+    /// normal resolution.
     pub enable_types: bool,
     pub enable_typescript_transform: Option<Vc<TypescriptTransformOptions>>,
     pub decorators: Option<Vc<DecoratorsOptions>>,

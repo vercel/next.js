@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt::Write};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -10,7 +10,6 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
-    reference::ModuleReference,
     reference_type::{ReferenceType, TypeScriptReferenceSubType},
     resolve::{
         handle_resolve_error,
@@ -427,37 +426,6 @@ pub async fn type_resolve(
         None,
     )
     .await
-}
-
-#[turbo_tasks::value]
-pub struct TypescriptTypesAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for TypescriptTypesAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        type_resolve(self.origin, self.request)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for TypescriptTypesAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<String>> {
-        Ok(Vc::cell(format!(
-            "typescript types {}",
-            self.request.to_string().await?,
-        )))
-    }
-}
-
-impl TypescriptTypesAssetReference {
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, request: Vc<Request>) -> Vc<Self> {
-        Self::cell(TypescriptTypesAssetReference { origin, request })
-    }
 }
 
 #[turbo_tasks::function]

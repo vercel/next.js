@@ -28,7 +28,7 @@ use ecmascript::{
     chunk::EcmascriptChunkPlaceable,
     references::{follow_reexports, FollowExportsResult},
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    typescript::resolve::TypescriptTypesAssetReference,
+    typescript::resolve::type_resolve,
     EcmascriptModuleAsset, EcmascriptModuleAssetType, TreeShakingMode,
 };
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
@@ -50,9 +50,8 @@ use turbopack_core::{
         CssReferenceSubType, EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
-        AffectingResolvingAssetReference, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult,
+        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve, ModulePart,
+        ModuleResolveResult, ModuleResolveResultItem, ResolveResult,
     },
     source::Source,
 };
@@ -596,12 +595,12 @@ impl AssetContext for ModuleAssetContext {
         let mut result = self.process_resolve_result(result.resolve().await?, reference_type);
 
         if *self.is_types_resolving_enabled().await? {
-            let types_reference = TypescriptTypesAssetReference::new(
+            let types_result = type_resolve(
                 Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
                 request,
             );
 
-            result = result.with_reference(Vc::upcast(types_reference));
+            result = ModuleResolveResult::alternatives(vec![result, types_result]);
         }
 
         Ok(result)
@@ -617,25 +616,20 @@ impl AssetContext for ModuleAssetContext {
         let transition = this.transition;
         Ok(result
             .await?
-            .map_module(
-                |source| {
-                    let reference_type = reference_type.clone();
-                    async move {
-                        let process_result = if let Some(transition) = transition {
-                            transition.process(source, self, reference_type)
-                        } else {
-                            self.process_default(source, reference_type)
-                        };
-                        Ok(match *process_result.await? {
-                            ProcessResult::Module(m) => {
-                                ModuleResolveResultItem::Module(Vc::upcast(m))
-                            }
-                            ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
-                        })
-                    }
-                },
-                |i| async move { Ok(Vc::upcast(AffectingResolvingAssetReference::new(i))) },
-            )
+            .map_module(|source| {
+                let reference_type = reference_type.clone();
+                async move {
+                    let process_result = if let Some(transition) = transition {
+                        transition.process(source, self, reference_type)
+                    } else {
+                        self.process_default(source, reference_type)
+                    };
+                    Ok(match *process_result.await? {
+                        ProcessResult::Module(m) => ModuleResolveResultItem::Module(Vc::upcast(m)),
+                        ProcessResult::Ignore => ModuleResolveResultItem::Ignore,
+                    })
+                }
+            })
             .await?
             .into())
     }

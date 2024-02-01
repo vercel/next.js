@@ -7,7 +7,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::OutputAsset,
-    reference::all_modules,
+    reference::all_modules_and_affecting_sources,
 };
 
 #[turbo_tasks::value(shared)]
@@ -43,7 +43,7 @@ impl Asset for NftJsonAsset {
         let entry_path = &*self.entry.ident().path().await?;
         let mut result = Vec::new();
         if let Some(self_path) = parent_dir.get_relative_path_to(entry_path) {
-            let set = all_modules(self.entry);
+            let set = all_modules_and_affecting_sources(self.entry);
             for asset in set.await?.iter() {
                 let path = asset.ident().path().await?;
                 if let Some(rel_path) = parent_dir.get_relative_path_to(&path) {

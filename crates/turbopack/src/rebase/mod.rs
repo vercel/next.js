@@ -8,7 +8,7 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
-    reference::all_referenced_modules,
+    reference::referenced_modules_and_affecting_sources,
 };
 
 /// Converts a [Module] graph into an [OutputAsset] graph by placing it into a
@@ -51,7 +51,10 @@ impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let mut references = Vec::new();
-        for &module in all_referenced_modules(self.source).await?.iter() {
+        for &module in referenced_modules_and_affecting_sources(self.source)
+            .await?
+            .iter()
+        {
             references.push(Vc::upcast(RebasedAsset::new(
                 module,
                 self.input_dir,

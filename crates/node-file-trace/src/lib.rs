@@ -46,7 +46,7 @@ use turbopack_core::{
     issue::{IssueDescriptionExt, IssueReporter, IssueSeverity},
     module::{Module, Modules},
     output::OutputAsset,
-    reference::all_modules,
+    reference::all_modules_and_affecting_sources,
     resolve::options::{ImportMapping, ResolvedMap},
 };
 
@@ -567,7 +567,7 @@ async fn main_operation(
             )
             .await?;
             for module in modules.iter() {
-                let set = all_modules(*module)
+                let set = all_modules_and_affecting_sources(*module)
                     .issue_file_path(module.ident().path(), "gathering list of assets")
                     .await?;
                 for asset in set.await?.iter() {
