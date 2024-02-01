@@ -325,3 +325,59 @@ impl TransformOptions {
         self
     }
 }
+
+/// Defaults to false
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BoolOr<T> {
+    Bool(bool),
+    Data(T),
+}
+
+impl<T> Default for BoolOr<T> {
+    fn default() -> Self {
+        BoolOr::Bool(false)
+    }
+}
+
+impl<'de, T> Deserialize<'de> for BoolOr<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Deser<T> {
+            Bool(bool),
+            Obj(T),
+            EmptyObject(EmptyStruct),
+        }
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct EmptyStruct {}
+
+        use serde::__private::de;
+
+        let content = de::Content::deserialize(deserializer)?;
+
+        let deserializer = de::ContentRefDeserializer::<D::Error>::new(&content);
+
+        let res = Deser::deserialize(deserializer);
+
+        match res {
+            Ok(v) => Ok(match v {
+                Deser::Bool(v) => BoolOr::Bool(v),
+                Deser::Obj(v) => BoolOr::Data(v),
+                Deser::EmptyObject(_) => BoolOr::Bool(true),
+            }),
+            Err(..) => {
+                let d = de::ContentDeserializer::<D::Error>::new(content);
+                Ok(BoolOr::Data(T::deserialize(d)?))
+            }
+        }
+    }
+}
