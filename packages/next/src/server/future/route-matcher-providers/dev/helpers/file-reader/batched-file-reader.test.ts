@@ -54,7 +54,7 @@ describe('CachedFileReader', () => {
     await Promise.all(
       ['reject', 'resolve', 'reject', 'resolve'].map(async (directory) => {
         if (directory === 'reject') {
-          await expect(cached.read(directory)).rejects.toThrowError('rejected')
+          await expect(cached.read(directory)).rejects.toThrow('rejected')
         } else {
           await expect(cached.read(directory)).resolves.toEqual(resolved)
         }
