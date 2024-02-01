@@ -226,7 +226,7 @@
     "styled-components": "6.0.0-rc.3",
     "styled-jsx": "5.1.1",
     "styled-jsx-plugin-postcss": "3.0.2",
-    "swr": "^2.0.0",
+    "swr": "^2.2.4",
     "tailwindcss": "3.2.7",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",

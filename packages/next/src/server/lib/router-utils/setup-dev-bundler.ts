@@ -97,7 +97,7 @@ import {
   isInstrumentationHookFile,
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
-} from '../../../build/worker'
+} from '../../../build/utils'
 import {
   createOriginalStackFrame,
   getErrorSource,
@@ -1042,7 +1042,9 @@ async function startWatcher(opts: SetupOpts) {
 
         for await (const data of subscription) {
           processIssues(id, data)
-          sendTurbopackMessage(data)
+          if (data.type !== 'issues') {
+            sendTurbopackMessage(data)
+          }
         }
       } catch (e) {
         // The client might be using an HMR session from a previous server, tell them
@@ -1250,10 +1252,9 @@ async function startWatcher(opts: SetupOpts) {
     await writeManifests()
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    let versionInfo: VersionInfo = {
-      installed: '0.0.0',
-      staleness: 'unknown',
-    }
+    let versionInfo: VersionInfo = await getVersionInfo(
+      true || isTestMode || opts.telemetry.isEnabled
+    )
     const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
