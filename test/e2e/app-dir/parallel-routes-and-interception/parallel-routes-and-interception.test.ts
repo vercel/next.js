@@ -408,6 +408,34 @@ createNextDescribe(
         )
       })
 
+      it('should load CSS for a default page that exports another page', async () => {
+        const browser = await next.browser('/default-css')
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // the more page will now be using the page's `default.tsx` file, which re-exports the root page.
+        await browser.elementByCss('[href="/default-css/more"]').click()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // ensure that everything still works on a fresh load
+        await browser.refresh()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
       if (isNextDev) {
         it('should support parallel routes with no page component', async () => {
           const browser = await next.browser('/parallel-no-page/foo')

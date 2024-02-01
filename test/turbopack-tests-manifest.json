@@ -2427,10 +2427,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - crossOrigin config should render correctly with assetPrefix: \"/\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
