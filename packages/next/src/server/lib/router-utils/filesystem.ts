@@ -420,7 +420,7 @@ export async function setupFsCheck(opts: {
       if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+      itemPath = decodeURIComponent(removePathPrefix(itemPath, basePath)) || '/'
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
