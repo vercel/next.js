@@ -74,14 +74,19 @@ function requireWithFakeGlobalScope(params) {
 __name(requireWithFakeGlobalScope, "requireWithFakeGlobalScope");
 function load(scopedContext = {}) {
   const context = {};
+  const encodingImpl = requireWithFakeGlobalScope({
+    context,
+    id: "encoding.js",
+    sourceCode: require("./encoding.js.text.js"),
+    scopedContext
+  });
   assign(context, {
     TextDecoder,
     TextEncoder,
     TextEncoderStream: import_web.TextEncoderStream,
     TextDecoderStream: import_web.TextDecoderStream,
-    atob,
-    btoa,
-    performance
+    atob: encodingImpl.atob,
+    btoa: encodingImpl.btoa
   });
   const consoleImpl = requireWithFakeGlobalScope({
     context,
