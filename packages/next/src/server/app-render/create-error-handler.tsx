@@ -77,8 +77,7 @@ export function createErrorHandler({
             const { logAppDirError } =
               require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
             logAppDirError(err)
-          }
-          if (process.env.NODE_ENV === 'production') {
+          } else {
             console.error(err)
           }
         }

@@ -55,7 +55,7 @@ import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
-import { isDefaultRoute } from '../lib/is-default-route'
+import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -565,12 +565,9 @@ export async function exportAppImpl(
 
   const filteredPaths = exportPaths.filter(
     (route) =>
-      // Remove default routes -- they don't need to be exported
-      // and are only used for parallel route normalization
-      !isDefaultRoute(exportPathMap[route].page) &&
-      (exportPathMap[route]._isAppDir ||
-        // Remove API routes
-        !isAPIRoute(exportPathMap[route].page))
+      exportPathMap[route]._isAppDir ||
+      // Remove API routes
+      !isAPIRoute(exportPathMap[route].page)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -724,12 +721,22 @@ export async function exportAppImpl(
     byPath: new Map(),
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
+    turborepoAccessTraceResults: new Map(),
   }
 
   for (const { result, path } of results) {
     if (!result) continue
 
     const { page } = exportPathMap[path]
+
+    if (result.turborepoAccessTraceResult) {
+      collector.turborepoAccessTraceResults?.set(
+        path,
+        TurborepoAccessTraceResult.fromSerialized(
+          result.turborepoAccessTraceResult
+        )
+      )
+    }
 
     // Capture any render errors.
     if ('error' in result) {

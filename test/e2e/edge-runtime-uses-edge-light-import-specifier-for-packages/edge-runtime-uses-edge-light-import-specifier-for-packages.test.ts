@@ -26,7 +26,8 @@ createNextDescribe(
       const res = await next.fetch('/api/edge')
       const html = await res.json()
       expect(html).toEqual({
-        edgeLightPackage: 'edge-light',
+        // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
+        edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
         edgeLightPackageExports: 'edge-light',
       })
     })
@@ -35,7 +36,8 @@ createNextDescribe(
       const $ = await next.render$('/')
       const text = JSON.parse($('pre#result').text())
       expect(text).toEqual({
-        edgeLightPackage: 'edge-light',
+        // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
+        edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
         edgeLightPackageExports: 'edge-light',
       })
     })
@@ -44,7 +46,8 @@ createNextDescribe(
       const $ = await next.render$('/app-dir')
       const text = JSON.parse($('pre#result').text())
       expect(text).toEqual({
-        edgeLightPackage: 'edge-light',
+        // edge-light is only supported in `exports` and `imports` but webpack also adds the top level `edge-light` key incorrectly.
+        edgeLightPackage: process.env.TURBOPACK ? 'import' : 'edge-light',
         edgeLightPackageExports: 'edge-light',
       })
     })
