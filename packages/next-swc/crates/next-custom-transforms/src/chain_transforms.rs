@@ -61,7 +61,7 @@ pub struct TransformOptions {
     pub server_components: Option<react_server_components::Config>,
 
     #[serde(default)]
-    pub styled_jsx: Option<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
+    pub styled_jsx: BoolOr<turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config>,
 
     #[serde(default)]
     pub styled_components:
@@ -155,7 +155,7 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx {
+    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
         Either::Left(
             turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
                 cm.clone(),
@@ -337,6 +337,19 @@ pub enum BoolOr<T> {
 impl<T> Default for BoolOr<T> {
     fn default() -> Self {
         BoolOr::Bool(false)
+    }
+}
+
+impl<T> BoolOr<T> {
+    pub fn to_option(&self) -> Option<T>
+    where
+        T: Default + Clone,
+    {
+        match self {
+            BoolOr::Bool(false) => None,
+            BoolOr::Bool(true) => Some(Default::default()),
+            BoolOr::Data(v) => Some(v.clone()),
+        }
     }
 }
 
