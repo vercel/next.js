@@ -6,7 +6,7 @@
     "outDir": "dist",
     "jsx": "react-jsx",
     "resolveJsonModule": true,
-    "module": "commonjs",
+    "module": "NodeNext",
     "rootDir": "src"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
