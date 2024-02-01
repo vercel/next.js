@@ -2,7 +2,7 @@
 const nextConfig = {
   cacheHandler:
     process.env.NODE_ENV === "production"
-      ? require.resolve("./cache-handler.js")
+      ? require.resolve("./cache-handler.mjs")
       : undefined,
   env: {
     NEXT_PUBLIC_REDIS_INSIGHT_URL:
