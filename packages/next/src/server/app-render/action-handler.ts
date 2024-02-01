@@ -16,9 +16,8 @@ import {
 } from '../../client/components/app-router-headers'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
-  getRedirectStatusCodeFromError,
-  getURLFromRedirectError,
   isRedirectError,
+  parseRedirectError,
 } from '../../client/components/redirect'
 import RenderResult from '../render-result'
 import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
@@ -635,8 +634,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
     }
   } catch (err) {
     if (isRedirectError(err)) {
-      const redirectUrl = getURLFromRedirectError(err)
-      const statusCode = getRedirectStatusCodeFromError(err)
+      const { url: redirectUrl, statusCode } = parseRedirectError(err)
 
       await addRevalidationHeader(res, {
         staticGenerationStore,

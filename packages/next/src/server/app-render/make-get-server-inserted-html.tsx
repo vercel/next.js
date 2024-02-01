@@ -1,13 +1,27 @@
 import React from 'react'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
-  getURLFromRedirectError,
   isRedirectError,
-  getRedirectStatusCodeFromError,
+  type RedirectError,
+  parseRedirectError,
 } from '../../client/components/redirect'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+
+export function createRedirectMetaTag(error: RedirectError) {
+  const parsed = parseRedirectError(error)
+  const isPermanent =
+    parsed.statusCode === RedirectStatusCode.PermanentRedirect ? true : false
+
+  return (
+    <meta
+      httpEquiv="refresh"
+      content={`${isPermanent ? 0 : 1};url=${parsed.url}`}
+      key={error.digest}
+    />
+  )
+}
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -38,19 +52,7 @@ export function makeGetServerInsertedHTML({
           ) : null
         )
       } else if (isRedirectError(error)) {
-        const redirectUrl = getURLFromRedirectError(error)
-        const statusCode = getRedirectStatusCodeFromError(error)
-        const isPermanent =
-          statusCode === RedirectStatusCode.PermanentRedirect ? true : false
-        if (redirectUrl) {
-          errorMetaTags.push(
-            <meta
-              httpEquiv="refresh"
-              content={`${isPermanent ? 0 : 1};url=${redirectUrl}`}
-              key={error.digest}
-            />
-          )
-        }
+        errorMetaTags.push(createRedirectMetaTag(error))
       }
     }
 

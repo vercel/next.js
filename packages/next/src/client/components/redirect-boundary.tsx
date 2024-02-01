@@ -2,12 +2,7 @@
 import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
-import {
-  RedirectType,
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-} from './redirect'
+import { RedirectType, isRedirectError, parseRedirectError } from './redirect'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -50,9 +45,8 @@ export class RedirectErrorBoundary extends React.Component<
 
   static getDerivedStateFromError(error: any) {
     if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      const redirectType = getRedirectTypeFromError(error)
-      return { redirect: url, redirectType }
+      const { url, type } = parseRedirectError(error)
+      return { redirect: url, redirectType: type }
     }
     // Re-throw if error is not for redirect
     throw error

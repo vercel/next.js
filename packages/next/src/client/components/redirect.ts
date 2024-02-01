@@ -1,5 +1,6 @@
-import { requestAsyncStorage } from './request-async-storage.external'
 import type { ResponseCookies } from '../../server/web/spec-extension/cookies'
+
+import { requestAsyncStorage } from './request-async-storage.external'
 import { actionAsyncStorage } from './action-async-storage.external'
 import { RedirectStatusCode } from './redirect-status-code'
 
@@ -10,18 +11,30 @@ export enum RedirectType {
   replace = 'replace',
 }
 
-export type RedirectError<U extends string> = Error & {
-  digest: `${typeof REDIRECT_ERROR_CODE};${RedirectType};${U};${RedirectStatusCode};`
+type RedirectErrorDigest =
+  `${typeof REDIRECT_ERROR_CODE};${RedirectType};${string};${RedirectStatusCode};`
+
+export type RedirectError = Error & {
+  digest: RedirectErrorDigest
   mutableCookies: ResponseCookies
 }
 
-export function getRedirectError(
-  url: string,
-  type: RedirectType,
-  statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
-): RedirectError<typeof url> {
-  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError<typeof url>
-  error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
+type RedirectErrorDigestData = {
+  url: string
+  type: RedirectType
+  statusCode: RedirectStatusCode
+}
+
+/**
+ * Creates a redirect error with the given data. This error should be thrown at
+ * the call site of the invoked user function (e.g. `redirect`).
+ *
+ * @param data the data to create the redirect error with
+ * @returns the redirect error
+ */
+function getRedirectError(data: RedirectErrorDigestData): RedirectError {
+  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError
+  error.digest = `${REDIRECT_ERROR_CODE};${data.type};${data.url};${data.statusCode};`
   const requestStore = requestAsyncStorage.getStore()
   if (requestStore) {
     error.mutableCookies = requestStore.mutableCookies
@@ -46,16 +59,16 @@ export function redirect(
   type: RedirectType = RedirectType.replace
 ): never {
   const actionStore = actionAsyncStorage.getStore()
-  throw getRedirectError(
+  throw getRedirectError({
     url,
     type,
     // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
-    actionStore?.isAction
+    statusCode: actionStore?.isAction
       ? RedirectStatusCode.SeeOther
-      : RedirectStatusCode.TemporaryRedirect
-  )
+      : RedirectStatusCode.TemporaryRedirect,
+  })
 }
 
 /**
@@ -75,16 +88,16 @@ export function permanentRedirect(
   type: RedirectType = RedirectType.replace
 ): never {
   const actionStore = actionAsyncStorage.getStore()
-  throw getRedirectError(
+  throw getRedirectError({
     url,
     type,
     // If we're in an action, we want to use a 303 redirect
     // as we don't want the POST request to follow the redirect,
     // as it could result in erroneous re-submissions.
-    actionStore?.isAction
+    statusCode: actionStore?.isAction
       ? RedirectStatusCode.SeeOther
-      : RedirectStatusCode.PermanentRedirect
-  )
+      : RedirectStatusCode.PermanentRedirect,
+  })
 }
 
 /**
@@ -94,9 +107,7 @@ export function permanentRedirect(
  * @param error the error that may reference a redirect error
  * @returns true if the error is a redirect error
  */
-export function isRedirectError<U extends string>(
-  error: unknown
-): error is RedirectError<U> {
+export function isRedirectError(error: unknown): error is RedirectError {
   if (
     typeof error !== 'object' ||
     error === null ||
@@ -120,39 +131,19 @@ export function isRedirectError<U extends string>(
 }
 
 /**
- * Returns the encoded URL from the error if it's a RedirectError, null
- * otherwise. Note that this does not validate the URL returned.
+ * Parses a redirect error into a more easily digestible object.
  *
- * @param error the error that may be a redirect error
- * @return the url if the error was a redirect error
+ * @param error the error to parse
+ * @returns the parsed redirect error
  */
-export function getURLFromRedirectError<U extends string>(
-  error: RedirectError<U>
-): U
-export function getURLFromRedirectError(error: unknown): string | null {
-  if (!isRedirectError(error)) return null
+export function parseRedirectError(
+  error: RedirectError
+): RedirectErrorDigestData {
+  const [, type, url, statusCode] = error.digest.split(';', 4)
 
-  // Slices off the beginning of the digest that contains the code and the
-  // separating ';'.
-  return error.digest.split(';', 3)[2]
-}
-
-export function getRedirectTypeFromError<U extends string>(
-  error: RedirectError<U>
-): RedirectType {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
+  return {
+    url,
+    type: type as RedirectType,
+    statusCode: Number(statusCode) as RedirectStatusCode,
   }
-
-  return error.digest.split(';', 2)[1] as RedirectType
-}
-
-export function getRedirectStatusCodeFromError<U extends string>(
-  error: RedirectError<U>
-): number {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
-  }
-
-  return Number(error.digest.split(';', 4)[3])
 }

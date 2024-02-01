@@ -44,9 +44,8 @@ import { RequestAsyncStorageWrapper } from '../async-storage/request-async-stora
 import { StaticGenerationAsyncStorageWrapper } from '../async-storage/static-generation-async-storage-wrapper'
 import { isNotFoundError } from '../../client/components/not-found'
 import {
-  getURLFromRedirectError,
   isRedirectError,
-  getRedirectStatusCodeFromError,
+  parseRedirectError,
 } from '../../client/components/redirect'
 import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
@@ -1040,10 +1039,13 @@ async function renderToHTMLOrFlightImpl(
         if (isNotFoundError(err)) {
           res.statusCode = 404
         }
-        let hasRedirectError = false
-        if (isRedirectError(err)) {
-          hasRedirectError = true
-          res.statusCode = getRedirectStatusCodeFromError(err)
+
+        const hasRedirectError = isRedirectError(err)
+        if (hasRedirectError) {
+          const parsed = parseRedirectError(err)
+
+          res.statusCode = parsed.statusCode
+
           if (err.mutableCookies) {
             const headers = new Headers()
 
@@ -1053,10 +1055,8 @@ async function renderToHTMLOrFlightImpl(
               res.setHeader('set-cookie', Array.from(headers.values()))
             }
           }
-          const redirectUrl = addPathPrefix(
-            getURLFromRedirectError(err),
-            renderOpts.basePath
-          )
+
+          const redirectUrl = addPathPrefix(parsed.url, renderOpts.basePath)
           res.setHeader('Location', redirectUrl)
         }
 
