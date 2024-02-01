@@ -1,9 +1,13 @@
 import * as Bus from './internal/bus'
 import { parseStack } from './internal/helpers/parseStack'
+// @ts-expect-error
 import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
 import {
+  // @ts-expect-error
   hydrationErrorComponentStack,
+  // @ts-expect-error
   hydrationErrorWarning,
+  // @ts-expect-error
   patchConsoleError,
 } from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
 

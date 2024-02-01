@@ -127,13 +127,17 @@
       "types": "./dist/client/router.d.ts",
       "default": "./dist/client/router.js"
     },
+    "./script": {
+      "types": "./dist/client/script.d.ts",
+      "default": "./dist/client/script.js"
+    },
     "./server": {
       "types": "./dist/server/web/exports/index.d.ts",
       "default": "./dist/server/web/exports/index.js"
     },
-    "./script": {
-      "types": "./dist/client/script.d.ts",
-      "default": "./dist/client/script.js"
+    "./src/*": {
+      "types": "./src/*",
+      "default": "./src/*"
     },
     "./web-vitals": {
       "types": "./dist/client/web-vitals.d.ts",
