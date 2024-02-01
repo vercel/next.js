@@ -14,15 +14,10 @@ use turbopack_core::{
     module::Module,
     raw_module::RawModule,
     reference::ModuleReference,
-    resolve::{
-        pattern::Pattern, resolve_raw, AffectingResolvingAssetReference, ModuleResolveResult,
-        ResolveResultItem,
-    },
+    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult, ResolveResultItem},
     source::Source,
     target::{CompileTarget, Platform},
 };
-
-use crate::references::raw::FileSourceReference;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct NodePreGypConfigJson {
@@ -181,14 +176,12 @@ pub async fn resolve_node_pre_gyp_files(
                         _ => {}
                     }
                 }
-                return Ok(ModuleResolveResult::modules_with_references(
+                return Ok(ModuleResolveResult::modules_with_affecting_sources(
                     sources
                         .into_iter()
                         .map(|source| Vc::upcast(RawModule::new(source)))
                         .collect(),
-                    vec![Vc::upcast(AffectingResolvingAssetReference::new(
-                        Vc::upcast(FileSource::new(config_file_path)),
-                    ))],
+                    vec![Vc::upcast(FileSource::new(config_file_path))],
                 )
                 .into());
             }
@@ -248,12 +241,8 @@ pub async fn resolve_node_gyp_build_files(
     let binding_gyp_pat = Pattern::new(Pattern::Constant("binding.gyp".to_owned()));
     let gyp_file = resolve_raw(context_dir, binding_gyp_pat, true);
     if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
-        let mut merged_references = gyp_file
-            .await?
-            .get_affecting_sources()
-            .iter()
-            .map(|&r| Vc::upcast(AffectingResolvingAssetReference::new(r)))
-            .collect::<Vec<_>>();
+        let mut merged_affecting_sources =
+            gyp_file.await?.get_affecting_sources().collect::<Vec<_>>();
         if let AssetContent::File(file) = &*binding_gyp.content().await? {
             if let FileContent::Content(config_file) = &*file.await? {
                 if let Some(captured) =
@@ -274,21 +263,17 @@ pub async fn resolve_node_gyp_build_files(
                             &resolved_prebuilt_file.primary[..]
                         {
                             resolved.insert(source.resolve().await?);
-                            merged_references.extend(
-                                resolved_prebuilt_file
-                                    .affecting_sources
-                                    .iter()
-                                    .map(|&r| Vc::upcast(AffectingResolvingAssetReference::new(r))),
-                            );
+                            merged_affecting_sources
+                                .extend(resolved_prebuilt_file.affecting_sources.iter().copied());
                         }
                     }
                     if !resolved.is_empty() {
-                        return Ok(ModuleResolveResult::modules_with_references(
+                        return Ok(ModuleResolveResult::modules_with_affecting_sources(
                             resolved
                                 .into_iter()
                                 .map(|source| Vc::upcast(RawModule::new(source)))
                                 .collect(),
-                            merged_references,
+                            merged_affecting_sources,
                         )
                         .into());
                     }
@@ -397,12 +382,5 @@ pub async fn resolve_node_bindings_files(
         })
         .collect();
 
-    Ok(ModuleResolveResult::modules_with_references(
-        bindings_try,
-        vec![Vc::upcast(FileSourceReference::new(
-            Vc::upcast(FileSource::new(root_context_dir)),
-            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(file_name)]).into(),
-        ))],
-    )
-    .cell())
+    Ok(ModuleResolveResult::modules(bindings_try).cell())
 }
