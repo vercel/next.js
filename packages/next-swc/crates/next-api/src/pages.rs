@@ -657,13 +657,11 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let availablility_info = if let Some(depend_on) = this.depend_on {
-                depend_on
-                    .client_chunks_chunk_group()
-                    .await?
-                    .availability_info
+            let (availability_info, base_assets) = if let Some(depend_on) = this.depend_on {
+                let chunk_group = depend_on.client_chunks_chunk_group().await?;
+                (chunk_group.availability_info, Some(chunk_group.assets))
             } else {
-                AvailabilityInfo::Root
+                (AvailabilityInfo::Root, None)
             };
 
             let ChunkGroupResult {
@@ -676,7 +674,7 @@ impl PageEndpoint {
                         .client_runtime_entries()
                         .with_entry(Vc::upcast(client_main_module))
                         .with_entry(Vc::upcast(client_module)),
-                    Value::new(availablility_info),
+                    Value::new(availability_info),
                 )
                 .await?;
 
@@ -688,6 +686,10 @@ impl PageEndpoint {
                 self.client_relative_path(),
                 assets,
             )));
+
+            if let Some(base_assets) = base_assets {
+                new_assets.extend(base_assets.await?.iter().copied());
+            }
 
             Ok(ChunkGroupResult {
                 assets: Vc::cell(new_assets),
