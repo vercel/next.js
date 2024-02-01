@@ -110,6 +110,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
     Ok(Some(get_ecma_transform_rule(
         Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
         enable_mdx_rs,
+        true,
     )))
 }
 

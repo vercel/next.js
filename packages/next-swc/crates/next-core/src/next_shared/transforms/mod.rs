@@ -119,13 +119,17 @@ pub(crate) fn module_rule_match_pages_page_file(
 pub(crate) fn get_ecma_transform_rule(
     transformer: Box<dyn CustomTransformer + Send + Sync>,
     enable_mdx_rs: bool,
+    prepend: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(Vc::cell(transformer as _));
+    let (prepend, append) = if prepend {
+        (Vc::cell(vec![transformer]), Vc::cell(vec![]))
+    } else {
+        (Vc::cell(vec![]), Vc::cell(vec![transformer]))
+    };
 
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append }],
     )
 }

@@ -34,5 +34,6 @@ pub async fn get_styled_jsx_transform_rule(
     Ok(Some(get_ecma_transform_rule(
         Box::new(transformer),
         enable_mdx_rs,
+        true,
     )))
 }

@@ -45,6 +45,7 @@ pub async fn get_next_react_server_components_transform_rule2(
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(is_react_server_layer)),
         enable_mdx_rs,
+        true,
     ))
 }
 

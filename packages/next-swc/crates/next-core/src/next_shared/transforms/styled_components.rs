@@ -59,9 +59,8 @@ pub async fn get_styled_components_transform_rule(
         .await?
         .compiler
         .as_ref()
-        .map(|value| value.styled_components.as_ref())
-        .flatten()
-        .map(|config| match config {
+        .and_then(|value| value.styled_components.as_ref())
+        .and_then(|config| match config {
             StyledComponentsTransformOptionsOrBoolean::Boolean(true) => {
                 Some(StyledComponentsTransformer::new(&Default::default()))
             }
@@ -70,8 +69,7 @@ pub async fn get_styled_components_transform_rule(
             }
             _ => None,
         })
-        .flatten()
-        .map(|transformer| get_ecma_transform_rule(Box::new(transformer), enable_mdx_rs));
+        .map(|transformer| get_ecma_transform_rule(Box::new(transformer), enable_mdx_rs, true));
 
     Ok(module_rule)
 }
