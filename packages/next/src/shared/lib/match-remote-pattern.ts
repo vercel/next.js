@@ -19,7 +19,7 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
       `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
     )
   } else {
-    if (!makeRe(pattern.hostname, { dot: true }).test(url.hostname)) {
+    if (!makeRe(pattern.hostname).test(url.hostname)) {
       return false
     }
   }
