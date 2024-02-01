@@ -7,6 +7,7 @@ import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
+import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -47,6 +48,9 @@ async function webpackBuildWithWorker(
         env: {
           ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
+          NEXT_EXPERIMENTAL_REACT: JSON.stringify(
+            needsExperimentalReact(NextBuildContext.config!)
+          ),
         },
       },
     }) as Worker & typeof import('./impl')
@@ -58,7 +62,7 @@ async function webpackBuildWithWorker(
     }[]) {
       worker._child.on('exit', (code, signal) => {
         if (code || (signal && signal !== 'SIGINT')) {
-          console.error(
+          debug(
             `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
           )
         }

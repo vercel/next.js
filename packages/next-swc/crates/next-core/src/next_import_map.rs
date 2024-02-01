@@ -40,7 +40,6 @@ use crate::{
 pub async fn get_next_client_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -51,7 +50,6 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -66,32 +64,7 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match ty.into_value() {
-        ClientContextType::Pages { pages_dir } => {
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    request_to_import_mapping(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    request_to_import_mapping(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    request_to_import_mapping(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             let react_flavor =
                 if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
@@ -261,7 +234,6 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<I
 pub async fn get_next_server_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -272,7 +244,6 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -338,7 +309,6 @@ pub async fn get_next_server_import_map(
 pub async fn get_next_edge_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -399,7 +369,6 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -521,33 +490,23 @@ async fn insert_next_server_special_aliases(
         external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
     );
 
-    match ty {
-        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    external_if_node(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    external_if_node(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    external_if_node(pages_dir, "next/error"),
-                ],
+    let image_config = next_config.image_config().await?;
+    if let Some(loader_file) = image_config.loader_file.as_deref() {
+        import_map.insert_exact_alias(
+            "next/dist/shared/lib/image-loader",
+            request_to_import_mapping(project_path, loader_file),
+        );
+
+        if runtime == NextRuntime::Edge {
+            import_map.insert_exact_alias(
+                "next/dist/esm/shared/lib/image-loader",
+                request_to_import_mapping(project_path, loader_file),
             );
         }
+    }
+
+    match ty {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
@@ -745,7 +704,6 @@ async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
-    mode: NextMode,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -758,15 +716,6 @@ async fn insert_next_shared_aliases(
                 request_to_import_mapping(project_path, "./src/mdx-components"),
                 request_to_import_mapping(project_path, "@mdx-js/react"),
             ],
-        );
-    }
-
-    if mode != NextMode::Development {
-        // we use the next.js hydration code, so we replace the error overlay with our
-        // own
-        import_map.insert_exact_alias(
-            "next/dist/compiled/@next/react-dev-overlay/dist/client",
-            request_to_import_mapping(package_root, "./overlay/client.ts"),
         );
     }
 

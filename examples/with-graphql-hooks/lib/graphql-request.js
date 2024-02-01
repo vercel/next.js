@@ -1,4 +1,4 @@
-const defaultOpts = { useCache: true }
+const defaultOpts = { useCache: true };
 /**
  * Returns the result of a GraphQL query. It also adds the result to the
  * cache of the GraphQL client for better initial data population in pages.
@@ -7,24 +7,24 @@ const defaultOpts = { useCache: true }
  * do internally to make sure we generate the same cache key
  */
 export default async function graphQLRequest(client, query, options) {
-  const opts = { ...defaultOpts, ...options }
+  const opts = { ...defaultOpts, ...options };
   const operation = {
     query,
     variables: opts.variables,
     operationName: opts.operationName,
     persisted: opts.persisted,
-  }
+  };
 
   if (opts.persisted || (client.useGETForQueries && !opts.isMutation)) {
     opts.fetchOptionsOverrides = {
       ...opts.fetchOptionsOverrides,
-      method: 'GET',
-    }
+      method: "GET",
+    };
   }
 
-  const cacheKey = client.getCacheKey(operation, opts)
-  const cacheValue = await client.request(operation, opts)
+  const cacheKey = client.getCacheKey(operation, opts);
+  const cacheValue = await client.request(operation, opts);
 
-  client.saveCache(cacheKey, cacheValue)
-  return cacheValue
+  client.saveCache(cacheKey, cacheValue);
+  return cacheValue;
 }

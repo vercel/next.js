@@ -36,6 +36,10 @@ import { isPostpone } from '../server/lib/router-utils/is-postpone'
 import { isMissingPostponeDataError } from '../server/app-render/is-missing-postpone-error'
 import { isDynamicUsageError } from './helpers/is-dynamic-usage-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+} from '../build/turborepo-access-trace'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -60,10 +64,10 @@ async function exportPageImpl(
     optimizeCss,
     disableOptimizedLoading,
     debugOutput = false,
-    isrMemoryCacheSize,
+    cacheMaxMemorySize,
     fetchCache,
     fetchCacheKeyPrefix,
-    incrementalCacheHandlerPath,
+    cacheHandler,
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
@@ -222,8 +226,8 @@ async function exportPageImpl(
     const incrementalCache =
       isAppDir && fetchCache
         ? await createIncrementalCache({
-            incrementalCacheHandlerPath,
-            isrMemoryCacheSize,
+            cacheHandler,
+            cacheMaxMemorySize,
             fetchCacheKeyPrefix,
             distDir,
             dir,
@@ -264,7 +268,7 @@ async function exportPageImpl(
       optimizeFonts,
       optimizeCss,
       disableOptimizedLoading,
-      fontManifest: optimizeFonts ? requireFontManifest(distDir) : null,
+      fontManifest: optimizeFonts ? requireFontManifest(distDir) : undefined,
       locale,
       supportsDynamicHTML: false,
       originalPathname: page,
@@ -354,10 +358,14 @@ export default async function exportPage(
 
   const start = Date.now()
 
+  const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
   // Export the page.
-  const result = await exportPageSpan.traceAsyncFn(async () => {
-    return await exportPageImpl(input, baseFileWriter)
-  })
+  const result = await exportPageSpan.traceAsyncFn(() =>
+    turborepoTraceAccess(
+      () => exportPageImpl(input, baseFileWriter),
+      turborepoAccessTraceResult
+    )
+  )
 
   // If there was no result, then we can exit early.
   if (!result) return
@@ -377,6 +385,7 @@ export default async function exportPage(
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,
     hasPostponed: result.hasPostponed,
+    turborepoAccessTraceResult: turborepoAccessTraceResult.serialize(),
   }
 }
 

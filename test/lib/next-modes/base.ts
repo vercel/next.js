@@ -8,8 +8,9 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/src/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP } from 'next-test-utils'
+import { renderViaHTTP, fetchViaHTTP, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
+import { once } from 'events'
 import { BrowserInterface } from '../browsers/base'
 import escapeStringRegexp from 'escape-string-regexp'
 
@@ -59,7 +60,7 @@ export class NextInstance {
   public testDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
-  protected childProcess: ChildProcess
+  protected childProcess?: ChildProcess
   protected _url: string
   protected _parsedUrl: URL
   protected packageJson?: PackageJson = {}
@@ -303,20 +304,6 @@ export class NextInstance {
       new RegExp(escapeStringRegexp(this.testDir), 'g'),
       'TEST_DIR'
     )
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/,----/, ',-[1:1]')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
-    return content
-  }
-
-  // the dev binary for next-swc is missing file references
-  // so this normalizes to allow snapshots to match
-  public normalizeSnapshot(content) {
-    if (process.env.NEXT_SWC_DEV_BIN) {
-      content = content.replace(/TEST_DIR.*?:/g, '')
-      content = content.replace(/\[\.\/.*?:/, '[')
-    }
     return content
   }
 
@@ -351,13 +338,7 @@ export class NextInstance {
   public async stop(): Promise<void> {
     this.isStopping = true
     if (this.childProcess) {
-      let exitResolve
-      const exitPromise = new Promise((resolve) => {
-        exitResolve = resolve
-      })
-      this.childProcess.addListener('exit', () => {
-        exitResolve()
-      })
+      const exitPromise = once(this.childProcess, 'exit')
       await new Promise<void>((resolve) => {
         treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
           if (err) {
@@ -447,7 +428,7 @@ export class NextInstance {
     // to connect the WebSocket and start watching.
     if (process.env.TURBOPACK) {
       require('console').log('fs dev delay before', filename)
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      await waitFor(500)
     }
   }
   private async handleDevWatchDelayAfterChange(filename: string) {

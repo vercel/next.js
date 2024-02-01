@@ -457,6 +457,7 @@ impl Project {
             DevChunkingContext::builder(
                 self.project_path(),
                 node_root,
+                node_root,
                 node_root.join("chunks".to_string()),
                 node_root.join("assets".to_string()),
                 node_build_environment(),
@@ -529,6 +530,8 @@ impl Project {
         get_edge_chunking_context(
             self.project_path(),
             self.node_root(),
+            self.client_relative_path(),
+            self.next_config().computed_asset_prefix(),
             self.edge_compile_time_info().environment(),
         )
     }
@@ -590,16 +593,16 @@ impl Project {
         let compiler_options = config.compiler.as_ref();
         let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
         let styled_components_enabled = compiler_options
-            .map(|c| c.styled_components.is_some())
+            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
             .and_then(|c| c.react_remove_properties)
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .map(|c| c.remove_console.is_some())
+            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .map(|c| c.emotion.is_some())
+            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
@@ -784,16 +787,19 @@ impl Project {
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
 
+            let client_relative_path = self.client_relative_path();
+            let node_root = self.node_root();
+
             self.await?
                 .versioned_content_map
-                .insert_output_assets(all_output_assets)
+                .insert_output_assets(all_output_assets, client_relative_path, node_root)
                 .await?;
 
             Ok(emit_assets(
                 *all_output_assets.await?,
                 self.node_root(),
-                self.client_relative_path(),
-                self.node_root(),
+                client_relative_path,
+                node_root,
             ))
         }
         .instrument(span)
@@ -809,18 +815,6 @@ impl Project {
             .await?
             .versioned_content_map
             .get(self.client_relative_path().join(identifier)))
-    }
-
-    #[turbo_tasks::function]
-    async fn hmr_content_and_write(
-        self: Vc<Self>,
-        identifier: String,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        Ok(self.await?.versioned_content_map.get_and_write(
-            self.client_relative_path().join(identifier),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -859,7 +853,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content_and_write(identifier).update(from))
+        Ok(self.hmr_content(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is

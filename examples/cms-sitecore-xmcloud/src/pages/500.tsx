@@ -1,15 +1,15 @@
-import Head from 'next/head'
+import Head from "next/head";
 import {
   GraphQLErrorPagesService,
   SitecoreContext,
   ErrorPages,
-} from '@sitecore-jss/sitecore-jss-nextjs'
-import { SitecorePageProps } from 'lib/page-props'
-import Layout from 'src/Layout'
-import { componentFactory } from 'temp/componentFactory'
-import { GetStaticProps } from 'next'
-import config from 'temp/config'
-import { siteResolver } from 'lib/site-resolver'
+} from "@sitecore-jss/sitecore-jss-nextjs";
+import { SitecorePageProps } from "lib/page-props";
+import Layout from "src/Layout";
+import { componentFactory } from "temp/componentFactory";
+import { GetStaticProps } from "next";
+import config from "temp/config";
+import { siteResolver } from "lib/site-resolver";
 
 /**
  * Rendered in case if we have 500 error
@@ -28,11 +28,11 @@ const ServerError = (): JSX.Element => (
       <a href="/">Go to the Home page</a>
     </div>
   </>
-)
+);
 
 const Custom500 = (props: SitecorePageProps): JSX.Element => {
   if (!(props && props.layoutData)) {
-    return <ServerError />
+    return <ServerError />;
   }
 
   return (
@@ -42,25 +42,25 @@ const Custom500 = (props: SitecorePageProps): JSX.Element => {
     >
       <Layout layoutData={props.layoutData} />
     </SitecoreContext>
-  )
-}
+  );
+};
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const site = siteResolver.getByName(config.jssAppName)
+  const site = siteResolver.getByName(config.jssAppName);
   const errorPagesService = new GraphQLErrorPagesService({
     endpoint: config.graphQLEndpoint,
     apiKey: config.sitecoreApiKey,
     siteName: site.name,
     language: context.locale || context.defaultLocale || config.defaultLanguage,
-  })
-  let resultErrorPages: ErrorPages | null = null
+  });
+  let resultErrorPages: ErrorPages | null = null;
 
   if (!process.env.DISABLE_SSG_FETCH) {
     try {
-      resultErrorPages = await errorPagesService.fetchErrorPages()
+      resultErrorPages = await errorPagesService.fetchErrorPages();
     } catch (error) {
-      console.log('Error occurred while fetching error pages')
-      console.log(error)
+      console.log("Error occurred while fetching error pages");
+      console.log(error);
     }
   }
 
@@ -68,7 +68,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
     props: {
       layoutData: resultErrorPages?.serverErrorPage?.rendered || null,
     },
-  }
-}
+  };
+};
 
-export default Custom500
+export default Custom500;

@@ -12,7 +12,7 @@ createNextDescribe(
       async function validateDomNodes(selector: string) {
         expect(await $(`${selector} .img`).prop('tagName')).toBe('IMG')
         expect(await $(`${selector} .link`).prop('tagName')).toBe('A')
-        expect(await $(`${selector} .unstable_getImgProps`).text()).toContain(
+        expect(await $(`${selector} .typeof-getImageProps`).text()).toContain(
           'function'
         )
       }
@@ -34,6 +34,12 @@ createNextDescribe(
         'without-ext'
       )
       expect(await $('.root').text()).toContain('pages')
+    })
+
+    it('should support next/og image', async () => {
+      const res = await next.fetch('/opengraph-image')
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toBe('image/png')
     })
   }
 )
