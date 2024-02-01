@@ -184,7 +184,7 @@ createNextDescribe(
         try {
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
-            'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
+            'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
           )
         } finally {
           await browser.close()
@@ -194,7 +194,7 @@ createNextDescribe(
         try {
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
-            'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
+            'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
           )
         } finally {
           await browser.close()
@@ -204,7 +204,7 @@ createNextDescribe(
         try {
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
-            'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
+            'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`'
           )
         } finally {
           await browser.close()
@@ -219,13 +219,13 @@ createNextDescribe(
         }
         // Error: Page with `dynamic = "error"` couldn't be rendered statically because it used `headers`
         expect(next.cliOutput).toMatch(
-          'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
+          'Error: Route /cookies with `dynamic = "error"` couldn\'t be rendered statically because it used `cookies`'
         )
         expect(next.cliOutput).toMatch(
-          'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
+          'Error: Route /headers with `dynamic = "error"` couldn\'t be rendered statically because it used `headers`'
         )
         expect(next.cliOutput).toMatch(
-          'Error: Page with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`.'
+          'Error: Route /search with `dynamic = "error"` couldn\'t be rendered statically because it used `searchParams`.'
         )
       })
     }
@@ -254,7 +254,7 @@ createNextDescribe(
         try {
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
-            'Error: used "cookies" inside a function cached with "unstable_cache(...)".'
+            'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
           )
         } finally {
           await browser.close()
@@ -264,7 +264,7 @@ createNextDescribe(
         try {
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
-            'Error: used "headers" inside a function cached with "unstable_cache(...)".'
+            'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
           )
         } finally {
           await browser.close()
@@ -278,10 +278,10 @@ createNextDescribe(
           // We expect this to fail
         }
         expect(next.cliOutput).toMatch(
-          'Error: used "cookies" inside a function cached with "unstable_cache(...)".'
+          'Error: Route /cookies used "cookies" inside a function cached with "unstable_cache(...)".'
         )
         expect(next.cliOutput).toMatch(
-          'Error: used "headers" inside a function cached with "unstable_cache(...)".'
+          'Error: Route /headers used "headers" inside a function cached with "unstable_cache(...)".'
         )
       })
     }

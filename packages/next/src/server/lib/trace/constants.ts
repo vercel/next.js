@@ -60,6 +60,7 @@ enum NextNodeServerSpan {
   renderError = 'NextNodeServer.renderError',
   renderErrorToHTML = 'NextNodeServer.renderErrorToHTML',
   render404 = 'NextNodeServer.render404',
+  startResponse = 'NextNodeServer.startResponse',
 
   // nested inner span, does not require parent scope name
   route = 'route',
@@ -132,6 +133,7 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.createComponentTree,
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
+  NextNodeServerSpan.startResponse,
 ]
 
 export {
