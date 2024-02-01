@@ -1173,8 +1173,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 2.5.8
-        version: 2.5.8
+        specifier: 2.5.6
+        version: 2.5.6
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -3570,8 +3570,8 @@ packages:
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/format@2.2.1:
-    resolution: {integrity: sha512-JQTRVuiusQLNNLe2W9tnzBlV/GvSVcozLl4XZHk5swnRZ/v6jp8TqR8P7sqmJsQqblDZ3EztcWmLDbhRje/+8g==}
+  /@edge-runtime/format@2.2.0:
+    resolution: {integrity: sha512-gPrS6AVw/qJJL0vcxMXv4kFXCU3ZTCD1uuJpwX15YxHV8BgU9OG5v9LrkkXcr96PBT/9epypfNJMhlWADuEziw==}
     engines: {node: '>=16'}
     dev: true
 
@@ -3591,9 +3591,21 @@ packages:
     engines: {node: '>=16'}
     dev: true
 
+  /@edge-runtime/primitives@4.0.4:
+    resolution: {integrity: sha512-ktlFVHheT3mXz++atzAB13p/+VLMLiinWvn68/wfpLjsat/LuCccOGuNIe8gLPdVbucvw6N8TTn39iRVwz4gxA==}
+    engines: {node: '>=16'}
+    dev: true
+
   /@edge-runtime/primitives@4.0.6:
     resolution: {integrity: sha512-Ahv7SdVJiFryuauSmubY4bVYvVWsf2h/n67TRRT5ERs6eK90xyeCB3hmn1ExTqaZtxO0Q9QTbEUXVxz6o4iSzw==}
     engines: {node: '>=16'}
+    dev: true
+
+  /@edge-runtime/vm@3.1.6:
+    resolution: {integrity: sha512-ChMpk3eBZegGIkHjoDDQhnnx+c5rzolC/2+NNymVJsivHtTVMIYQAOdG4jyTUMhmmrEGnXUgnHxOflR+1M4SIA==}
+    engines: {node: '>=16'}
+    dependencies:
+      '@edge-runtime/primitives': 4.0.4
     dev: true
 
   /@edge-runtime/vm@3.1.8:
@@ -11201,17 +11213,17 @@ packages:
       safe-buffer: 5.2.1
     dev: true
 
-  /edge-runtime@2.5.8:
-    resolution: {integrity: sha512-O0jxOmXv1tUn5r8nYlY37yQKc3ad6dSpweGbQ2qkw4sqDN7Y7SVJrNMN1uz2oELEkYzLoFV1eT/5d9IXRGdKdw==}
+  /edge-runtime@2.5.6:
+    resolution: {integrity: sha512-QVXIhba3bmyVxpENf7stptu5RSqYWeMSg0B5amqZAbBVJx7rLKvvLikgtrI4tzP+ilMsxqlqC6fZggb6ePmpFQ==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
-      '@edge-runtime/format': 2.2.1
-      '@edge-runtime/ponyfill': 2.4.2
-      '@edge-runtime/vm': 3.1.8
+      '@edge-runtime/format': 2.2.0
+      '@edge-runtime/vm': 3.1.6
       async-listen: 3.0.1
       mri: 1.2.0
       picocolors: 1.0.0
+      pretty-bytes: 5.6.0
       pretty-ms: 7.0.1
       signal-exit: 4.0.2
       time-span: 4.0.0
