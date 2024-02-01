@@ -5,10 +5,10 @@
     "allowJs": true,
     "resolveJsonModule": true,
     "jsx": "react-jsx",
-    "module": "NodeNext",
+    "module": "esnext",
     "target": "ESNext",
     "esModuleInterop": true,
-    "moduleResolution": "NodeNext",
+    "moduleResolution": "node",
     "baseUrl": ".",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
