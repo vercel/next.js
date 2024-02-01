@@ -16,6 +16,7 @@ use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
+    next_config::NextConfig,
     util::NextRuntime,
 };
 
@@ -30,16 +31,22 @@ impl ClientReferenceManifest {
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
         ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        asset_prefix: Vc<Option<String>>,
+        next_config: Vc<NextConfig>,
         runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
-        entry_manifest.module_loading.prefix = asset_prefix
+        entry_manifest.module_loading.prefix = next_config
+            .computed_asset_prefix()
             .await?
             .as_ref()
             .map(|p| p.to_owned())
             .unwrap_or_default();
-        entry_manifest.module_loading.cross_origin = None;
+
+        entry_manifest.module_loading.cross_origin = next_config
+            .await?
+            .cross_origin
+            .as_ref()
+            .map(|p| p.to_owned());
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;

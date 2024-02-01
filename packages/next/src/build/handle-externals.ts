@@ -9,7 +9,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackAppLayer, isWebpackServerLayer } from './worker'
+import { isWebpackAppLayer, isWebpackServerLayer } from './utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
