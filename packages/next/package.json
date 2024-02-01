@@ -9,68 +9,137 @@
   "homepage": "https://nextjs.org",
   "types": "index.d.ts",
   "files": [
+    "*.d.ts",
+    "*.js",
     "dist",
-    "app.js",
-    "app.d.ts",
-    "babel.js",
-    "babel.d.ts",
-    "client.js",
-    "client.d.ts",
-    "compat",
-    "cache.js",
-    "cache.d.ts",
-    "config.js",
-    "config.d.ts",
-    "constants.js",
-    "constants.d.ts",
-    "document.js",
-    "document.d.ts",
-    "dynamic.js",
-    "dynamic.d.ts",
-    "error.js",
-    "error.d.ts",
-    "future",
-    "legacy",
-    "script.js",
-    "script.d.ts",
-    "server.js",
-    "server.d.ts",
-    "head.js",
-    "head.d.ts",
-    "image.js",
-    "image.d.ts",
-    "link.js",
-    "link.d.ts",
-    "router.js",
-    "router.d.ts",
-    "jest.js",
-    "jest.d.ts",
-    "amp.js",
-    "amp.d.ts",
-    "og.js",
-    "og.d.ts",
-    "index.d.ts",
-    "types/index.d.ts",
-    "types/global.d.ts",
-    "types/compiled.d.ts",
-    "image-types/global.d.ts",
-    "navigation-types/navigation.d.ts",
-    "navigation-types/compat/navigation.d.ts",
     "font",
-    "navigation.js",
-    "navigation.d.ts",
-    "headers.js",
-    "headers.d.ts",
+    "image-types/global.d.ts",
+    "legacy",
     "navigation-types",
-    "web-vitals.js",
-    "web-vitals.d.ts",
-    "experimental/testmode/playwright.js",
-    "experimental/testmode/playwright.d.ts",
-    "experimental/testmode/playwright/msw.js",
-    "experimental/testmode/playwright/msw.d.ts",
-    "experimental/testmode/proxy.js",
-    "experimental/testmode/proxy.d.ts"
+    "types/compiled.d.ts",
+    "types/global.d.ts",
+    "types/index.d.ts"
   ],
+  "exports": {
+    ".": {
+      "type": "./index.d.ts"
+    },
+    "./amp": {
+      "types": "./dist/shared/lib/amp.d.ts",
+      "default": "./dist/shared/lib/amp.js"
+    },
+    "./app": {
+      "types": "./dist/pages/_app.d.ts",
+      "default": "./dist/pages/_app.js"
+    },
+    "./babel": {
+      "types": "./dist/build/babel/preset.d.ts",
+      "default": "./dist/build/babel/preset.js"
+    },
+    "./cache": {
+      "types": "./dist/cache.d.ts",
+      "default": "./dist/cache.js"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./compat/router": {
+      "types": "./dist/client/compat/router.d.ts",
+      "default": "./dist/client/compat/router.js"
+    },
+    "./config": {
+      "types": "./dist/shared/lib/runtime-config.external.d.ts",
+      "default": "./dist/shared/lib/runtime-config.external.js"
+    },
+    "./constants": {
+      "types": "./dist/shared/lib/constants.d.ts",
+      "default": "./dist/shared/lib/constants.js"
+    },
+    "./document": {
+      "types": "./dist/pages/_document.d.ts",
+      "default": "./dist/pages/_document.js"
+    },
+    "./dist/*": {
+      "types": "./dist/*",
+      "default": "./dist/*"
+    },
+    "./dynamic": {
+      "types": "./dist/shared/lib/dynamic.d.ts",
+      "default": "./dist/shared/lib/dynamic.js"
+    },
+    "./error": {
+      "types": "./dist/pages/_error.d.ts",
+      "default": "./dist/pages/_error.js"
+    },
+    "./experimental/testmode/playwright": {
+      "types": "./dist/experimental/testmode/playwright.d.ts",
+      "default": "./dist/experimental/testmode/playwright.js"
+    },
+    "./experimental/testmode/proxy": {
+      "types": "./dist/experimental/testmode/proxy.d.ts",
+      "default": "./dist/experimental/testmode/proxy.js"
+    },
+    "./font": {
+      "types": "./font/index.d.ts"
+    },
+    "./font/google": {
+      "types": "./font/google/index.d.ts",
+      "default": "./font/google/index.js"
+    },
+    "./font/local": {
+      "types": "./font/local/index.d.ts",
+      "default": "./font/local/index.js"
+    },
+    "./head": {
+      "types": "./dist/shared/lib/head.d.ts",
+      "default": "./dist/shared/lib/head.js"
+    },
+    "./headers": {
+      "types": "./dist/client/components/headers.d.ts",
+      "default": "./dist/client/components/headers.js"
+    },
+    "./image": {
+      "types": "./dist/shared/lib/image-external.d.ts",
+      "default": "./dist/shared/lib/image-external.js"
+    },
+    "./jest": {
+      "types": "./dist/build/jest/jest.d.ts",
+      "default": "./dist/build/jest/jest.js"
+    },
+    "./legacy/image": {
+      "types": "./dist/client/legacy/image.d.ts",
+      "default": "./dist/client/legacy/image.js"
+    },
+    "./link": {
+      "types": "./dist/client/link.d.ts",
+      "default": "./dist/client/link.js"
+    },
+    "./navigation": {
+      "types": "./dist/client/components/navigation.d.ts",
+      "default": "./dist/client/components/navigation.js"
+    },
+    "./og": {
+      "types": "./dist/server/og/image-response.d.ts",
+      "default": "./dist/server/og/image-response.js"
+    },
+    "./router": {
+      "types": "./dist/client/router.d.ts",
+      "default": "./dist/client/router.js"
+    },
+    "./server": {
+      "types": "./dist/server/web/exports/index.d.ts",
+      "default": "./dist/server/web/exports/index.js"
+    },
+    "./script": {
+      "types": "./dist/client/script.d.ts",
+      "default": "./dist/client/script.js"
+    },
+    "./web-vitals": {
+      "types": "./dist/client/web-vitals.d.ts",
+      "default": "./dist/client/web-vitals.js"
+    }
+  },
   "bin": {
     "next": "./dist/bin/next"
   },
