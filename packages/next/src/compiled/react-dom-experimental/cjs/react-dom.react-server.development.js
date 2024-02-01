@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom.shared-subset.development.js
+ * react-dom.react-server.development.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *

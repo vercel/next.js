@@ -1,6 +1,6 @@
 /**
  * @license React
- * react-dom.shared-subset.production.min.js
+ * react-dom.react-server.production.min.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
