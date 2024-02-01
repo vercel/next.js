@@ -1489,11 +1489,11 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page"
+      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
     "failed": [
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)"
     ],
     "pending": [],
     "flakey": [],
