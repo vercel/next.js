@@ -6,7 +6,7 @@ import { check } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       'styled-components': '5.1.0',
