@@ -525,8 +525,8 @@ importers:
         specifier: 3.0.2
         version: 3.0.2
       swr:
-        specifier: ^2.0.0
-        version: 2.0.0(react@18.2.0)
+        specifier: ^2.2.4
+        version: 2.2.4(react@18.2.0)
       tailwindcss:
         specifier: 3.2.7
         version: 3.2.7(postcss@8.4.31)
@@ -23492,12 +23492,12 @@ packages:
       stable: 0.1.8
     dev: true
 
-  /swr@2.0.0(react@18.2.0):
-    resolution: {integrity: sha512-IhUx5yPkX+Fut3h0SqZycnaNLXLXsb2ECFq0Y29cxnK7d8r7auY2JWNbCW3IX+EqXUg3rwNJFlhrw5Ye/b6k7w==}
-    engines: {pnpm: '7'}
+  /swr@2.2.4(react@18.2.0):
+    resolution: {integrity: sha512-njiZ/4RiIhoOlAaLYDqwz5qH/KZXVilRLvomrx83HjzCWTfa+InyfAjv05PSFxnmLzZkNO9ZfvgoqzAaEI4sGQ==}
     peerDependencies:
       react: ^16.11.0 || ^17.0.0 || ^18.0.0
     dependencies:
+      client-only: 0.0.1
       react: 18.2.0
       use-sync-external-store: 1.2.0(react@18.2.0)
     dev: true
