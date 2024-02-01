@@ -912,13 +912,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
+      const isHttps = !!(originalRequest.socket as TLSSocket)?.encrypted
       req.headers['x-forwarded-host'] ??= req.headers['host'] ?? this.hostname
-      req.headers['x-forwarded-port'] ??= this.port ? this.port.toString() : '80'
+      req.headers['x-forwarded-port'] ??= this.port ? this.port.toString() : isHttps ? '443' : '80'
       const { originalRequest } = req as NodeNextRequest
-      req.headers['x-forwarded-proto'] ??= (originalRequest.socket as TLSSocket)
-        ?.encrypted
-        ? 'https'
-        : 'http'
+      req.headers['x-forwarded-proto'] ??= isHttps ? 'https' : 'http'
       req.headers['x-forwarded-for'] ??= originalRequest.socket?.remoteAddress
 
       // This should be done before any normalization of the pathname happens as
