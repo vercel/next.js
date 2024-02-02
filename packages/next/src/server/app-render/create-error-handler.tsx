@@ -30,12 +30,17 @@ export function createErrorHandler({
   dev?: boolean
   isNextExport?: boolean
   errorLogger?: (err: any) => Promise<void>
-  capturedErrors: Error[]
-  allCapturedErrors?: Error[]
+  capturedErrors: Map<string, Error>
+  allCapturedErrors?: Map<string, Error>
   silenceLogger?: boolean
 }): ErrorHandler {
   return (err: any, errorInfo: any) => {
-    if (allCapturedErrors) allCapturedErrors.push(err)
+    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+    const digest =
+      err.digest ||
+      stringHash(err.message + (err.stack || errorInfo.stack || '')).toString()
+
+    if (allCapturedErrors) allCapturedErrors.set(digest, err)
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.
@@ -97,7 +102,7 @@ export function createErrorHandler({
       err.digest = computedDigest
     }
 
-    capturedErrors.push(err)
+    capturedErrors.set(digest, err)
 
     return err.digest
   }

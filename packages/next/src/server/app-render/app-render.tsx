@@ -627,8 +627,8 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const capturedErrors: Error[] = []
-  const allCapturedErrors: Error[] = []
+  const capturedErrors: Map<string, Error> = new Map()
+  const allCapturedErrors: Map<string, Error> = new Map()
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
   const { isStaticGeneration } = staticGenerationStore
@@ -967,7 +967,8 @@ async function renderToHTMLOrFlightImpl(
         const options: ContinueStreamOptions = {
           inlinedDataStream: renderInlinedDataTransformStream.readable,
           isStaticGeneration: isStaticGeneration || generateStaticHTML,
-          getServerInsertedHTML: () => getServerInsertedHTML(allCapturedErrors),
+          getServerInsertedHTML: () =>
+            getServerInsertedHTML([...allCapturedErrors.values()]),
           serverInsertedHTMLToHead: !renderOpts.postponed,
           // If this render generated a postponed state or this is a resume
           // render, we don't want to validate the root layout as it's already
@@ -988,9 +989,7 @@ async function renderToHTMLOrFlightImpl(
 
         return { stream }
       } catch (caughtError: any) {
-        const originalError = capturedErrors.find(
-          (e: any) => e.digest === caughtError.digest
-        )
+        const originalError = capturedErrors.get(caughtError.digest)
         const err = originalError || caughtError
 
         if (
@@ -1231,6 +1230,10 @@ async function renderToHTMLOrFlightImpl(
   // It got here, which means it did not reject, so clear the timeout to avoid
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
+  const hasCapturedError = capturedErrors.size > 0
+  const firstCapturedError = hasCapturedError
+    ? capturedErrors.values().next().value
+    : null
 
   // If PPR is enabled and the postpone was triggered but lacks the postponed
   // state information then we should error out unless the client side rendering
@@ -1252,12 +1255,12 @@ async function renderToHTMLOrFlightImpl(
         `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
     )
 
-    if (capturedErrors.length > 0) {
+    if (capturedErrors.size > 0) {
       warn(
         'The following error was thrown during build, and may help identify the source of the issue:'
       )
 
-      error(capturedErrors[0])
+      error(firstCapturedError)
     }
 
     throw new MissingPostponeDataError(
@@ -1273,8 +1276,8 @@ async function renderToHTMLOrFlightImpl(
 
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
-  if (capturedErrors.length > 0) {
-    throw capturedErrors[0]
+  if (hasCapturedError) {
+    throw firstCapturedError
   }
 
   // Wait for and collect the flight payload data if we don't have it

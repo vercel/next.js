@@ -28,7 +28,7 @@ declare module 'react-dom/server.edge' {
     children: JSX.Element,
     postponedState: object,
     options?: {
-      onError?: (error: Error) => void
+      onError?: (error: Error, errorInfo: unknown) => void
     }
   ): Promise<ReadableStream<Uint8Array>>
 
@@ -117,7 +117,7 @@ declare module 'react-dom/static.edge' {
   export function prerender(
     children: JSX.Element,
     options?: {
-      onError?: (error: Error) => void
+      onError?: (error: Error, errorInfo: unknown) => void
       onHeaders?: (headers: Headers) => void
     }
   ): Promise<{
