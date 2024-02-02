@@ -201,7 +201,7 @@ async function VideoComponent({ fileName }) {
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
+      <source src={url} type="video/mp4" />
       Your browser does not support the video tag.
     </video>
   );
@@ -225,7 +225,7 @@ async function VideoComponent({ fileName }) {
 
   return (
     <video controls preload="none" aria-label="Video player">
-      <source src={url} type="video/mp4">
+      <source src={url} type="video/mp4" />
       <track
         src={captionsUrl}
         kind="subtitles"
