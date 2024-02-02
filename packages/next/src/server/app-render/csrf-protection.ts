@@ -1,3 +1,4 @@
+/** @todo check how picomatch works and either update it or correct the comments (micromatch -> picomatch) */
 // micromatch is only available at node runtime, so it cannot be used here since the code path that calls this function
 // can be run from edge. This is a simple implementation that safely achieves the required functionality.
 // the goal is to match the functionality for remotePatterns as defined here -
