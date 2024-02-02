@@ -4,7 +4,17 @@ import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
-export type ErrorHandler = (err: any) => string | undefined
+type CapturedValue = {
+  value: any
+  source: any | null
+  stack: string | null
+  digest: string | null
+}
+
+export type ErrorHandler = (
+  err: any,
+  errorInfo: CapturedValue
+) => string | undefined
 
 /**
  * Create error handler for renderers.
@@ -31,7 +41,7 @@ export function createErrorHandler({
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
 }): ErrorHandler {
-  return (err) => {
+  return (err, errorInfo) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
@@ -89,7 +99,7 @@ export function createErrorHandler({
     if (!err.digest) {
       // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
       const computedDigest = stringHash(
-        err.message + err.stack + (err.digest || '')
+        err.message + (err.stack || errorInfo.stack || '')
       ).toString()
       err.digest = computedDigest
     }
