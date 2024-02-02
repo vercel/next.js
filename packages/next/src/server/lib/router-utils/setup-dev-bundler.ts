@@ -1430,8 +1430,15 @@ async function startWatcher(opts: SetupOpts) {
         }
         return errors
       },
-      invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
-        // Not implemented yet.
+      invalidate({
+        // .env files or tsconfig/jsconfig change
+        reloadAfterInvalidation,
+      }) {
+        if (reloadAfterInvalidation) {
+          this.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          })
+        }
       },
       async buildFallbackError() {
         // Not implemented yet.

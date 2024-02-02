@@ -1489,11 +1489,11 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page"
+      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
     "failed": [
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
-      "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
+      "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)"
     ],
     "pending": [],
     "flakey": [],
@@ -1545,8 +1545,8 @@
     "runtimeError": false
   },
   "test/development/basic/emotion-swc/emotion-swc.test.ts": {
-    "passed": [],
-    "failed": ["emotion SWC option should have styling from the css prop"],
+    "passed": ["emotion SWC option should have styling from the css prop"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9059,13 +9059,12 @@
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide env correctly for SSR",
       "Env Config test environment should provide env for SSG",
-      "Env Config test environment should provide global env to next.config.js"
-    ],
-    "failed": [
+      "Env Config test environment should provide global env to next.config.js",
       "Env Config dev mode should inline global values during build",
       "Env Config dev mode with hot reload should inline global values during build",
       "Env Config test environment should inline global values during build"
     ],
+    "failed": [],
     "pending": [
       "Env Config production mode should have process environment override .env",
       "Env Config production mode should inline global values during build",
