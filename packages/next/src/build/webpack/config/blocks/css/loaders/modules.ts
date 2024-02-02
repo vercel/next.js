@@ -24,14 +24,6 @@ export function getCssModuleLoader(
     )
   }
 
-  // Compile CSS
-  loaders.push({
-    loader: require.resolve('../../../../loaders/postcss-loader/src'),
-    options: {
-      postcss,
-    },
-  })
-
   if (ctx.experimental.useLightningcss) {
     loaders.push({
       loader: require.resolve('../../../../loaders/lightningcss-loader/src'),
@@ -81,6 +73,14 @@ export function getCssModuleLoader(
       },
     })
   }
+
+  // Compile CSS
+  loaders.push({
+    loader: require.resolve('../../../../loaders/postcss-loader/src'),
+    options: {
+      postcss,
+    },
+  })
 
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
