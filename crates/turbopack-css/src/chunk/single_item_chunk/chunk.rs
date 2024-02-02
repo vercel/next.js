@@ -66,7 +66,7 @@ impl SingleItemCssChunk {
             write!(
                 code,
                 "\n/*# sourceMappingURL={}.map*/",
-                chunk_path.file_name()
+                urlencoding::encode(chunk_path.file_name())
             )?;
         }
 

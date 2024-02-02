@@ -102,7 +102,11 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
         )),
     );
 
-    write!(builder, "\n\n//# sourceMappingURL={}.map", path.file_name())?;
+    write!(
+        builder,
+        "\n\n//# sourceMappingURL={}.map",
+        urlencoding::encode(path.file_name())
+    )?;
     Ok(builder.build().cell())
 }
 

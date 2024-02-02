@@ -158,7 +158,11 @@ impl EcmascriptDevEvaluateChunk {
 
         if code.has_source_map() {
             let filename = chunk_path.file_name();
-            write!(code, "\n\n//# sourceMappingURL={}.map", filename)?;
+            write!(
+                code,
+                "\n\n//# sourceMappingURL={}.map",
+                urlencoding::encode(filename)
+            )?;
         }
 
         Ok(Code::cell(code.build()))
