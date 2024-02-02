@@ -25,12 +25,12 @@ pub(super) async fn build_font_family_string(
     )];
 
     for font_fallback in &*font_fallbacks.await? {
-        match *font_fallback.await? {
+        match &*font_fallback.await? {
             FontFallback::Automatic(fallback) => {
-                font_families.push(format!("'{}'", *fallback.await?.scoped_font_family.await?));
+                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
             }
             FontFallback::Manual(fallbacks) => {
-                font_families.extend_from_slice(&fallbacks.await?);
+                font_families.extend_from_slice(fallbacks);
             }
             _ => (),
         }

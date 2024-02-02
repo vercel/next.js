@@ -28,7 +28,9 @@ use crate::{
     next_config::NextConfig,
     next_font::{
         google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
-        local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -764,6 +766,11 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));
