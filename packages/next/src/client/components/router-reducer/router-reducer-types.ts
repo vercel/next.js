@@ -41,7 +41,6 @@ export interface Mutable {
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  actionResultResolved?: boolean
 }
 
 /**

@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request, Response } from 'playwright-chromium'
+import { Request, Response, Route } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -442,6 +442,51 @@ createNextDescribe(
         () => next.cliOutput,
         /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
       )
+    })
+
+    it('should be possible to catch network errors', async () => {
+      const browser = await next.browser('/catching-error', {
+        beforePageLoad(page) {
+          page.route('**/catching-error', (route: Route) => {
+            if (route.request().method() !== 'POST') {
+              route.fallback()
+              return
+            }
+
+            route.abort('internetdisconnected')
+          })
+        },
+      })
+
+      await browser.elementById('good-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
+    })
+
+    it('should be possible to catch regular errors', async () => {
+      const browser = await next.browser('/catching-error')
+
+      await browser.elementById('bad-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
     })
 
     if (isNextStart) {
