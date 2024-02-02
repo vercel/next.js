@@ -21,7 +21,6 @@ pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportP
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
-pub use relay::get_relay_transform_plugin;
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::{ReadRef, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
