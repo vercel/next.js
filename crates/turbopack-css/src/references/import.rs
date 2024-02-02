@@ -154,7 +154,13 @@ impl ImportAttributes {
                 supports: supports
                     .as_ref()
                     .map(|s| s.to_css_string(Default::default()).unwrap()),
-                media: Some(media.to_css_string(Default::default()).unwrap()),
+                media: {
+                    if media.always_matches() {
+                        None
+                    } else {
+                        Some(media.to_css_string(Default::default()).unwrap())
+                    }
+                },
             },
             ImportAttributes::Swc {
                 layer_name,
