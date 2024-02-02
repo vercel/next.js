@@ -21,9 +21,9 @@ use crate::{
 
 #[derive(Debug)]
 pub enum NextJsVersion {
-    V11,
     V12,
     V13,
+    V14,
     Canary,
 }
 
@@ -102,11 +102,16 @@ impl Bundler for NextJs {
                 .unwrap(),
             "dev",
             "--port",
-            // Next.js currently has a bug where requests for port 0 are ignored and it falls
-            // back to the default 3000. Use portpicker instead.
-            &portpicker::pick_unused_port()
-                .ok_or_else(|| anyhow!("failed to pick unused port"))?
-                .to_string(),
+            &match self.version {
+                NextJsVersion::V12 => {
+                    // Next.js 12 has a bug where requests for port 0 are ignored and it falls
+                    // back to the default 3000. Use portpicker instead.
+                    portpicker::pick_unused_port()
+                        .ok_or_else(|| anyhow!("failed to pick unused port"))?
+                }
+                _ => 0,
+            }
+            .to_string(),
         ])
         .current_dir(test_dir)
         .stdout(Stdio::piped())
@@ -120,7 +125,10 @@ impl Bundler for NextJs {
             proc.stdout
                 .as_mut()
                 .ok_or_else(|| anyhow!("missing stdout"))?,
-            Regex::new("started server.*url: (.*)")?,
+            match self.version {
+                NextJsVersion::V12 => Regex::new("started server.*url: (.*)"),
+                _ => Regex::new("- Local:\\s+(.*)"),
+            }?,
         )
         .ok_or_else(|| anyhow!("failed to find devserver address"))?;
 
@@ -140,9 +148,9 @@ impl NextJsVersion {
     /// Returns the version of Next.js to install from npm.
     pub fn version(&self) -> &'static str {
         match self {
-            NextJsVersion::V11 => "^11",
             NextJsVersion::V12 => "^12",
             NextJsVersion::V13 => "^13",
+            NextJsVersion::V14 => "^14",
             NextJsVersion::Canary => "canary",
         }
     }
@@ -151,9 +159,9 @@ impl NextJsVersion {
     /// of Next.js.
     pub fn react_version(&self) -> &'static str {
         match self {
-            NextJsVersion::V11 => "^17.0.2",
             NextJsVersion::V12 => "^18.2.0",
             NextJsVersion::V13 => "^18.2.0",
+            NextJsVersion::V14 => "^18.2.0",
             NextJsVersion::Canary => "^18.2.0",
         }
     }
