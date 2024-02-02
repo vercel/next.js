@@ -152,6 +152,9 @@ pub struct ModuleOptionsContext {
     // however we might want to unify them in the future.
     pub enable_mdx_rs: Option<Vc<MdxTransformModuleOptions>>,
     pub preset_env_versions: Option<Vc<Environment>>,
+    #[deprecated(
+        note = "Use custom_rules with ModuleRuleEffect::ExtendEcmascriptTransforms instead"
+    )]
     pub custom_ecma_transform_plugins: Option<Vc<CustomEcmascriptTransformPlugins>>,
     /// Custom rules to be applied after all default rules.
     pub custom_rules: Vec<ModuleRule>,
