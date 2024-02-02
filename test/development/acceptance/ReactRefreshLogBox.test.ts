@@ -347,7 +347,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     expect(source).toMatch(
       process.env.TURBOPACK
-        ? './index.module.css:1:8'
+        ? './index.module.css:1:9'
         : './index.module.css:1:1'
     )
     if (!process.env.TURBOPACK) {
