@@ -195,13 +195,21 @@ function navigateReducer_noPPR(
           }
 
           const cache: CacheNode = createEmptyCacheNode()
+          const hasReusablePrefetch =
+            prefetchValues.kind === 'auto' &&
+            prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
           let applied = applyFlightData(
             currentCache,
             cache,
             flightDataPath,
-            prefetchValues.kind === 'auto' &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+            hasReusablePrefetch
           )
+
+          if (!hasReusablePrefetch) {
+            // Once the prefetch entry no longer reusable, `applyFlightData` will signal to layout router that it needs to lazy fetch the data
+            // We update the `lastUsedTime` so that we renew the 30s cache for this entry
+            prefetchValues.lastUsedTime = Date.now()
+          }
 
           if (
             !applied &&
@@ -450,13 +458,21 @@ function navigateReducer_PPR(
             // tree. Or in the meantime we could factor it out into a
             // separate function.
             const cache: CacheNode = createEmptyCacheNode()
+            const hasReusablePrefetch =
+              prefetchValues.kind === 'auto' &&
+              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
             let applied = applyFlightData(
               currentCache,
               cache,
               flightDataPath,
-              prefetchValues.kind === 'auto' &&
-                prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
+              hasReusablePrefetch
             )
+
+            if (!hasReusablePrefetch) {
+              // Once the prefetch entry no longer reusable, `applyFlightData` will signal to layout router that it needs to lazy fetch the data
+              // We update the `lastUsedTime` so that we renew the 30s cache for this entry
+              prefetchValues.lastUsedTime = Date.now()
+            }
 
             if (
               !applied &&
