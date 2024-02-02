@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use indexmap::IndexMap;
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, CssModuleReference, Pattern, Segment},
-    dependencies::{Dependency, DependencyOptions, ImportDependency, Location, SourceRange},
+    dependencies::{Dependency, ImportDependency, Location, SourceRange},
     error::PrinterErrorKind,
     stylesheet::{ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
     targets::{Features, Targets},
@@ -120,7 +120,7 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
                     } else {
                         Default::default()
                     },
-                    analyze_dependencies: Some(DependencyOptions { remove_imports }),
+                    analyze_dependencies: None,
                     ..Default::default()
                 })?;
 
