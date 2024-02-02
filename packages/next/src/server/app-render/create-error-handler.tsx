@@ -22,7 +22,7 @@ export function createErrorHandler({
   dev,
   isNextExport,
   errorLogger,
-  capturedErrors,
+  digestErrorsMap: capturedErrors,
   allCapturedErrors,
   silenceLogger,
 }: {
@@ -30,8 +30,8 @@ export function createErrorHandler({
   dev?: boolean
   isNextExport?: boolean
   errorLogger?: (err: any) => Promise<void>
-  capturedErrors: Map<string, Error>
-  allCapturedErrors?: Map<string, Error>
+  digestErrorsMap: Map<string, Error>
+  allCapturedErrors?: Error[]
   silenceLogger?: boolean
 }): ErrorHandler {
   return (err: any, errorInfo: any) => {
@@ -40,7 +40,7 @@ export function createErrorHandler({
       err.digest ||
       stringHash(err.message + (err.stack || errorInfo.stack || '')).toString()
 
-    if (allCapturedErrors) allCapturedErrors.set(digest, err)
+    if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.

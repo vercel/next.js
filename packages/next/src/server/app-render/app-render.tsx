@@ -627,8 +627,8 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const capturedErrors: Map<string, Error> = new Map()
-  const allCapturedErrors: Map<string, Error> = new Map()
+  const digestErrorsMap: Map<string, Error> = new Map()
+  const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
   const { isStaticGeneration } = staticGenerationStore
@@ -642,7 +642,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
@@ -650,7 +650,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
@@ -658,7 +658,7 @@ async function renderToHTMLOrFlightImpl(
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -967,8 +967,7 @@ async function renderToHTMLOrFlightImpl(
         const options: ContinueStreamOptions = {
           inlinedDataStream: renderInlinedDataTransformStream.readable,
           isStaticGeneration: isStaticGeneration || generateStaticHTML,
-          getServerInsertedHTML: () =>
-            getServerInsertedHTML([...allCapturedErrors.values()]),
+          getServerInsertedHTML: () => getServerInsertedHTML(allCapturedErrors),
           serverInsertedHTMLToHead: !renderOpts.postponed,
           // If this render generated a postponed state or this is a resume
           // render, we don't want to validate the root layout as it's already
@@ -989,7 +988,7 @@ async function renderToHTMLOrFlightImpl(
 
         return { stream }
       } catch (caughtError: any) {
-        const originalError = capturedErrors.get(caughtError.digest)
+        const originalError = digestErrorsMap.get(caughtError.digest)
         const err = originalError || caughtError
 
         if (
@@ -1230,9 +1229,9 @@ async function renderToHTMLOrFlightImpl(
   // It got here, which means it did not reject, so clear the timeout to avoid
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
-  const hasCapturedError = capturedErrors.size > 0
+  const hasCapturedError = digestErrorsMap.size > 0
   const firstCapturedError = hasCapturedError
-    ? capturedErrors.values().next().value
+    ? digestErrorsMap.values().next().value
     : null
 
   // If PPR is enabled and the postpone was triggered but lacks the postponed
@@ -1255,7 +1254,7 @@ async function renderToHTMLOrFlightImpl(
         `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
     )
 
-    if (capturedErrors.size > 0) {
+    if (digestErrorsMap.size > 0) {
       warn(
         'The following error was thrown during build, and may help identify the source of the issue:'
       )
