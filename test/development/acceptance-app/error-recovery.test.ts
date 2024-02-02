@@ -146,24 +146,24 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     if (isTurbopack) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "index.js (7:5) @ eval
+        "index.js (7:11) @ eval
 
            5 |   const increment = useCallback(() => {
            6 |     setCount(c => c + 1)
         >  7 |     throw new Error('oops')
-             |     ^
+             |           ^
            8 |   }, [setCount])
            9 |   return (
           10 |     <main>"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-              "index.js (7:10) @ eval
+              "index.js (7:11) @ eval
 
                  5 |   const increment = useCallback(() => {
                  6 |     setCount(c => c + 1)
               >  7 |     throw new Error('oops')
-                   |          ^
+                   |           ^
                  8 |   }, [setCount])
                  9 |   return (
                 10 |     <main>"
