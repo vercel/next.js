@@ -4,16 +4,9 @@ import { SpanStatusCode, getTracer } from '../lib/trace/tracer'
 import { isAbortError } from '../pipe-readable'
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
 
-type CapturedValue = {
-  value: any
-  source: any | null
-  stack: string | null
-  digest: string | null
-}
-
 export type ErrorHandler = (
-  err: any,
-  errorInfo: CapturedValue
+  err: unknown,
+  errorInfo: unknown
 ) => string | undefined
 
 /**
@@ -41,7 +34,7 @@ export function createErrorHandler({
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
 }): ErrorHandler {
-  return (err, errorInfo) => {
+  return (err: any, errorInfo: any) => {
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest

@@ -19,7 +19,7 @@ declare module 'react-dom/server.edge' {
   export type ResumeOptions = {
     nonce?: string
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
   }
@@ -46,7 +46,7 @@ declare module 'react-dom/server.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {
@@ -97,7 +97,7 @@ declare module 'react-dom/static.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown) => string | undefined
+    onError?: (error: unknown, errorInfo: unknown) => string | undefined
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {
