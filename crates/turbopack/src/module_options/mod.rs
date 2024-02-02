@@ -72,7 +72,6 @@ impl ModuleOptions {
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
-            ref custom_ecma_transform_plugins,
             ref custom_rules,
             execution_context,
             ref rules,
@@ -91,28 +90,7 @@ impl ModuleOptions {
             }
         }
 
-        let (before_transform_plugins, after_transform_plugins) =
-            if let Some(transform_plugins) = custom_ecma_transform_plugins {
-                let transform_plugins = transform_plugins.await?;
-                (
-                    transform_plugins
-                        .source_transforms
-                        .iter()
-                        .cloned()
-                        .map(EcmascriptInputTransform::Plugin)
-                        .collect(),
-                    transform_plugins
-                        .output_transforms
-                        .iter()
-                        .cloned()
-                        .map(EcmascriptInputTransform::Plugin)
-                        .collect(),
-                )
-            } else {
-                (vec![], vec![])
-            };
-
-        let mut transforms = before_transform_plugins;
+        let mut transforms = vec![];
 
         // Order of transforms is important. e.g. if the React transform occurs before
         // Styled JSX, there won't be JSX nodes for Styled JSX to transform.
@@ -176,7 +154,6 @@ impl ModuleOptions {
                     .iter()
                     .cloned()
                     .chain(transforms.iter().cloned())
-                    .chain(after_transform_plugins.iter().cloned())
                     .collect(),
             )
         } else {
@@ -196,7 +173,6 @@ impl ModuleOptions {
             .iter()
             .cloned()
             .chain(transforms.iter().cloned())
-            .chain(after_transform_plugins.iter().cloned())
             .collect(),
         );
 
@@ -217,7 +193,6 @@ impl ModuleOptions {
             .iter()
             .cloned()
             .chain(transforms.iter().cloned())
-            .chain(after_transform_plugins.iter().cloned())
             .collect(),
         );
 

@@ -466,67 +466,6 @@ async fn process_default_internal(
                     ModuleRuleEffect::ModuleType(module) => {
                         current_module_type = Some(*module);
                     }
-                    ModuleRuleEffect::AddEcmascriptTransforms(additional_transforms) => {
-                        current_module_type = match current_module_type {
-                            Some(ModuleType::Ecmascript {
-                                transforms,
-                                options,
-                            }) => Some(ModuleType::Ecmascript {
-                                transforms: transforms.extend(*additional_transforms),
-                                options,
-                            }),
-                            Some(ModuleType::Typescript {
-                                transforms,
-                                tsx,
-                                analyze_types,
-                                options,
-                            }) => Some(ModuleType::Typescript {
-                                transforms: transforms.extend(*additional_transforms),
-                                tsx,
-                                analyze_types,
-                                options,
-                            }),
-                            Some(ModuleType::Mdx {
-                                transforms,
-                                options,
-                            }) => Some(ModuleType::Mdx {
-                                transforms: transforms.extend(*additional_transforms),
-                                options,
-                            }),
-                            Some(module_type) => {
-                                ModuleIssue {
-                                    ident,
-                                    title: StyledString::Text("Invalid module type".to_string())
-                                        .cell(),
-                                    description: StyledString::Text(
-                                        "The module type must be Ecmascript or Typescript to add \
-                                         Ecmascript transforms"
-                                            .to_string(),
-                                    )
-                                    .cell(),
-                                }
-                                .cell()
-                                .emit();
-                                Some(module_type)
-                            }
-                            None => {
-                                ModuleIssue {
-                                    ident,
-                                    title: StyledString::Text("Missing module type".to_string())
-                                        .cell(),
-                                    description: StyledString::Text(
-                                        "The module type effect must be applied before adding \
-                                         Ecmascript transforms"
-                                            .to_string(),
-                                    )
-                                    .cell(),
-                                }
-                                .cell()
-                                .emit();
-                                None
-                            }
-                        };
-                    }
                     ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append } => {
                         current_module_type = match current_module_type {
                             Some(ModuleType::Ecmascript {
