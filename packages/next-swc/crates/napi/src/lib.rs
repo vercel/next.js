@@ -138,3 +138,8 @@ fn register() {
 fn register() {
     //noop
 }
+
+#[napi]
+pub fn test_read_file_in_wasi_directly(p: String) -> napi::Result<String> {
+    Ok(std::fs::read_to_string(p).expect("Path should be available"))
+}
