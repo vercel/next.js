@@ -27,7 +27,7 @@ describe('CachedFileReader', () => {
       cached.read('<root>/app'),
     ])
 
-    expect(reader.read).toBeCalledTimes(2)
+    expect(reader.read).toHaveBeenCalledTimes(2)
     expect(results).toHaveLength(4)
     expect(results[0]).toBe(pages)
     expect(results[1]).toBe(pages)
@@ -61,6 +61,6 @@ describe('CachedFileReader', () => {
       })
     )
 
-    expect(reader.read).toBeCalledTimes(2)
+    expect(reader.read).toHaveBeenCalledTimes(2)
   })
 })
