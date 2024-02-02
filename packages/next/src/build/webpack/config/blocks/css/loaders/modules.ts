@@ -3,6 +3,8 @@ import type { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
+import fs from 'fs'
+import path from 'path'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
@@ -74,13 +76,15 @@ export function getCssModuleLoader(
     })
   }
 
-  // Compile CSS
-  loaders.push({
-    loader: require.resolve('../../../../loaders/postcss-loader/src'),
-    options: {
-      postcss,
-    },
-  })
+  // Compile CSS using postcss only if there's postcss.config.js
+  if (fs.existsSync(path.join(ctx.rootDirectory, 'postcss.config.js'))) {
+    loaders.push({
+      loader: require.resolve('../../../../loaders/postcss-loader/src'),
+      options: {
+        postcss,
+      },
+    })
+  }
 
   loaders.push(
     // Webpack loaders run like a stack, so we need to reverse the natural
