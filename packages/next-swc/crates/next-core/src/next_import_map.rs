@@ -27,7 +27,9 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_font::{
-        google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
+        google::{
+            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
         local::{
             NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
         },
@@ -744,6 +746,14 @@ async fn insert_next_shared_aliases(
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleCssModuleReplacer::new(
             project_path,
             execution_context,
+        )))
+        .into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
+            project_path,
         )))
         .into(),
     );
