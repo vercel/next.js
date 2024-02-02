@@ -1,11 +1,11 @@
 import { test as base, defineConfig } from './index'
 import type { NextFixture } from './next-fixture'
+// eslint-disable-next-line import/no-extraneous-dependencies
 import {
   type RequestHandler,
   type MockedResponse,
   MockedRequest,
   handleRequest,
-  // eslint-disable-next-line import/no-extraneous-dependencies
 } from 'msw'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { Emitter } from 'strict-event-emitter'

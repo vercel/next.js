@@ -50,6 +50,16 @@ const moduleContexts = new Map<string, ModuleContext>()
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
+
+/**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.

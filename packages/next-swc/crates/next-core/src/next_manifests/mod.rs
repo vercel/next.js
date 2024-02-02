@@ -8,7 +8,7 @@ use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
-use crate::next_config::Rewrites;
+use crate::next_config::{CrossOriginConfig, Rewrites};
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -247,7 +247,7 @@ pub struct ClientReferenceManifest {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: String,
-    pub cross_origin: Option<String>,
+    pub cross_origin: Option<CrossOriginConfig>,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]

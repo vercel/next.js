@@ -28,7 +28,7 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
       false
     )
 
-    expect(spy).not.toBeCalled()
+    expect(spy).not.toHaveBeenCalled()
   })
 
   it('should log warning message with removed experimental config', () => {
@@ -124,6 +124,6 @@ describe('warnOptionHasBeenDeprecated', () => {
       'experimental.appDir has been removed',
       false
     )
-    expect(spy).toBeCalled()
+    expect(spy).toHaveBeenCalled()
   })
 })

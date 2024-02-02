@@ -29,6 +29,10 @@ if (process.env.NODE_ENV !== 'production') {
   requireCacheHotReloader = require('../../build/webpack/plugins/nextjs-require-cache-hot-reloader')
 }
 
+export function clearAllModuleContexts() {
+  return sandboxContext?.clearAllModuleContexts()
+}
+
 export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
 }

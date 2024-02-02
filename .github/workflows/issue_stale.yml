@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
     steps:
-      - uses: actions/stale@v4
+      - uses: actions/stale@v9
         id: stale-no-repro
         name: 'Close stale issues with no reproduction'
         with:
@@ -23,7 +23,7 @@ jobs:
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
-      - uses: actions/stale@v4
+      - uses: actions/stale@v9
         id: stale-no-canary
         name: 'Close issues not verified on canary'
         with:

@@ -82,6 +82,11 @@ import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
 import * as ciEnvironment from '../telemetry/ci-info'
+import {
+  turborepoTraceAccess,
+  TurborepoAccessTraceResult,
+  writeTurborepoAccessTraceResult,
+} from './turborepo-access-trace'
 
 import {
   eventBuildOptimize,
@@ -559,19 +564,32 @@ function getNumberOfWorkers(config: NextConfigComplete) {
 }
 
 const staticWorkerPath = require.resolve('./worker')
+const staticWorkerExposedMethods = [
+  'hasCustomGetInitialProps',
+  'isPageStatic',
+  'getDefinedNamedExports',
+  'exportPage',
+] as const
+type StaticWorker = typeof import('./worker') & Worker
+type PageDataCollectionKeys = Exclude<
+  (typeof staticWorkerExposedMethods)[number],
+  'exportPage'
+>
+
 function createStaticWorker(
   config: NextConfigComplete,
   incrementalCacheIpcPort?: number,
   incrementalCacheIpcValidationKey?: string
-) {
+): StaticWorker {
   let infoPrinted = false
   const timeout = config.staticPageGenerationTimeout || 0
 
   return new Worker(staticWorkerPath, {
     timeout: timeout * 1000,
     logger: Log,
-    onRestart: (method, [arg], attempts) => {
+    onRestart: (method, args, attempts) => {
       if (method === 'exportPage') {
+        const [arg] = args as Parameters<StaticWorker['exportPage']>
         const pagePath = arg.path
         if (attempts >= 3) {
           throw new Error(
@@ -582,7 +600,8 @@ function createStaticWorker(
           `Restarted static page generation for ${pagePath} because it took more than ${timeout} seconds`
         )
       } else {
-        const pagePath = arg.path
+        const [arg] = args as Parameters<StaticWorker[PageDataCollectionKeys]>
+        const pagePath = arg.page
         if (attempts >= 2) {
           throw new Error(
             `Collecting page data for ${pagePath} is still timing out after 2 attempts. See more info here https://nextjs.org/docs/messages/page-data-collection-timeout`
@@ -610,20 +629,8 @@ function createStaticWorker(
       },
     },
     enableWorkerThreads: config.experimental.workerThreads,
-    exposedMethods: [
-      'hasCustomGetInitialProps',
-      'isPageStatic',
-      'getDefinedNamedExports',
-      'exportPage',
-    ],
-  }) as Worker &
-    Pick<
-      typeof import('./worker'),
-      | 'hasCustomGetInitialProps'
-      | 'isPageStatic'
-      | 'getDefinedNamedExports'
-      | 'exportPage'
-    >
+    exposedMethods: staticWorkerExposedMethods,
+  }) as StaticWorker
 }
 
 async function writeFullyStaticExport(
@@ -722,13 +729,18 @@ export default async function build(
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
 
+      const turborepoAccessTraceResult = new TurborepoAccessTraceResult()
       const config: NextConfigComplete = await nextBuildSpan
         .traceChild('load-next-config')
         .traceAsyncFn(() =>
-          loadConfig(PHASE_PRODUCTION_BUILD, dir, {
-            // Log for next.config loading process
-            silent: false,
-          })
+          turborepoTraceAccess(
+            () =>
+              loadConfig(PHASE_PRODUCTION_BUILD, dir, {
+                // Log for next.config loading process
+                silent: false,
+              }),
+            turborepoAccessTraceResult
+          )
         )
 
       process.env.NEXT_DEPLOYMENT_ID = config.experimental.deploymentId || ''
@@ -1602,12 +1614,12 @@ export default async function build(
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
               hasCustomErrorPage &&
-              (await pagesStaticWorkers.hasCustomGetInitialProps(
-                '/_error',
+              (await pagesStaticWorkers.hasCustomGetInitialProps({
+                page: '/_error',
                 distDir,
                 runtimeEnvConfig,
-                false
-              ))
+                checkingApp: false,
+              }))
           )
 
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
@@ -1630,18 +1642,18 @@ export default async function build(
         const appPageToCheck = '/_app'
 
         const customAppGetInitialPropsPromise =
-          pagesStaticWorkers.hasCustomGetInitialProps(
-            appPageToCheck,
+          pagesStaticWorkers.hasCustomGetInitialProps({
+            page: appPageToCheck,
             distDir,
             runtimeEnvConfig,
-            true
-          )
+            checkingApp: true,
+          })
 
-        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports(
-          appPageToCheck,
+        const namedExportsPromise = pagesStaticWorkers.getDefinedNamedExports({
+          page: appPageToCheck,
           distDir,
-          runtimeEnvConfig
-        )
+          runtimeEnvConfig,
+        })
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
@@ -2443,6 +2455,14 @@ export default async function build(
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
+
+          writeTurborepoAccessTraceResult({
+            distDir: config.distDir,
+            traces: [
+              turborepoAccessTraceResult,
+              ...exportResult.turborepoAccessTraceResults.values(),
+            ],
+          })
 
           ssgNotFoundPaths = Array.from(exportResult.ssgNotFoundPaths)
 

@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react'
+// eslint-disable-next-line react/no-deprecated
 import { render, unmountComponentAtNode } from 'react-dom'
 import { act } from 'react-dom/test-utils'
 

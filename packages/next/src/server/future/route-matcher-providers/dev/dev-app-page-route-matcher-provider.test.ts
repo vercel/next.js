@@ -12,7 +12,7 @@ describe('DevAppPageRouteMatcher', () => {
     const provider = new DevAppPageRouteMatcherProvider(dir, extensions, reader)
     const matchers = await provider.matchers()
     expect(matchers).toHaveLength(0)
-    expect(reader.read).toBeCalledWith(dir)
+    expect(reader.read).toHaveBeenCalledWith(dir)
   })
 
   describe('filename matching', () => {
@@ -81,7 +81,7 @@ describe('DevAppPageRouteMatcher', () => {
         )
         const matchers = await provider.matchers()
         expect(matchers).toHaveLength(1)
-        expect(reader.read).toBeCalledWith(dir)
+        expect(reader.read).toHaveBeenCalledWith(dir)
         expect(matchers[0].definition).toEqual(route)
       }
     )

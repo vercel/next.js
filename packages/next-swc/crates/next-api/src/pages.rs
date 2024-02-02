@@ -72,6 +72,7 @@ use crate::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
         DynamicImportedChunks,
     },
+    font::create_font_manifest,
     middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -990,6 +991,24 @@ impl PageEndpoint {
             PageEndpointType::SsrOnly => self.ssr_chunk(),
         };
 
+        let pathname = this.pathname.await?;
+        let original_name = this.original_name.await?;
+
+        let client_assets = OutputAssets::new(client_assets);
+
+        let next_font_manifest_output = create_font_manifest(
+            this.pages_project.project().client_root(),
+            this.pages_project.project().node_root(),
+            this.pages_project.pages_dir(),
+            "",
+            &pathname,
+            &original_name,
+            client_assets,
+            false,
+        )
+        .await?;
+        server_assets.push(next_font_manifest_output);
+
         let page_output = match *ssr_chunk.await? {
             SsrChunk::NodeJs {
                 entry,
@@ -1005,7 +1024,7 @@ impl PageEndpoint {
                 PageEndpointOutput::NodeJs {
                     entry_chunk: entry,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
             SsrChunk::Edge {
@@ -1042,7 +1061,6 @@ impl PageEndpoint {
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?);
 
-                let pathname = this.pathname.await?;
                 let named_regex = get_named_middleware_regex(&pathname);
                 let matchers = MiddlewareMatcher {
                     regexp: Some(named_regex),
@@ -1086,7 +1104,7 @@ impl PageEndpoint {
                 PageEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
         };

@@ -64,7 +64,7 @@ createNextDescribe(
       )
       await next.build()
       await next.patchFile(nextConfigPath, nextConfig)
-      await expect(next.readFile(tempfile)).rejects.toThrowError()
+      await expect(next.readFile(tempfile)).rejects.toThrow()
     })
 
     const fileExist = async (file: string) =>

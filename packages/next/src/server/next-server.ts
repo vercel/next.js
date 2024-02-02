@@ -90,8 +90,6 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -171,6 +169,10 @@ export default class NextNodeServer extends BaseServer {
     page: string
     re: RegExp
   }[]
+  private routerServerHandler?: (
+    req: IncomingMessage,
+    res: ServerResponse
+  ) => void
 
   constructor(options: Options) {
     // Initialize super class
@@ -555,35 +557,11 @@ export default class NextNodeServer extends BaseServer {
           throw new Error(`Invariant attempted to optimize _next/image itself`)
         }
 
-        const protocol = this.serverOptions.experimentalHttpsServer
-          ? 'https'
-          : 'http'
-
-        const invokeRes = await invokeRequest(
-          `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
-            newReq.url || ''
-          }`,
-          {
-            method: newReq.method || 'GET',
-            headers: newReq.headers,
-            signal: signalFromNodeResponse(res.originalResponse),
-          }
-        )
-        const filteredResHeaders = filterReqHeaders(
-          toNodeOutgoingHttpHeaders(invokeRes.headers),
-          ipcForbiddenHeaders
-        )
-
-        for (const key of Object.keys(filteredResHeaders)) {
-          newRes.setHeader(key, filteredResHeaders[key] || '')
+        if (!this.routerServerHandler) {
+          throw new Error(`Invariant missing routerServerHandler`)
         }
-        newRes.statusCode = invokeRes.status || 200
 
-        if (invokeRes.body) {
-          await pipeToNodeResponse(invokeRes.body, newRes)
-        } else {
-          res.send()
-        }
+        await this.routerServerHandler(newReq, newRes)
         return
       }
 

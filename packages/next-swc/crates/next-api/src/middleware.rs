@@ -254,6 +254,20 @@ pub(crate) async fn get_wasm_paths_from_root(
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
 }
 
+pub(crate) async fn get_font_paths_from_root(
+    root: &FileSystemPath,
+    output_assets: &[Vc<Box<dyn OutputAsset>>],
+) -> Result<Vec<String>> {
+    get_paths_from_root(root, output_assets, |path| {
+        path.ends_with(".woff")
+            || path.ends_with(".woff2")
+            || path.ends_with(".eot")
+            || path.ends_with(".ttf")
+            || path.ends_with(".otf")
+    })
+    .await
+}
+
 fn get_file_stem(path: &str) -> &str {
     let file_name = if let Some((_, file_name)) = path.rsplit_once('/') {
         file_name

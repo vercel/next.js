@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
     steps:
-      - uses: dessant/lock-threads@v3
+      - uses: dessant/lock-threads@v5
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           add-issue-labels: 'locked'

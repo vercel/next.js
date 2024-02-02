@@ -86,25 +86,11 @@ const runTests = (mode = 'dev', didReload = false) => {
   })
 
   it('should inline global values during build', async () => {
-    // make sure to build page
-    await renderViaHTTP(appPort, '/global')
+    const browser = await webdriver(appPort, '/global')
 
-    const buildManifest = require(join(
-      __dirname,
-      '../app/.next/build-manifest.json'
-    ))
-
-    const pageFile = buildManifest.pages['/global'].find((filename) =>
-      filename.includes('pages/global')
+    expect(await browser.waitForElementByCss('#global-value').text()).toBe(
+      'another'
     )
-
-    // read client bundle contents since a server side render can
-    // have the value available during render but it not be injected
-    const bundleContent = await fs.readFile(
-      join(appDir, '.next', pageFile),
-      'utf8'
-    )
-    expect(bundleContent).toContain('another')
   })
 
   it('should provide env for SSG', async () => {
@@ -295,7 +281,9 @@ describe('Env Config', () => {
 
         try {
           const browser = await webdriver(appPort, '/global')
-          expect(await browser.elementByCss('p').text()).toBe('another')
+          expect(
+            await browser.waitForElementByCss('#global-value').text()
+          ).toBe('another')
 
           let outputIdx = output.length
 
@@ -313,7 +301,10 @@ describe('Env Config', () => {
           ).toBe(1)
           expect(output.substring(outputIdx)).not.toContain('.env.local')
 
-          await check(() => browser.elementByCss('p').text(), 'replaced')
+          await check(
+            () => browser.waitForElementByCss('#global-value').text(),
+            'replaced'
+          )
 
           outputIdx = output.length
 
@@ -328,7 +319,10 @@ describe('Env Config', () => {
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
-          await check(() => browser.elementByCss('p').text(), 'overridden')
+          await check(
+            () => browser.waitForElementByCss('#global-value').text(),
+            'overridden'
+          )
 
           outputIdx = output.length
 
