@@ -23,6 +23,24 @@ module.exports = {
 }
 ```
 
+
+```js filename="next.config.mjs"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: '/',
+        destination: '/dashboard',
+        permanent: false,
+      },
+    ]
+  },
+}
+
+export default nextConfig;
+```
+
 `redirects` is an async function that expects an array to be returned holding objects with `source`, `destination`, and `permanent` properties:
 
 - `source` is the incoming request path pattern.
