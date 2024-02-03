@@ -343,10 +343,9 @@ async fn get_font_css_properties(
     let font_fallback = &*font_fallback.await?;
     match font_fallback {
         FontFallback::Manual(fonts) => {
-            font_families.extend_from_slice(&fonts.await?);
+            font_families.extend_from_slice(fonts);
         }
         FontFallback::Automatic(fallback) => {
-            let fallback = &*fallback.await?;
             font_families.push(format!("'{}'", *fallback.scoped_font_family.await?));
         }
         FontFallback::Error => {}
