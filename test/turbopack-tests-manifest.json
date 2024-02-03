@@ -1339,6 +1339,7 @@
       "ReactRefreshRegression shows an overlay for a server-side error",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
     ],
