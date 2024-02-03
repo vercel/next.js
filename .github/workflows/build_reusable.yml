@@ -69,6 +69,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  NEXT_TEST_DIR: /dev/shm/next_test_isolate_dir
 
 jobs:
   build:
@@ -83,6 +84,20 @@ jobs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
+      # Set a separate tmpfs location where next.js test runner creates isolated next.js installation for the tests
+      # tmpfs uses ram as temporary storage could expect better IO perf.
+      # We don't create / mount a new tmpfs here; instead use system default /dev/shm.
+      # /dev/shm is not a general temp filsystem. However, for our purpose it is ok since
+      # test isolation install is expected to be short-lived anyway and can go away from the system.
+      # tmpfs uses swap, so won't cause insufficient storage unless we create next.js installation
+      # larger than the total size of the volume (32gb)
+      - name: Setup tmpfs
+        run: |
+          echo "Creating tmp location for isolated next.js test at $NEXT_TEST_DIR"
+          df -h
+          mkdir -p $NEXT_TEST_DIR
+          ls -al $NEXT_TEST_DIR
+
       - name: Normalize input step names into path key
         uses: actions/github-script@v7
         id: var
