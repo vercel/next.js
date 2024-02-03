@@ -165,8 +165,6 @@ export function serverActionReducer(
   mutable.preserveCustomHistoryState = false
   mutable.inFlightServerAction = fetchServerAction(state, action)
 
-  // suspends until the server action is resolved.
-
   return mutable.inFlightServerAction.then(
     ({ actionResult, actionFlightData: flightData, redirectLocation }) => {
       // Make sure the redirection is a push instead of a replace.
@@ -177,10 +175,7 @@ export function serverActionReducer(
       }
 
       if (!flightData) {
-        if (!mutable.actionResultResolved) {
-          resolve(actionResult)
-          mutable.actionResultResolved = true
-        }
+        resolve(actionResult)
 
         // If there is a redirect but no flight data we need to do a mpaNavigation.
         if (redirectLocation) {
@@ -269,24 +264,15 @@ export function serverActionReducer(
         mutable.canonicalUrl = newHref
       }
 
-      if (!mutable.actionResultResolved) {
-        resolve(actionResult)
-        mutable.actionResultResolved = true
-      }
+      resolve(actionResult)
+
       return handleMutable(state, mutable)
     },
     (e: any) => {
-      if (e.status === 'rejected') {
-        if (!mutable.actionResultResolved) {
-          reject(e.reason)
-          mutable.actionResultResolved = true
-        }
+      // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
+      reject(e.reason)
 
-        // When the server action is rejected we don't update the state and instead call the reject handler of the promise.
-        return state
-      }
-
-      throw e
+      return state
     }
   )
 }
