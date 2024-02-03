@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::react_server_components::*;
@@ -11,6 +9,7 @@ use swc_core::{
     },
 };
 use turbo_tasks::Vc;
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     ecmascript::{CustomTransformer, TransformContext},
     turbopack::module_options::ModuleRule,
@@ -23,10 +22,14 @@ use crate::next_config::NextConfig;
 pub async fn get_next_react_server_components_transform_rule(
     next_config: Vc<NextConfig>,
     is_react_server_layer: bool,
+    app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     Ok(get_ecma_transform_rule(
-        Box::new(NextJsReactServerComponents::new(is_react_server_layer)),
+        Box::new(NextJsReactServerComponents::new(
+            is_react_server_layer,
+            app_dir,
+        )),
         enable_mdx_rs,
         true,
     ))
@@ -35,12 +38,14 @@ pub async fn get_next_react_server_components_transform_rule(
 #[derive(Debug)]
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
+    app_dir: Option<Vc<FileSystemPath>>,
 }
 
 impl NextJsReactServerComponents {
-    fn new(is_react_server_layer: bool) -> Self {
+    fn new(is_react_server_layer: bool, app_dir: Option<Vc<FileSystemPath>>) -> Self {
         Self {
             is_react_server_layer,
+            app_dir,
         }
     }
 }
@@ -56,7 +61,10 @@ impl CustomTransformer for NextJsReactServerComponents {
                 is_react_server_layer: self.is_react_server_layer,
             }),
             ctx.comments,
-            Some(PathBuf::from(ctx.file_path.parent().await?.path.clone())),
+            match self.app_dir {
+                None => None,
+                Some(path) => Some(path.await?.path.clone().into()),
+            },
         );
 
         *program = p.fold_with(&mut visitor);
