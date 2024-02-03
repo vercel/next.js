@@ -51,6 +51,14 @@ pub(crate) enum FontFallback {
     Manual(Vec<String>),
 }
 
+#[turbo_tasks::value_impl]
+impl FontFallback {
+    #[turbo_tasks::function]
+    pub(crate) fn has_size_adjust(&self) -> Vc<bool> {
+        Vc::cell(matches!(self, FontFallback::Automatic(auto) if auto.adjustment.is_some()))
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub(crate) struct FontFallbacks(Vec<Vc<FontFallback>>);
 
@@ -59,13 +67,8 @@ impl FontFallbacks {
     #[turbo_tasks::function]
     pub(crate) async fn has_size_adjust(&self) -> Result<Vc<bool>> {
         for fallback in &self.0 {
-            let fallback = &*fallback.await?;
-
-            match fallback {
-                FontFallback::Automatic(auto) if auto.adjustment.is_some() => {
-                    return Ok(Vc::cell(true));
-                }
-                _ => {}
+            if *fallback.has_size_adjust().await? {
+                return Ok(Vc::cell(true));
             }
         }
 
