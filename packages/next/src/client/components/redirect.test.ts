@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-try-expect */
 import { getURLFromRedirectError, isRedirectError, redirect } from './redirect'
 describe('test', () => {
   it('should throw a redirect error', () => {

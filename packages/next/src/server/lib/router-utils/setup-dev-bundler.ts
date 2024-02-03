@@ -126,7 +126,7 @@ import {
   deleteCache,
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { clearModuleContext } from '../render-server'
+import { clearModuleContext, clearAllModuleContexts } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
@@ -136,6 +136,7 @@ import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { trace } from '../../../trace'
 import type { VersionInfo } from '../../dev/parse-version-info'
+import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
@@ -331,15 +332,11 @@ async function startWatcher(opts: SetupOpts) {
 
       let message
 
-      if (source) {
-        if (source.range) {
-          const { start } = source.range
-          message = `${formattedFilePath}:${start.line + 1}:${
-            start.column
-          }\n${formattedTitle}`
-        } else {
-          message = formattedFilePath
-        }
+      if (source && source.range) {
+        const { start } = source.range
+        message = `${formattedFilePath}:${start.line + 1}:${
+          start.column
+        }\n${formattedTitle}`
       } else if (formattedFilePath) {
         message = `${formattedFilePath}\n${formattedTitle}`
       } else {
@@ -373,6 +370,11 @@ async function startWatcher(opts: SetupOpts) {
       if (description) {
         message += renderStyledStringToErrorAnsi(description) + '\n\n'
       }
+
+      // TODO: make it possible to enable this for debugging, but not in tests.
+      // if (detail) {
+      //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+      // }
 
       // TODO: Include a trace from the issue.
 
@@ -581,11 +583,12 @@ async function startWatcher(opts: SetupOpts) {
     const appPathsManifests = new Map<string, PagesManifest>()
     const middlewareManifests = new Map<string, TurbopackMiddlewareManifest>()
     const actionManifests = new Map<string, ActionManifest>()
+    const fontManifests = new Map<string, NextFontManifest>()
+    const loadableManifests = new Map<string, LoadableManifest>()
     const clientToHmrSubscription = new Map<
       ws,
       Map<string, AsyncIterator<any>>
     >()
-    const loadbleManifests = new Map<string, LoadableManifest>()
     const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
@@ -643,11 +646,21 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function loadFontManifest(
+      pageName: string,
+      type: 'app' | 'pages' = 'pages'
+    ): Promise<void> {
+      fontManifests.set(
+        pageName,
+        await loadPartialManifest(`${NEXT_FONT_MANIFEST}.json`, pageName, type)
+      )
+    }
+
     async function loadLoadableManifest(
       pageName: string,
       type: 'app' | 'pages' = 'pages'
     ): Promise<void> {
-      loadbleManifests.set(
+      loadableManifests.set(
         pageName,
         await loadPartialManifest(REACT_LOADABLE_MANIFEST, pageName, type)
       )
@@ -814,6 +827,25 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    function mergeFontManifests(manifests: Iterable<NextFontManifest>) {
+      const manifest: NextFontManifest = {
+        app: {},
+        appUsingSizeAdjust: false,
+        pages: {},
+        pagesUsingSizeAdjust: false,
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.app, m.app)
+        Object.assign(manifest.pages, m.pages)
+
+        manifest.appUsingSizeAdjust =
+          manifest.appUsingSizeAdjust || m.appUsingSizeAdjust
+        manifest.pagesUsingSizeAdjust =
+          manifest.pagesUsingSizeAdjust || m.pagesUsingSizeAdjust
+      }
+      return manifest
+    }
+
     function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
       const manifest: LoadableManifest = {}
       for (const m of manifests) {
@@ -963,16 +995,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeFontManifest(): Promise<void> {
-      // TODO: turbopack should write the correct
-      // version of this
-      const fontManifest = {
-        pages: {},
-        app: {},
-        appUsingSizeAdjust: false,
-        pagesUsingSizeAdjust: false,
-      }
-
+      const fontManifest = mergeFontManifests(fontManifests.values())
       const json = JSON.stringify(fontManifest, null, 2)
+
       const fontManifestJsonPath = path.join(
         distDir,
         'server',
@@ -993,7 +1018,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeLoadableManifest(): Promise<void> {
-      const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
+      const loadableManifest = mergeLoadableManifests(
+        loadableManifests.values()
+      )
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       const middlewareloadableManifestPath = path.join(
         distDir,
@@ -1430,8 +1457,16 @@ async function startWatcher(opts: SetupOpts) {
         }
         return errors
       },
-      invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
-        // Not implemented yet.
+      async invalidate({
+        // .env files or tsconfig/jsconfig change
+        reloadAfterInvalidation,
+      }) {
+        if (reloadAfterInvalidation) {
+          await clearAllModuleContexts()
+          this.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          })
+        }
       },
       async buildFallbackError() {
         // Not implemented yet.
@@ -1459,6 +1494,7 @@ async function startWatcher(opts: SetupOpts) {
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
+            await loadFontManifest('_app')
 
             if (globalEntries.document) {
               const writtenEndpoint = await processResult(
@@ -1487,6 +1523,7 @@ async function startWatcher(opts: SetupOpts) {
             }
             await loadBuildManifest('_error')
             await loadPagesManifest('_error')
+            await loadFontManifest('_error')
 
             await writeManifests()
           } finally {
@@ -1561,6 +1598,7 @@ async function startWatcher(opts: SetupOpts) {
                 } else {
                   middlewareManifests.delete(page)
                 }
+                await loadFontManifest(page, 'pages')
                 await loadLoadableManifest(page, 'pages')
 
                 await writeManifests()
@@ -1675,6 +1713,7 @@ async function startWatcher(opts: SetupOpts) {
               await loadBuildManifest(page, 'app')
               await loadAppPathManifest(page, 'app')
               await loadActionManifest(page)
+              await loadFontManifest(page, 'app')
               await writeManifests()
 
               processIssues(page, writtenEndpoint, true)
@@ -2259,7 +2298,7 @@ async function startWatcher(opts: SetupOpts) {
             })
           }
         })
-        hotReloader.invalidate({
+        await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
       }

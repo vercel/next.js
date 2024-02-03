@@ -7,7 +7,6 @@ import origDebug from 'next/dist/compiled/debug'
 import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
-import { needsExperimentalReact } from '../../lib/needs-experimental-react'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -48,9 +47,6 @@ async function webpackBuildWithWorker(
         env: {
           ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
-          NEXT_EXPERIMENTAL_REACT: JSON.stringify(
-            needsExperimentalReact(NextBuildContext.config!)
-          ),
         },
       },
     }) as Worker & typeof import('./impl')
