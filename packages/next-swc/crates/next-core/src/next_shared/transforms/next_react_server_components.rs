@@ -55,8 +55,14 @@ impl CustomTransformer for NextJsReactServerComponents {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
 
+        let file_name = if ctx.file_path_str.is_empty() {
+            FileName::Anon
+        } else {
+            FileName::Real(ctx.file_path_str.into())
+        };
+
         let mut visitor = server_components(
-            FileName::Custom(ctx.file_path_str.to_string()),
+            file_name,
             Config::WithOptions(Options {
                 is_react_server_layer: self.is_react_server_layer,
             }),
