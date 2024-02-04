@@ -27,7 +27,7 @@ jobs:
     environment: release-${{ github.event.inputs.releaseType }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: 18
           check-latest: true
