@@ -63,6 +63,7 @@ use crate::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
         DynamicImportedChunks,
     },
+    font::create_font_manifest,
     middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -817,6 +818,21 @@ impl AppEndpoint {
             Ok(Vc::cell(output))
         }
 
+        let client_assets = OutputAssets::new(client_assets);
+
+        let next_font_manifest_output = create_font_manifest(
+            this.app_project.project().client_root(),
+            node_root,
+            this.app_project.app_dir(),
+            ty,
+            &app_entry.pathname,
+            &app_entry.original_name,
+            client_assets,
+            true,
+        )
+        .await?;
+        server_assets.push(next_font_manifest_output);
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
                 // create edge chunks
@@ -957,7 +973,7 @@ impl AppEndpoint {
                 AppEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
             NextRuntime::NodeJs => {
@@ -1032,7 +1048,7 @@ impl AppEndpoint {
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
         }

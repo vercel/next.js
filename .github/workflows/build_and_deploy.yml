@@ -25,7 +25,7 @@ jobs:
       isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -248,7 +248,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         if: ${{ !matrix.settings.docker }}
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
@@ -355,7 +355,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -407,7 +407,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
