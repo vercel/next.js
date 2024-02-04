@@ -436,9 +436,11 @@ async function createTreeCodeFromPath(
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
-          adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
+          adjacentParallelSegment === 'children'
+            ? ''
+            : `/${adjacentParallelSegment}`
         let defaultPath = await resolver(
-          `${appDirPrefix}${segmentPath}/${actualSegment}/default`
+          `${appDirPrefix}${segmentPath}${actualSegment}/default`
         )
 
         if (!defaultPath) {

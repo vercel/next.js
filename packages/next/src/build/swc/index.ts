@@ -1301,7 +1301,7 @@ function loadNative(importPath?: string) {
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =
-          typeof src !== undefined &&
+          typeof src !== 'undefined' &&
           typeof src !== 'string' &&
           !Buffer.isBuffer(src)
         options = options || {}
@@ -1318,7 +1318,7 @@ function loadNative(importPath?: string) {
       },
 
       transformSync(src: string, options: any) {
-        if (typeof src === undefined) {
+        if (typeof src === 'undefined') {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
           )
