@@ -63,7 +63,7 @@ import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-r
 import { validateURL } from './validate-url'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
 import { handleAction } from './action-handler'
-import { isBailoutCSRError } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { warn, error } from '../../build/output/log'
 import { appendMutableCookies } from '../web/spec-extension/adapters/request-cookies'
 import { createServerInsertedHTML } from './server-inserted-html'
@@ -77,8 +77,11 @@ import { setReferenceManifestsSingleton } from './action-encryption-utils'
 import { createStaticRenderer } from './static/static-renderer'
 import { MissingPostponeDataError } from './is-missing-postpone-error'
 import { DetachedPromise } from '../../lib/detached-promise'
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { useFlightResponse } from './use-flight-response'
+import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
+import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -103,9 +106,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
-  providedSearchParams: NextParsedUrlQuery
   requestTimestamp: number
-  searchParamsProps: { searchParams: NextParsedUrlQuery }
   appUsingSizeAdjustment: boolean
   providedFlightRouterState?: FlightRouterState
   requestId: string
@@ -249,11 +250,15 @@ async function generateFlight(
   let flightData: FlightData | null = null
 
   const {
-    componentMod: { tree: loaderTree, renderToReadableStream },
+    componentMod: {
+      tree: loaderTree,
+      renderToReadableStream,
+      createDynamicallyTrackedSearchParams,
+    },
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
     staticGenerationStore: { urlPathname },
-    providedSearchParams,
+    query,
     requestId,
     providedFlightRouterState,
   } = ctx
@@ -262,9 +267,10 @@ async function generateFlight(
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       pathname: urlPathname,
-      searchParams: providedSearchParams,
+      query,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
+      createDynamicallyTrackedSearchParams,
     })
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -304,6 +310,23 @@ async function generateFlight(
   )
 
   return new FlightRenderResult(flightReadableStream)
+}
+
+type RenderToStreamResult = {
+  stream: RenderResultResponse
+  err?: unknown
+}
+
+type RenderToStreamOptions = {
+  /**
+   * This option is used to indicate that the page should be rendered as
+   * if it was not found. When it's enabled, instead of rendering the
+   * page component, it renders the not-found segment.
+   *
+   */
+  asNotFound: boolean
+  tree: LoaderTree
+  formState: any
 }
 
 /**
@@ -356,9 +379,12 @@ async function ReactServerApp({
   const {
     getDynamicParamFromSegment,
     query,
-    providedSearchParams,
     appUsingSizeAdjustment,
-    componentMod: { AppRouter, GlobalError },
+    componentMod: {
+      AppRouter,
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+    },
     staticGenerationStore: { urlPathname },
   } = ctx
   const initialTree = createFlightRouterStateFromLoaderTree(
@@ -371,9 +397,10 @@ async function ReactServerApp({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
-    searchParams: providedSearchParams,
+    query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
+    createDynamicallyTrackedSearchParams,
   })
 
   const { seedData, styles } = await createComponentTree({
@@ -436,9 +463,12 @@ async function ReactServerError({
   const {
     getDynamicParamFromSegment,
     query,
-    providedSearchParams,
     appUsingSizeAdjustment,
-    componentMod: { AppRouter, GlobalError },
+    componentMod: {
+      AppRouter,
+      GlobalError,
+      createDynamicallyTrackedSearchParams,
+    },
     staticGenerationStore: { urlPathname },
     requestId,
     res,
@@ -449,9 +479,10 @@ async function ReactServerError({
     tree,
     pathname: urlPathname,
     errorType,
-    searchParams: providedSearchParams,
+    query,
     getDynamicParamFromSegment,
     appUsingSizeAdjustment,
+    createDynamicallyTrackedSearchParams,
   })
 
   const head = (
@@ -665,11 +696,7 @@ async function renderToHTMLOrFlightImpl(
   const generateStaticHTML = supportsDynamicHTML !== true
 
   // Pull out the hooks/references from the component.
-  const {
-    createSearchParamsBailoutProxy,
-    tree: loaderTree,
-    taintObjectReference,
-  } = ComponentMod
+  const { tree: loaderTree, taintObjectReference } = ComponentMod
 
   if (enableTainting) {
     taintObjectReference(
@@ -696,12 +723,19 @@ async function renderToHTMLOrFlightImpl(
   /**
    * Router state provided from the client-side router. Used to handle rendering from the common layout down.
    */
-  let providedFlightRouterState =
-    isRSCRequest && (!isPrefetchRSCRequest || !renderOpts.experimental.ppr)
-      ? parseAndValidateFlightRouterState(
-          req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
-        )
-      : undefined
+
+  const shouldProvideFlightRouterState =
+    isRSCRequest &&
+    (!isPrefetchRSCRequest ||
+      !renderOpts.experimental.ppr ||
+      // interception routes currently depend on the flight router state to extract dynamic params
+      isInterceptionRouteAppPath(pagePath))
+
+  let providedFlightRouterState = shouldProvideFlightRouterState
+    ? parseAndValidateFlightRouterState(
+        req.headers[NEXT_ROUTER_STATE_TREE.toLowerCase()]
+      )
+    : undefined
 
   /**
    * The metadata items array created in next-app-loader with all relevant information
@@ -714,13 +748,6 @@ async function renderToHTMLOrFlightImpl(
   } else {
     requestId = require('next/dist/compiled/nanoid').nanoid()
   }
-
-  // During static generation we need to call the static generation bailout when reading searchParams
-  const providedSearchParams = isStaticGeneration
-    ? createSearchParamsBailoutProxy()
-    : query
-
-  const searchParamsProps = { searchParams: providedSearchParams }
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
@@ -737,9 +764,7 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRSCRequest,
-    providedSearchParams,
     requestTimestamp,
-    searchParamsProps,
     appUsingSizeAdjustment,
     providedFlightRouterState,
     requestId,
@@ -816,17 +841,7 @@ async function renderToHTMLOrFlightImpl(
       asNotFound,
       tree,
       formState,
-    }: {
-      /**
-       * This option is used to indicate that the page should be rendered as
-       * if it was not found. When it's enabled, instead of rendering the
-       * page component, it renders the not-found segment.
-       *
-       */
-      asNotFound: boolean
-      tree: LoaderTree
-      formState: any
-    }) => {
+    }: RenderToStreamOptions): Promise<RenderToStreamResult> => {
       const polyfills: JSX.IntrinsicElements['script'][] =
         buildManifest.polyfillFiles
           .filter(
@@ -946,7 +961,7 @@ async function renderToHTMLOrFlightImpl(
 
           // We don't need to "continue" this stream now as it's continued when
           // we resume the stream.
-          return stream
+          return { stream }
         }
 
         const options: ContinueStreamOptions = {
@@ -966,32 +981,50 @@ async function renderToHTMLOrFlightImpl(
         }
 
         if (renderOpts.postponed) {
-          return await continuePostponedFizzStream(stream, options)
+          stream = await continuePostponedFizzStream(stream, options)
+        } else {
+          stream = await continueFizzStream(stream, options)
         }
 
-        return await continueFizzStream(stream, options)
-      } catch (err: any) {
+        return { stream }
+      } catch (err) {
         if (
-          err.code === 'NEXT_STATIC_GEN_BAILOUT' ||
-          err.message?.includes(
-            'https://nextjs.org/docs/advanced-features/static-html-export'
-          )
+          isStaticGenBailoutError(err) ||
+          (typeof err === 'object' &&
+            err !== null &&
+            'message' in err &&
+            typeof err.message === 'string' &&
+            err.message.includes(
+              'https://nextjs.org/docs/advanced-features/static-html-export'
+            ))
         ) {
           // Ensure that "next dev" prints the red error overlay
           throw err
         }
 
-        if (isStaticGeneration && err.digest === DYNAMIC_ERROR_CODE) {
-          // ensure that DynamicUsageErrors bubble up during static generation
-          // as this will indicate that the page needs to be dynamically rendered
+        // If this is a static generation error, we need to throw it so that it
+        // can be handled by the caller if we're in static generation mode.
+        if (isStaticGeneration && isDynamicServerError(err)) {
           throw err
         }
 
-        const isBailoutCSR = isBailoutCSRError(err)
-        if (isBailoutCSR) {
+        // If a bailout made it to this point, it means it wasn't wrapped inside
+        // a suspense boundary.
+        const shouldBailoutToCSR = isBailoutToCSRError(err)
+        if (shouldBailoutToCSR) {
+          console.log()
+
+          if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
+            const stack = getStackWithoutErrorMessage(err)
+            error(
+              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
+            )
+
+            throw err
+          }
+
           warn(
-            `Entire page ${pagePath} deopted into client-side rendering. https://nextjs.org/docs/messages/deopted-into-client-rendering`,
-            pagePath
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
           )
         }
 
@@ -1019,7 +1052,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         const is404 = res.statusCode === 404
-        if (!is404 && !hasRedirectError && !isBailoutCSR) {
+        if (!is404 && !hasRedirectError && !shouldBailoutToCSR) {
           res.statusCode = 500
         }
 
@@ -1077,14 +1110,19 @@ async function renderToHTMLOrFlightImpl(
             },
           })
 
-          return await continueFizzStream(fizzStream, {
-            inlinedDataStream: errorInlinedDataTransformStream.readable,
-            isStaticGeneration,
-            getServerInsertedHTML: () => getServerInsertedHTML([]),
-            serverInsertedHTMLToHead: true,
-            validateRootLayout,
-            suffix: undefined,
-          })
+          return {
+            // Returning the error that was thrown so it can be used to handle
+            // the response in the caller.
+            err,
+            stream: await continueFizzStream(fizzStream, {
+              inlinedDataStream: errorInlinedDataTransformStream.readable,
+              isStaticGeneration,
+              getServerInsertedHTML: () => getServerInsertedHTML([]),
+              serverInsertedHTMLToHead: true,
+              validateRootLayout,
+              suffix: undefined,
+            }),
+          }
         } catch (finalErr: any) {
           if (
             process.env.NODE_ENV === 'development' &&
@@ -1117,14 +1155,13 @@ async function renderToHTMLOrFlightImpl(
   if (actionRequestResult) {
     if (actionRequestResult.type === 'not-found') {
       const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-      return new RenderResult(
-        await renderToStream({
-          asNotFound: true,
-          tree: notFoundLoaderTree,
-          formState,
-        }),
-        { metadata }
-      )
+      const response = await renderToStream({
+        asNotFound: true,
+        tree: notFoundLoaderTree,
+        formState,
+      })
+
+      return new RenderResult(response.stream, { metadata })
     } else if (actionRequestResult.type === 'done') {
       if (actionRequestResult.result) {
         actionRequestResult.result.assignMetadata(metadata)
@@ -1139,7 +1176,7 @@ async function renderToHTMLOrFlightImpl(
     metadata,
   }
 
-  let response: RenderResultResponse = await renderToStream({
+  let response = await renderToStream({
     asNotFound: isNotFoundPath,
     tree: loaderTree,
     formState,
@@ -1159,7 +1196,7 @@ async function renderToHTMLOrFlightImpl(
   }
 
   // Create the new render result for the response.
-  const result = new RenderResult(response, options)
+  const result = new RenderResult(response.stream, options)
 
   // If we aren't performing static generation, we can return the result now.
   if (!isStaticGeneration) {
@@ -1168,7 +1205,7 @@ async function renderToHTMLOrFlightImpl(
 
   // If this is static generation, we should read this in now rather than
   // sending it back to be sent to the client.
-  response = await result.toUnchunkedString(true)
+  response.stream = await result.toUnchunkedString(true)
 
   // Timeout after 1.5 seconds for the headers to write. If it takes
   // longer than this it's more likely that the stream has stalled and
@@ -1190,13 +1227,15 @@ async function renderToHTMLOrFlightImpl(
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
 
+  // If PPR is enabled and the postpone was triggered but lacks the postponed
+  // state information then we should error out unless the client side rendering
+  // bailout error was also emitted which indicates that part of the stream was
+  // not rendered.
   if (
-    // if PPR is enabled
-    renderOpts.experimental.ppr &&
-    // and a call to `postpone` happened
-    staticGenerationStore.postponeWasTriggered &&
-    // but there's no postpone state
-    !metadata.postponed
+    staticGenerationStore.prerenderState &&
+    staticGenerationStore.prerenderState.hasDynamic &&
+    !metadata.postponed &&
+    (!response.err || !isBailoutToCSRError(response.err))
   ) {
     // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
     // as we won't be able to generate the static part
@@ -1258,7 +1297,7 @@ async function renderToHTMLOrFlightImpl(
     }
   }
 
-  return new RenderResult(response, options)
+  return new RenderResult(response.stream, options)
 }
 
 export type AppPageRender = (

@@ -2,12 +2,8 @@
 
 import { join } from 'path'
 import getPort from 'get-port'
-import {
-  fetchViaHTTP,
-  initNextServerScript,
-  killApp,
-  getPageFileFromBuildManifest,
-} from 'next-test-utils'
+import { fetchViaHTTP, initNextServerScript, killApp } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 
 const appDir = join(__dirname, '../')
 let appPort
@@ -40,23 +36,14 @@ describe('FileSystemPublicRoutes', () => {
     const res = await fetch('/exportpathmap-route')
     expect(res.status).toBe(200)
     const body = await res.text()
-    expect(body).toMatch(
-      process.env.TURBOPACK ? /turbopack/ : /exportpathmap was here/
-    )
+    expect(body).toMatch(/exportpathmap was here/)
   })
 
-  it('should still handle /_next routes', async () => {
-    await fetch('/exportpathmap-route') // make sure it's built
-    const pageFile = getPageFileFromBuildManifest(
-      appDir,
-      '/exportpathmap-route'
-    )
-    const res = await fetch(join('/_next', pageFile))
-    expect(res.status).toBe(200)
-    const body = await res.text()
-    expect(body).toMatch(
-      process.env.TURBOPACK ? /turbopack/ : /exportpathmap was here/
-    )
+  it('should serve JavaScript files correctly', async () => {
+    const browser = await webdriver(context.appPort, '/exportpathmap-route')
+
+    const text = await browser.waitForElementByCss('#page-was-loaded').text()
+    expect(text).toBe('Hello World')
   })
 
   it('should route to public folder files', async () => {

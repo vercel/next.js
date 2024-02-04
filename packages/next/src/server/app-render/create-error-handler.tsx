@@ -36,9 +36,7 @@ export function createErrorHandler({
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.
-    if (isDynamicUsageError(err)) {
-      return err.digest
-    }
+    if (isDynamicUsageError(err)) return err.digest
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
@@ -79,8 +77,7 @@ export function createErrorHandler({
             const { logAppDirError } =
               require('../dev/log-app-dir-error') as typeof import('../dev/log-app-dir-error')
             logAppDirError(err)
-          }
-          if (process.env.NODE_ENV === 'production') {
+          } else {
             console.error(err)
           }
         }

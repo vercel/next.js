@@ -17,7 +17,7 @@ jobs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
       - name: Get number of CPU cores
-        uses: SimenB/github-actions-cpu-cores@v1
+        uses: SimenB/github-actions-cpu-cores@v2
         id: cpu-cores
 
       - name: 'Setup Rust toolchain'
@@ -45,20 +45,20 @@ jobs:
         run: sudo ethtool -K eth0 tx off rx off
 
       - name: Checkout Next.js
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: vercel/next.js
           ref: ${{ env.NEXTJS_VERSION }}
 
       - name: Checkout failed test lists
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: vercel/turbo
           ref: nextjs-integration-test-data
           path: integration-test-data
 
       - name: Download binary
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -90,7 +90,7 @@ jobs:
           export TASKS_FS=$(printf 'patch.\\"%s\\".%s.git=\\"%s?rev=%s\\"' "$TURBOPACK_REMOTE" "turbo-tasks-fs" "$TURBOPACK_REMOTE" "$GITHUB_SHA")
 
           echo "Trying to build next-swc with turbopack $GITHUB_SHA"
-          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin,rustls-tls --release --cargo-flags="--config $BINDING --config $TASKS --config $TASKS_FS"'
+          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin --release --cargo-flags="--config $BINDING --config $TASKS --config $TASKS_FS"'
           echo "built=pass" >> $GITHUB_OUTPUT
           echo "Successfully built next-swc with turbopack $GITHUB_SHA"
 
@@ -98,7 +98,7 @@ jobs:
         if: steps.build-next-swc-turbopack-patch.outputs.built != 'pass'
         run: |
           echo "Looks like we could not apply latest turbopack to next-swc. Trying to build next-swc with published turbopack. This might happen when there is a breaking changes in turbopack, and next.js is not yet updated."
-          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin,rustls-tls --release'
+          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin --release'
           echo "Successfully built next-swc with published turbopack"
 
       - name: Build next.js

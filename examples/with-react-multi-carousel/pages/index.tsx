@@ -1,7 +1,7 @@
-import Carousel from 'react-multi-carousel'
-import { ResponsiveType } from 'react-multi-carousel/lib/types'
-import 'react-multi-carousel/lib/styles.css'
-import Image from 'next/image'
+import Carousel from "react-multi-carousel";
+import { ResponsiveType } from "react-multi-carousel/lib/types";
+import "react-multi-carousel/lib/styles.css";
+import Image from "next/image";
 
 const BreakpointSlides: ResponsiveType = {
   desktop: {
@@ -16,7 +16,7 @@ const BreakpointSlides: ResponsiveType = {
     breakpoint: { max: 530, min: 0 },
     items: 1,
   },
-}
+};
 
 export default function Page() {
   return (
@@ -66,5 +66,5 @@ export default function Page() {
         height={475}
       />
     </Carousel>
-  )
+  );
 }

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_swc::server_actions::{server_actions, Config};
+use next_custom_transforms::transforms::server_actions::{server_actions, Config};
 use swc_core::{
     common::FileName,
     ecma::{ast::Program, visit::VisitMutWith},
@@ -28,9 +28,10 @@ pub fn get_server_actions_transform_rule(
         EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextServerActions { transform }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

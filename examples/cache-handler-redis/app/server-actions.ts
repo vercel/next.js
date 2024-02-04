@@ -1,7 +1,7 @@
-'use server'
+"use server";
 
-import { revalidateTag } from 'next/cache'
+import { revalidateTag } from "next/cache";
 
 export default async function revalidate() {
-  revalidateTag('time-data')
+  revalidateTag("time-data");
 }

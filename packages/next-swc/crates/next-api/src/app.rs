@@ -19,9 +19,7 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{
-        ClientReferenceGraph, ClientReferenceType, NextEcmascriptClientReferenceTransition,
-    },
+    next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
@@ -44,9 +42,10 @@ use turbopack_binding::{
         tasks_fs::{rope::RopeBuilder, File, FileContent, FileSystemPath},
     },
     turbopack::{
+        build::EntryChunkGroupResult,
         core::{
             asset::{Asset, AssetContent},
-            chunk::{availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAssets},
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAssets},
             file_source::FileSource,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -64,6 +63,7 @@ use crate::{
         collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
         DynamicImportedChunks,
     },
+    font::create_font_manifest,
     middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
     route::{Endpoint, Route, Routes, WrittenEndpoint},
@@ -610,10 +610,6 @@ impl AppEndpoint {
         // ))
         // .await?;
 
-        let app_entry_client_references = client_reference_graph
-            .entry(Vc::upcast(app_entry.rsc_entry))
-            .await?;
-
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         if ssr_and_client {
@@ -625,8 +621,7 @@ impl AppEndpoint {
             };
 
             let client_references_chunks = get_app_client_references_chunks(
-                app_entry.rsc_entry.ident(),
-                client_reference_types,
+                client_references,
                 this.app_project.project().client_chunking_context(),
                 ssr_chunking_context,
             );
@@ -635,13 +630,23 @@ impl AppEndpoint {
             let mut entry_client_chunks = IndexSet::new();
             // TODO(alexkirsz) In which manifest does this go?
             let mut entry_ssr_chunks = IndexSet::new();
-            for client_reference in app_entry_client_references.iter() {
-                let client_reference_chunks = client_references_chunks_ref
-                    .get(client_reference.ty())
-                    .context("client reference should have corresponding chunks")?;
-                entry_client_chunks
-                    .extend(client_reference_chunks.client_chunks.await?.iter().copied());
-                entry_ssr_chunks.extend(client_reference_chunks.ssr_chunks.await?.iter().copied());
+            for chunks in client_references_chunks_ref
+                .layout_segment_client_chunks
+                .values()
+            {
+                entry_client_chunks.extend(chunks.await?.iter().copied());
+            }
+            for chunks in client_references_chunks_ref
+                .client_component_client_chunks
+                .values()
+            {
+                client_assets.extend(chunks.await?.iter().copied());
+            }
+            for chunks in client_references_chunks_ref
+                .client_component_ssr_chunks
+                .values()
+            {
+                entry_ssr_chunks.extend(chunks.await?.iter().copied());
             }
 
             client_assets.extend(entry_client_chunks.iter().copied());
@@ -701,10 +706,7 @@ impl AppEndpoint {
                 client_references_chunks,
                 this.app_project.project().client_chunking_context(),
                 ssr_chunking_context,
-                this.app_project
-                    .project()
-                    .next_config()
-                    .computed_asset_prefix(),
+                this.app_project.project().next_config(),
                 runtime,
             );
             server_assets.push(entry_manifest);
@@ -717,12 +719,13 @@ impl AppEndpoint {
                 // initialization
                 let client_references_chunks = &*client_references_chunks.await?;
 
-                for (ty, chunks) in client_references_chunks {
-                    if matches!(ty, ClientReferenceType::EcmascriptClientReference(..)) {
-                        let ssr_chunks = &*chunks.ssr_chunks.await?;
+                for &ssr_chunks in client_references_chunks
+                    .client_component_ssr_chunks
+                    .values()
+                {
+                    let ssr_chunks = ssr_chunks.await?;
 
-                        middleware_assets.extend(ssr_chunks);
-                    }
+                    middleware_assets.extend(ssr_chunks);
                 }
             }
         }
@@ -815,6 +818,21 @@ impl AppEndpoint {
             Ok(Vc::cell(output))
         }
 
+        let client_assets = OutputAssets::new(client_assets);
+
+        let next_font_manifest_output = create_font_manifest(
+            this.app_project.project().client_root(),
+            node_root,
+            this.app_project.app_dir(),
+            ty,
+            &app_entry.pathname,
+            &app_entry.original_name,
+            client_assets,
+            true,
+        )
+        .await?;
+        server_assets.push(next_font_manifest_output);
+
         let endpoint_output = match app_entry.config.await?.runtime.unwrap_or_default() {
             NextRuntime::Edge => {
                 // create edge chunks
@@ -844,9 +862,10 @@ impl AppEndpoint {
                 server_assets.push(manifest);
                 evaluatable_assets.push(loader);
 
-                let files = chunking_context.evaluated_chunk_group(
+                let files = chunking_context.evaluated_chunk_group_assets(
                     app_entry.rsc_entry.ident(),
                     Vc::cell(evaluatable_assets.clone()),
+                    Value::new(AvailabilityInfo::Root),
                 );
                 let files_value = files.await?;
 
@@ -954,7 +973,7 @@ impl AppEndpoint {
                 AppEndpointOutput::Edge {
                     files,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
             NextRuntime::NodeJs => {
@@ -976,7 +995,9 @@ impl AppEndpoint {
                 server_assets.push(manifest);
                 evaluatable_assets.push(loader);
 
-                let rsc_chunk = this
+                let EntryChunkGroupResult {
+                    asset: rsc_chunk, ..
+                } = *this
                     .app_project
                     .project()
                     .server_chunking_context()
@@ -987,7 +1008,9 @@ impl AppEndpoint {
                         )),
                         app_entry.rsc_entry,
                         Vc::cell(evaluatable_assets),
-                    );
+                        Value::new(AvailabilityInfo::Root),
+                    )
+                    .await?;
                 server_assets.push(rsc_chunk);
 
                 let app_paths_manifest_output = create_app_paths_manifest(
@@ -1025,7 +1048,7 @@ impl AppEndpoint {
                 AppEndpointOutput::NodeJs {
                     rsc_chunk,
                     server_assets: Vc::cell(server_assets),
-                    client_assets: Vc::cell(client_assets),
+                    client_assets,
                 }
             }
         }

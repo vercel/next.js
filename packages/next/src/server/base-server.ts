@@ -258,7 +258,7 @@ type BaseRenderOpts = {
   appDirDevErrorLogger?: (err: any) => Promise<void>
   strictNextHead: boolean
   isExperimentalCompile?: boolean
-  experimental: { ppr: boolean }
+  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -548,6 +548,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         ppr:
           this.enabledDirectories.app &&
           this.nextConfig.experimental.ppr === true,
+        missingSuspenseWithCSRBailout:
+          this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
       },
     }
 
@@ -1269,6 +1271,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
             | 'http'
             | 'https',
         })
+        incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
@@ -1794,12 +1797,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           )
         }
         const resolvedWithoutSlash = removeTrailingSlash(resolvedUrlPathname)
-        if (!staticPaths || staticPaths.length === 0) {
-          throw new Error(
-            `Page "${page}"'s "generateStaticParams()" returned an empty array, which is not allowed with "output: export" config.`
-          )
-        }
-        if (!staticPaths.includes(resolvedWithoutSlash)) {
+        if (!staticPaths?.includes(resolvedWithoutSlash)) {
           throw new Error(
             `Page "${page}" is missing param "${resolvedWithoutSlash}" in "generateStaticParams()", which is required with "output: export" config.`
           )
@@ -2138,6 +2136,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           | 'http'
           | 'https',
       }))
+
+    incrementalCache?.resetRequestCache()
 
     const { routeModule } = components
 

@@ -1,4 +1,4 @@
-import { Checkbox } from '@nextui-org/react'
+import { Checkbox } from "@nextui-org/react";
 
 const CustomCheckbox = () => {
   return (
@@ -6,14 +6,14 @@ const CustomCheckbox = () => {
       label="Select cities"
       orientation="horizontal"
       color="secondary"
-      defaultValue={['buenos-aires']}
+      defaultValue={["buenos-aires"]}
     >
       <Checkbox value="buenos-aires">Buenos Aires</Checkbox>
       <Checkbox value="sydney">Sydney</Checkbox>
       <Checkbox value="london">London</Checkbox>
       <Checkbox value="tokyo">Tokyo</Checkbox>
     </Checkbox.Group>
-  )
-}
+  );
+};
 
-export default CustomCheckbox
+export default CustomCheckbox;
