@@ -67,6 +67,4 @@ A list of the original co-authors of Next.js that helped bring this amazing fram
 
 # Security
 
-If you believe you have found a security vulnerability in Next.js, we encourage you to ***responsibly disclose this and NOT open a public issue***. We will investigate all legitimate reports. Email `security@vercel.com` to disclose any security vulnerabilities. Alternatively, you can visit this [link](https://vercel.com/security) to know more about Vercel's security and report any security vulnerabilities.
-
-
+If you believe you have found a security vulnerability in Next.js, we encourage you to **_responsibly disclose this and NOT open a public issue_**. We will investigate all legitimate reports. Email `security@vercel.com` to disclose any security vulnerabilities. Alternatively, you can visit this [link](https://vercel.com/security) to know more about Vercel's security and report any security vulnerabilities.
