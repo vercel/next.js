@@ -251,6 +251,7 @@
     "@babel/parser": "7.22.5",
     "@babel/types": "7.22.5",
     "@babel/traverse": "7.22.5",
+    "@edge-runtime/primitives": "4.0.4",
     "@types/react": "18.2.37",
     "@types/react-dom": "18.2.15"
   },
@@ -258,10 +259,5 @@
     "node": ">=18.17.0",
     "pnpm": "8.14.2"
   },
-  "packageManager": "pnpm@8.14.2",
-  "pnpm": {
-    "overrides": {
-      "@edge-runtime/primitives": "4.0.4"
-    }
-  }
+  "packageManager": "pnpm@8.14.2"
 }
