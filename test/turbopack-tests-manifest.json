@@ -5863,7 +5863,8 @@
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
-      "next/font app import values page with local fonts"
+      "next/font app import values page with local fonts",
+      "next/font app should use production cache control for fonts"
     ],
     "failed": [
       "next/font app Fallback fontfaces google Fraunces",
@@ -5878,20 +5879,19 @@
       "next/font app preload google fonts with multiple weights/styles",
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
-      "next/font app preload page without fonts",
-      "next/font app should use production cache control for fonts"
+      "next/font app preload page without fonts"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-font/with-font-declarations-file.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with-font-declarations-file preload correct files at /inter",
       "next/font/google with-font-declarations-file preload correct files at /local-font",
       "next/font/google with-font-declarations-file preload correct files at /roboto"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5907,13 +5907,11 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
-      "next/font/google without-preloaded-fonts without _app without fonts"
-    ],
-    "failed": [
-      "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
+      "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
     ],
+    "failed": ["next/font/google no preloads with _app without fonts"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
