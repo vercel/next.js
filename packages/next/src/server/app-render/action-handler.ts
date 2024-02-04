@@ -220,7 +220,7 @@ async function createRedirectRenderResult(
       if (
         headResponse.headers.get('content-type') === RSC_CONTENT_TYPE_HEADER
       ) {
-        const response = await fetch(fetchUrl, {
+        const redirectResponse = await fetch(fetchUrl, {
           method: 'GET',
           headers: forwardedHeaders,
           next: {
@@ -228,14 +228,29 @@ async function createRedirectRenderResult(
             internal: 1,
           },
         })
+        //copy cookies from the redirect response to respose we're sending before copying other headers
+        //this is possible only in case of custom server created by developer
+        const redirectResponseCookies = new ResponseCookies(
+          redirectResponse.headers
+        )
+        const responseCookies = new ResponseCookies(
+          fromNodeOutgoingHttpHeaders(res.getHeaders())
+        )
+        redirectResponseCookies.getAll().forEach((cookie) => {
+          if (typeof cookie.value === 'undefined') {
+            responseCookies.delete(cookie.name)
+          } else {
+            responseCookies.set(cookie)
+          }
+        })
         // copy the headers from the redirect response to the response we're sending
-        for (const [key, value] of response.headers) {
+        for (const [key, value] of redirectResponse.headers) {
           if (!actionsForbiddenHeaders.includes(key)) {
             res.setHeader(key, value)
           }
         }
 
-        return new FlightRenderResult(response.body!)
+        return new FlightRenderResult(redirectResponse.body!)
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
