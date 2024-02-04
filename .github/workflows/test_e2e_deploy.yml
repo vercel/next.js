@@ -38,7 +38,7 @@ jobs:
           check-latest: true
       - run: corepack enable
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 

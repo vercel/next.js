@@ -155,7 +155,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Collect integration test stat
         uses: ./.github/actions/next-integration-stat

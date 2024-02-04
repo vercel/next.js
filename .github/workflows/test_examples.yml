@@ -27,7 +27,7 @@ jobs:
       matrix:
         node: [18, 20]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
       # https://github.com/actions/virtual-environments/issues/1187
