@@ -15,7 +15,6 @@ overrides:
   '@babel/traverse': 7.22.5
   '@types/react': 18.2.37
   '@types/react-dom': 18.2.15
-  '@edge-runtime/primitives': 4.0.4
 
 importers:
 
@@ -916,8 +915,8 @@ importers:
         specifier: 2.4.1
         version: 2.4.1
       '@edge-runtime/primitives':
-        specifier: 4.0.4
-        version: 4.0.4
+        specifier: 4.0.5
+        version: 4.0.5
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -3586,8 +3585,8 @@ packages:
     engines: {node: '>=16'}
     dev: true
 
-  /@edge-runtime/primitives@4.0.4:
-    resolution: {integrity: sha512-ktlFVHheT3mXz++atzAB13p/+VLMLiinWvn68/wfpLjsat/LuCccOGuNIe8gLPdVbucvw6N8TTn39iRVwz4gxA==}
+  /@edge-runtime/primitives@4.0.5:
+    resolution: {integrity: sha512-t7QiN5d/KpXgCvIfSt6Nm9Hj3WVdNgc5CpOD73jasY+9EvTI7Ngdj5cXvjcHrPcmYWJZMySPgeEeoL/1N/Llag==}
     engines: {node: '>=16'}
     dev: true
 
@@ -3595,7 +3594,7 @@ packages:
     resolution: {integrity: sha512-hUMFbDQ/nZN+1TLMi6iMO1QFz9RSV8yGG8S42WFPFma1d7VSNE0eMdJUmwjmtav22/iQkzHMmu6oTSfAvRGS8g==}
     engines: {node: '>=16'}
     dependencies:
-      '@edge-runtime/primitives': 4.0.4
+      '@edge-runtime/primitives': 4.0.5
     dev: true
 
   /@emotion/babel-plugin@11.11.0:

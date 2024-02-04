@@ -258,10 +258,5 @@
     "node": ">=18.17.0",
     "pnpm": "8.14.2"
   },
-  "packageManager": "pnpm@8.14.2",
-  "pnpm": {
-    "overrides": {
-      "@edge-runtime/primitives": "4.0.4"
-    }
-  }
+  "packageManager": "pnpm@8.14.2"
 }
