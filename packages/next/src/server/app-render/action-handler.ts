@@ -229,7 +229,8 @@ async function createRedirectRenderResult(
           },
         })
         //copy cookies from the redirect response to respose we're sending before copying other headers
-        //this is possible only in case of custom server created by developer
+        //this is needed only in case of custom server created by developer
+        //cause nextjs app dir does not allow to set cookies from components
         const redirectResponseCookies = new ResponseCookies(
           redirectResponse.headers
         )
