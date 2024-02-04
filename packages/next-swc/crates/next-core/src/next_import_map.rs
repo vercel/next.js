@@ -27,8 +27,12 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_font::{
-        google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
-        local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
+        google::{
+            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -64,32 +68,7 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match ty.into_value() {
-        ClientContextType::Pages { pages_dir } => {
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    request_to_import_mapping(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    request_to_import_mapping(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    request_to_import_mapping(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             let react_flavor =
                 if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
@@ -531,32 +510,7 @@ async fn insert_next_server_special_aliases(
     }
 
     match ty {
-        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    external_if_node(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    external_if_node(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    external_if_node(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
@@ -797,6 +751,14 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
+            project_path,
+        )))
+        .into(),
+    );
+
+    import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/local/target.css"),
         ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
@@ -814,6 +776,11 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

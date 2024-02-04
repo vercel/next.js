@@ -5,7 +5,9 @@ import {
   check,
   getRedboxDescription,
   getRedboxSource,
+  getVersionCheckerText,
   hasRedbox,
+  retry,
   shouldRunTurboDevTest,
 } from 'next-test-utils'
 
@@ -119,6 +121,29 @@ createNextDescribe(
       // Can show the original source code
       expect(source).toContain('app/server/page.js')
       expect(source).toContain(`await fetch('http://locahost:3000/xxxx')`)
+    })
+
+    it('should contain nextjs version check in error overlay', async () => {
+      await next.patchFile(
+        'app/server/page.js',
+        outdent`
+        export default function Page() {
+          throw new Error('test')
+        }
+        `
+      )
+      const browser = await next.browser('/server')
+
+      await retry(async () => {
+        expect(await hasRedbox(browser)).toBe(true)
+      })
+      const versionText = await getVersionCheckerText(browser)
+      await expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
+      if (process.env.TURBOPACK) {
+        await expect(versionText).toContain('(turbo)')
+      } else {
+        await expect(versionText).not.toContain('(turbo)')
+      }
     })
   }
 )

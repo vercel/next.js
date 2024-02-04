@@ -66,7 +66,7 @@
     "@babel/plugin-proposal-object-rest-spread": "7.20.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
-    "@edge-runtime/jest-environment": "2.3.4",
+    "@edge-runtime/jest-environment": "2.3.7",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
     "@fullhuman/postcss-purgecss": "1.3.0",
@@ -132,14 +132,15 @@
     "dd-trace": "4.12.0",
     "es5-ext": "0.10.53",
     "escape-string-regexp": "2.0.0",
-    "eslint": "7.24.0",
+    "eslint": "8.56.0",
     "eslint-config-next": "workspace:*",
-    "eslint-plugin-eslint-plugin": "4.3.0",
-    "eslint-plugin-import": "2.22.1",
-    "eslint-plugin-jest": "24.3.5",
-    "eslint-plugin-jsdoc": "39.6.4",
-    "eslint-plugin-react": "7.23.2",
-    "eslint-plugin-react-hooks": "4.5.0",
+    "eslint-formatter-codeframe": "7.32.1",
+    "eslint-plugin-eslint-plugin": "5.2.1",
+    "eslint-plugin-import": "2.29.1",
+    "eslint-plugin-jest": "27.6.3",
+    "eslint-plugin-jsdoc": "48.0.4",
+    "eslint-plugin-react": "7.33.2",
+    "eslint-plugin-react-hooks": "4.6.0",
     "event-stream": "4.0.1",
     "execa": "2.0.3",
     "expect-type": "0.14.2",
@@ -226,7 +227,7 @@
     "styled-components": "6.0.0-rc.3",
     "styled-jsx": "5.1.1",
     "styled-jsx-plugin-postcss": "3.0.2",
-    "swr": "^2.0.0",
+    "swr": "^2.2.4",
     "tailwindcss": "3.2.7",
     "taskr": "1.1.0",
     "tree-kill": "1.2.2",
@@ -235,14 +236,14 @@
     "typescript": "5.2.2",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
-    "webpack": "5.86.0",
+    "webpack": "5.90.0",
     "webpack-bundle-analyzer": "4.7.0",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3",
     "yargs": "16.2.0"
   },
   "resolutions": {
-    "webpack": "5.86.0",
+    "webpack": "5.90.0",
     "browserslist": "4.22.2",
     "caniuse-lite": "1.0.30001579",
     "@types/node": "20.2.5",
@@ -257,5 +258,10 @@
     "node": ">=18.17.0",
     "pnpm": "8.14.2"
   },
-  "packageManager": "pnpm@8.14.2"
+  "packageManager": "pnpm@8.14.2",
+  "pnpm": {
+    "overrides": {
+      "@edge-runtime/primitives": "4.0.4"
+    }
+  }
 }

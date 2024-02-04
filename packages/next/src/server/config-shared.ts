@@ -676,7 +676,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
-  crossOrigin?: false | 'anonymous' | 'use-credentials'
+  crossOrigin?: 'anonymous' | 'use-credentials'
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
@@ -869,6 +869,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
+    optimizeServerReact: false,
   },
 }
 

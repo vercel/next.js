@@ -19,6 +19,7 @@ import {
   getAppEntry,
   runDependingOnPageType,
   getStaticInfoIncludingLayouts,
+  getInstrumentationEntry,
 } from '../../build/entries'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
@@ -840,6 +841,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               this.hasAppRouterEntrypoints = true
             }
 
+            const isInstrumentation =
+              isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
+
             runDependingOnPageType({
               page,
               pageRuntime: staticInfo.runtime,
@@ -847,6 +851,23 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
                 if (!isEdgeServerCompilation || !isEntry) return
+                entries[entryKey].status = BUILDING
+
+                if (isInstrumentation) {
+                  const normalizedBundlePath = bundlePath.replace('src/', '')
+                  entrypoints[normalizedBundlePath] = finalizeEntrypoint({
+                    compilerType: COMPILER_NAMES.edgeServer,
+                    name: normalizedBundlePath,
+                    value: getInstrumentationEntry({
+                      absolutePagePath: entryData.absolutePagePath,
+                      isEdgeServer: true,
+                      isDev: true,
+                    }),
+                    isServerComponent: true,
+                    hasAppDir,
+                  })
+                  return
+                }
                 const appDirLoader = isAppPath
                   ? getAppEntry({
                       name: bundlePath,
@@ -874,7 +895,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     }).import
                   : undefined
 
-                entries[entryKey].status = BUILDING
                 entrypoints[bundlePath] = finalizeEntrypoint({
                   compilerType: COMPILER_NAMES.edgeServer,
                   name: bundlePath,
@@ -934,7 +954,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 }
 
                 let value: { import: string; layer?: string } | string
-                if (isAppPath) {
+                if (isInstrumentation) {
+                  value = getInstrumentationEntry({
+                    absolutePagePath: entryData.absolutePagePath,
+                    isEdgeServer: false,
+                    isDev: true,
+                  })
+                  entrypoints[bundlePath] = finalizeEntrypoint({
+                    compilerType: COMPILER_NAMES.server,
+                    name: bundlePath,
+                    isServerComponent: true,
+                    value,
+                    hasAppDir,
+                  })
+                } else if (isAppPath) {
                   value = getAppEntry({
                     name: bundlePath,
                     page,
@@ -971,7 +1004,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   !isMiddlewareFile(page) &&
                   !isInternalComponent(relativeRequest) &&
                   !isNonRoutePagesPage(page) &&
-                  !(isInstrumentationHookFile(page) && pageType === 'root')
+                  !isInstrumentation
                 ) {
                   value = getRouteLoaderEntry({
                     kind: RouteKind.PAGES,
@@ -1434,7 +1467,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
     this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
-    return outputPath && getInvalidator(outputPath)?.invalidate()
+    if (outputPath) {
+      getInvalidator(outputPath)?.invalidate()
+    }
   }
 
   public async stop(): Promise<void> {

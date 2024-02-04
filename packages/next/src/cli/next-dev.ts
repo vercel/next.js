@@ -205,7 +205,10 @@ const nextDev: CliCommand = async (args) => {
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
-  if (args['--experimental-upload-trace']) {
+  if (
+    args['--experimental-upload-trace'] &&
+    !process.env.NEXT_TRACE_UPLOAD_DISABLED
+  ) {
     traceUploadUrl = args['--experimental-upload-trace']
   }
 
@@ -312,7 +315,7 @@ const nextDev: CliCommand = async (args) => {
     try {
       if (!!args['--experimental-https']) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined
