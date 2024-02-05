@@ -954,11 +954,14 @@ impl Fold for NextSsg {
                     self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
 
                 let right = self.within_lhs_of_var(false, |this| {
-                    if let PatOrExpr::Pat(pat) = &left {
-                        if pat.is_invalid() {
+                    match left {
+                        AssignTarget::Simple(SimpleAssignTarget::Invalid(..))
+                        | AssignTarget::Pat(AssignTargetPat::Invalid(..)) => {
                             retain = false;
                             this.mark_as_candidate(&assign_expr.right);
                         }
+
+                        _ => {}
                     }
                     assign_expr.right.clone().fold_with(this)
                 });
