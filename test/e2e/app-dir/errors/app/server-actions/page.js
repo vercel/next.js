@@ -15,7 +15,7 @@ export default function Home() {
           try {
             await serverAction()
           } catch (e) {
-            console.error(e)
+            console.log(e)
             setResponse(e)
           }
         }}
@@ -23,7 +23,7 @@ export default function Home() {
         Crash
       </button>
       <br />
-      <textarea value={JSON.stringify(response)} readOnly />
+      <p id="digest">{response?.digest}</p>
     </div>
   )
 }

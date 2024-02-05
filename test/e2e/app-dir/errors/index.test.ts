@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { getRedboxHeader, hasRedbox } from 'next-test-utils'
+import { getRedboxHeader, hasRedbox, retry } from 'next-test-utils'
 
 createNextDescribe(
   'app-dir - errors',
@@ -152,16 +152,22 @@ createNextDescribe(
         it('should log the original Server Actions error trace in production', async () => {
           const logIndex = next.cliOutput.length
           const browser = await next.browser('/server-actions')
-          const digest = await browser.waitForElementByCss('#button').click()
-          const output = next.cliOutput.slice(logIndex)
+          // trigger server action
+          await browser.elementByCss('#button').click()
+          // wait for response
+          let digest
+          await retry(async () => {
+            digest = await browser.waitForElementByCss('#digest').text()
+            expect(digest).toMatch(/\d+/)
+          })
 
+          const output = next.cliOutput.slice(logIndex)
           // Log the original rsc error trace
           expect(output).toContain('Error: server action test error')
           // Does not include the react renderer error for server actions
           expect(output).not.toContain(
             'Error: An error occurred in the Server Components render'
           )
-
           expect(output).toContain(`digest: '${digest}'`)
         })
       }
