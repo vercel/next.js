@@ -90,7 +90,7 @@
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.3.85",
-    "@swc/helpers": "0.5.2",
+    "@swc/helpers": "0.5.5",
     "@testing-library/jest-dom": "6.1.2",
     "@testing-library/react": "13.0.0",
     "@types/cheerio": "0.22.16",
