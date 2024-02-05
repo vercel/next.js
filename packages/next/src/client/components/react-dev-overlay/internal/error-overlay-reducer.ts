@@ -1,7 +1,7 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './container/Errors'
-import { ComponentStackFrame } from './helpers/parse-component-stack'
+import type { ComponentStackFrame } from './helpers/parse-component-stack'
 
 export const ACTION_BUILD_OK = 'build-ok'
 export const ACTION_BUILD_ERROR = 'build-error'

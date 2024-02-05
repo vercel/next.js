@@ -1,6 +1,6 @@
-import fs from 'fs'
-import path from 'path'
-import { getItems } from './utils'
+import fs from "fs";
+import path from "path";
+import { getItems } from "./utils";
 
 /*
   PLUGINS GENERATION
@@ -20,53 +20,53 @@ enum ModuleType {
 }
 
 interface PluginDefinition {
-  listPath: string
-  rootPath: string
-  moduleType: ModuleType
+  listPath: string;
+  rootPath: string;
+  moduleType: ModuleType;
 }
 
 interface PluginFile {
-  path: string
-  name: string
+  path: string;
+  name: string;
 }
 
 const pluginDefinitions = [
   {
-    listPath: 'scripts/temp/config-plugins.ts',
-    rootPath: 'scripts/config/plugins',
+    listPath: "scripts/temp/config-plugins.ts",
+    rootPath: "scripts/config/plugins",
     moduleType: ModuleType.ESM,
   },
   {
-    listPath: 'src/temp/sitemap-fetcher-plugins.ts',
-    rootPath: 'src/lib/sitemap-fetcher/plugins',
+    listPath: "src/temp/sitemap-fetcher-plugins.ts",
+    rootPath: "src/lib/sitemap-fetcher/plugins",
     moduleType: ModuleType.ESM,
   },
   {
-    listPath: 'src/temp/middleware-plugins.ts',
-    rootPath: 'src/lib/middleware/plugins',
+    listPath: "src/temp/middleware-plugins.ts",
+    rootPath: "src/lib/middleware/plugins",
     moduleType: ModuleType.ESM,
   },
   {
-    listPath: 'src/temp/page-props-factory-plugins.ts',
-    rootPath: 'src/lib/page-props-factory/plugins',
+    listPath: "src/temp/page-props-factory-plugins.ts",
+    rootPath: "src/lib/page-props-factory/plugins",
     moduleType: ModuleType.ESM,
   },
   {
-    listPath: 'src/temp/next-config-plugins.js',
-    rootPath: 'src/lib/next-config/plugins',
+    listPath: "src/temp/next-config-plugins.js",
+    rootPath: "src/lib/next-config/plugins",
     moduleType: ModuleType.CJS,
   },
   {
-    listPath: 'src/temp/extract-path-plugins.ts',
-    rootPath: 'src/lib/extract-path/plugins',
+    listPath: "src/temp/extract-path-plugins.ts",
+    rootPath: "src/lib/extract-path/plugins",
     moduleType: ModuleType.ESM,
   },
   {
-    listPath: 'src/temp/site-resolver-plugins.ts',
-    rootPath: 'src/lib/site-resolver/plugins',
+    listPath: "src/temp/site-resolver-plugins.ts",
+    rootPath: "src/lib/site-resolver/plugins",
     moduleType: ModuleType.ESM,
   },
-]
+];
 
 function getPluginList(path: string, pluginName: string): PluginFile[] {
   const plugins = getItems<PluginFile>({
@@ -76,9 +76,9 @@ function getPluginList(path: string, pluginName: string): PluginFile[] {
       name: `${name.replace(/-./g, (x) => x[1].toUpperCase())}Plugin`,
     }),
     cb: (name) => console.debug(`Registering ${pluginName} plugin ${name}`),
-  })
+  });
 
-  return plugins
+  return plugins;
 }
 
 /**
@@ -92,37 +92,37 @@ function getPluginList(path: string, pluginName: string): PluginFile[] {
 function writePlugins(
   listPath: string,
   rootPath: string,
-  moduleType: ModuleType
+  moduleType: ModuleType,
 ) {
-  const segments = rootPath.split('/')
-  const pluginName = segments[segments.length - 2]
-  const plugins = getPluginList(rootPath, pluginName)
-  let fileContent = ''
+  const segments = rootPath.split("/");
+  const pluginName = segments[segments.length - 2];
+  const plugins = getPluginList(rootPath, pluginName);
+  let fileContent = "";
 
   fileContent = plugins
     .map((plugin) => {
       return moduleType === ModuleType.CJS
         ? `exports.${plugin.name} = require('${plugin.path.replace(
-            'src/',
-            '../'
+            "src/",
+            "../",
           )}');`
-        : `export { ${plugin.name} } from '${plugin.path}';`
+        : `export { ${plugin.name} } from '${plugin.path}';`;
     })
-    .join('\r\n')
-    .concat('\r\n')
+    .join("\r\n")
+    .concat("\r\n");
 
   if (!plugins.length) {
     fileContent =
       moduleType === ModuleType.CJS
-        ? 'module.exports = {};\r\n'
-        : 'export {};\r\n'
+        ? "module.exports = {};\r\n"
+        : "export {};\r\n";
   }
 
-  const filePath = path.resolve(listPath)
-  console.log(`Writing ${pluginName} plugins to ${filePath}`)
+  const filePath = path.resolve(listPath);
+  console.log(`Writing ${pluginName} plugins to ${filePath}`);
   fs.writeFileSync(filePath, fileContent, {
-    encoding: 'utf8',
-  })
+    encoding: "utf8",
+  });
 }
 
 function run(definitions: PluginDefinition[]) {
@@ -130,9 +130,9 @@ function run(definitions: PluginDefinition[]) {
     writePlugins(
       definition.listPath,
       definition.rootPath,
-      definition.moduleType
-    )
-  })
+      definition.moduleType,
+    );
+  });
 }
 
-run(pluginDefinitions)
+run(pluginDefinitions);

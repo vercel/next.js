@@ -2,19 +2,23 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import type { PageConfig } from '../../../../../types'
 import type { ParsedUrlQuery } from 'querystring'
+import type { __ApiPreviewProps } from '../../../api-utils'
+import type { RouteModuleOptions } from '../route-module'
 
-import {
-  RouteModule,
-  RouteModuleOptions,
-  type RouteModuleHandleContext,
-} from '../route-module'
-import { apiResolver } from '../../../api-utils/node'
-import { __ApiPreviewProps } from '../../../api-utils'
+import { RouteModule, type RouteModuleHandleContext } from '../route-module'
+import { apiResolver } from '../../../api-utils/node/api-resolver'
 
 type PagesAPIHandleFn = (
   req: IncomingMessage,
   res: ServerResponse
 ) => Promise<void>
+
+/**
+ * The PagesAPIModule is the type of the module exported by the bundled Pages
+ * API module.
+ */
+export type PagesAPIModule =
+  typeof import('../../../../build/templates/pages-api')
 
 type PagesAPIUserlandModule = {
   /**

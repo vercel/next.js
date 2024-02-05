@@ -2,9 +2,9 @@
 import type arg from 'next/dist/compiled/arg/index.js'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import chalk from 'next/dist/compiled/chalk'
+import { green } from '../lib/picocolors'
 
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { printAndExit } from '../server/lib/utils'
@@ -15,7 +15,7 @@ import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from '../lib/compile-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verifyTypeScriptSetup'
+import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
 
 const eslintOptions = (args: arg.Spec, defaultCacheLocation: string) => ({
   overrideConfigFile: args['--config'] || null,
@@ -187,7 +187,7 @@ const nextLint: CliCommand = async (args) => {
       if (lintOutput) {
         printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
-        printAndExit(chalk.green('✔ No ESLint warnings or errors'), 0)
+        printAndExit(green('✔ No ESLint warnings or errors'), 0)
       }
     })
     .catch((err) => {

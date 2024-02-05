@@ -3,7 +3,7 @@
 import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import * as Log from '../build/output/log'
-import { CliCommand } from '../lib/commands'
+import type { CliCommand } from '../lib/commands'
 import build from '../build'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
@@ -63,7 +63,6 @@ const nextBuild: CliCommand = (args) => {
     args['--no-mangling'],
     args['--experimental-app-only'],
     !!process.env.TURBOPACK,
-    args['--experimental-turbo-root'],
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')

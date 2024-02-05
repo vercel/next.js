@@ -1,5 +1,6 @@
-import { StackFrame } from 'stacktrace-parser'
-import { OriginalStackFrameResponse } from '../../middleware'
+// @ts-ignore Package Exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { OriginalStackFrameResponse } from '../../middleware'
 
 export type OriginalStackFrame =
   | {
@@ -30,7 +31,7 @@ export type OriginalStackFrame =
       originalCodeFrame: null
     }
 
-export function getOriginalStackFrame(
+function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
   errorMessage: string

@@ -1,6 +1,6 @@
 import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
-import { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
@@ -14,7 +14,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   // Strip leading spaces out of the code frame:
   const formattedFrame = React.useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
-    const prefixLength = lines
+
+    // Find the minimum length of leading spaces after `|` in the code frame
+    const miniLeadingSpacesLength = lines
       .map((line) =>
         /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line)) === null
           ? null
@@ -24,12 +26,14 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
       .map((v) => v!.pop()!)
       .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
 
-    if (prefixLength > 1) {
-      const p = ' '.repeat(prefixLength)
+    // When the minimum length of leading spaces is greater than 1, remove them
+    // from the code frame to help the indentation looks better when there's a lot leading spaces.
+    if (miniLeadingSpacesLength > 1) {
       return lines
         .map((line, a) =>
           ~(a = line.indexOf('|'))
-            ? line.substring(0, a) + line.substring(a).replace(p, '')
+            ? line.substring(0, a) +
+              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
             : line
         )
         .join('\n')

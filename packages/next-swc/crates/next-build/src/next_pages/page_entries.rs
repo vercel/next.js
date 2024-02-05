@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use next_core::{
-    create_page_loader_entry_module, get_asset_path_from_pathname,
+    create_page_loader_entry_module,
     mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -8,7 +8,6 @@ use next_core::{
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
-    next_manifests::{BuildManifest, PagesManifest},
     next_pages::create_page_ssr_entry_module,
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -23,22 +22,17 @@ use next_core::{
 };
 use turbo_tasks::Vc;
 use turbopack_binding::{
-    turbo::{tasks::Value, tasks_env::ProcessEnv, tasks_fs::FileSystemPath},
+    turbo::{tasks::Value, tasks_fs::FileSystemPath},
     turbopack::{
-        build::BuildChunkingContext,
         core::{
-            chunk::{ChunkableModule, ChunkingContext, EvaluatableAssets},
+            chunk::EvaluatableAssets,
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             file_source::FileSource,
-            output::OutputAsset,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
         },
-        ecmascript::{
-            chunk::{EcmascriptChunkPlaceable, EcmascriptChunkingContext},
-            EcmascriptModuleAsset,
-        },
+        ecmascript::{chunk::EcmascriptChunkPlaceable, EcmascriptModuleAsset},
         node::execution_context::ExecutionContext,
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
@@ -57,7 +51,6 @@ pub async fn get_page_entries(
     next_router_root: Vc<FileSystemPath>,
     project_root: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
-    env: Vc<Box<dyn ProcessEnv>>,
     client_compile_time_info: Vc<CompileTimeInfo>,
     server_compile_time_info: Vc<CompileTimeInfo>,
     next_config: Vc<NextConfig>,
@@ -100,6 +93,7 @@ pub async fn get_page_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("client".to_string()),
     );
 
     let transitions = Vc::cell(
@@ -116,11 +110,11 @@ pub async fn get_page_entries(
         client_compile_time_info,
         client_module_options_context,
         client_resolve_options_context,
+        Vc::cell("client".to_string()),
     ));
 
     let client_runtime_entries = get_client_runtime_entries(
         project_root,
-        env,
         client_ty,
         mode,
         next_config,
@@ -148,10 +142,10 @@ pub async fn get_page_entries(
         server_compile_time_info,
         ssr_module_options_context,
         ssr_resolve_options_context,
+        Vc::cell("ssr".to_string()),
     ));
 
-    let ssr_runtime_entries =
-        get_server_runtime_entries(project_root, env, ssr_ty, mode, next_config);
+    let ssr_runtime_entries = get_server_runtime_entries(ssr_ty, mode);
     let ssr_runtime_entries = ssr_runtime_entries.resolve_entries(ssr_module_context);
 
     let entries = get_page_entries_for_root_directory(
@@ -160,6 +154,7 @@ pub async fn get_page_entries(
         pages_structure,
         project_root,
         next_router_root,
+        next_config,
     )
     .await?;
 
@@ -177,6 +172,7 @@ async fn get_page_entries_for_root_directory(
     pages_structure: Vc<PagesStructure>,
     project_root: Vc<FileSystemPath>,
     next_router_root: Vc<FileSystemPath>,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vec<Vc<PageEntry>>> {
     let PagesStructure {
         app,
@@ -199,6 +195,7 @@ async fn get_page_entries_for_root_directory(
         app.next_router_path,
         app.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     // This only makes sense on the server.
@@ -212,6 +209,7 @@ async fn get_page_entries_for_root_directory(
         document.next_router_path,
         document.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     // This only makes sense on both the client and the server, but they should map
@@ -226,6 +224,7 @@ async fn get_page_entries_for_root_directory(
         error.next_router_path,
         error.original_path,
         PathType::PagesPage,
+        next_config,
     ));
 
     if let Some(api) = api {
@@ -237,6 +236,7 @@ async fn get_page_entries_for_root_directory(
             next_router_root,
             &mut entries,
             PathType::PagesApi,
+            next_config,
         )
         .await?;
     }
@@ -250,6 +250,7 @@ async fn get_page_entries_for_root_directory(
             next_router_root,
             &mut entries,
             PathType::PagesPage,
+            next_config,
         )
         .await?;
     }
@@ -266,6 +267,7 @@ async fn get_page_entries_for_directory(
     next_router_root: Vc<FileSystemPath>,
     entries: &mut Vec<Vc<PageEntry>>,
     path_type: PathType,
+    next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let PagesDirectoryStructure {
         ref items,
@@ -288,6 +290,7 @@ async fn get_page_entries_for_directory(
             next_router_path,
             original_path,
             path_type,
+            next_config,
         ));
     }
 
@@ -300,6 +303,7 @@ async fn get_page_entries_for_directory(
             next_router_root,
             entries,
             path_type,
+            next_config,
         )
         .await?;
     }
@@ -328,6 +332,7 @@ async fn get_page_entry_for_file(
     next_router_path: Vc<FileSystemPath>,
     next_original_path: Vc<FileSystemPath>,
     path_type: PathType,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<PageEntry>> {
     let reference_type = Value::new(ReferenceType::Entry(match path_type {
         PathType::PagesPage => EntryReferenceSubType::Page,
@@ -345,7 +350,9 @@ async fn get_page_entry_for_file(
         ssr_module_context,
         source,
         Vc::cell(original_name),
+        todo_get_pages_structure(),
         NextRuntime::NodeJs,
+        next_config,
     );
 
     let client_module = create_page_loader_entry_module(client_module_context, source, pathname);
@@ -364,68 +371,13 @@ async fn get_page_entry_for_file(
     .cell())
 }
 
+fn todo_get_pages_structure() -> Vc<PagesStructure> {
+    todo!("add pages structure to next-build");
+}
+
 /// Computes the pathname for a given path.
 #[turbo_tasks::function]
 async fn pathname_from_path(next_router_path: Vc<FileSystemPath>) -> Result<Vc<String>> {
     let pathname = next_router_path.await?;
     Ok(Vc::cell(pathname.path.clone()))
-}
-
-/// Computes the chunks of page entries, adds their paths to the corresponding
-/// manifests, and pushes the assets to the `all_chunks` vec.
-pub async fn compute_page_entries_chunks(
-    page_entries: &PageEntries,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<BuildChunkingContext>,
-    node_root: Vc<FileSystemPath>,
-    pages_manifest_dir_path: &FileSystemPath,
-    client_relative_path: &FileSystemPath,
-    pages_manifest: &mut PagesManifest,
-    build_manifest: &mut BuildManifest,
-    all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
-) -> Result<()> {
-    for page_entry in page_entries.entries.iter() {
-        let page_entry = page_entry.await?;
-        let pathname = page_entry.pathname.await?;
-        let asset_path: String = get_asset_path_from_pathname(&pathname, ".js");
-
-        let ssr_entry_chunk = ssr_chunking_context.entry_chunk(
-            node_root.join(format!("server/pages/{asset_path}")),
-            Vc::upcast(page_entry.ssr_module),
-            page_entries.ssr_runtime_entries,
-        );
-        all_chunks.push(ssr_entry_chunk);
-
-        let chunk_path = ssr_entry_chunk.ident().path().await?;
-        if let Some(asset_path) = pages_manifest_dir_path.get_path_to(&chunk_path) {
-            pages_manifest
-                .pages
-                .insert(pathname.clone_value(), asset_path.to_string());
-        }
-
-        let client_entry_chunk = page_entry
-            .client_module
-            .as_root_chunk(Vc::upcast(client_chunking_context));
-
-        let client_chunks = client_chunking_context.evaluated_chunk_group(
-            client_entry_chunk,
-            page_entries
-                .client_runtime_entries
-                .with_entry(Vc::upcast(page_entry.client_module)),
-        );
-
-        let build_manifest_pages_entry = build_manifest
-            .pages
-            .entry(pathname.clone_value())
-            .or_default();
-
-        for chunk in client_chunks.await?.iter().copied() {
-            all_chunks.push(chunk);
-            let chunk_path = chunk.ident().path().await?;
-            if let Some(asset_path) = client_relative_path.get_path_to(&chunk_path) {
-                build_manifest_pages_entry.push(asset_path.to_string());
-            }
-        }
-    }
-    Ok(())
 }

@@ -18,7 +18,7 @@ let app
 const context = {}
 
 describe('disabled runtime JS', () => {
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       appPort = await findPort()
 

@@ -1,13 +1,13 @@
-import Image from 'next/image'
-import React from 'react'
-import { TodoItem } from '../db/models/todoItems'
-import styles from '../styles/EachToDo.module.css'
+import Image from "next/image";
+import React from "react";
+import { TodoItem } from "../db/models/todoItems";
+import styles from "../styles/EachToDo.module.css";
 
 type Props = {
-  toDoItem: TodoItem
-  deleteHandler: (id?: number) => void
-  updateHandler: (item: TodoItem) => void
-}
+  toDoItem: TodoItem;
+  deleteHandler: (id?: number) => void;
+  updateHandler: (item: TodoItem) => void;
+};
 const EachTodo = ({ toDoItem, deleteHandler, updateHandler }: Props) => {
   return (
     <>
@@ -15,18 +15,18 @@ const EachTodo = ({ toDoItem, deleteHandler, updateHandler }: Props) => {
         <button
           className={styles.eachButton}
           onClick={() => {
-            updateHandler(toDoItem)
+            updateHandler(toDoItem);
           }}
         >
           <Image
-            src={toDoItem.completed ? '/circle-checked.svg' : '/circle.svg'}
+            src={toDoItem.completed ? "/circle-checked.svg" : "/circle.svg"}
             layout="fixed"
             width={20}
             height={20}
             alt="Check Image"
           />
           <span
-            style={toDoItem.completed ? { textDecoration: 'line-through' } : {}}
+            style={toDoItem.completed ? { textDecoration: "line-through" } : {}}
           >
             {toDoItem.text}
           </span>
@@ -34,14 +34,14 @@ const EachTodo = ({ toDoItem, deleteHandler, updateHandler }: Props) => {
         <button
           className={styles.deleteBtn}
           onClick={() => {
-            deleteHandler(toDoItem.id)
+            deleteHandler(toDoItem.id);
           }}
         >
           <Image src="/delete.svg" width={24} height={24} alt="Check Image" />
         </button>
       </li>
     </>
-  )
-}
+  );
+};
 
-export default EachTodo
+export default EachTodo;

@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  HMR_ACTION_TYPES,
-} from '../../server/dev/hot-reloader-types'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
 import { addMessageListener } from './error-overlay/websocket'
 
 type VerticalPosition = 'top' | 'bottom'
@@ -18,7 +16,7 @@ export default function initializeBuildWatcher(
   position = 'bottom-right'
 ) {
   const shadowHost = document.createElement('div')
-  const [verticalProperty, horizontalProperty] = position.split('-') as [
+  const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
     HorizonalPosition
   ]

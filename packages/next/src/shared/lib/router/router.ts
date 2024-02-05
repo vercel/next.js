@@ -7,6 +7,7 @@ import type { RouterEvent } from '../../../client/router'
 import type { StyleSheetTuple } from '../../../client/page-loader'
 import type { UrlObject } from 'url'
 import type PageLoader from '../../../client/page-loader'
+import type { AppContextType, NextPageContext, NEXT_DATA } from '../utils'
 import { removeTrailingSlash } from './utils/remove-trailing-slash'
 import {
   getClientBuildManifest,
@@ -18,15 +19,7 @@ import isError, { getProperError } from '../../../lib/is-error'
 import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { normalizeLocalePath } from '../i18n/normalize-locale-path'
 import mitt from '../mitt'
-import {
-  AppContextType,
-  getLocationOrigin,
-  getURL,
-  loadGetInitialProps,
-  NextPageContext,
-  ST,
-  NEXT_DATA,
-} from '../utils'
+import { getLocationOrigin, getURL, loadGetInitialProps, ST } from '../utils'
 import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import resolveRewrites from './utils/resolve-rewrites'
@@ -830,6 +823,7 @@ export default class Router implements BaseRouter {
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
+      self.__NEXT_DATA__.isExperimentalCompile ||
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
@@ -1325,13 +1319,6 @@ export default class Router implements BaseRouter {
     let parsed = parseRelativeUrl(url)
     let { pathname, query } = parsed
 
-    // if we detected the path as app route during prefetching
-    // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
-      handleHardNavigation({ url: as, router: this })
-      return new Promise(() => {})
-    }
-
     // The build manifest needs to be loaded before auto-static dynamic pages
     // get their query parameters to allow ensuring they can be parsed properly
     // when rewritten to
@@ -1371,6 +1358,13 @@ export default class Router implements BaseRouter {
 
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
+
+    // if we detected the path as app route during prefetching
+    // trigger hard navigation
+    if ((this.components[pathname] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
 
     const isMiddlewareRewrite = !!(
       parsedAsPathname &&
@@ -2225,8 +2219,8 @@ export default class Router implements BaseRouter {
 
   onlyAHashChange(as: string): boolean {
     if (!this.asPath) return false
-    const [oldUrlNoHash, oldHash] = this.asPath.split('#')
-    const [newUrlNoHash, newHash] = as.split('#')
+    const [oldUrlNoHash, oldHash] = this.asPath.split('#', 2)
+    const [newUrlNoHash, newHash] = as.split('#', 2)
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
     if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
@@ -2246,7 +2240,7 @@ export default class Router implements BaseRouter {
   }
 
   scrollToHash(as: string): void {
-    const [, hash = ''] = as.split('#')
+    const [, hash = ''] = as.split('#', 2)
 
     handleSmoothScroll(
       () => {

@@ -1,27 +1,47 @@
+import type { NextEnabledDirectories } from '../../server/base-server'
+
 import path from 'path'
-import fs from 'fs'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 import { hasNextSupport } from '../../telemetry/ci-info'
+import { nodeFs } from '../../server/lib/node-fs-methods'
+import { interopDefault } from '../../lib/interop-default'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 
-export function createIncrementalCache(
-  incrementalCacheHandlerPath: string | undefined,
-  isrMemoryCacheSize: number | undefined,
-  fetchCacheKeyPrefix: string | undefined,
+export async function createIncrementalCache({
+  cacheHandler,
+  cacheMaxMemorySize,
+  fetchCacheKeyPrefix,
+  distDir,
+  dir,
+  enabledDirectories,
+  experimental,
+  flushToDisk,
+}: {
+  cacheHandler?: string
+  cacheMaxMemorySize?: number
+  fetchCacheKeyPrefix?: string
   distDir: string
-) {
+  dir: string
+  enabledDirectories: NextEnabledDirectories
+  experimental: { ppr: boolean }
+  flushToDisk?: boolean
+}) {
   // Custom cache handler overrides.
   let CacheHandler: any
-  if (incrementalCacheHandlerPath) {
-    CacheHandler = require(incrementalCacheHandlerPath)
-    CacheHandler = CacheHandler.default || CacheHandler
+  if (cacheHandler) {
+    CacheHandler = interopDefault(
+      await import(formatDynamicImportPath(dir, cacheHandler)).then(
+        (mod) => mod.default || mod
+      )
+    )
   }
 
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
-    flushToDisk: true,
+    flushToDisk,
     fetchCache: true,
-    maxMemoryCacheSize: isrMemoryCacheSize,
+    maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({
       version: 4,
@@ -34,16 +54,13 @@ export function createIncrementalCache(
       },
       notFoundRoutes: [],
     }),
-    fs: {
-      readFile: (f) => fs.promises.readFile(f),
-      readFileSync: (f) => fs.readFileSync(f),
-      writeFile: (f, d) => fs.promises.writeFile(f, d),
-      mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
-      stat: (f) => fs.promises.stat(f),
-    },
+    fs: nodeFs,
+    pagesDir: enabledDirectories.pages,
+    appDir: enabledDirectories.app,
     serverDistDir: path.join(distDir, 'server'),
     CurCacheHandler: CacheHandler,
     minimalMode: hasNextSupport,
+    experimental,
   })
 
   ;(globalThis as any).__incrementalCache = incrementalCache

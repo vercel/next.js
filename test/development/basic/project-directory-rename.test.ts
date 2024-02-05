@@ -42,7 +42,7 @@ describe.skip('Project Directory Renaming', () => {
     await check(async () => {
       return (await browser.eval('window.beforeNav')) === 1 ? 'pending' : 'done'
     }, 'done')
-    expect(await hasRedbox(browser, false)).toBe(false)
+    expect(await hasRedbox(browser)).toBe(false)
 
     try {
       // should still HMR correctly

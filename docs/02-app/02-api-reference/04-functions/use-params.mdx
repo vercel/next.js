@@ -11,7 +11,7 @@ description: API Reference for the useParams hook.
 import { useParams } from 'next/navigation'
 
 export default function ExampleClientComponent() {
-  const params = useParams()
+  const params = useParams<{ tag: string; item: string }>()
 
   // Route -> /shop/[tag]/[item]
   // URL -> /shop/shoes/nike-air-max-97
@@ -55,13 +55,13 @@ const params = useParams()
 - The properties name is the segment's name, and the properties value is what the segment is filled in with.
 - The properties value will either be a `string` or array of `string`'s depending on the [type of dynamic segment](/docs/app/building-your-application/routing/dynamic-routes).
 - If the route contains no dynamic parameters, `useParams` returns an empty object.
-- If used in `pages`, `useParams` will return `null`.
+- If used in Pages Router, `useParams` will return `null` on the initial render and updates with properties following the rules above once the router is ready.
 
 For example:
 
 | Route                           | URL         | `useParams()`             |
 | ------------------------------- | ----------- | ------------------------- |
-| `app/shop/page.js`              | `/shop`     | `null`                    |
+| `app/shop/page.js`              | `/shop`     | `{}`                      |
 | `app/shop/[slug]/page.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/page.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
 | `app/shop/[...slug]/page.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |

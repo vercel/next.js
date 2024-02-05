@@ -1,8 +1,8 @@
 import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
 import type { I18NConfig } from '../config-shared'
 
-import { PERMANENT_REDIRECT_STATUS } from '../../shared/lib/constants'
-import { NextApiRequestCookies } from '../api-utils'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import type { NextApiRequestCookies } from '../api-utils'
 import { getCookieParser } from '../api-utils/get-cookie-parser'
 
 export interface BaseNextRequestConfig {
@@ -11,13 +11,22 @@ export interface BaseNextRequestConfig {
   trailingSlash?: boolean | undefined
 }
 
+export type FetchMetrics = Array<{
+  url: string
+  idx: number
+  end: number
+  start: number
+  method: string
+  status: number
+  cacheReason: string
+  cacheStatus: 'hit' | 'miss' | 'skip'
+}>
+
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
 
   constructor(public method: string, public url: string, public body: Body) {}
-
-  abstract parseBody(limit: string | number): Promise<any>
 
   // Utils implemented using the abstract methods above
 
@@ -75,7 +84,7 @@ export abstract class BaseNextResponse<Destination = any> {
 
     // Since IE11 doesn't support the 308 header add backwards
     // compatibility using refresh header
-    if (statusCode === PERMANENT_REDIRECT_STATUS) {
+    if (statusCode === RedirectStatusCode.PermanentRedirect) {
       this.setHeader('Refresh', `0;url=${destination}`)
     }
     return this

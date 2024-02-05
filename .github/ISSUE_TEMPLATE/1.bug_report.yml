@@ -40,13 +40,6 @@ body:
       placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead'
     validations:
       required: true
-  - type: checkboxes
-    attributes:
-      label: Verify canary release
-      description: 'Please run `npm install next@canary` to try the canary version of Next.js that ships daily. It includes all features and fixes that have not been released to the stable version yet. Some issues may already be fixed in the canary version, so please verify that your issue reproduces before opening a new issue.'
-      options:
-        - label: I verified that the issue exists in the latest Next.js canary release
-          required: true
   - type: textarea
     attributes:
       label: Provide environment information
@@ -90,6 +83,7 @@ body:
         - 'MDX (@next/mdx)'
         - 'Metadata (metadata, generateMetadata, next/head)'
         - 'Middleware / Edge (API routes, runtime)'
+        - 'Module resolution (CJS / ESM, module resolving)'
         - 'Operating System (Windows, MacOS, Linux)'
         - 'Package manager (npm, pnpm, Yarn)'
         - 'Routing (next/router, next/navigation, next/link)'
@@ -100,6 +94,18 @@ body:
         - 'SWC transpilation'
         - 'Turbopack (--turbo)'
         - 'TypeScript (plugin, built-in types)'
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which stage(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'next dev (local)'
+        - 'next build (local)'
+        - 'next start (local)'
+        - 'Vercel (Deployed)'
+        - 'Other (Deployed)'
     validations:
       required: true
   - type: markdown

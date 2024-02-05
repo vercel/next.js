@@ -17,85 +17,87 @@ async function uncommentExport(page) {
 }
 
 describe('Page Config', () => {
-  it('builds without error when export const config is used outside page', async () => {
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toMatch(/Failed to compile\./)
-  })
-
-  it('shows valid error when page config is a string', async () => {
-    const reset = await uncommentExport('invalid/string-config.js')
-
-    try {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('builds without error when export const config is used outside page', async () => {
       const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      expect(stderr).not.toMatch(/Failed to compile\./)
+    })
 
-  it('shows valid error when page config has no init', async () => {
-    const reset = await uncommentExport('invalid/no-init.js')
+    it('shows valid error when page config is a string', async () => {
+      const reset = await uncommentExport('invalid/string-config.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
 
-  it('shows error when page config has spread properties', async () => {
-    const reset = await uncommentExport('invalid/spread-config.js')
+    it('shows valid error when page config has no init', async () => {
+      const reset = await uncommentExport('invalid/no-init.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
 
-  it('shows error when page config has invalid properties', async () => {
-    const reset = await uncommentExport('invalid/invalid-property.js')
+    it('shows error when page config has spread properties', async () => {
+      const reset = await uncommentExport('invalid/spread-config.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
 
-  it('shows error when page config has invalid property value', async () => {
-    const reset = await uncommentExport('invalid/invalid-value.js')
+    it('shows error when page config has invalid properties', async () => {
+      const reset = await uncommentExport('invalid/invalid-property.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
 
-  it('shows error when page config is export from', async () => {
-    const reset = await uncommentExport('invalid/export-from.js')
+    it('shows error when page config has invalid property value', async () => {
+      const reset = await uncommentExport('invalid/invalid-value.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
-  })
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
 
-  it('shows error when page config is imported and exported', async () => {
-    const reset = await uncommentExport('invalid/import-export.js')
+    it('shows error when page config is export from', async () => {
+      const reset = await uncommentExport('invalid/export-from.js')
 
-    try {
-      const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-      expect(stderr).toMatch(/\/invalid-page-config/)
-    } finally {
-      await reset()
-    }
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
+
+    it('shows error when page config is imported and exported', async () => {
+      const reset = await uncommentExport('invalid/import-export.js')
+
+      try {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).toMatch(/\/invalid-page-config/)
+      } finally {
+        await reset()
+      }
+    })
   })
 })

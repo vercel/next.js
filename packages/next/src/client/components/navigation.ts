@@ -12,6 +12,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
+import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
   'internal for urlsearchparams readonly'
@@ -90,10 +91,8 @@ export function useSearchParams(): ReadonlyURLSearchParams {
     // AsyncLocalStorage should not be included in the client bundle.
     const { bailoutToClientRendering } =
       require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    if (bailoutToClientRendering()) {
-      // TODO-APP: handle dynamic = 'force-static' here and on the client
-      return readonlySearchParams
-    }
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
+    bailoutToClientRendering('useSearchParams()')
   }
 
   return readonlySearchParams
@@ -143,7 +142,7 @@ function getSelectedParams(
     const segment = parallelRoute[0]
     const isDynamicParameter = Array.isArray(segment)
     const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith('__PAGE__')) continue
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
     // Ensure catchAll and optional catchall are turned into an array
     const isCatchAll =
@@ -170,16 +169,17 @@ export function useParams<T extends Params = Params>(): T {
   const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
   const pathParams = useContext(PathParamsContext)
 
-  // When it's under app router
-  if (globalLayoutRouter) {
-    return getSelectedParams(globalLayoutRouter.tree) as T
-  }
+  return useMemo(() => {
+    // When it's under app router
+    if (globalLayoutRouter?.tree) {
+      return getSelectedParams(globalLayoutRouter.tree) as T
+    }
 
-  // When it's under client side pages router
-  return pathParams as T
+    // When it's under client side pages router
+    return pathParams as T
+  }, [globalLayoutRouter?.tree, pathParams])
 }
 
-// TODO-APP: handle parallel routes
 /**
  * Get the canonical parameters from the current level to the leaf node.
  */
@@ -203,7 +203,9 @@ function getSelectedLayoutSegmentPath(
   const segment = node[0]
 
   const segmentValue = getSegmentValue(segment)
-  if (!segmentValue || segmentValue.startsWith('__PAGE__')) return segmentPath
+  if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) {
+    return segmentPath
+  }
 
   segmentPath.push(segmentValue)
 
@@ -240,7 +242,16 @@ export function useSelectedLayoutSegment(
     return null
   }
 
-  return selectedLayoutSegments[0]
+  const selectedLayoutSegment =
+    parallelRouteKey === 'children'
+      ? selectedLayoutSegments[0]
+      : selectedLayoutSegments[selectedLayoutSegments.length - 1]
+
+  // if the default slot is showing, we return null since it's not technically "selected" (it's a fallback)
+  // and returning an internal value like `__DEFAULT__` would be confusing.
+  return selectedLayoutSegment === DEFAULT_SEGMENT_KEY
+    ? null
+    : selectedLayoutSegment
 }
 
 export { redirect, permanentRedirect, RedirectType } from './redirect'

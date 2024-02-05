@@ -1,6 +1,6 @@
-import { Span } from '../../../trace'
+import type { Span } from '../../../trace'
 import transform from './transform'
-import { NextJsLoaderContext } from './types'
+import type { NextJsLoaderContext } from './types'
 
 async function nextBabelLoader(
   this: NextJsLoaderContext,

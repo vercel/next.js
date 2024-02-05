@@ -30,8 +30,8 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom', 'eslint', 'eslint-config-next'],
-    devDeps: [],
+    deps: ['next', 'react', 'react-dom'],
+    devDeps: ['eslint', 'eslint-config-next'],
   },
   default: {
     js: {
@@ -52,8 +52,13 @@ export const projectSpecification: ProjectSpecification = {
         'tsconfig.json',
         'next-env.d.ts',
       ],
-      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
-      devDeps: [],
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+      ],
     },
   },
   'default-tw': {
@@ -66,8 +71,8 @@ export const projectSpecification: ProjectSpecification = {
         'postcss.config.js',
         'tailwind.config.js',
       ],
-      deps: ['postcss', 'tailwindcss'],
-      devDeps: [],
+      deps: [],
+      devDeps: ['postcss', 'tailwindcss'],
     },
     ts: {
       files: [
@@ -79,7 +84,8 @@ export const projectSpecification: ProjectSpecification = {
         'tailwind.config.ts',
         'tsconfig.json',
       ],
-      deps: [
+      deps: [],
+      devDeps: [
         '@types/node',
         '@types/react-dom',
         '@types/react',
@@ -87,7 +93,6 @@ export const projectSpecification: ProjectSpecification = {
         'tailwindcss',
         'typescript',
       ],
-      devDeps: [],
     },
   },
   app: {
@@ -97,8 +102,13 @@ export const projectSpecification: ProjectSpecification = {
       files: ['app/page.js', 'app/layout.js', 'jsconfig.json'],
     },
     ts: {
-      deps: ['@types/node', '@types/react', '@types/react-dom', 'typescript'],
-      devDeps: [],
+      deps: [],
+      devDeps: [
+        '@types/node',
+        '@types/react',
+        '@types/react-dom',
+        'typescript',
+      ],
       files: [
         'app/page.tsx',
         'app/layout.tsx',
@@ -109,8 +119,8 @@ export const projectSpecification: ProjectSpecification = {
   },
   'app-tw': {
     js: {
-      deps: ['postcss', 'tailwindcss'],
-      devDeps: [],
+      deps: [],
+      devDeps: ['postcss', 'tailwindcss'],
       files: [
         'app/layout.js',
         'app/page.js',
@@ -120,7 +130,8 @@ export const projectSpecification: ProjectSpecification = {
       ],
     },
     ts: {
-      deps: [
+      deps: [],
+      devDeps: [
         '@types/node',
         '@types/react-dom',
         '@types/react',
@@ -128,7 +139,6 @@ export const projectSpecification: ProjectSpecification = {
         'tailwindcss',
         'typescript',
       ],
-      devDeps: [],
       files: [
         'app/layout.tsx',
         'app/page.tsx',

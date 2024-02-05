@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react'
+// eslint-disable-next-line react/no-deprecated
 import { render, unmountComponentAtNode } from 'react-dom'
 import { act } from 'react-dom/test-utils'
 
@@ -36,8 +37,7 @@ describe('Link without a router', () => {
       expect(container.textContent).toBe('Click me')
     })
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     it('should not throw when rendered', () => {
       jest.useFakeTimers()
 

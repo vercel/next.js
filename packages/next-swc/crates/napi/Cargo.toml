@@ -8,26 +8,24 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [features]
-default = ["rustls-tls"]
 # Instead of enabling all the plugin-related features by default, make it explicitly specified
 # when build (i.e napi --build --features plugin), same for the wasm as well.
 # this is due to some of transitive dependencies have features cannot be enabled at the same time
 # (i.e wasmer/default vs wasmer/js-default) while cargo merges all the features at once.
-plugin = ["turbopack-binding/__swc_core_binding_napi_plugin", "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache", "turbopack-binding/__swc_core_binding_napi_plugin_shared_runtime",  "next-swc/plugin", "next-core/plugin"]
-sentry_native_tls = ["sentry", "sentry/native-tls", "native-tls"]
-sentry_rustls = ["sentry", "sentry/rustls", "rustls-tls"]
+plugin = [
+  "turbopack-binding/__swc_core_binding_napi_plugin",
+  "turbopack-binding/__swc_core_binding_napi_plugin_filesystem_cache",
+  "turbopack-binding/__swc_core_binding_napi_plugin_shared_runtime",
+  "next-custom-transforms/plugin",
+  "next-core/plugin",
+]
 
-native-tls = ["next-dev/native-tls"]
-rustls-tls = ["next-dev/rustls-tls"]
-serializable = ["next-dev/serializable"]
 image-webp = ["next-core/image-webp"]
 image-avif = ["next-core/image-avif"]
 # Enable all the available image codec support.
 # Currently this is identical to `image-webp`, as we are not able to build
 # other codecs easily yet.
-image-extended = [
-  "image-webp",
-]
+image-extended = ["image-webp"]
 
 # Enable dhat profiling allocator for heap profiling.
 __internal_dhat-heap = ["dhat"]
@@ -35,6 +33,30 @@ __internal_dhat-heap = ["dhat"]
 # [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
+
+# Making custom_allocator as default feature will break some targets (i.e aarch64-linux), controlling it with
+# build-time cfg instead.
+#
+# [NOTE] this is a workaround to enable downstream features for the own pkgs, since
+# cargo does not support per-target features enablement.
+[target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc"] }
+
+[target.'cfg(all(target_os = "linux", not(target_arch = "aarch64")))'.dependencies]
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc", "__turbo_tasks_malloc_custom_allocator"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_malloc", "__turbo_tasks_malloc_custom_allocator"] }
+
+# Enable specific tls features per-target.
+[target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
+next-core = { workspace = true, features = ["native-tls"] }
+
+[target.'cfg(not(all(target_os = "windows", target_arch = "aarch64")))'.dependencies]
+next-core = { workspace = true, features = ["rustls-tls"] }
+
+[lints]
+workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
@@ -48,8 +70,7 @@ napi = { version = "2", default-features = false, features = [
   "error_anyhow",
 ] }
 napi-derive = "2"
-next-swc = { version = "0.0.0", path = "../core" }
-next-dev = { workspace = true }
+next-custom-transforms = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
@@ -73,22 +94,8 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack",
   "__turbopack_ecmascript_hmr_protocol",
 ] }
-
-[target.'cfg(not(all(target_os = "linux", target_env = "musl", target_arch = "aarch64")))'.dependencies]
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_malloc"
-] }
-
-# There are few build targets we can't use native-tls which default features rely on,
-# allow to specify alternative (rustls) instead via features.
-# Note to opt in rustls default-features should be disabled
-# (--no-default-features --features sentry_rustls)
-sentry = { version = "0.27.0", default-features = false, features = [
-  "backtrace",
-  "contexts",
-  "panic",
-  "reqwest",
-], optional = true }
+url = {workspace = true}
+urlencoding = {workspace = true}
 
 [build-dependencies]
 napi-build = "2"
@@ -96,6 +103,4 @@ serde = "1"
 serde_json = "1"
 # It is not a mistake this dependency is specified in dep / build-dep both.
 shadow-rs = { workspace = true }
-turbopack-binding = { workspace = true, features = [
-  "__turbo_tasks_build"
-]}
+turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }

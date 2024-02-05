@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
-import { Telemetry, TelemetryEvent } from './storage'
+import type { TelemetryEvent } from './storage'
+import { Telemetry } from './storage'
 import loadConfig from '../server/config'
 import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'

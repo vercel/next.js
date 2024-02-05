@@ -1,8 +1,8 @@
 import { PAGES_MANIFEST, SERVER_DIRECTORY } from '../../../shared/lib/constants'
 import { I18NProvider } from '../helpers/i18n-provider'
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import type { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
-import { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
+import type { ManifestLoader } from './helpers/manifest-loaders/manifest-loader'
 import { PagesRouteMatcherProvider } from './pages-route-matcher-provider'
 
 describe('PagesRouteMatcherProvider', () => {
@@ -10,7 +10,7 @@ describe('PagesRouteMatcherProvider', () => {
     const loader: ManifestLoader = { load: jest.fn(() => ({})) }
     const provider = new PagesRouteMatcherProvider('<root>', loader)
     expect(await provider.matchers()).toEqual([])
-    expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+    expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
   })
 
   describe('locale matching', () => {
@@ -120,7 +120,7 @@ describe('PagesRouteMatcherProvider', () => {
         )
         const matchers = await provider.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         const routes = matchers.map((matcher) => matcher.definition)
         expect(routes).toContainEqual(route)
         expect(routes).toHaveLength(expected.length)
@@ -176,7 +176,7 @@ describe('PagesRouteMatcherProvider', () => {
         const matcher = new PagesRouteMatcherProvider('<root>', loader)
         const matchers = await matcher.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         expect(matchers).toHaveLength(1)
         expect(matchers[0].definition).toEqual(route)
       }

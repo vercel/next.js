@@ -1,4 +1,5 @@
-import mitt, { MittEmitter } from '../../shared/lib/mitt'
+import mitt from '../../shared/lib/mitt'
+import type { MittEmitter } from '../../shared/lib/mitt'
 
 export type SpanOptions = {
   startTime?: number
@@ -73,5 +74,5 @@ class Tracer {
   }
 }
 
-export { ISpan as Span }
+export type { ISpan as Span }
 export default new Tracer()

@@ -1,12 +1,12 @@
-import { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
-import { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
-import { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
+import type { AppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
+import type { LocaleRouteDefinition } from '../route-definitions/locale-route-definition'
+import type { PagesRouteDefinition } from '../route-definitions/pages-route-definition'
 import { RouteKind } from '../route-kind'
-import { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
+import type { RouteMatcherProvider } from '../route-matcher-providers/route-matcher-provider'
 import { LocaleRouteMatcher } from '../route-matchers/locale-route-matcher'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
-import { MatchOptions } from './route-matcher-manager'
+import type { MatchOptions } from './route-matcher-manager'
 
 describe('DefaultRouteMatcherManager', () => {
   it('will throw an error when used before it has been reloaded', async () => {

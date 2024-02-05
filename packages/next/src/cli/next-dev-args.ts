@@ -1,4 +1,4 @@
-import arg from 'next/dist/compiled/arg/index.js'
+import type arg from 'next/dist/compiled/arg/index.js'
 
 export const validArgs: arg.Spec = {
   // Types
@@ -9,6 +9,7 @@ export const validArgs: arg.Spec = {
   '--experimental-https': Boolean,
   '--experimental-https-key': String,
   '--experimental-https-cert': String,
+  '--experimental-https-ca': String,
   '--experimental-test-proxy': Boolean,
   '--experimental-upload-trace': String,
 

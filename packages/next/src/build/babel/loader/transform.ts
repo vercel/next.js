@@ -11,8 +11,8 @@ import PluginPass from 'next/dist/compiled/babel/core-lib-plugin-pass'
 
 import getConfig from './get-config'
 import { consumeIterator } from './util'
-import { Span } from '../../../trace'
-import { NextJsLoaderContext } from './types'
+import type { Span } from '../../../trace'
+import type { NextJsLoaderContext } from './types'
 
 function getTraversalParams(file: any, pluginPairs: any[]) {
   const passPairs = []

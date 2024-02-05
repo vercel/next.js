@@ -234,76 +234,81 @@ describe('Trailing slashes', () => {
 
     testWithTrailingSlash()
   })
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'production mode, trailingSlash: false',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(app)
+      })
 
-  describe('production mode, trailingSlash: false', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: false')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-    })
+      testWithoutTrailingSlash()
 
-    testWithoutTrailingSlash()
+      it('should have a redirect in the routesmanifest', async () => {
+        const manifest = await fs.readJSON(
+          join(appDir, '.next', 'routes-manifest.json')
+        )
+        expect(manifest).toEqual(
+          expect.objectContaining({
+            redirects: expect.arrayContaining([
+              expect.objectContaining({
+                source: '/:path+/',
+                destination: '/:path+',
+                statusCode: 308,
+              }),
+            ]),
+          })
+        )
+      })
+    }
+  )
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'production mode, trailingSlash: true',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(app)
+      })
 
-    it('should have a redirect in the routesmanifest', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next', 'routes-manifest.json')
-      )
-      expect(manifest).toEqual(
-        expect.objectContaining({
-          redirects: expect.arrayContaining([
-            expect.objectContaining({
-              source: '/:path+/',
-              destination: '/:path+',
-              statusCode: 308,
-            }),
-          ]),
-        })
-      )
-    })
-  })
+      testWithTrailingSlash()
 
-  describe('production mode, trailingSlash: true', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-    })
-
-    testWithTrailingSlash()
-
-    it('should have a redirect in the routesmanifest', async () => {
-      const manifest = await fs.readJSON(
-        join(appDir, '.next', 'routes-manifest.json')
-      )
-      expect(manifest).toEqual(
-        expect.objectContaining({
-          redirects: expect.arrayContaining([
-            expect.objectContaining({
-              source:
-                '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
-              destination: '/:file',
-              statusCode: 308,
-            }),
-            expect.objectContaining({
-              source: '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
-              destination: '/:notfile/',
-              statusCode: 308,
-            }),
-          ]),
-        })
-      )
-    })
-  })
+      it('should have a trailing redirect in the routesmanifest', async () => {
+        const manifest = await fs.readJSON(
+          join(appDir, '.next', 'routes-manifest.json')
+        )
+        expect(manifest).toEqual(
+          expect.objectContaining({
+            redirects: expect.arrayContaining([
+              expect.objectContaining({
+                source:
+                  '/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/',
+                destination: '/:file',
+                statusCode: 308,
+              }),
+              expect.objectContaining({
+                source:
+                  '/:notfile((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/\\.]+)',
+                destination: '/:notfile/',
+                statusCode: 308,
+              }),
+            ]),
+          })
+        )
+      })
+    }
+  )
 
   describe('dev mode, with basepath, trailingSlash: true', () => {
     beforeAll(async () => {
@@ -329,30 +334,32 @@ describe('Trailing slashes', () => {
       ['/docs/linker?href=/', '/docs/'],
     ])
   })
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'production mode, with basepath, trailingSlash: true',
+    () => {
+      beforeAll(async () => {
+        nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
+        nextConfig.replace('// basePath:', 'basePath:')
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        nextConfig.restore()
+        await killApp(app)
+      })
 
-  describe('production mode, with basepath, trailingSlash: true', () => {
-    beforeAll(async () => {
-      nextConfig.replace('// trailingSlash: boolean', 'trailingSlash: true')
-      nextConfig.replace('// basePath:', 'basePath:')
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      await killApp(app)
-    })
+      testShouldRedirect([
+        ['/docs/about', '/docs/about/'],
+        ['/docs', '/docs/'],
+        ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
+        ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
+      ])
 
-    testShouldRedirect([
-      ['/docs/about', '/docs/about/'],
-      ['/docs', '/docs/'],
-      ['/docs/catch-all/hello/world', '/docs/catch-all/hello/world/'],
-      ['/docs/catch-all/hello.world/', '/docs/catch-all/hello.world'],
-    ])
-
-    testLinkShouldRewriteTo([
-      ['/docs/linker?href=/about', '/docs/about/'],
-      ['/docs/linker?href=/', '/docs/'],
-    ])
-  })
+      testLinkShouldRewriteTo([
+        ['/docs/linker?href=/about', '/docs/about/'],
+        ['/docs/linker?href=/', '/docs/'],
+      ])
+    }
+  )
 })

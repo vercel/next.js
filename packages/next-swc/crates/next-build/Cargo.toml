@@ -6,41 +6,24 @@ license = "MPL-2.0"
 edition = "2021"
 autobenches = false
 
-[[bin]]
-name = "next-build"
-path = "src/main.rs"
-bench = false
-required-features = ["cli"]
-
 [lib]
 bench = false
 
 [features]
-# By default, we enable native-tls for reqwest via downstream transitive features.
-# This is for the convenience of running daily dev workflows, i.e running
-# `cargo xxx` without explicitly specifying features, not that we want to
-# promote this as default backend. Actual configuration is done when building next-swc,
-# and also turbopack standalone when we have it.
-default = ["cli", "custom_allocator", "native-tls"]
-cli = ["clap"]
 tokio_console = [
   "dep:console-subscriber",
   "tokio/tracing",
   "turbo-tasks/tokio_tracing",
 ]
-native-tls = ["next-core/native-tls"]
-rustls-tls = ["next-core/rustls-tls"]
-custom_allocator = [
-  "turbopack-binding/__turbo_tasks_malloc",
-  "turbopack-binding/__turbo_tasks_malloc_custom_allocator",
-]
 serializable = []
 profile = []
+
+[lints]
+workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
 async-recursion = { workspace = true }
-clap = { workspace = true, features = ["derive", "env"], optional = true }
 console-subscriber = { workspace = true, optional = true }
 dunce = { workspace = true }
 next-core = { workspace = true }

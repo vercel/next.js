@@ -92,7 +92,7 @@ pub(super) fn options_from_request(
                 OneOrManyStrings::Many(many) => IndexSet::from_iter(many.iter().cloned()),
             })
         })
-        .unwrap_or_else(IndexSet::new);
+        .unwrap_or_default();
 
     let mut styles = argument
         .and_then(|argument| {

@@ -3,6 +3,7 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
+pub mod include_modules_module;
 pub mod metadata;
 
 use std::{
@@ -15,9 +16,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{
-        get_app_client_references_chunks, ClientReferenceChunks, ClientReferencesChunks,
-    },
+    app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
     app_client_shared_chunks::get_app_client_shared_chunks,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
@@ -152,15 +151,18 @@ impl AppPage {
         ) && !matches!(segment, PageSegment::PageType(..))
         {
             bail!(
-                "Invalid segment {}, catch all segment must be the last segment",
-                segment
+                "Invalid segment {:?}, catch all segment must be the last segment (segments: {:?})",
+                segment,
+                self.0
             )
         }
 
         if self.is_complete() {
             bail!(
-                "Invalid segment {}, this page path already has the final PageType appended",
-                segment
+                "Invalid segment {:?}, this page path already has the final PageType appended \
+                 (segments: {:?})",
+                segment,
+                self.0
             )
         }
 
@@ -206,7 +208,7 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
-    pub fn complete(self, page_type: PageType) -> Result<Self> {
+    pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
 }
@@ -281,6 +283,33 @@ impl Display for PathSegment {
     Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
+
+impl AppPath {
+    pub fn is_dynamic(&self) -> bool {
+        self.iter().any(|segment| {
+            matches!(
+                (segment,),
+                (PathSegment::Dynamic(_)
+                    | PathSegment::CatchAll(_)
+                    | PathSegment::OptionalCatchAll(_),)
+            )
+        })
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn contains(&self, other: &AppPath) -> bool {
+        for (i, segment) in other.0.iter().enumerate() {
+            if self.0.get(i) != Some(segment) {
+                return false;
+            }
+        }
+
+        true
+    }
+}
 
 impl Deref for AppPath {
     type Target = [PathSegment];

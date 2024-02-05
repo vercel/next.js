@@ -1,49 +1,17 @@
+/* eslint-disable import/no-extraneous-dependencies */
+import { registerServerReference } from 'react-server-dom-webpack/server.edge'
+
 const SERVER_REFERENCE_TAG = Symbol.for('react.server.reference')
 
-export function createActionProxy(
-  id: string,
-  bound: null | any[],
-  action: any,
-  originalAction?: any
-) {
-  function bindImpl(this: any, _: any, ...boundArgs: any[]) {
-    const currentAction = this
+function isServerReference(reference: any) {
+  return reference && reference.$$typeof === SERVER_REFERENCE_TAG
+}
 
-    const newAction = async function (...args: any[]) {
-      if (originalAction) {
-        return originalAction(newAction.$$bound.concat(args))
-      } else {
-        // In this case we're calling the user-defined action directly.
-        return currentAction(...newAction.$$bound, ...args)
-      }
-    }
-
-    for (const key of ['$$typeof', '$$id', '$$FORM_ACTION']) {
-      // @ts-ignore
-      newAction[key] = currentAction[key]
-    }
-
-    // Rebind args
-    newAction.$$bound = (currentAction.$$bound || []).concat(boundArgs)
-
-    // Assign bind method
-    newAction.bind = bindImpl.bind(newAction)
-
-    return newAction
+export function createActionProxy(id: string, action: any) {
+  // Avoid registering the same action twice
+  if (isServerReference(action)) {
+    return action
   }
 
-  Object.defineProperties(action, {
-    $$typeof: {
-      value: SERVER_REFERENCE_TAG,
-    },
-    $$id: {
-      value: id,
-    },
-    $$bound: {
-      value: bound,
-    },
-    bind: {
-      value: bindImpl,
-    },
-  })
+  return registerServerReference(action, id, null)
 }

@@ -1,10 +1,10 @@
-import fs from 'fs'
-import path from 'path'
+import fs from "fs";
+import path from "path";
 import generateComponentFactory, {
   ComponentFile,
   PackageDefinition,
-} from './templates/component-factory'
-import { getItems, watchItems } from './utils'
+} from "./templates/component-factory";
+import { getItems, watchItems } from "./utils";
 
 /*
   COMPONENT FACTORY GENERATION
@@ -27,10 +27,10 @@ import { getItems, watchItems } from './utils'
   when calling the script.
 */
 
-const componentFactoryPath = path.resolve('src/temp/componentFactory.ts')
-const componentRootPath = 'src/components'
+const componentFactoryPath = path.resolve("src/temp/componentFactory.ts");
+const componentRootPath = "src/components";
 
-const isWatch = process.argv.some((arg) => arg === '--watch')
+const isWatch = process.argv.some((arg) => arg === "--watch");
 
 function getComponentList(path: string): (PackageDefinition | ComponentFile)[] {
   const components = getItems<PackageDefinition | ComponentFile>({
@@ -38,12 +38,12 @@ function getComponentList(path: string): (PackageDefinition | ComponentFile)[] {
     resolveItem: (path, name) => ({
       path: `${path}/${name}`,
       componentName: name,
-      moduleName: name.replace(/[^\w]+/g, ''),
+      moduleName: name.replace(/[^\w]+/g, ""),
     }),
     cb: (name) => console.debug(`Registering JSS component ${name}`),
-  })
+  });
 
-  return components
+  return components;
 }
 
 /**
@@ -69,16 +69,16 @@ function writeComponentFactory() {
    *    ]
    *  }
    */
-  const packages: PackageDefinition[] = []
-  const components = getComponentList(componentRootPath)
+  const packages: PackageDefinition[] = [];
+  const components = getComponentList(componentRootPath);
 
-  components.unshift(...packages)
+  components.unshift(...packages);
 
-  const fileContent = generateComponentFactory(components)
-  console.log(`Writing component factory to ${componentFactoryPath}`)
+  const fileContent = generateComponentFactory(components);
+  console.log(`Writing component factory to ${componentFactoryPath}`);
   fs.writeFileSync(componentFactoryPath, fileContent, {
-    encoding: 'utf8',
-  })
+    encoding: "utf8",
+  });
 }
 
 /**
@@ -88,10 +88,10 @@ function writeComponentFactory() {
  */
 function watchComponentFactory() {
   console.log(
-    `Watching for changes to component factory sources in ${componentRootPath}...`
-  )
+    `Watching for changes to component factory sources in ${componentRootPath}...`,
+  );
 
-  watchItems(componentRootPath, writeComponentFactory)
+  watchItems(componentRootPath, writeComponentFactory);
 }
 
-;(isWatch ? watchComponentFactory : writeComponentFactory)()
+(isWatch ? watchComponentFactory : writeComponentFactory)();

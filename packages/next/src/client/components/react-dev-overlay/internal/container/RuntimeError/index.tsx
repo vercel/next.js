@@ -1,8 +1,8 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
-import { OriginalStackFrame } from '../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
@@ -158,7 +158,7 @@ export const styles = css`
     color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
@@ -168,15 +168,15 @@ export const styles = css`
   }
 
   [data-nextjs-call-stack-frame] > div[data-has-source],
-  [data-nextjs-component-stack-frame] > div {
+  [data-nextjs-component-stack-frame] > [role='link'] {
     cursor: pointer;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source]:hover,
-  [data-nextjs-component-stack-frame] > div:hover {
+  [data-nextjs-component-stack-frame] > [role='link']:hover {
     text-decoration: underline dotted;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source] > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     display: unset;
   }
 
