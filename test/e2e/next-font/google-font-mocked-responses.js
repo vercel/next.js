@@ -1,5 +1,3 @@
-const path = require('path')
-
 module.exports = {
   'https://fonts.googleapis.com/css2?family=Open+Sans:wght@300..800&display=swap': `
 /* cyrillic-ext */
