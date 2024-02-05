@@ -89,7 +89,7 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
     0
   )
 
-  if (depth > MAX_RECURSION_DEPTH) {
+  if (depth >= MAX_RECURSION_DEPTH) {
     return {
       waitUntil: Promise.resolve(),
       response: new runtime.context.Response(null, {
