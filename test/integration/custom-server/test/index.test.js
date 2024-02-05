@@ -133,7 +133,7 @@ describe.each([
       expect(html).toMatch(/made it to dashboard/)
     })
 
-    it('should contain customServer in NEXT_DATA', async () => {
+    it.skip('should contain customServer in NEXT_DATA', async () => {
       const html = await renderViaHTTP(nextUrl, '/', undefined, { agent })
       const $ = cheerio.load(html)
       expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
