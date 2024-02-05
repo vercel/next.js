@@ -383,8 +383,14 @@ async fn update_google_stylesheet(
         &format!("font-family: '{}';", &*scoped_font_family.await?),
     );
 
-    let font_files =
-        find_font_files_in_css(&stylesheet, options.subsets.as_deref().unwrap_or_default());
+    let font_files = find_font_files_in_css(
+        &stylesheet,
+        if options.preload {
+            options.subsets.as_deref().unwrap_or_default()
+        } else {
+            Default::default()
+        },
+    );
 
     let has_size_adjust = *has_size_adjust.await?;
 

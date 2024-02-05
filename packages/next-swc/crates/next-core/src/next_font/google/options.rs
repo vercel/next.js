@@ -79,27 +79,25 @@ pub(super) fn options_from_request(
         ));
     }
     // Invariant enforced above: either None or Some(the only item in the vec)
-    let argument = request.arguments.last();
+    let argument = request.arguments.last().cloned().unwrap_or_default();
 
     // `import` comes from the imported symbol in JS, which separates with _
     let font_family = request.import.replace('_', " ");
     let font_data = data.get(&font_family).context("Unknown font")?;
 
     let requested_weights: IndexSet<String> = argument
-        .and_then(|argument| {
-            argument.weight.as_ref().map(|w| match w {
-                OneOrManyStrings::One(one) => indexset! {one.to_owned()},
-                OneOrManyStrings::Many(many) => IndexSet::from_iter(many.iter().cloned()),
-            })
+        .weight
+        .map(|w| match w {
+            OneOrManyStrings::One(one) => indexset! {one},
+            OneOrManyStrings::Many(many) => IndexSet::from_iter(many),
         })
         .unwrap_or_default();
 
     let mut styles = argument
-        .and_then(|argument| {
-            argument.style.as_ref().map(|w| match w {
-                OneOrManyStrings::One(one) => vec![one.to_owned()],
-                OneOrManyStrings::Many(many) => many.clone(),
-            })
+        .style
+        .map(|w| match w {
+            OneOrManyStrings::One(one) => vec![one],
+            OneOrManyStrings::Many(many) => many,
         })
         .unwrap_or_default();
 
@@ -162,9 +160,7 @@ pub(super) fn options_from_request(
         }
     }
 
-    let display = argument
-        .and_then(|a| a.display.to_owned())
-        .unwrap_or_else(|| "swap".to_owned());
+    let display = argument.display.unwrap_or_else(|| "swap".to_owned());
 
     if !ALLOWED_DISPLAY_VALUES.contains(&display.as_ref()) {
         return Err(anyhow!(
@@ -175,7 +171,7 @@ pub(super) fn options_from_request(
         ));
     }
 
-    if let Some(axes) = argument.and_then(|a| a.axes.as_ref()) {
+    if let Some(axes) = argument.axes.as_ref() {
         if !axes.is_empty() && !matches!(weights, FontWeights::Variable) {
             return Err(anyhow!("Axes can only be defined for variable fonts"));
         }
@@ -186,12 +182,12 @@ pub(super) fn options_from_request(
         weights,
         styles,
         display,
-        preload: argument.map(|a| a.preload).unwrap_or(true),
-        selected_variable_axes: argument.and_then(|a| a.axes.clone()),
-        fallback: argument.and_then(|a| a.fallback.clone()),
-        adjust_font_fallback: argument.map(|a| a.adjust_font_fallback).unwrap_or(true),
-        variable: argument.and_then(|a| a.variable.clone()),
-        subsets: argument.and_then(|a| a.subsets.clone()),
+        preload: argument.preload.unwrap_or(true),
+        selected_variable_axes: argument.axes,
+        fallback: argument.fallback,
+        adjust_font_fallback: argument.adjust_font_fallback.unwrap_or(true),
+        variable: argument.variable,
+        subsets: argument.subsets,
     })
 }
 
