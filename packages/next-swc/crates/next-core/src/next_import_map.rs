@@ -532,22 +532,21 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
                 indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
-        // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
-        ServerContextType::AppRSC { .. }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware
         | ServerContextType::Instrumentation => {
