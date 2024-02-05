@@ -5764,14 +5764,13 @@
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
-    ],
-    "failed": [
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
