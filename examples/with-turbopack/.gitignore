@@ -33,8 +33,4 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
-
-# tailwind
-.turbo
-.vscode
-styles/dist.css
+next-env.d.ts

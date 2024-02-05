@@ -16,6 +16,7 @@
     "incremental": true
   },
   "include": [
+    "next-env.d.ts",
     "remark-html.d.ts",
     "**/*.ts",
     "**/*.tsx",
