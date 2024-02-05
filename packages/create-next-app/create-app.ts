@@ -200,11 +200,10 @@ export async function createApp({
     // Copy `next-env.d.ts` to any example that is TypeScript
     const tsconfigPath = path.join(root, 'tsconfig.json')
     if (await fs.access(tsconfigPath).then(() => true)) {
-      await fs.mkdir('.next', { recursive: true })
-
+      await fs.mkdir('.next/types', { recursive: true })
       await fs.rename(
         path.join(root, 'next-env.d.ts'),
-        path.join(root, '.next', 'next-env.d.ts')
+        path.join(root, '.next/types', 'next-env.d.ts')
       )
     }
 
