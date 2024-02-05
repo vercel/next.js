@@ -113,6 +113,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         "./index.js:1:1
         Module not found: Can't resolve 'b'
         > 1 | import Comp from 'b'
+            | ^
           2 | export default function Oops() {
           3 |   return (
           4 |     <div>
@@ -167,6 +168,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         Module not found: Can't resolve 'b'
           1 | 'use client'
         > 2 | import Comp from 'b'
+            | ^
           3 | export default function Oops() {
           4 |   return (
           5 |     <div>
@@ -216,6 +218,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         Module not found: Can't resolve './non-existent.css'
           1 | 'use client'
         > 2 | import './non-existent.css'
+            | ^
           3 | export default function Page(props) {
           4 |   return <p>index page</p>
           5 | }
