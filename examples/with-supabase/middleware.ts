@@ -9,7 +9,7 @@ export async function middleware(request: NextRequest) {
 
     // Refresh session if expired - required for Server Components
     // https://supabase.com/docs/guides/auth/server-side/nextjs
-    await supabase.auth.getUser()
+    await supabase.auth.getUser();
 
     return response;
   } catch (e) {
