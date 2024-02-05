@@ -1230,10 +1230,12 @@ async function renderToHTMLOrFlightImpl(
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
   const hasCapturedError = digestErrorsMap.size > 0
+
   const firstCapturedError = hasCapturedError
     ? digestErrorsMap.values().next().value
     : null
 
+  console.log('errors', firstCapturedError)
   // If PPR is enabled and the postpone was triggered but lacks the postponed
   // state information then we should error out unless the client side rendering
   // bailout error was also emitted which indicates that part of the stream was

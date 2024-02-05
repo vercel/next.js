@@ -38,7 +38,18 @@ export function createErrorHandler({
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     const digest =
       err.digest ||
-      stringHash(err.message + (err.stack || errorInfo.stack || '')).toString()
+      stringHash(
+        err.message +
+          ((process.env.NODE_ENV === 'development'
+            ? errorInfo.stack
+            : err.stack) || '')
+      ).toString()
+
+    // If the error already has a digest, respect the original digest,
+    // so it won't get re-generated into another new error.
+    if (!err.digest) {
+      err.digest = digest
+    }
 
     if (allCapturedErrors) allCapturedErrors.push(err)
 
@@ -92,17 +103,9 @@ export function createErrorHandler({
       }
     }
 
-    // If the error already has a digest, respect the original digest,
-    // so it won't get re-generated into another new error.
-    if (!err.digest) {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      const computedDigest = stringHash(
-        err.message + (err.stack || errorInfo.stack || '')
-      ).toString()
-      err.digest = computedDigest
+    if (!capturedErrors.has(digest)) {
+      capturedErrors.set(digest, err)
     }
-
-    capturedErrors.set(digest, err)
 
     return err.digest
   }
