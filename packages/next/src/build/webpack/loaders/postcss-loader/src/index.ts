@@ -57,6 +57,9 @@ export default async function loader(
 
       // Initializes postcss with plugins
       const { postcssWithPlugins } = await options.postcss()
+      if (!postcssWithPlugins) {
+        return [content, sourceMap, { ast: null }]
+      }
 
       let result
 
