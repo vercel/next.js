@@ -6,16 +6,16 @@ description: An overview of caching mechanisms in Next.js.
 
 {/* TODO: Update introduction in light of PPR, add video, should say "components" instead of "routes" */}
 
-By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are [**statically rendered**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) and data requests are decoupled from rendering, allowing you to cache and revalidate individual data requests.
+By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are [**statically rendered**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) and data is decoupled from rendering, allowing you to cache and revalidate individual data requests.
 
 {/* Simplified diagram showing client, router cache, Server */}
 
 There are two main caching layers in Next.js:
 
 - **Data Cache**: Stores data requests across user requests and deployments. This **reduces the number of requests made to your data source** (e.g. database, CMS, API) during [rendering](/docs/app/building-your-application/rendering).
-- **Render Cache**: Automatically stores the result of rendering on the server at build time (or during revalidation), and on the client at runtime. This improves the [navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) experience (see [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering)), **reduces the number of server requests**, and computation cost of rendering.
+- **Router Cache**: Automatically stores the result of rendering on the server at build time (or during revalidation), and on the client at request time. This improves the [navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) experience (see [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering)), **reduces the number of server requests**, and computation cost of rendering.
 
-Mutating data or revalidating **Data Cache** will in turn update the **Render Cache** by rerendering the components to show the latest data.
+Mutating data or revalidating **Data Cache** will in turn update the **Router Cache** by rerendering the components to show the latest data.
 
 As a developer, you should:
 
@@ -27,8 +27,8 @@ Here's an overview of the APIs you can use to configure data requests in Next.js
 
 | API                                               | Purpose                                                                                        | Where                                             |
 | ------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------- |
-| [revalidatePath]()                                | Mutate data                                                                                    | Server Actions, Route Handlers                    |
-| [revalidateTag]()                                 | Mutate data                                                                                    | Server Actions, Route Handlers                    |
+| [revalidatePath]()                                | Invalidate the Data and Router Cache after a mutation, based on path                           | Server Actions, Route Handlers                    |
+| [revalidateTag]()                                 | Invalidate the Data and Router Cache after a mutation, based on tags                           | Server Actions, Route Handlers                    |
 | [unstable_cache]()                                | Cache direct database queries or data fetches using third-party libraries (e.g. useSWR)        | Server Components, Server Actions, Route Handlers |
 | [unstable_noStore]()                              | Opt data requests out of caching when using direct database queries and third-party libraries. |
 | Server Components, Server Actions, Route Handlers |
