@@ -100,7 +100,7 @@ pub struct NextConfig {
     pub skip_middleware_url_normalize: Option<bool>,
     pub skip_trailing_slash_redirect: Option<bool>,
     pub i18n: Option<I18NConfig>,
-    pub cross_origin: Option<String>,
+    pub cross_origin: Option<CrossOriginConfig>,
     pub dev_indicators: Option<DevIndicatorsConfig>,
     pub output: Option<OutputType>,
     pub analytics_id: Option<String>,
@@ -138,6 +138,13 @@ pub struct NextConfig {
     typescript: TypeScriptConfig,
     use_file_system_public_routes: bool,
     webpack: Option<serde_json::Value>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[serde(rename_all = "kebab-case")]
+pub enum CrossOriginConfig {
+    Anonymous,
+    UseCredentials,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -568,11 +575,29 @@ pub enum EmotionTransformOptionsOrBoolean {
     Options(EmotionTransformConfig),
 }
 
+impl EmotionTransformOptionsOrBoolean {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(untagged)]
 pub enum StyledComponentsTransformOptionsOrBoolean {
     Boolean(bool),
     Options(StyledComponentsTransformConfig),
+}
+
+impl StyledComponentsTransformOptionsOrBoolean {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -597,6 +622,15 @@ pub enum ReactRemoveProperties {
 pub enum RemoveConsoleConfig {
     Boolean(bool),
     Config { exclude: Option<Vec<String>> },
+}
+
+impl RemoveConsoleConfig {
+    pub fn is_enabled(&self) -> bool {
+        match self {
+            Self::Boolean(enabled) => *enabled,
+            _ => true,
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]

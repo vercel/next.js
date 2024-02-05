@@ -1489,12 +1489,11 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page"
-    ],
-    "failed": [
+      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": true
@@ -1545,8 +1544,8 @@
     "runtimeError": false
   },
   "test/development/basic/emotion-swc/emotion-swc.test.ts": {
-    "passed": [],
-    "failed": ["emotion SWC option should have styling from the css prop"],
+    "passed": ["emotion SWC option should have styling from the css prop"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1801,23 +1800,22 @@
   },
   "test/development/basic/styled-components-disabled.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "styled-components SWC transform should have hydration mismatch with styled-components transform disabled"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/styled-components.test.ts": {
+  "test/development/basic/styled-components/styled-components.test.ts": {
     "passed": [
       "styled-components SWC transform should contain styles in initial HTML",
+      "styled-components SWC transform should enable the display name transform by default",
       "styled-components SWC transform should not have hydration mismatch with styled-components transform enabled",
       "styled-components SWC transform should only render once on the server per request",
       "styled-components SWC transform should render the page with correct styles"
     ],
-    "failed": [
-      "styled-components SWC transform should enable the display name transform by default"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2334,6 +2332,8 @@
       "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -2427,10 +2427,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - crossOrigin config should render correctly with assetPrefix: \"/\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3322,6 +3322,7 @@
     "passed": [
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
+      "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
@@ -4041,6 +4042,7 @@
     "passed": [
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception parallel routes should gracefully handle when two page segments match the `children` parallel slot",
+      "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
       "parallel-routes-and-interception parallel routes should match parallel routes",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
@@ -9097,6 +9099,7 @@
   "test/integration/env-config/test/index.test.js": {
     "passed": [
       "Env Config dev mode should have process environment override .env",
+      "Env Config dev mode should inline global values during build",
       "Env Config dev mode should load env from .env",
       "Env Config dev mode should provide env correctly for API routes",
       "Env Config dev mode should provide env correctly for SSR",
@@ -9104,21 +9107,19 @@
       "Env Config dev mode should provide global env to next.config.js",
       "Env Config dev mode with hot reload should have process environment override .env",
       "Env Config dev mode with hot reload should have updated runtime values after change",
+      "Env Config dev mode with hot reload should inline global values during build",
       "Env Config dev mode with hot reload should load env from .env",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
+      "Env Config test environment should inline global values during build",
       "Env Config test environment should load env from .env",
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide env correctly for SSR",
       "Env Config test environment should provide env for SSG",
       "Env Config test environment should provide global env to next.config.js"
     ],
-    "failed": [
-      "Env Config dev mode should inline global values during build",
-      "Env Config dev mode with hot reload should inline global values during build",
-      "Env Config test environment should inline global values during build"
-    ],
+    "failed": [],
     "pending": [
       "Env Config production mode should have process environment override .env",
       "Env Config production mode should inline global values during build",
@@ -14322,11 +14323,10 @@
   },
   "test/integration/relay-graphql-swc-multi-project/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "Relay Compiler Transform - Multi Project Config dev mode project-a should resolve index page correctly",
-      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly"
-    ],
+    "failed": [],
     "pending": [
+      "Relay Compiler Transform - Multi Project Config dev mode project-a should resolve index page correctly",
+      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-b should resolve index page correctly"
     ],
@@ -15368,6 +15368,15 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/turborepo-access-trace/test/index.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build with proxy trace production mode should build and output trace correctly"
+    ],
     "flakey": [],
     "runtimeError": false
   },
