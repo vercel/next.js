@@ -23,6 +23,15 @@ import { getTemplateFile, installTemplate } from './templates'
 
 export class DownloadError extends Error {}
 
+async function fileExists(file: string) {
+  try {
+    await fs.access(file).then(() => true)
+    return true
+  } catch {
+    return false
+  }
+}
+
 export async function createApp({
   appPath,
   packageManager,
@@ -190,16 +199,16 @@ export async function createApp({
     }
     // Copy `.gitignore` if the application did not provide one
     const ignorePath = path.join(root, '.gitignore')
-    if (!(await fs.access(ignorePath).then(() => true))) {
+    if (await fileExists(ignorePath)) {
       await fs.copyFile(
         getTemplateFile({ template, mode, file: 'gitignore' }),
         ignorePath
       )
     }
 
-    // Copy `next-env.d.ts` to any example that is TypeScript
+    // Copy `next-env.d.ts` into any TypeScript example
     const tsconfigPath = path.join(root, 'tsconfig.json')
-    if (await fs.access(tsconfigPath).then(() => true)) {
+    if (await fileExists(tsconfigPath)) {
       await fs.mkdir('.next/types', { recursive: true })
       await fs.rename(
         path.join(root, 'next-env.d.ts'),
@@ -207,7 +216,7 @@ export async function createApp({
       )
     }
 
-    hasPackageJson = await fs.access(packageJsonPath).then(() => true)
+    hasPackageJson = await fileExists(packageJsonPath)
     if (hasPackageJson) {
       console.log('Installing packages. This might take a couple of minutes.')
       console.log()
