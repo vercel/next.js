@@ -4,34 +4,38 @@ nav_title: Caching
 description: An overview of caching mechanisms in Next.js.
 ---
 
-Next.js improves your application's performance and reduces costs by caching rendering work and data requests. This page provides an in-depth look at Next.js caching mechanisms, the APIs you can use to configure them, and how they interact with each other.
+{/* TODO: Update introduction in light of PPR, add video, should say "components" instead of "routes" */}
 
-> **Good to know**: This page helps you understand how Next.js works under the hood but is **not** essential knowledge to be productive with Next.js. Most of Next.js' caching heuristics are determined by your API usage and have defaults for the best performance with zero or minimal configuration.
+By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are [**statically rendered**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) and data requests are decoupled from rendering, allowing you to cache and revalidate individual data requests.
 
-## Overview
+{/* Simplified diagram showing client, router cache, Server */}
 
-Here's a high-level overview of the different caching mechanisms and their purpose:
+There are two main caching layers in Next.js:
 
-| Mechanism                                   | What                       | Where  | Purpose                                         | Duration                        |
-| ------------------------------------------- | -------------------------- | ------ | ----------------------------------------------- | ------------------------------- |
-| [Request Memoization](#request-memoization) | Return values of functions | Server | Re-use data in a React Component tree           | Per-request lifecycle           |
-| [Data Cache](#data-cache)                   | Data                       | Server | Store data across user requests and deployments | Persistent (can be revalidated) |
-| [Full Route Cache](#full-route-cache)       | HTML and RSC payload       | Server | Reduce rendering cost and improve performance   | Persistent (can be revalidated) |
-| [Router Cache](#router-cache)               | RSC Payload                | Client | Reduce server requests on navigation            | User session or time-based      |
+- **Data Cache**: Stores data requests across user requests and deployments. This **reduces the number of requests made to your data source** (e.g. database, CMS, API) during [rendering](/docs/app/building-your-application/rendering).
+- **Render Cache**: Automatically stores the result of rendering on the server at build time (or during revalidation), and on the client at runtime. This improves the [navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) experience (see [prefetching](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering)), **reduces the number of server requests**, and computation cost of rendering.
 
-By default, Next.js will cache as much as possible to improve performance and reduce cost. This means routes are **statically rendered** and data requests are **cached** unless you opt out. The diagram below shows the default caching behavior: when a route is statically rendered at build time and when a static route is first visited.
+Mutating data or revalidating **Data Cache** will in turn update the **Render Cache** by rerendering the components to show the latest data.
 
-<Image
-  alt="Diagram showing the default caching behavior in Next.js for the four mechanisms, with HIT, MISS and SET at build time and when a route is first visited."
-  srcLight="/docs/light/caching-overview.png"
-  srcDark="/docs/dark/caching-overview.png"
-  width="1600"
-  height="1179"
-/>
+As a developer, you should:
 
-Caching behavior changes depending on whether the route is statically or dynamically rendered, data is cached or uncached, and whether a request is part of an initial visit or a subsequent navigation. Depending on your use case, you can configure the caching behavior for individual routes and data requests.
+1. Decide which data requests to cache or revalidate.
+2. Decide whether a component should be statically or dynamically rendered (e.g. rely on runtime information such as cookies, headers).
+3. Wrap components that are dynamic or rely on data in Suspense boundaries, to enable [streaming](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense).
 
-## Request Memoization
+Here's an overview of the APIs you can use to configure data requests in Next.js:
+
+| API                                               | Purpose                                                                                        | Where                                             |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| [revalidatePath]()                                | Mutate data                                                                                    | Server Actions, Route Handlers                    |
+| [revalidateTag]()                                 | Mutate data                                                                                    | Server Actions, Route Handlers                    |
+| [unstable_cache]()                                | Cache direct database queries or data fetches using third-party libraries (e.g. useSWR)        | Server Components, Server Actions, Route Handlers |
+| [unstable_noStore]()                              | Opt data requests out of caching when using direct database queries and third-party libraries. |
+| Server Components, Server Actions, Route Handlers |
+| [Dynamic Functions]()                             | Access runtime information (opt a route out of static rendering)                               |                                                   |
+| [React Suspense]()                                | Display a fallback while data is loading, or during dynamic rendering                          |                                                   |
+| [React Cache](#react-cache)                       | Memoize data requests during a React render pass                                               |                                                   |
+| [Native `fetch` API](#native-fetch-api)           | Memoize data requests during a React render pass.. Fetch, cache, and revalidate data           | Server Components, Server Actions, Route Handlers |
 
 React extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
