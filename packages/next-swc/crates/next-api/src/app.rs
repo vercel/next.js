@@ -527,18 +527,19 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let (app_entry, ty, ssr_and_client) = match this.ty {
+        let (app_entry, ty, process_client, process_ssr) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
                 "page",
+                true,
                 matches!(ty, AppPageEndpointType::Html),
             ),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), "route", false),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), "route", false, false),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), "route", false)
+                (self.app_metadata_entry(metadata), "route", false, false)
             }
         };
 
@@ -588,7 +589,7 @@ impl AppEndpoint {
         // ))
         // .await?;
 
-        let app_server_reference_modules = if ssr_and_client {
+        let app_server_reference_modules = if process_client {
             let client_shared_chunks = get_app_client_shared_chunks(
                 app_entry
                     .rsc_entry
@@ -614,11 +615,15 @@ impl AppEndpoint {
             let client_reference_types = client_reference_graph.types();
             let client_references = client_reference_graph.entry(rsc_entry_asset);
 
-            let ssr_chunking_context = match runtime {
-                NextRuntime::NodeJs => {
-                    Vc::upcast(this.app_project.project().server_chunking_context())
-                }
-                NextRuntime::Edge => this.app_project.project().edge_chunking_context(),
+            let ssr_chunking_context = if process_ssr {
+                Some(match runtime {
+                    NextRuntime::NodeJs => {
+                        Vc::upcast(this.app_project.project().server_chunking_context())
+                    }
+                    NextRuntime::Edge => this.app_project.project().edge_chunking_context(),
+                })
+            } else {
+                None
             };
 
             let client_references_chunks = get_app_client_references_chunks(
