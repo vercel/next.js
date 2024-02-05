@@ -132,7 +132,7 @@ export async function createApp({
 
   const appName = path.basename(root)
 
-  fs.mkdirSync(root, { recursive: true })
+  await fs.mkdir(root, { recursive: true })
   if (!isFolderEmpty(root, appName)) {
     process.exit(1)
   }
