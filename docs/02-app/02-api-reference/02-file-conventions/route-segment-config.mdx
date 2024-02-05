@@ -214,6 +214,10 @@ export const maxDuration = 5
 export const maxDuration = 5
 ```
 
+> **Good to know**:
+>
+> - If using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), set the `maxDuration` at the page level to change the default timeout of all Server Actions used on the page.
+
 ### `generateStaticParams`
 
 The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to define the list of route segment parameters that will be statically generated at build time instead of on-demand at request time.

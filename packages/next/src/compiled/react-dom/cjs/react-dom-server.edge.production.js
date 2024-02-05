@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
+var ReactVersion = '18.3.0-canary-60a927d04-20240113';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
@@ -4948,8 +4948,9 @@ function getWrappedName(outerType, innerType, wrapperName) {
 
 function getContextName(type) {
   return type.displayName || 'Context';
-} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+}
 
+const REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
 
 function getComponentNameFromType(type) {
   if (type == null) {
@@ -4958,6 +4959,11 @@ function getComponentNameFromType(type) {
   }
 
   if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
     return type.displayName || type.name || null;
   }
 
@@ -4992,6 +4998,7 @@ function getComponentNameFromType(type) {
   }
 
   if (typeof type === 'object') {
+
     switch (type.$$typeof) {
       case REACT_CONTEXT_TYPE:
         const context = type;
@@ -6910,7 +6917,8 @@ function renderSuspenseBoundary(request, someTask, keyPath, props) {
       errorDigest = logRecoverableError(request, error, thrownInfo);
     }
 
-    encodeErrorForBoundary(newBoundary, errorDigest); // We don't need to decrement any task numbers because we didn't spawn any new task.
+    encodeErrorForBoundary(newBoundary, errorDigest);
+    untrackBoundary(request, newBoundary); // We don't need to decrement any task numbers because we didn't spawn any new task.
     // We don't need to schedule any task because we know the parent has written yet.
     // We do need to fallthrough to create the fallback though.
   } finally {
@@ -7778,6 +7786,36 @@ function renderChildrenArray(request, task, children, childIndex) {
   task.treeContext = prevTreeContext;
   task.keyPath = prevKeyPath;
 }
+// resume it.
+
+
+function untrackBoundary(request, boundary) {
+  const trackedPostpones = request.trackedPostpones;
+
+  if (trackedPostpones === null) {
+    return;
+  }
+
+  const boundaryKeyPath = boundary.trackedContentKeyPath;
+
+  if (boundaryKeyPath === null) {
+    return;
+  }
+
+  const boundaryNode = trackedPostpones.workingMap.get(boundaryKeyPath);
+
+  if (boundaryNode === undefined) {
+    return;
+  } // Downgrade to plain ReplayNode since we won't replay through it.
+  // $FlowFixMe[cannot-write]: We intentionally downgrade this to the other tuple.
+
+
+  boundaryNode.length = 4; // Remove any resumable slots.
+
+  boundaryNode[2] = [];
+  boundaryNode[3] = null; // TODO: We should really just remove the boundary from all parent paths too so
+  // we don't replay the path to it.
+}
 
 function spawnNewSuspendedReplayTask(request, task, thenableState, x) {
   const newTask = createReplayTask(request, thenableState, task.replay, task.node, task.childIndex, task.blockedBoundary, task.abortSet, task.keyPath, task.formatContext, task.legacyContext, task.context, task.treeContext, // We pop one task off the stack because the node that suspended will be tried again,
@@ -7944,7 +7982,8 @@ function erroredTask(request, boundary, error, errorInfo) {
 
     if (boundary.status !== CLIENT_RENDERED) {
       boundary.status = CLIENT_RENDERED;
-      encodeErrorForBoundary(boundary, errorDigest); // Regardless of what happens next, this boundary won't be displayed,
+      encodeErrorForBoundary(boundary, errorDigest);
+      untrackBoundary(request, boundary); // Regardless of what happens next, this boundary won't be displayed,
       // so we can flush it, if the parent already flushed.
 
       if (boundary.parentFlushed) {
@@ -8082,6 +8121,7 @@ function abortTask(task, request, error) {
       const errorDigest = logRecoverableError(request, error, errorInfo);
 
       encodeErrorForBoundary(boundary, errorDigest);
+      untrackBoundary(request, boundary);
 
       if (boundary.parentFlushed) {
         request.clientRenderedBoundaries.push(boundary);

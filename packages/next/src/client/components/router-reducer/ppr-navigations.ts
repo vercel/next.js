@@ -727,6 +727,67 @@ function abortPendingCacheNode(
   }
 }
 
+export function updateCacheNodeOnPopstateRestoration(
+  oldCacheNode: CacheNode,
+  routerState: FlightRouterState
+) {
+  // A popstate navigation reads data from the local cache. It does not issue
+  // new network requests (unless the cache entries have been evicted). So, we
+  // update the cache to drop the prefetch  data for any segment whose dynamic
+  // data was already received. This prevents an unnecessary flash back to PPR
+  // state during a back/forward navigation.
+  //
+  // This function clones the entire cache node tree and sets the `prefetchRsc`
+  // field to `null` to prevent it from being rendered. We can't mutate the node
+  // in place because this is a concurrent data structure.
+
+  const routerStateChildren = routerState[1]
+  const oldParallelRoutes = oldCacheNode.parallelRoutes
+  const newParallelRoutes = new Map(oldParallelRoutes)
+  for (let parallelRouteKey in routerStateChildren) {
+    const routerStateChild: FlightRouterState =
+      routerStateChildren[parallelRouteKey]
+    const segmentChild = routerStateChild[0]
+    const segmentKeyChild = createRouterCacheKey(segmentChild)
+    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
+    if (oldSegmentMapChild !== undefined) {
+      const oldCacheNodeChild = oldSegmentMapChild.get(segmentKeyChild)
+      if (oldCacheNodeChild !== undefined) {
+        const newCacheNodeChild = updateCacheNodeOnPopstateRestoration(
+          oldCacheNodeChild,
+          routerStateChild
+        )
+        const newSegmentMapChild = new Map(oldSegmentMapChild)
+        newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
+        newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+      }
+    }
+  }
+
+  // Only show prefetched data if the dynamic data is still pending.
+  //
+  // Tehnically, what we're actually checking is whether the dynamic network
+  // response was received. But since it's a streaming response, this does not
+  // mean that all the dynamic data has fully streamed in. It just means that
+  // _some_ of the dynamic data was received. But as a heuristic, we assume that
+  // the rest dynamic data will stream in quickly, so it's still better to skip
+  // the prefetch state.
+  const rsc = oldCacheNode.rsc
+  const shouldUsePrefetch = isDeferredRsc(rsc) && rsc.status === 'pending'
+
+  return {
+    lazyData: null,
+    rsc,
+    head: oldCacheNode.head,
+
+    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
+    prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
+
+    // These are the cloned children we computed above
+    parallelRoutes: newParallelRoutes,
+  }
+}
+
 const DEFERRED = Symbol()
 
 type PendingDeferredRsc = Promise<React.ReactNode> & {

@@ -2,7 +2,9 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
 use fxhash::FxHashSet;
+use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
+use swc_core::ecma::visit::as_folder;
 use turbopack_binding::swc::{
     core::{
         common::{
@@ -145,6 +147,32 @@ where
         },
     };
 
+    let target_browsers = opts
+        .swc
+        .config
+        .env
+        .as_ref()
+        .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
+        .unwrap_or_default();
+
+    let styled_jsx = if let Some(config) = opts.styled_jsx {
+        Either::Left(
+            turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                file.name.clone(),
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::Config {
+                    use_lightningcss: config.use_lightningcss,
+                    browsers: target_browsers,
+                },
+                turbopack_binding::swc::custom_transform::styled_jsx::visitor::NativeConfig {
+                    process_css: None,
+                },
+            ),
+        )
+    } else {
+        Either::Right(noop())
+    };
+
     chain!(
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
@@ -157,17 +185,7 @@ where
                 )),
             _ => Either::Right(noop()),
         },
-        if let Some(config) = opts.styled_jsx {
-            Either::Left(
-                turbopack_binding::swc::custom_transform::styled_jsx::visitor::styled_jsx(
-                    cm.clone(),
-                    file.name.clone(),
-                    config,
-                ),
-            )
-        } else {
-            Either::Right(noop())
-        },
+        styled_jsx,
         match &opts.styled_components {
             Some(config) => Either::Left(
                 turbopack_binding::swc::custom_transform::styled_components::styled_components(
@@ -275,11 +293,11 @@ where
         },
         match &opts.cjs_require_optimizer {
             Some(config) => {
-                Either::Left(crate::transforms::cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark)))
+                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(config.clone(), SyntaxContext::empty().apply_mark(unresolved_mark))))
             },
             None => Either::Right(noop()),
         },
-        crate::transforms::pure::pure_magic(comments),
+        as_folder(crate::transforms::pure::pure_magic(comments)),
     )
 }
 

@@ -214,9 +214,8 @@ createNextDescribe(
       it('should not have duplicate config warnings', async () => {
         await next.fetch('/')
         expect(
-          stripAnsi(next.cliOutput).match(
-            /Experiments \(use at your own risk\):/g
-          ).length
+          stripAnsi(next.cliOutput).match(/Experiments \(use with caution\):/g)
+            .length
         ).toBe(1)
       })
     }
@@ -1403,7 +1402,7 @@ createNextDescribe(
         if (isDev) {
           // TODO: investigate desired behavior here as it is currently
           // minimized by default
-          // expect(await hasRedbox(browser, true)).toBe(true)
+          // expect(await hasRedbox(browser)).toBe(true)
           // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -1431,7 +1430,7 @@ createNextDescribe(
             // Digest of the error message should be stable.
           ).not.toBe('')
           // TODO-APP: ensure error overlay is shown for errors that happened before/during hydration
-          // expect(await hasRedbox(browser, true)).toBe(true)
+          // expect(await hasRedbox(browser)).toBe(true)
           // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           await browser
@@ -1454,7 +1453,7 @@ createNextDescribe(
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isDev) {
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
         } else {
           expect(
@@ -1471,7 +1470,7 @@ createNextDescribe(
         )
 
         if (isDev) {
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
         } else {
           expect(
