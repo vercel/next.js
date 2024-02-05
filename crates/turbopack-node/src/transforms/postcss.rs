@@ -166,9 +166,13 @@ async fn extra_configs(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
 ) -> Result<Vc<Completion>> {
-    let config_paths = [postcss_config_path
-        .parent()
-        .join("tailwind.config.js".to_string())];
+    let parent_path = postcss_config_path.parent();
+
+    let config_paths = [
+        parent_path.join("tailwind.config.js".to_string()),
+        parent_path.join("tailwind.config.ts".to_string()),
+    ];
+
     let configs = config_paths
         .into_iter()
         .map(|path| async move {
