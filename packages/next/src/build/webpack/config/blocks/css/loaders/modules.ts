@@ -3,8 +3,6 @@ import type { ConfigurationContext } from '../../../utils'
 import { getClientStyleLoader } from './client'
 import { cssFileResolve } from './file-resolve'
 import { getCssModuleLocalIdent } from './getCssModuleLocalIdent'
-import fs from 'fs'
-import path from 'path'
 
 export function getCssModuleLoader(
   ctx: ConfigurationContext,
