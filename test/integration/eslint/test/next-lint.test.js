@@ -145,9 +145,12 @@ describe('Next Lint', () => {
         stderr: true,
       })
 
-      const files = await fs.readdir(join(dir, '.next', 'types'))
+      const isAppDeclarationTypesExist = await fs
+        .access(join(dir, '.next', 'types', 'next-env.d.ts'))
+        .then(() => true)
+        .catch(() => false)
 
-      expect(files).not.toContain('next-env.d.ts')
+      expect(isAppDeclarationTypesExist).toBeFalse()
     })
   }
 
