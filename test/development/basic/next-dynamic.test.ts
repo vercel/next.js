@@ -192,7 +192,26 @@ describe.each([
                   () => browser.elementByCss('body').text(),
                   /navigator/
                 )
-                expect(await hasRedbox(browser, false)).toBe(false)
+                expect(await hasRedbox(browser)).toBe(false)
+              } finally {
+                if (browser) {
+                  await browser.close()
+                }
+              }
+            })
+
+            it('should import and render the ESM module correctly on client side', async () => {
+              let browser
+              try {
+                browser = await webdriver(
+                  next.url,
+                  basePath + '/dynamic/no-ssr-esm'
+                )
+                await check(
+                  () => browser.elementByCss('body').text(),
+                  /esm.mjs/
+                )
+                expect(await hasRedbox(browser)).toBe(false)
               } finally {
                 if (browser) {
                   await browser.close()

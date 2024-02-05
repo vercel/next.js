@@ -14,6 +14,7 @@ use turbopack_binding::{
         core::{
             asset::{Asset, AssetContent},
             context::AssetContext,
+            file_source::FileSource,
             module::Module,
             reference_type::{EntryReferenceSubType, ReferenceType},
             source::Source,
@@ -26,6 +27,7 @@ use turbopack_binding::{
 use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
+    pages_structure::{PagesStructure, PagesStructureItem},
     util::{file_content_rope, load_next_js_template, NextRuntime},
 };
 
@@ -37,13 +39,16 @@ pub async fn create_page_ssr_entry_module(
     ssr_module_context: Vc<Box<dyn AssetContext>>,
     source: Vc<Box<dyn Source>>,
     next_original_name: Vc<String>,
+    pages_structure: Vc<PagesStructure>,
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
     let definition_page = &*next_original_name.await?;
     let definition_pathname = &*pathname.await?;
 
-    let ssr_module = ssr_module_context.process(source, reference_type.clone());
+    let ssr_module = ssr_module_context
+        .process(source, reference_type.clone())
+        .module();
 
     let reference_type = reference_type.into_value();
 
@@ -65,6 +70,9 @@ pub async fn create_page_ssr_entry_module(
 
     const INNER: &str = "INNER_PAGE";
 
+    const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
+    const INNER_APP: &str = "INNER_APP";
+
     let mut replacements = indexmap! {
         "VAR_DEFINITION_PAGE" => definition_page.clone(),
         "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
@@ -72,14 +80,8 @@ pub async fn create_page_ssr_entry_module(
     };
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        replacements.insert(
-            "VAR_MODULE_DOCUMENT",
-            "@vercel/turbopack-next/pages/_document".to_string(),
-        );
-        replacements.insert(
-            "VAR_MODULE_APP",
-            "@vercel/turbopack-next/pages/_app".to_string(),
-        );
+        replacements.insert("VAR_MODULE_DOCUMENT", INNER_DOCUMENT.to_string());
+        replacements.insert("VAR_MODULE_APP", INNER_APP.to_string());
     }
 
     // Load the file from the next.js codebase.
@@ -116,12 +118,35 @@ pub async fn create_page_ssr_entry_module(
         ));
     }
 
-    let mut ssr_module = ssr_module_context.process(
-        source,
-        Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-            INNER.to_string() => ssr_module,
-        }))),
-    );
+    let mut inner_assets = indexmap! {
+        INNER.to_string() => ssr_module,
+    };
+
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        inner_assets.insert(
+            INNER_DOCUMENT.to_string(),
+            process_global_item(
+                pages_structure.document(),
+                Value::new(reference_type.clone()),
+                ssr_module_context,
+            ),
+        );
+        inner_assets.insert(
+            INNER_APP.to_string(),
+            process_global_item(
+                pages_structure.app(),
+                Value::new(reference_type.clone()),
+                ssr_module_context,
+            ),
+        );
+    }
+
+    let mut ssr_module = ssr_module_context
+        .process(
+            source,
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     if matches!(runtime, NextRuntime::Edge) {
         if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
@@ -131,6 +156,8 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module,
                 definition_page.clone(),
                 definition_pathname.clone(),
+                Value::new(reference_type),
+                pages_structure,
                 next_config,
             );
         } else {
@@ -153,15 +180,34 @@ pub async fn create_page_ssr_entry_module(
 }
 
 #[turbo_tasks::function]
+async fn process_global_item(
+    item: Vc<PagesStructureItem>,
+    reference_type: Value<ReferenceType>,
+    module_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Box<dyn Module>>> {
+    let source = Vc::upcast(FileSource::new(item.project_path()));
+
+    let module = module_context.process(source, reference_type).module();
+
+    Ok(module)
+}
+
+#[turbo_tasks::function]
 async fn wrap_edge_page(
     context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
     entry: Vc<Box<dyn Module>>,
     page: String,
     pathname: String,
+    reference_type: Value<ReferenceType>,
+    pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_PAGE_ENTRY";
+
+    const INNER_DOCUMENT: &str = "INNER_DOCUMENT";
+    const INNER_APP: &str = "INNER_APP";
+    const INNER_ERROR: &str = "INNER_ERROR";
 
     let next_config = &*next_config.await?;
 
@@ -182,11 +228,11 @@ async fn wrap_edge_page(
         project_root,
         indexmap! {
             "VAR_USERLAND" => INNER.to_string(),
-            "VAR_PAGE" => page.clone(),
+            "VAR_PAGE" => pathname.clone(),
             "VAR_BUILD_ID" => build_id.to_string(),
-            "VAR_MODULE_DOCUMENT" => "@vercel/turbopack-next/pages/_document".to_string(),
-            "VAR_MODULE_APP" => "@vercel/turbopack-next/pages/_app".to_string(),
-            "VAR_MODULE_GLOBAL_ERROR" => "@vercel/turbopack-next/pages/_error".to_string(),
+            "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.to_string(),
+            "VAR_MODULE_APP" => INNER_APP.to_string(),
+            "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.to_string(),
         },
         indexmap! {
             "pagesType" => StringifyJs("pages").to_string(),
@@ -206,13 +252,18 @@ async fn wrap_edge_page(
     .await?;
 
     let inner_assets = indexmap! {
-        INNER.to_string() => entry
+        INNER.to_string() => entry,
+        INNER_DOCUMENT.to_string() => process_global_item(pages_structure.document(), reference_type.clone(), context),
+        INNER_APP.to_string() => process_global_item(pages_structure.app(), reference_type.clone(), context),
+        INNER_ERROR.to_string() => process_global_item(pages_structure.error(), reference_type.clone(), context),
     };
 
-    let wrapped = context.process(
-        Vc::upcast(source),
-        Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
-    );
+    let wrapped = context
+        .process(
+            Vc::upcast(source),
+            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+        )
+        .module();
 
     Ok(wrap_edge_entry(
         context,

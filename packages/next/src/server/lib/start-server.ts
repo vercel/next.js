@@ -13,7 +13,8 @@ import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
-import Watchpack from 'watchpack'
+import os from 'os'
+import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE, checkNodeDebugType, getDebugPort } from './utils'
@@ -22,10 +23,11 @@ import { initialize } from './router-server'
 import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { trace } from '../../trace'
+import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
 
 const debug = setupDebug('next:start-server')
+let startServerSpan: Span | undefined
 
 export interface StartServerOptions {
   dir: string
@@ -75,6 +77,7 @@ export async function getRequestHandlers({
     keepAliveTimeout,
     experimentalTestProxy,
     experimentalHttpsServer,
+    startServerSpan,
   })
 }
 
@@ -153,6 +156,13 @@ export async function startServer(
           Log.warn(
             `Server is approaching the used memory threshold, restarting...`
           )
+          trace('server-restart-close-to-memory-threshold', undefined, {
+            'memory.heapSizeLimit': String(
+              v8.getHeapStatistics().heap_size_limit
+            ),
+            'memory.heapUsed': String(v8.getHeapStatistics().used_heap_size),
+          }).stop()
+          await flushAllTraces()
           process.exit(RESTART_EXIT_CODE)
         }
       }
@@ -241,7 +251,7 @@ export async function startServer(
       let envInfo: string[] | undefined
       let expFeatureInfo: string[] | undefined
       if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir)
+        const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
         expFeatureInfo = startServerInfo.expFeatureInfo
       }
@@ -254,10 +264,9 @@ export async function startServer(
       })
 
       try {
-        const cleanup = (code: number | null) => {
+        const cleanup = () => {
           debug('start-server process cleanup')
-          server.close()
-          process.exit(code ?? 0)
+          server.close(() => process.exit(0))
         }
         const exception = (err: Error) => {
           if (isPostpone(err)) {
@@ -269,10 +278,12 @@ export async function startServer(
           // This is the render worker, we keep the process alive
           console.error(err)
         }
-        process.on('exit', (code) => cleanup(code))
-        // callback value is signal string, exit with 0
-        process.on('SIGINT', () => cleanup(0))
-        process.on('SIGTERM', () => cleanup(0))
+        // Make sure commands gracefully respect termination signals (e.g. from Docker)
+        // Allow the graceful termination to be manually configurable
+        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
+          process.on('SIGINT', cleanup)
+          process.on('SIGTERM', cleanup)
+        }
         process.on('rejectionHandled', () => {
           // It is ok to await a Promise late in Next.js as it allows for better
           // prefetching patterns to avoid waterfalls. We ignore loggining these.
@@ -362,8 +373,25 @@ export async function startServer(
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
     if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
-      await trace('start-dev-server').traceAsyncFn(() =>
+      startServerSpan = trace('start-dev-server', undefined, {
+        cpus: String(os.cpus().length),
+        platform: os.platform(),
+        'memory.freeMem': String(os.freemem()),
+        'memory.totalMem': String(os.totalmem()),
+        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+      })
+      await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
+      )
+      const memoryUsage = process.memoryUsage()
+      startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
+      startServerSpan.setAttribute(
+        'memory.heapTotal',
+        String(memoryUsage.heapTotal)
+      )
+      startServerSpan.setAttribute(
+        'memory.heapUsed',
+        String(memoryUsage.heapUsed)
       )
       process.send({ nextServerReady: true })
     }

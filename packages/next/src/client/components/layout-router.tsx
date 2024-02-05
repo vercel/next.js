@@ -1,6 +1,9 @@
 'use client'
 
-import type { ChildSegmentMap } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  ChildSegmentMap,
+  LazyCacheNode,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   FlightSegmentPath,
@@ -9,10 +12,15 @@ import type {
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
 
-import React, { useContext, use, startTransition, Suspense } from 'react'
+import React, {
+  useContext,
+  use,
+  startTransition,
+  Suspense,
+  useDeferredValue,
+} from 'react'
 import ReactDOM from 'react-dom'
 import {
-  CacheStates,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
   TemplateContext,
@@ -314,7 +322,6 @@ function InnerLayoutRouter({
   parallelRouterKey,
   url,
   childNodes,
-  initialChildNode,
   segmentPath,
   tree,
   // TODO-APP: implement `<Offscreen>` when available.
@@ -324,7 +331,6 @@ function InnerLayoutRouter({
   parallelRouterKey: string
   url: string
   childNodes: ChildSegmentMap
-  initialChildNode: React.ReactNode | null
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
   isActive: boolean
@@ -340,92 +346,81 @@ function InnerLayoutRouter({
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
 
-  // If initialChildNode is available this means it's the Flight / SSR case.
-  // TODO: `null` is a valid React Node, so technically we should use some other
-  // value besides `null` to indicate that the tree is partial. However, we're
-  // about to remove all the cases that lead to a partial tree, so this soon
-  // won't be an issue.
-  if (initialChildNode !== null) {
-    if (!childNode) {
-      // Add the segment's subTreeData to the cache.
-      // This writes to the cache when there is no item in the cache yet. It never *overwrites* existing cache items which is why it's safe in concurrent mode.
-
-      // TODO: We should seed all the CacheNodes as soon as the Flight payload
-      // is received. We already collect them eagerly on the server, so we
-      // shouldn't need to wait until the render phase to write them into
-      // the cache. Requires refactoring the Flight response type. Then we can
-      // delete this code.
-      childNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: initialChildNode,
-        parallelRoutes: new Map(),
-      }
-
-      childNodes.set(cacheKey, childNode)
-    } else {
-      if (childNode.status === CacheStates.LAZY_INITIALIZED) {
-        // @ts-expect-error we're changing it's type!
-        childNode.status = CacheStates.READY
-        // @ts-expect-error
-        childNode.subTreeData = initialChildNode
-      }
-    }
-  }
-
-  // When childNode is not available during rendering client-side we need to fetch it from the server.
-  if (!childNode || childNode.status === CacheStates.LAZY_INITIALIZED) {
-    /**
-     * Router state with refetch marker added
-     */
-    // TODO-APP: remove ''
-    const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
-
-    childNode = {
-      status: CacheStates.DATA_FETCH,
-      data: fetchServerResponse(
-        new URL(url, location.origin),
-        refetchTree,
-        context.nextUrl,
-        buildId
-      ),
-      subTreeData: null,
-      head:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.head
-          : undefined,
-      parallelRoutes:
-        childNode && childNode.status === CacheStates.LAZY_INITIALIZED
-          ? childNode.parallelRoutes
-          : new Map(),
+  // When data is not available during rendering client-side we need to fetch
+  // it from the server.
+  if (childNode === undefined) {
+    const newLazyCacheNode: LazyCacheNode = {
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
+      head: null,
+      parallelRoutes: new Map(),
     }
 
     /**
      * Flight data fetch kicked off during render and put into the cache.
      */
-    childNodes.set(cacheKey, childNode)
+    childNode = newLazyCacheNode
+    childNodes.set(cacheKey, newLazyCacheNode)
   }
 
-  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (!childNode) {
-    throw new Error('Child node should always exist')
-  }
+  // `rsc` represents the renderable node for this segment.
 
-  // This case should never happen so it throws an error. It indicates there's a bug in the Next.js.
-  if (childNode.subTreeData && childNode.data) {
-    throw new Error('Child node should not have both subTreeData and data')
-  }
+  // If this segment has a `prefetchRsc`, it's the statically prefetched data.
+  // We should use that on initial render instead of `rsc`. Then we'll switch
+  // to `rsc` when the dynamic response streams in.
+  //
+  // If no prefetch data is available, then we go straight to rendering `rsc`.
+  const resolvedPrefetchRsc =
+    childNode.prefetchRsc !== null ? childNode.prefetchRsc : childNode.rsc
 
-  // If cache node has a data request we have to unwrap response by `use` and update the cache.
-  if (childNode.data) {
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `rsc`.
+  const rsc: any = useDeferredValue(childNode.rsc, resolvedPrefetchRsc)
+
+  // `rsc` is either a React node or a promise for a React node, except we
+  // special case `null` to represent that this segment's data is missing. If
+  // it's a promise, we need to unwrap it so we can determine whether or not the
+  // data is missing.
+  const resolvedRsc: React.ReactNode =
+    typeof rsc === 'object' && rsc !== null && typeof rsc.then === 'function'
+      ? use(rsc)
+      : rsc
+
+  if (!resolvedRsc) {
+    // The data for this segment is not available, and there's no pending
+    // navigation that will be able to fulfill it. We need to fetch more from
+    // the server and patch the cache.
+
+    // Check if there's already a pending request.
+    let lazyData = childNode.lazyData
+    if (lazyData === null) {
+      /**
+       * Router state with refetch marker added
+       */
+      // TODO-APP: remove ''
+      const refetchTree = walkAddRefetch(['', ...segmentPath], fullTree)
+      childNode.lazyData = lazyData = fetchServerResponse(
+        new URL(url, location.origin),
+        refetchTree,
+        context.nextUrl,
+        buildId
+      )
+    }
+
     /**
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(childNode.data)
+    const [flightData, overrideCanonicalUrl] = use(lazyData)
 
     // segmentPath from the server does not match the layout's segmentPath
-    childNode.data = null
+    childNode.lazyData = null
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
@@ -434,15 +429,10 @@ function InnerLayoutRouter({
       })
     })
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise())
+    use(createInfinitePromise()) as never
   }
 
-  // If cache node has no subTreeData and no data request we have to infinitely suspend as the data will likely flow in from another place.
-  // TODO-APP: double check users can't return null in a component that will kick in here.
-  if (!childNode.subTreeData) {
-    use(createInfinitePromise())
-  }
-
+  // If we get to this point, then we know we have something we can render.
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
     <LayoutRouterContext.Provider
@@ -453,7 +443,7 @@ function InnerLayoutRouter({
         url: url,
       }}
     >
-      {childNode.subTreeData}
+      {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
   // Ensure root layout is not wrapped in a div as the root layout renders `<html>`
@@ -503,8 +493,6 @@ function LoadingBoundary({
 export default function OuterLayoutRouter({
   parallelRouterKey,
   segmentPath,
-  initialChildNode,
-  childPropSegment,
   error,
   errorStyles,
   errorScripts,
@@ -521,9 +509,7 @@ export default function OuterLayoutRouter({
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
-  initialChildNode: React.ReactNode | null
-  childPropSegment: Segment
-  error: ErrorComponent
+  error: ErrorComponent | undefined
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
   templateStyles: React.ReactNode | undefined
@@ -570,10 +556,6 @@ export default function OuterLayoutRouter({
     <>
       {styles}
       {preservedSegments.map((preservedSegment) => {
-        const isChildPropSegment = matchSegment(
-          preservedSegment,
-          childPropSegment
-        )
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
 
@@ -612,9 +594,6 @@ export default function OuterLayoutRouter({
                           url={url}
                           tree={tree}
                           childNodes={childNodesForParallelRouter!}
-                          initialChildNode={
-                            isChildPropSegment ? initialChildNode : null
-                          }
                           segmentPath={segmentPath}
                           cacheKey={cacheKey}
                           isActive={

@@ -5,7 +5,6 @@ import type {
   TurbopackResult,
   WrittenEndpoint,
   Issue,
-  Project,
   StyledString,
 } from '../../../build/swc'
 import type { Socket } from 'net'
@@ -18,11 +17,16 @@ import type { BuildManifest } from '../../get-page-files'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PropagateToWorkersField } from './types'
-import type { MiddlewareManifest } from '../../../build/webpack/plugins/middleware-plugin'
 import type {
+  EdgeFunctionDefinition,
+  MiddlewareManifest,
+} from '../../../build/webpack/plugins/middleware-plugin'
+import type {
+  CompilationError,
   HMR_ACTION_TYPES,
   NextJsHotReloaderInterface,
   ReloadPageAction,
+  SyncAction,
   TurbopackConnectedAction,
 } from '../../dev/hot-reloader-types'
 
@@ -32,13 +36,14 @@ import fs from 'fs'
 import url from 'url'
 import path from 'path'
 import qs from 'querystring'
-import Watchpack from 'watchpack'
+import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
 import isError from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloader, {
+import HotReloaderWebpack, {
+  getVersionInfo,
   matchNextPageBundleRequest,
 } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
@@ -85,7 +90,6 @@ import {
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-import { NextBuildContext } from '../../../build/build-context'
 
 import {
   isMiddlewareFile,
@@ -93,7 +97,7 @@ import {
   isInstrumentationHookFile,
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
-} from '../../../build/worker'
+} from '../../../build/utils'
 import {
   createOriginalStackFrame,
   getErrorSource,
@@ -104,7 +108,7 @@ import {
   getOverlayMiddleware,
   createOriginalStackFrame as createOriginalTurboStackFrame,
 } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
-import { mkdir, readFile, writeFile, rename, unlink } from 'fs/promises'
+import { mkdir, readFile, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import {
   type ClientBuildManifest,
@@ -122,14 +126,25 @@ import {
   deleteCache,
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { clearModuleContext } from '../render-server'
+import { clearModuleContext, clearAllModuleContexts } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import { bold, green, red } from '../../../lib/picocolors'
+import { writeFileAtomic } from '../../../lib/fs/write-atomic'
+import { PAGE_TYPES } from '../../../lib/page-types'
+import { trace } from '../../../trace'
+import type { VersionInfo } from '../../dev/parse-version-info'
+import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
+const isTestMode = !!(
+  process.env.NEXT_TEST_MODE ||
+  process.env.__NEXT_TEST_MODE ||
+  process.env.DEBUG
+)
 
 type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -164,6 +179,8 @@ async function verifyTypeScript(opts: SetupOpts) {
   }
   return usingTypeScript
 }
+
+class ModuleBuildError extends Error {}
 
 async function startWatcher(opts: SetupOpts) {
   const { nextConfig, appDir, pagesDir, dir } = opts
@@ -208,10 +225,7 @@ async function startWatcher(opts: SetupOpts) {
     >[]
   } = {}
 
-  let hotReloader: NextJsHotReloaderInterface
-  let project: Project | undefined
-
-  if (opts.turbo) {
+  async function createHotReloaderTurbopack(): Promise<NextJsHotReloaderInterface> {
     const { loadBindings } =
       require('../../../build/swc') as typeof import('../../../build/swc')
 
@@ -221,10 +235,10 @@ async function startWatcher(opts: SetupOpts) {
 
     // For the debugging purpose, check if createNext or equivalent next instance setup in test cases
     // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
-    if (process.env.TURBOPACK && process.env.NEXT_TEST_MODE) {
+    if (process.env.TURBOPACK && isTestMode) {
       require('console').log('Creating turbopack project', {
         dir,
-        testMode: process.env.NEXT_TEST_MODE,
+        testMode: isTestMode,
       })
     }
 
@@ -233,7 +247,14 @@ async function startWatcher(opts: SetupOpts) {
       opts.fsChecker.rewrites.beforeFiles.length > 0 ||
       opts.fsChecker.rewrites.fallback.length > 0
 
-    project = await bindings.turbo.createProject({
+    const hotReloaderSpan = trace('hot-reloader', undefined, {
+      version: process.env.__NEXT_VERSION as string,
+    })
+    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
+    // of the current `next dev` invocation.
+    hotReloaderSpan.stop()
+
+    const project = await bindings.turbo.createProject({
       projectPath: dir,
       rootPath: opts.nextConfig.experimental.outputFileTracingRoot || dir,
       nextConfig: opts.nextConfig,
@@ -276,7 +297,6 @@ async function startWatcher(opts: SetupOpts) {
     )
     const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
     const turbopackUpdates: TurbopackUpdate[] = []
-    let hmrBuilding = false
 
     const issues = new Map<string, Map<string, Issue>>()
 
@@ -284,34 +304,45 @@ async function startWatcher(opts: SetupOpts) {
       return [
         issue.severity,
         issue.filePath,
-        issue.title,
+        JSON.stringify(issue.title),
         JSON.stringify(issue.description),
       ].join('-')
     }
 
     function formatIssue(issue: Issue) {
-      const { filePath, title, description, source, detail } = issue
-      let formattedTitle = title.replace(/\n/g, '\n    ')
+      const { filePath, title, description, source } = issue
+      let { documentationLink } = issue
+      let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+        /\n/g,
+        '\n    '
+      )
+
+      // TODO: Use error codes to identify these
+      // TODO: Generalize adapting Turbopack errors to Next.js errors
+      if (formattedTitle.includes('Module not found')) {
+        // For compatiblity with webpack
+        // TODO: include columns in webpack errors.
+        documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
+      }
 
       let formattedFilePath = filePath
-        .replace('[project]/', '')
+        .replace('[project]/', './')
         .replaceAll('/./', '/')
         .replace('\\\\?\\', '')
 
       let message
 
-      if (source) {
-        if (source.range) {
-          const { start } = source.range
-          message = `${issue.severity} - ${formattedFilePath}:${
-            start.line + 1
-          }:${start.column}`
-        } else {
-          message = `${issue.severity} - ${formattedFilePath}  ${formattedTitle}`
-        }
+      if (source && source.range) {
+        const { start } = source.range
+        message = `${formattedFilePath}:${start.line + 1}:${
+          start.column
+        }\n${formattedTitle}`
+      } else if (formattedFilePath) {
+        message = `${formattedFilePath}\n${formattedTitle}`
       } else {
-        message = `${formattedTitle}`
+        message = formattedTitle
       }
+      message += '\n'
 
       if (source?.range && source.source.content) {
         const { start, end } = source.range
@@ -320,63 +351,60 @@ async function startWatcher(opts: SetupOpts) {
         } = require('next/dist/compiled/babel/code-frame')
 
         message +=
-          '\n\n' +
           codeFrameColumns(
             source.source.content,
             {
-              start: { line: start.line + 1, column: start.column + 1 },
-              end: { line: end.line + 1, column: end.column + 1 },
+              start: {
+                line: start.line + 1,
+                column: start.column + 1,
+              },
+              end: {
+                line: end.line + 1,
+                column: end.column + 1,
+              },
             },
             { forceColor: true }
-          )
+          ).trim() + '\n\n'
       }
 
       if (description) {
-        message += `\n${renderStyledStringToErrorAnsi(description).replace(
-          /\n/g,
-          '\n    '
-        )}`
+        message += renderStyledStringToErrorAnsi(description) + '\n\n'
       }
 
-      if (detail) {
-        message += `\n${detail.replace(/\n/g, '\n    ')}`
+      // TODO: make it possible to enable this for debugging, but not in tests.
+      // if (detail) {
+      //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+      // }
+
+      // TODO: Include a trace from the issue.
+
+      if (documentationLink) {
+        message += documentationLink + '\n\n'
       }
 
       return message
     }
 
-    class ModuleBuildError extends Error {}
-
     function processIssues(
-      displayName: string,
       name: string,
       result: TurbopackResult,
       throwIssue = false
     ) {
-      const oldSet = issues.get(name) ?? new Map()
-      const newSet = new Map<string, Issue>()
-      issues.set(name, newSet)
+      const newIssues = new Map<string, Issue>()
+      issues.set(name, newIssues)
 
       const relevantIssues = new Set()
 
       for (const issue of result.issues) {
-        // TODO better formatting
         if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
         const key = issueKey(issue)
         const formatted = formatIssue(issue)
-        if (!oldSet.has(key) && !newSet.has(key)) {
-          console.error(`  ⚠ ${displayName} ${formatted}\n\n`)
-        }
-        newSet.set(key, issue)
+        newIssues.set(key, issue)
+
+        // We show errors in node_modules to the console, but don't throw for them
+        if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
         relevantIssues.add(formatted)
       }
-
-      // TODO: Format these messages correctly.
-      // for (const issue of oldSet.keys()) {
-      //   if (!newSet.has(issue)) {
-      //     console.error(`✅ ${displayName} fixed ${issue}`)
-      //   }
-      // }
 
       if (relevantIssues.size && throwIssue) {
         throw new ModuleBuildError([...relevantIssues].join('\n\n'))
@@ -396,10 +424,10 @@ async function startWatcher(opts: SetupOpts) {
         if (p.endsWith('.map')) continue
         let key = `${id}:${p}`
         const localHash = serverPathState.get(key)
-        const globaHash = serverPathState.get(p)
+        const globalHash = serverPathState.get(p)
         if (
           (localHash && localHash !== contentHash) ||
-          (globaHash && globaHash !== contentHash)
+          (globalHash && globalHash !== contentHash)
         ) {
           hasChange = true
           serverPathState.set(key, contentHash)
@@ -408,7 +436,7 @@ async function startWatcher(opts: SetupOpts) {
           if (!localHash) {
             serverPathState.set(key, contentHash)
           }
-          if (!globaHash) {
+          if (!globalHash) {
             serverPathState.set(p, contentHash)
           }
         }
@@ -441,7 +469,11 @@ async function startWatcher(opts: SetupOpts) {
     const buildingIds = new Set()
     const readyIds = new Set()
 
-    function startBuilding(id: string, forceRebuild: boolean = false) {
+    function startBuilding(
+      id: string,
+      requestUrl: string | undefined,
+      forceRebuild: boolean = false
+    ) {
       if (!forceRebuild && readyIds.has(id)) {
         return () => {}
       }
@@ -450,12 +482,10 @@ async function startWatcher(opts: SetupOpts) {
           {
             loading: true,
             trigger: id,
+            url: requestUrl,
           } as OutputState,
           true
         )
-        hotReloader.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
-        })
       }
       buildingIds.add(id)
       return function finishBuilding() {
@@ -465,9 +495,6 @@ async function startWatcher(opts: SetupOpts) {
         readyIds.add(id)
         buildingIds.delete(id)
         if (buildingIds.size === 0) {
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING,
-          })
           consoleStore.setState(
             {
               loading: false,
@@ -478,89 +505,56 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
+    let hmrEventHappened = false
     let hmrHash = 0
-    const sendHmrDebounce = debounce(() => {
-      interface HmrError {
-        moduleName?: string
-        message: string
-        details?: string
-        moduleTrace?: Array<{ moduleName: string }>
-        stack?: string
-      }
-
-      const errors = new Map<string, HmrError>()
+    const sendEnqueuedMessages = () => {
       for (const [, issueMap] of issues) {
-        for (const [key, issue] of issueMap) {
-          if (errors.has(key)) continue
-
-          const message = formatIssue(issue)
-
-          errors.set(key, {
-            message,
-            details: issue.detail,
-          })
+        if (issueMap.size > 0) {
+          // During compilation errors we want to delay the HMR events until errors are fixed
+          return
         }
       }
-
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-        hash: String(++hmrHash),
-        errors: [...errors.values()],
-        warnings: [],
-      })
-      hmrBuilding = false
-
-      if (errors.size === 0) {
-        for (const payload of hmrPayloads.values()) {
-          hotReloader.send(payload)
-        }
-        hmrPayloads.clear()
-        if (turbopackUpdates.length > 0) {
-          hotReloader.send({
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-            data: turbopackUpdates,
-          })
-          turbopackUpdates.length = 0
-        }
+      for (const payload of hmrPayloads.values()) {
+        hotReloader.send(payload)
       }
-    }, 2)
+      hmrPayloads.clear()
+      if (turbopackUpdates.length > 0) {
+        hotReloader.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: turbopackUpdates,
+        })
+        turbopackUpdates.length = 0
+      }
+    }
+    const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
     function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
       hmrPayloads.set(`${key}:${id}`, payload)
-      hmrEventHappend = true
-      sendHmrDebounce()
+      hmrEventHappened = true
+      sendEnqueuedMessagesDebounce()
     }
 
     function sendTurbopackMessage(payload: TurbopackUpdate) {
-      // We've detected a change in some part of the graph. If nothing has
-      // been inserted into building yet, then this is the first change
-      // emitted, but their may be many more coming.
-      if (!hmrBuilding) {
-        hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
-        hmrBuilding = true
-      }
       turbopackUpdates.push(payload)
-      hmrEventHappend = true
-      sendHmrDebounce()
+      hmrEventHappened = true
+      sendEnqueuedMessagesDebounce()
     }
 
     async function loadPartialManifest<T>(
       name: string,
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware' = 'pages'
+      type:
+        | 'pages'
+        | 'app'
+        | 'app-route'
+        | 'middleware'
+        | 'instrumentation' = 'pages'
     ): Promise<T> {
       const manifestPath = path.posix.join(
         distDir,
         `server`,
         type === 'app-route' ? 'app' : type,
-        type === 'middleware'
+        type === 'middleware' || type === 'instrumentation'
           ? ''
           : pageName === '/'
           ? 'index'
@@ -575,22 +569,31 @@ async function startWatcher(opts: SetupOpts) {
       ) as T
     }
 
+    type InstrumentationDefinition = {
+      files: string[]
+      name: 'instrumentation'
+    }
+    type TurbopackMiddlewareManifest = MiddlewareManifest & {
+      instrumentation?: InstrumentationDefinition
+    }
+
     const buildManifests = new Map<string, BuildManifest>()
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
     const appPathsManifests = new Map<string, PagesManifest>()
-    const middlewareManifests = new Map<string, MiddlewareManifest>()
+    const middlewareManifests = new Map<string, TurbopackMiddlewareManifest>()
     const actionManifests = new Map<string, ActionManifest>()
+    const fontManifests = new Map<string, NextFontManifest>()
+    const loadableManifests = new Map<string, LoadableManifest>()
     const clientToHmrSubscription = new Map<
       ws,
       Map<string, AsyncIterator<any>>
     >()
-    const loadbleManifests = new Map<string, LoadableManifest>()
     const clients = new Set<ws>()
 
     async function loadMiddlewareManifest(
       pageName: string,
-      type: 'pages' | 'app' | 'app-route' | 'middleware'
+      type: 'pages' | 'app' | 'app-route' | 'middleware' | 'instrumentation'
     ): Promise<void> {
       middlewareManifests.set(
         pageName,
@@ -643,11 +646,21 @@ async function startWatcher(opts: SetupOpts) {
       )
     }
 
+    async function loadFontManifest(
+      pageName: string,
+      type: 'app' | 'pages' = 'pages'
+    ): Promise<void> {
+      fontManifests.set(
+        pageName,
+        await loadPartialManifest(`${NEXT_FONT_MANIFEST}.json`, pageName, type)
+      )
+    }
+
     async function loadLoadableManifest(
       pageName: string,
       type: 'app' | 'pages' = 'pages'
     ): Promise<void> {
-      loadbleManifests.set(
+      loadableManifests.set(
         pageName,
         await loadPartialManifest(REACT_LOADABLE_MANIFEST, pageName, type)
       )
@@ -671,9 +684,11 @@ async function startWatcher(opts: SetupOpts) {
       const changed = await changedPromise
 
       for await (const change of changed) {
-        processIssues(key, page, change)
+        processIssues(page, change)
         const payload = await makePayload(page, change)
-        if (payload) sendHmr('endpoint-change', key, payload)
+        if (payload) {
+          sendHmr('endpoint-change', key, payload)
+        }
       }
     }
 
@@ -732,7 +747,7 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     function mergeMiddlewareManifests(
-      manifests: Iterable<MiddlewareManifest>
+      manifests: Iterable<TurbopackMiddlewareManifest>
     ): MiddlewareManifest {
       const manifest: MiddlewareManifest = {
         version: 2,
@@ -740,9 +755,29 @@ async function startWatcher(opts: SetupOpts) {
         sortedMiddleware: [],
         functions: {},
       }
+      let instrumentation: InstrumentationDefinition | undefined = undefined
       for (const m of manifests) {
         Object.assign(manifest.functions, m.functions)
         Object.assign(manifest.middleware, m.middleware)
+        if (m.instrumentation) {
+          instrumentation = m.instrumentation
+        }
+      }
+      const updateFunctionDefinition = (
+        fun: EdgeFunctionDefinition
+      ): EdgeFunctionDefinition => {
+        return {
+          ...fun,
+          files: [...(instrumentation?.files ?? []), ...fun.files],
+        }
+      }
+      for (const key of Object.keys(manifest.middleware)) {
+        const value = manifest.middleware[key]
+        manifest.middleware[key] = updateFunctionDefinition(value)
+      }
+      for (const key of Object.keys(manifest.functions)) {
+        const value = manifest.functions[key]
+        manifest.functions[key] = updateFunctionDefinition(value)
       }
       for (const fun of Object.values(manifest.functions).concat(
         Object.values(manifest.middleware)
@@ -758,6 +793,7 @@ async function startWatcher(opts: SetupOpts) {
         }
       }
       manifest.sortedMiddleware = Object.keys(manifest.middleware)
+
       return manifest
     }
 
@@ -791,30 +827,31 @@ async function startWatcher(opts: SetupOpts) {
       return manifest
     }
 
+    function mergeFontManifests(manifests: Iterable<NextFontManifest>) {
+      const manifest: NextFontManifest = {
+        app: {},
+        appUsingSizeAdjust: false,
+        pages: {},
+        pagesUsingSizeAdjust: false,
+      }
+      for (const m of manifests) {
+        Object.assign(manifest.app, m.app)
+        Object.assign(manifest.pages, m.pages)
+
+        manifest.appUsingSizeAdjust =
+          manifest.appUsingSizeAdjust || m.appUsingSizeAdjust
+        manifest.pagesUsingSizeAdjust =
+          manifest.pagesUsingSizeAdjust || m.pagesUsingSizeAdjust
+      }
+      return manifest
+    }
+
     function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
       const manifest: LoadableManifest = {}
       for (const m of manifests) {
         Object.assign(manifest, m)
       }
       return manifest
-    }
-
-    async function writeFileAtomic(
-      filePath: string,
-      content: string
-    ): Promise<void> {
-      const tempPath = filePath + '.tmp.' + Math.random().toString(36).slice(2)
-      try {
-        await writeFile(tempPath, content, 'utf-8')
-        await rename(tempPath, filePath)
-      } catch (e) {
-        try {
-          await unlink(tempPath)
-        } catch {
-          // ignore
-        }
-        throw e
-      }
     }
 
     async function writeBuildManifest(
@@ -958,16 +995,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeFontManifest(): Promise<void> {
-      // TODO: turbopack should write the correct
-      // version of this
-      const fontManifest = {
-        pages: {},
-        app: {},
-        appUsingSizeAdjust: false,
-        pagesUsingSizeAdjust: false,
-      }
-
+      const fontManifest = mergeFontManifests(fontManifests.values())
       const json = JSON.stringify(fontManifest, null, 2)
+
       const fontManifestJsonPath = path.join(
         distDir,
         'server',
@@ -988,7 +1018,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     async function writeLoadableManifest(): Promise<void> {
-      const loadableManifest = mergeLoadableManifests(loadbleManifests.values())
+      const loadableManifest = mergeLoadableManifests(
+        loadableManifests.values()
+      )
       const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
       const middlewareloadableManifestPath = path.join(
         distDir,
@@ -1005,6 +1037,18 @@ async function startWatcher(opts: SetupOpts) {
         middlewareloadableManifestPath,
         `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
       )
+    }
+
+    async function writeManifests(): Promise<void> {
+      await writeBuildManifest(opts.fsChecker.rewrites)
+      await writeAppBuildManifest()
+      await writePagesManifest()
+      await writeAppPathsManifest()
+      await writeMiddlewareManifest()
+      await writeActionManifest()
+      await writeFontManifest()
+      await writeLoadableManifest()
+      await writeFallbackBuildManifest()
     }
 
     async function subscribeToHmrEvents(id: string, client: ws) {
@@ -1024,8 +1068,10 @@ async function startWatcher(opts: SetupOpts) {
         await subscription.next()
 
         for await (const data of subscription) {
-          processIssues('hmr', id, data)
-          sendTurbopackMessage(data)
+          processIssues(id, data)
+          if (data.type !== 'issues') {
+            sendTurbopackMessage(data)
+          }
         }
       } catch (e) {
         // The client might be using an HMR session from a previous server, tell them
@@ -1090,7 +1136,7 @@ async function startWatcher(opts: SetupOpts) {
             }
           }
 
-          const { middleware } = entrypoints
+          const { middleware, instrumentation } = entrypoints
           // We check for explicit true/false, since it's initialized to
           // undefined during the first loop (middlewareChanges event is
           // unnecessary during the first serve)
@@ -1106,15 +1152,54 @@ async function startWatcher(opts: SetupOpts) {
               event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
             })
           }
+          if (
+            opts.nextConfig.experimental.instrumentationHook &&
+            instrumentation
+          ) {
+            const processInstrumentation = async (
+              displayName: string,
+              name: string,
+              prop: 'nodeJs' | 'edge'
+            ) => {
+              const writtenEndpoint = await processResult(
+                displayName,
+                await instrumentation[prop].writeToDisk()
+              )
+              processIssues(name, writtenEndpoint)
+            }
+            await processInstrumentation(
+              'instrumentation (node.js)',
+              'instrumentation.nodeJs',
+              'nodeJs'
+            )
+            await processInstrumentation(
+              'instrumentation (edge)',
+              'instrumentation.edge',
+              'edge'
+            )
+            await loadMiddlewareManifest('instrumentation', 'instrumentation')
+            await writeManifests()
+
+            serverFields.actualInstrumentationHookFile = '/instrumentation'
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
+          } else {
+            serverFields.actualInstrumentationHookFile = undefined
+            await propagateServerField(
+              'actualInstrumentationHookFile',
+              serverFields.actualInstrumentationHookFile
+            )
+          }
           if (middleware) {
             const processMiddleware = async () => {
               const writtenEndpoint = await processResult(
                 'middleware',
                 await middleware.endpoint.writeToDisk()
               )
-              processIssues('middleware', 'middleware', writtenEndpoint)
+              processIssues('middleware', writtenEndpoint)
               await loadMiddlewareManifest('middleware', 'middleware')
-              serverFields.actualMiddlewareFile = 'middleware'
               serverFields.middleware = {
                 match: null as any,
                 page: '/',
@@ -1131,7 +1216,11 @@ async function startWatcher(opts: SetupOpts) {
               false,
               middleware.endpoint,
               async () => {
-                const finishBuilding = startBuilding('middleware', true)
+                const finishBuilding = startBuilding(
+                  'middleware',
+                  undefined,
+                  true
+                )
                 await processMiddleware()
                 await propagateServerField(
                   'actualMiddlewareFile',
@@ -1141,7 +1230,7 @@ async function startWatcher(opts: SetupOpts) {
                   'middleware',
                   serverFields.middleware
                 )
-                await writeMiddlewareManifest()
+                await writeManifests()
 
                 finishBuilding()
                 return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
@@ -1187,33 +1276,13 @@ async function startWatcher(opts: SetupOpts) {
       )
     )
     await currentEntriesHandling
-    await writeBuildManifest(opts.fsChecker.rewrites)
-    await writeAppBuildManifest()
-    await writeFallbackBuildManifest()
-    await writePagesManifest()
-    await writeAppPathsManifest()
-    await writeMiddlewareManifest()
-    await writeActionManifest()
-    await writeFontManifest()
-    await writeLoadableManifest()
-
-    let hmrEventHappend = false
-    if (process.env.NEXT_HMR_TIMING) {
-      ;(async (proj: Project) => {
-        for await (const updateInfo of proj.updateInfoSubscribe()) {
-          if (hmrEventHappend) {
-            const time = updateInfo.duration
-            const timeMessage =
-              time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
-            Log.event(`Compiled in ${timeMessage}`)
-            hmrEventHappend = false
-          }
-        }
-      })(project)
-    }
+    await writeManifests()
 
     const overlayMiddleware = getOverlayMiddleware(project)
-    hotReloader = {
+    let versionInfo: VersionInfo = await getVersionInfo(
+      true || isTestMode || opts.telemetry.isEnabled
+    )
+    const hotReloader: NextJsHotReloaderInterface = {
       turbopackProject: project,
       activeWebpackConfigs: undefined,
       serverStats: null,
@@ -1235,6 +1304,7 @@ async function startWatcher(opts: SetupOpts) {
                 page: denormalizedPagePath,
                 clientOnly: false,
                 definition: undefined,
+                url: req.url,
               })
               .catch(console.error)
           }
@@ -1262,7 +1332,27 @@ async function startWatcher(opts: SetupOpts) {
               case 'ping':
                 // Ping doesn't need additional handling in Turbopack.
                 break
-              case 'span-end':
+              case 'span-end': {
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.spanName,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  parsedData.attributes
+                )
+                break
+              }
+              case 'client-hmr-latency': // { id, startTime, endTime, page, updatedModules, isPageHidden }
+                hotReloaderSpan.manualTraceChild(
+                  parsedData.event,
+                  msToNs(parsedData.startTime),
+                  msToNs(parsedData.endTime),
+                  {
+                    updatedModules: parsedData.updatedModules,
+                    page: parsedData.page,
+                    isPageHidden: parsedData.isPageHidden,
+                  }
+                )
+                break
               case 'client-error': // { errorCount, clientId }
               case 'client-warning': // { warningCount, clientId }
               case 'client-success': // { clientId }
@@ -1301,9 +1391,28 @@ async function startWatcher(opts: SetupOpts) {
           })
 
           const turbopackConnected: TurbopackConnectedAction = {
-            type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
           }
           client.send(JSON.stringify(turbopackConnected))
+
+          const errors = []
+          for (const pageIssues of issues.values()) {
+            for (const issue of pageIssues.values()) {
+              errors.push({
+                message: formatIssue(issue),
+              })
+            }
+          }
+
+          const sync: SyncAction = {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+            errors,
+            warnings: [],
+            hash: '',
+            versionInfo,
+          }
+
+          this.send(sync)
         })
       },
 
@@ -1321,16 +1430,43 @@ async function startWatcher(opts: SetupOpts) {
         // Not implemented yet.
       },
       async start() {
-        // Not implemented yet.
+        const enabled = isTestMode || opts.telemetry.isEnabled
+        const nextVersionInfo = await getVersionInfo(enabled)
+        if (nextVersionInfo) {
+          versionInfo = nextVersionInfo
+        }
       },
       async stop() {
         // Not implemented yet.
       },
-      async getCompilationErrors(_page) {
-        return []
+      async getCompilationErrors(page) {
+        const thisPageIssues = issues.get(page)
+        if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
+          // If there is an error related to the requesting page we display it instead of the first error
+          return [...thisPageIssues.values()].map(
+            (issue) => new Error(formatIssue(issue))
+          )
+        }
+
+        // Otherwise, return all errors across pages
+        const errors = []
+        for (const pageIssues of issues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push(new Error(formatIssue(issue)))
+          }
+        }
+        return errors
       },
-      invalidate(/* Unused parameter: { reloadAfterInvalidation } */) {
-        // Not implemented yet.
+      async invalidate({
+        // .env files or tsconfig/jsconfig change
+        reloadAfterInvalidation,
+      }) {
+        if (reloadAfterInvalidation) {
+          await clearAllModuleContexts()
+          this.send({
+            action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          })
+        }
       },
       async buildFallbackError() {
         // Not implemented yet.
@@ -1342,21 +1478,23 @@ async function startWatcher(opts: SetupOpts) {
         // appPaths,
         definition,
         isApp,
+        url: requestUrl,
       }) {
         let page = definition?.pathname ?? inputPage
 
         if (page === '/_error') {
-          let finishBuilding = startBuilding(page)
+          let finishBuilding = startBuilding(page, requestUrl)
           try {
             if (globalEntries.app) {
               const writtenEndpoint = await processResult(
                 '_app',
                 await globalEntries.app.writeToDisk()
               )
-              processIssues('_app', '_app', writtenEndpoint)
+              processIssues('_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
+            await loadFontManifest('_app')
 
             if (globalEntries.document) {
               const writtenEndpoint = await processResult(
@@ -1372,7 +1510,7 @@ async function startWatcher(opts: SetupOpts) {
                   return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
                 }
               )
-              processIssues('_document', '_document', writtenEndpoint)
+              processIssues('_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
 
@@ -1381,16 +1519,13 @@ async function startWatcher(opts: SetupOpts) {
                 '_error',
                 await globalEntries.error.writeToDisk()
               )
-              processIssues(page, page, writtenEndpoint)
+              processIssues(page, writtenEndpoint)
             }
             await loadBuildManifest('_error')
             await loadPagesManifest('_error')
+            await loadFontManifest('_error')
 
-            await writeBuildManifest(opts.fsChecker.rewrites)
-            await writeFallbackBuildManifest()
-            await writePagesManifest()
-            await writeMiddlewareManifest()
-            await writeLoadableManifest()
+            await writeManifests()
           } finally {
             finishBuilding()
           }
@@ -1411,29 +1546,12 @@ async function startWatcher(opts: SetupOpts) {
           if (page === '/_document') return
           if (page === '/middleware') return
           if (page === '/src/middleware') return
+          if (page === '/instrumentation') return
+          if (page === '/src/instrumentation') return
 
           throw new PageNotFoundError(`route not found ${page}`)
         }
 
-        let suffix
-        switch (route.type) {
-          case 'app-page':
-            suffix = 'page'
-            break
-          case 'app-route':
-            suffix = 'route'
-            break
-          case 'page':
-          case 'page-api':
-            suffix = ''
-            break
-          default:
-            throw new Error('Unexpected route type ' + route.type)
-        }
-
-        const buildingKey = `${page}${
-          !page.endsWith('/') && suffix.length > 0 ? '/' : ''
-        }${suffix}`
         let finishBuilding: (() => void) | undefined = undefined
 
         try {
@@ -1445,14 +1563,14 @@ async function startWatcher(opts: SetupOpts) {
                 )
               }
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page, requestUrl)
               try {
                 if (globalEntries.app) {
                   const writtenEndpoint = await processResult(
                     '_app',
                     await globalEntries.app.writeToDisk()
                   )
-                  processIssues('_app', '_app', writtenEndpoint)
+                  processIssues('_app', writtenEndpoint)
                 }
                 await loadBuildManifest('_app')
                 await loadPagesManifest('_app')
@@ -1462,17 +1580,7 @@ async function startWatcher(opts: SetupOpts) {
                     '_document',
                     await globalEntries.document.writeToDisk()
                   )
-
-                  changeSubscription(
-                    '_document',
-                    'server',
-                    false,
-                    globalEntries.document,
-                    () => {
-                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-                    }
-                  )
-                  processIssues('_document', '_document', writtenEndpoint)
+                  processIssues('_document', writtenEndpoint)
                 }
                 await loadPagesManifest('_document')
 
@@ -1490,15 +1598,12 @@ async function startWatcher(opts: SetupOpts) {
                 } else {
                   middlewareManifests.delete(page)
                 }
+                await loadFontManifest(page, 'pages')
                 await loadLoadableManifest(page, 'pages')
 
-                await writeBuildManifest(opts.fsChecker.rewrites)
-                await writeFallbackBuildManifest()
-                await writePagesManifest()
-                await writeMiddlewareManifest()
-                await writeLoadableManifest()
+                await writeManifests()
 
-                processIssues(page, page, writtenEndpoint)
+                processIssues(page, writtenEndpoint)
               } finally {
                 changeSubscription(
                   page,
@@ -1506,7 +1611,8 @@ async function startWatcher(opts: SetupOpts) {
                   false,
                   route.dataEndpoint,
                   (pageName) => {
-                    console.log('server change', pageName)
+                    // Report the next compilation again
+                    readyIds.delete(page)
                     return {
                       event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                       pages: [pageName],
@@ -1524,6 +1630,17 @@ async function startWatcher(opts: SetupOpts) {
                     }
                   }
                 )
+                if (globalEntries.document) {
+                  changeSubscription(
+                    '_document',
+                    'server',
+                    false,
+                    globalEntries.document,
+                    () => {
+                      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                    }
+                  )
+                }
               }
 
               break
@@ -1533,7 +1650,7 @@ async function startWatcher(opts: SetupOpts) {
               // since this can happen when app pages make
               // api requests to page API routes.
 
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1549,16 +1666,14 @@ async function startWatcher(opts: SetupOpts) {
               }
               await loadLoadableManifest(page, 'pages')
 
-              await writePagesManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
-              processIssues(page, page, writtenEndpoint)
+              processIssues(page, writtenEndpoint)
 
               break
             }
             case 'app-page': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.htmlEndpoint.writeToDisk()
@@ -1577,6 +1692,8 @@ async function startWatcher(opts: SetupOpts) {
                     // There will be another update without errors eventually
                     return
                   }
+                  // Report the next compilation again
+                  readyIds.delete(page)
                   return {
                     action:
                       HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
@@ -1596,20 +1713,15 @@ async function startWatcher(opts: SetupOpts) {
               await loadBuildManifest(page, 'app')
               await loadAppPathManifest(page, 'app')
               await loadActionManifest(page)
+              await loadFontManifest(page, 'app')
+              await writeManifests()
 
-              await writeAppBuildManifest()
-              await writeBuildManifest(opts.fsChecker.rewrites)
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeActionManifest()
-              await writeLoadableManifest()
-
-              processIssues(page, page, writtenEndpoint, true)
+              processIssues(page, writtenEndpoint, true)
 
               break
             }
             case 'app-route': {
-              finishBuilding = startBuilding(buildingKey)
+              finishBuilding = startBuilding(page, requestUrl)
               const writtenEndpoint = await processResult(
                 page,
                 await route.endpoint.writeToDisk()
@@ -1624,13 +1736,9 @@ async function startWatcher(opts: SetupOpts) {
                 middlewareManifests.delete(page)
               }
 
-              await writeAppBuildManifest()
-              await writeAppPathsManifest()
-              await writeMiddlewareManifest()
-              await writeMiddlewareManifest()
-              await writeLoadableManifest()
+              await writeManifests()
 
-              processIssues(page, page, writtenEndpoint, true)
+              processIssues(page, writtenEndpoint, true)
 
               break
             }
@@ -1645,18 +1753,69 @@ async function startWatcher(opts: SetupOpts) {
         }
       },
     }
-  } else {
-    hotReloader = new HotReloader(opts.dir, {
-      appDir,
-      pagesDir,
-      distDir: distDir,
-      config: opts.nextConfig,
-      buildId: 'development',
-      telemetry: opts.telemetry,
-      rewrites: opts.fsChecker.rewrites,
-      previewProps: opts.fsChecker.prerenderManifest.preview,
-    })
+
+    ;(async function () {
+      for await (const updateMessage of project.updateInfoSubscribe(30)) {
+        switch (updateMessage.updateType) {
+          case 'start': {
+            hotReloader.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING })
+            break
+          }
+          case 'end': {
+            sendEnqueuedMessages()
+
+            const errors = new Map<string, CompilationError>()
+            for (const [, issueMap] of issues) {
+              for (const [key, issue] of issueMap) {
+                if (errors.has(key)) continue
+
+                const message = formatIssue(issue)
+
+                errors.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
+            }
+
+            hotReloader.send({
+              action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+              hash: String(++hmrHash),
+              errors: [...errors.values()],
+              warnings: [],
+            })
+
+            if (hmrEventHappened) {
+              const time = updateMessage.value.duration
+              const timeMessage =
+                time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
+              Log.event(`Compiled in ${timeMessage}`)
+              hmrEventHappened = false
+            }
+            break
+          }
+          default:
+        }
+      }
+    })()
+
+    return hotReloader
   }
+
+  const hotReloader: NextJsHotReloaderInterface = opts.turbo
+    ? await createHotReloaderTurbopack()
+    : new HotReloaderWebpack(opts.dir, {
+        appDir,
+        pagesDir,
+        distDir: distDir,
+        config: opts.nextConfig,
+        buildId: 'development',
+        telemetry: opts.telemetry,
+        rewrites: opts.fsChecker.rewrites,
+        previewProps: opts.fsChecker.prerenderManifest.preview,
+      })
 
   await hotReloader.start()
 
@@ -1783,7 +1942,7 @@ async function startWatcher(opts: SetupOpts) {
         const watchTimeChange =
           watchTime === undefined ||
           (watchTime && watchTime !== meta?.timestamp)
-        fileWatchTimes.set(fileName, meta.timestamp)
+        fileWatchTimes.set(fileName, meta?.timestamp)
 
         if (envFiles.includes(fileName)) {
           if (watchTimeChange) {
@@ -1826,7 +1985,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: dir,
           extensions: nextConfig.pageExtensions,
           keepIndex: false,
-          pagesType: 'root',
+          pagesType: PAGE_TYPES.ROOT,
         })
 
         if (isMiddlewareFile(rootFile)) {
@@ -1859,7 +2018,6 @@ async function startWatcher(opts: SetupOpts) {
           isInstrumentationHookFile(rootFile) &&
           nextConfig.experimental.instrumentationHook
         ) {
-          NextBuildContext.hasInstrumentationHook = true
           serverFields.actualInstrumentationHookFile = rootFile
           await propagateServerField(
             'actualInstrumentationHookFile',
@@ -1883,7 +2041,7 @@ async function startWatcher(opts: SetupOpts) {
           dir: isAppPath ? appDir! : pagesDir!,
           extensions: nextConfig.pageExtensions,
           keepIndex: isAppPath,
-          pagesType: isAppPath ? 'app' : 'pages',
+          pagesType: isAppPath ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
         })
 
         if (
@@ -2076,15 +2234,21 @@ async function startWatcher(opts: SetupOpts) {
                   (item) => item === currentResolvedBaseUrl
                 )
 
-                if (
-                  resolvedBaseUrl &&
-                  resolvedBaseUrl !== currentResolvedBaseUrl
-                ) {
-                  // remove old baseUrl and add new one
-                  if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                    config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                if (resolvedBaseUrl) {
+                  if (
+                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl.baseUrl
+                  ) {
+                    // remove old baseUrl and add new one
+                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                    }
+
+                    // If the resolvedBaseUrl is implicit we only remove the previous value.
+                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                    if (!resolvedBaseUrl.isImplicit) {
+                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                    }
                   }
-                  config.resolve?.modules?.push(resolvedBaseUrl)
                 }
 
                 if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
@@ -2134,7 +2298,7 @@ async function startWatcher(opts: SetupOpts) {
             })
           }
         })
-        hotReloader.invalidate({
+        await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
       }
@@ -2173,7 +2337,10 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(Object.keys(appPaths))?.map((item) =>
+        generateInterceptionRoutesRewrites(
+          Object.keys(appPaths),
+          opts.nextConfig.basePath
+        )?.map((item) =>
           buildCustomRoute(
             'before_files_rewrite',
             item,
@@ -2362,15 +2529,18 @@ async function startWatcher(opts: SetupOpts) {
         let originalFrame, isEdgeCompiler
         const frameFile = frame?.file
         if (frame?.lineNumber && frameFile) {
-          if (opts.turbo) {
+          if (hotReloader.turbopackProject) {
             try {
-              originalFrame = await createOriginalTurboStackFrame(project!, {
-                file: frameFile,
-                methodName: frame.methodName,
-                line: frame.lineNumber ?? 0,
-                column: frame.column,
-                isServer: true,
-              })
+              originalFrame = await createOriginalTurboStackFrame(
+                hotReloader.turbopackProject,
+                {
+                  file: frameFile,
+                  methodName: frame.methodName,
+                  line: frame.lineNumber ?? 0,
+                  column: frame.column,
+                  isServer: true,
+                }
+              )
             } catch {}
           } else {
             const moduleId = frameFile.replace(
@@ -2448,7 +2618,9 @@ async function startWatcher(opts: SetupOpts) {
     }
 
     if (!usedOriginalStack) {
-      if (type === 'warning') {
+      if (err instanceof ModuleBuildError) {
+        Log.error(err.message)
+      } else if (type === 'warning') {
         Log.warn(err)
       } else if (type === 'app-dir') {
         logAppDirError(err)
@@ -2466,12 +2638,13 @@ async function startWatcher(opts: SetupOpts) {
     requestHandler,
     logErrorWithOriginalStack,
 
-    async ensureMiddleware() {
+    async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
       return hotReloader.ensurePage({
         page: serverFields.actualMiddlewareFile,
         clientOnly: false,
         definition: undefined,
+        url: requestUrl,
       })
     },
   }
@@ -2491,7 +2664,7 @@ export async function setupDevBundler(opts: SetupOpts) {
       {
         webpackVersion: 5,
         isSrcDir,
-        turboFlag: false,
+        turboFlag: !!opts.turbo,
         cliCommand: 'dev',
         appDir: !!opts.appDir,
         pagesDir: !!opts.pagesDir,
@@ -2513,20 +2686,15 @@ function renderStyledStringToErrorAnsi(string: StyledString): string {
       return bold(red(string.value))
     case 'code':
       return green(string.value)
-    case 'line': {
-      let line = ''
-      for (const styled of string.value) {
-        line += renderStyledStringToErrorAnsi(styled)
-      }
-      return line + '\n'
-    }
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':
-      let stack = ''
-      for (const styled of string.value) {
-        stack += renderStyledStringToErrorAnsi(styled) + '\n'
-      }
-      return stack + '\n'
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
     default:
       throw new Error('Unknown StyledString type', string)
   }
+}
+
+function msToNs(ms: number): bigint {
+  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }

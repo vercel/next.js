@@ -77,3 +77,10 @@ export function forEachEntryModule(
     callback({ name, entryModule })
   }
 }
+
+export function formatBarrelOptimizedResource(
+  resource: string,
+  matchResource: string
+) {
+  return `${resource}@${matchResource}`
+}

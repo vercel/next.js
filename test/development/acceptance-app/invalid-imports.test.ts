@@ -65,7 +65,7 @@ describe('Error Overlay invalid imports', () => {
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
       "./app/comp2.js
       'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
@@ -140,7 +140,7 @@ describe('Error Overlay invalid imports', () => {
     const withoutUseClient = content.replace("'use client'", '')
     await session.patch(pageFile, withoutUseClient)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
@@ -213,7 +213,7 @@ describe('Error Overlay invalid imports', () => {
     const content = await next.readFile(file)
     await session.patch(file, "'use client'\n" + content)
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
         'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.

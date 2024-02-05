@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use next_transform_dynamic::{next_dynamic, NextDynamicMode};
+use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
 use swc_core::{
     common::{util::take::Take, FileName},
     ecma::{
@@ -28,6 +28,7 @@ pub async fn get_next_dynamic_transform_rule(
     is_react_server_layer: bool,
     pages_dir: Option<Vc<FileSystemPath>>,
     mode: NextMode,
+    enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     let dynamic_transform = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsDynamic {
         is_server_compiler,
@@ -39,10 +40,11 @@ pub async fn get_next_dynamic_transform_rule(
         mode,
     }) as _));
     Ok(ModuleRule::new(
-        module_rule_match_js_no_url(),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            dynamic_transform,
-        ]))],
+        module_rule_match_js_no_url(enable_mdx_rs),
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![dynamic_transform]),
+        }],
     ))
 }
 
@@ -65,6 +67,7 @@ impl CustomTransformer for NextJsDynamic {
             },
             self.is_server_compiler,
             self.is_react_server_layer,
+            false,
             NextDynamicMode::Webpack,
             FileName::Real(ctx.file_path_str.into()),
             self.pages_dir.clone(),

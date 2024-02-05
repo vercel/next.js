@@ -29,11 +29,15 @@ import { isPostpone } from './router-utils/is-postpone'
 import {
   PHASE_PRODUCTION_SERVER,
   PHASE_DEVELOPMENT_SERVER,
-  PERMANENT_REDIRECT_STATUS,
 } from '../../shared/lib/constants'
+import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { DevBundlerService } from './dev-bundler-service'
+import { type Span, trace } from '../../trace'
+import { ensureLeadingSlash } from '../../shared/lib/page-path/ensure-leading-slash'
 
 const debug = setupDebug('next:router-server:main')
+const isNextFont = (pathname: string | null) =>
+  pathname && /\/media\/[^/]+\.(woff|woff2|eot|ttf|otf)$/.test(pathname)
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
@@ -62,6 +66,7 @@ export async function initialize(opts: {
   customServer?: boolean
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
+  startServerSpan?: Span
 }): Promise<[WorkerRequestHandler, WorkerUpgradeHandler]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
@@ -102,19 +107,24 @@ export async function initialize(opts: {
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
-    developmentBundler = await setupDevBundler({
-      // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
-      renderServer,
-      appDir,
-      pagesDir,
-      telemetry,
-      fsChecker,
-      dir: opts.dir,
-      nextConfig: config,
-      isCustomServer: opts.customServer,
-      turbo: !!process.env.TURBOPACK,
-      port: opts.port,
-    })
+    const setupDevBundlerSpan = opts.startServerSpan
+      ? opts.startServerSpan.traceChild('setup-dev-bundler')
+      : trace('setup-dev-bundler')
+    developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
+      setupDevBundler({
+        // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
+        renderServer,
+        appDir,
+        pagesDir,
+        telemetry,
+        fsChecker,
+        dir: opts.dir,
+        nextConfig: config,
+        isCustomServer: opts.customServer,
+        turbo: !!process.env.TURBOPACK,
+        port: opts.port,
+      })
+    )
 
     devBundlerService = new DevBundlerService(
       developmentBundler,
@@ -128,47 +138,6 @@ export async function initialize(opts: {
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
-
-  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
-    port: opts.port,
-    dir: opts.dir,
-    hostname: opts.hostname,
-    minimalMode: opts.minimalMode,
-    dev: !!opts.dev,
-    server: opts.server,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: developmentBundler?.serverFields || {},
-    experimentalTestProxy: !!opts.experimentalTestProxy,
-    experimentalHttpsServer: !!opts.experimentalHttpsServer,
-    bundlerService: devBundlerService,
-  }
-
-  // pre-initialize workers
-  const handlers = await renderServer.instance.initialize(renderServerOpts)
-
-  const logError = async (
-    type: 'uncaughtException' | 'unhandledRejection',
-    err: Error | undefined
-  ) => {
-    if (isPostpone(err)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    await developmentBundler?.logErrorWithOriginalStack(err, type)
-  }
-
-  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
-  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
-
-  const resolveRoutes = getResolveRoutes(
-    fsChecker,
-    config,
-    opts,
-    renderServer.instance,
-    renderServerOpts,
-    developmentBundler?.ensureMiddleware
-  )
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     if (compress) {
@@ -345,7 +314,7 @@ export async function initialize(opts: {
         res.statusCode = statusCode
         res.setHeader('location', destination)
 
-        if (statusCode === PERMANENT_REDIRECT_STATUS) {
+        if (statusCode === RedirectStatusCode.PermanentRedirect) {
           res.setHeader('Refresh', `0;url=${destination}`)
         }
         return res.end(destination)
@@ -388,7 +357,7 @@ export async function initialize(opts: {
           !res.getHeader('cache-control') &&
           matchedOutput.type === 'nextStaticFolder'
         ) {
-          if (opts.dev) {
+          if (opts.dev && !isNextFont(parsedUrl.pathname)) {
             res.setHeader('Cache-Control', 'no-store, must-revalidate')
           } else {
             res.setHeader(
@@ -557,11 +526,54 @@ export async function initialize(opts: {
     const {
       wrapRequestHandlerWorker,
       interceptTestApis,
-    } = require('../../experimental/testmode/server')
+    } = require('next/dist/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
   }
   requestHandlers[opts.dir] = requestHandler
+
+  const renderServerOpts: Parameters<RenderServer['initialize']>[0] = {
+    port: opts.port,
+    dir: opts.dir,
+    hostname: opts.hostname,
+    minimalMode: opts.minimalMode,
+    dev: !!opts.dev,
+    server: opts.server,
+    isNodeDebugging: !!opts.isNodeDebugging,
+    serverFields: developmentBundler?.serverFields || {},
+    experimentalTestProxy: !!opts.experimentalTestProxy,
+    experimentalHttpsServer: !!opts.experimentalHttpsServer,
+    bundlerService: devBundlerService,
+    startServerSpan: opts.startServerSpan,
+  }
+  renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
+
+  // pre-initialize workers
+  const handlers = await renderServer.instance.initialize(renderServerOpts)
+
+  const logError = async (
+    type: 'uncaughtException' | 'unhandledRejection',
+    err: Error | undefined
+  ) => {
+    if (isPostpone(err)) {
+      // React postpones that are unhandled might end up logged here but they're
+      // not really errors. They're just part of rendering.
+      return
+    }
+    await developmentBundler?.logErrorWithOriginalStack(err, type)
+  }
+
+  process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
+  process.on('unhandledRejection', logError.bind(null, 'unhandledRejection'))
+
+  const resolveRoutes = getResolveRoutes(
+    fsChecker,
+    config,
+    opts,
+    renderServer.instance,
+    renderServerOpts,
+    developmentBundler?.ensureMiddleware
+  )
 
   const upgradeHandler: WorkerUpgradeHandler = async (req, socket, head) => {
     try {
@@ -574,8 +586,16 @@ export async function initialize(opts: {
         // console.error(_err);
       })
 
-      if (opts.dev && developmentBundler) {
-        if (req.url?.includes(`/_next/webpack-hmr`)) {
+      if (opts.dev && developmentBundler && req.url) {
+        const { basePath, assetPrefix } = config
+
+        const isHMRRequest = req.url.startsWith(
+          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+        )
+
+        // only handle HMR requests if the basePath in the request
+        // matches the basePath for the handler responding to the request
+        if (isHMRRequest) {
           return developmentBundler.hotReloader.onHMR(req, socket, head)
         }
       }

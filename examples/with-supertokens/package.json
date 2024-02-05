@@ -3,19 +3,25 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
+    "react": "^18",
+    "react-dom": "^18",
     "supertokens-auth-react": "latest",
-    "supertokens-node": "latest",
-    "supertokens-web-js": "latest"
+    "supertokens-node": "latest"
   },
   "devDependencies": {
-    "@types/node": "18.7.13",
-    "@types/react": "18.2.8",
-    "typescript": "^4.8.2"
+    "@types/cookie": "^0.5.2",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "13.5.4",
+    "i": "^0.3.7",
+    "npm": "^10.2.0",
+    "typescript": "^5"
   }
 }

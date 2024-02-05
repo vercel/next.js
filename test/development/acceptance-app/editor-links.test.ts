@@ -69,7 +69,7 @@ describe('Error overlay - editor links', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
 
@@ -112,7 +112,7 @@ describe('Error overlay - editor links', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await clickImportTraceFiles(browser)
     await check(() => editorRequestsCount, /4/)
 
@@ -155,7 +155,7 @@ describe('Error overlay - editor links', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
     await clickImportTraceFiles(browser)
     await check(() => editorRequestsCount, /3/)
 

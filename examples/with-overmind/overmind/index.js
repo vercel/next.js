@@ -1,5 +1,5 @@
-import { rehydrate } from 'overmind'
-import { createHook } from 'overmind-react'
+import { rehydrate } from "overmind";
+import { createHook } from "overmind-react";
 
 export const config = {
   state: {
@@ -8,20 +8,20 @@ export const config = {
   },
   actions: {
     changePage({ state }, mutations) {
-      rehydrate(state, mutations || [])
+      rehydrate(state, mutations || []);
 
       switch (state.page) {
-        case 'Index':
+        case "Index":
           // Do some additional logic
-          break
-        case 'About':
+          break;
+        case "About":
           // Do some additional logic
-          break
+          break;
         default:
-          break
+          break;
       }
     },
   },
-}
+};
 
-export const useOvermind = createHook()
+export const useOvermind = createHook();
