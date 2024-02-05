@@ -1,18 +1,19 @@
 /* eslint-env jest */
 import os from 'os'
-import fs from 'fs-extra'
+import fs from 'fs/promises'
 import { join } from 'path'
 import { writeAppTypeDeclarations } from 'next/dist/lib/typescript/writeAppTypeDeclarations'
 
 const fixtureDir = join(__dirname, 'fixtures/app-declarations')
-const declarationFile = join(fixtureDir, '.next', 'types', 'next-env.d.ts')
+const declarationDir = join(fixtureDir, '.next', 'types')
+const declarationFile = join(declarationDir, 'next-env.d.ts')
 const imageImportsEnabled = false
 
 describe('find config', () => {
   beforeEach(async () => {
-    await fs.ensureDir(fixtureDir)
+    await fs.mkdir(declarationDir, { recursive: true })
   })
-  afterEach(() => fs.remove(declarationFile))
+  afterEach(() => fs.rm(declarationDir, { recursive: true }))
 
   it('should preserve CRLF EOL', async () => {
     const eol = '\r\n'
