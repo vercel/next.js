@@ -120,7 +120,6 @@ export async function writeConfigurationDefaults(
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   isAppDirEnabled: boolean,
-  distDir: string,
   hasPagesDir: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
@@ -181,25 +180,10 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
-
   if (!('include' in rawConfig)) {
-    userTsConfig.include = isAppDirEnabled
-      ? [nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['**/*.ts', '**/*.tsx']
+    userTsConfig.include = ['**/*.{ts,tsx}']
     suggestedActions.push(
-      cyan('include') +
-        ' was set to ' +
-        bold(
-          isAppDirEnabled
-            ? `['${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['**/*.ts', '**/*.tsx']`
-        )
-    )
-  } else if (isAppDirEnabled && !rawConfig.include.includes(nextAppTypes)) {
-    userTsConfig.include.push(nextAppTypes)
-    suggestedActions.push(
-      cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
+      cyan('include') + ' was set to ' + bold(`['**/*.{ts,tsx}']`)
     )
   }
 

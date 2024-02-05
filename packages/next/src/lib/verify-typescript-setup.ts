@@ -122,7 +122,6 @@ export async function verifyTypeScriptSetup({
       resolvedTsConfigPath,
       intent.firstTimeSetup,
       hasAppDir,
-      distDir,
       hasPagesDir
     )
     // Write out the necessary `next-env.d.ts` file to correctly register
