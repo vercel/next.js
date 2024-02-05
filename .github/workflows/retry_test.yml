@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: send webhook
-        uses: slackapi/slack-github-action@v1.24.0
+        uses: slackapi/slack-github-action@v1.25.0
         with:
           # These urls are intentionally missing the protocol,
           # allowing them to be transformed into actual links in the Slack workflow
