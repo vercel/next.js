@@ -23,8 +23,7 @@ let server
 
 const context = {}
 
-// TODO: investigate this test stalling in CI
-describe.skip.each([
+describe.each([
   { title: 'using HTTP', useHttps: false },
   { title: 'using HTTPS', useHttps: true },
 ])('Custom Server $title', ({ useHttps }) => {
@@ -56,8 +55,7 @@ describe.skip.each([
     )
   }
 
-  // TODO: continue supporting this or remove it?
-  describe.skip('with dynamic assetPrefix', () => {
+  describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
@@ -303,7 +301,7 @@ describe.skip.each([
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
       expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
-      expect(stderr).toContain('server.js:37:22')
+      expect(stderr).toContain('server.js:38:22')
     })
   })
 
