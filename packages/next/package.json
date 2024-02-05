@@ -114,6 +114,9 @@
       "optional": true
     }
   },
+  "optionalDependencies": {
+    "sharp": "^0.33.2"
+  },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.22.5",
