@@ -126,7 +126,7 @@ import {
   deleteCache,
 } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { clearModuleContext } from '../render-server'
+import { clearModuleContext, clearAllModuleContexts } from '../render-server'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
@@ -1457,11 +1457,12 @@ async function startWatcher(opts: SetupOpts) {
         }
         return errors
       },
-      invalidate({
+      async invalidate({
         // .env files or tsconfig/jsconfig change
         reloadAfterInvalidation,
       }) {
         if (reloadAfterInvalidation) {
+          await clearAllModuleContexts()
           this.send({
             action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
           })
@@ -2297,7 +2298,7 @@ async function startWatcher(opts: SetupOpts) {
             })
           }
         })
-        hotReloader.invalidate({
+        await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
       }

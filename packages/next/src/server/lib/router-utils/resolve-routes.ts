@@ -36,7 +36,6 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
-import { createRequestResponseMocks } from '../mock-request'
 import type { TLSSocket } from 'tls'
 
 const debug = setupDebug('next:router-server:resolve-routes')
@@ -471,21 +470,6 @@ export function getResolveRoutes(
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
-              let readableController: ReadableStreamController<Buffer>
-              const { res: mockedRes } = await createRequestResponseMocks({
-                url: req.url || '/',
-                method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                resWriter(chunk) {
-                  readableController.enqueue(Buffer.from(chunk))
-                  return true
-                },
-              })
-
-              mockedRes.on('close', () => {
-                readableController.close()
-              })
-
               try {
                 await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {
