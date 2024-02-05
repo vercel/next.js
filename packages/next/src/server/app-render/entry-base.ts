@@ -1,9 +1,9 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 export {
   renderToReadableStream,
   decodeReply,
   decodeAction,
   decodeFormState,
-  // eslint-disable-next-line import/no-extraneous-dependencies
 } from 'react-server-dom-webpack/server.edge'
 
 import AppRouter from '../../client/components/app-router'
@@ -12,9 +12,11 @@ import RenderFromTemplateContext from '../../client/components/render-from-templ
 import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { actionAsyncStorage } from '../../client/components/action-async-storage.external'
-import { staticGenerationBailout } from '../../client/components/static-generation-bailout'
-import StaticGenerationSearchParamsBailoutProvider from '../../client/components/static-generation-searchparams-bailout-provider'
-import { createSearchParamsBailoutProxy } from '../../client/components/searchparams-bailout-proxy'
+import { ClientPageRoot } from '../../client/components/client-page'
+import {
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
+} from '../../client/components/search-params'
 import * as serverHooks from '../../client/components/hooks-server-context'
 import { NotFoundBoundary } from '../../client/components/not-found-boundary'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
@@ -26,7 +28,7 @@ import {
   preloadFont,
   preconnect,
 } from '../../server/app-render/rsc/preloads'
-
+import { Postpone } from '../../server/app-render/rsc/postpone'
 import { taintObjectReference } from '../../server/app-render/rsc/taint'
 
 // patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
@@ -42,14 +44,15 @@ export {
   staticGenerationAsyncStorage,
   requestAsyncStorage,
   actionAsyncStorage,
-  staticGenerationBailout,
-  createSearchParamsBailoutProxy,
+  createUntrackedSearchParams,
+  createDynamicallyTrackedSearchParams,
   serverHooks,
   preloadStyle,
   preloadFont,
   preconnect,
+  Postpone,
   taintObjectReference,
-  StaticGenerationSearchParamsBailoutProvider,
+  ClientPageRoot,
   NotFoundBoundary,
   patchFetch,
 }

@@ -57,14 +57,14 @@ For example, you can intercept the `photo` segment from within the `feed` segmen
 
 ### Modals
 
-Intercepting Routes can be used together with [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) to create modals.
+Intercepting Routes can be used together with [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes) to create modals. This allows you to solve common challenges when building modals, such as:
 
-Using this pattern to create modals overcomes some common challenges when working with modals, by allowing you to:
+- Making the modal content **shareable through a URL**.
+- **Preserving context** when the page is refreshed, instead of closing the modal.
+- **Closing the modal on backwards navigation** rather than going to the previous route.
+- **Reopening the modal on forwards navigation**.
 
-- Make the modal content **shareable through a URL**
-- **Preserve context** when the page is refreshed, instead of closing the modal
-- **Close the modal on backwards navigation** rather than going to the previous route
-- **Reopen the modal on forwards navigation**
+Consider the following UI pattern, where a user can open a photo modal from a gallery using client-side navigation, or navigate to the photo page directly from a shareable URL:
 
 <Image
   alt="Intercepting routes modal example"
@@ -74,8 +74,10 @@ Using this pattern to create modals overcomes some common challenges when workin
   height="976"
 />
 
-> In the above example, the path to the `photo` segment can use the `(..)` matcher since `@modal` is a _slot_ and not a _segment_. This means that the `photo` route is only one _segment_ level higher, despite being two _file-system_ levels higher.
+In the above example, the path to the `photo` segment can use the `(..)` matcher since `@modal` is a slot and **not** a segment. This means that the `photo` route is only one segment level higher, despite being two file-system levels higher.
 
-Other examples could include opening a login modal in a top navbar while also having a dedicated `/login` page, or opening a shopping cart in a side modal.
+See the [Parallel Routes](/docs/app/building-your-application/routing/parallel-routes#modals) documentation for a step-by-step example, or see our [image gallery example](https://github.com/vercel-labs/nextgram).
 
-[View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
+> **Good to know:**
+>
+> - Other examples could include opening a login modal in a top navbar while also having a dedicated `/login` page, or opening a shopping cart in a side modal.

@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import { join } from 'path'
@@ -390,20 +391,24 @@ describe('Image Optimizer', () => {
           },
         })
       )
-      let stderr = ''
+      try {
+        let stderr = ''
 
-      app = await launchApp(appDir, await findPort(), {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
-      })
-      await waitFor(1000)
-      await killApp(app).catch(() => {})
-      await nextConfig.restore()
+        app = await launchApp(appDir, await findPort(), {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
 
-      expect(stderr).toContain(
-        `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
-      )
+        await retry(() => {
+          expect(stderr).toContain(
+            `Invalid assetPrefix provided. Original error: TypeError [ERR_INVALID_URL]: Invalid URL`
+          )
+        })
+      } finally {
+        await killApp(app).catch(() => {})
+        await nextConfig.restore()
+      }
     })
 
     it('should error when images.remotePatterns is invalid', async () => {

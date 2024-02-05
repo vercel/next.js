@@ -3,7 +3,7 @@ import type { Middleware, RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import { matcher } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import type { ServerRuntime } from 'next/types'
 import {
   extractExportedConstValue,
@@ -24,7 +24,12 @@ import { PAGE_TYPES } from '../../lib/page-types'
 // Don't forget to update the next-types-plugin file as well
 const AUTHORIZED_EXTRA_ROUTER_PROPS = ['maxDuration']
 
+/** @see https://nextjs.org/docs/app/api-reference/file-conventions/middleware#config-object-optional */
 export interface MiddlewareConfig {
+  /**
+   * @see https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher
+   * @see https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths
+   */
   matchers?: MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
   regions?: string[] | string
@@ -395,7 +400,7 @@ function getMiddlewareConfig(
       : [config.unstable_allowDynamic]
     for (const glob of result.unstable_allowDynamicGlobs ?? []) {
       try {
-        matcher(glob)
+        picomatch(glob)
       } catch (err) {
         throw new Error(
           `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${

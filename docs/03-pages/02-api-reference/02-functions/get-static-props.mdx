@@ -29,7 +29,7 @@ export default function Page({
 ```
 
 ```jsx filename="pages/index.js" switcher
-export async function getStaticPaths() {
+export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }

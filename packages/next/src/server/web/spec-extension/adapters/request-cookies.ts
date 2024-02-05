@@ -97,9 +97,9 @@ export class MutableRequestCookiesAdapter {
     cookies: RequestCookies,
     onUpdateCookies?: (cookies: string[]) => void
   ): ResponseCookies {
-    const responseCookes = new ResponseCookies(new Headers())
+    const responseCookies = new ResponseCookies(new Headers())
     for (const cookie of cookies.getAll()) {
-      responseCookes.set(cookie)
+      responseCookies.set(cookie)
     }
 
     let modifiedValues: ResponseCookie[] = []
@@ -113,7 +113,7 @@ export class MutableRequestCookiesAdapter {
         staticGenerationAsyncStore.pathWasRevalidated = true
       }
 
-      const allCookies = responseCookes.getAll()
+      const allCookies = responseCookies.getAll()
       modifiedValues = allCookies.filter((c) => modifiedCookies.has(c.name))
       if (onUpdateCookies) {
         const serializedCookies: string[] = []
@@ -127,7 +127,7 @@ export class MutableRequestCookiesAdapter {
       }
     }
 
-    return new Proxy(responseCookes, {
+    return new Proxy(responseCookies, {
       get(target, prop, receiver) {
         switch (prop) {
           // A special symbol to get the modified cookie values

@@ -517,6 +517,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::DevelopmentId {
@@ -543,6 +544,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildTransition {
@@ -572,6 +574,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildId {
@@ -598,6 +601,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
             }
