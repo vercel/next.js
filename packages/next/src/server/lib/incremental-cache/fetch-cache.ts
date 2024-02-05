@@ -124,7 +124,9 @@ export default class FetchCache implements CacheHandler {
 
     try {
       const res = await fetch(
-        `${this.cacheEndpoint}/v1/suspense-cache/revalidate?tags=${tag}`,
+        `${
+          this.cacheEndpoint
+        }/v1/suspense-cache/revalidate?tags=${encodeURIComponent(tag)}`,
         {
           method: 'POST',
           headers: this.headers,
