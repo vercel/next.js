@@ -93,7 +93,7 @@
   },
   "dependencies": {
     "@next/env": "14.1.1-canary.33",
-    "@swc/helpers": "0.5.2",
+    "@swc/helpers": "0.5.5",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "graceful-fs": "^4.2.11",
