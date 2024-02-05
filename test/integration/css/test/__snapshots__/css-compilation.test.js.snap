@@ -33,13 +33,13 @@ exports[`CSS Support production mode CSS Compilation and Prefixing useLightnincs
 }
 `;
 
-exports[`CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed 1`] = `"@media (min-width:480px) and (max-width:767px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`;
+exports[`CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've compiled and prefixed 1`] = `"@media (min-width:480px) and (max-width:767.999px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`;
 
 exports[`CSS Support production mode CSS Compilation and Prefixing useLightnincsss(true) should've emitted a source map 1`] = `
 {
-  "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
+  "mappings": "AAAA,mDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
   "sourcesContent": [
-    "@media (min-width: 480px) and (max-width: 767px) {
+    "@media (min-width: 480px) and (max-width: 767.999px) {
   ::placeholder {
     color: green;
   }
