@@ -76,7 +76,7 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox(false)).toBe(false)
+    expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
   })
@@ -281,7 +281,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function () { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -300,7 +300,7 @@ describe('ReactRefreshRegression app', () => {
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -322,7 +322,7 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -373,7 +373,7 @@ describe('ReactRefreshRegression app', () => {
 
         let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
         expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox(false)).toBe(false)
+        expect(await session.hasRedbox()).toBe(false)
         expect(
           await session.evaluate(
             () => document.querySelector('#content').textContent
@@ -382,7 +382,7 @@ describe('ReactRefreshRegression app', () => {
 
         didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
         expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox(false)).toBe(false)
+        expect(await session.hasRedbox()).toBe(false)
         expect(
           await session.evaluate(
             () => document.querySelector('#content').textContent

@@ -13,19 +13,23 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, ServerAddr},
+            environment::{
+                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
+            },
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
-        ecmascript::{references::esm::UrlRewriteBehavior, TransformPlugin, TreeShakingMode},
+        ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
-        node::execution_context::ExecutionContext,
+        node::{
+            execution_context::ExecutionContext,
+            transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
+        },
         turbopack::{
             condition::ContextCondition,
             module_options::{
-                CustomEcmascriptTransformPlugins, JsxTransformOptions, MdxTransformModuleOptions,
-                ModuleOptionsContext, PostCssTransformOptions, TypescriptTransformOptions,
-                WebpackLoadersOptions,
+                JsxTransformOptions, MdxTransformModuleOptions, ModuleOptionsContext, ModuleRule,
+                TypescriptTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
             transition::Transition,
@@ -52,10 +56,11 @@ use crate::{
             NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_plugin, get_relay_transform_plugin,
-            styled_components::get_styled_components_transform_plugin,
-            styled_jsx::get_styled_jsx_transform_plugin,
-            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
+            emotion::get_emotion_transform_rule, get_ecma_transform_rule,
+            relay::get_relay_transform_rule,
+            styled_components::get_styled_components_transform_rule,
+            styled_jsx::get_styled_jsx_transform_rule,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
     },
     sass::maybe_add_sass_loader,
@@ -102,7 +107,7 @@ pub async fn get_server_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map =
-        get_next_server_import_map(project_path, ty, mode, next_config, execution_context);
+        get_next_server_import_map(project_path, ty, next_config, execution_context);
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
     let root_dir = project_path.root().resolve().await?;
@@ -273,17 +278,28 @@ pub async fn get_server_module_options_context(
     mode: NextMode,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
-    let custom_rules = get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
+    let mut base_next_server_rules =
+        get_next_server_transforms_rules(next_config, ty.into_value(), mode).await?;
     let internal_custom_rules =
         get_next_server_internal_transforms_rules(ty.into_value(), *next_config.mdx_rs().await?)
             .await?;
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path).await?;
-    let postcss_transform_options = Some(PostCssTransformOptions {
+    let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
+        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
         ..Default::default()
-    });
+    };
+    let postcss_foreign_transform_options = PostCssTransformOptions {
+        // For node_modules we don't want to resolve postcss config relative to the file
+        // being compiled, instead it only uses the project root postcss
+        // config.
+        config_location: PostCssConfigLocation::ProjectPath,
+        ..postcss_transform_options.clone()
+    };
+    let enable_postcss_transform = Some(postcss_transform_options.cell());
+    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.cell());
 
     // A separate webpack rules will be applied to codes matching
     // foreign_code_context_condition. This allows to import codes from
@@ -318,11 +334,7 @@ pub async fn get_server_module_options_context(
     });
 
     let use_lightningcss = *next_config.use_lightningcss().await?;
-
-    // EcmascriptTransformPlugins for custom transforms
-    let styled_components_transform_plugin =
-        *get_styled_components_transform_plugin(next_config).await?;
-    let styled_jsx_transform_plugin = *get_styled_jsx_transform_plugin(use_lightningcss).await?;
+    let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path);
@@ -337,47 +349,47 @@ pub async fn get_server_module_options_context(
     } else {
         None
     };
+
+    // Get the jsx transform options for the `client` side.
+    // This matches to the behavior of existing webpack config, if issuer layer is
+    // ssr or pages-browser (client bundle for the browser)
+    // applies client specific swc transforms.
+    //
+    // This enables correct emotion transform and other hydration between server and
+    // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
     let jsx_runtime_options =
+        get_jsx_transform_options(project_path, mode, None, false, next_config);
+    let rsc_jsx_runtime_options =
         get_jsx_transform_options(project_path, mode, None, true, next_config);
 
-    let source_transforms: Vec<Vc<TransformPlugin>> = vec![
-        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
-        *get_relay_transform_plugin(next_config).await?,
-        *get_emotion_transform_plugin(next_config).await?,
+    // A set of custom ecma transform rules being applied to server context.
+    let source_transform_rules: Vec<ModuleRule> = vec![
+        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
+        get_relay_transform_rule(next_config).await?,
+        get_emotion_transform_rule(next_config).await?,
     ]
     .into_iter()
     .flatten()
     .collect();
 
-    let output_transforms = vec![];
-
-    let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-        CustomEcmascriptTransformPlugins {
-            source_transforms: source_transforms.clone(),
-            output_transforms: output_transforms.clone(),
-        },
-    ));
+    // Custom ecma transform rules selectively being applied depends on the server
+    // context type.
+    let styled_components_transform_rule =
+        get_styled_components_transform_rule(next_config).await?;
+    let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
     let module_options_context = match ty.into_value() {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
-                styled_components_transform_plugin,
-                styled_jsx_transform_plugin,
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
+            let custom_source_transform_rules: Vec<ModuleRule> =
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
+                    .into_iter()
+                    .flatten()
+                    .collect();
 
-            base_source_transforms.extend(source_transforms);
-
-            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms,
-                    output_transforms,
-                },
-            ));
+            base_next_server_rules.extend(custom_source_transform_rules);
+            base_next_server_rules.extend(source_transform_rules);
 
             let url_rewrite_behavior = Some(
                 //https://github.com/vercel/next.js/blob/bbb730e5ef10115ed76434f250379f6f53efe998/packages/next/src/build/webpack-config.ts#L1384
@@ -400,7 +412,7 @@ pub async fn get_server_module_options_context(
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
 
@@ -414,7 +426,7 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -428,38 +440,22 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules,
-                custom_ecma_transform_plugins,
+                custom_rules: base_next_server_rules,
                 ..module_options_context
             }
         }
         ServerContextType::AppSSR { .. } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
-                styled_components_transform_plugin,
-                styled_jsx_transform_plugin,
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
+            let custom_source_transform_rules: Vec<ModuleRule> =
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
+                    .into_iter()
+                    .flatten()
+                    .collect();
 
-            let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms.clone(),
-                    output_transforms: vec![],
-                },
-            ));
-
-            base_source_transforms.extend(source_transforms);
-
-            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms,
-                    output_transforms,
-                },
-            ));
+            base_next_server_rules.extend(custom_source_transform_rules.clone());
+            base_next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                custom_ecma_transform_plugins: base_ecma_transform_plugins,
+                custom_rules: custom_source_transform_rules,
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
@@ -469,7 +465,7 @@ pub async fn get_server_module_options_context(
                 custom_rules: internal_custom_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -478,20 +474,10 @@ pub async fn get_server_module_options_context(
                 ..module_options_context.clone()
             };
 
-            // Get the jsx transform options for the `client` side.
-            // This matches to the behavior of existing webpack config, if issuer layer is
-            // ssr or pages-browser (client bundle for the browser)
-            // applies client specific swc transforms.
-            //
-            // This enables correct emotion transform and other hydration between server and
-            // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
-            let jsx_runtime_options =
-                get_jsx_transform_options(project_path, mode, None, false, next_config);
-
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -505,8 +491,7 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules,
-                custom_ecma_transform_plugins,
+                custom_rules: base_next_server_rules,
                 ..module_options_context
             }
         }
@@ -514,8 +499,8 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> =
-                vec![styled_components_transform_plugin]
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
+                vec![styled_components_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
@@ -523,50 +508,42 @@ pub async fn get_server_module_options_context(
             if let Some(ecmascript_client_reference_transition_name) =
                 ecmascript_client_reference_transition_name
             {
-                base_source_transforms.push(Vc::cell(Box::new(ClientDirectiveTransformer::new(
-                    ecmascript_client_reference_transition_name,
-                )) as _));
+                custom_source_transform_rules.push(get_ecma_transform_rule(
+                    Box::new(ClientDirectiveTransformer::new(
+                        ecmascript_client_reference_transition_name,
+                    )),
+                    enable_mdx_rs.is_some(),
+                    true,
+                ));
             }
 
-            let base_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms.clone(),
-                    output_transforms: vec![],
-                },
-            ));
-
-            base_source_transforms.extend(source_transforms);
-
-            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms,
-                    output_transforms,
-                },
-            ));
+            base_next_server_rules.extend(custom_source_transform_rules.clone());
+            base_next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                custom_ecma_transform_plugins: base_ecma_transform_plugins,
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
+
+            custom_source_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: internal_custom_rules.clone(),
+                custom_rules: custom_source_transform_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
-                enable_postcss_transform: postcss_transform_options.clone(),
+                enable_postcss_transform: enable_foreign_postcss_transform,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: internal_custom_rules,
+                custom_rules: custom_source_transform_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
-                enable_jsx: Some(jsx_runtime_options),
+                enable_jsx: Some(rsc_jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
@@ -580,16 +557,24 @@ pub async fn get_server_module_options_context(
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules,
-                custom_ecma_transform_plugins,
+                custom_rules: base_next_server_rules,
                 ..module_options_context
             }
         }
         ServerContextType::AppRoute { .. } => {
+            base_next_server_rules.extend(source_transform_rules);
+
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
+            };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: enable_foreign_postcss_transform,
+                ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
@@ -598,47 +583,45 @@ pub async fn get_server_module_options_context(
             };
             ModuleOptionsContext {
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules,
-                custom_ecma_transform_plugins,
+                custom_rules: base_next_server_rules,
                 ..module_options_context
             }
         }
         ServerContextType::Middleware | ServerContextType::Instrumentation => {
-            let mut base_source_transforms: Vec<Vc<TransformPlugin>> = vec![
-                styled_components_transform_plugin,
-                styled_jsx_transform_plugin,
-            ]
-            .into_iter()
-            .flatten()
-            .collect();
+            let custom_source_transform_rules: Vec<ModuleRule> =
+                vec![styled_components_transform_rule, styled_jsx_transform_rule]
+                    .into_iter()
+                    .flatten()
+                    .collect();
 
-            base_source_transforms.extend(source_transforms);
-
-            let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPlugins::cell(
-                CustomEcmascriptTransformPlugins {
-                    source_transforms: base_source_transforms,
-                    output_transforms,
-                },
-            ));
+            base_next_server_rules.extend(custom_source_transform_rules);
+            base_next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
+            };
+            let foreign_code_module_options_context = ModuleOptionsContext {
+                custom_rules: internal_custom_rules.clone(),
+                enable_webpack_loaders: foreign_webpack_loaders,
+                // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
+                enable_postcss_transform: enable_foreign_postcss_transform,
+                ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
@@ -648,22 +631,21 @@ pub async fn get_server_module_options_context(
             ModuleOptionsContext {
                 enable_jsx: Some(jsx_runtime_options),
                 enable_webpack_loaders,
-                enable_postcss_transform: postcss_transform_options,
+                enable_postcss_transform,
                 enable_typescript_transform: Some(tsconfig),
                 enable_mdx_rs,
                 decorators: Some(decorators_options),
                 rules: vec![
                     (
                         foreign_code_context_condition,
-                        module_options_context.clone().cell(),
+                        foreign_code_module_options_context.cell(),
                     ),
                     (
                         ContextCondition::InPath(next_js_fs().root()),
                         internal_module_options_context.cell(),
                     ),
                 ],
-                custom_rules,
-                custom_ecma_transform_plugins,
+                custom_rules: base_next_server_rules,
                 ..module_options_context
             }
         }

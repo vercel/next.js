@@ -1429,6 +1429,11 @@ export default async function getBaseWebpackConfig(
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
             },
+            {
+              test: codeCondition.test,
+              issuerLayer: WEBPACK_LAYERS.instrument,
+              use: appServerLayerLoaders,
+            },
             ...(hasAppDir
               ? [
                   {

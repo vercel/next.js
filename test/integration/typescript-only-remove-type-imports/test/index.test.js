@@ -27,26 +27,33 @@ const runTests = () => {
   })
 }
 
-describe('TypeScript onlyRemoveTypeImports', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      const { code } = await nextBuild(appDir)
-      if (code !== 0) throw new Error(`build failed with code ${code}`)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
+// Test specific Babel feature that is not supported in Turbopack.
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'TypeScript onlyRemoveTypeImports',
+  () => {
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          const { code } = await nextBuild(appDir)
+          if (code !== 0) throw new Error(`build failed with code ${code}`)
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(() => killApp(app))
+
+        runTests()
+      }
+    )
+
+    describe('dev mode', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+
+      runTests()
     })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
-
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
-})
+  }
+)

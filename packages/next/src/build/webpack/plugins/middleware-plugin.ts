@@ -8,7 +8,7 @@ import { getNamedMiddlewareRegex } from '../../../shared/lib/router/utils/route-
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import path from 'path'
 import {
   EDGE_RUNTIME_WEBPACK,
@@ -277,7 +277,8 @@ function isDynamicCodeEvaluationAllowed(
   }
 
   const name = fileName.replace(rootDir ?? '', '')
-  return isMatch(name, middlewareConfig?.unstable_allowDynamicGlobs ?? [])
+
+  return picomatch(middlewareConfig?.unstable_allowDynamicGlobs ?? [])(name)
 }
 
 function buildUnsupportedApiError({
@@ -551,9 +552,12 @@ function getExtractMetadata(params: {
         continue
       }
       const entryDependency = entry.dependencies?.[0]
-      const { rootDir, route } = getModuleBuildInfo(
+      const resolvedModule =
         compilation.moduleGraph.getResolvedModule(entryDependency)
-      )
+      if (!resolvedModule) {
+        continue
+      }
+      const { rootDir, route } = getModuleBuildInfo(resolvedModule)
 
       const { moduleGraph } = compilation
       const modules = new Set<webpack.NormalModule>()

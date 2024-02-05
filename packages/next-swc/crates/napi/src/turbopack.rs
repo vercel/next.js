@@ -1,18 +1,14 @@
-use std::{
-    convert::{TryFrom, TryInto},
-    path::PathBuf,
-};
+use std::{convert::TryFrom, path::PathBuf};
 
 use anyhow::Context;
 use napi::bindgen_prelude::*;
 use next_build::{
-    build as turbo_next_build,
     build_options::{BuildContext, DefineEnv},
     BuildOptions as NextBuildOptions,
 };
 use next_core::next_config::{Rewrite, Rewrites, RouteHas};
 
-use crate::{next_api::project::NapiDefineEnv, util::MapErr};
+use crate::next_api::project::NapiDefineEnv;
 
 #[napi(object, object_to_js = false)]
 #[derive(Debug)]
@@ -200,11 +196,6 @@ impl From<NapiRouteHas> for RouteHas {
             NapiRouteHas::Host { value } => RouteHas::Host { value },
         }
     }
-}
-
-#[napi]
-pub async fn next_build(ctx: NextBuildContext) -> napi::Result<()> {
-    turbo_next_build(ctx.try_into()?).await.convert_err()
 }
 
 #[napi]

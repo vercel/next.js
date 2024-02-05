@@ -33,7 +33,7 @@ createNextDescribe(
           await waitFor(1000)
 
           // It should not have an error
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
 
           // HMR should still work
           const code = await next.readFile('app/page-with-loading/page.js')
