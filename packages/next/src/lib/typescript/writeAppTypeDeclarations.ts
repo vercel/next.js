@@ -14,7 +14,12 @@ export async function writeAppTypeDeclarations({
   isAppDirEnabled: boolean
 }): Promise<void> {
   // Reference `next` types
-  const appTypeDeclarations = path.join(baseDir, '.next', 'next-env.d.ts')
+  const appTypeDeclarations = path.join(
+    baseDir,
+    '.next',
+    'types',
+    'next-env.d.ts'
+  )
 
   // Defaults EOL to system default
   let eol = os.EOL
