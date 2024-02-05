@@ -2,7 +2,7 @@ import { getRedboxHeader, hasRedbox } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 
 async function testDev(browser, errorRegex) {
-  expect(await hasRedbox(browser, true)).toBe(true)
+  expect(await hasRedbox(browser)).toBe(true)
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 
@@ -55,6 +55,40 @@ createNextDescribe(
         )
 
         expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
+      }
+    })
+
+    it('should catch metadata error in error boundary if presented', async () => {
+      const browser = await next.browser('/metadata-error-with-boundary')
+
+      expect(await browser.elementByCss('#error').text()).toBe(
+        'Local error boundary'
+      )
+      expect(await browser.hasElementByCssSelector('#digest')).toBeFalsy()
+    })
+
+    it('should catch metadata error in global-error if no error boundary is presented', async () => {
+      const browser = await next.browser('/metadata-error-without-boundary')
+
+      if (isNextDev) {
+        await testDev(browser, /Error: Metadata error/)
+      } else {
+        expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+        expect(await browser.elementByCss('#error').text()).toBe(
+          'Global error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+        )
+      }
+    })
+
+    it('should catch the client error thrown in the nested routes', async () => {
+      const browser = await next.browser('/nested/nested')
+      if (isNextDev) {
+        await testDev(browser, /Error: nested error/)
+      } else {
+        expect(await browser.elementByCss('h1').text()).toBe('Global Error')
+        expect(await browser.elementByCss('#error').text()).toBe(
+          'Global error: nested error'
+        )
       }
     })
   }

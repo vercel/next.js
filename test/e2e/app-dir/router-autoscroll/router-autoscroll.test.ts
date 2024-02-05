@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next }) => {
+  ({ next, isNextDev }) => {
     type BrowserInterface = Awaited<ReturnType<typeof webdriver>>
 
     const getTopScroll = async (browser: BrowserInterface) =>
@@ -169,6 +169,54 @@ createNextDescribe(
           .click()
           .waitForElementByCss('#content-that-is-visible')
         await check(() => browser.eval('window.scrollY'), 0)
+      })
+
+      it('Should scroll to the top of the layout when the first child is position fixed', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.scrollTo(0, 500)')
+        await browser
+          .elementByCss('#to-fixed-first-element')
+          .click()
+          .waitForElementByCss('#content-that-is-visible')
+        await check(() => browser.eval('window.scrollY'), 0)
+
+        if (isNextDev) {
+          // Check that we've logged a warning
+          await check(async () => {
+            const logs = await browser.log()
+            return logs.some((log) =>
+              log.message.includes(
+                'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+              )
+            )
+              ? 'success'
+              : undefined
+          }, 'success')
+        }
+      })
+
+      it('Should scroll to the top of the layout when the first child is position sticky', async () => {
+        const browser = await webdriver(next.url, '/')
+        await browser.eval('window.scrollTo(0, 500)')
+        await browser
+          .elementByCss('#to-sticky-first-element')
+          .click()
+          .waitForElementByCss('#content-that-is-visible')
+        await check(() => browser.eval('window.scrollY'), 0)
+
+        if (isNextDev) {
+          // Check that we've logged a warning
+          await check(async () => {
+            const logs = await browser.log()
+            return logs.some((log) =>
+              log.message.includes(
+                'Skipping auto-scroll behavior due to `position: sticky` or `position: fixed` on element:'
+              )
+            )
+              ? 'success'
+              : undefined
+          }, 'success')
+        }
       })
 
       it('Should apply scroll when loading.js is used', async () => {

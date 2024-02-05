@@ -1,6 +1,6 @@
 # Server-Side Rendering Caching Headers
 
-This example uses [`stale-while-revalidate`](https://web.dev/stale-while-revalidate/) [cache-control headers](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control) in combination with `getServerSideProps` for server-rendering.
+This example uses [`stale-while-revalidate`](https://web.dev/stale-while-revalidate/) [cache-control headers](https://developer.mozilla.org/docs/Web/HTTP/Headers/Cache-Control) in combination with `getServerSideProps` for server-rendering.
 
 `pages/index.tsx` uses `getServerSideProps` to forward the request header to the React component, as well as setting a response header. This `cache-control` header uses `stale-while-revalidate` to cache the server response.
 

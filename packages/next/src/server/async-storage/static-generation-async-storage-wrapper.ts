@@ -1,10 +1,11 @@
 import type { AsyncStorageWrapper } from './async-storage-wrapper'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage'
+import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
 export type StaticGenerationContext = {
-  pathname: string
+  urlPathname: string
+  postpone?: (reason: string) => never
   renderOpts: {
     originalPathname?: string
     incrementalCache?: IncrementalCache
@@ -15,6 +16,9 @@ export type StaticGenerationContext = {
     nextExport?: boolean
     fetchCache?: StaticGenerationStore['fetchCache']
     isDraftMode?: boolean
+    isServerAction?: boolean
+    waitUntil?: Promise<any>
+    experimental: { ppr: boolean; missingSuspenseWithCSRBailout?: boolean }
 
     /**
      * A hack around accessing the store value outside the context of the
@@ -34,7 +38,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 > = {
   wrap<Result>(
     storage: AsyncLocalStorage<StaticGenerationStore>,
-    { pathname, renderOpts }: StaticGenerationContext,
+    { urlPathname, renderOpts }: StaticGenerationContext,
     callback: (store: StaticGenerationStore) => Result
   ): Result {
     /**
@@ -49,16 +53,27 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
      *
      *    3.) If the request is in draft mode, we must generate dynamic HTML.
      *
+     *    4.) If the request is a server action, we must generate dynamic HTML.
+     *
      * These rules help ensure that other existing features like request caching,
      * coalescing, and ISR continue working as intended.
      */
     const isStaticGeneration =
-      !renderOpts.supportsDynamicHTML && !renderOpts.isDraftMode
+      !renderOpts.supportsDynamicHTML &&
+      !renderOpts.isDraftMode &&
+      !renderOpts.isServerAction
+
+    const prerenderState: StaticGenerationStore['prerenderState'] =
+      isStaticGeneration && renderOpts.experimental.ppr
+        ? {
+            hasDynamic: false,
+          }
+        : null
 
     const store: StaticGenerationStore = {
       isStaticGeneration,
-      pathname,
-      originalPathname: renderOpts.originalPathname,
+      urlPathname,
+      pagePath: renderOpts.originalPathname,
       incrementalCache:
         // we fallback to a global incremental cache for edge-runtime locally
         // so that it can access the fs cache without mocks
@@ -69,6 +84,8 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
       isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
       isDraftMode: renderOpts.isDraftMode,
+
+      prerenderState,
     }
 
     // TODO: remove this when we resolve accessing the store outside the execution context

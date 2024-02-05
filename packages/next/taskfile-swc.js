@@ -18,7 +18,7 @@ module.exports = function (task) {
       serverOrClient,
       {
         stripExtension,
-        keepImportAssertions = false,
+        keepImportAttributes = false,
         interopClientDefaultExport = false,
         esm = false,
       } = {}
@@ -29,11 +29,15 @@ module.exports = function (task) {
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
         },
@@ -47,11 +51,12 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes,
+            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -63,22 +68,27 @@ module.exports = function (task) {
 
       /** @type {import('@swc/core').Options} */
       const swcServerOptions = {
-        module: {
-          type: esm ? 'es6' : 'commonjs',
-          ignoreDynamic: true,
-          exportInteropAnnotation: true,
-        },
+        module: esm
+          ? {
+              type: 'es6',
+            }
+          : {
+              type: 'commonjs',
+              ignoreDynamic: true,
+              exportInteropAnnotation: true,
+            },
         env: {
           targets: {
-            // Same version defined in packages/next/package.json#engines
+            // Ideally, should be same version defined in packages/next/package.json#engines
             // Currently a few minors behind due to babel class transpiling
+            // which fails "test/integration/mixed-ssg-serverprops-error/test/index.test.js"
             node: '16.8.0',
           },
         },
         jsc: {
           loose: true,
           // Do not enable external helpers on server-side files build
-          // _is_native_funtion helper is not compatible with edge runtime (need investigate)
+          // _is_native_function helper is not compatible with edge runtime (need investigate)
           externalHelpers: false,
           parser: {
             syntax: 'typescript',
@@ -87,11 +97,12 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAssertions,
+            keepImportAttributes,
+            emitAssertForImportAttributes: keepImportAttributes,
           },
           transform: {
             react: {
-              pragma: 'React.createElement',
+              runtime: 'automatic',
               pragmaFrag: 'React.Fragment',
               throwIfNamespace: true,
               development: false,
@@ -139,7 +150,10 @@ module.exports = function (task) {
       if (ext) {
         const extRegex = new RegExp(ext.replace('.', '\\.') + '$', 'i')
         // Remove the extension if stripExtension is enabled or replace it with `.js`
-        file.base = file.base.replace(extRegex, stripExtension ? '' : '.js')
+        file.base = file.base.replace(
+          extRegex,
+          stripExtension ? '' : `.${ext === '.mts' ? 'm' : ''}js`
+        )
       }
 
       if (output.map) {
@@ -175,6 +189,10 @@ function setNextVersion(code) {
     .replace(
       /process\.env\.__NEXT_VERSION/g,
       `"${require('./package.json').version}"`
+    )
+    .replace(
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
+      `"${require('./package.json').engines.node.replace('>=', '')}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

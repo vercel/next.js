@@ -8,15 +8,16 @@ import {
 } from 'fs'
 import { promisify } from 'util'
 import http from 'http'
-import https from 'https'
 import path from 'path'
 
 import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
+import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+import { once } from 'events'
 
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
@@ -26,10 +27,8 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { BrowserInterface } from './browsers/base'
 
-import {
-  shouldRunExperimentalTurboDevTest,
-  shouldRunTurboDevTest,
-} from './turbo'
+import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import stripAnsi from 'strip-ansi'
 
 export { shouldRunTurboDevTest }
 
@@ -51,13 +50,7 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...((opts && opts.nodeArgs) || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        scriptPath,
-      ],
+      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
       {
         env,
         cwd: opts && opts.cwd,
@@ -161,19 +154,7 @@ export function fetchViaHTTP(
   opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  return fetch(getFullUrl(appPort, url), {
-    // in node.js v17 fetch favors IPv6 but Next.js is
-    // listening on IPv4 by default so force IPv4 DNS resolving
-    agent: (parsedUrl) => {
-      if (parsedUrl.protocol === 'https:') {
-        return new https.Agent({ family: 4 })
-      }
-      if (parsedUrl.protocol === 'http:') {
-        return new http.Agent({ family: 4 })
-      }
-    },
-    ...opts,
-  })
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
 export function renderViaHTTP(
@@ -186,7 +167,18 @@ export function renderViaHTTP(
 }
 
 export function findPort() {
-  return getPort()
+  // [NOTE] What are we doing here?
+  // There are some flaky tests failures caused by `No available ports found` from 'get-port'.
+  // This may be related / fixed by upstream https://github.com/sindresorhus/get-port/pull/56,
+  // however it happened after get-port switched to pure esm which is not easy to adapt by bump.
+  // get-port-please seems to offer the feature parity so we'll try to use it, and leave get-port as fallback
+  // for a while until we are certain to switch to get-port-please entirely.
+  try {
+    return getRandomPort()
+  } catch (e) {
+    require('console').warn('get-port-please failed, falling back to get-port')
+    return getPort()
+  }
 }
 
 export interface NextOptions {
@@ -228,14 +220,7 @@ export function runNextCommand(
     console.log(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [
-        ...(options.nodeArgs || []),
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
       {
         ...options.spawnOptions,
         cwd,
@@ -330,7 +315,6 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
-  experimentalTurbo?: boolean
 
   stderr?: false
   stdout?: false
@@ -358,14 +342,7 @@ export function runNextCommandDev(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [
-        ...nodeArgs,
-        '-r',
-        require.resolve('./mocks-require-hook'),
-        '--no-deprecation',
-        nextBin,
-        ...argv,
-      ],
+      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
       {
         cwd,
         env,
@@ -373,28 +350,26 @@ export function runNextCommandDev(
     )
     let didResolve = false
 
+    const bootType =
+      opts.nextStart || stdOut ? 'start' : opts?.turbo ? 'turbo' : 'dev'
+
     function handleStdout(data) {
       const message = data.toString()
       const bootupMarkers = {
-        dev: /compiled .*successfully/i,
-        turbo: /started server/i,
-        experimentalTurbo: /started server/i,
-        start: /started server/i,
+        dev: /✓ ready/i,
+        turbo: /✓ ready/i,
+        start: /✓ ready/i,
       }
+
+      const strippedMessage = stripAnsi(message) as any
+
       if (
-        (opts.bootupMarker && opts.bootupMarker.test(message)) ||
-        bootupMarkers[
-          opts.nextStart || stdOut
-            ? 'start'
-            : opts?.experimentalTurbo
-            ? 'experimentalTurbo'
-            : opts?.turbo
-            ? 'turbo'
-            : 'dev'
-        ].test(message)
+        (opts.bootupMarker && opts.bootupMarker.test(strippedMessage)) ||
+        bootupMarkers[bootType].test(strippedMessage)
       ) {
         if (!didResolve) {
           didResolve = true
+          // Pass down the original message
           resolve(stdOut ? message : instance)
         }
       }
@@ -410,6 +385,7 @@ export function runNextCommandDev(
 
     function handleStderr(data) {
       const message = data.toString()
+
       if (typeof opts.onStderr === 'function') {
         opts.onStderr(message)
       }
@@ -419,12 +395,12 @@ export function runNextCommandDev(
       }
     }
 
-    instance.stdout.on('data', handleStdout)
     instance.stderr.on('data', handleStderr)
+    instance.stdout.on('data', handleStdout)
 
     instance.on('close', () => {
-      instance.stdout.removeListener('data', handleStdout)
       instance.stderr.removeListener('data', handleStderr)
+      instance.stdout.removeListener('data', handleStdout)
       if (!didResolve) {
         didResolve = true
         resolve(undefined)
@@ -445,17 +421,18 @@ export function launchApp(
 ) {
   const options = opts ?? {}
   const useTurbo = shouldRunTurboDevTest()
-  const useExperimentalTurbo = shouldRunExperimentalTurboDevTest()
 
   return runNextCommandDev(
-    [useTurbo ? '--turbo' : undefined, dir, '-p', port as string].filter(
-      Boolean
-    ),
+    [
+      useTurbo ? getTurbopackFlag() : undefined,
+      dir,
+      '-p',
+      port as string,
+    ].filter(Boolean),
     undefined,
     {
       ...options,
       turbo: useTurbo,
-      experimentalTurbo: useExperimentalTurbo,
     }
   )
 }
@@ -466,14 +443,6 @@ export function nextBuild(
   opts: NextOptions = {}
 ) {
   return runNextCommand(['build', dir, ...args], opts)
-}
-
-export function nextExport(dir: string, { outdir }, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir, '--outdir', outdir], opts)
-}
-
-export function nextExportDefault(dir: string, opts: NextOptions = {}) {
-  return runNextCommand(['export', dir], opts)
 }
 
 export function nextLint(
@@ -527,9 +496,12 @@ export function buildTS(
   })
 }
 
-export async function killProcess(pid: number): Promise<void> {
+export async function killProcess(
+  pid: number,
+  signal: NodeJS.Signals | number = 'SIGTERM'
+): Promise<void> {
   return await new Promise((resolve, reject) => {
-    treeKill(pid, (err) => {
+    treeKill(pid, signal, (err) => {
       if (err) {
         if (
           process.platform === 'win32' &&
@@ -553,8 +525,19 @@ export async function killProcess(pid: number): Promise<void> {
 }
 
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
-  await killProcess(instance.pid)
+export async function killApp(
+  instance?: ChildProcess,
+  signal: NodeJS.Signals | number = 'SIGKILL'
+) {
+  if (
+    instance?.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
+    const exitPromise = once(instance, 'exit')
+    await killProcess(instance.pid, signal)
+    await exitPromise
+  }
 }
 
 export async function startApp(app: NextServer) {
@@ -697,6 +680,11 @@ export class File {
     this.write(newContent)
   }
 
+  prepend(str: string) {
+    const content = readFileSync(this.path, 'utf8')
+    this.write(str + content)
+  }
+
   delete() {
     unlinkSync(this.path)
   }
@@ -751,53 +739,34 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
           )
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
+        )
+    )
+  })
+  return result
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
-      if (shouldRunTurboDevTest()) {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-turbo-dialog-body]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-turbo-dialog-body]')
-            ?.innerText
-        })
-      } else {
-        return evaluate(browser, () => {
-          const portal = [].slice
-            .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
-            )
-          const root = portal?.shadowRoot
-          return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
-        })
-      }
+      return evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal?.shadowRoot
+        return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
+      })
     },
     10000,
     500,
@@ -1003,7 +972,9 @@ export function runProdSuite(
     env?: NodeJS.ProcessEnv
   }
 ) {
-  return runSuite(suiteName, { appDir, env: 'prod' }, options)
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    runSuite(suiteName, { appDir, env: 'prod' }, options)
+  })
 }
 
 /**
@@ -1021,32 +992,54 @@ export function findAllTelemetryEvents(output: string, eventName: string) {
   return events.filter((e) => e.eventName === eventName).map((e) => e.payload)
 }
 
-type TestVariants = 'default' | 'turbo' | 'experimentalTurbo'
+type TestVariants = 'default' | 'turbo'
 
 // WEB-168: There are some differences / incompletes in turbopack implementation enforces jest requires to update
 // test snapshot when run against turbo. This fn returns describe, or describe.skip dependes on the running context
 // to avoid force-snapshot update per each runs until turbopack update includes all the changes.
 export function getSnapshotTestDescribe(variant: TestVariants) {
   const runningEnv = variant ?? 'default'
-  if (
-    runningEnv !== 'default' &&
-    runningEnv !== 'turbo' &&
-    runningEnv !== 'experimentalTurbo'
-  ) {
+  if (runningEnv !== 'default' && runningEnv !== 'turbo') {
     throw new Error(
-      `An invalid test env was passed: ${variant} (only "default", "turbo" and "experimentalTurbo" are valid options)`
+      `An invalid test env was passed: ${variant} (only "default" and "turbo" are valid options)`
     )
   }
 
   const shouldRunTurboDev = shouldRunTurboDevTest()
-  const shouldRunExperimentalTurboDev = shouldRunExperimentalTurboDevTest()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
-    (runningEnv === 'experimentalTurbo' && !shouldRunExperimentalTurboDev) ||
-    (runningEnv === 'default' &&
-      (shouldRunTurboDev || shouldRunExperimentalTurboDev))
+    (runningEnv === 'default' && shouldRunTurboDev)
 
   return shouldSkip ? describe.skip : describe
+}
+
+export async function getRedboxComponentStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss(
+    '[data-nextjs-component-stack-frame]',
+    30000
+  )
+  // TODO: the type for elementsByCss is incorrect
+  const componentStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-component-stack-frame]'
+  )
+  const componentStackFrameTexts = await Promise.all(
+    componentStackFrameElements.map((f) => f.innerText())
+  )
+
+  return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function getVersionCheckerText(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-version-checker]', 30000)
+  const versionCheckerElement = await browser.elementByCss(
+    '[data-nextjs-version-checker]'
+  )
+  const versionCheckerText = await versionCheckerElement.innerText()
+  return versionCheckerText.trim()
 }
 
 /**
@@ -1056,7 +1049,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
  */
 export const describeVariants = {
   each(variants: TestVariants[]) {
-    return (name: string, fn: (...args: TestVariants[]) => any) => {
+    return (name: string, fn: (variants: TestVariants) => any) => {
       if (
         !Array.isArray(variants) ||
         !variants.every((val) => typeof val === 'string')

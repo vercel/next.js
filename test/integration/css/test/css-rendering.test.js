@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import 'flat-map-polyfill'
 import { pathExists, readFile, readJSON, remove } from 'fs-extra'
 import {
   check,
@@ -15,19 +14,21 @@ import { join } from 'path'
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
 
 describe('CSS Support', () => {
-  describe('CSS Import from node_modules', () => {
-    const appDir = join(fixturesDir, 'npm-import-bad')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    describe('CSS Import from node_modules', () => {
+      const appDir = join(fixturesDir, 'npm-import-bad')
 
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
 
-    it('should fail the build', async () => {
-      const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
+      it('should fail the build', async () => {
+        const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
 
-      expect(code).toBe(0)
-      expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
-      expect(stderr).not.toMatch(/Build error occurred/)
+        expect(code).toBe(0)
+        expect(stderr).not.toMatch(/Can't resolve '[^']*?nprogress[^']*?'/)
+        expect(stderr).not.toMatch(/Build error occurred/)
+      })
     })
   })
 
@@ -168,21 +169,24 @@ describe('CSS Support', () => {
       })
     }
 
-    describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        await nextBuild(appDir, [], {})
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
+        tests()
+      }
+    )
   })
 
   describe('CSS Cleanup on Render Failure', () => {
@@ -231,21 +235,24 @@ describe('CSS Support', () => {
       })
     }
 
-    describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        await nextBuild(appDir, [], {})
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
+        tests()
+      }
+    )
   })
 
   describe('Page reload on CSS missing', () => {
@@ -280,31 +287,34 @@ describe('CSS Support', () => {
       })
     }
 
-    describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        await nextBuild(appDir, [], {})
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
 
-        // Remove other page CSS files:
-        const manifest = await readJSON(
-          join(appDir, '.next', 'build-manifest.json')
-        )
-        const files = manifest['pages']['/other'].filter((e) =>
-          e.endsWith('.css')
-        )
-        if (files.length < 1) throw new Error()
-        await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+          // Remove other page CSS files:
+          const manifest = await readJSON(
+            join(appDir, '.next', 'build-manifest.json')
+          )
+          const files = manifest['pages']['/other'].filter((e) =>
+            e.endsWith('.css')
+          )
+          if (files.length < 1) throw new Error()
+          await Promise.all(files.map((f) => remove(join(appDir, '.next', f))))
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
+        tests()
+      }
+    )
   })
 
   describe('Page hydrates with CSS and not waiting on dependencies', () => {
@@ -373,34 +383,37 @@ describe('CSS Support', () => {
       })
     }
 
-    describe('Production Mode', () => {
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-      })
-      beforeAll(async () => {
-        await nextBuild(appDir, [], {})
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
 
-        const buildId = (
-          await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
-        ).trim()
-        const fileName = join(
-          appDir,
-          '.next/static/',
-          buildId,
-          '_buildManifest.js'
-        )
-        if (!(await pathExists(fileName))) {
-          throw new Error('Missing build manifest')
-        }
-        await remove(fileName)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+          const buildId = (
+            await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+          ).trim()
+          const fileName = join(
+            appDir,
+            '.next/static/',
+            buildId,
+            '_buildManifest.js'
+          )
+          if (!(await pathExists(fileName))) {
+            throw new Error('Missing build manifest')
+          }
+          await remove(fileName)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      tests()
-    })
+        tests()
+      }
+    )
   })
 })

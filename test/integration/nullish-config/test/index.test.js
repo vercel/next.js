@@ -8,7 +8,7 @@ const nextConfig = join(appDir, 'next.config.js')
 
 let getStdout
 
-const runTests = () => {
+const runTests = (type) => {
   it('should ignore configs set to `undefined` in next.config.js', async () => {
     await fs.writeFile(
       nextConfig,
@@ -27,7 +27,11 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/compiled .*successfully/i)
+    if (type === 'dev') {
+      expect(stdout).toMatch(/ready/i)
+    } else {
+      expect(stdout).toMatch(/Compiled successfully/i)
+    }
   })
 
   it('should ignore configs set to `null` in next.config.js', async () => {
@@ -48,7 +52,11 @@ const runTests = () => {
 
     const stdout = await getStdout()
 
-    expect(stdout).toMatch(/compiled .*successfully/i)
+    if (type === 'dev') {
+      expect(stdout).toMatch(/ready/i)
+    } else {
+      expect(stdout).toMatch(/Compiled successfully/i)
+    }
   })
 }
 
@@ -69,10 +77,9 @@ describe('Nullish configs in next.config.js', () => {
       }
     })
 
-    runTests()
+    runTests('dev')
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(() => {
       getStdout = async () => {
         const { stdout } = await nextBuild(appDir, [], { stdout: true })
@@ -80,6 +87,6 @@ describe('Nullish configs in next.config.js', () => {
       }
     })
 
-    runTests()
+    runTests('build')
   })
 })

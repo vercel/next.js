@@ -1,16 +1,16 @@
-import { createMachine, assign } from 'xstate'
+import { createMachine, assign } from "xstate";
 
 type CounterContext = {
-  count: number
-}
+  count: number;
+};
 
 type CounterEvents = {
-  type: 'INC' | 'DEC' | 'RESET'
-}
+  type: "INC" | "DEC" | "RESET";
+};
 
 export const counterMachine = createMachine<CounterContext, CounterEvents>({
   predictableActionArguments: true,
-  initial: 'active',
+  initial: "active",
   context: {
     count: 0,
   },
@@ -23,4 +23,4 @@ export const counterMachine = createMachine<CounterContext, CounterEvents>({
       },
     },
   },
-})
+});

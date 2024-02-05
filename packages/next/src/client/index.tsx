@@ -10,42 +10,45 @@ import type {
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import mitt, { MittEmitter } from '../shared/lib/mitt'
-import { RouterContext } from '../shared/lib/router-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
+import mitt from '../shared/lib/mitt'
+import type { MittEmitter } from '../shared/lib/mitt'
+import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config'
-import {
-  getURL,
-  loadGetInitialProps,
-  NextWebVitalsMetric,
-  NEXT_DATA,
-  ST,
-} from '../shared/lib/utils'
+import { setConfig } from '../shared/lib/runtime-config.external'
+import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
+import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
-import PageLoader, { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
+import PageLoader from './page-loader'
+import type { StyleSheetTuple } from './page-loader'
+import measureWebVitals from './performance-relayer' // TODO: remove in the next major version
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
-import { ImageConfigContext } from '../shared/lib/image-config-context'
-import { ImageConfigComplete } from '../shared/lib/image-config'
+import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
+import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { removeBasePath } from './remove-base-path'
 import { hasBasePath } from './has-base-path'
-import { AppRouterContext } from '../shared/lib/app-router-context'
+import { AppRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import {
   adaptForAppRouterInstance,
+  adaptForPathParams,
   adaptForSearchParams,
   PathnameContextProviderAdapter,
 } from '../shared/lib/router/adapters'
-import { SearchParamsContext } from '../shared/lib/hooks-client-context'
+import {
+  SearchParamsContext,
+  PathParamsContext,
+} from '../shared/lib/hooks-client-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
+import tracer from './tracing/tracer'
+import reportToSocket from './tracing/report-to-socket'
 
 /// <reference types="react-dom/experimental" />
 
@@ -87,7 +90,7 @@ let initialMatchesMiddleware = false
 let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
-let webpackHMR: any
+let devClient: any
 
 let CachedApp: AppComponent, onPerfEntry: (metric: any) => void
 let CachedComponent: React.ComponentType
@@ -183,12 +186,14 @@ class Container extends React.Component<{
   }
 }
 
-export async function initialize(opts: { webpackHMR?: any } = {}): Promise<{
+export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
+  tracer.onSpanEnd(reportToSocket)
+
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
-    webpackHMR = opts.webpackHMR
+    devClient = opts.devClient
   }
 
   initialData = JSON.parse(
@@ -312,17 +317,20 @@ function AppContainer({
             router={router}
             isAutoExport={self.__NEXT_DATA__.autoExport ?? false}
           >
-            <RouterContext.Provider value={makePublicRouterInstance(router)}>
-              <HeadManagerContext.Provider value={headManager}>
-                <ImageConfigContext.Provider
-                  value={
-                    process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
-                  }
-                >
-                  {children}
-                </ImageConfigContext.Provider>
-              </HeadManagerContext.Provider>
-            </RouterContext.Provider>
+            <PathParamsContext.Provider value={adaptForPathParams(router)}>
+              <RouterContext.Provider value={makePublicRouterInstance(router)}>
+                <HeadManagerContext.Provider value={headManager}>
+                  <ImageConfigContext.Provider
+                    value={
+                      process.env
+                        .__NEXT_IMAGE_OPTS as any as ImageConfigComplete
+                    }
+                  >
+                    {children}
+                  </ImageConfigContext.Provider>
+                </HeadManagerContext.Provider>
+              </RouterContext.Provider>
+            </PathParamsContext.Provider>
           </PathnameContextProviderAdapter>
         </SearchParamsContext.Provider>
       </AppRouterContext.Provider>
@@ -353,7 +361,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   if (process.env.NODE_ENV !== 'production') {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
-    webpackHMR.onUnrecoverableError()
+    devClient.onUnrecoverableError()
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
@@ -435,30 +443,82 @@ function Head({ callback }: { callback: () => void }): null {
   return null
 }
 
+const performanceMarks = {
+  navigationStart: 'navigationStart',
+  beforeRender: 'beforeRender',
+  afterRender: 'afterRender',
+  afterHydrate: 'afterHydrate',
+  routeChange: 'routeChange',
+} as const
+
+const performanceMeasures = {
+  hydration: 'Next.js-hydration',
+  beforeHydration: 'Next.js-before-hydration',
+  routeChangeToRender: 'Next.js-route-change-to-render',
+  render: 'Next.js-render',
+} as const
+
 let reactRoot: any = null
 // On initial render a hydrate should always happen
 let shouldHydrate: boolean = true
 
 function clearMarks(): void {
-  ;['beforeRender', 'afterHydrate', 'afterRender', 'routeChange'].forEach(
-    (mark) => performance.clearMarks(mark)
-  )
+  ;[
+    performanceMarks.beforeRender,
+    performanceMarks.afterHydrate,
+    performanceMarks.afterRender,
+    performanceMarks.routeChange,
+  ].forEach((mark) => performance.clearMarks(mark))
 }
 
 function markHydrateComplete(): void {
   if (!ST) return
 
-  performance.mark('afterHydrate') // mark end of hydration
+  performance.mark(performanceMarks.afterHydrate) // mark end of hydration
 
-  performance.measure(
-    'Next.js-before-hydration',
-    'navigationStart',
-    'beforeRender'
-  )
-  performance.measure('Next.js-hydration', 'beforeRender', 'afterHydrate')
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+  if (hasBeforeRenderMark) {
+    const beforeHydrationMeasure = performance.measure(
+      performanceMeasures.beforeHydration,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeRender
+    )
+
+    const hydrationMeasure = performance.measure(
+      performanceMeasures.hydration,
+      performanceMarks.beforeRender,
+      performanceMarks.afterHydrate
+    )
+
+    if (
+      process.env.NODE_ENV === 'development' &&
+      // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
+      beforeHydrationMeasure !== undefined &&
+      hydrationMeasure !== undefined
+    ) {
+      tracer
+        .startSpan('navigation-to-hydration', {
+          startTime: performance.timeOrigin + beforeHydrationMeasure.startTime,
+          attributes: {
+            pathname: location.pathname,
+            query: location.search,
+          },
+        })
+        .end(
+          performance.timeOrigin +
+            hydrationMeasure.startTime +
+            hydrationMeasure.duration
+        )
+    }
+  }
 
   if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-hydration').forEach(onPerfEntry)
+    performance
+      .getEntriesByName(performanceMeasures.hydration)
+      .forEach(onPerfEntry)
   }
   clearMarks()
 }
@@ -466,31 +526,45 @@ function markHydrateComplete(): void {
 function markRenderComplete(): void {
   if (!ST) return
 
-  performance.mark('afterRender') // mark end of render
+  performance.mark(performanceMarks.afterRender) // mark end of render
   const navStartEntries: PerformanceEntryList = performance.getEntriesByName(
-    'routeChange',
+    performanceMarks.routeChange,
     'mark'
   )
 
   if (!navStartEntries.length) return
 
-  performance.measure(
-    'Next.js-route-change-to-render',
-    navStartEntries[0].name,
-    'beforeRender'
-  )
-  performance.measure('Next.js-render', 'beforeRender', 'afterRender')
-  if (onPerfEntry) {
-    performance.getEntriesByName('Next.js-render').forEach(onPerfEntry)
-    performance
-      .getEntriesByName('Next.js-route-change-to-render')
-      .forEach(onPerfEntry)
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+
+  if (hasBeforeRenderMark) {
+    performance.measure(
+      performanceMeasures.routeChangeToRender,
+      navStartEntries[0].name,
+      performanceMarks.beforeRender
+    )
+    performance.measure(
+      performanceMeasures.render,
+      performanceMarks.beforeRender,
+      performanceMarks.afterRender
+    )
+    if (onPerfEntry) {
+      performance
+        .getEntriesByName(performanceMeasures.render)
+        .forEach(onPerfEntry)
+      performance
+        .getEntriesByName(performanceMeasures.routeChangeToRender)
+        .forEach(onPerfEntry)
+    }
   }
 
   clearMarks()
-  ;['Next.js-route-change-to-render', 'Next.js-render'].forEach((measure) =>
-    performance.clearMeasures(measure)
-  )
+  ;[
+    performanceMeasures.routeChangeToRender,
+    performanceMeasures.render,
+  ].forEach((measure) => performance.clearMeasures(measure))
 }
 
 function renderReactElement(
@@ -499,7 +573,7 @@ function renderReactElement(
 ): void {
   // mark start of hydrate/render
   if (ST) {
-    performance.mark('beforeRender')
+    performance.mark(performanceMarks.beforeRender)
   }
 
   const reactEl = fn(shouldHydrate ? markHydrateComplete : markRenderComplete)
@@ -530,6 +604,7 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // TODO: remove in the next major version
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {

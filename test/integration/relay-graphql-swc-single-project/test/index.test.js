@@ -41,8 +41,7 @@ describe('Relay Compiler Transform - Single Project Config', () => {
 
     runTests()
   })
-
-  describe('production mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       runRelayCompiler()
       await nextBuild(appDir, [], { cwd: appDir })

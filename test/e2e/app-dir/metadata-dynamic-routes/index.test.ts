@@ -8,7 +8,7 @@ const CACHE_HEADERS = {
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
-const hashRegex = /\?\w+$/
+const hashRegex = /\?\w+/
 
 createNextDescribe(
   'app dir - metadata dynamic routes',
@@ -50,11 +50,13 @@ createNextDescribe(
         expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
         expect(text).toMatchInlineSnapshot(`
-          "<?xml version=\\"1.0\\" encoding=\\"UTF-8\\"?>
-          <urlset xmlns=\\"http://www.sitemaps.org/schemas/sitemap/0.9\\">
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
           <url>
           <loc>https://example.com</loc>
           <lastmod>2021-01-01</lastmod>
+          <changefreq>weekly</changefreq>
+          <priority>0.5</priority>
           </url>
           <url>
           <loc>https://example.com/about</loc>
@@ -63,6 +65,13 @@ createNextDescribe(
           </urlset>
           "
         `)
+      })
+
+      it('should not throw if client components are imported but not used', async () => {
+        const { status } = await next.fetch(
+          '/client-ref-dependency/sitemap.xml'
+        )
+        expect(status).toBe(200)
       })
     })
 
@@ -112,6 +121,23 @@ createNextDescribe(
           isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
         )
 
+        if (isNextDev) {
+          await check(async () => {
+            next.hasFile('.next/server/app-paths-manifest.json')
+            return 'success'
+          }, /success/)
+
+          const appPathsManifest = JSON.parse(
+            await next.readFile('.next/server/app-paths-manifest.json')
+          )
+          const entryKeys = Object.keys(appPathsManifest)
+          // Only has one route for twitter-image with catch-all routes in dev
+          expect(entryKeys).not.toContain('/twitter-image')
+          expect(entryKeys).toContain(
+            '/twitter-image/[[...__metadata_id__]]/route'
+          )
+        }
+
         // edge runtime
         res = await next.fetch('/twitter-image2')
         expect(res.headers.get('content-type')).toBe('image/png')
@@ -126,20 +152,21 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
           })
+
         // slug is id param from generateImageMetadata
         expect(iconUrls).toMatchObject([
           {
-            href: '/dynamic/big/icon-48jo90/small',
+            href: '/dynamic/big/icon-ahg52g/small',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/icon-48jo90/medium',
+            href: '/dynamic/big/icon-ahg52g/medium',
             sizes: '72x72',
             type: 'image/png',
           },
@@ -149,7 +176,7 @@ createNextDescribe(
           .toArray()
           .map((el) => {
             return {
-              href: $(el).attr('href').split('?')[0],
+              href: $(el).attr('href').split('?', 1)[0],
               sizes: $(el).attr('sizes'),
               type: $(el).attr('type'),
             }
@@ -157,12 +184,12 @@ createNextDescribe(
         // slug is index by default
         expect(appleTouchIconUrls).toEqual([
           {
-            href: '/dynamic/big/apple-icon-48jo90/0',
+            href: '/dynamic/big/apple-icon-ahg52g/0',
             sizes: '48x48',
             type: 'image/png',
           },
           {
-            href: '/dynamic/big/apple-icon-48jo90/1',
+            href: '/dynamic/big/apple-icon-ahg52g/1',
             sizes: '64x64',
             type: 'image/png',
           },
@@ -170,12 +197,10 @@ createNextDescribe(
       })
 
       it('should support generate multi sitemaps with generateSitemaps', async () => {
-        const ids = [0, 1, 2]
+        const ids = ['child0', 'child1', 'child2', 'child3']
         function fetchSitemap(id) {
           return next
-            .fetch(
-              isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}.xml`
-            )
+            .fetch(isNextDev ? `/gsp/sitemap.xml/${id}` : `/gsp/sitemap/${id}`)
             .then((res) => res.text())
         }
 
@@ -222,6 +247,16 @@ createNextDescribe(
         // should already normalize the parallel routes segment to url
         expect(ogImageUrl).not.toContain('(group)')
       })
+
+      it('should handle custom fonts in both edge and nodejs runtime', async () => {
+        const resOgEdge = await next.fetch('/font/opengraph-image')
+        const resOgNodejs = await next.fetch('/font/opengraph-image2')
+
+        expect(resOgEdge.status).toBe(200)
+        expect(resOgEdge.headers.get('content-type')).toBe('image/png')
+        expect(resOgNodejs.status).toBe(200)
+        expect(resOgNodejs.headers.get('content-type')).toBe('image/png')
+      })
     })
 
     describe('icon image routes', () => {
@@ -243,6 +278,25 @@ createNextDescribe(
         )
       })
     })
+
+    if (isNextStart) {
+      describe('route segment config', () => {
+        it('should generate dynamic route if dynamic config is force-dynamic', async () => {
+          const dynamicRoute = '/route-config/sitemap.xml'
+
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}/route.js`)
+          ).toBe(true)
+          // dynamic routes should not have body and meta files
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.body`)
+          ).toBe(false)
+          expect(
+            await next.hasFile(`.next/server/app${dynamicRoute}.meta`)
+          ).toBe(false)
+        })
+      })
+    }
 
     it('should generate unique path for image routes under group routes', async () => {
       const $ = await next.render$('/blog')
@@ -360,7 +414,7 @@ createNextDescribe(
       it('should error when id is missing in generateImageMetadata', async () => {
         const iconFilePath = 'app/metadata-base/unset/icon.tsx'
         const contentMissingIdProperty = `
-        import { ImageResponse } from 'next/server'
+        import { ImageResponse } from 'next/og'
         export async function generateImageMetadata() {
           return [
             {
@@ -442,6 +496,33 @@ createNextDescribe(
           await next.fetch('/metadata-base/unset/sitemap.xml/0')
         }
       })
+
+      it('should error if the default export of dynamic image is missing', async () => {
+        const ogImageFilePath = 'app/opengraph-image.tsx'
+        const ogImageFileContent = await next.readFile(ogImageFilePath)
+        const ogImageFileContentWithoutDefaultExport =
+          ogImageFileContent.replace(
+            'export default function',
+            'export function'
+          )
+
+        try {
+          await next.patchFile(
+            ogImageFilePath,
+            ogImageFileContentWithoutDefaultExport
+          )
+          const currentNextCliOutputLength = next.cliOutput.length
+
+          await check(async () => {
+            await next.fetch('/opengraph-image')
+            const output = next.cliOutput.slice(currentNextCliOutputLength)
+            expect(output).toContain(`Default export is missing in`)
+            return 'success'
+          }, /success/)
+        } finally {
+          await next.patchFile(ogImageFilePath, ogImageFileContent)
+        }
+      })
     }
 
     if (isNextStart) {
@@ -469,13 +550,13 @@ createNextDescribe(
           // dynamic
           '/gsp/sitemap/[__metadata_id__]/route':
             'app/gsp/sitemap/[__metadata_id__]/route.js',
-          '/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route':
-            'app/(group)/dynamic/[size]/apple-icon-48jo90/[[...__metadata_id__]]/route.js',
+          '/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route':
+            'app/(group)/dynamic/[size]/apple-icon-ahg52g/[[...__metadata_id__]]/route.js',
         })
       })
 
       it('should generate static paths of dynamic sitemap in production', async () => {
-        const sitemapPaths = [0, 1, 2].map(
+        const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
           (id) => `.next/server/app/gsp/sitemap/${id}.xml.meta`
         )
         const promises = sitemapPaths.map(async (filePath) => {

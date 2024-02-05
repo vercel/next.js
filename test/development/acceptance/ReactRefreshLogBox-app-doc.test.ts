@@ -4,8 +4,8 @@ import { describeVariants as describe } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
-describe.each(['default', 'turbo', 'experimentalTurbo'])(
-  'ReactRefreshLogBox %s',
+describe.each(['default', 'turbo'])(
+  'ReactRefreshLogBox _app _document %s',
   () => {
     const { next } = nextTestSetup({
       files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -17,9 +17,9 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         next,
         new Map([['pages/_app.js', ``]])
       )
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.hasRedbox()).toBe(true)
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Error: The default export is not a React Component in page: \\"/_app\\""`
+        `"Error: The default export is not a React Component in page: "/_app""`
       )
 
       await session.patch(
@@ -31,7 +31,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         export default MyApp
       `
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       await cleanup()
     })
 
@@ -40,9 +40,9 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         next,
         new Map([['pages/_document.js', ``]])
       )
-      expect(await session.hasRedbox(true)).toBe(true)
+      expect(await session.hasRedbox()).toBe(true)
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Error: The default export is not a React Component in page: \\"/_document\\""`
+        `"Error: The default export is not a React Component in page: "/_document""`
       )
 
       await session.patch(
@@ -72,7 +72,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         export default MyDocument
       `
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       await cleanup()
     })
 
@@ -91,11 +91,23 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
           ],
         ])
       )
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(
-        next.normalizeTestDirContent(await session.getRedboxSource())
-      ).toMatchInlineSnapshot(
-        next.normalizeSnapshot(`
+      expect(await session.hasRedbox()).toBe(true)
+      const content = await session.getRedboxSource()
+      const source = next.normalizeTestDirContent(content)
+      if (process.env.TURBOPACK) {
+        expect(source).toMatchInlineSnapshot(`
+        "./pages/_app.js:2:11
+        Parsing ecmascript source code failed
+          1 | function MyApp({ Component, pageProps }) {
+        > 2 |   return <<Component {...pageProps} />;
+            |            ^^^^^^^^^
+          3 | }
+          4 | export default MyApp
+
+        Expression expected"
+      `)
+      } else {
+        expect(source).toMatchInlineSnapshot(`
         "./pages/_app.js
         Error: 
           x Expression expected
@@ -119,7 +131,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         Caused by:
             Syntax Error"
       `)
-      )
+      }
 
       await session.patch(
         'pages/_app.js',
@@ -130,7 +142,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         export default MyApp
       `
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       await cleanup()
     })
 
@@ -167,11 +179,26 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
           ],
         ])
       )
-      expect(await session.hasRedbox(true)).toBe(true)
-      expect(
-        next.normalizeTestDirContent(await session.getRedboxSource())
-      ).toMatchInlineSnapshot(
-        next.normalizeSnapshot(`
+      expect(await session.hasRedbox()).toBe(true)
+      const source = next.normalizeTestDirContent(
+        await session.getRedboxSource()
+      )
+      if (process.env.TURBOPACK) {
+        expect(source).toMatchInlineSnapshot(`
+        "./pages/_document.js:3:35
+        Parsing ecmascript source code failed
+          1 | import Document, { Html, Head, Main, NextScript } from 'next/document'
+          2 |
+        > 3 | class MyDocument extends Document {{
+            |                                    ^
+          4 |   static async getInitialProps(ctx) {
+          5 |     const initialProps = await Document.getInitialProps(ctx)
+          6 |     return { ...initialProps }
+
+        Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key"
+      `)
+      } else {
+        expect(source).toMatchInlineSnapshot(`
         "./pages/_document.js
         Error: 
           x Unexpected token \`{\`. Expected identifier, string literal, numeric literal or [ for the computed key
@@ -188,7 +215,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         Caused by:
             Syntax Error"
       `)
-      )
+      }
 
       await session.patch(
         'pages/_document.js',
@@ -217,7 +244,7 @@ describe.each(['default', 'turbo', 'experimentalTurbo'])(
         export default MyDocument
       `
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      expect(await session.hasRedbox()).toBe(false)
       await cleanup()
     })
   }

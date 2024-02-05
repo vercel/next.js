@@ -10,7 +10,7 @@ export type EventCliSessionStopped = {
   appDir?: boolean
 }
 
-export function eventCliSession(
+export function eventCliSessionStopped(
   event: Omit<EventCliSessionStopped, 'nextVersion' | 'nodeVersion'>
 ): { eventName: string; payload: EventCliSessionStopped }[] {
   // This should be an invariant, if it fails our build tooling is broken.

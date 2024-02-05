@@ -78,10 +78,10 @@ Generate an app icon by creating an `icon` or `apple-icon` route that default ex
 | `icon`          | `.js`, `.ts`, `.tsx` |
 | `apple-icon`    | `.js`, `.ts`, `.tsx` |
 
-The easiest way to generate an icon is to use the [`ImageResponse`](/docs/app/api-reference/functions/image-response) API from `next/server`.
+The easiest way to generate an icon is to use the [`ImageResponse`](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
 ```tsx filename="app/icon.tsx" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 // Route segment config
 export const runtime = 'edge'
@@ -124,7 +124,7 @@ export default function Icon() {
 ```
 
 ```jsx filename="app/icon.js" switcher
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 // Route segment config
 export const runtime = 'edge'
@@ -172,7 +172,7 @@ export default function Icon() {
 
 > **Good to know**
 >
-> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/static-and-dynamic#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-functions) or uncached data.
+> - By default, generated icons are [**statically optimized**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) (generated at build time and cached) unless they use [dynamic functions](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) or uncached data.
 > - You can generate multiple icons in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
 > - You cannot generate a `favicon` icon. Use [`icon`](#icon) or a [favicon.ico](#favicon) file instead.
 
@@ -213,20 +213,20 @@ The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray
 
 You can optionally configure the icon's metadata by exporting `size` and `contentType` variables from the `icon` or `apple-icon` route.
 
-| Option                        | Type                                                                                                                  |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| [`size`](#size)               | `{ width: number; height: number }`                                                                                   |
-| [`contentType`](#contenttype) | `string` - [image MIME type](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types#image_types) |
+| Option                        | Type                                                                                                            |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| [`size`](#size)               | `{ width: number; height: number }`                                                                             |
+| [`contentType`](#contenttype) | `string` - [image MIME type](https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/MIME_types#image_types) |
 
 #### `size`
 
-```tsx filename="icon.tsx / apple-icon.tsx" switcher
+```tsx filename="icon.tsx | apple-icon.tsx" switcher
 export const size = { width: 32, height: 32 }
 
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.js | apple-icon.js" switcher
 export const size = { width: 32, height: 32 }
 
 export default function Icon() {}
@@ -238,13 +238,13 @@ export default function Icon() {}
 
 #### `contentType`
 
-```tsx filename="icon.tsx / apple-icon.tsx" switcher
+```tsx filename="icon.tsx | apple-icon.tsx" switcher
 export const contentType = 'image/png'
 
 export default function Icon() {}
 ```
 
-```jsx filename="icon.js / apple-icon.js" switcher
+```jsx filename="icon.js | apple-icon.js" switcher
 export const contentType = 'image/png'
 
 export default function Icon() {}

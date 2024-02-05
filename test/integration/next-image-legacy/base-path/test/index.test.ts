@@ -176,9 +176,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'intrinsic1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
       )
@@ -216,9 +220,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'responsive1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -256,9 +264,13 @@ function runTests(mode) {
       const height = 350
       const delta = 150
       const id = 'fill1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -296,9 +308,13 @@ function runTests(mode) {
       const width = await getComputed(browser, id, 'width')
       const height = await getComputed(browser, id, 'height')
       await browser.eval(`document.getElementById("${id}").scrollIntoView()`)
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -346,9 +362,13 @@ function runTests(mode) {
       const height = 700
       const delta = 250
       const id = 'sizes1'
-      expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
-      )
+
+      await check(async () => {
+        expect(await getSrc(browser, id)).toBe(
+          '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        )
+        return 'success'
+      }, 'success')
       expect(await browser.elementById(id).getAttribute('srcset')).toBe(
         '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=16&q=75 16w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
       )
@@ -384,7 +404,7 @@ function runTests(mode) {
     it('should show missing src error', async () => {
       const browser = await webdriver(appPort, '/docs/missing-src')
 
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
 
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
@@ -394,7 +414,7 @@ function runTests(mode) {
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/docs/invalid-src')
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Invalid src prop (https://google.com/test.png) on `next/image`, hostname "google.com" is not configured under images in your `next.config.js`'
       )
@@ -406,7 +426,7 @@ function runTests(mode) {
         '/docs/invalid-src-proto-relative'
       )
 
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(
         'Failed to parse src "//assets.example.com/img.jpg" on `next/image`, protocol-relative URL (//) must be changed to an absolute URL (http:// or https://)'
       )
@@ -491,8 +511,7 @@ describe('Image Component basePath Tests', () => {
 
     runTests('dev')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await nextBuild(appDir)
       appPort = await findPort()

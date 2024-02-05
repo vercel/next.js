@@ -1,17 +1,22 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir basepath',
+  'app dir - basepath',
   {
     files: __dirname,
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
       sass: 'latest',
     },
   },
   ({ next }) => {
+    it('should successfully hard navigate from pages -> app', async () => {
+      const browser = await next.browser('/base/pages-path')
+      await browser.elementByCss('#to-another').click()
+      await browser.waitForElementByCss('#page-2')
+    })
+
     it('should support `basePath`', async () => {
       const html = await next.render('/base')
       expect(html).toContain('<h1>Test Page</h1>')
@@ -33,6 +38,23 @@ createNextDescribe(
       const ogImageHref = $('meta[property="og:image"]').attr('content')
 
       expect(ogImageHref).toContain('/base/another/opengraph-image.png')
+    })
+
+    it('should prefix redirect() with basePath', async () => {
+      const browser = await next.browser('/base/redirect')
+      await check(async () => {
+        expect(await browser.url()).toBe(`${next.url}/base/another`)
+        return 'success'
+      }, 'success')
+    })
+
+    it('should render usePathname without the basePath', async () => {
+      const pathnames = ['/use-pathname', '/use-pathname-another']
+      const validatorPromises = pathnames.map(async (pathname) => {
+        const $ = await next.render$('/base' + pathname)
+        expect($('#pathname').data('pathname')).toBe(pathname)
+      })
+      await Promise.all(validatorPromises)
     })
   }
 )

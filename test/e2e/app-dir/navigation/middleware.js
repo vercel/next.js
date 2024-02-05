@@ -1,6 +1,5 @@
 // @ts-check
 import { NextResponse } from 'next/server'
-// @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 if (NEXT_RSC_UNION_QUERY !== '_rsc') {

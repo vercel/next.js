@@ -14,7 +14,8 @@ export function OpenGraphMetadata({
 
   let typedOpenGraph
   if ('type' in openGraph) {
-    switch (openGraph.type) {
+    const openGraphType = openGraph.type
+    switch (openGraphType) {
       case 'website':
         typedOpenGraph = [Meta({ property: 'og:type', content: 'website' })]
         break
@@ -185,7 +186,8 @@ export function OpenGraphMetadata({
         break
 
       default:
-        throw new Error('Invalid OpenGraph type: ' + (openGraph as any).type)
+        const _exhaustiveCheck: never = openGraphType
+        throw new Error(`Invalid OpenGraph type: ${_exhaustiveCheck}`)
     }
   }
 

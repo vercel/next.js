@@ -1,0 +1,58 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+/**PROMO**/
+
+.promo {
+  &.main-promo-no-border {
+    padding-left: 0;
+    padding-right: 0;
+    padding-bottom: 0;
+    margin-bottom: 80px;
+
+    @include respond-to(mobile-large) {
+      margin-bottom: 0;
+    }
+
+    > .component-content {
+      border: 0;
+      max-width: 583px;
+      margin-right: 50px;
+
+      > div {
+        padding-bottom: 0;
+      }
+
+      @include respond-to(mobile-large) {
+        max-width: 100%;
+        margin-right: 0;
+      }
+
+      .promo-text {
+        .field-promotext {
+          font-size: 14px;
+
+          h3 {
+            font-size: $text-size-18;
+            margin: 15px 0;
+
+            @include respond-to(mobile-large) {
+              margin: 10px 0;
+            }
+          }
+          p {
+            margin: 10px 0;
+          }
+        }
+      }
+      @include respond-to(mobile-large) {
+        > div {
+          padding: 0;
+        }
+
+        .promo-text {
+          padding: 15px 30px 5px 30px;
+        }
+      }
+    }
+  }
+}

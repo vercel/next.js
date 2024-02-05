@@ -1,5 +1,5 @@
 export default function notFound() {
-  return <h2>local found boundary</h2>
+  return <h2>Local found boundary</h2>
 }
 
 export const metadata = {

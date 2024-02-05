@@ -1,9 +1,10 @@
-import { AsyncLocalStorage } from 'async_hooks'
 import type { AssetBinding } from '../../../build/webpack/loaders/get-module-build-info'
-import {
-  decorateServerError,
-  getServerError,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import type {
+  EdgeFunctionDefinition,
+  SUPPORTED_NATIVE_MODULES,
+} from '../../../build/webpack/plugins/middleware-plugin'
+import type { UnwrapPromise } from '../../../lib/coalesced-function'
+import { AsyncLocalStorage } from 'async_hooks'
 import {
   COMPILER_NAMES,
   EDGE_UNSUPPORTED_NODE_APIS,
@@ -13,22 +14,30 @@ import { readFileSync, promises as fs } from 'fs'
 import { validateURL } from '../utils'
 import { pick } from '../../../lib/pick'
 import { fetchInlineAsset } from './fetch-inline-assets'
-import type {
-  EdgeFunctionDefinition,
-  SUPPORTED_NATIVE_MODULES,
-} from '../../../build/webpack/plugins/middleware-plugin'
-import { UnwrapPromise } from '../../../lib/coalesced-function'
 import { runInContext } from 'vm'
 import BufferImplementation from 'node:buffer'
 import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
+import { intervalsManager, timeoutsManager } from './resource-managers'
 
 interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
+}
+
+let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
+let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
+
+if (process.env.NODE_ENV === 'development') {
+  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+  getServerError = middleware.getServerError
+  decorateServerError = middleware.decorateServerError
+} else {
+  getServerError = (error: Error, _: string) => error
+  decorateServerError = (error: Error, _: string) => error
 }
 
 /**
@@ -41,11 +50,27 @@ const moduleContexts = new Map<string, ModuleContext>()
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
+
+/**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
+ *
+ * This function also clears all intervals and timeouts created by the
+ * module context.
  */
 export async function clearModuleContext(path: string) {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+
   const handleContext = (
     key: string,
     cache: ReturnType<(typeof moduleContexts)['get']>,
@@ -278,7 +303,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
           // instance if a WASM module is given. Utilize the fact to determine
           // if the WASM code generation happens.
           //
-          // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
+          // https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/instantiate#primary_overload_%E2%80%94_taking_wasm_binary_code
           const instantiatedFromBuffer = result.hasOwnProperty('module')
 
           const key = fn.toString()
@@ -377,6 +402,22 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       Object.assign(context, wasm)
 
       context.AsyncLocalStorage = AsyncLocalStorage
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setInterval = (...args: Parameters<typeof setInterval>) =>
+        intervalsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearInterval = (interval: number) =>
+        intervalsManager.remove(interval)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
+        timeoutsManager.add(args)
+
+      // @ts-ignore the timeouts have weird types in the edge runtime
+      context.clearTimeout = (timeout: number) =>
+        timeoutsManager.remove(timeout)
 
       return context
     },

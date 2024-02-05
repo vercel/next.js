@@ -4,7 +4,7 @@ This example creates a basic [CRUD](https://en.wikipedia.org/wiki/Create,_read,_
 
 The example shows how to do a sign up, login, logout, and account deactivation. It utilizes [SWR](https://swr.vercel.app/) to fetch the API.
 
-For demo purpose, the users database is stored in the cookie session. You need to replace it with an actual database to store users in [db.js](lib/db.js).
+For demo purposes, the users database is stored in the cookie session. You need to replace it with an actual database to store users in [db.js](lib/db.js).
 
 ## Deploy your own
 

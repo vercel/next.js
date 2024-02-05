@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 import vm from 'vm'
 import { transformSync } from './index'
 import { getJestSWCOptions } from './options'
-import * as docblock from 'next/dist/compiled/jest-docblock'
 import type {
   TransformerCreator,
   TransformOptions,
@@ -37,13 +36,14 @@ import type {
 } from '@jest/transform'
 import type { Config } from '@jest/types'
 import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
+import type { ResolvedBaseUrl } from '../load-jsconfig'
 
 type TransformerConfig = Config.TransformerConfig[1]
 export interface JestTransformerConfig extends TransformerConfig {
   jsConfig: any
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
   isEsmProject: boolean
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -77,35 +77,22 @@ function isEsm(
   )
 }
 
-function getTestEnvironment(
-  src: string,
-  jestConfig: Config.ProjectConfig
-): string {
-  const docblockPragmas = docblock.parse(docblock.extract(src))
-  const pragma = docblockPragmas['jest-environment']
-  const environment =
-    (Array.isArray(pragma) ? pragma[0] : pragma) ?? jestConfig.testEnvironment
-  return environment
-}
-
 const createTransformer: TransformerCreator<
   SyncTransformer<JestTransformerConfig>,
   JestTransformerConfig
 > = (inputOptions) => ({
   process(src, filename, jestOptions) {
     const jestConfig = getJestConfig(jestOptions)
-    const testEnvironment = getTestEnvironment(src, jestConfig)
 
     const swcTransformOpts = getJestSWCOptions({
-      // When target is node it's similar to the server option set in SWC.
       isServer:
-        testEnvironment === 'node' ||
-        testEnvironment.includes('jest-environment-node'),
+        jestConfig.testEnvironment === 'node' ||
+        jestConfig.testEnvironment.includes('jest-environment-node'),
       filename,
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
       pagesDir: inputOptions?.pagesDir,
-      hasServerComponents: inputOptions?.hasServerComponents,
+      serverComponents: inputOptions?.serverComponents,
       modularizeImports: inputOptions?.modularizeImports,
       swcPlugins: inputOptions?.swcPlugins,
       compilerOptions: inputOptions?.compilerOptions,

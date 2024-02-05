@@ -41,11 +41,5 @@ createNextDescribe(
       expect(await browser.elementByCss('#param-id').text()).toBe('a')
       expect(await browser.elementByCss('#param-id2').text()).toBe('b')
     })
-
-    it('should return null in pages', async () => {
-      const browser = await next.browser('/use-params-pages')
-
-      expect(await browser.elementByCss('#params').text()).toBe('null')
-    })
   }
 )

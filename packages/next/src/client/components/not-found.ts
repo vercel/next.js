@@ -20,6 +20,10 @@ export function notFound(): never {
  * @param error the error that may reference a not found error
  * @returns true if the error is a not found error
  */
-export function isNotFoundError(error: any): error is NotFoundError {
-  return error?.digest === NOT_FOUND_ERROR_CODE
+export function isNotFoundError(error: unknown): error is NotFoundError {
+  if (typeof error !== 'object' || error === null || !('digest' in error)) {
+    return false
+  }
+
+  return error.digest === NOT_FOUND_ERROR_CODE
 }

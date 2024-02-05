@@ -30,11 +30,18 @@ import {
 } from './internal/helpers/use-error-handler'
 import {
   useSendMessage,
+  useTurbopack,
   useWebsocket,
   useWebsocketPing,
 } from './internal/helpers/use-websocket'
 import { parseComponentStack } from './internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import type {
+  HMR_ACTION_TYPES,
+  TurbopackMsgToBrowser,
+} from '../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -44,11 +51,10 @@ interface Dispatcher {
   onRefresh(): void
 }
 
-// TODO-APP: add actual type
-type PongEvent = any
-
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+let reloading = false
+let startLatency: number | null = null
 
 function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   if (hasUpdates) {
@@ -56,11 +62,37 @@ function onBeforeFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
   }
 }
 
-function onFastRefresh(dispatcher: Dispatcher, hasUpdates: boolean) {
+function onFastRefresh(
+  dispatcher: Dispatcher,
+  sendMessage: (message: string) => void,
+  updatedModules: ReadonlyArray<string>
+) {
   dispatcher.onBuildOk()
-  if (hasUpdates) {
-    dispatcher.onRefresh()
-  }
+
+  reportHmrLatency(sendMessage, updatedModules)
+
+  dispatcher.onRefresh()
+}
+
+function reportHmrLatency(
+  sendMessage: (message: string) => void,
+  updatedModules: ReadonlyArray<string>
+) {
+  if (!startLatency) return
+  let endLatency = Date.now()
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
 }
 
 // There is a newer version of the code available.
@@ -69,8 +101,16 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
-// Is there a newer version of this code available?
+/**
+ * Is there a newer version of this code available?
+ * For webpack: Check if the hash changed compared to __webpack_hash__
+ * For Turbopack: Always true because it doesn't have __webpack_hash__
+ */
 function isUpdateAvailable() {
+  if (process.env.TURBOPACK) {
+    return true
+  }
+
   /* globals __webpack_hash__ */
   // __webpack_hash__ is the hash of the current compilation.
   // It's a global variable injected by Webpack.
@@ -113,13 +153,15 @@ function performFullReload(err: any, sendMessage: any) {
     })
   )
 
+  if (reloading) return
+  reloading = true
   window.location.reload()
 }
 
 // Attempt to update code on the fly, fall back to a hard reload.
 function tryApplyUpdates(
   onBeforeUpdate: (hasUpdates: boolean) => void,
-  onHotUpdateSuccess: (hasUpdates: boolean) => void,
+  onHotUpdateSuccess: (updatedModules: string[]) => void,
   sendMessage: any,
   dispatcher: Dispatcher
 ) {
@@ -128,7 +170,7 @@ function tryApplyUpdates(
     return
   }
 
-  function handleApplyUpdates(err: any, updatedModules: any[] | null) {
+  function handleApplyUpdates(err: any, updatedModules: string[] | null) {
     if (err || RuntimeErrorHandler.hadRuntimeError || !updatedModules) {
       if (err) {
         console.warn(
@@ -151,7 +193,7 @@ function tryApplyUpdates(
     const hasUpdates = Boolean(updatedModules.length)
     if (typeof onHotUpdateSuccess === 'function') {
       // Maybe we want to do something.
-      onHotUpdateSuccess(hasUpdates)
+      onHotUpdateSuccess(updatedModules)
     }
 
     if (isUpdateAvailable()) {
@@ -203,21 +245,17 @@ function tryApplyUpdates(
 }
 
 function processMessage(
-  e: any,
-  sendMessage: any,
+  obj: HMR_ACTION_TYPES,
+  sendMessage: (message: string) => void,
+  processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   router: ReturnType<typeof useRouter>,
   dispatcher: Dispatcher
 ) {
-  let obj
-  try {
-    obj = JSON.parse(e.data)
-  } catch {}
-
-  if (!obj || !('action' in obj)) {
+  if (!('action' in obj)) {
     return
   }
 
-  function handleErrors(errors: any[]) {
+  function handleErrors(errors: ReadonlyArray<unknown>) {
     // "Massage" webpack messages.
     const formatted = formatWebpackMessages({
       errors: errors,
@@ -242,22 +280,42 @@ function processMessage(
     }
   }
 
+  function handleHotUpdate() {
+    if (process.env.TURBOPACK) {
+      dispatcher.onBuildOk()
+    } else {
+      tryApplyUpdates(
+        function onBeforeHotUpdate(hasUpdates: boolean) {
+          onBeforeFastRefresh(dispatcher, hasUpdates)
+        },
+        function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
+          // Only dismiss it when we're sure it's a hot update.
+          // Otherwise it would flicker right before the reload.
+          onFastRefresh(dispatcher, sendMessage, webpackUpdatedModules)
+        },
+        sendMessage,
+        dispatcher
+      )
+    }
+  }
+
   switch (obj.action) {
-    case 'building': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+      startLatency = Date.now()
       console.log('[Fast Refresh] rebuilding')
       break
     }
-    case 'built':
-    case 'sync': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
       if (obj.hash) {
         handleAvailableHash(obj.hash)
       }
 
-      const { errors, warnings, versionInfo } = obj
+      const { errors, warnings } = obj
 
       // Is undefined when it's a 'built' event
-      if (versionInfo) {
-        dispatcher.onVersionInfo(versionInfo)
+      if ('versionInfo' in obj) {
+        dispatcher.onVersionInfo(obj.versionInfo)
       }
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -284,9 +342,6 @@ function processMessage(
           })
         )
 
-        // Compilation with warnings (e.g. ESLint).
-        const isHotUpdate = obj.action !== 'sync'
-
         // Print warnings to the console.
         const formattedMessages = formatWebpackMessages({
           warnings: warnings,
@@ -304,22 +359,7 @@ function processMessage(
           console.warn(stripAnsi(formattedMessages.warnings[i]))
         }
 
-        // Attempt to apply hot updates or reload.
-        if (isHotUpdate) {
-          tryApplyUpdates(
-            function onBeforeHotUpdate(hasUpdates: boolean) {
-              onBeforeFastRefresh(dispatcher, hasUpdates)
-            },
-            function onSuccessfulHotUpdate(hasUpdates: any) {
-              // Only dismiss it when we're sure it's a hot update.
-              // Otherwise it would flicker right before the reload.
-              onFastRefresh(dispatcher, hasUpdates)
-            },
-            sendMessage,
-            dispatcher
-          )
-        }
-        return
+        // No early return here as we need to apply modules in the same way between warnings only and compiles without warnings
       }
 
       sendMessage(
@@ -329,30 +369,31 @@ function processMessage(
         })
       )
 
-      const isHotUpdate =
-        obj.action !== 'sync' &&
-        (!window.__NEXT_DATA__ || window.__NEXT_DATA__.page !== '/_error') &&
-        isUpdateAvailable()
-
-      // Attempt to apply hot updates or reload.
-      if (isHotUpdate) {
-        tryApplyUpdates(
-          function onBeforeHotUpdate(hasUpdates: boolean) {
-            onBeforeFastRefresh(dispatcher, hasUpdates)
-          },
-          function onSuccessfulHotUpdate(hasUpdates: any) {
-            // Only dismiss it when we're sure it's a hot update.
-            // Otherwise it would flicker right before the reload.
-            onFastRefresh(dispatcher, hasUpdates)
-          },
-          sendMessage,
-          dispatcher
-        )
+      if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+        // Handle hot updates
+        handleHotUpdate()
       }
       return
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+      processTurbopackMessage({
+        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+      })
+      break
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
+      dispatcher.onBeforeRefresh()
+      processTurbopackMessage({
+        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+        data: obj.data,
+      })
+      dispatcher.onRefresh()
+      reportHmrLatency(sendMessage, updatedModules)
+      break
+    }
     // TODO-APP: make server component change more granular
-    case 'serverComponentChanges': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
@@ -360,6 +401,8 @@ function processMessage(
         })
       )
       if (RuntimeErrorHandler.hadRuntimeError) {
+        if (reloading) return
+        reloading = true
         return window.location.reload()
       }
       startTransition(() => {
@@ -377,28 +420,30 @@ function processMessage(
 
       return
     }
-    case 'reloadPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
       sendMessage(
         JSON.stringify({
           event: 'client-reload-page',
           clientId: __nextDevClientId,
         })
       )
+      if (reloading) return
+      reloading = true
       return window.location.reload()
     }
-    case 'removedPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was removed.
       // @ts-ignore it exists, it's just hidden
       router.fastRefresh()
       return
     }
-    case 'addedPage': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added.
       // @ts-ignore it exists, it's just hidden
       router.fastRefresh()
       return
     }
-    case 'serverError': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj
       if (errorJSON) {
         const { message, stack } = JSON.parse(errorJSON)
@@ -408,47 +453,10 @@ function processMessage(
       }
       return
     }
-    case 'pong': {
-      const { invalid } = obj
-      if (invalid) {
-        // Payload can be invalid even if the page does exist.
-        // So, we check if it can be created.
-        fetch(window.location.href, {
-          credentials: 'same-origin',
-        }).then((pageRes) => {
-          let shouldRefresh = pageRes.ok
-          // TODO-APP: investigate why edge runtime needs to reload
-          const isEdgeRuntime = pageRes.headers.get('x-edge-runtime') === '1'
-          if (pageRes.status === 404) {
-            // Check if head present as document.head could be null
-            // We are still on the page,
-            // dispatch an error so it's caught by the NotFound handler
-            const devErrorMetaTag = document.head?.querySelector(
-              'meta[name="next-error"]'
-            )
-            shouldRefresh = !devErrorMetaTag
-          }
-          // Page exists now, reload
-          startTransition(() => {
-            if (shouldRefresh) {
-              if (isEdgeRuntime) {
-                window.location.reload()
-              } else {
-                // @ts-ignore it exists, it's just hidden
-                router.fastRefresh()
-                dispatcher.onRefresh()
-              }
-            }
-          })
-        })
-      }
-      return
-    }
-    case 'devPagesManifestUpdate': {
+    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
     default: {
-      throw new Error('Unexpected action ' + obj.action)
     }
   }
 }
@@ -510,13 +518,21 @@ export default function HotReload({
   const webSocketRef = useWebsocket(assetPrefix)
   useWebsocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
+  const processTurbopackMessage = useTurbopack(sendMessage)
 
   const router = useRouter()
 
   useEffect(() => {
-    const handler = (event: MessageEvent<PongEvent>) => {
+    const handler = (event: MessageEvent<any>) => {
       try {
-        processMessage(event, sendMessage, router, dispatcher)
+        const obj = JSON.parse(event.data)
+        processMessage(
+          obj,
+          sendMessage,
+          processTurbopackMessage,
+          router,
+          dispatcher
+        )
       } catch (err: any) {
         console.warn(
           '[HMR] Invalid message: ' + event.data + '\n' + (err?.stack ?? '')
@@ -530,7 +546,7 @@ export default function HotReload({
     }
 
     return () => websocket && websocket.removeEventListener('message', handler)
-  }, [sendMessage, router, webSocketRef, dispatcher])
+  }, [sendMessage, router, webSocketRef, dispatcher, processTurbopackMessage])
 
   return (
     <ReactDevOverlay onReactError={handleOnReactError} state={state}>

@@ -1,7 +1,6 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
@@ -31,13 +30,9 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 }
 
 /** Loads dotenv files and sets environment variables based on next config. */
-function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+function setUpEnv(dir: string) {
   const dev = false
   loadEnvConfig(dir, dev, Log)
-
-  if (nextConfig.experimental.newNextLinkBehavior) {
-    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-  }
 }
 
 /*
@@ -70,7 +65,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let resolvedBaseUrl
       let isEsmProject = false
       let pagesDir: string | undefined
-      let hasServerComponents: boolean | undefined
+      let serverComponents: boolean | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
@@ -78,11 +73,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        const isAppDirEnabled = !!nextConfig.experimental.appDir
-        const findPagesDirResult = findPagesDir(resolvedDir, isAppDirEnabled)
-        hasServerComponents = !!findPagesDirResult.appDir
+        const findPagesDirResult = findPagesDir(resolvedDir)
+        serverComponents = !!findPagesDirResult.appDir
         pagesDir = findPagesDirResult.pagesDir
-        setUpEnv(resolvedDir, nextConfig)
+        setUpEnv(resolvedDir)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
@@ -95,7 +89,7 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings()
+      await loadBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur
@@ -109,7 +103,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         compilerOptions: nextConfig?.compiler,
         jsConfig,
         resolvedBaseUrl,
-        hasServerComponents,
+        serverComponents,
         isEsmProject,
         pagesDir,
       }

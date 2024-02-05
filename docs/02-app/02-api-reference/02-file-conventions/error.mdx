@@ -75,7 +75,7 @@ export default function Error({ error, reset }) {
 
 ### `error`
 
-An instance of an [`Error`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error) object forwarded to the `error.js` Client Component.
+An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) object forwarded to the `error.js` Client Component.
 
 #### `error.message`
 
@@ -96,7 +96,7 @@ Can be used to prompt the user to attempt to recover from the error.
 
 > **Good to know**:
 >
-> - `error.js` boundaries must be **[Client Components](/docs/getting-started/react-essentials)**.
+> - `error.js` boundaries must be **[Client Components](/docs/app/building-your-application/rendering/client-components)**.
 > - In Production builds, errors forwarded from Server Components will be stripped of specific error details to avoid leaking sensitive information.
 > - An `error.js` boundary will **not** handle errors thrown in a `layout.js` component in the **same** segment because the error boundary is nested **inside** that layouts component.
 >   - To handle errors for a specific layout, place an `error.js` file in the layouts parent segment.
@@ -146,6 +146,10 @@ export default function GlobalError({ error, reset }) {
 >
 > - `global-error.js` replaces the root `layout.js` when active and so **must** define its own `<html>` and `<body>` tags.
 > - While designing error UI, you may find it helpful to use the [React Developer Tools](https://react.dev/learn/react-developer-tools) to manually toggle Error boundaries.
+
+## not-found.js
+
+The [`not-found`](https://nextjs.org/docs/app/api-reference/file-conventions/not-found) file is used to render UI when the `notFound()` function is thrown within a route segment.
 
 ## Version History
 

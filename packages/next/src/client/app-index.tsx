@@ -7,11 +7,15 @@ import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 
-import { HeadManagerContext } from '../shared/lib/head-manager-context'
-import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context'
+import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
+import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shared-runtime'
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
+import {
+  ActionQueueContext,
+  createMutableActionQueue,
+} from '../shared/lib/router/action-queue'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -46,12 +50,17 @@ let initialServerDataWriter: ReadableStreamDefaultController | undefined =
 let initialServerDataLoaded = false
 let initialServerDataFlushed = false
 
+let initialFormStateData: null | any = null
+
 function nextServerDataCallback(
-  seg: [isBootStrap: 0] | [isNotBootstrap: 1, responsePartial: string]
+  seg:
+    | [isBootStrap: 0]
+    | [isNotBootstrap: 1, responsePartial: string]
+    | [isFormState: 2, formState: any]
 ): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
-  } else {
+  } else if (seg[0] === 1) {
     if (!initialServerDataBuffer)
       throw new Error('Unexpected server data: missing bootstrap script.')
 
@@ -60,6 +69,8 @@ function nextServerDataCallback(
     } else {
       initialServerDataBuffer.push(seg[1])
     }
+  } else if (seg[0] === 2) {
+    initialFormStateData = seg[1]
   }
 }
 
@@ -144,6 +155,7 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  // TODO: remove in the next major version
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -215,6 +227,8 @@ export function hydrate() {
     }
   }
 
+  const actionQueue = createMutableActionQueue()
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider
@@ -222,9 +236,11 @@ export function hydrate() {
           appDir: true,
         }}
       >
-        <Root>
-          <RSCComponent />
-        </Root>
+        <ActionQueueContext.Provider value={actionQueue}>
+          <Root>
+            <RSCComponent />
+          </Root>
+        </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
@@ -290,7 +306,10 @@ export function hydrate() {
     }
   } else {
     React.startTransition(() =>
-      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, options)
+      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+        ...options,
+        formState: initialFormStateData,
+      })
     )
   }
 

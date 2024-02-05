@@ -2,7 +2,7 @@ import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 createNextDescribe(
-  'app dir css',
+  'app dir - css',
   {
     files: __dirname,
     skipDeployment: true,
@@ -175,11 +175,11 @@ createNextDescribe(
 
       describe('special entries', () => {
         it('should include css imported in loading.js', async () => {
-          const html = await next.render('/loading-bug/hi')
-          // The link tag should be included together with loading
-          expect(html).toMatch(
-            /<link rel="stylesheet" href="(.+)\.css(\?v=\d+)?"\/><h2>Loading...<\/h2>/
-          )
+          const $ = await next.render$('/loading-bug/hi')
+          // The link tag should be hoist into head with precedence properties
+          expect($('head link[data-precedence]').length).toBe(2)
+
+          expect($('body h2').text()).toBe('Loading...')
         })
 
         it('should include css imported in client template.js', async () => {
@@ -306,6 +306,11 @@ createNextDescribe(
               `window.getComputedStyle(document.querySelector('h1')).color`
             )
           ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
         })
       })
 
@@ -319,6 +324,11 @@ createNextDescribe(
           expect(
             await browser.eval(
               `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h2')).color`
             )
           ).toBe('rgb(255, 0, 0)')
 
@@ -336,6 +346,11 @@ createNextDescribe(
             expect(
               await browser.eval(
                 `window.getComputedStyle(document.querySelector('h1')).color`
+              )
+            ).toBe('rgb(255, 0, 0)')
+            expect(
+              await browser.eval(
+                `window.getComputedStyle(document.querySelector('h2')).color`
               )
             ).toBe('rgb(255, 0, 0)')
           } finally {

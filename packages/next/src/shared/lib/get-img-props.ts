@@ -38,6 +38,10 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  /**
+   * @deprecated Use `onLoad` instead.
+   * @see https://nextjs.org/docs/app/api-reference/components/image#onload
+   */
   onLoadingComplete?: OnLoadingComplete
   /**
    * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
@@ -86,7 +90,7 @@ export type ImageLoader = (p: ImageLoaderProps) => string
 // built-in loaders, not for a custom loader() prop.
 type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
 
-export type PlaceholderValue = 'blur' | 'empty'
+export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
 
@@ -112,7 +116,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: string }
+  { src: string; priority: boolean; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -375,7 +379,7 @@ export function getImgProps(
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
@@ -468,32 +472,39 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-
-    if (placeholder === 'blur') {
+    if (
+      placeholder !== 'empty' &&
+      placeholder !== 'blur' &&
+      !placeholder.startsWith('data:image/')
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "placeholder" property "${placeholder}".`
+      )
+    }
+    if (placeholder !== 'empty') {
       if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
-          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
-        )
-      }
-
-      if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
-
-        throw new Error(
-          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
-          Possible solutions:
-            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
-            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
-              ','
-            )}
-            - Remove the "placeholder" property, effectively no blur effect
-          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
     }
+    if (placeholder === 'blur' && !blurDataURL) {
+      const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
+
+      throw new Error(
+        `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+        Possible solutions:
+          - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+          - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+            ','
+          )} (animated images not supported)
+          - Remove the "placeholder" property, effectively no blur effect
+        Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+      )
+    }
     if ('ref' in rest) {
       warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoad" property instead.`
       )
     }
 
@@ -514,6 +525,12 @@ export function getImgProps(
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
+    }
+
+    if (onLoadingComplete) {
+      warnOnce(
+        `Image with src "${src}" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead.`
+      )
     }
 
     for (const [legacyKey, legacyValue] of Object.entries({
@@ -544,7 +561,7 @@ export function getImgProps(
           if (
             lcpImage &&
             !lcpImage.priority &&
-            lcpImage.placeholder !== 'blur' &&
+            lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
@@ -585,31 +602,39 @@ export function getImgProps(
     style
   )
 
-  const blurStyle =
-    placeholder === 'blur' && blurDataURL && !blurComplete
-      ? {
-          backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '50% 50%',
-          backgroundRepeat: 'no-repeat',
-          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
-            {
-              widthInt,
-              heightInt,
-              blurWidth,
-              blurHeight,
-              blurDataURL,
-              objectFit: imgStyle.objectFit,
-            }
-          )}")`,
-        }
-      : {}
+  const backgroundImage =
+    !blurComplete && placeholder !== 'empty'
+      ? placeholder === 'blur'
+        ? `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg({
+            widthInt,
+            heightInt,
+            blurWidth,
+            blurHeight,
+            blurDataURL: blurDataURL || '', // assume not undefined
+            objectFit: imgStyle.objectFit,
+          })}")`
+        : `url("${placeholder}")` // assume `data:image/`
+      : null
+
+  let placeholderStyle = backgroundImage
+    ? {
+        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundPosition: imgStyle.objectPosition || '50% 50%',
+        backgroundRepeat: 'no-repeat',
+        backgroundImage,
+      }
+    : {}
 
   if (process.env.NODE_ENV === 'development') {
-    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+    if (
+      placeholderStyle.backgroundImage &&
+      placeholder === 'blur' &&
+      blurDataURL?.startsWith('/')
+    ) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
       // because it can delay starting the dev server. Instead, `next-image-loader.js`
       // will inline a special url to lazily generate the blur placeholder at request time.
-      blurStyle.backgroundImage = `url("${blurDataURL}")`
+      placeholderStyle.backgroundImage = `url("${blurDataURL}")`
     }
   }
 
@@ -643,7 +668,7 @@ export function getImgProps(
     height: heightInt,
     decoding: 'async',
     className,
-    style: { ...imgStyle, ...blurStyle },
+    style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
     src: imgAttributes.src,

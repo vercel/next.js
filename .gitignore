@@ -1,5 +1,6 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next
@@ -17,6 +18,7 @@ test/node_modules
 *.log
 pids
 *.cpuprofile
+*.heapsnapshot
 
 # coverage
 .nyc_output

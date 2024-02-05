@@ -53,7 +53,9 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   async setup(
     browserName: string,
     locale: string,
-    javaScriptEnabled: boolean
+    javaScriptEnabled: boolean,
+    ignoreHttpsErrors: boolean,
+    headless: boolean
   ): Promise<void> {}
   async close(): Promise<void> {}
   async quit(): Promise<void> {}
@@ -98,13 +100,13 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   /**
    * Use browsers `go back` functionality.
    */
-  back(): BrowserInterface {
+  back(options?: any): BrowserInterface {
     return this
   }
   /**
    * Use browsers `go forward` functionality. Inverse of back.
    */
-  forward(): BrowserInterface {
+  forward(options?: any): BrowserInterface {
     return this
   }
   refresh(): BrowserInterface {
@@ -123,7 +125,17 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   off(event: Event, cb: (...args: any[]) => void) {}
   async loadPage(
     url: string,
-    { disableCache: boolean, beforePageLoad: Function }
+    {
+      disableCache,
+      cpuThrottleRate,
+      beforePageLoad,
+      pushErrorAsConsoleLog,
+    }: {
+      disableCache?: boolean
+      cpuThrottleRate?: number
+      beforePageLoad?: Function
+      pushErrorAsConsoleLog?: boolean
+    }
   ): Promise<void> {}
   async get(url: string): Promise<void> {}
 

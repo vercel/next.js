@@ -86,25 +86,11 @@ const runTests = (mode = 'dev', didReload = false) => {
   })
 
   it('should inline global values during build', async () => {
-    // make sure to build page
-    await renderViaHTTP(appPort, '/global')
+    const browser = await webdriver(appPort, '/global')
 
-    const buildManifest = require(join(
-      __dirname,
-      '../app/.next/build-manifest.json'
-    ))
-
-    const pageFile = buildManifest.pages['/global'].find((filename) =>
-      filename.includes('pages/global')
+    expect(await browser.waitForElementByCss('#global-value').text()).toBe(
+      'another'
     )
-
-    // read client bundle contents since a server side render can
-    // have the value available during render but it not be injected
-    const bundleContent = await fs.readFile(
-      join(appDir, '.next', pageFile),
-      'utf8'
-    )
-    expect(bundleContent).toContain('another')
   })
 
   it('should provide env for SSG', async () => {
@@ -203,7 +189,7 @@ describe('Env Config', () => {
         }
         await check(() => {
           return output.substring(outputIndex)
-        }, /Loaded env from/)
+        }, /Reload env:/)
       })
       afterAll(async () => {
         for (const { file, content } of originalContents) {
@@ -237,9 +223,9 @@ describe('Env Config', () => {
           )
 
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).not.toContain('.env.local')
 
@@ -262,9 +248,9 @@ describe('Env Config', () => {
           )
 
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
@@ -295,7 +281,9 @@ describe('Env Config', () => {
 
         try {
           const browser = await webdriver(appPort, '/global')
-          expect(await browser.elementByCss('p').text()).toBe('another')
+          expect(
+            await browser.waitForElementByCss('#global-value').text()
+          ).toBe('another')
 
           let outputIdx = output.length
 
@@ -307,13 +295,16 @@ describe('Env Config', () => {
             )
           )
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).not.toContain('.env.local')
 
-          await check(() => browser.elementByCss('p').text(), 'replaced')
+          await check(
+            () => browser.waitForElementByCss('#global-value').text(),
+            'replaced'
+          )
 
           outputIdx = output.length
 
@@ -322,21 +313,24 @@ describe('Env Config', () => {
             envLocalContent + `\nNEXT_PUBLIC_TEST_DEST=overridden`
           )
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
-          await check(() => browser.elementByCss('p').text(), 'overridden')
+          await check(
+            () => browser.waitForElementByCss('#global-value').text(),
+            'overridden'
+          )
 
           outputIdx = output.length
 
           await fs.writeFile(envLocalFile, envLocalContent)
           // we should only log we loaded new env from .env
-          await check(() => output.substring(outputIdx), /Loaded env from/)
+          await check(() => output.substring(outputIdx), /Reload env:/)
           expect(
-            [...output.substring(outputIdx).matchAll(/Loaded env from/g)].length
+            [...output.substring(outputIdx).matchAll(/Reload env:/g)].length
           ).toBe(1)
           expect(output.substring(outputIdx)).toContain('.env.local')
 
@@ -364,8 +358,7 @@ describe('Env Config', () => {
 
     runTests('test')
   })
-
-  describe('server mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       const { code } = await nextBuild(appDir, [], {
         env: {

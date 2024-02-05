@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
   check,
@@ -93,8 +92,7 @@ describe('Basic CSS Modules Ordering', () => {
 
     tests()
   })
-
-  describe('Production Mode', () => {
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     beforeAll(async () => {
       await remove(join(appDir, '.next'))
     })
@@ -112,57 +110,61 @@ describe('Basic CSS Modules Ordering', () => {
 })
 
 describe('should handle unresolved files gracefully', () => {
-  const workDir = join(fixturesDir, 'unresolved-css-url')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const workDir = join(fixturesDir, 'unresolved-css-url')
 
-  it('should build correctly', async () => {
-    await remove(join(workDir, '.next'))
-    const { code } = await nextBuild(workDir)
-    expect(code).toBe(0)
-  })
+    it('should build correctly', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
 
-  it('should have correct file references in CSS output', async () => {
-    const cssFiles = await readdir(join(workDir, '.next/static/css'))
+    it('should have correct file references in CSS output', async () => {
+      const cssFiles = await readdir(join(workDir, '.next/static/css'))
 
-    for (const file of cssFiles) {
-      if (file.endsWith('.css.map')) continue
+      for (const file of cssFiles) {
+        if (file.endsWith('.css.map')) continue
 
-      const content = await readFile(
-        join(workDir, '.next/static/css', file),
-        'utf8'
-      )
-      console.log(file, content)
+        const content = await readFile(
+          join(workDir, '.next/static/css', file),
+          'utf8'
+        )
+        console.log(file, content)
 
-      // if it is the combined global CSS file there are double the expected
-      // results
-      const howMany = content.includes('p{') || content.includes('p,') ? 2 : 1
+        // if it is the combined global CSS file there are double the expected
+        // results
+        const howMany = content.includes('p{') || content.includes('p,') ? 2 : 1
 
-      expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
-      // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
-      expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
-      expect(content.match(/\(https:\/\//g).length).toBe(howMany)
-    }
+        expect(content.match(/\(\/vercel\.svg/g).length).toBe(howMany)
+        // expect(content.match(/\(vercel\.svg/g).length).toBe(howMany)
+        expect(content.match(/\(\/_next\/static\/media/g).length).toBe(1)
+        expect(content.match(/\(https:\/\//g).length).toBe(howMany)
+      }
+    })
   })
 })
 
 describe('Data URLs', () => {
-  const workDir = join(fixturesDir, 'data-url')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const workDir = join(fixturesDir, 'data-url')
 
-  it('should compile successfully', async () => {
-    await remove(join(workDir, '.next'))
-    const { code } = await nextBuild(workDir)
-    expect(code).toBe(0)
-  })
+    it('should compile successfully', async () => {
+      await remove(join(workDir, '.next'))
+      const { code } = await nextBuild(workDir)
+      expect(code).toBe(0)
+    })
 
-  it('should have emitted expected files', async () => {
-    const cssFolder = join(workDir, '.next/static/css')
-    const files = await readdir(cssFolder)
-    const cssFiles = files.filter((f) => /\.css$/.test(f))
+    it('should have emitted expected files', async () => {
+      const cssFolder = join(workDir, '.next/static/css')
+      const files = await readdir(cssFolder)
+      const cssFiles = files.filter((f) => /\.css$/.test(f))
 
-    expect(cssFiles.length).toBe(1)
-    const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
-      /background:url\("data:[^"]+"\)/
-    )
+      expect(cssFiles.length).toBe(1)
+      const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
+      expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
+        /background:url\("data:[^"]+"\)/
+      )
+    })
   })
 })
 
@@ -250,83 +252,75 @@ describe('Ordering with Global CSS and Modules (dev)', () => {
 })
 
 describe('Ordering with Global CSS and Modules (prod)', () => {
-  const appDir = join(fixturesDir, 'global-and-module-ordering')
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    const appDir = join(fixturesDir, 'global-and-module-ordering')
 
-  let appPort
-  let app
-  let stdout
-  let code
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-    ;({ code, stdout } = await nextBuild(appDir, [], {
-      stdout: true,
-    }))
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
+    let appPort
+    let app
+    let stdout
+    let code
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      ;({ code, stdout } = await nextBuild(appDir, [], {
+        stdout: true,
+      }))
+      appPort = await findPort()
+      app = await nextStart(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  it('should have compiled successfully', () => {
-    expect(code).toBe(0)
-    expect(stdout).toMatch(/Compiled successfully/)
-  })
+    it('should have compiled successfully', () => {
+      expect(code).toBe(0)
+      expect(stdout).toMatch(/Compiled successfully/)
+    })
 
-  it('should have the correct color (css ordering)', async () => {
-    const browser = await webdriver(appPort, '/')
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
 
-    const currentColor = await browser.eval(
-      `window.getComputedStyle(document.querySelector('#blueText')).color`
-    )
-    expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('#blueText')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+    })
   })
 })
 
 // https://github.com/vercel/next.js/issues/12445
-describe('CSS Modules Composes Ordering', () => {
-  const appDir = join(fixturesDir, 'composes-ordering')
-  let app, appPort
+// This feature is not supported in Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'CSS Modules Composes Ordering',
+  () => {
+    const appDir = join(fixturesDir, 'composes-ordering')
+    let app, appPort
 
-  function tests(isDev = false) {
-    async function checkBlackTitle(browser) {
-      await browser.waitForElementByCss('#black-title')
-      const titleColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#black-title')).color`
-      )
-      expect(titleColor).toBe('rgb(17, 17, 17)')
-    }
-    async function checkRedTitle(browser) {
-      await browser.waitForElementByCss('#red-title')
-      const titleColor = await browser.eval(
-        `window.getComputedStyle(document.querySelector('#red-title')).color`
-      )
-      expect(titleColor).toBe('rgb(255, 0, 0)')
-    }
-
-    it('should have correct color on index page (on load)', async () => {
-      const browser = await webdriver(appPort, '/')
-      try {
-        await checkBlackTitle(browser)
-      } finally {
-        await browser.close()
+    function tests(isDev = false) {
+      async function checkBlackTitle(browser) {
+        await browser.waitForElementByCss('#black-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#black-title')).color`
+        )
+        expect(titleColor).toBe('rgb(17, 17, 17)')
       }
-    })
-
-    it('should have correct color on index page (on hover)', async () => {
-      const browser = await webdriver(appPort, '/')
-      try {
-        await checkBlackTitle(browser)
-        await browser.waitForElementByCss('#link-other').moveTo()
-        await waitFor(2000)
-        await checkBlackTitle(browser)
-      } finally {
-        await browser.close()
+      async function checkRedTitle(browser) {
+        await browser.waitForElementByCss('#red-title')
+        const titleColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#red-title')).color`
+        )
+        expect(titleColor).toBe('rgb(255, 0, 0)')
       }
-    })
 
-    if (!isDev) {
-      it('should not change color on hover', async () => {
+      it('should have correct color on index page (on load)', async () => {
+        const browser = await webdriver(appPort, '/')
+        try {
+          await checkBlackTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('should have correct color on index page (on hover)', async () => {
         const browser = await webdriver(appPort, '/')
         try {
           await checkBlackTitle(browser)
@@ -338,118 +332,134 @@ describe('CSS Modules Composes Ordering', () => {
         }
       })
 
-      it('should have correct CSS injection order', async () => {
+      if (!isDev) {
+        it('should not change color on hover', async () => {
+          const browser = await webdriver(appPort, '/')
+          try {
+            await checkBlackTitle(browser)
+            await browser.waitForElementByCss('#link-other').moveTo()
+            await waitFor(2000)
+            await checkBlackTitle(browser)
+          } finally {
+            await browser.close()
+          }
+        })
+
+        it('should have correct CSS injection order', async () => {
+          const browser = await webdriver(appPort, '/')
+          try {
+            await checkBlackTitle(browser)
+
+            const prevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const currentPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(prevSiblingHref).toBeDefined()
+            expect(prevSiblingHref).toBe(currentPageHref)
+
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkRedTitle(browser)
+
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling).toBe('')
+            expect(newPageHref).toBeDefined()
+            expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkBlackTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBe('')
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
+          } finally {
+            await browser.close()
+          }
+        })
+      }
+
+      it('should have correct color on index page (on nav from index)', async () => {
         const browser = await webdriver(appPort, '/')
         try {
           await checkBlackTitle(browser)
-
-          const prevSiblingHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
-          )
-          const currentPageHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
-          )
-          expect(prevSiblingHref).toBeDefined()
-          expect(prevSiblingHref).toBe(currentPageHref)
-
-          // Navigate to other:
           await browser.waitForElementByCss('#link-other').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-index')
           await checkRedTitle(browser)
 
-          const newPrevSibling = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling).toBe('')
-          expect(newPageHref).toBeDefined()
-          expect(newPageHref).not.toBe(currentPageHref)
-
-          // Navigate to home:
+          // Navigate back to index:
           await browser.waitForElementByCss('#link-index').click()
           await checkBlackTitle(browser)
+        } finally {
+          await browser.close()
+        }
+      })
 
-          const newPrevSibling2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling2).toBe('')
-          expect(newPageHref2).toBeDefined()
-          expect(newPageHref2).toBe(currentPageHref)
+      it('should have correct color on index page (on nav from other)', async () => {
+        const browser = await webdriver(appPort, '/other')
+        try {
+          await checkRedTitle(browser)
+          await browser.waitForElementByCss('#link-index').click()
+
+          // Wait for navigation:
+          await browser.waitForElementByCss('#link-other')
+          await checkBlackTitle(browser)
+
+          // Navigate back to other:
+          await browser.waitForElementByCss('#link-other').click()
+          await checkRedTitle(browser)
         } finally {
           await browser.close()
         }
       })
     }
 
-    it('should have correct color on index page (on nav from index)', async () => {
-      const browser = await webdriver(appPort, '/')
-      try {
-        await checkBlackTitle(browser)
-        await browser.waitForElementByCss('#link-other').click()
+    describe('Development Mode', () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+      })
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-        // Wait for navigation:
-        await browser.waitForElementByCss('#link-index')
-        await checkRedTitle(browser)
-
-        // Navigate back to index:
-        await browser.waitForElementByCss('#link-index').click()
-        await checkBlackTitle(browser)
-      } finally {
-        await browser.close()
-      }
+      tests(true)
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+        })
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-    it('should have correct color on index page (on nav from other)', async () => {
-      const browser = await webdriver(appPort, '/other')
-      try {
-        await checkRedTitle(browser)
-        await browser.waitForElementByCss('#link-index').click()
-
-        // Wait for navigation:
-        await browser.waitForElementByCss('#link-other')
-        await checkBlackTitle(browser)
-
-        // Navigate back to other:
-        await browser.waitForElementByCss('#link-other').click()
-        await checkRedTitle(browser)
-      } finally {
-        await browser.close()
+        tests()
       }
-    })
+    )
   }
-
-  describe('Development Mode', () => {
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    tests(true)
-  })
-
-  describe('Production Mode', () => {
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-    })
-    beforeAll(async () => {
-      await nextBuild(appDir, [], {})
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-    })
-
-    tests()
-  })
-})
+)

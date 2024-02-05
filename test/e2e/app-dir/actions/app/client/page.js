@@ -2,7 +2,14 @@
 
 import { useState } from 'react'
 
-import double, { inc, dec, redirectAction, getHeaders } from './actions'
+import double, {
+  inc,
+  dec,
+  redirectAction,
+  getHeaders,
+  renamed,
+  slowInc,
+} from './actions'
 import { test } from './actions-lib'
 
 export default function Counter() {
@@ -13,12 +20,23 @@ export default function Counter() {
       <button
         id="inc"
         onClick={async () => {
-          console.log(inc)
           const newCount = await inc(count)
           setCount(newCount)
+
+          // test renamed action
+          renamed()
         }}
       >
         +1
+      </button>
+      <button
+        id="slow-inc"
+        onClick={async () => {
+          const newCount = await slowInc(count)
+          setCount(newCount)
+        }}
+      >
+        +1 (Slow)
       </button>
       <button
         id="dec"
@@ -56,6 +74,16 @@ export default function Counter() {
           }
         >
           redirect external
+        </button>
+      </form>
+      <form>
+        <button
+          id="redirect-absolute"
+          formAction={() =>
+            redirectAction(location.origin + '/redirect-target')
+          }
+        >
+          redirect internal with domain
         </button>
       </form>
       <form action={getHeaders}>

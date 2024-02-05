@@ -388,24 +388,50 @@ module.exports = {
 
 ## Cache-Control
 
-You can set the `Cache-Control` header in your [Next.js API Routes](/docs/pages/building-your-application/routing/api-routes) by using the `res.setHeader` method:
+You cannot set `Cache-Control` headers in `next.config.js` for pages or assets, as these headers will be overwritten in production to ensure that responses and static assets are cached effectively.
 
-```js filename="pages/api/user.js"
-export default function handler(req, res) {
+<AppOnly>
+
+Learn more about [caching](/docs/app/building-your-application/caching) with the App Router.
+
+</AppOnly>
+
+<PagesOnly>
+
+If you need to revalidate the cache of a page that has been [statically generated](/docs/pages/building-your-application/rendering/static-site-generation), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) function.
+
+You can set the `Cache-Control` header in your [API Routes](/docs/pages/building-your-application/routing/api-routes) by using the `res.setHeader` method:
+
+```ts filename="pages/api/hello.ts" switcher
+import type { NextApiRequest, NextApiResponse } from 'next'
+
+type ResponseData = {
+  message: string
+}
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData>
+) {
   res.setHeader('Cache-Control', 's-maxage=86400')
-  res.status(200).json({ name: 'John Doe' })
+  res.status(200).json({ message: 'Hello from Next.js!' })
 }
 ```
 
-You cannot set `Cache-Control` headers in `next.config.js` file as these will be overwritten in production to ensure that API Routes and static assets are cached effectively.
+```js filename="pages/api/hello.js" switcher
+export default function handler(req, res) {
+  res.setHeader('Cache-Control', 's-maxage=86400')
+  res.status(200).json({ message: 'Hello from Next.js!' })
+}
+```
 
-If you need to revalidate the cache of a page that has been [statically generated](/docs/pages/building-your-application/rendering/static-site-generation), you can do so by setting the `revalidate` prop in the page's [`getStaticProps`](/docs/pages/building-your-application/data-fetching/get-static-props) function.
+</PagesOnly>
 
 ## Options
 
 ### X-DNS-Prefetch-Control
 
-This header controls DNS prefetching, allowing browsers to proactively perform domain name resolution on external links, images, CSS, JavaScript, and more. This prefetching is performed in the background, so the [DNS](https://developer.mozilla.org/en-US/docs/Glossary/DNS) is more likely to be resolved by the time the referenced items are needed. This reduces latency when the user clicks a link.
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-DNS-Prefetch-Control) controls DNS prefetching, allowing browsers to proactively perform domain name resolution on external links, images, CSS, JavaScript, and more. This prefetching is performed in the background, so the [DNS](https://developer.mozilla.org/docs/Glossary/DNS) is more likely to be resolved by the time the referenced items are needed. This reduces latency when the user clicks a link.
 
 ```js
 {
@@ -416,19 +442,9 @@ This header controls DNS prefetching, allowing browsers to proactively perform d
 
 ### Strict-Transport-Security
 
-This header informs browsers it should only be accessed using HTTPS, instead of using HTTP. Using the configuration below, all present and future subdomains will use HTTPS for a `max-age` of 2 years. This blocks access to pages or subdomains that can only be served over HTTP.
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/Strict-Transport-Security) informs browsers it should only be accessed using HTTPS, instead of using HTTP. Using the configuration below, all present and future subdomains will use HTTPS for a `max-age` of 2 years. This blocks access to pages or subdomains that can only be served over HTTP.
 
-<AppOnly>
-
-If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare [`headers`](/docs/app/api-reference/next-config-js/headers) in your `next.config.js`.
-
-</AppOnly>
-
-<PagesOnly>
-
-If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare [`headers`](/docs/pages/api-reference/next-config-js/headers) in your `next.config.js`.
-
-</PagesOnly>
+If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/headers#strict-transport-security?utm_source=next-site&utm_medium=docs&utm_campaign=next-website), this header is not necessary as it's automatically added to all deployments unless you declare `headers` in your `next.config.js`.
 
 ```js
 {
@@ -439,7 +455,9 @@ If you're deploying to [Vercel](https://vercel.com/docs/concepts/edge-network/he
 
 ### X-Frame-Options
 
-This header indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks. This header has been superseded by CSP's `frame-ancestors` option, which has better support in modern browsers.
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Frame-Options) indicates whether the site should be allowed to be displayed within an `iframe`. This can prevent against clickjacking attacks.
+
+**This header has been superseded by CSP's `frame-ancestors` option**, which has better support in modern browsers (see [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) for configuration details).
 
 ```js
 {
@@ -450,7 +468,7 @@ This header indicates whether the site should be allowed to be displayed within 
 
 ### Permissions-Policy
 
-This header allows you to control which features and APIs can be used in the browser. It was previously named `Feature-Policy`. You can view the full list of permission options [here](https://github.com/w3c/webappsec-permissions-policy/blob/main/features.md).
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/Permissions-Policy) allows you to control which features and APIs can be used in the browser. It was previously named `Feature-Policy`.
 
 ```js
 {
@@ -461,7 +479,9 @@ This header allows you to control which features and APIs can be used in the bro
 
 ### X-Content-Type-Options
 
-This header prevents the browser from attempting to guess the type of content if the `Content-Type` header is not explicitly set. This can prevent XSS exploits for websites that allow users to upload and share files. For example, a user trying to download an image, but having it treated as a different `Content-Type` like an executable, which could be malicious. This header also applies to downloading browser extensions. The only valid value for this header is `nosniff`.
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/X-Content-Type-Options) prevents the browser from attempting to guess the type of content if the `Content-Type` header is not explicitly set. This can prevent XSS exploits for websites that allow users to upload and share files.
+
+For example, a user trying to download an image, but having it treated as a different `Content-Type` like an executable, which could be malicious. This header also applies to downloading browser extensions. The only valid value for this header is `nosniff`.
 
 ```js
 {
@@ -472,7 +492,7 @@ This header prevents the browser from attempting to guess the type of content if
 
 ### Referrer-Policy
 
-This header controls how much information the browser includes when navigating from the current website (origin) to another. You can read about the different options [here](https://scotthelme.co.uk/a-new-security-header-referrer-policy/).
+[This header](https://developer.mozilla.org/docs/Web/HTTP/Headers/Referrer-Policy) controls how much information the browser includes when navigating from the current website (origin) to another.
 
 ```js
 {
@@ -483,35 +503,7 @@ This header controls how much information the browser includes when navigating f
 
 ### Content-Security-Policy
 
-This header helps prevent cross-site scripting (XSS), clickjacking and other code injection attacks. Content Security Policy (CSP) can specify allowed origins for content including scripts, stylesheets, images, fonts, objects, media (audio, video), iframes, and more.
-
-You can read about the many different CSP options [here](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP).
-
-You can add Content Security Policy directives using a template string.
-
-```js
-// Before defining your Security Headers
-// add Content Security Policy directives using a template string.
-
-const ContentSecurityPolicy = `
-  default-src 'self';
-  script-src 'self';
-  child-src example.com;
-  style-src 'self' example.com;
-  font-src 'self';
-`
-```
-
-When a directive uses a keyword such as `self`, wrap it in single quotes `''`.
-
-In the header's value, replace the new line with a space.
-
-```js
-{
-  key: 'Content-Security-Policy',
-  value: ContentSecurityPolicy.replace(/\s{2,}/g, ' ').trim()
-}
-```
+Learn more about adding a [Content Security Policy](/docs/app/building-your-application/configuring/content-security-policy) to your application.
 
 ## Version History
 

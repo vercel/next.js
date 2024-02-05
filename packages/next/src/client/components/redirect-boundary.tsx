@@ -1,6 +1,6 @@
 'use client'
 import React, { useEffect } from 'react'
-import { AppRouterInstance } from '../../shared/lib/app-router-context'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import {
   RedirectType,
@@ -26,7 +26,6 @@ function HandleRedirect({
   const router = useRouter()
 
   useEffect(() => {
-    // @ts-ignore startTransition exists
     React.startTransition(() => {
       if (redirectType === RedirectType.push) {
         router.push(redirect, {})

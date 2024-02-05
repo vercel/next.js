@@ -1,0 +1,203 @@
+@import "@fontawesome/scss/mixins";
+@import "@fontawesome/scss/variables";
+@import "@sass/abstracts/mixins";
+
+//files icons
+.field-filetypeicon > a > span,
+.pdf,
+.xls,
+.xlsx,
+.pptx,
+.ppt,
+.docx,
+.doc,
+.bmp,
+.png,
+.jpg,
+.jpeg,
+.psd,
+.gif,
+.avi,
+.mp4,
+.wmv,
+.mov,
+.mp3,
+.wma,
+.txt,
+.zip {
+  display: inline-block;
+  box-sizing: border-box;
+  font-weight: normal;
+  width: 15px;
+  height: 21px;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  &:before {
+    @include fa-icon();
+    font-size: 16px !important;
+    position: absolute;
+    display: block;
+    top: 50%;
+    margin: 0;
+    padding: 0;
+    transform: translateY(-50%);
+  }
+}
+.field-filetypeicon span:before {
+  content: $fa-var-file-o;
+}
+.field-filetypeicon {
+  .pdf:before {
+    content: $fa-var-file-pdf-o;
+  }
+  .xlsx,
+  .xls {
+    &:before {
+      content: $fa-var-file-excel-o;
+    }
+  }
+  .pptx,
+  .ppt {
+    &:before {
+      content: $fa-var-file-powerpoint-o;
+    }
+  }
+  .docx,
+  .doc {
+    &:before {
+      content: $fa-var-file-word-o;
+    }
+  }
+  .bmp,
+  .png,
+  .jpg,
+  .jpeg,
+  .psd,
+  .gif,
+  .tif {
+    &:before {
+      content: $fa-var-file-image-o;
+    }
+  }
+  .avi,
+  .mp4,
+  .wmv,
+  .mov,
+  .mpg,
+  .mkv,
+  .vp6,
+  .vid,
+  .rv,
+  .webm,
+  .swf,
+  .flv,
+  .m4v,
+  .h264,
+  .mk3d,
+  .gifv,
+  .oggv,
+  .movie,
+  .divx {
+    &:before {
+      content: $fa-var-file-video-o;
+    }
+  }
+  .mp3,
+  .wma,
+  .wav,
+  .fla,
+  .flac,
+  .ra,
+  .rma,
+  .aif,
+  .aiff,
+  .aa,
+  .aac,
+  .mid,
+  .midi,
+  .aax,
+  .ac3,
+  .au,
+  .ogg,
+  .avr,
+  .m4a,
+  .mp4a,
+  .amz,
+  .mka,
+  .asx,
+  .pcm,
+  .m3u,
+  .xwma {
+    &:before {
+      content: $fa-var-file-audio-o;
+    }
+  }
+  .txt:before {
+    content: $fa-var-file-text-o;
+  }
+  .zip,
+  .zipx,
+  .rar,
+  .tar,
+  .gz,
+  .dmg,
+  .iso {
+    &:before {
+      content: $fa-var-file-archive-o;
+    }
+  }
+  .css,
+  .js,
+  .py,
+  .git,
+  .py,
+  .cpp,
+  .h,
+  .ini,
+  .config {
+    &:before {
+      content: $fa-var-file-code-o;
+    }
+  }
+  .exe,
+  .jar,
+  .dll,
+  .bat,
+  .pl,
+  .scr,
+  .msi,
+  .app,
+  .deb,
+  .apk,
+  .jar,
+  .vb,
+  .prg,
+  .sh {
+    &:before {
+      content: $fa-var-cogs;
+    }
+  }
+  .com,
+  .net,
+  .org,
+  .edu,
+  .gov,
+  .mil,
+  .html,
+  .htm,
+  .xhtml,
+  .jhtml,
+  .php,
+  .php3,
+  .php4,
+  .php5,
+  .phtmle,
+  .asp,
+  .aspx,
+  .cfm {
+    &:before {
+      content: $fa-var-link;
+    }
+  }
+}

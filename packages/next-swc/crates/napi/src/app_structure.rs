@@ -8,10 +8,10 @@ use napi::{
 };
 use next_core::app_structure::{
     find_app_dir, get_entrypoints as get_entrypoints_impl, Components, Entrypoint, Entrypoints,
-    LoaderTree, MetadataWithAltItem,
+    LoaderTree, MetadataItem, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{unit, ReadRef, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
         tasks::{
@@ -41,6 +41,8 @@ struct LoaderTreeForJs {
     parallel_routes: HashMap<String, ReadRef<LoaderTreeForJs>>,
     #[turbo_tasks(trace_ignore)]
     components: ComponentsForJs,
+    #[turbo_tasks(trace_ignore)]
+    global_metadata: GlobalMetadataForJs,
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, ValueDebugFormat, TraceRawVcs)]
@@ -101,20 +103,31 @@ struct ComponentsForJs {
 #[serde(rename_all = "camelCase")]
 struct MetadataForJs {
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    icon: Vec<MetadataForJsItem>,
+    icon: Vec<MetadataWithAltItemForJs>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    apple: Vec<MetadataForJsItem>,
+    apple: Vec<MetadataWithAltItemForJs>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    twitter: Vec<MetadataForJsItem>,
+    twitter: Vec<MetadataWithAltItemForJs>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    open_graph: Vec<MetadataForJsItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    favicon: Vec<MetadataForJsItem>,
+    open_graph: Vec<MetadataWithAltItemForJs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sitemap: Option<MetadataItemForJs>,
+}
+
+#[derive(Default, Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
+#[serde(rename_all = "camelCase")]
+struct GlobalMetadataForJs {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    favicon: Option<MetadataItemForJs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    robots: Option<MetadataItemForJs>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    manifest: Option<MetadataItemForJs>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
 #[serde(tag = "type", rename_all = "camelCase")]
-enum MetadataForJsItem {
+enum MetadataWithAltItemForJs {
     Static {
         path: String,
         alt_path: Option<String>,
@@ -122,6 +135,13 @@ enum MetadataForJsItem {
     Dynamic {
         path: String,
     },
+}
+
+#[derive(Deserialize, Serialize, PartialEq, Eq, ValueDebugFormat)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum MetadataItemForJs {
+    Static { path: String },
+    Dynamic { path: String },
 }
 
 async fn prepare_components_for_js(
@@ -158,48 +178,73 @@ async fn prepare_components_for_js(
     add(&mut result.not_found, project_path, not_found).await?;
     add(&mut result.default, project_path, default).await?;
     add(&mut result.route, project_path, route).await?;
-    async fn add_meta<'a>(
-        meta: &mut Vec<MetadataForJsItem>,
-        project_path: Vc<FileSystemPath>,
-        value: impl Iterator<Item = &'a MetadataWithAltItem>,
-    ) -> Result<()> {
-        let mut value = value.peekable();
-        if value.peek().is_some() {
-            *meta = value
-                .map(|value| async move {
-                    Ok(match value {
-                        MetadataWithAltItem::Static { path, alt_path } => {
-                            let path = fs_path_to_path(project_path, *path).await?;
-                            let alt_path = if let Some(alt_path) = alt_path {
-                                Some(fs_path_to_path(project_path, *alt_path).await?)
-                            } else {
-                                None
-                            };
-                            MetadataForJsItem::Static { path, alt_path }
-                        }
-                        MetadataWithAltItem::Dynamic { path } => {
-                            let path = fs_path_to_path(project_path, *path).await?;
-                            MetadataForJsItem::Dynamic { path }
-                        }
-                    })
-                })
-                .try_join()
-                .await?;
-        }
-        Ok::<_, anyhow::Error>(())
-    }
+
     let meta = &mut result.metadata;
-    add_meta(&mut meta.icon, project_path, metadata.icon.iter()).await?;
-    add_meta(&mut meta.apple, project_path, metadata.apple.iter()).await?;
-    add_meta(&mut meta.twitter, project_path, metadata.twitter.iter()).await?;
-    add_meta(
+    add_meta_vec(&mut meta.icon, project_path, metadata.icon.iter()).await?;
+    add_meta_vec(&mut meta.apple, project_path, metadata.apple.iter()).await?;
+    add_meta_vec(&mut meta.twitter, project_path, metadata.twitter.iter()).await?;
+    add_meta_vec(
         &mut meta.open_graph,
         project_path,
         metadata.open_graph.iter(),
     )
     .await?;
-    add_meta(&mut meta.favicon, project_path, metadata.favicon.iter()).await?;
+    add_meta(&mut meta.sitemap, project_path, metadata.sitemap).await?;
     Ok(result)
+}
+
+async fn add_meta_vec<'a>(
+    meta: &mut Vec<MetadataWithAltItemForJs>,
+    project_path: Vc<FileSystemPath>,
+    value: impl Iterator<Item = &'a MetadataWithAltItem>,
+) -> Result<()> {
+    let mut value = value.peekable();
+    if value.peek().is_some() {
+        *meta = value
+            .map(|value| async move {
+                Ok(match value {
+                    MetadataWithAltItem::Static { path, alt_path } => {
+                        let path = fs_path_to_path(project_path, *path).await?;
+                        let alt_path = if let Some(alt_path) = alt_path {
+                            Some(fs_path_to_path(project_path, *alt_path).await?)
+                        } else {
+                            None
+                        };
+                        MetadataWithAltItemForJs::Static { path, alt_path }
+                    }
+                    MetadataWithAltItem::Dynamic { path } => {
+                        let path = fs_path_to_path(project_path, *path).await?;
+                        MetadataWithAltItemForJs::Dynamic { path }
+                    }
+                })
+            })
+            .try_join()
+            .await?;
+    }
+
+    Ok(())
+}
+
+async fn add_meta<'a>(
+    meta: &mut Option<MetadataItemForJs>,
+    project_path: Vc<FileSystemPath>,
+    value: Option<MetadataItem>,
+) -> Result<()> {
+    if value.is_some() {
+        *meta = match value {
+            Some(MetadataItem::Static { path }) => {
+                let path = fs_path_to_path(project_path, path).await?;
+                Some(MetadataItemForJs::Static { path })
+            }
+            Some(MetadataItem::Dynamic { path }) => {
+                let path = fs_path_to_path(project_path, path).await?;
+                Some(MetadataItemForJs::Dynamic { path })
+            }
+            None => None,
+        };
+    }
+
+    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -208,10 +253,13 @@ async fn prepare_loader_tree_for_js(
     loader_tree: Vc<LoaderTree>,
 ) -> Result<Vc<LoaderTreeForJs>> {
     let LoaderTree {
+        page: _,
         segment,
         parallel_routes,
         components,
+        global_metadata,
     } = &*loader_tree.await?;
+
     let parallel_routes = parallel_routes
         .iter()
         .map(|(key, &value)| async move {
@@ -224,11 +272,21 @@ async fn prepare_loader_tree_for_js(
         .await?
         .into_iter()
         .collect();
+
     let components = prepare_components_for_js(project_path, *components).await?;
+
+    let global_metadata = global_metadata.await?;
+
+    let mut meta = GlobalMetadataForJs::default();
+    add_meta(&mut meta.favicon, project_path, global_metadata.favicon).await?;
+    add_meta(&mut meta.manifest, project_path, global_metadata.manifest).await?;
+    add_meta(&mut meta.robots, project_path, global_metadata.robots).await?;
+
     Ok(LoaderTreeForJs {
         segment: segment.clone(),
         parallel_routes,
         components,
+        global_metadata: meta,
     }
     .cell())
 }
@@ -250,6 +308,9 @@ async fn prepare_entrypoints_for_js(
                     },
                     Entrypoint::AppRoute { path, .. } => EntrypointForJs::AppRoute {
                         path: fs_path_to_path(project_path, path).await?,
+                    },
+                    Entrypoint::AppMetadata { metadata, .. } => EntrypointForJs::AppRoute {
+                        path: fs_path_to_path(project_path, metadata.into_path()).await?,
                     },
                 };
                 Ok((key, value))
@@ -332,7 +393,7 @@ pub fn stream_entrypoints(
                 func.call(Ok(None), ThreadsafeFunctionCallMode::NonBlocking);
             }
 
-            Ok(unit().node)
+            Ok::<Vc<()>, _>(Default::default())
         })
     });
     Ok(())

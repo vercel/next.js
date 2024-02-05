@@ -17,7 +17,7 @@ type Repo = {
   stargazers_count: number
 }
 
-export const getStaticPaths: GetStaticPaths = async () => {
+export const getStaticPaths = (async () => {
   return {
     paths: [
       {
@@ -28,15 +28,15 @@ export const getStaticPaths: GetStaticPaths = async () => {
     ],
     fallback: true, // false or "blocking"
   }
-}
+}) satisfies GetStaticPaths
 
-export const getStaticProps: GetStaticProps<{
-  repo: Repo
-}> = async () => {
+export const getStaticProps = (async (context) => {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
-}
+}) satisfies GetStaticProps<{
+  repo: Repo
+}>
 
 export default function Page({
   repo,
@@ -46,7 +46,7 @@ export default function Page({
 ```
 
 ```jsx filename="pages/repo/[name].js" switcher
-export const getStaticPaths = async () => {
+export async function getStaticPaths() {
   return {
     paths: [
       {
@@ -59,7 +59,7 @@ export const getStaticPaths = async () => {
   }
 }
 
-export const getStaticProps = async () => {
+export async function getStaticProps() {
   const res = await fetch('https://api.github.com/repos/vercel/next.js')
   const repo = await res.json()
   return { props: { repo } }
@@ -250,10 +250,10 @@ export default Post
 
 ## Version History
 
-| Version   | Changes                                                                                                                                                                                                    |
-| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v13.4.0` | [App Router](/docs/app/building-your-application/data-fetching) is now stable with simplifed data fetching, including [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) |
-| `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) is stable.                                         |
-| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) added (beta).                                      |
-| `v9.5.0`  | Stable [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)                                                                              |
-| `v9.3.0`  | `getStaticPaths` introduced.                                                                                                                                                                               |
+| Version   | Changes                                                                                                                                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v13.4.0` | [App Router](/docs/app/building-your-application/data-fetching) is now stable with simplified data fetching, including [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) |
+| `v12.2.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) is stable.                                          |
+| `v12.1.0` | [On-Demand Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation) added (beta).                                       |
+| `v9.5.0`  | Stable [Incremental Static Regeneration](/docs/pages/building-your-application/data-fetching/incremental-static-regeneration)                                                                               |
+| `v9.3.0`  | `getStaticPaths` introduced.                                                                                                                                                                                |

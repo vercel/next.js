@@ -20,6 +20,8 @@ import type { RequestInit } from 'node-fetch'
 const largeSize = 1080 // defaults defined in server/config.ts
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version`
+const animatedWarnText =
+  'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
 
 export async function serveSlowImage() {
   const port = await findPort()
@@ -147,6 +149,26 @@ export function runTests(ctx) {
     slowImageServer.stop()
   })
 
+  if (!isDev && ctx.isSharp && ctx.nextConfigImages) {
+    it('should handle custom sharp usage', async () => {
+      const res = await fetchViaHTTP(ctx.appPort, '/api/custom-sharp')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ success: true })
+      const traceFile = await fs.readJson(
+        join(
+          ctx.appDir,
+          '.next',
+          'server',
+          'pages',
+          'api',
+          'custom-sharp.js.nft.json'
+        )
+      )
+      expect(traceFile.files.some((file) => file.includes('sharp/'))).toBe(true)
+    })
+  }
+
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${
@@ -188,6 +210,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.gif"`
     )
     await expectWidth(res, 50, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated png', async () => {
@@ -204,6 +227,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.png"`
     )
     await expectWidth(res, 100, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated png 2', async () => {
@@ -220,6 +244,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated2.png"`
     )
     await expectWidth(res, 1105, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated webp', async () => {
@@ -236,6 +261,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.webp"`
     )
     await expectWidth(res, 400, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   if (ctx.dangerouslyAllowSVG) {
@@ -262,6 +288,7 @@ export function runTests(ctx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
+      expect(ctx.nextOutput).not.toContain('The requested resource')
     })
   } else {
     it('should not allow vector svg', async () => {
@@ -1300,6 +1327,12 @@ export const setupTests = (ctx) => {
       }
 
       beforeAll(async () => {
+        const json = JSON.stringify({
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
+        })
+        nextConfig.replace('{ /* replaceme */ }', json)
         curCtx.nextOutput = ''
         curCtx.appPort = await findPort()
         curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
@@ -1316,6 +1349,7 @@ export const setupTests = (ctx) => {
         await cleanImagesDir(ctx)
       })
       afterAll(async () => {
+        nextConfig.restore()
         if (curCtx.app) await killApp(curCtx.app)
       })
 
@@ -1345,6 +1379,9 @@ export const setupTests = (ctx) => {
       beforeAll(async () => {
         const json = JSON.stringify({
           images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
@@ -1369,20 +1406,96 @@ export const setupTests = (ctx) => {
 
       runTests(curCtx)
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'Production Mode Server support w/o next.config.js',
+      () => {
+        if (ctx.nextConfigImages) {
+          // skip this test because it requires next.config.js
+          return
+        }
+        const size = 384 // defaults defined in server/config.ts
+        const curCtx = {
+          ...ctx,
+          w: size,
+          isDev: false,
+        }
+        beforeAll(async () => {
+          const json = JSON.stringify({
+            experimental: {
+              outputFileTracingRoot: join(__dirname, '../../../..'),
+            },
+          })
+          nextConfig.replace('{ /* replaceme */ }', json)
+          curCtx.nextOutput = ''
+          await nextBuild(curCtx.appDir)
+          await cleanImagesDir(ctx)
+          curCtx.appPort = await findPort()
+          curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
+            onStderr(msg) {
+              curCtx.nextOutput += msg
+            },
+            env: {
+              NEXT_SHARP_PATH: curCtx.isSharp
+                ? join(curCtx.appDir, 'node_modules', 'sharp')
+                : '',
+            },
+            cwd: curCtx.appDir,
+          })
+        })
+        afterAll(async () => {
+          nextConfig.restore()
+          if (curCtx.app) await killApp(curCtx.app)
+        })
 
-    describe('Server support w/o next.config.js', () => {
-      if (ctx.nextConfigImages) {
-        // skip this test because it requires next.config.js
-        return
+        runTests(curCtx)
       }
-      const size = 384 // defaults defined in server/config.ts
+    )
+  }
+
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'Production Mode Server support with next.config.js',
+    () => {
+      const size = 399
       const curCtx = {
         ...ctx,
         w: size,
         isDev: false,
+        nextConfigImages: {
+          domains: [
+            'localhost',
+            '127.0.0.1',
+            'example.com',
+            'assets.vercel.com',
+            'image-optimization-test.vercel.app',
+          ],
+          formats: ['image/avif', 'image/webp'],
+          deviceSizes: [size, largeSize],
+          ...ctx.nextConfigImages,
+        },
       }
       beforeAll(async () => {
+        const json = JSON.stringify({
+          images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
+        })
         curCtx.nextOutput = ''
+        nextConfig.replace('{ /* replaceme */ }', json)
+
+        if (curCtx.isSharp) {
+          await fs.writeFile(
+            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js'),
+            `
+            import sharp from 'sharp'
+            export default function handler(req, res) {
+              console.log(sharp)
+              res.json({ success: true })
+            }
+          `
+          )
+        }
+
         await nextBuild(curCtx.appDir)
         await cleanImagesDir(ctx)
         curCtx.appPort = await findPort()
@@ -1399,58 +1512,16 @@ export const setupTests = (ctx) => {
         })
       })
       afterAll(async () => {
+        nextConfig.restore()
+        if (curCtx.isSharp) {
+          await fs.remove(
+            join(curCtx.appDir, 'pages', 'api', 'custom-sharp.js')
+          )
+        }
         if (curCtx.app) await killApp(curCtx.app)
       })
 
       runTests(curCtx)
-    })
-  }
-
-  describe('Server support with next.config.js', () => {
-    const size = 399
-    const curCtx = {
-      ...ctx,
-      w: size,
-      isDev: false,
-      nextConfigImages: {
-        domains: [
-          'localhost',
-          '127.0.0.1',
-          'example.com',
-          'assets.vercel.com',
-          'image-optimization-test.vercel.app',
-        ],
-        formats: ['image/avif', 'image/webp'],
-        deviceSizes: [size, largeSize],
-        ...ctx.nextConfigImages,
-      },
     }
-    beforeAll(async () => {
-      const json = JSON.stringify({
-        images: curCtx.nextConfigImages,
-      })
-      curCtx.nextOutput = ''
-      nextConfig.replace('{ /* replaceme */ }', json)
-      await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
-      curCtx.appPort = await findPort()
-      curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
-        onStderr(msg) {
-          curCtx.nextOutput += msg
-        },
-        env: {
-          NEXT_SHARP_PATH: curCtx.isSharp
-            ? join(curCtx.appDir, 'node_modules', 'sharp')
-            : '',
-        },
-        cwd: curCtx.appDir,
-      })
-    })
-    afterAll(async () => {
-      nextConfig.restore()
-      if (curCtx.app) await killApp(curCtx.app)
-    })
-
-    runTests(curCtx)
-  })
+  )
 }

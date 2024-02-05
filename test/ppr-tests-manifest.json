@@ -1,0 +1,81 @@
+{
+  "version": 2,
+  "suites": {
+    "test/e2e/app-dir/app-static/app-static.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
+        "app-dir static/dynamic handling should have correct prerender-manifest entries",
+        "app-dir static/dynamic handling should output HTML/RSC files for static paths",
+        "app-dir static/dynamic handling should output debug info for static bailouts"
+      ]
+    },
+    "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
+      "failed": [
+        "app dir client cache semantics prefetch={undefined} - default should re-use the full cache for only 30 seconds",
+        "app dir client cache semantics prefetch={undefined} - default should refetch below the fold after 30 seconds"
+      ]
+    },
+    "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
+      "failed": [
+        "headers-static-bailout it provides a helpful link in case static generation bailout is uncaught"
+      ]
+    },
+    "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts": {
+      "failed": [
+        "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
+      ]
+    },
+    "test/e2e/opentelemetry/opentelemetry.test.ts": {
+      "failed": [
+        "opentelemetry root context app router should handle RSC with fetch",
+        "opentelemetry incoming context propagation app router should handle RSC with fetch",
+        "opentelemetry incoming context propagation app router should handle route handlers in app router"
+      ]
+    },
+    "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
+      "failed": [
+        "app dir - rsc basics should render initial styles of css-in-js in edge SSR correctly",
+        "app dir - rsc basics should render initial styles of css-in-js in nodejs SSR correctly",
+        "app dir - rsc basics should render server components correctly"
+      ]
+    },
+    "test/e2e/app-dir/navigation/navigation.test.ts": {
+      "failed": [
+        "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
+        "app dir - navigation redirect status code should respond with 307 status code in client component",
+        "app dir - navigation redirect status code should respond with 307 status code in server component",
+        "app dir - navigation bots should block rendering for bots and return 404 status",
+        "app dir - navigation navigation between pages and app should not continously initiate a mpa navigation to the same URL when router state changes"
+      ]
+    },
+    "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling should output debug info for static bailouts",
+        "app-dir static/dynamic handling should have correct prerender-manifest entries",
+        "app-dir static/dynamic handling should output HTML/RSC files for static paths"
+      ]
+    },
+    "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
+      "failed": [
+        "unexpected-error should set response status to 500 for unexpected errors in ssr app route",
+        "unexpected-error should set response status to 500 for unexpected errors in isr app route"
+      ]
+    }
+  },
+  "rules": {
+    "include": [
+      "test/e2e/**/*.test.{t,j}s{,x}",
+      "test/integration/app-*/**/*.test.{t,j}s{,x}",
+      "test/production/app-*/**/*.test.{t,j}s{,x}",
+      "test/development/app-*/**/*.test.{t,j}s{,x}"
+    ],
+    "exclude": [
+      "test/integration/app-dir-export/**/*",
+      "test/e2e/app-dir/next-font/**/*",
+      "test/e2e/app-dir/ppr/**/*",
+      "test/e2e/app-dir/ppr-*/**/*",
+      "test/e2e/app-dir/app-prefetch*/**/*",
+      "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts"
+    ]
+  }
+}

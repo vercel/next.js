@@ -4,37 +4,45 @@ import {
 } from '../../server/web/spec-extension/adapters/request-cookies'
 import { HeadersAdapter } from '../../server/web/spec-extension/adapters/headers'
 import { RequestCookies } from '../../server/web/spec-extension/cookies'
-import { requestAsyncStorage } from './request-async-storage'
-import { actionAsyncStorage } from './action-async-storage'
-import { staticGenerationBailout } from './static-generation-bailout'
+import { actionAsyncStorage } from './action-async-storage.external'
 import { DraftMode } from './draft-mode'
+import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { getExpectedRequestStore } from './request-async-storage.external'
 
 export function headers() {
-  if (staticGenerationBailout('headers')) {
-    return HeadersAdapter.seal(new Headers({}))
+  const callingExpression = 'headers'
+  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+  if (staticGenerationStore) {
+    if (staticGenerationStore.forceStatic) {
+      // When we are forcing static we don't mark this as a Dynamic read and we return an empty headers object
+      return HeadersAdapter.seal(new Headers({}))
+    } else {
+      // We will return a real headers object below so we mark this call as reading from a dynamic data source
+      trackDynamicDataAccessed(staticGenerationStore, callingExpression)
+    }
   }
 
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
-    )
-  }
-
+  const requestStore = getExpectedRequestStore(callingExpression)
   return requestStore.headers
 }
 
 export function cookies() {
-  if (staticGenerationBailout('cookies')) {
-    return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
+  const callingExpression = 'cookies'
+  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+
+  if (staticGenerationStore) {
+    if (staticGenerationStore.forceStatic) {
+      // When we are forcing static we don't mark this as a Dynamic read and we return an empty cookies object
+      return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))
+    } else {
+      // We will return a real headers object below so we mark this call as reading from a dynamic data source
+      trackDynamicDataAccessed(staticGenerationStore, callingExpression)
+    }
   }
 
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
-    )
-  }
+  const requestStore = getExpectedRequestStore(callingExpression)
 
   const asyncActionStore = actionAsyncStorage.getStore()
   if (
@@ -50,11 +58,8 @@ export function cookies() {
 }
 
 export function draftMode() {
-  const requestStore = requestAsyncStorage.getStore()
-  if (!requestStore) {
-    throw new Error(
-      `Invariant: Method expects to have requestAsyncStorage, none available`
-    )
-  }
+  const callingExpression = 'draftMode'
+  const requestStore = getExpectedRequestStore(callingExpression)
+
   return new DraftMode(requestStore.draftMode)
 }

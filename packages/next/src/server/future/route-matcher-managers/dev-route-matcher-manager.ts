@@ -1,15 +1,15 @@
 import { RouteKind } from '../route-kind'
-import { RouteMatch } from '../route-matches/route-match'
-import { RouteDefinition } from '../route-definitions/route-definition'
+import type { RouteMatch } from '../route-matches/route-match'
+import type { RouteDefinition } from '../route-definitions/route-definition'
 import { DefaultRouteMatcherManager } from './default-route-matcher-manager'
-import { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
+import type { MatchOptions, RouteMatcherManager } from './route-matcher-manager'
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
-import chalk from 'next/dist/compiled/chalk'
-import { RouteMatcher } from '../route-matchers/route-matcher'
+import { cyan } from '../../../lib/picocolors'
+import type { RouteMatcher } from '../route-matchers/route-matcher'
 
 export interface RouteEnsurer {
-  ensure(match: RouteMatch): Promise<void>
+  ensure(match: RouteMatch, pathname: string): Promise<void>
 }
 
 export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
@@ -74,7 +74,7 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
     for await (const development of super.matchAll(pathname, options)) {
       // We're here, which means that we haven't seen this match yet, so we
       // should try to ensure it and recompile the production matcher.
-      await this.ensurer.ensure(development)
+      await this.ensurer.ensure(development, pathname)
       await this.production.reload()
 
       // Iterate over the production matches again, this time we should be able
@@ -113,9 +113,9 @@ export class DevRouteMatcherManager extends DefaultRouteMatcherManager {
       Log.warn(
         `Duplicate page detected. ${matchers
           .map((matcher) =>
-            chalk.cyan(path.relative(this.dir, matcher.definition.filename))
+            cyan(path.relative(this.dir, matcher.definition.filename))
           )
-          .join(' and ')} resolve to ${chalk.cyan(pathname)}`
+          .join(' and ')} resolve to ${cyan(pathname)}`
       )
     }
   }

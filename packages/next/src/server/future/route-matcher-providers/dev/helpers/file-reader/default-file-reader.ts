@@ -1,56 +1,54 @@
-import { type Dirent } from 'fs'
-import fs from 'fs/promises'
-import path from 'path'
-import { FileReader } from './file-reader'
+import type { FileReader } from './file-reader'
+import type { RecursiveReadDirOptions } from '../../../../../../lib/recursive-readdir'
+import { recursiveReadDir } from '../../../../../../lib/recursive-readdir'
 
+export type DefaultFileReaderOptions = Pick<
+  RecursiveReadDirOptions,
+  'pathnameFilter' | 'ignoreFilter' | 'ignorePartFilter'
+>
+
+/**
+ * Reads all the files in the directory and its subdirectories following any
+ * symbolic links.
+ */
 export class DefaultFileReader implements FileReader {
+  /**
+   * Filter to ignore files with absolute pathnames. If undefined, no files are
+   * ignored.
+   */
+  private readonly options: Readonly<DefaultFileReaderOptions>
+
+  /**
+   * Creates a new file reader.
+   *
+   * @param pathnameFilter filter to ignore files with absolute pathnames, false to ignore
+   * @param ignoreFilter filter to ignore files and directories with absolute pathnames, false to ignore
+   * @param ignorePartFilter filter to ignore files and directories with the pathname part, false to ignore
+   */
+  constructor(options: Readonly<DefaultFileReaderOptions>) {
+    this.options = options
+  }
+
+  /**
+   * Reads all the files in the directory and its subdirectories following any
+   * symbolic links.
+   *
+   * @param dir the directory to read
+   * @returns a promise that resolves to the list of files
+   */
   public async read(dir: string): Promise<ReadonlyArray<string>> {
-    const pathnames: string[] = []
+    return recursiveReadDir(dir, {
+      pathnameFilter: this.options.pathnameFilter,
+      ignoreFilter: this.options.ignoreFilter,
+      ignorePartFilter: this.options.ignorePartFilter,
 
-    let directories: string[] = [dir]
+      // We don't need to sort the results because we're not depending on the
+      // order of the results.
+      sortPathnames: false,
 
-    while (directories.length > 0) {
-      // Load all the files in each directory at the same time.
-      const results = await Promise.all(
-        directories.map(async (directory) => {
-          let files: Dirent[]
-          try {
-            files = await fs.readdir(directory, { withFileTypes: true })
-          } catch (err: any) {
-            // This can only happen when the underlying directory was removed. If
-            // anything other than this error occurs, re-throw it.
-            if (err.code !== 'ENOENT') throw err
-
-            // The error occurred, so abandon reading this directory.
-            files = []
-          }
-
-          return { directory, files }
-        })
-      )
-
-      // Empty the directories, we'll fill it later if some of the files are
-      // directories.
-      directories = []
-
-      // For each result of directory scans...
-      for (const { files, directory } of results) {
-        // And for each file in it...
-        for (const file of files) {
-          // Handle each file.
-          const pathname = path.join(directory, file.name)
-
-          // If the file is a directory, then add it to the list of directories,
-          // they'll be scanned on a later pass.
-          if (file.isDirectory()) {
-            directories.push(pathname)
-          } else {
-            pathnames.push(pathname)
-          }
-        }
-      }
-    }
-
-    return pathnames
+      // We want absolute pathnames because we're going to be comparing them
+      // with other absolute pathnames.
+      relativePathnames: false,
+    })
   }
 }

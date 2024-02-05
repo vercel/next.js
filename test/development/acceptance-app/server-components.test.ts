@@ -258,19 +258,12 @@ describe('Error Overlay for server components', () => {
       )
 
       await check(async () => {
-        expect(
-          await browser
-            .waitForElementByCss('#nextjs__container_errors_desc')
-            .text()
-        ).toContain(
-          'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
-        )
+        const html = await browser.eval('document.documentElement.innerHTML')
+        expect(html).toContain('experimental_useOptimistic')
         return 'success'
       }, 'success')
 
-      expect(next.cliOutput).toContain(
-        'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
-      )
+      expect(next.cliOutput).toContain('experimental_useOptimistic')
 
       await cleanup()
     })
