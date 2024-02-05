@@ -82,8 +82,14 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
   const runtime = await getRuntimeContext(params)
   const subreq = params.request.headers[`x-middleware-subrequest`]
   const subrequests = typeof subreq === 'string' ? subreq.split(':') : []
-  const allowSubrequests = params.request.headers[`x-middleware-allow-subrequests`] === "true"
-  if (subrequests.includes(params.name) && !allowSubrequests) {
+
+  const MAX_RECURSION_DEPTH = 5
+  const depth = subrequests.reduce(
+    (acc, curr) => (curr === params.name ? acc + 1 : acc),
+    0
+  )
+
+  if (depth > MAX_RECURSION_DEPTH) {
     return {
       waitUntil: Promise.resolve(),
       response: new runtime.context.Response(null, {
