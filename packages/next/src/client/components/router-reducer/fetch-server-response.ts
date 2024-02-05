@@ -98,6 +98,7 @@ export async function fetchServerResponse(
       }
     }
 
+    console.trace('fetching', fetchUrl.toString())
     // Add unique cache query to avoid caching conflicts on CDN which don't respect to Vary header
     fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
 
