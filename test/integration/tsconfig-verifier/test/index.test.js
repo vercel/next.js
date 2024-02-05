@@ -51,8 +51,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -105,8 +103,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -178,8 +174,6 @@ import path from 'path'
         // in-object comment 2
         ,
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -230,8 +224,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -281,8 +273,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -336,8 +326,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -391,8 +379,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -444,8 +430,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -499,8 +483,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -554,8 +536,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -611,8 +591,6 @@ import path from 'path'
             "strictNullChecks": true
           },
           "include": [
-            "next-env.d.ts",
-            ".next/types/**/*.ts",
             "**/*.ts",
             "**/*.tsx"
           ],
@@ -658,8 +636,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],
@@ -719,8 +695,6 @@ import path from 'path'
           "strictNullChecks": true
         },
         "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
           "**/*.ts",
           "**/*.tsx"
         ],

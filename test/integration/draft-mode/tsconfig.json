@@ -23,7 +23,6 @@
     }
   },
   "include": [
-    "test/integration/draft-mode/next-env.d.ts",
     "test/integration/draft-mode/**/*.ts",
     "test/integration/draft-mode/**/*.tsx"
   ],

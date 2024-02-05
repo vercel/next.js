@@ -27,7 +27,10 @@ describe('TypeScript Image Component', () => {
       expect(stderr).toMatch(/Failed to compile/)
       expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      const envTypes = await fs.readFile(
+        join(appDir, '.next', 'types', 'next-env.d.ts'),
+        'utf8'
+      )
       expect(envTypes).toContain('image-types/global')
     })
 
@@ -42,7 +45,10 @@ describe('TypeScript Image Component', () => {
       expect(stderr).toMatch(/is not assignable to type/)
       expect(code).toBe(1)
       await fs.writeFile(nextConfig, content)
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      const envTypes = await fs.readFile(
+        join(appDir, '.next', 'types', 'next-env.d.ts'),
+        'utf8'
+      )
       expect(envTypes).not.toContain('image-types/global')
     })
   })
@@ -59,7 +65,10 @@ describe('TypeScript Image Component', () => {
     afterAll(() => killApp(app))
 
     it('should have image types when enabled', async () => {
-      const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+      const envTypes = await fs.readFile(
+        join(appDir, '.next', 'types', 'next-env.d.ts'),
+        'utf8'
+      )
       expect(envTypes).toContain('image-types/global')
     })
 
@@ -84,7 +93,10 @@ describe('TypeScript Image Component', () => {
     const app = await launchApp(appDir, await findPort())
     await killApp(app)
     await fs.writeFile(nextConfig, content)
-    const envTypes = await fs.readFile(join(appDir, 'next-env.d.ts'), 'utf8')
+    const envTypes = await fs.readFile(
+      join(appDir, '.next', 'types', 'next-env.d.ts'),
+      'utf8'
+    )
     expect(envTypes).not.toContain('image-types/global')
   })
 })

@@ -128,7 +128,7 @@ describe('Next Lint', () => {
       stderr: true,
     })
 
-    const files = await fs.readdir(dirTypescript)
+    const files = await fs.readdir(join(dirTypescript, '.next', 'types'))
 
     expect(files).toContain('next-env.d.ts')
   })
@@ -145,7 +145,7 @@ describe('Next Lint', () => {
         stderr: true,
       })
 
-      const files = await fs.readdir(dir)
+      const files = await fs.readdir(join(dir, '.next', 'types'))
 
       expect(files).not.toContain('next-env.d.ts')
     })

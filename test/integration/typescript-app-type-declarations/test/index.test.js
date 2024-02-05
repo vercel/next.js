@@ -6,7 +6,7 @@ import { promises as fs } from 'fs'
 
 const appDir = join(__dirname, '..')
 const origAppTypeDeclarations = join(appDir, 'next-env.d.ts')
-const appTypeDeclarations = join(appDir, '.next', 'next-env.d.ts')
+const appTypeDeclarations = join(appDir, '.next', 'types', 'next-env.d.ts')
 
 describe('TypeScript App Type Declarations', () => {
   it('should write a new next-env.d.ts if none exist', async () => {

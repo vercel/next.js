@@ -50,7 +50,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/_app.tsx',
         'pages/api/hello.ts',
         'tsconfig.json',
-        'next-env.d.ts',
+        '.next/types/next-env.d.ts',
       ],
       deps: [],
       devDeps: [
@@ -76,7 +76,7 @@ export const projectSpecification: ProjectSpecification = {
     },
     ts: {
       files: [
-        'next-env.d.ts',
+        '.next/types/next-env.d.ts',
         'pages/_app.tsx',
         'pages/api/hello.ts',
         'pages/index.tsx',
@@ -114,7 +114,7 @@ export const projectSpecification: ProjectSpecification = {
         'app/page.tsx',
         'app/layout.tsx',
         'tsconfig.json',
-        'next-env.d.ts',
+        '.next/types/next-env.d.ts',
       ],
     },
   },
@@ -144,7 +144,7 @@ export const projectSpecification: ProjectSpecification = {
       files: [
         'app/layout.tsx',
         'app/page.tsx',
-        'next-env.d.ts',
+        '.next/types/next-env.d.ts',
         'postcss.config.js',
         'tailwind.config.ts',
         'tsconfig.json',

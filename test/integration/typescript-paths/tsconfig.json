@@ -29,5 +29,5 @@
     "isolatedModules": true
   },
   "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "components", "pages"]
+  "include": ["**/*.ts", "**/*.tsx"]
 }
