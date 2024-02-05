@@ -181,6 +181,8 @@ export async function writeConfigurationDefaults(
   }
 
   if (!('include' in rawConfig)) {
+    // NOTE: we use a ['**/*.{ts,tsx}'] glob here because ['**/*.ts', '**/*.tsx'] does not match `.next`.
+    // (Because of the dot? TS bug?)
     userTsConfig.include = ['**/*.{ts,tsx}']
     suggestedActions.push(
       cyan('include') + ' was set to ' + bold(`['**/*.{ts,tsx}']`)
