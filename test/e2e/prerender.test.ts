@@ -599,7 +599,7 @@ describe('Prerender', () => {
         expect(initialRes.headers.get('cache-control')).toBe(
           isDeploy
             ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31536000'
         )
       })
     }
@@ -1265,7 +1265,7 @@ describe('Prerender', () => {
         expect(initialRes.headers.get('cache-control')).toBe(
           isDeploy
             ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=31536000, stale-while-revalidate'
+            : 's-maxage=31536000, stale-while-revalidate=31536000'
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
