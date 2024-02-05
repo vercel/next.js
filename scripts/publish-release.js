@@ -155,7 +155,7 @@ const cwd = process.cwd()
     }
   }
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     packageDirs.map(async (packageDir) => {
       const pkgJson = JSON.parse(
         await fs.promises.readFile(
@@ -172,5 +172,9 @@ const cwd = process.cwd()
     })
   )
 
+  if (results.some((item) => item.status === 'rejected')) {
+    console.error(`Not all packages published successfully`, results)
+    process.exit(1)
+  }
   await undraft()
 })()
