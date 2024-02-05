@@ -3,10 +3,10 @@ import { context, getOctokit } from '@actions/github'
 import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
-// Get the date one month ago (YYYY-MM-DD)
-function getOneMonthAgoDate() {
+// Get the date 90 days ago (YYYY-MM-DD)
+function getNinetyDaysAgoDate() {
   const date = new Date()
-  date.setMonth(date.getMonth() - 1)
+  date.setDate(date.getDate() - 90)
   return date.toISOString().split('T')[0]
 }
 
@@ -16,7 +16,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 30 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
+        text: '*A list of the top 15 issues sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
       },
     },
     {
@@ -47,12 +47,12 @@ async function run() {
     const octoClient = getOctokit(process.env.GITHUB_TOKEN)
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
-    const oneMonthAgo = getOneMonthAgoDate()
+    const ninetyDaysAgo = getNinetyDaysAgoDate()
     const { owner, repo } = context.repo
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
       per_page: 15,
-      q: `repo:${owner}/${repo} is:issue is:open created:>=${oneMonthAgo}`,
+      q: `repo:${owner}/${repo} is:issue is:open created:>=${ninetyDaysAgo}`,
       sort: 'reactions-+1',
     })
 

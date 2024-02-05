@@ -99,7 +99,7 @@ export async function runTests({
   trailingSlash?: boolean
   dynamicPage?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client' | 'set empty'
+  generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
 }) {
   if (trailingSlash !== undefined) {
@@ -124,11 +124,6 @@ export async function runTests({
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {
     slugPage.prepend('"use client"\n')
-  } else if (generateStaticParamsOpt === 'set empty') {
-    slugPage.replace(
-      "return [{ slug: 'first' }, { slug: 'second' }]",
-      'return []'
-    )
   }
   await fs.remove(distDir)
   await fs.remove(exportDir)
@@ -214,8 +209,8 @@ export async function runTests({
 
       await check(() => browser.elementByCss('h1').text(), 'Image Import')
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-      expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
-        '/test.3f1a293b.png'
+      expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
+        /\/test\.(.*)\.png/
       )
       const res1 = await fetchViaHTTP(port, '/api/json')
       expect(res1.status).toBe(200)

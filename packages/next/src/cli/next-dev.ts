@@ -205,8 +205,18 @@ const nextDev: CliCommand = async (args) => {
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
-  if (args['--experimental-upload-trace']) {
+  if (
+    args['--experimental-upload-trace'] &&
+    !process.env.NEXT_TRACE_UPLOAD_DISABLED
+  ) {
     traceUploadUrl = args['--experimental-upload-trace']
+  }
+
+  // TODO: remove in the next major version
+  if (config.analyticsId) {
+    Log.warn(
+      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
+    )
   }
 
   const devServerOptions: StartServerOptions = {
@@ -305,7 +315,7 @@ const nextDev: CliCommand = async (args) => {
     try {
       if (!!args['--experimental-https']) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined

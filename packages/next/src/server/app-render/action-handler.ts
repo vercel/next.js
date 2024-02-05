@@ -42,6 +42,9 @@ import {
 } from '../lib/server-action-request-meta'
 import { isCsrfOriginAllowed } from './csrf-protection'
 import { warn } from '../../build/output/log'
+import { RequestCookies, ResponseCookies } from '../web/spec-extension/cookies'
+import { HeadersAdapter } from '../web/spec-extension/adapters/headers'
+import { fromNodeOutgoingHttpHeaders } from '../web/utils'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -70,18 +73,13 @@ function getForwardedHeaders(
 ): Headers {
   // Get request headers and cookies
   const requestHeaders = req.headers
-  const requestCookies = requestHeaders['cookie'] ?? ''
+  const requestCookies = new RequestCookies(HeadersAdapter.from(requestHeaders))
 
-  // Get response headers and Set-Cookie header
+  // Get response headers and cookies
   const responseHeaders = res.getHeaders()
-  const rawSetCookies = responseHeaders['set-cookie']
-  const setCookies = (
-    Array.isArray(rawSetCookies) ? rawSetCookies : [rawSetCookies]
-  ).map((setCookie) => {
-    // remove the suffixes like 'HttpOnly' and 'SameSite'
-    const [cookie] = `${setCookie}`.split(';', 1)
-    return cookie
-  })
+  const responseCookies = new ResponseCookies(
+    fromNodeOutgoingHttpHeaders(responseHeaders)
+  )
 
   // Merge request and response headers
   const mergedHeaders = filterReqHeaders(
@@ -92,11 +90,18 @@ function getForwardedHeaders(
     actionsForbiddenHeaders
   ) as Record<string, string>
 
-  // Merge cookies
-  const mergedCookies = requestCookies.split('; ').concat(setCookies).join('; ')
+  // Merge cookies into requestCookies, so responseCookies always take precedence
+  // and overwrite/delete those from requestCookies.
+  responseCookies.getAll().forEach((cookie) => {
+    if (typeof cookie.value === 'undefined') {
+      requestCookies.delete(cookie.name)
+    } else {
+      requestCookies.set(cookie)
+    }
+  })
 
   // Update the 'cookie' header with the merged cookies
-  mergedHeaders['cookie'] = mergedCookies
+  mergedHeaders['cookie'] = requestCookies.toString()
 
   // Remove headers that should not be forwarded
   delete mergedHeaders['transfer-encoding']
@@ -147,20 +152,39 @@ async function addRevalidationHeader(
 async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
+  originalHost: Host,
   redirectUrl: string,
   basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   res.setHeader('x-action-redirect', redirectUrl)
-  // if we're redirecting to a relative path, we'll try to stream the response
-  if (redirectUrl.startsWith('/')) {
+
+  // If we're redirecting to another route of this Next.js application, we'll
+  // try to stream the response from the other worker path. When that works,
+  // we can save an extra roundtrip and avoid a full page reload.
+  // When the redirect URL starts with a `/`, or to the same host as application,
+  // we treat it as an app-relative redirect.
+  const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
+  const isAppRelativeRedirect =
+    redirectUrl.startsWith('/') ||
+    (originalHost && originalHost.value === parsedRedirectUrl.host)
+
+  if (isAppRelativeRedirect) {
+    if (!originalHost) {
+      throw new Error(
+        'Invariant: Missing `host` header from a forwarded Server Actions request.'
+      )
+    }
+
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const host = req.headers['host']
+    const host = originalHost.value
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
+    const fetchUrl = new URL(
+      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`
+    )
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
@@ -545,7 +569,7 @@ export async function handleAction({
             throw new ApiError(
               413,
               `Body exceeded ${readableLimit} limit.
-To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/functions/server-actions#size-limitation`
+To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
             )
           }
 
@@ -629,6 +653,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
           result: await createRedirectRenderResult(
             req,
             res,
+            host,
             redirectUrl,
             ctx.renderOpts.basePath,
             staticGenerationStore
