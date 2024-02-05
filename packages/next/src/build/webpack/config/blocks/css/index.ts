@@ -62,19 +62,6 @@ export async function lazyPostCSS(
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
-      const postCssPlugins = await getPostCssPlugins(
-        rootDirectory,
-        supportedBrowsers,
-        disablePostcssPresetEnv,
-        useLightningcss
-      )
-      if (postCssPlugins.length === 0) {
-        return {
-          postcss: null,
-          postcssWithPlugins: null,
-        }
-      }
-
       const postcss = require('postcss')
       // @ts-ignore backwards compat
       postcss.plugin = function postcssPlugin(name, initializer) {
@@ -137,6 +124,19 @@ export async function lazyPostCSS(
         ): string {
           return prop.replace(/^-\w+-/, '')
         },
+      }
+
+      const postCssPlugins = await getPostCssPlugins(
+        rootDirectory,
+        supportedBrowsers,
+        disablePostcssPresetEnv,
+        useLightningcss
+      )
+      if (postCssPlugins.length === 0) {
+        return {
+          postcss: null,
+          postcssWithPlugins: null,
+        }
       }
 
       return {
