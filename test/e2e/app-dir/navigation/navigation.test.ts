@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -792,13 +792,21 @@ createNextDescribe(
     describe('navigating to a page with async metadata', () => {
       it('should render the final state of the page with correct metadata', async () => {
         const browser = await next.browser('/metadata-await-promise')
-        const loadingText = await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
 
-        expect(loadingText).toBe('Loading')
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
 
         await retry(async () => {
           expect(await browser.elementById('page-content').text()).toBe(
