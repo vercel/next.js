@@ -2,13 +2,8 @@ export type Event = 'request'
 
 /**
  * This is the base Browser interface all browser
- * classes should build off of, it is the bare
+ * classes should build on, it is the bare
  * methods we aim to support across tests
- *
- * They will always await last executed command.
- * The interface is mutable - it doesn't have to be in sequence.
- *
- * You can manually await this interface to wait for completion of the last scheduled command.
  */
 export abstract class BrowserInterface implements PromiseLike<any> {
   private promise?: Promise<any>
@@ -57,8 +52,7 @@ export abstract class BrowserInterface implements PromiseLike<any> {
     ignoreHttpsErrors: boolean,
     headless: boolean
   ): Promise<void>
-  async close(): Promise<void> {}
-  async quit(): Promise<void> {}
+  abstract close(): Promise<void>
 
   abstract elementsByCss(selector: string): BrowserInterface[]
   abstract elementByCss(selector: string): BrowserInterface
@@ -90,8 +84,8 @@ export abstract class BrowserInterface implements PromiseLike<any> {
   }): BrowserInterface
   abstract addCookie(opts: { name: string; value: string }): BrowserInterface
   abstract deleteCookies(): BrowserInterface
-  abstract on(event: Event, cb: (...args: any[]) => void)
-  abstract off(event: Event, cb: (...args: any[]) => void)
+  abstract on(event: Event, cb: (...args: any[]) => void): void
+  abstract off(event: Event, cb: (...args: any[]) => void): void
   abstract loadPage(
     url: string,
     {

@@ -163,6 +163,10 @@ export class Playwright extends BrowserInterface {
     contextHasJSEnabled = javaScriptEnabled
   }
 
+  async close(): Promise<void> {
+    await page.close()
+  }
+
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
@@ -221,7 +225,7 @@ export class Playwright extends BrowserInterface {
       console.log('browser log:', msg)
       pageLogs.push({ source: msg.type(), message: msg.text() })
     })
-    page.on('crash', (page) => {
+    page.on('crash', () => {
       console.error('page crashed')
     })
     page.on('pageerror', (error) => {

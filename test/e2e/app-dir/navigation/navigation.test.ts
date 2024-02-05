@@ -60,6 +60,7 @@ createNextDescribe(
         )
 
         browser.off('request', requestHandler)
+        await browser.close()
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
