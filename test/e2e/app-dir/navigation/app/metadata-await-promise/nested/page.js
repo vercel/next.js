@@ -1,12 +1,12 @@
 import React from 'react'
 
 export default function page() {
-  return <div>Content</div>
+  return <div id="page-content">Content</div>
 }
 
 async function getTitle() {
   return await new Promise((resolve) =>
-    setTimeout(() => resolve('title'), 1000)
+    setTimeout(() => resolve('Async Title'), 1000)
   )
 }
 

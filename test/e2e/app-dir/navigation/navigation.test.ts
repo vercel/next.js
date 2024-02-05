@@ -788,5 +788,26 @@ createNextDescribe(
         expect(newScrollPosition).toEqual(scrollPosition)
       })
     })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+        const loadingText = await browser
+          .elementByCss("[href='/metadata-await-promise/nested']")
+          .click()
+          .waitForElementByCss('#loading')
+          .text()
+
+        expect(loadingText).toBe('Loading')
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
   }
 )
