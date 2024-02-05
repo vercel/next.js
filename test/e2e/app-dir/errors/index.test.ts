@@ -7,10 +7,10 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     describe('error component', () => {
       it('should trigger error component when an error happens during rendering', async () => {
-        const browser = await next.browser('/error/client-component')
+        const browser = await next.browser('/client-component')
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isNextDev) {
@@ -30,7 +30,7 @@ createNextDescribe(
       })
 
       it('should trigger error component when an error happens during server components rendering', async () => {
-        const browser = await next.browser('/error/server-component')
+        const browser = await next.browser('/server-component')
 
         if (isNextDev) {
           expect(
@@ -61,9 +61,7 @@ createNextDescribe(
       })
 
       it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
-        const browser = await next.browser(
-          '/error/global-error-boundary/client'
-        )
+        const browser = await next.browser('/global-error-boundary/client')
         await browser.elementByCss('#error-trigger-button').click()
 
         if (isNextDev) {
@@ -79,9 +77,7 @@ createNextDescribe(
       })
 
       it('should display error digest for error in server component with default error boundary', async () => {
-        const browser = await next.browser(
-          '/error/global-error-boundary/server'
-        )
+        const browser = await next.browser('/global-error-boundary/server')
 
         if (isNextDev) {
           expect(await hasRedbox(browser)).toBe(true)
@@ -99,9 +95,9 @@ createNextDescribe(
       })
 
       // production tests
-      if (!isNextDev) {
+      if (isNextStart) {
         it('should allow resetting error boundary', async () => {
-          const browser = await next.browser('/error/client-component')
+          const browser = await next.browser('/client-component')
 
           // Try triggering and resetting a few times in a row
           for (let i = 0; i < 5; i++) {
@@ -126,9 +122,7 @@ createNextDescribe(
         })
 
         it('should hydrate empty shell to handle server-side rendering errors', async () => {
-          const browser = await next.browser(
-            '/error/ssr-error-client-component'
-          )
+          const browser = await next.browser('/ssr-error-client-component')
           const logs = await browser.log()
           const errors = logs
             .filter((x) => x.source === 'error')
@@ -139,7 +133,7 @@ createNextDescribe(
 
         it('should log the original RSC error trace in production', async () => {
           const logIndex = next.cliOutput.length
-          const browser = await next.browser('/error/server-component')
+          const browser = await next.browser('/server-component')
           const digest = await browser
             .waitForElementByCss('#error-boundary-digest')
             .text()
@@ -149,6 +143,22 @@ createNextDescribe(
           expect(output).toContain('Error: this is a test')
           // Log the react renderer error
           expect(output).toContain(
+            'Error: An error occurred in the Server Components render'
+          )
+
+          expect(output).toContain(`digest: '${digest}'`)
+        })
+
+        it('should log the original Server Actions error trace in production', async () => {
+          const logIndex = next.cliOutput.length
+          const browser = await next.browser('/server-actions')
+          const digest = await browser.waitForElementByCss('#button').click()
+          const output = next.cliOutput.slice(logIndex)
+
+          // Log the original rsc error trace
+          expect(output).toContain('Error: server action test error')
+          // Does not include the react renderer error for server actions
+          expect(output).not.toContain(
             'Error: An error occurred in the Server Components render'
           )
 

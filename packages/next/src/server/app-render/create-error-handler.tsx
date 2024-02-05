@@ -38,12 +38,7 @@ export function createErrorHandler({
     // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
     const digest =
       err.digest ||
-      stringHash(
-        err.message +
-          ((process.env.NODE_ENV === 'development'
-            ? errorInfo.stack
-            : err.stack) || '')
-      ).toString()
+      stringHash(err.message + (errorInfo?.stack || err.stack || '')).toString()
 
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
