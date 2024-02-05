@@ -5,7 +5,7 @@ import { join } from 'path'
 import { writeAppTypeDeclarations } from 'next/dist/lib/typescript/writeAppTypeDeclarations'
 
 const fixtureDir = join(__dirname, 'fixtures/app-declarations')
-const declarationFile = join(fixtureDir, 'next-env.d.ts')
+const declarationFile = join(fixtureDir, '.next', 'types', 'next-env.d.ts')
 const imageImportsEnabled = false
 
 describe('find config', () => {
@@ -21,12 +21,7 @@ describe('find config', () => {
       eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
-      eol +
-      '// NOTE: This file should not be edited' +
-      eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-      eol
+        : '')
 
     await fs.writeFile(declarationFile, content)
 
@@ -46,12 +41,7 @@ describe('find config', () => {
       eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
-      eol +
-      '// NOTE: This file should not be edited' +
-      eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-      eol
+        : '')
 
     await fs.writeFile(declarationFile, content)
 
@@ -71,12 +61,7 @@ describe('find config', () => {
       eol +
       (imageImportsEnabled
         ? '/// <reference types="next/image-types/global" />' + eol
-        : '') +
-      eol +
-      '// NOTE: This file should not be edited' +
-      eol +
-      '// see https://nextjs.org/docs/basic-features/typescript for more information.' +
-      eol
+        : '')
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
