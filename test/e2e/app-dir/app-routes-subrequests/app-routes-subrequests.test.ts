@@ -6,6 +6,7 @@ createNextDescribe(
   'app-routes-subrequests',
   {
     files: __dirname,
+    skipDeployment: true,
   },
   ({ next }) => {
     it('shortcuts after 5 subrequests', async () => {
