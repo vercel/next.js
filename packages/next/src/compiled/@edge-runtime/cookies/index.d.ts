@@ -1,3 +1,9 @@
+// Type definitions for cookie 0.5
+// Project: https://github.com/jshttp/cookie
+// Definitions by: Pine Mizune <https://github.com/pine>
+//                 Piotr Błażejewicz <https://github.com/peterblazejewicz>
+// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+
 /**
  * Basic HTTP cookie parser and serializer for HTTP servers.
  */
@@ -56,17 +62,6 @@ interface CookieSerializeOptions {
      * point to the same date and time.
      */
     maxAge?: number | undefined;
-    /**
-     * Specifies the `boolean` value for the [`Partitioned` `Set-Cookie`](rfc-cutler-httpbis-partitioned-cookies)
-     * attribute. When truthy, the `Partitioned` attribute is set, otherwise it is not. By default, the
-     * `Partitioned` attribute is not set.
-     *
-     * **note** This is an attribute that has not yet been fully standardized, and may change in the future.
-     * This also means many clients may ignore this attribute until they understand it.
-     *
-     * More information about can be found in [the proposal](https://github.com/privacycg/CHIPS)
-     */
-    partitioned?: boolean | undefined;
     /**
      * Specifies the value for the {@link https://tools.ietf.org/html/rfc6265#section-5.2.4|`Path` `Set-Cookie` attribute}.
      * By default, the path is considered the "default path".
@@ -198,4 +193,4 @@ declare function parseCookie(cookie: string): Map<string, string>;
 /** Parse a `Set-Cookie` header value */
 declare function parseSetCookie(setCookie: string): undefined | ResponseCookie;
 
-export { type CookieListItem, type RequestCookie, RequestCookies, type ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, stringifyCookie };
+export { CookieListItem, RequestCookie, RequestCookies, ResponseCookie, ResponseCookies, parseCookie, parseSetCookie, stringifyCookie };

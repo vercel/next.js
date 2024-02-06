@@ -199,7 +199,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/dashboard/@analytics/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -357,7 +357,7 @@ When the user clicks the `<Link>`, the modal will open instead of navigating to 
 
 You can close the modal by calling `router.back()` or by using the `Link` component.
 
-```tsx filename="app/ui/modal.tsx switcher
+```tsx filename="app/ui/modal.tsx" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -380,7 +380,7 @@ export function Modal({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```tsx filename="app/ui/modal.tsx switcher
+```jsx filename="app/ui/modal.js" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -391,13 +391,38 @@ export function Modal({ children }) {
   return (
     <>
       <button
-        type="button"
         onClick={() => {
           router.back()
         }}
       >
         Close modal
       </button>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```tsx filename="app/ui/modal.tsx" switcher
+import Link from 'next/link'
+
+export function Modal({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Link href="/">Close modal</Link>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```jsx filename="app/ui/modal.js" switcher
+import Link from 'next/link'
+
+export function Modal({ children }) {
+  return (
+    <>
+      <Link href="/">Close modal</Link>
       <div>{children}</div>
     </>
   )

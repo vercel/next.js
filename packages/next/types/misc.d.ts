@@ -100,11 +100,6 @@ declare module 'next/dist/compiled/@hapi/accept' {
   export = m
 }
 
-declare module 'next/dist/compiled/get-orientation' {
-  import m from 'get-orientation'
-  export = m
-}
-
 declare module 'next/dist/compiled/acorn' {
   import m from 'acorn'
   export = m
