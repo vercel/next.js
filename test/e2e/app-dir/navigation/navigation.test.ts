@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -786,6 +786,69 @@ createNextDescribe(
 
         // confirm that the scroll position was restored
         expect(newScrollPosition).toEqual(scrollPosition)
+      })
+    })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
+
+    describe('navigating to dynamic params & changing the casing', () => {
+      it('should load the page correctly', async () => {
+        const browser = await next.browser('/dynamic-param-casing-change')
+
+        // note the casing here capitalizes `ParamA`
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+          .click()
+
+        // note the `paramA` casing has now changed
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'noParam page'
+          )
+        })
+
+        await browser.back()
+
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            '[paramB] page'
+          )
+        })
       })
     })
   }
