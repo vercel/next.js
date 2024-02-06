@@ -119,12 +119,12 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (3:2) @ __TURBOPACK__default__export__
+"index.js (3:11) @ __TURBOPACK__default__export__
 
   1 | export default () => {
   2 |   if (typeof window !== 'undefined') {
 > 3 |     throw new Error('test')
-    |  ^
+    |           ^
   4 |   }
   5 |
   6 |   return null"
@@ -134,7 +134,7 @@ exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
 "FunctionDefault.js (1:51) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }"
-    |                                                   ^
+    |                                                   ^"
 `;
 
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
