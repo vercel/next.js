@@ -642,6 +642,36 @@ impl Repeated for NextSsg {
 ///
 /// Note: We don't implement `fold_script` because next.js doesn't use it.
 impl Fold for NextSsg {
+    fn fold_array_pat(&mut self, mut arr: ArrayPat) -> ArrayPat {
+        arr = arr.fold_children_with(self);
+
+        if !arr.elems.is_empty() {
+            arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+        }
+
+        arr
+    }
+
+    fn fold_assign_target_pat(&mut self, mut n: AssignTargetPat) -> AssignTargetPat {
+        n = n.fold_children_with(self);
+
+        match &n {
+            AssignTargetPat::Array(arr) => {
+                if arr.elems.is_empty() {
+                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+            AssignTargetPat::Object(obj) => {
+                if obj.props.is_empty() {
+                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+            _ => {}
+        }
+
+        n
+    }
+
     fn fold_expr(&mut self, e: Expr) -> Expr {
         match e {
             Expr::Assign(assign_expr) => {
@@ -848,6 +878,43 @@ impl Fold for NextSsg {
         n
     }
 
+    fn fold_object_pat(&mut self, mut obj: ObjectPat) -> ObjectPat {
+        obj = obj.fold_children_with(self);
+
+        if !obj.props.is_empty() {
+            obj.props = take(&mut obj.props)
+                .into_iter()
+                .filter_map(|prop| match prop {
+                    ObjectPatProp::KeyValue(prop) => {
+                        if prop.value.is_invalid() {
+                            None
+                        } else {
+                            Some(ObjectPatProp::KeyValue(prop))
+                        }
+                    }
+                    ObjectPatProp::Assign(prop) => {
+                        if self.should_remove(&prop.key.to_id()) {
+                            self.mark_as_candidate(&prop.value);
+
+                            None
+                        } else {
+                            Some(ObjectPatProp::Assign(prop))
+                        }
+                    }
+                    ObjectPatProp::Rest(prop) => {
+                        if prop.arg.is_invalid() {
+                            None
+                        } else {
+                            Some(ObjectPatProp::Rest(prop))
+                        }
+                    }
+                })
+                .collect();
+        }
+
+        obj
+    }
+
     /// This methods returns [Pat::Invalid] if the pattern should be removed.
     fn fold_pat(&mut self, mut p: Pat) -> Pat {
         p = p.fold_children_with(self);
@@ -867,48 +934,13 @@ impl Fold for NextSsg {
                     }
                 }
                 Pat::Array(arr) => {
-                    if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
-
-                        if arr.elems.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
+                    if arr.elems.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 Pat::Object(obj) => {
-                    if !obj.props.is_empty() {
-                        obj.props = take(&mut obj.props)
-                            .into_iter()
-                            .filter_map(|prop| match prop {
-                                ObjectPatProp::KeyValue(prop) => {
-                                    if prop.value.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::KeyValue(prop))
-                                    }
-                                }
-                                ObjectPatProp::Assign(prop) => {
-                                    if self.should_remove(&prop.key.to_id()) {
-                                        self.mark_as_candidate(&prop.value);
-
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Assign(prop))
-                                    }
-                                }
-                                ObjectPatProp::Rest(prop) => {
-                                    if prop.arg.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Rest(prop))
-                                    }
-                                }
-                            })
-                            .collect();
-
-                        if obj.props.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
+                    if obj.props.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 Pat::Rest(rest) => {
