@@ -1,6 +1,6 @@
 /**
  * @license React
- * react.shared-subset.production.min.js
+ * react.react-server.production.min.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -168,7 +168,28 @@ const ReactServerSharedInternals = {
   ReactCurrentCache
 };
 
-var ReactVersion = '18.3.0-canary-60a927d04-20240113';
+// Do not require this module directly! Use normal `invariant` calls with
+// template literal strings. The messages will be replaced with error codes
+// during build.
+function formatProdErrorMessage(code) {
+  let url = 'https://react.dev/errors/' + code;
+
+  if (arguments.length > 1) {
+    url += '?args[]=' + encodeURIComponent(arguments[1]);
+
+    for (let i = 2; i < arguments.length; i++) {
+      url += '&args[]=' + encodeURIComponent(arguments[i]);
+    }
+  }
+
+  return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
+}
+
+const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
+
+function isArray(a) {
+  return isArrayImpl(a);
+}
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -197,192 +218,6 @@ function getIteratorFn(maybeIterable) {
   }
 
   return null;
-}
-
-// Do not require this module directly! Use normal `invariant` calls with
-// template literal strings. The messages will be replaced with error codes
-// during build.
-function formatProdErrorMessage(code) {
-  let url = 'https://reactjs.org/docs/error-decoder.html?invariant=' + code;
-
-  for (let i = 1; i < arguments.length; i++) {
-    url += '&args[]=' + encodeURIComponent(arguments[i]);
-  }
-
-  return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
-}
-
-/**
- * This is the abstract API for an update queue.
- */
-
-
-const ReactNoopUpdateQueue = {
-  /**
-   * Checks whether or not this composite component is mounted.
-   * @param {ReactClass} publicInstance The instance we want to test.
-   * @return {boolean} True if mounted, false otherwise.
-   * @protected
-   * @final
-   */
-  isMounted: function (publicInstance) {
-    return false;
-  },
-
-  /**
-   * Forces an update. This should only be invoked when it is known with
-   * certainty that we are **not** in a DOM transaction.
-   *
-   * You may want to call this when you know that some deeper aspect of the
-   * component's state has changed but `setState` was not called.
-   *
-   * This will not invoke `shouldComponentUpdate`, but it will invoke
-   * `componentWillUpdate` and `componentDidUpdate`.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} callerName name of the calling function in the public API.
-   * @internal
-   */
-  enqueueForceUpdate: function (publicInstance, callback, callerName) {
-  },
-
-  /**
-   * Replaces all of the state. Always use this or `setState` to mutate state.
-   * You should treat `this.state` as immutable.
-   *
-   * There is no guarantee that `this.state` will be immediately updated, so
-   * accessing `this.state` after calling this method may return the old value.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {object} completeState Next state.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} callerName name of the calling function in the public API.
-   * @internal
-   */
-  enqueueReplaceState: function (publicInstance, completeState, callback, callerName) {
-  },
-
-  /**
-   * Sets a subset of the state. This only exists because _pendingState is
-   * internal. This provides a merging strategy that is not available to deep
-   * properties which is confusing. TODO: Expose pendingState or don't use it
-   * during the merge.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {object} partialState Next partial state to be merged with state.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} Name of the calling function in the public API.
-   * @internal
-   */
-  enqueueSetState: function (publicInstance, partialState, callback, callerName) {
-  }
-};
-
-const emptyObject = {};
-/**
- * Base class helpers for the updating state of a component.
- */
-
-
-function Component(props, context, updater) {
-  this.props = props;
-  this.context = context; // If a component has string refs, we will assign a different object later.
-
-  this.refs = emptyObject; // We initialize the default updater but the real one gets injected by the
-  // renderer.
-
-  this.updater = updater || ReactNoopUpdateQueue;
-}
-
-Component.prototype.isReactComponent = {};
-/**
- * Sets a subset of the state. Always use this to mutate
- * state. You should treat `this.state` as immutable.
- *
- * There is no guarantee that `this.state` will be immediately updated, so
- * accessing `this.state` after calling this method may return the old value.
- *
- * There is no guarantee that calls to `setState` will run synchronously,
- * as they may eventually be batched together.  You can provide an optional
- * callback that will be executed when the call to setState is actually
- * completed.
- *
- * When a function is provided to setState, it will be called at some point in
- * the future (not synchronously). It will be called with the up to date
- * component arguments (state, props, context). These values can be different
- * from this.* because your function may be called after receiveProps but before
- * shouldComponentUpdate, and this new state, props, and context will not yet be
- * assigned to this.
- *
- * @param {object|function} partialState Next partial state or function to
- *        produce next partial state to be merged with current state.
- * @param {?function} callback Called after state is updated.
- * @final
- * @protected
- */
-
-Component.prototype.setState = function (partialState, callback) {
-  if (typeof partialState !== 'object' && typeof partialState !== 'function' && partialState != null) {
-    throw Error(formatProdErrorMessage(85));
-  }
-
-  this.updater.enqueueSetState(this, partialState, callback, 'setState');
-};
-/**
- * Forces an update. This should only be invoked when it is known with
- * certainty that we are **not** in a DOM transaction.
- *
- * You may want to call this when you know that some deeper aspect of the
- * component's state has changed but `setState` was not called.
- *
- * This will not invoke `shouldComponentUpdate`, but it will invoke
- * `componentWillUpdate` and `componentDidUpdate`.
- *
- * @param {?function} callback Called after update is complete.
- * @final
- * @protected
- */
-
-
-Component.prototype.forceUpdate = function (callback) {
-  this.updater.enqueueForceUpdate(this, callback, 'forceUpdate');
-};
-
-function ComponentDummy() {}
-
-ComponentDummy.prototype = Component.prototype;
-/**
- * Convenience component with default shallow equality check for sCU.
- */
-
-function PureComponent(props, context, updater) {
-  this.props = props;
-  this.context = context; // If a component has string refs, we will assign a different object later.
-
-  this.refs = emptyObject;
-  this.updater = updater || ReactNoopUpdateQueue;
-}
-
-const pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
-pureComponentPrototype.constructor = PureComponent; // Avoid an extra prototype jump for these methods.
-
-assign(pureComponentPrototype, Component.prototype);
-pureComponentPrototype.isPureReactComponent = true;
-
-// an immutable object with a single mutable value
-function createRef() {
-  const refObject = {
-    current: null
-  };
-
-  return refObject;
-}
-
-const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
 }
 
 // $FlowFixMe[method-unbinding]
@@ -593,6 +428,9 @@ function cloneElement$1(element, config, children) {
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
+
+const createElement = createElement$1;
+const cloneElement = cloneElement$1;
 
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
@@ -838,6 +676,52 @@ function onlyChild(children) {
   return children;
 }
 
+// an immutable object with a single mutable value
+function createRef() {
+  const refObject = {
+    current: null
+  };
+
+  return refObject;
+}
+
+function resolveDispatcher() {
+  const dispatcher = ReactCurrentDispatcher.current;
+  // intentionally don't throw our own error because this is in a hot path.
+  // Also helps ensure this is inlined.
+
+
+  return dispatcher;
+}
+function useCallback(callback, deps) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useCallback(callback, deps);
+}
+function useMemo(create, deps) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useMemo(create, deps);
+}
+function useDebugValue(value, formatterFn) {
+}
+function useId() {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useId();
+}
+function use(usable) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.use(usable);
+}
+
+function forwardRef(render) {
+
+  const elementType = {
+    $$typeof: REACT_FORWARD_REF_TYPE,
+    render
+  };
+
+  return elementType;
+}
+
 const Uninitialized = -1;
 const Pending = 0;
 const Resolved = 1;
@@ -899,16 +783,6 @@ function lazy(ctor) {
   };
 
   return lazyType;
-}
-
-function forwardRef(render) {
-
-  const elementType = {
-    $$typeof: REACT_FORWARD_REF_TYPE,
-    render
-  };
-
-  return elementType;
 }
 
 function memo(type, compare) {
@@ -1027,54 +901,56 @@ function cache(fn) {
   };
 }
 
-function resolveDispatcher() {
-  const dispatcher = ReactCurrentDispatcher.current;
-  // intentionally don't throw our own error because this is in a hot path.
-  // Also helps ensure this is inlined.
-
-
-  return dispatcher;
-}
-function useContext(Context) {
-  const dispatcher = resolveDispatcher();
-
-  return dispatcher.useContext(Context);
-}
-function useCallback(callback, deps) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useCallback(callback, deps);
-}
-function useMemo(create, deps) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useMemo(create, deps);
-}
-function useDebugValue(value, formatterFn) {
-}
-function useId() {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useId();
-}
-function use(usable) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.use(usable);
-}
-
-function createServerContext(globalName, defaultValue) {
-  {
-    throw Error(formatProdErrorMessage(248));
-  }
-}
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
 
 function startTransition(scope, options) {
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
 
-  try {
-    scope();
-  } finally {
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
   }
 }
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
+
+var ReactVersion = '18.3.0-canary-2bc7d336a-20240205';
+
+// Patch fetch
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -1094,7 +970,6 @@ exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.forwardRef = forwardRef;
 exports.isValidElement = isValidElement;
 exports.lazy = lazy;
@@ -1102,7 +977,6 @@ exports.memo = memo;
 exports.startTransition = startTransition;
 exports.use = use;
 exports.useCallback = useCallback;
-exports.useContext = useContext;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;
 exports.useMemo = useMemo;

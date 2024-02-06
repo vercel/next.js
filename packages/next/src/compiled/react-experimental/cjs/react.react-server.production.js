@@ -1,6 +1,6 @@
 /**
  * @license React
- * react.shared-subset.production.min.js
+ * react.react-server.production.min.js
  *
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
@@ -159,16 +159,10 @@ const ReactCurrentOwner = {
   current: null
 };
 
-const ContextRegistry = {};
-
 const ReactSharedInternals = {
   ReactCurrentDispatcher,
   ReactCurrentOwner
 };
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry;
-}
 
 const TaintRegistryObjects$1 = new WeakMap();
 const TaintRegistryValues$1 = new Map(); // Byte lengths of all binary values we've ever seen. We don't both refcounting this.
@@ -195,114 +189,24 @@ const ReactServerSharedInternals = {
 // template literal strings. The messages will be replaced with error codes
 // during build.
 function formatProdErrorMessage(code) {
-  let url = 'https://reactjs.org/docs/error-decoder.html?invariant=' + code;
+  let url = 'https://react.dev/errors/' + code;
 
-  for (let i = 1; i < arguments.length; i++) {
-    url += '&args[]=' + encodeURIComponent(arguments[i]);
+  if (arguments.length > 1) {
+    url += '?args[]=' + encodeURIComponent(arguments[1]);
+
+    for (let i = 2; i < arguments.length; i++) {
+      url += '&args[]=' + encodeURIComponent(arguments[i]);
+    }
   }
 
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-const getPrototypeOf = Object.getPrototypeOf;
+const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
 
-// Turns a TypedArray or ArrayBuffer into a string that can be used for comparison
-// in a Map to see if the bytes are the same.
-function binaryToComparableString(view) {
-  return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
+function isArray(a) {
+  return isArrayImpl(a);
 }
-
-const TaintRegistryObjects = ReactServerSharedInternals.TaintRegistryObjects,
-      TaintRegistryValues = ReactServerSharedInternals.TaintRegistryValues,
-      TaintRegistryByteLengths = ReactServerSharedInternals.TaintRegistryByteLengths,
-      TaintRegistryPendingRequests = ReactServerSharedInternals.TaintRegistryPendingRequests; // This is the shared constructor of all typed arrays.
-
-const TypedArrayConstructor = getPrototypeOf(Uint32Array.prototype).constructor;
-const defaultMessage = 'A tainted value was attempted to be serialized to a Client Component or Action closure. ' + 'This would leak it to the client.';
-
-function cleanup(entryValue) {
-  const entry = TaintRegistryValues.get(entryValue);
-
-  if (entry !== undefined) {
-    TaintRegistryPendingRequests.forEach(function (requestQueue) {
-      requestQueue.push(entryValue);
-      entry.count++;
-    });
-
-    if (entry.count === 1) {
-      TaintRegistryValues.delete(entryValue);
-    } else {
-      entry.count--;
-    }
-  }
-} // If FinalizationRegistry doesn't exist, we assume that objects life forever.
-// E.g. the whole VM is just the lifetime of a request.
-
-
-const finalizationRegistry = typeof FinalizationRegistry === 'function' ? new FinalizationRegistry(cleanup) : null;
-function taintUniqueValue(message, lifetime, value) {
-
-
-  message = '' + (message || defaultMessage);
-
-  if (lifetime === null || typeof lifetime !== 'object' && typeof lifetime !== 'function') {
-    throw Error(formatProdErrorMessage(493));
-  }
-
-  let entryValue;
-
-  if (typeof value === 'string' || typeof value === 'bigint') {
-    // Use as is.
-    entryValue = value;
-  } else if ((value instanceof TypedArrayConstructor || value instanceof DataView)) {
-    // For now, we just convert binary data to a string so that we can just use the native
-    // hashing in the Map implementation. It doesn't really matter what form the string
-    // take as long as it's the same when we look it up.
-    // We're not too worried about collisions since this should be a high entropy value.
-    TaintRegistryByteLengths.add(value.byteLength);
-    entryValue = binaryToComparableString(value);
-  } else {
-    const kind = value === null ? 'null' : typeof value;
-
-    if (kind === 'object' || kind === 'function') {
-      throw Error(formatProdErrorMessage(494));
-    }
-
-    throw Error(formatProdErrorMessage(495, kind));
-  }
-
-  const existingEntry = TaintRegistryValues.get(entryValue);
-
-  if (existingEntry === undefined) {
-    TaintRegistryValues.set(entryValue, {
-      message,
-      count: 1
-    });
-  } else {
-    existingEntry.count++;
-  }
-
-  if (finalizationRegistry !== null) {
-    finalizationRegistry.register(lifetime, entryValue);
-  }
-}
-function taintObjectReference(message, object) {
-
-
-  message = '' + (message || defaultMessage);
-
-  if (typeof object === 'string' || typeof object === 'bigint') {
-    throw Error(formatProdErrorMessage(496));
-  }
-
-  if (object === null || typeof object !== 'object' && typeof object !== 'function') {
-    throw Error(formatProdErrorMessage(497));
-  }
-
-  TaintRegistryObjects.set(object, message);
-}
-
-var ReactVersion = '18.3.0-experimental-60a927d04-20240113';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -313,15 +217,11 @@ const REACT_PORTAL_TYPE = Symbol.for('react.portal');
 const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
-const REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 const REACT_MEMO_TYPE = Symbol.for('react.memo');
 const REACT_LAZY_TYPE = Symbol.for('react.lazy');
 const REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -337,179 +237,6 @@ function getIteratorFn(maybeIterable) {
   }
 
   return null;
-}
-
-/**
- * This is the abstract API for an update queue.
- */
-
-
-const ReactNoopUpdateQueue = {
-  /**
-   * Checks whether or not this composite component is mounted.
-   * @param {ReactClass} publicInstance The instance we want to test.
-   * @return {boolean} True if mounted, false otherwise.
-   * @protected
-   * @final
-   */
-  isMounted: function (publicInstance) {
-    return false;
-  },
-
-  /**
-   * Forces an update. This should only be invoked when it is known with
-   * certainty that we are **not** in a DOM transaction.
-   *
-   * You may want to call this when you know that some deeper aspect of the
-   * component's state has changed but `setState` was not called.
-   *
-   * This will not invoke `shouldComponentUpdate`, but it will invoke
-   * `componentWillUpdate` and `componentDidUpdate`.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} callerName name of the calling function in the public API.
-   * @internal
-   */
-  enqueueForceUpdate: function (publicInstance, callback, callerName) {
-  },
-
-  /**
-   * Replaces all of the state. Always use this or `setState` to mutate state.
-   * You should treat `this.state` as immutable.
-   *
-   * There is no guarantee that `this.state` will be immediately updated, so
-   * accessing `this.state` after calling this method may return the old value.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {object} completeState Next state.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} callerName name of the calling function in the public API.
-   * @internal
-   */
-  enqueueReplaceState: function (publicInstance, completeState, callback, callerName) {
-  },
-
-  /**
-   * Sets a subset of the state. This only exists because _pendingState is
-   * internal. This provides a merging strategy that is not available to deep
-   * properties which is confusing. TODO: Expose pendingState or don't use it
-   * during the merge.
-   *
-   * @param {ReactClass} publicInstance The instance that should rerender.
-   * @param {object} partialState Next partial state to be merged with state.
-   * @param {?function} callback Called after component is updated.
-   * @param {?string} Name of the calling function in the public API.
-   * @internal
-   */
-  enqueueSetState: function (publicInstance, partialState, callback, callerName) {
-  }
-};
-
-const emptyObject = {};
-/**
- * Base class helpers for the updating state of a component.
- */
-
-
-function Component(props, context, updater) {
-  this.props = props;
-  this.context = context; // If a component has string refs, we will assign a different object later.
-
-  this.refs = emptyObject; // We initialize the default updater but the real one gets injected by the
-  // renderer.
-
-  this.updater = updater || ReactNoopUpdateQueue;
-}
-
-Component.prototype.isReactComponent = {};
-/**
- * Sets a subset of the state. Always use this to mutate
- * state. You should treat `this.state` as immutable.
- *
- * There is no guarantee that `this.state` will be immediately updated, so
- * accessing `this.state` after calling this method may return the old value.
- *
- * There is no guarantee that calls to `setState` will run synchronously,
- * as they may eventually be batched together.  You can provide an optional
- * callback that will be executed when the call to setState is actually
- * completed.
- *
- * When a function is provided to setState, it will be called at some point in
- * the future (not synchronously). It will be called with the up to date
- * component arguments (state, props, context). These values can be different
- * from this.* because your function may be called after receiveProps but before
- * shouldComponentUpdate, and this new state, props, and context will not yet be
- * assigned to this.
- *
- * @param {object|function} partialState Next partial state or function to
- *        produce next partial state to be merged with current state.
- * @param {?function} callback Called after state is updated.
- * @final
- * @protected
- */
-
-Component.prototype.setState = function (partialState, callback) {
-  if (typeof partialState !== 'object' && typeof partialState !== 'function' && partialState != null) {
-    throw Error(formatProdErrorMessage(85));
-  }
-
-  this.updater.enqueueSetState(this, partialState, callback, 'setState');
-};
-/**
- * Forces an update. This should only be invoked when it is known with
- * certainty that we are **not** in a DOM transaction.
- *
- * You may want to call this when you know that some deeper aspect of the
- * component's state has changed but `setState` was not called.
- *
- * This will not invoke `shouldComponentUpdate`, but it will invoke
- * `componentWillUpdate` and `componentDidUpdate`.
- *
- * @param {?function} callback Called after update is complete.
- * @final
- * @protected
- */
-
-
-Component.prototype.forceUpdate = function (callback) {
-  this.updater.enqueueForceUpdate(this, callback, 'forceUpdate');
-};
-
-function ComponentDummy() {}
-
-ComponentDummy.prototype = Component.prototype;
-/**
- * Convenience component with default shallow equality check for sCU.
- */
-
-function PureComponent(props, context, updater) {
-  this.props = props;
-  this.context = context; // If a component has string refs, we will assign a different object later.
-
-  this.refs = emptyObject;
-  this.updater = updater || ReactNoopUpdateQueue;
-}
-
-const pureComponentPrototype = PureComponent.prototype = new ComponentDummy();
-pureComponentPrototype.constructor = PureComponent; // Avoid an extra prototype jump for these methods.
-
-assign(pureComponentPrototype, Component.prototype);
-pureComponentPrototype.isPureReactComponent = true;
-
-// an immutable object with a single mutable value
-function createRef() {
-  const refObject = {
-    current: null
-  };
-
-  return refObject;
-}
-
-const isArrayImpl = Array.isArray; // eslint-disable-next-line no-redeclare
-
-function isArray(a) {
-  return isArrayImpl(a);
 }
 
 // $FlowFixMe[method-unbinding]
@@ -720,6 +447,9 @@ function cloneElement$1(element, config, children) {
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
+
+const createElement = createElement$1;
+const cloneElement = cloneElement$1;
 
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
@@ -965,6 +695,81 @@ function onlyChild(children) {
   return children;
 }
 
+// an immutable object with a single mutable value
+function createRef() {
+  const refObject = {
+    current: null
+  };
+
+  return refObject;
+}
+
+function resolveDispatcher() {
+  const dispatcher = ReactCurrentDispatcher.current;
+  // intentionally don't throw our own error because this is in a hot path.
+  // Also helps ensure this is inlined.
+
+
+  return dispatcher;
+}
+
+function getCacheSignal() {
+  const dispatcher = ReactCurrentCache.current;
+
+  if (!dispatcher) {
+    // If we have no cache to associate with this call, then we don't know
+    // its lifetime. We abort early since that's safer than letting it live
+    // for ever. Unlike just caching which can be a functional noop outside
+    // of React, these should generally always be associated with some React
+    // render but we're not limiting quite as much as making it a Hook.
+    // It's safer than erroring early at runtime.
+    const controller = new AbortController();
+    const reason = Error(formatProdErrorMessage(455));
+    controller.abort(reason);
+    return controller.signal;
+  }
+
+  return dispatcher.getCacheSignal();
+}
+function getCacheForType(resourceType) {
+  const dispatcher = ReactCurrentCache.current;
+
+  if (!dispatcher) {
+    // If there is no dispatcher, then we treat this as not being cached.
+    return resourceType();
+  }
+
+  return dispatcher.getCacheForType(resourceType);
+}
+function useCallback(callback, deps) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useCallback(callback, deps);
+}
+function useMemo(create, deps) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useMemo(create, deps);
+}
+function useDebugValue(value, formatterFn) {
+}
+function useId() {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.useId();
+}
+function use(usable) {
+  const dispatcher = resolveDispatcher();
+  return dispatcher.use(usable);
+}
+
+function forwardRef(render) {
+
+  const elementType = {
+    $$typeof: REACT_FORWARD_REF_TYPE,
+    render
+  };
+
+  return elementType;
+}
+
 const Uninitialized = -1;
 const Pending = 0;
 const Resolved = 1;
@@ -1026,16 +831,6 @@ function lazy(ctor) {
   };
 
   return lazyType;
-}
-
-function forwardRef(render) {
-
-  const elementType = {
-    $$typeof: REACT_FORWARD_REF_TYPE,
-    render
-  };
-
-  return elementType;
 }
 
 function memo(type, compare) {
@@ -1154,6 +949,53 @@ function cache(fn) {
   };
 }
 
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
+
+function startTransition(scope, options) {
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
+
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
+  }
+}
+
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
+
 function postpone(reason) {
   // eslint-disable-next-line react-internal/prod-error-codes
   const postponeInstance = new Error(reason);
@@ -1161,135 +1003,114 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-function resolveDispatcher() {
-  const dispatcher = ReactCurrentDispatcher.current;
-  // intentionally don't throw our own error because this is in a hot path.
-  // Also helps ensure this is inlined.
+var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
 
+const getPrototypeOf = Object.getPrototypeOf;
 
-  return dispatcher;
+// Turns a TypedArray or ArrayBuffer into a string that can be used for comparison
+// in a Map to see if the bytes are the same.
+function binaryToComparableString(view) {
+  return String.fromCharCode.apply(String, new Uint8Array(view.buffer, view.byteOffset, view.byteLength));
 }
 
-function getCacheSignal() {
-  const dispatcher = ReactCurrentCache.current;
+const TaintRegistryObjects = ReactServerSharedInternals.TaintRegistryObjects,
+      TaintRegistryValues = ReactServerSharedInternals.TaintRegistryValues,
+      TaintRegistryByteLengths = ReactServerSharedInternals.TaintRegistryByteLengths,
+      TaintRegistryPendingRequests = ReactServerSharedInternals.TaintRegistryPendingRequests; // This is the shared constructor of all typed arrays.
 
-  if (!dispatcher) {
-    // If we have no cache to associate with this call, then we don't know
-    // its lifetime. We abort early since that's safer than letting it live
-    // for ever. Unlike just caching which can be a functional noop outside
-    // of React, these should generally always be associated with some React
-    // render but we're not limiting quite as much as making it a Hook.
-    // It's safer than erroring early at runtime.
-    const controller = new AbortController();
-    const reason = Error(formatProdErrorMessage(455));
-    controller.abort(reason);
-    return controller.signal;
+const TypedArrayConstructor = getPrototypeOf(Uint32Array.prototype).constructor;
+const defaultMessage = 'A tainted value was attempted to be serialized to a Client Component or Action closure. ' + 'This would leak it to the client.';
+
+function cleanup(entryValue) {
+  const entry = TaintRegistryValues.get(entryValue);
+
+  if (entry !== undefined) {
+    TaintRegistryPendingRequests.forEach(function (requestQueue) {
+      requestQueue.push(entryValue);
+      entry.count++;
+    });
+
+    if (entry.count === 1) {
+      TaintRegistryValues.delete(entryValue);
+    } else {
+      entry.count--;
+    }
+  }
+} // If FinalizationRegistry doesn't exist, we assume that objects life forever.
+// E.g. the whole VM is just the lifetime of a request.
+
+
+const finalizationRegistry = typeof FinalizationRegistry === 'function' ? new FinalizationRegistry(cleanup) : null;
+function taintUniqueValue(message, lifetime, value) {
+
+
+  message = '' + (message || defaultMessage);
+
+  if (lifetime === null || typeof lifetime !== 'object' && typeof lifetime !== 'function') {
+    throw Error(formatProdErrorMessage(493));
   }
 
-  return dispatcher.getCacheSignal();
-}
-function getCacheForType(resourceType) {
-  const dispatcher = ReactCurrentCache.current;
+  let entryValue;
 
-  if (!dispatcher) {
-    // If there is no dispatcher, then we treat this as not being cached.
-    return resourceType();
-  }
+  if (typeof value === 'string' || typeof value === 'bigint') {
+    // Use as is.
+    entryValue = value;
+  } else if ((value instanceof TypedArrayConstructor || value instanceof DataView)) {
+    // For now, we just convert binary data to a string so that we can just use the native
+    // hashing in the Map implementation. It doesn't really matter what form the string
+    // take as long as it's the same when we look it up.
+    // We're not too worried about collisions since this should be a high entropy value.
+    TaintRegistryByteLengths.add(value.byteLength);
+    entryValue = binaryToComparableString(value);
+  } else {
+    const kind = value === null ? 'null' : typeof value;
 
-  return dispatcher.getCacheForType(resourceType);
-}
-function useContext(Context) {
-  const dispatcher = resolveDispatcher();
-
-  return dispatcher.useContext(Context);
-}
-function useCallback(callback, deps) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useCallback(callback, deps);
-}
-function useMemo(create, deps) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useMemo(create, deps);
-}
-function useDebugValue(value, formatterFn) {
-}
-function useId() {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.useId();
-}
-function use(usable) {
-  const dispatcher = resolveDispatcher();
-  return dispatcher.use(usable);
-}
-
-function createServerContext(globalName, defaultValue) {
-
-  let wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  const context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
+    if (kind === 'object' || kind === 'function') {
+      throw Error(formatProdErrorMessage(494));
     }
 
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw Error(formatProdErrorMessage(429, globalName));
+    throw Error(formatProdErrorMessage(495, kind));
   }
 
-  return context;
-}
+  const existingEntry = TaintRegistryValues.get(entryValue);
 
-function startTransition(scope, options) {
+  if (existingEntry === undefined) {
+    TaintRegistryValues.set(entryValue, {
+      message,
+      count: 1
+    });
+  } else {
+    existingEntry.count++;
+  }
 
-  try {
-    scope();
-  } finally {
+  if (finalizationRegistry !== null) {
+    finalizationRegistry.register(lifetime, entryValue);
   }
 }
+function taintObjectReference(message, object) {
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
+
+  message = '' + (message || defaultMessage);
+
+  if (typeof object === 'string' || typeof object === 'bigint') {
+    throw Error(formatProdErrorMessage(496));
+  }
+
+  if (object === null || typeof object !== 'object' && typeof object !== 'function') {
+    throw Error(formatProdErrorMessage(497));
+  }
+
+  TaintRegistryObjects.set(object, message);
+}
+
+// Patch fetch
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
   count: countChildren,
   toArray,
   only: onlyChild
-};
+}; // These are server-only
 
 exports.Children = Children;
 exports.Fragment = REACT_FRAGMENT_TYPE;
@@ -1302,7 +1123,6 @@ exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createElement = createElement;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.experimental_taintObjectReference = taintObjectReference;
 exports.experimental_taintUniqueValue = taintUniqueValue;
 exports.forwardRef = forwardRef;
@@ -1311,13 +1131,12 @@ exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
-exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_TYPE;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;
 exports.use = use;
 exports.useCallback = useCallback;
-exports.useContext = useContext;
 exports.useDebugValue = useDebugValue;
 exports.useId = useId;
 exports.useMemo = useMemo;
