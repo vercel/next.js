@@ -157,7 +157,7 @@
     "html-validator": "5.1.18",
     "http-proxy": "1.18.1",
     "husky": "8.0.0",
-    "image-size": "0.9.3",
+    "image-size": "1.1.1",
     "is-animated": "2.0.2",
     "isomorphic-unfetch": "3.0.0",
     "jest": "29.7.0",

@@ -4,7 +4,6 @@ import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
-import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
@@ -717,22 +716,10 @@ export function sendResponse(
   }
 }
 
-export async function getImageSize(
-  buffer: Buffer,
-  // Should match VALID_BLUR_EXT
-  extension: 'avif' | 'webp' | 'png' | 'jpeg'
-): Promise<{
+export async function getImageSize(buffer: Buffer): Promise<{
   width?: number
   height?: number
 }> {
-  // TODO: upgrade "image-size" package to support AVIF
-  // See https://github.com/image-size/image-size/issues/348
-  if (extension === 'avif') {
-    const transformer = sharp(buffer)
-    const { width, height } = await transformer.metadata()
-    return { width, height }
-  }
-
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
 }

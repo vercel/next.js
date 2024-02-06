@@ -318,8 +318,8 @@ importers:
         specifier: 8.0.0
         version: 8.0.0
       image-size:
-        specifier: 0.9.3
-        version: 0.9.3
+        specifier: 1.1.1
+        version: 1.1.1
       is-animated:
         specifier: 2.0.2
         version: 2.0.2
@@ -1188,9 +1188,6 @@ importers:
       fresh:
         specifier: 0.5.2
         version: 0.5.2
-      get-orientation:
-        specifier: 1.1.2
-        version: 1.1.2
       glob:
         specifier: 7.1.7
         version: 7.1.7
@@ -1216,8 +1213,8 @@ importers:
         specifier: 0.1.2
         version: 0.1.2
       image-size:
-        specifier: 1.0.0
-        version: 1.0.0
+        specifier: 1.1.1
+        version: 1.1.1
       is-docker:
         specifier: 2.0.0
         version: 2.0.0
@@ -8741,7 +8738,7 @@ packages:
     engines: {node: '>= 8.0.0'}
     dependencies:
       find-babel-config: 1.2.0
-      glob: 7.1.6
+      glob: 7.1.7
       pkg-up: 3.1.0
       reselect: 4.1.8
       resolve: 1.22.4
@@ -12735,7 +12732,7 @@ packages:
     engines: {node: '>= 10.17.0'}
     hasBin: true
     dependencies:
-      debug: 4.3.4
+      debug: 4.1.1
       get-stream: 5.1.0
       yauzl: 2.10.0
     optionalDependencies:
@@ -13330,14 +13327,6 @@ packages:
       has: 1.0.3
       has-proto: 1.0.1
       has-symbols: 1.0.3
-
-  /get-orientation@1.1.2:
-    resolution: {integrity: sha512-/pViTfifW+gBbh/RnlFYHINvELT9Znt+SYyDKAUL6uV6By019AK/s+i9XP4jSwq7lwP38Fd8HVeTxym3+hkwmQ==}
-    dependencies:
-      stream-parser: 0.3.1
-    transitivePeerDependencies:
-      - supports-color
-    dev: true
 
   /get-own-enumerable-property-symbols@3.0.2:
     resolution: {integrity: sha512-I0UBV/XOz1XkIJHEUDMZAbzCThU/H8DxmSfmdGcKPnVhu2VfFqr34jr9777IyaTYvxjedWhqVIilEDsCdP5G6g==}
@@ -14387,17 +14376,9 @@ packages:
     resolution: {integrity: sha512-MAb38BcSbH0eHNBxn7ql2NH/kX33OkB3lZ1BNdh7ENeRChHTYsTvWrMubiIAMNS2llXEEgZ1MUOBtXChP3kaFQ==}
     engines: {node: '>= 4'}
 
-  /image-size@0.9.3:
-    resolution: {integrity: sha512-5SakFa79uhUVSjKeQE30GVzzLJ0QNzB53+I+/VD1vIesD6GP6uatWIlgU0uisFNLt1u0d6kBydp7yfk+lLJhLQ==}
-    engines: {node: '>=10.18.0'}
-    hasBin: true
-    dependencies:
-      queue: 6.0.1
-    dev: true
-
-  /image-size@1.0.0:
-    resolution: {integrity: sha512-JLJ6OwBfO1KcA+TvJT+v8gbE6iWbj24LyDNFgFEN0lzegn6cC6a/p3NIDaepMsJjQjlUWqIC7wJv8lBFxPNjcw==}
-    engines: {node: '>=12.0.0'}
+  /image-size@1.1.1:
+    resolution: {integrity: sha512-541xKlUw6jr/6gGuk92F+mYM5zaFAc5ahphvkqvNe2bQ6gVBkd6bfrmVJ2t4KDAfikAYZyIqTnktX3i6/aQDrQ==}
+    engines: {node: '>=16.x'}
     hasBin: true
     dependencies:
       queue: 6.0.2
@@ -21281,12 +21262,6 @@ packages:
   /queue-microtask@1.2.3:
     resolution: {integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==}
 
-  /queue@6.0.1:
-    resolution: {integrity: sha512-AJBQabRCCNr9ANq8v77RJEv73DPbn55cdTb+Giq4X0AVnNVZvMHlYp7XlQiN+1npCZj1DuSmaA2hYVUUDgxFDg==}
-    dependencies:
-      inherits: 2.0.4
-    dev: true
-
   /queue@6.0.2:
     resolution: {integrity: sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==}
     dependencies:
@@ -22674,6 +22649,7 @@ packages:
     resolution: {integrity: sha512-1bCSESV6Pv+i21Hvpxp3Dx+pSD8lIPt8uVjRrxAUt/nbswYc+tK6Y2btiULjd4+fnq15PX+nqQDC7Oft7WkwcA==}
     engines: {node: '>=10'}
     hasBin: true
+    requiresBuild: true
     dependencies:
       lru-cache: 6.0.0
 
@@ -22870,6 +22846,7 @@ packages:
 
   /simple-swizzle@0.2.2:
     resolution: {integrity: sha512-JA//kQgZtbuY83m+xT+tXJkmJncGMTFT+C+g2h2R9uxkYIrE2yy9sgmcLhCnw57/WSD+Eh3J97FPEDFnbXnDUg==}
+    requiresBuild: true
     dependencies:
       is-arrayish: 0.3.2
 
@@ -23289,14 +23266,6 @@ packages:
       inherits: 2.0.4
       readable-stream: 3.6.0
       xtend: 4.0.2
-    dev: true
-
-  /stream-parser@0.3.1:
-    resolution: {integrity: sha1-FhhUhpRCACGhGC/wrxkRwSl2F3M=}
-    dependencies:
-      debug: 2.6.9
-    transitivePeerDependencies:
-      - supports-color
     dev: true
 
   /streamsearch@1.1.0:

@@ -675,9 +675,7 @@ export function runTests(ctx) {
       expect(res.headers.get('Content-Disposition')).toBe(
         `${contentDispositionType}; filename="test.avif"`
       )
-      // TODO: upgrade "image-size" package to support AVIF
-      // See https://github.com/image-size/image-size/issues/348
-      //await expectWidth(res, ctx.w)
+      await expectWidth(res, ctx.w)
     })
 
     it('should compress avif smaller than webp at q=100', async () => {
