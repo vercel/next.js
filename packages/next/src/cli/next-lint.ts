@@ -55,7 +55,7 @@ const nextLint: CliCommand = async (args) => {
         If not configured, ESLint will be set up for the first time.
 
       Usage
-        $ next lint <baseDir> [options]
+        $ next lint <baseDir> [options] [files]
 
       <baseDir> represents the directory of the Next.js application.
       If no directory is provided, the current directory will be used.
@@ -118,7 +118,7 @@ const nextLint: CliCommand = async (args) => {
 
   const files: string[] = args['--file'] ?? []
   const dirs: string[] = args['--dir'] ?? nextConfig.eslint?.dirs
-  const filesToLint = [...(dirs ?? []), ...files]
+  const filesToLint = [...(dirs ?? []), ...files, ...args._.slice(1)]
 
   const pathsToLint = (
     filesToLint.length ? filesToLint : ESLINT_DEFAULT_DIRS
