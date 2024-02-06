@@ -1,9 +1,6 @@
 {
   "version": 2,
   "suites": {
-    "test/e2e/app-dir/actions/app-action.test.ts": {
-      "failed": ["app-dir action handling should work with interception routes"]
-    },
     "test/e2e/app-dir/app-static/app-static.test.ts": {
       "failed": [
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",

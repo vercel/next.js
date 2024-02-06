@@ -112,9 +112,7 @@ export async function exportAppPage(
     // When PPR is enabled, we should grab the headers from the mocked response
     // and add it to the headers.
     if (renderOpts.experimental.ppr) {
-      for (const [key, value] of Object.entries(res.getHeaders())) {
-        headers[key] = value
-      }
+      Object.assign(headers, res.getHeaders())
     }
 
     if (fetchTags) {
