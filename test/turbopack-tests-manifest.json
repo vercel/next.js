@@ -3821,14 +3821,14 @@
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
       "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client"
-    ],
-    "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error",
+      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+    ],
+    "failed": [
+      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
