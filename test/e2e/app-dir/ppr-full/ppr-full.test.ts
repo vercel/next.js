@@ -256,6 +256,72 @@ createNextDescribe(
       )
     })
 
+    describe('Navigation Signals', () => {
+      const delay = 500
+
+      describe.each([
+        {
+          signal: 'notFound()' as const,
+          pathnames: ['/navigation/not-found', '/navigation/not-found/dynamic'],
+        },
+        {
+          signal: 'redirect()' as const,
+          pathnames: ['/navigation/redirect', '/navigation/redirect/dynamic'],
+        },
+      ])('$signal', ({ signal, pathnames }) => {
+        describe.each(pathnames)('for %s', (pathname) => {
+          it('should have correct headers', async () => {
+            const res = await next.fetch(pathname, {
+              redirect: 'manual',
+            })
+            expect(res.status).toEqual(signal === 'redirect()' ? 307 : 404)
+            expect(res.headers.get('content-type')).toEqual(
+              'text/html; charset=utf-8'
+            )
+
+            if (!isNextDev) {
+              expect(res.headers.get('cache-control')).toEqual(
+                's-maxage=31536000, stale-while-revalidate'
+              )
+            }
+
+            if (signal === 'redirect()') {
+              const location = res.headers.get('location')
+              expect(typeof location).toEqual('string')
+
+              // The URL returned in `Location` is absolute, so we need to parse it
+              // to get the pathname.
+              const url = new URL(location)
+              expect(url.pathname).toEqual('/navigation/redirect/location')
+            }
+          })
+
+          if (pathname.endsWith('/dynamic')) {
+            it('should cache the static part', async () => {
+              const start = Date.now()
+              const res = await next.fetch(pathname, {
+                redirect: 'manual',
+                headers: {
+                  'X-Delay': delay.toString(),
+                },
+              })
+
+              const result = await measure(res.body)
+              expect(result.streamFirstChunk - start).toBeLessThan(delay)
+
+              if (isNextDev) {
+                // This is because the signal should throw and interrupt the
+                // delay timer.
+                expect(result.streamEnd - start).toBeGreaterThanOrEqual(delay)
+              } else {
+                expect(result.streamEnd - start).toBeLessThan(delay)
+              }
+            })
+          }
+        })
+      })
+    })
+
     if (!isNextDev) {
       describe('Prefetch RSC Response', () => {
         describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {

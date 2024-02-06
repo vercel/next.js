@@ -2,14 +2,17 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{TaskInput, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::core::{
         diagnostics::DiagnosticExt,
         file_source::FileSource,
-        issue::{unsupported_module::UnsupportedModuleIssue, IssueExt},
+        issue::{
+            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity,
+            OptionStyledString, StyledString,
+        },
         reference_type::ReferenceType,
         resolve::{
             parse::Request,
@@ -41,6 +44,8 @@ lazy_static! {
         ),
         ("@next", vec!["/font/google", "/font/local"])
     ]);
+    static ref CLIENT_ONLY_IMPORTS: HashSet<&'static str> = ["client-only", "next/dist/compiled/server-only/error"].into();
+    static ref SERVER_ONLY_IMPORTS: HashSet<&'static str> = ["server-only", "next/dist/compiled/server-only/index"].into();
 }
 
 #[turbo_tasks::value]
@@ -94,6 +99,129 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
                         file_path,
                         package: module.into(),
                         package_path: Some(path.to_owned()),
+                    }
+                    .cell()
+                    .emit();
+                }
+            }
+        }
+
+        Ok(ResolveResultOption::none())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Copy, Clone, TaskInput, Ord, PartialOrd, Hash)]
+pub(crate) enum InvalidImportType {
+    ClientOnly,
+    ServerOnly,
+}
+
+#[turbo_tasks::value(shared)]
+pub struct InvalidImportModuleIssue {
+    pub file_path: Vc<FileSystemPath>,
+    pub import_type: InvalidImportType,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidImportModuleIssue {
+    #[turbo_tasks::function]
+    fn severity(&self) -> Vc<IssueSeverity> {
+        IssueSeverity::Warning.into()
+    }
+
+    #[turbo_tasks::function]
+    fn category(&self) -> Vc<String> {
+        Vc::cell("resolve".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Invalid import".into()).cell()
+    }
+
+    #[turbo_tasks::function]
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        self.file_path
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        let message = match self.import_type {
+            InvalidImportType::ClientOnly => {
+                "'client-only' cannot be imported from a Server Component module. It should only \
+                 be used from a Client Component."
+            }
+            InvalidImportType::ServerOnly => {
+                "'server-only' cannot be imported from a Client Component module. It should only \
+                 be used from a Server Component."
+            }
+        };
+
+        Ok(Vc::cell(Some(
+            StyledString::Text(message.to_string()).cell(),
+        )))
+    }
+}
+
+/// A resolve plugin detects import to the `client-only`/`server-only`, then
+/// emits an error according to the context.
+#[turbo_tasks::value]
+pub(crate) struct InvalidImportResolvePlugin {
+    root: Vc<FileSystemPath>,
+    import_type: InvalidImportType,
+}
+
+#[turbo_tasks::value_impl]
+impl InvalidImportResolvePlugin {
+    #[turbo_tasks::function]
+    pub fn new(root: Vc<FileSystemPath>, import_type: InvalidImportType) -> Vc<Self> {
+        InvalidImportResolvePlugin { root, import_type }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolvePlugin for InvalidImportResolvePlugin {
+    #[turbo_tasks::function]
+    fn after_resolve_condition(&self) -> Vc<ResolvePluginCondition> {
+        ResolvePluginCondition::new(self.root.root(), Glob::new("**".to_string()))
+    }
+
+    #[turbo_tasks::function]
+    async fn after_resolve(
+        &self,
+        _fs_path: Vc<FileSystemPath>,
+        file_path: Vc<FileSystemPath>,
+        _reference_type: Value<ReferenceType>,
+        request: Vc<Request>,
+    ) -> Result<Vc<ResolveResultOption>> {
+        let imports = if self.import_type == InvalidImportType::ClientOnly {
+            &*CLIENT_ONLY_IMPORTS
+        } else {
+            &*SERVER_ONLY_IMPORTS
+        };
+
+        if let Request::Module {
+            module,
+            path,
+            query: _,
+        } = &*request.await?
+        {
+            if imports.contains(module.as_str()) {
+                UnsupportedModuleIssue {
+                    file_path,
+                    package: module.into(),
+                    package_path: None,
+                }
+                .cell()
+                .emit();
+            }
+
+            if let Pattern::Constant(path) = path {
+                if imports.contains(path.as_str()) {
+                    InvalidImportModuleIssue {
+                        file_path,
+                        import_type: self.import_type,
                     }
                     .cell()
                     .emit();

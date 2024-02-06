@@ -659,7 +659,7 @@ async fn rsc_aliases(
 
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.shared-subset");
+            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
         }
         // Use server rendering stub for RSC and SSR
         // x-ref: https://github.com/facebook/react/pull/25436
