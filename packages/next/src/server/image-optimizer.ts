@@ -22,7 +22,7 @@ import type {
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
-import sharp from 'sharp'
+import isError from '../lib/is-error'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -39,12 +39,24 @@ const VECTOR_TYPES = [SVG]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-if (sharp && sharp.concurrency() > 1) {
-  // Reducing concurrency should reduce the memory usage too.
-  // We more aggressively reduce in dev but also reduce in prod.
-  // https://sharp.pixelplumbing.com/api-utility#concurrency
-  const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-  sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+let sharp: typeof import('sharp')
+
+try {
+  sharp = require('sharp')
+  if (sharp && sharp.concurrency() > 1) {
+    // Reducing concurrency should reduce the memory usage too.
+    // We more aggressively reduce in dev but also reduce in prod.
+    // https://sharp.pixelplumbing.com/api-utility#concurrency
+    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+  }
+} catch (e: unknown) {
+  if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
+    throw new Error(
+      'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
+    )
+  }
+  throw e
 }
 
 export interface ImageParamsResult {
