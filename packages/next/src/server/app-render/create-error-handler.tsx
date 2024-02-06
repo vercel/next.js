@@ -31,6 +31,7 @@ export function createErrorHandler({
   digestErrorsMap,
   allCapturedErrors,
   silenceLogger,
+  abortController,
 }: {
   source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
@@ -39,6 +40,7 @@ export function createErrorHandler({
   digestErrorsMap: Map<string, Error>
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
+  abortController?: AbortController
 }): ErrorHandler {
   return (err: any, errorInfo: any) => {
     // If the error already has a digest, respect the original digest,
@@ -58,6 +60,7 @@ export function createErrorHandler({
       // For SSR errors, if we have the existing digest in errors map,
       // we should use the existing error object to avoid duplicate error logs.
       err = digestErrorsMap.get(digest)
+      abortController?.abort(err)
       hasReusedError = true
     }
 
