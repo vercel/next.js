@@ -30,14 +30,12 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
-            chunk::ModuleId,
             diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
             issue::PlainIssue,
-            source_map::{GenerateSourceMap, Token},
+            source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
-        dev::ecmascript::EcmascriptDevChunkContent,
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
             exit::ExitGuard,
@@ -792,6 +790,7 @@ pub fn project_update_info_subscribe(
 #[napi(object)]
 pub struct StackFrame {
     pub is_server: bool,
+    pub is_internal: Option<bool>,
     pub file: String,
     // 1-indexed, unlike source map tokens
     pub line: Option<u32>,
@@ -845,37 +844,11 @@ pub async fn project_trace_source(
                     .join(chunk_base.to_owned())
             };
 
-            let content_vc = project.container.get_versioned_content(path);
-            let map = match module {
-                Some(module) => {
-                    let Some(content) =
-                        Vc::try_resolve_downcast_type::<EcmascriptDevChunkContent>(content_vc)
-                            .await?
-                    else {
-                        bail!("Was not EcmascriptDevChunkContent")
-                    };
-
-                    let entries = content.entries().await?;
-                    let entry = entries.get(&ModuleId::String(module).cell().await?);
-                    let map = match entry {
-                        Some(entry) => *entry.code.generate_source_map().await?,
-                        None => None,
-                    };
-                    map.context("Entry is missing sourcemap")?
-                }
-                None => {
-                    let Some(versioned) =
-                        Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(content_vc).await?
-                    else {
-                        bail!("Could not GenerateSourceMap")
-                    };
-
-                    versioned
-                        .generate_source_map()
-                        .await?
-                        .context("Chunk is missing a sourcemap")?
-                }
-            };
+            let map = project
+                .container
+                .get_source_map(path, module)
+                .await?
+                .context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);
@@ -908,9 +881,12 @@ pub async fn project_trace_source(
                 bail!("Original file ({}) outside project", original_file)
             };
 
-            let source_file = source_file
-                .strip_prefix("[project]/")
-                .unwrap_or(source_file);
+            let (source_file, is_internal) =
+                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                    (source_file, false)
+                } else {
+                    (source_file, true)
+                };
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
@@ -918,6 +894,7 @@ pub async fn project_trace_source(
                 line,
                 column,
                 is_server: frame.is_server,
+                is_internal: Some(is_internal),
             }))
         })
         .await
