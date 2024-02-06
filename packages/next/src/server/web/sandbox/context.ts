@@ -402,13 +402,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
               : String(input)
           validateURL(url)
           super(url, init)
-
-          const store = requestStore.getStore()
-          if (store) {
-            new Headers(init?.headers).forEach((value, key) => {
-              store.headers.set(key, value)
-            })
-          }
           this.next = init?.next
         }
       }
