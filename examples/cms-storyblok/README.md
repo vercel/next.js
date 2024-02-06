@@ -99,6 +99,14 @@ In the `Posts` folder, create a new entry.
 
 - **Name** can be anything.
 
+After creating the entry, click **Define schema**.
+
+- Add a key called `title`. Then click `title` and set the **Type** as **Text**
+- Add a key called `image`. Then click `title` and set the **Type** as **Text**
+- Add a key called `intro`. Then click `title` and set the **Type** as **Text**
+- Add a key called `long_text`. Then click `title` and set the **Type** as **Richtext**
+- Add a key called `author`. Then click `title` and set the **Type** as **Single-Option** and set **Source** as **Stories** and **Restrict to content type** as **author**
+
 Now, populate each field.
 
 - **Title** can be any text.
