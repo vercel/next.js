@@ -5857,29 +5857,28 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
+      "next/font app Fallback fontfaces google Fraunces",
+      "next/font app Fallback fontfaces google Indie flower",
+      "next/font app Fallback fontfaces local Fraunces",
+      "next/font app Fallback fontfaces local Indie flower",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app computed styles page using fallback fonts",
       "next/font app computed styles page using variables",
       "next/font app computed styles page with fonts",
       "next/font app import values Variable font without weight range",
       "next/font app import values page with font",
       "next/font app import values page with local fonts",
-      "next/font app should use production cache control for fonts"
-    ],
-    "failed": [
-      "next/font app Fallback fontfaces google Fraunces",
-      "next/font app Fallback fontfaces google Indie flower",
-      "next/font app Fallback fontfaces local Fraunces",
-      "next/font app Fallback fontfaces local Indie flower",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
-      "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
-      "next/font app preload page without fonts"
+      "next/font app preload page without fonts",
+      "next/font app should use production cache control for fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
