@@ -7,7 +7,7 @@ import type {
 } from '../app-render/types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type HotReloader from './hot-reloader-webpack'
+import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
@@ -35,10 +35,13 @@ import {
   COMPILER_NAMES,
   RSC_MODULE_TYPES,
 } from '../../shared/lib/constants'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../future/route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -98,7 +101,7 @@ function convertDynamicParamTypeToSyntax(
 
 export function getEntryKey(
   compilerType: CompilerNameValues,
-  pageBundleType: 'app' | 'pages' | 'root',
+  pageBundleType: PAGE_TYPES,
   page: string
 ) {
   // TODO: handle the /children slot better
@@ -107,15 +110,15 @@ export function getEntryKey(
   return `${compilerType}@${pageBundleType}@${pageKey}`
 }
 
-function getPageBundleType(pageBundlePath: string) {
+function getPageBundleType(pageBundlePath: string): PAGE_TYPES {
   // Handle special case for /_error
-  if (pageBundlePath === '/_error') return 'pages'
-  if (isMiddlewareFilename(pageBundlePath)) return 'root'
+  if (pageBundlePath === '/_error') return PAGE_TYPES.PAGES
+  if (isMiddlewareFilename(pageBundlePath)) return PAGE_TYPES.ROOT
   return pageBundlePath.startsWith('pages/')
-    ? 'pages'
+    ? PAGE_TYPES.PAGES
     : pageBundlePath.startsWith('app/')
-    ? 'app'
-    : 'root'
+    ? PAGE_TYPES.APP
+    : PAGE_TYPES.ROOT
 }
 
 function getEntrypointsFromTree(
@@ -129,7 +132,7 @@ function getEntrypointsFromTree(
     ? convertDynamicParamTypeToSyntax(segment[2], segment[0])
     : segment
 
-  const isPageSegment = currentSegment.startsWith('__PAGE__')
+  const isPageSegment = currentSegment.startsWith(PAGE_SEGMENT_KEY)
 
   const currentPath = [...parentPath, isPageSegment ? '' : currentSegment]
 
@@ -492,7 +495,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloader
+  hotReloader: HotReloaderWebpack
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -501,6 +504,7 @@ export function onDemandEntryHandler({
   rootDir: string
   appDir?: string
 }) {
+  const hasAppDir = !!appDir
   let curInvalidator: Invalidator = getInvalidator(
     multiCompiler.outputPath
   ) as any
@@ -521,24 +525,24 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>,
-    root?: boolean
+    entrypoints: Map<string, { name?: string }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
-      const page = getRouteFromEntrypoint(entrypoint.name!, root)
+      const page = getRouteFromEntrypoint(entrypoint.name!, hasAppDir)
 
       if (page) {
         const pageBundleType = entrypoint.name?.startsWith('app/')
-          ? 'app'
-          : 'pages'
+          ? PAGE_TYPES.APP
+          : PAGE_TYPES.PAGES
         pagePaths.push(getEntryKey(type, pageBundleType, page))
       } else if (
-        (root && entrypoint.name === 'root') ||
         isMiddlewareFilename(entrypoint.name) ||
         isInstrumentationHookFilename(entrypoint.name)
       ) {
-        pagePaths.push(getEntryKey(type, 'root', `/${entrypoint.name}`))
+        pagePaths.push(
+          getEntryKey(type, PAGE_TYPES.ROOT, `/${entrypoint.name}`)
+        )
       }
     }
     return pagePaths
@@ -554,23 +558,19 @@ export function onDemandEntryHandler({
 
   multiCompiler.hooks.done.tap('NextJsOnDemandEntries', (multiStats) => {
     const [clientStats, serverStats, edgeServerStats] = multiStats.stats
-    const root = !!appDir
     const entryNames = [
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.client,
-        clientStats.compilation.entrypoints,
-        root
+        clientStats.compilation.entrypoints
       ),
       ...getPagePathsFromEntrypoints(
         COMPILER_NAMES.server,
-        serverStats.compilation.entrypoints,
-        root
+        serverStats.compilation.entrypoints
       ),
       ...(edgeServerStats
         ? getPagePathsFromEntrypoints(
             COMPILER_NAMES.edgeServer,
-            edgeServerStats.compilation.entrypoints,
-            root
+            edgeServerStats.compilation.entrypoints
           )
         : []),
     ]
@@ -607,7 +607,7 @@ export function onDemandEntryHandler({
         COMPILER_NAMES.server,
         COMPILER_NAMES.edgeServer,
       ]) {
-        const entryKey = getEntryKey(compilerType, 'app', `/${page}`)
+        const entryKey = getEntryKey(compilerType, PAGE_TYPES.APP, `/${page}`)
         const entryInfo = curEntries[entryKey]
 
         // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -642,7 +642,7 @@ export function onDemandEntryHandler({
       COMPILER_NAMES.server,
       COMPILER_NAMES.edgeServer,
     ]) {
-      const entryKey = getEntryKey(compilerType, 'pages', page)
+      const entryKey = getEntryKey(compilerType, PAGE_TYPES.PAGES, page)
       const entryInfo = curEntries[entryKey]
 
       // If there's no entry, it may have been invalidated and needs to be re-built.
@@ -674,16 +674,16 @@ export function onDemandEntryHandler({
 
   async function ensurePageImpl({
     page,
-    clientOnly,
     appPaths,
     definition,
     isApp,
+    url,
   }: {
     page: string
-    clientOnly: boolean
     appPaths: ReadonlyArray<string> | null
     definition: RouteDefinition | undefined
     isApp: boolean | undefined
+    url?: string
   }): Promise<void> {
     const stalledTime = 60
     const stalledEnsureTimeout = setTimeout(() => {
@@ -834,7 +834,8 @@ export function onDemandEntryHandler({
       const hasNewEntry = addedValues.some((entry) => entry.newEntry)
 
       if (hasNewEntry) {
-        reportTrigger(!clientOnly && hasNewEntry ? `${route.page}` : route.page)
+        const routePage = isApp ? route.page : normalizeAppPath(route.page)
+        reportTrigger(routePage, url)
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -874,10 +875,10 @@ export function onDemandEntryHandler({
 
   type EnsurePageOptions = {
     page: string
-    clientOnly: boolean
     appPaths?: ReadonlyArray<string> | null
     definition?: RouteDefinition
     isApp?: boolean
+    url?: string
   }
 
   // Make sure that we won't have multiple invalidations ongoing concurrently.
@@ -898,10 +899,10 @@ export function onDemandEntryHandler({
   return {
     async ensurePage({
       page,
-      clientOnly,
       appPaths = null,
       definition,
       isApp,
+      url,
     }: EnsurePageOptions) {
       // If the route is actually an app page route, then we should have access
       // to the app route definition, and therefore, the appPaths from it.
@@ -912,18 +913,15 @@ export function onDemandEntryHandler({
       // Wrap the invocation of the ensurePageImpl function in the pending
       // wrapper, which will ensure that we don't have multiple compilations
       // for the same page happening concurrently.
-      return batcher.batch(
-        { page, clientOnly, appPaths, definition, isApp },
-        async () => {
-          await ensurePageImpl({
-            page,
-            clientOnly,
-            appPaths,
-            definition,
-            isApp,
-          })
-        }
-      )
+      return batcher.batch({ page, appPaths, definition, isApp }, async () => {
+        await ensurePageImpl({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
     },
     onHMR(client: ws, getHmrServerError: () => Error | null) {
       let bufferedHmrServerError: Error | null = null

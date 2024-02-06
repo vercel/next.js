@@ -1,15 +1,12 @@
-/**
- * @license React
- * react-server-dom-webpack-plugin.js
- *
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- */
+/*
+ React
+ react-server-dom-webpack-plugin.js
 
-'use strict';
+ Copyright (c) Meta Platforms, Inc. and affiliates.
 
+ This source code is licensed under the MIT license found in the
+ LICENSE file in the root directory of this source tree.
+*/
 'use strict';var w=require("path"),x=require("url"),y=require("neo-async"),z=require("acorn-loose"),B=require("webpack/lib/dependencies/ModuleDependency"),C=require("webpack/lib/dependencies/NullDependency"),D=require("webpack/lib/Template"),E=require("webpack");
 function F(a,g){if(a){if("string"===typeof a)return G(a,g);var c=Object.prototype.toString.call(a).slice(8,-1);"Object"===c&&a.constructor&&(c=a.constructor.name);if("Map"===c||"Set"===c)return Array.from(a);if("Arguments"===c||/^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(c))return G(a,g)}}function G(a,g){if(null==g||g>a.length)g=a.length;for(var c=0,n=Array(g);c<g;c++)n[c]=a[c];return n}
 function H(a,g){var c;if("undefined"===typeof Symbol||null==a[Symbol.iterator]){if(Array.isArray(a)||(c=F(a))||g&&a&&"number"===typeof a.length){c&&(a=c);var n=0;g=function(){};return{s:g,n:function(){return n>=a.length?{done:!0}:{done:!1,value:a[n++]}},e:function(b){throw b;},f:g}}throw new TypeError("Invalid attempt to iterate non-iterable instance.\nIn order to be iterable, non-array objects must have a [Symbol.iterator]() method.");}var d=!0,e=!1,p;return{s:function(){c=a[Symbol.iterator]()},
@@ -23,3 +20,5 @@ l)){const q={};b[l]={id:k,chunks:u,name:"*"};q["*"]={specifier:l,name:"*"};f[k]=
 var t=JSON.stringify(b,null,2);d.emitAsset(g.clientManifestFilename,new E.sources.RawSource(t,!1));e=JSON.stringify(e,null,2);d.emitAsset(g.ssrManifestFilename,new E.sources.RawSource(e,!1))}})})}resolveAllClientFiles(a,g,c,n,d,e){function p(b){if(-1===b.indexOf("use client"))return!1;let f;try{f=z.parse(b,{ecmaVersion:"2024",sourceType:"module"}).body}catch(h){return!1}for(b=0;b<f.length;b++){const h=f[b];if("ExpressionStatement"!==h.type||!h.directive)break;if("use client"===h.directive)return!0}return!1}
 y.map(this.clientReferences,(b,f)=>{"string"===typeof b?f(null,[new J(b)]):g.resolve({},a,b.directory,{},(h,t)=>{if(h)return f(h);d.resolveDependencies(n,{resource:t,resourceQuery:"",recursive:void 0===b.recursive?!0:b.recursive,regExp:b.include,include:void 0,exclude:b.exclude},(m,v)=>{if(m)return f(m);m=v.map(u=>{var k=w.join(t,u.userRequest);k=new J(k);k.userRequest=u.userRequest;return k});y.filter(m,(u,k)=>{c.resolve({},a,u.request,{},(l,q)=>{if(l||"string"!==typeof q)return k(null,!1);n.readFile(q,
 "utf-8",(r,A)=>{if(r||"string"!==typeof A)return k(null,!1);r=p(A);k(null,r)})})},f)})})},(b,f)=>{if(b)return e(b);b=[];for(let h=0;h<f.length;h++)b.push.apply(b,f[h]);e(null,b)})}}module.exports=L;
+
+//# sourceMappingURL=react-server-dom-webpack-plugin.js.map

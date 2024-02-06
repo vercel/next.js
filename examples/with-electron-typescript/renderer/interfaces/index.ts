@@ -4,18 +4,19 @@
 //
 // import User from 'path/to/interfaces';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { IpcRenderer } from 'electron'
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace NodeJS {
-    interface Global {
-      ipcRenderer: IpcRenderer
-    }
+  interface Window {
+    electron: {
+      sayHello: () => void;
+      receiveHello: (handler: (event, args) => void) => void;
+      stopReceivingHello: (handler: (event, args) => void) => void;
+    };
   }
 }
 
 export type User = {
-  id: number
-  name: string
-}
+  id: number;
+  name: string;
+};

@@ -94,23 +94,21 @@ export default function ShopLayout({ children, params }) {
 
 ### Layouts do not receive `searchParams`
 
-Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering) which could lead to stale `searchParams` between navigations.
+Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
 
 When using client-side navigation, Next.js automatically only renders the part of the page below the common layout between two routes.
 
 For example, in the following directory structure, `dashboard/layout.tsx` is the common layout for both `/dashboard/settings` and `/dashboard/analytics`:
 
-```txt highight={3} hideLineNumbers
-app
-└── dashboard
-    ├── layout.tsx
-    ├── settings
-    │   └── page.tsx
-    └── analytics
-        └── page.js
-```
+<Image
+  alt="File structure showing a dashboard folder nesting a layout.tsx file, and settings and analytics folders with their own pages"
+  srcLight="/docs/light/shared-dashboard-layout.png"
+  srcDark="/docs/dark/shared-dashboard-layout.png"
+  width="1600"
+  height="687"
+/>
 
-When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx` in `/dashboard/analytics` will be rendered on the server because it is UI that changed, while `dashboard/layout.tsx` will **not** be re-rendered because it is a common UI between the two routes.
+When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx` in `/dashboard/analytics` will rerender on the server, while `dashboard/layout.tsx` will **not** rerender because it's a common UI shared between the two routes.
 
 This performance optimization allows navigation between pages that share a layout to be quicker as only the data fetching and rendering for the page has to run, instead of the entire route that could include shared layouts that fetch their own data.
 

@@ -1,12 +1,10 @@
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNotFoundError } from '../../client/components/not-found'
 import { isRedirectError } from '../../client/components/redirect'
-import { NEXT_DYNAMIC_NO_SSR_CODE } from '../../shared/lib/lazy-dynamic/no-ssr-error'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 
-export const isDynamicUsageError = (err: any) =>
-  err.digest === DYNAMIC_ERROR_CODE ||
+export const isDynamicUsageError = (err: unknown) =>
+  isDynamicServerError(err) ||
+  isBailoutToCSRError(err) ||
   isNotFoundError(err) ||
-  err.digest === NEXT_DYNAMIC_NO_SSR_CODE ||
-  isRedirectError(err) ||
-  // TODO: (wyattjoh) remove once we bump react
-  err.$$typeof === Symbol.for('react.postpone')
+  isRedirectError(err)

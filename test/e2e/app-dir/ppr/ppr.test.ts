@@ -1,12 +1,30 @@
 import { createNextDescribe } from 'e2e-utils'
+import { check } from 'next-test-utils'
 
 createNextDescribe(
   'ppr',
   {
     files: __dirname,
-    skipDeployment: true,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
+    it('should indicate the feature is experimental', async () => {
+      await check(() => {
+        return next.cliOutput.includes('Experiments (use with caution)') &&
+          next.cliOutput.includes('ppr')
+          ? 'success'
+          : 'fail'
+      }, 'success')
+    })
+    if (isNextStart) {
+      describe('build output', () => {
+        it('correctly marks pages as being partially prerendered in the build output', () => {
+          expect(next.cliOutput).toContain('◐ /loading/nested/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node')
+          expect(next.cliOutput).toContain('◐ /suspense/node/gsp/[slug]')
+          expect(next.cliOutput).toContain('◐ /suspense/node/nested/[slug]')
+        })
+      })
+    }
     describe.each([
       { pathname: '/suspense/node' },
       { pathname: '/suspense/node/nested/1' },
@@ -50,21 +68,6 @@ createNextDescribe(
         it('should not have the dynamic part', async () => {
           const $ = await next.render$(pathname)
           expect($('#container > #dynamic > #state').length).toBe(0)
-        })
-      }
-
-      if (!isNextDev) {
-        it('should cache the static part', async () => {
-          // First, render the page to populate the cache.
-          let res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-
-          // Then, render the page again.
-          res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
         })
       }
     })
@@ -116,6 +119,19 @@ createNextDescribe(
       })
     })
 
+    describe('search parameters', () => {
+      it('should render the page with the search parameters', async () => {
+        const expected = `${Date.now()}:${Math.random()}`
+        const res = await next.fetch(
+          `/search?query=${encodeURIComponent(expected)}`
+        )
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain(expected)
+      })
+    })
+
     describe.each([{ pathname: '/no-suspense' }])(
       'without suspense for $pathname',
       ({ pathname }) => {
@@ -143,5 +159,25 @@ createNextDescribe(
         })
       }
     )
+
+    describe('/no-suspense/node/gsp/[slug]', () => {
+      it('should serve the static & dynamic parts', async () => {
+        const $ = await next.render$('/no-suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+        expect($('#container > #dynamic > #state').length).toBe(1)
+      })
+    })
+
+    describe('/suspense/node/gsp/[slug]', () => {
+      it('should serve the static part first', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#page').length).toBe(1)
+      })
+
+      it('should not have the dynamic part', async () => {
+        const $ = await next.render$('/suspense/node/gsp/foo')
+        expect($('#container > #dynamic > #state').length).toBe(0)
+      })
+    })
   }
 )

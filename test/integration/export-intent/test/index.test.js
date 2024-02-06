@@ -167,7 +167,7 @@ describe('Application Export Intent Output', () => {
 
         it('should build and export', async () => {
           const result = await nextBuild(appDir, [], { stderr: true })
-          expect(result.stderr).toMatch('A.getInitialProps()')
+          expect(result.stderr).toMatch('.getInitialProps()')
           expect(result.code).toBe(1)
         })
 
@@ -234,7 +234,7 @@ describe('Application Export Intent Output', () => {
 
           expect(() => {
             fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).toThrowError(/ENOENT/)
+          }).toThrow(/ENOENT/)
         })
 
         it('should build and clean up', async () => {
@@ -242,7 +242,7 @@ describe('Application Export Intent Output', () => {
 
           expect(() => {
             fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).toThrowError(/ENOENT/)
+          }).toThrow(/ENOENT/)
         })
       }
     )

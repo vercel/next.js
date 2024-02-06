@@ -16,6 +16,8 @@ const appDir = join(__dirname, '..')
 const configFile = new File(join(appDir, '/next.config.js'))
 const configFileMjs = new File(join(appDir, '/next.config.mjs'))
 
+const experimentalHeader = ' - Experiments (use with caution):'
+
 let app
 async function collectStdoutFromDev(appDir) {
   let stdout = ''
@@ -57,7 +59,7 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).not.toMatch(experimentalHeader)
   })
 
   it('should not show warning with config from object', async () => {
@@ -68,7 +70,7 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).not.toMatch(experimentalHeader)
   })
 
   it('should show warning with config from object with experimental', async () => {
@@ -81,7 +83,7 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(experimentalHeader)
     expect(stdout).toMatch(' · workerThreads')
   })
 
@@ -95,7 +97,7 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).toMatch(' - Experiments (use at your own risk):')
+    expect(stdout).toMatch(experimentalHeader)
     expect(stdout).toMatch(' · workerThreads')
   })
 
@@ -109,7 +111,7 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).not.toContain(' - Experiments (use at your own risk):')
+    expect(stdout).not.toContain(experimentalHeader)
     expect(stdout).not.toContain(' · workerThreads')
   })
 
@@ -124,82 +126,83 @@ describe('Config Experimental Warning', () => {
     `)
 
     const stdout = await collectStdoutFromDev(appDir)
-    expect(stdout).toContain(' - Experiments (use at your own risk):')
+    expect(stdout).toContain(experimentalHeader)
     expect(stdout).toContain(' · workerThreads')
     expect(stdout).toContain(' · scrollRestoration')
   })
-
-  it('should not show next app info in next start', async () => {
-    configFile.write(`
-      module.exports = {
-        experimental: {
-          workerThreads: true,
-          scrollRestoration: true,
-          instrumentationHook: true,
-          cpus: 2,
+  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+    it('should not show next app info in next start', async () => {
+      configFile.write(`
+        module.exports = {
+          experimental: {
+            workerThreads: true,
+            scrollRestoration: true,
+            instrumentationHook: true,
+            cpus: 2,
+          }
         }
-      }
-    `)
+      `)
 
-    await collectStdoutFromBuild(appDir)
-    const port = await findPort()
-    let stdout = ''
-    app = await nextStart(appDir, port, {
-      onStdout(msg) {
-        stdout += msg
-      },
-    })
-    expect(stdout).not.toMatch(' - Experiments (use at your own risk):')
-  })
-
-  it('should show next app info with all experimental features in next build', async () => {
-    configFile.write(`
-      module.exports = {
-        experimental: {
-          workerThreads: true,
-          scrollRestoration: true,
-          instrumentationHook: true,
-          cpus: 2,
-        }
-      }
-    `)
-    const stdout = await collectStdoutFromBuild(appDir)
-    expect(stdout).toMatch(' - Experiments (use at your own risk):')
-    expect(stdout).toMatch(' · cpus')
-    expect(stdout).toMatch(' · workerThreads')
-    expect(stdout).toMatch(' · scrollRestoration')
-    expect(stdout).toMatch(' · instrumentationHook')
-  })
-
-  it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
-    configFile.write(`
-      module.exports = {
-        experimental: {
-          appDir: true
-        }
-      }
-    `)
-
-    await collectStdoutFromBuild(appDir)
-    const port = await findPort()
-    let stdout = ''
-    let stderr = ''
-    app = await nextStart(appDir, port, {
-      onStdout(msg) {
-        stdout += msg
-      },
-      onStderr(msg) {
-        stderr += msg
-      },
+      await collectStdoutFromBuild(appDir)
+      const port = await findPort()
+      let stdout = ''
+      app = await nextStart(appDir, port, {
+        onStdout(msg) {
+          stdout += msg
+        },
+      })
+      expect(stdout).not.toMatch(experimentalHeader)
     })
 
-    await check(() => {
-      const cliOutput = stripAnsi(stdout)
-      const cliOutputErr = stripAnsi(stderr)
-      expect(cliOutput).not.toContain(' - Experiments (use at your own risk):')
-      expect(cliOutputErr).toContain(
-        `Unrecognized key(s) in object: 'appDir' at "experimental"`
-      )
+    it('should show next app info with all experimental features in next build', async () => {
+      configFile.write(`
+        module.exports = {
+          experimental: {
+            workerThreads: true,
+            scrollRestoration: true,
+            instrumentationHook: true,
+            cpus: 2,
+          }
+        }
+      `)
+      const stdout = await collectStdoutFromBuild(appDir)
+      expect(stdout).toMatch(experimentalHeader)
+      expect(stdout).toMatch(' · cpus')
+      expect(stdout).toMatch(' · workerThreads')
+      expect(stdout).toMatch(' · scrollRestoration')
+      expect(stdout).toMatch(' · instrumentationHook')
+    })
+
+    it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {
+      configFile.write(`
+        module.exports = {
+          experimental: {
+            appDir: true
+          }
+        }
+      `)
+
+      await collectStdoutFromBuild(appDir)
+      const port = await findPort()
+      let stdout = ''
+      let stderr = ''
+      app = await nextStart(appDir, port, {
+        onStdout(msg) {
+          stdout += msg
+        },
+        onStderr(msg) {
+          stderr += msg
+        },
+      })
+
+      await check(() => {
+        const cliOutput = stripAnsi(stdout)
+        const cliOutputErr = stripAnsi(stderr)
+        expect(cliOutput).not.toContain(experimentalHeader)
+        expect(cliOutputErr).toContain(
+          `Unrecognized key(s) in object: 'appDir' at "experimental"`
+        )
+      })
     })
   })
 })

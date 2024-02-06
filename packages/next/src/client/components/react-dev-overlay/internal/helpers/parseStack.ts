@@ -14,7 +14,7 @@ export function parseStack(stack: string): StackFrame[] {
           ?.replace(/\\/g, '/')
           ?.replace(/\/$/, '')
         if (distDir) {
-          frame.file = 'file://' + distDir.concat(res.pop()!)
+          frame.file = 'file://' + distDir.concat(res.pop()!) + url.search
         }
       }
     } catch {}

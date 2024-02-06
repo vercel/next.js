@@ -15,7 +15,7 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
                 EvaluatableAssets,
             },
             issue::IssueSeverity,
@@ -84,7 +84,7 @@ pub(crate) async fn collect_chunk_group(
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.chunk_group(chunk_item, availability_info)
+        chunking_context.chunk_group_assets(chunk_item, availability_info)
     })
     .await
 }
@@ -95,7 +95,11 @@ pub(crate) async fn collect_evaluated_chunk_group(
     evaluatable_assets: Vc<EvaluatableAssets>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.evaluated_chunk_group(chunk_item.ident(), evaluatable_assets)
+        chunking_context.evaluated_chunk_group_assets(
+            chunk_item.ident(),
+            evaluatable_assets,
+            Value::new(AvailabilityInfo::Root),
+        )
     })
     .await
 }
@@ -202,8 +206,8 @@ async fn build_dynamic_imports_map_for_module(
             )),
             Request::parse(Value::new(Pattern::Constant(import.to_string()))),
             Value::new(EcmaScriptModulesReferenceSubType::Undefined),
-            None,
             IssueSeverity::Error.cell(),
+            None,
         )
         .first_module()
         .await?;

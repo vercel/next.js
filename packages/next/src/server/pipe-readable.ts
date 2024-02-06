@@ -5,13 +5,16 @@ import {
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
 import { DetachedPromise } from '../lib/detached-promise'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
 
 function createWriterFromResponse(
-  res: ServerResponse
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
 ): WritableStream<Uint8Array> {
   let started = false
 
@@ -46,6 +49,13 @@ function createWriterFromResponse(
       if (!started) {
         started = true
         res.flushHeaders()
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          {
+            spanName: 'start response',
+          },
+          () => undefined
+        )
       }
 
       try {
@@ -75,7 +85,13 @@ function createWriterFromResponse(
 
       res.destroy(err)
     },
-    close: () => {
+    close: async () => {
+      // if a waitUntil promise was passed, wait for it to resolve before
+      // ending the response.
+      if (waitUntilForEnd) {
+        await waitUntilForEnd
+      }
+
       if (res.writableFinished) return
 
       res.end()
@@ -86,7 +102,8 @@ function createWriterFromResponse(
 
 export async function pipeToNodeResponse(
   readable: ReadableStream<Uint8Array>,
-  res: ServerResponse
+  res: ServerResponse,
+  waitUntilForEnd?: Promise<unknown>
 ) {
   try {
     // If the response has already errored, then just return now.
@@ -97,7 +114,7 @@ export async function pipeToNodeResponse(
     // client disconnects.
     const controller = createAbortController(res)
 
-    const writer = createWriterFromResponse(res)
+    const writer = createWriterFromResponse(res, waitUntilForEnd)
 
     await readable.pipeTo(writer, { signal: controller.signal })
   } catch (err: any) {

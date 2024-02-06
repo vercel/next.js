@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{source_map::Pos, Span, Spanned},
+    common::{source_map::Pos, Span, Spanned, GLOBALS},
     ecma::ast::{Expr, Ident, Program},
 };
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
@@ -13,7 +13,10 @@ use turbopack_binding::turbopack::{
     core::{
         file_source::FileSource,
         ident::AssetIdent,
-        issue::{Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource},
+        issue::{
+            Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
+            StyledString,
+        },
         source::Source,
     },
     ecmascript::{
@@ -151,7 +154,7 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<String>,
+    detail: Vc<StyledString>,
     source: Vc<IssueSource>,
 }
 
@@ -163,8 +166,8 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<String> {
-        Vc::cell("Unable to parse config export in source file".to_string())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unable to parse config export in source file".to_string()).cell()
     }
 
     #[turbo_tasks::function]
@@ -178,17 +181,20 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn description(&self) -> Vc<String> {
-        Vc::cell(
-            "The exported configuration object in a source file need to have a very specific \
-             format from which some properties can be statically parsed at compiled-time."
-                .to_string(),
-        )
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(
+                "The exported configuration object in a source file need to have a very specific \
+                 format from which some properties can be statically parsed at compiled-time."
+                    .to_string(),
+            )
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
-    fn detail(&self) -> Vc<String> {
-        self.detail
+    fn detail(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(self.detail))
     }
 
     #[turbo_tasks::function]
@@ -223,13 +229,19 @@ pub async fn parse_segment_config_from_source(
 
     let result = &*parse(
         source,
-        turbo_tasks::Value::new(
-            if path.path.ends_with(".ts") || path.path.ends_with(".tsx") {
-                EcmascriptModuleAssetType::Typescript
-            } else {
-                EcmascriptModuleAssetType::Ecmascript
-            },
-        ),
+        turbo_tasks::Value::new(if path.path.ends_with(".ts") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: false,
+                analyze_types: false,
+            }
+        } else if path.path.ends_with(".tsx") {
+            EcmascriptModuleAssetType::Typescript {
+                tsx: true,
+                analyze_types: false,
+            }
+        } else {
+            EcmascriptModuleAssetType::Ecmascript
+        }),
         EcmascriptInputTransforms::empty(),
     )
     .await?;
@@ -237,33 +249,37 @@ pub async fn parse_segment_config_from_source(
     let ParseResult::Ok {
         program: Program::Module(module_ast),
         eval_context,
+        globals,
         ..
     } = result
     else {
         return Ok(Default::default());
     };
 
-    let mut config = NextSegmentConfig::default();
+    let config = GLOBALS.set(globals, || {
+        let mut config = NextSegmentConfig::default();
 
-    for item in &module_ast.body {
-        let Some(decl) = item
-            .as_module_decl()
-            .and_then(|mod_decl| mod_decl.as_export_decl())
-            .and_then(|export_decl| export_decl.decl.as_var())
-        else {
-            continue;
-        };
-
-        for decl in &decl.decls {
-            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+        for item in &module_ast.body {
+            let Some(decl) = item
+                .as_module_decl()
+                .and_then(|mod_decl| mod_decl.as_export_decl())
+                .and_then(|export_decl| export_decl.decl.as_var())
+            else {
                 continue;
             };
 
-            if let Some(init) = decl.init.as_ref() {
-                parse_config_value(source, &mut config, ident, init, eval_context);
+            for decl in &decl.decls {
+                let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
+                    continue;
+                };
+
+                if let Some(init) = decl.init.as_ref() {
+                    parse_config_value(source, &mut config, ident, init, eval_context);
+                }
             }
         }
-    }
+        config
+    });
 
     Ok(config.cell())
 }
@@ -284,7 +300,7 @@ fn parse_config_value(
         let (explainer, hints) = value.explain(2, 0);
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: Vc::cell(format!("{detail} Got {explainer}.{hints}")),
+            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}")).cell(),
             source: issue_source(source, span),
         }
         .cell()

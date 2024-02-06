@@ -6,7 +6,7 @@ name: Generate Pull Request Stats
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.12.2
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
@@ -25,6 +25,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
     with:
+      stepName: 'generate-pull-request-stats'
       uploadSwcArtifact: 'yes'
       uploadAnalyzerArtifacts: 'yes'
 
@@ -38,7 +39,7 @@ jobs:
       - 'x64'
       - 'metal'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -46,7 +47,7 @@ jobs:
         run: echo "DOCS_CHANGE<<EOF" >> $GITHUB_OUTPUT; echo "$(node scripts/run-for-change.js --not --type docs --exec echo 'nope')" >> $GITHUB_OUTPUT; echo 'EOF' >> $GITHUB_OUTPUT
         id: docs-change
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         if: ${{ steps.docs-change.outputs.DOCS_CHANGE == 'nope' }}
         with:
           name: next-swc-binary

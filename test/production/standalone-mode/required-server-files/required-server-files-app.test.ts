@@ -30,6 +30,7 @@ describe('required server files app router', () => {
       files: {
         app: new FileRef(join(__dirname, 'app')),
         lib: new FileRef(join(__dirname, 'lib')),
+        'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -37,6 +38,8 @@ describe('required server files app router', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        cacheHandler: './cache-handler.js',
+        cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
         },
@@ -86,6 +89,7 @@ describe('required server files app router', () => {
         cwd: next.testDir,
       }
     )
+    appPort = `http://127.0.0.1:${appPort}`
   }
 
   beforeAll(async () => {
@@ -192,6 +196,26 @@ describe('required server files app router', () => {
       const res = await fetchViaHTTP(appPort, path, undefined, {
         redirect: 'manual',
       })
+      expect(res.status).toBe(200)
+      expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
+    }
+  })
+
+  it('should not send invalid soft tags to cache handler', async () => {
+    for (const path of [
+      '/ssr/first',
+      '/ssr/second',
+      '/api/ssr/first',
+      '/api/ssr/second',
+    ]) {
+      const res = await fetchViaHTTP(
+        appPort,
+        path,
+        { hello: 'world' },
+        {
+          redirect: 'manual',
+        }
+      )
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }

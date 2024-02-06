@@ -153,7 +153,7 @@ fn filename(path: &str) -> &str {
     split_directory(path).1
 }
 
-fn split_extension(path: &str) -> (&str, Option<&str>) {
+pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
     let filename = filename(path);
     if let Some((filename_before_extension, ext)) = filename.rsplit_once('.') {
         if filename_before_extension.is_empty() {
@@ -258,7 +258,7 @@ fn djb2_hash(str: &str) -> u32 {
     })
 }
 
-// this is here to mirror next.js behaviour.
+// this is here to mirror next.js behaviour (`toString(36).slice(0, 6)`)
 fn format_radix(mut x: u32, radix: u32) -> String {
     let mut result = vec![];
 
@@ -273,7 +273,8 @@ fn format_radix(mut x: u32, radix: u32) -> String {
         }
     }
 
-    result.into_iter().rev().collect()
+    result.reverse();
+    result[..6].iter().collect()
 }
 
 /// If there's special convention like (...) or @ in the page path,

@@ -1,10 +1,11 @@
+import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
-  RSC_MOD_REF_PROXY_ALIAS,
-  WEBPACK_LAYERS,
-} from '../../../../lib/constants'
-import { RSC_MODULE_TYPES } from '../../../../shared/lib/constants'
+  BARREL_OPTIMIZATION_PREFIX,
+  RSC_MODULE_TYPES,
+} from '../../../../shared/lib/constants'
 import { warnOnce } from '../../../../shared/lib/utils/warn-once'
 import { getRSCModuleInformation } from '../../../analysis/get-page-static-info'
+import { formatBarrelOptimizedResource } from '../../utils'
 import { getModuleBuildInfo } from '../get-module-build-info'
 
 const noopHeadPath = require.resolve('next/dist/client/components/noop-head')
@@ -27,32 +28,31 @@ export default function transformSource(
   const buildInfo = getModuleBuildInfo(this._module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
 
+  // Resource key is the unique identifier for the resource. When RSC renders
+  // a client module, that key is used to identify that module across all compiler
+  // layers.
+  //
+  // Usually it's the module's file path + the export name (e.g. `foo.js#bar`).
+  // But with Barrel Optimizations, one file can be splitted into multiple modules,
+  // so when you import `foo.js#bar` and `foo.js#baz`, they are actually different
+  // "foo.js" being created by the Barrel Loader (one only exports `bar`, the other
+  // only exports `baz`).
+  //
+  // Because of that, we must add another query param to the resource key to
+  // differentiate them.
+  let resourceKey: string = this.resourcePath
+  if (this._module?.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+    resourceKey = formatBarrelOptimizedResource(
+      resourceKey,
+      this._module.matchResource
+    )
+  }
+
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const issuerLayer = this._module.layer
     const sourceType = this._module?.parser?.sourceType
     const detectedClientEntryType = buildInfo.rsc.clientEntryType
     const clientRefs = buildInfo.rsc.clientRefs!
-
-    if (issuerLayer === WEBPACK_LAYERS.actionBrowser) {
-      // You're importing a Server Action module ("use server") from a client module
-      // (hence you're on the actionBrowser layer), and you're trying to import a
-      // client module again from it. This is not allowed because of cyclic module
-      // graph.
-
-      // We need to only error for user code, not for node_modules/Next.js internals.
-      // Things like `next/navigation` exports both `cookies()` and `useRouter()`
-      // and we shouldn't error for that. In the future we might want to find a way
-      // to only throw when it's used.
-      if (!this.resourcePath.includes('node_modules')) {
-        this.callback(
-          new Error(
-            `You're importing a Client Component ("use client") from another Client Component imported Server Action file ("use server"). This is not allowed due to cyclic module graph between Server and Client.\nYou can work around it by defining and passing this Server Action from a Server Component into the Client Component via props.`
-          )
-        )
-        return
-      }
-    }
 
     // It's tricky to detect the type of a client boundary, but we should always
     // use the `module` type when we can, to support `export *` and `export from`
@@ -85,7 +85,7 @@ export default function transformSource(
 
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
-const proxy = createProxy(String.raw\`${this.resourcePath}\`)
+const proxy = createProxy(String.raw\`${resourceKey}\`)
 
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
@@ -97,14 +97,14 @@ const __default__ = proxy.default;
       let cnt = 0
       for (const ref of clientRefs) {
         if (ref === '') {
-          esmSource += `\nexports[''] = createProxy(String.raw\`${this.resourcePath}#\`);`
+          esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
           esmSource += `
 export { __esModule, $$typeof };
 export default __default__;`
         } else {
           esmSource += `
-const e${cnt} = createProxy(String.raw\`${this.resourcePath}#${ref}\`);
+const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
 export { e${cnt++} as ${ref} };`
         }
       }
