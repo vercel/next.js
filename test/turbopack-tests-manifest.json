@@ -3820,14 +3820,14 @@
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
       "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client"
-    ],
-    "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error",
+      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+    ],
+    "failed": [
+      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -5750,6 +5750,8 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5757,6 +5759,8 @@
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5765,12 +5769,7 @@
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
-    "failed": [
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5857,15 +5856,6 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app computed styles page using fallback fonts",
-      "next/font app computed styles page using variables",
-      "next/font app computed styles page with fonts",
-      "next/font app import values Variable font without weight range",
-      "next/font app import values page with font",
-      "next/font app import values page with local fonts",
-      "next/font app should use production cache control for fonts"
-    ],
-    "failed": [
       "next/font app Fallback fontfaces google Fraunces",
       "next/font app Fallback fontfaces google Indie flower",
       "next/font app Fallback fontfaces local Fraunces",
@@ -5873,13 +5863,21 @@
       "next/font app Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font app computed styles page using fallback fonts",
+      "next/font app computed styles page using variables",
+      "next/font app computed styles page with fonts",
+      "next/font app import values Variable font without weight range",
+      "next/font app import values page with font",
+      "next/font app import values page with local fonts",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
       "next/font app preload page with fonts",
       "next/font app preload page with local fonts",
-      "next/font app preload page without fonts"
+      "next/font app preload page without fonts",
+      "next/font app should use production cache control for fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8200,17 +8198,13 @@
     "runtimeError": false
   },
   "test/integration/custom-server/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+    "passed": [
       "Custom Server using HTTP Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname",
       "Custom Server using HTTP compression handling should handle compression for route /",
       "Custom Server using HTTP compression handling should handle compression for route /no-query",
       "Custom Server using HTTP unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTP with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTP with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTP with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTP with dynamic assetPrefix should handle render with undefined query",
@@ -8219,15 +8213,12 @@
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTP with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTP with middleware $title should read the expected url protocol in middleware",
-      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTPS Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTPS compression handling should handle compression for route /",
       "Custom Server using HTTPS compression handling should handle compression for route /no-query",
       "Custom Server using HTTPS unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTPS with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTPS with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTPS with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTPS with dynamic assetPrefix should handle render with undefined query",
@@ -8236,8 +8227,16 @@
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTPS with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTPS with middleware $title should read the expected url protocol in middleware"
+    ],
+    "failed": [],
+    "pending": [
+      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
+      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header"
     ],
     "flakey": [],
     "runtimeError": false

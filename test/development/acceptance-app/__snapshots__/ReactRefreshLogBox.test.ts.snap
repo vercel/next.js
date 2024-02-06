@@ -119,7 +119,7 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (3:11) @ __TURBOPACK__default__export__
+"index.js (3:11) @ {default export}
 
   1 | export default () => {
   2 |   if (typeof window !== 'undefined') {

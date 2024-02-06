@@ -10,28 +10,22 @@ pub(super) struct NextFontRequest {
     pub arguments: Vec<NextFontRequestArguments>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Default, Deserialize)]
 pub(super) struct NextFontRequestArguments {
     pub weight: Option<OneOrManyStrings>,
     pub subsets: Option<Vec<String>>,
     pub style: Option<OneOrManyStrings>,
     pub display: Option<String>,
-    #[serde(default)]
-    pub preload: bool,
+    pub preload: Option<bool>,
     pub axes: Option<Vec<String>>,
     pub fallback: Option<Vec<String>>,
-    #[serde(default = "default_adjust_font_fallback")]
-    pub adjust_font_fallback: bool,
+    pub adjust_font_fallback: Option<bool>,
     pub variable: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
 pub(super) enum OneOrManyStrings {
     One(String),
     Many(Vec<String>),
-}
-
-fn default_adjust_font_fallback() -> bool {
-    true
 }
