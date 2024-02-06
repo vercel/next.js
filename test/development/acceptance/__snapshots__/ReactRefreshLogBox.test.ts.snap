@@ -4,7 +4,7 @@ exports[`ReactRefreshLogBox default boundaries 1`] = `
 "FunctionDefault.js (1:51) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }
-    |                                                   ^
+    |                                                   ^"
 `;
 
 exports[`ReactRefreshLogBox default conversion to class component (1) 1`] = `
