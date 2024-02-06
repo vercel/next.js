@@ -606,7 +606,7 @@ export async function imageOptimizer(
         // During `next dev`, we don't want to generate blur placeholders with webpack
         // because it can delay starting the dev server. Instead, `next-image-loader.js`
         // will inline a special url to lazily generate the blur placeholder at request time.
-        const meta = await sharp(optimizedBuffer).metadata()
+        const meta = await getImageSize(optimizedBuffer)
         const opts = {
           blurWidth: meta.width,
           blurHeight: meta.height,
