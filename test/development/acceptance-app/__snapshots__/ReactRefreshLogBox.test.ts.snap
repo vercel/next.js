@@ -133,7 +133,7 @@ exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when e
 exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
 "FunctionDefault.js (1:51) @ FunctionDefault
 
-> 1 | export default function FunctionDefault() { throw new Error('no'); }"
+> 1 | export default function FunctionDefault() { throw new Error('no'); }
     |                                                   ^"
 `;
 
