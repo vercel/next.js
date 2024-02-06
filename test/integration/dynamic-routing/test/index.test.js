@@ -1157,8 +1157,10 @@ function runTests({ dev }) {
       `
       )
       await check(async () => {
-        const response = await fetch(
+        const response = await fetchViaHTTP(
+          appPort,
           '/_next/static/development/_devPagesManifest.json',
+          undefined,
           {
             credentials: 'same-origin',
           }
