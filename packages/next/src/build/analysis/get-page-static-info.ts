@@ -384,29 +384,24 @@ export function getMiddlewareMatchers(
 
 function getMiddlewareConfig(
   pageFilePath: string,
-  config: unknown,
+  config: any,
   nextConfig: NextConfig
 ): Partial<MiddlewareConfigParsed> {
-  if (typeof config !== 'object' || config === null) {
-    throw new TypeError('config must be an object')
-  }
   const result: Partial<MiddlewareConfigParsed> = {}
 
-  if ('matcher' in config) {
+  if (config.matcher) {
     result.matchers = getMiddlewareMatchers(config.matcher, nextConfig)
   }
 
-  if ('regions' in config) {
-    if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
-      result.regions = config.regions
-    } else if (typeof config.regions !== 'undefined') {
-      Log.warn(
-        `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
-      )
-    }
+  if (typeof config.regions === 'string' || Array.isArray(config.regions)) {
+    result.regions = config.regions
+  } else if (typeof config.regions !== 'undefined') {
+    Log.warn(
+      `The \`regions\` config was ignored: config must be empty, a string or an array of strings. (${pageFilePath})`
+    )
   }
 
-  if ('unstable_allowDynamic' in config) {
+  if (config.unstable_allowDynamic) {
     result.unstable_allowDynamicGlobs = Array.isArray(
       config.unstable_allowDynamic
     )
