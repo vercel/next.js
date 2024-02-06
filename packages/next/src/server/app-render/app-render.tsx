@@ -571,6 +571,7 @@ async function renderToHTMLOrFlightImpl(
   // avoid that resources can be deduped by React Float if the same resource is
   // rendered or preloaded multiple times: `<link href="a.css?v={Date.now()}"/>`.
   const requestTimestamp = Date.now()
+  const abortController = new AbortController()
 
   const {
     buildManifest,
@@ -665,6 +666,7 @@ async function renderToHTMLOrFlightImpl(
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
+    abortController,
   })
 
   /**
@@ -991,8 +993,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (capturedError: any) {
-        const err = digestErrorsMap.get(capturedError?.digest) ?? capturedError
+      } catch (err: any) {
         if (
           isStaticGenBailoutError(err) ||
           (typeof err === 'object' &&

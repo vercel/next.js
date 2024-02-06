@@ -31,6 +31,7 @@ export function createErrorHandler({
   digestErrorsMap,
   allCapturedErrors,
   silenceLogger,
+  abortController,
 }: {
   source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
@@ -39,6 +40,7 @@ export function createErrorHandler({
   digestErrorsMap: Map<string, Error>
   allCapturedErrors?: Error[]
   silenceLogger?: boolean
+  abortController?: AbortController
 }): ErrorHandler {
   return (err: any, errorInfo: any) => {
     // If the error already has a digest, respect the original digest,
