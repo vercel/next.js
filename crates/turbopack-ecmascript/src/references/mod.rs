@@ -143,7 +143,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: Vc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: Option<Vc<SourceMap>>,
+    pub source_map: Vc<OptionSourceMap>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -157,7 +157,7 @@ pub(crate) struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: Vc<OptionAsyncModule>,
     successful: bool,
-    source_maps: Vec<Vc<OptionSourceMap>>,
+    source_map: Option<Vc<OptionSourceMap>>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -171,7 +171,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             exports: EcmascriptExports::None,
             async_module: Vc::cell(None),
             successful: false,
-            source_maps: Vec::new(),
+            source_map: None,
         }
     }
 
@@ -232,8 +232,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn add_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
-        self.source_maps.push(source_map)
+    pub fn set_source_map(&mut self, source_map: Vc<OptionSourceMap>) {
+        self.source_map = Some(source_map);
     }
 
     /// Sets the analysis result ES export.
@@ -295,13 +295,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 }
             }
         }
-        let mut source_map = None;
-        for map in self.source_maps {
-            if let Some(map) = &*map.await? {
-                source_map = Some(map.resolve().await?);
-                break;
-            }
-        }
+        let source_map = if let Some(source_map) = self.source_map {
+            source_map
+        } else {
+            OptionSourceMap::none()
+        };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: Vc::cell(references),
@@ -476,31 +474,41 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    comments.trailing.iter().for_each(|(_, comments)| {
-        comments.iter().for_each(|comment| match comment.kind {
-            CommentKind::Line => {
-                lazy_static! {
-                    static ref SOURCE_MAP_FILE_REFERENCE: Regex =
-                        Regex::new(r"# sourceMappingURL=(.*)$").unwrap();
-                }
-                if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
-                    let path = &m[1];
-                    if path.ends_with(".map") {
-                        let origin_path = origin.origin_path();
-                        let reference = SourceMapReference::new(
-                            origin_path,
-                            origin_path.parent().join(path.to_string()),
-                        );
-                        analysis.add_source_map(reference.generate_source_map());
-                        analysis.add_reference(reference);
-                    } else if path.starts_with("data:application/json;base64,") {
-                        analysis.add_source_map(maybe_decode_data_url(path.to_string()));
-                    }
-                }
+    // Only use the last sourceMappingURL comment by spec
+    let mut paths_by_pos = Vec::new();
+    for (pos, comments) in comments.trailing.iter() {
+        for comment in comments.iter().rev() {
+            lazy_static! {
+                static ref SOURCE_MAP_FILE_REFERENCE: Regex =
+                    Regex::new(r"# sourceMappingURL=(.*)$").unwrap();
             }
-            CommentKind::Block => {}
-        });
-    });
+            if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
+                let path = m.get(1).unwrap().as_str();
+                paths_by_pos.push((pos, path));
+                break;
+            }
+        }
+    }
+    if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
+        let origin_path = origin.origin_path();
+        if path.ends_with(".map") {
+            let source_map_origin = origin_path.parent().join(path.to_string());
+            let reference = SourceMapReference::new(origin_path, source_map_origin);
+            analysis.add_reference(reference);
+            let source_map = reference.generate_source_map();
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                source_map,
+                source_map_origin,
+            ));
+        } else if path.starts_with("data:application/json;base64,") {
+            let source_map_origin = origin_path;
+            let source_map = maybe_decode_data_url(path.to_string());
+            analysis.set_source_map(convert_to_turbopack_source_map(
+                source_map,
+                source_map_origin,
+            ));
+        }
+    }
 
     let handler = Handler::with_emitter(
         true,
@@ -2866,4 +2874,15 @@ fn maybe_decode_data_url(url: String) -> Vc<OptionSourceMap> {
     } else {
         Vc::cell(None)
     }
+}
+
+#[turbo_tasks::function]
+async fn convert_to_turbopack_source_map(
+    source_map: Vc<OptionSourceMap>,
+    origin: Vc<FileSystemPath>,
+) -> Result<Vc<OptionSourceMap>> {
+    let Some(source_map) = *source_map.await? else {
+        return Ok(Vc::cell(None));
+    };
+    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
 }

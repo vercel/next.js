@@ -24,6 +24,7 @@ lazy_static = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"
 qstring = { workspace = true }
+ref-cast = "1.0.20"
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
