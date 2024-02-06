@@ -1,8 +1,5 @@
-import { basename } from 'path'
-
 export default async function handler(request) {
-  basename()
-  return Response.json({ ok: basename() })
+  return Response.json({ ok: true })
 }
 
 export const config = { runtime: 'edge' }
