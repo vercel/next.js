@@ -2801,7 +2801,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      if (cachedData.status) {
+      // If the request is a data request, then we shouldn't set the status code
+      // from the response because it should always be 200. This should be gated
+      // behind the experimental PPR flag.
+      if (cachedData.status && (!isDataReq || !opts.experimental.ppr)) {
         res.statusCode = cachedData.status
       }
 

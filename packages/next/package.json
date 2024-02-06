@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "14.1.1-canary.36",
+  "version": "14.1.1-canary.38",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -92,7 +92,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "14.1.1-canary.36",
+    "@next/env": "14.1.1-canary.38",
     "@swc/helpers": "0.5.5",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
@@ -113,6 +113,9 @@
     "@opentelemetry/api": {
       "optional": true
     }
+  },
+  "optionalDependencies": {
+    "sharp": "^0.33.2"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -144,13 +147,12 @@
     "@jest/transform": "29.5.0",
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
-    "@napi-rs/cli": "2.16.2",
-    "@napi-rs/triples": "1.1.0",
-    "@next/polyfill-module": "14.1.1-canary.36",
-    "@next/polyfill-nomodule": "14.1.1-canary.36",
-    "@next/react-dev-overlay": "14.1.1-canary.36",
-    "@next/react-refresh-utils": "14.1.1-canary.36",
-    "@next/swc": "14.1.1-canary.36",
+    "@napi-rs/triples": "1.2.0",
+    "@next/polyfill-module": "14.1.1-canary.38",
+    "@next/polyfill-nomodule": "14.1.1-canary.38",
+    "@next/react-dev-overlay": "14.1.1-canary.38",
+    "@next/react-refresh-utils": "14.1.1-canary.38",
+    "@next/swc": "14.1.1-canary.38",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "^1.35.1",
     "@taskr/clear": "1.1.0",
@@ -194,7 +196,7 @@
     "@types/ws": "8.2.0",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.26.3",
-    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240202.3",
+    "@vercel/turbopack-ecmascript-runtime": "https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240205.2",
     "acorn": "8.5.0",
     "amphtml-validator": "1.0.35",
     "anser": "1.4.9",
@@ -230,7 +232,6 @@
     "events": "3.3.0",
     "find-up": "4.1.0",
     "fresh": "0.5.2",
-    "get-orientation": "1.1.2",
     "glob": "7.1.7",
     "gzip-size": "5.1.1",
     "http-proxy": "1.18.1",
@@ -239,7 +240,7 @@
     "https-proxy-agent": "5.0.1",
     "icss-utils": "5.1.0",
     "ignore-loader": "0.1.2",
-    "image-size": "1.0.0",
+    "image-size": "1.1.1",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
     "jest-worker": "27.5.1",

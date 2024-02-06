@@ -310,7 +310,6 @@ export async function collectBuildTraces({
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
-              '**/next/dist/server/lib/squoosh/**/*.wasm',
             ]
           : []),
 
