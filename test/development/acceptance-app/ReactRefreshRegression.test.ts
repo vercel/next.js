@@ -284,10 +284,21 @@ describe('ReactRefreshRegression app', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                   ^"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (1:35) @ default
+
+              > 1 | export default function () { throw new Error('boom'); }
+                  |                                   ^"
+          `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (1:35) @ default
+
+              > 1 | export default function () { throw new Error('boom'); }
+                  |                                   ^"
+          `)
+    }
 
     await cleanup()
   })
@@ -303,10 +314,21 @@ describe('ReactRefreshRegression app', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function Page() { throw new Error('boom'); }
-          |                                       ^"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (1:39) @ Page
+
+              > 1 | export default function Page() { throw new Error('boom'); }
+                  |                                       ^"
+          `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (1:39) @ Page
+
+              > 1 | export default function Page() { throw new Error('boom'); }
+                  |                                       ^"
+          `)
+    }
 
     await cleanup()
   })
@@ -325,11 +347,23 @@ describe('ReactRefreshRegression app', () => {
     expect(await session.hasRedbox()).toBe(true)
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "  1 | 'use client'
-      > 2 | export default function Page() { throw new Error('boom'); }
-          |                                       ^"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (2:39) @ Page
+
+                1 | 'use client'
+              > 2 | export default function Page() { throw new Error('boom'); }
+                  |                                       ^"
+          `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+              "app/page.js (2:39) @ Page
+
+                1 | 'use client'
+              > 2 | export default function Page() { throw new Error('boom'); }
+                  |                                       ^"
+          `)
+    }
 
     await cleanup()
   })
