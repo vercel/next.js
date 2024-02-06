@@ -51,14 +51,6 @@ export function createErrorHandler({
     }
     const digest = err.digest
 
-    if (!digestErrorsMap.has(digest)) {
-      digestErrorsMap.set(digest, err)
-    } else if (source === ErrorHandlerSource.html) {
-      // For SSR errors, if we have the existing digest in errors map,
-      // we should use the existing error object to avoid duplicate error logs.
-      err = digestErrorsMap.get(digest)
-    }
-
     if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
@@ -68,12 +60,20 @@ export function createErrorHandler({
     // If the response was closed, we don't need to log the error.
     if (isAbortError(err)) return
 
+    if (!digestErrorsMap.has(digest)) {
+      digestErrorsMap.set(digest, err)
+    } else if (source === ErrorHandlerSource.html) {
+      // For SSR errors, if we have the existing digest in errors map,
+      // we should use the existing error object to avoid duplicate error logs.
+      err = digestErrorsMap.get(digest)
+    }
+
     // Format server errors in development to add more helpful error messages
     if (dev) {
       formatServerError(err)
     }
     // Used for debugging error source
-    // console.error(_source, err)
+    // console.error(source, err)
     // Don't log the suppressed error during export
     if (
       !(
