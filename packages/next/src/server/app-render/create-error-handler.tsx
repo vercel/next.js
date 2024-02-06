@@ -68,6 +68,7 @@ export function createErrorHandler({
       // For SSR errors, if we have the existing digest in errors map,
       // we should use the existing error object to avoid duplicate error logs.
       err = digestErrorsMap.get(digest)
+      abortController?.abort(err)
     }
 
     // Format server errors in development to add more helpful error messages
