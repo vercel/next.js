@@ -51,17 +51,15 @@ export function createErrorHandler({
     }
     const digest = err.digest
 
-    let hasReusedError = false
     if (!digestErrorsMap.has(digest)) {
       digestErrorsMap.set(digest, err)
     } else if (source === ErrorHandlerSource.html) {
       // For SSR errors, if we have the existing digest in errors map,
       // we should use the existing error object to avoid duplicate error logs.
       err = digestErrorsMap.get(digest)
-      hasReusedError = true
     }
 
-    if (allCapturedErrors && !hasReusedError) allCapturedErrors.push(err)
+    if (allCapturedErrors) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.

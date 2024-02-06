@@ -991,8 +991,8 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (err: any) {
-        err = digestErrorsMap.get(err?.digest) ?? err
+      } catch (capturedError: any) {
+        const err = digestErrorsMap.get(capturedError?.digest) ?? capturedError
         if (
           isStaticGenBailoutError(err) ||
           (typeof err === 'object' &&
