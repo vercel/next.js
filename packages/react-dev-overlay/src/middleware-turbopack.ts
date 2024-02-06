@@ -21,7 +21,7 @@ interface TurbopackStackFrame {
   // 1-based
   file: string
   isServer: boolean
-  line: number
+  line: number | null
   methodName: string | null
 }
 
@@ -88,8 +88,10 @@ export async function createOriginalStackFrame(
             traced.source,
             {
               start: {
-                line: traced.frame.lineNumber,
-                column: traced.frame.column ?? 1,
+                // 1-based, but -1 means start line without highlighting
+                line: traced.frame.lineNumber ?? -1,
+                // 1-based, but 0 means whole line without column highlighting
+                column: traced.frame.column ?? 0,
               },
             },
             { forceColor: true }
@@ -159,7 +161,7 @@ export function getOverlayMiddleware(project: Project) {
       }
 
       try {
-        launchEditor(filePath, frame.line, frame.column ?? 1)
+        launchEditor(filePath, frame.line ?? 1, frame.column ?? 0)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
