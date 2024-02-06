@@ -642,8 +642,44 @@ impl Repeated for NextSsg {
 ///
 /// Note: We don't implement `fold_script` because next.js doesn't use it.
 impl Fold for NextSsg {
-    // This is important for reducing binary sizes.
-    noop_fold_type!();
+    fn fold_expr(&mut self, e: Expr) -> Expr {
+        match e {
+            Expr::Assign(assign_expr) => {
+                let mut retain = true;
+                let left =
+                    self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
+
+                let right = self.within_lhs_of_var(false, |this| {
+                    match left {
+                        AssignTarget::Simple(SimpleAssignTarget::Invalid(..))
+                        | AssignTarget::Pat(AssignTargetPat::Invalid(..)) => {
+                            retain = false;
+                            this.mark_as_candidate(&assign_expr.right);
+                        }
+
+                        _ => {}
+                    }
+                    assign_expr.right.clone().fold_with(this)
+                });
+
+                if retain {
+                    self.remove_expression = false;
+                    Expr::Assign(AssignExpr {
+                        left,
+                        right,
+                        ..assign_expr
+                    })
+                } else {
+                    self.remove_expression = true;
+                    *right
+                }
+            }
+            _ => {
+                self.remove_expression = false;
+                e.fold_children_with(self)
+            }
+        }
+    }
 
     fn fold_import_decl(&mut self, mut i: ImportDecl) -> ImportDecl {
         // Imports for side effects.
@@ -904,6 +940,24 @@ impl Fold for NextSsg {
         p
     }
 
+    fn fold_simple_assign_target(&mut self, mut n: SimpleAssignTarget) -> SimpleAssignTarget {
+        n = n.fold_children_with(self);
+
+        if let SimpleAssignTarget::Ident(name) = &n {
+            if self.should_remove(&name.id.to_id()) {
+                self.state.should_run_again = true;
+                tracing::trace!(
+                    "Dropping var `{}{:?}` because it should be removed",
+                    name.id.sym,
+                    name.id.span.ctxt
+                );
+
+                return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
+            }
+        }
+        n
+    }
+
     #[allow(clippy::single_match)]
     fn fold_stmt(&mut self, mut s: Stmt) -> Stmt {
         match s {
@@ -946,45 +1000,6 @@ impl Fold for NextSsg {
         s
     }
 
-    fn fold_expr(&mut self, e: Expr) -> Expr {
-        match e {
-            Expr::Assign(assign_expr) => {
-                let mut retain = true;
-                let left =
-                    self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
-
-                let right = self.within_lhs_of_var(false, |this| {
-                    match left {
-                        AssignTarget::Simple(SimpleAssignTarget::Invalid(..))
-                        | AssignTarget::Pat(AssignTargetPat::Invalid(..)) => {
-                            retain = false;
-                            this.mark_as_candidate(&assign_expr.right);
-                        }
-
-                        _ => {}
-                    }
-                    assign_expr.right.clone().fold_with(this)
-                });
-
-                if retain {
-                    self.remove_expression = false;
-                    Expr::Assign(AssignExpr {
-                        left,
-                        right,
-                        ..assign_expr
-                    })
-                } else {
-                    self.remove_expression = true;
-                    *right
-                }
-            }
-            _ => {
-                self.remove_expression = false;
-                e.fold_children_with(self)
-            }
-        }
-    }
-
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it
     /// should be removed.
     fn fold_var_declarator(&mut self, d: VarDeclarator) -> VarDeclarator {
@@ -1006,6 +1021,9 @@ impl Fold for NextSsg {
 
         decls
     }
+
+    // This is important for reducing binary sizes.
+    noop_fold_type!();
 }
 
 /// Returns the root identifier of a member expression.
