@@ -1,38 +1,39 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
+use turbopack_binding::turbopack::ecmascript::OptionTransformPlugin;
 
 use crate::next_config::NextConfig;
 
-pub async fn get_swc_ecma_transform_plugin_rule(
-    next_config: Vc<NextConfig>,
+#[turbo_tasks::function]
+pub async fn get_swc_ecma_transform_plugin(
     project_path: Vc<FileSystemPath>,
-) -> Result<Option<ModuleRule>> {
-    match next_config.await?.experimental.swc_plugins.as_ref() {
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
+    let config = next_config.await?;
+    Ok(match config.experimental.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
-                let enable_mdx_rs = *next_config.mdx_rs().await?;
-                get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
+                get_swc_ecma_transform_plugin_impl(project_path, plugin_configs).await?
             }
 
             #[cfg(not(feature = "plugin"))]
             {
-                let _ = project_path; // To satisfiy lint
-                Ok(None)
+                // For clippy.
+                let _ = project_path;
+                Vc::cell(None)
             }
         }
-        _ => Ok(None),
-    }
+        _ => Vc::cell(None),
+    })
 }
 
 #[cfg(feature = "plugin")]
-pub async fn get_swc_ecma_transform_rule_impl(
+pub async fn get_swc_ecma_transform_plugin_impl(
     project_path: Vc<FileSystemPath>,
     plugin_configs: &[(String, serde_json::Value)],
-    enable_mdx_rs: bool,
-) -> Result<Option<ModuleRule>> {
+) -> Result<Vc<OptionTransformPlugin>> {
     use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
@@ -48,8 +49,6 @@ pub async fn get_swc_ecma_transform_rule_impl(
         },
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     };
-
-    use crate::next_shared::transforms::get_ecma_transform_rule;
 
     let mut plugins = vec![];
     for (name, config) in plugin_configs.iter() {
@@ -105,9 +104,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
         ));
     }
 
-    Ok(Some(get_ecma_transform_rule(
-        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
-        enable_mdx_rs,
-        true,
-    )))
+    return Ok(Vc::cell(Some(Vc::cell(
+        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)) as _,
+    ))));
 }

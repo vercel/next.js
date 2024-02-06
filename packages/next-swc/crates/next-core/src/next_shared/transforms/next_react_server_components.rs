@@ -7,43 +7,31 @@ use swc_core::{
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, TransformContext},
-    turbopack::module_options::ModuleRule,
+use turbopack_binding::turbopack::ecmascript::{
+    CustomTransformer, TransformContext, TransformPlugin,
 };
 
-use super::get_ecma_transform_rule;
-use crate::next_config::NextConfig;
-
-/// Returns a rule which applies the Next.js react server components transform.
+/// Applies the Next.js react server components transform.
 /// This transform owns responsibility to assert various import / usage
 /// conditions against each code's context. Refer below table how we are
-/// applying this rules against various contexts.
+/// applying these rules against various contexts.
 ///
-/// +-----------------+---------+--------------------+
-/// | Context\Enabled | Enabled | isReactServerLayer |
-/// +-----------------+---------+--------------------+
+/// | Context         | Enabled | isReactServerLayer |
+/// |-----------------|---------|--------------------|
 /// | SSR             | true    | false              |
 /// | Client          | true    | false              |
 /// | Middleware      | false   | false              |
 /// | Api             | false   | false              |
 /// | RSC             | true    | true               |
 /// | Pages           | true    | false              |
-/// +-----------------+---------+--------------------+
-pub async fn get_next_react_server_components_transform_rule(
-    next_config: Vc<NextConfig>,
+pub fn get_next_react_server_components_transform_plugin(
     is_react_server_layer: bool,
     app_dir: Option<Vc<FileSystemPath>>,
-) -> Result<ModuleRule> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
-    Ok(get_ecma_transform_rule(
-        Box::new(NextJsReactServerComponents::new(
-            is_react_server_layer,
-            app_dir,
-        )),
-        enable_mdx_rs,
-        true,
-    ))
+) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(NextJsReactServerComponents::new(
+        is_react_server_layer,
+        app_dir,
+    )) as _)
 }
 
 #[derive(Debug)]

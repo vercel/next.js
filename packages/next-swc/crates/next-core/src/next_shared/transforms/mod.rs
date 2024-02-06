@@ -26,7 +26,7 @@ use turbo_tasks::{ReadRef, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
-    ecmascript::{CustomTransformer, EcmascriptInputTransform},
+    ecmascript::{EcmascriptInputTransform, TransformPlugin},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
 };
 
@@ -85,8 +85,9 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
 }
 
 /// Returns a module rule condition matches to any ecmascript (with mdx if
-/// enabled) except url reference type. This is a typical custom rule matching
-/// condition for custom ecma specific transforms.
+/// enabled) except URL reference type.
+/// This is a typical custom rule matching condition for custom ecma specific
+/// transforms.
 pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCondition {
     let conditions = match_js_extension(enable_mdx_rs);
 
@@ -113,22 +114,26 @@ pub(crate) fn module_rule_match_pages_page_file(
     ])
 }
 
-/// Create a new module rule for the given ecmatransform, runs against
-/// any ecmascript (with mdx if enabled) except url reference type
-pub(crate) fn get_ecma_transform_rule(
-    transformer: Box<dyn CustomTransformer + Send + Sync>,
+/// Create a new module rule for ecmascript transform plugins, runs against
+/// any ecmascript (with mdx if enabled) except url reference type.
+pub(crate) fn module_rule_ecmascript_transform_plugins(
     enable_mdx_rs: bool,
-    prepend: bool,
+    prepend: &[Vc<TransformPlugin>],
+    append: &[Vc<TransformPlugin>],
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(transformer as _));
-    let (prepend, append) = if prepend {
-        (Vc::cell(vec![transformer]), Vc::cell(vec![]))
-    } else {
-        (Vc::cell(vec![]), Vc::cell(vec![transformer]))
-    };
-
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append }],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(as_input_transforms(prepend)),
+            append: Vc::cell(as_input_transforms(append)),
+        }],
     )
+}
+
+fn as_input_transforms(plugins: &[Vc<TransformPlugin>]) -> Vec<EcmascriptInputTransform> {
+    plugins
+        .iter()
+        .copied()
+        .map(EcmascriptInputTransform::Plugin)
+        .collect()
 }

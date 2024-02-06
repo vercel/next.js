@@ -1,28 +1,33 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript_plugin::transform::emotion::EmotionTransformer,
-    turbopack::module_options::ModuleRule,
+    ecmascript::OptionTransformPlugin,
+    ecmascript_plugin::transform::emotion::{EmotionTransformConfig, EmotionTransformer},
 };
 
-use super::get_ecma_transform_rule;
 use crate::next_config::{EmotionTransformOptionsOrBoolean, NextConfig};
 
-pub async fn get_emotion_transform_rule(next_config: Vc<NextConfig>) -> Result<Option<ModuleRule>> {
-    let enable_mdx_rs = *next_config.mdx_rs().await?;
-    let module_rule = next_config
+#[turbo_tasks::function]
+pub async fn get_emotion_transform_plugin(
+    next_config: Vc<NextConfig>,
+) -> Result<Vc<OptionTransformPlugin>> {
+    let transform_plugin = next_config
         .await?
         .compiler
+        .as_ref()
         .as_ref()
         .and_then(|value| value.emotion.as_ref())
         .and_then(|config| match config {
             EmotionTransformOptionsOrBoolean::Boolean(true) => {
-                EmotionTransformer::new(&Default::default())
+                EmotionTransformer::new(&EmotionTransformConfig {
+                    ..Default::default()
+                })
             }
-            EmotionTransformOptionsOrBoolean::Options(value) => EmotionTransformer::new(value),
-            _ => None,
-        })
-        .map(|transformer| get_ecma_transform_rule(Box::new(transformer), enable_mdx_rs, true));
+            EmotionTransformOptionsOrBoolean::Boolean(false) => None,
 
-    Ok(module_rule)
+            EmotionTransformOptionsOrBoolean::Options(value) => EmotionTransformer::new(value),
+        })
+        .map(|transformer| Vc::cell(Box::new(transformer) as _));
+
+    Ok(Vc::cell(transform_plugin))
 }

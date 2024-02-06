@@ -26,8 +26,7 @@ use turbopack_binding::{
             condition::ContextCondition,
             module_options::{
                 module_options_context::ModuleOptionsContext, JsxTransformOptions,
-                MdxTransformModuleOptions, ModuleRule, TypescriptTransformOptions,
-                WebpackLoadersOptions,
+                MdxTransformModuleOptions, TypescriptTransformOptions, WebpackLoadersOptions,
             },
             resolve_options_context::ResolveOptionsContext,
         },
@@ -52,10 +51,11 @@ use crate::{
             UnsupportedModulesResolvePlugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, relay::get_relay_transform_rule,
-            styled_components::get_styled_components_transform_rule,
-            styled_jsx::get_styled_jsx_transform_rule,
-            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
+            emotion::get_emotion_transform_plugin, module_rule_ecmascript_transform_plugins,
+            relay::get_relay_transform_plugin,
+            styled_components::get_styled_components_transform_plugin,
+            styled_jsx::get_styled_jsx_transform_plugin,
+            swc_ecma_transform_plugins::get_swc_ecma_transform_plugin,
         },
     },
     sass::maybe_add_sass_loader,
@@ -243,20 +243,23 @@ pub async fn get_client_module_options_context(
     let use_lightningcss = *next_config.use_lightningcss().await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules =
+    let mut custom_rules =
         get_next_client_transforms_rules(next_config, ty.into_value(), mode).await?;
-    let additional_rules: Vec<ModuleRule> = vec![
-        get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
-        get_relay_transform_rule(next_config).await?,
-        get_emotion_transform_rule(next_config).await?,
-        get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+
+    let source_transforms = vec![
+        *get_swc_ecma_transform_plugin(project_path, next_config).await?,
+        *get_relay_transform_plugin(next_config).await?,
+        *get_emotion_transform_plugin(next_config).await?,
+        *get_styled_components_transform_plugin(next_config).await?,
+        *get_styled_jsx_transform_plugin(use_lightningcss, target_browsers).await?,
     ]
     .into_iter()
     .flatten()
-    .collect();
+    .collect::<Vec<_>>();
 
-    next_client_rules.extend(additional_rules);
+    let custom_ecma_transform_rule =
+        module_rule_ecmascript_transform_plugins(enable_mdx_rs.is_some(), &source_transforms, &[]);
+    custom_rules.push(custom_ecma_transform_rule);
 
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(get_postcss_package_mapping(project_path)),
@@ -275,6 +278,7 @@ pub async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
+        custom_rules,
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         enable_postcss_transform,
         ..Default::default()
@@ -314,7 +318,6 @@ pub async fn get_client_module_options_context(
                 .cell(),
             ),
         ],
-        custom_rules: next_client_rules,
         use_lightningcss,
         ..module_options_context
     }
