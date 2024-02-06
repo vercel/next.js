@@ -817,5 +817,39 @@ createNextDescribe(
         })
       })
     })
+
+    describe('navigating to dynamic params & changing the casing', () => {
+      it('should load the page correctly', async () => {
+        const browser = await next.browser('/dynamic-param-casing-change')
+
+        // note the casing here capitalizes `ParamA`
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+          .click()
+
+        // note the `paramA` casing has now changed
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'noParam page'
+          )
+        })
+
+        await browser.back()
+
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            '[paramB] page'
+          )
+        })
+      })
+    })
   }
 )
