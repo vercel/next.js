@@ -19,9 +19,9 @@ import {
 import { parseLoaderTree } from './parse-loader-tree'
 import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { getLayerAssets } from './get-layer-assets'
+import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { ComponentsType } from '../../build/webpack/loaders/next-app-loader'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -42,7 +42,6 @@ export async function walkTreeWithFlightRouterState({
   asNotFound,
   metadataOutlet,
   ctx,
-  shouldSkipComponentTree,
 }: {
   createSegmentPath: CreateSegmentPath
   loaderTreeToFilter: LoaderTree
@@ -58,15 +57,13 @@ export async function walkTreeWithFlightRouterState({
   asNotFound?: boolean
   metadataOutlet: React.ReactNode
   ctx: AppRenderContext
-  shouldSkipComponentTree: (
-    ctx: AppRenderContext,
-    components: ComponentsType
-  ) => boolean
 }): Promise<FlightDataPath[]> {
   const {
-    renderOpts: { nextFontManifest },
+    renderOpts: { nextFontManifest, experimental },
     query,
+    isPrefetch,
     getDynamicParamFromSegment,
+    componentMod: { tree: loaderTree },
   } = ctx
 
   const [segment, parallelRoutes, components] = loaderTreeToFilter
@@ -114,6 +111,15 @@ export async function walkTreeWithFlightRouterState({
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
+  const shouldSkipComponentTree =
+    // loading.tsx has no effect on prefetching when PPR is enabled
+    !experimental.ppr &&
+    isPrefetch &&
+    !Boolean(components.loading) &&
+    (flightRouterState ||
+      // If there is no flightRouterState, we need to check the entire loader tree, as otherwise we'll be only checking the root
+      !hasLoadingComponentInTree(loaderTree))
+
   if (!parentRendered && renderComponentsOnThisLevel) {
     const overriddenSegment =
       flightRouterState &&
@@ -128,7 +134,7 @@ export async function walkTreeWithFlightRouterState({
       query
     )
 
-    if (shouldSkipComponentTree(ctx, components)) {
+    if (shouldSkipComponentTree) {
       // Send only the router state
       return [[overriddenSegment, routerState, null, null]]
     } else {
@@ -224,7 +230,6 @@ export async function walkTreeWithFlightRouterState({
           rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
           asNotFound,
           metadataOutlet,
-          shouldSkipComponentTree,
         })
 
         return path

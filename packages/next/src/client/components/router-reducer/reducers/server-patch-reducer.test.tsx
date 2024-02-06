@@ -135,7 +135,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking/about', 'https://localhost') as any,
     })
@@ -234,6 +233,7 @@ describe('serverPatchReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -345,7 +345,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
     })
@@ -478,6 +477,7 @@ describe('serverPatchReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -579,7 +579,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes: new Map(),
       location: new URL('/linking/about', 'https://localhost') as any,
     })

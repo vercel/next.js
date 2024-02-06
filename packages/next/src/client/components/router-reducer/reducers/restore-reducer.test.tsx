@@ -2,7 +2,11 @@ import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_RESTORE, PrefetchKind } from '../router-reducer-types'
+import {
+  ACTION_RESTORE,
+  PrefetchCacheEntryStatus,
+  PrefetchKind,
+} from '../router-reducer-types'
 import type { RestoreAction } from '../router-reducer-types'
 import { restoreReducer } from './restore-reducer'
 
@@ -84,7 +88,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -128,6 +131,7 @@ describe('serverPatchReducer', () => {
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
           },
         ],
       ]),
@@ -251,7 +255,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -261,7 +264,6 @@ describe('serverPatchReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -308,6 +310,7 @@ describe('serverPatchReducer', () => {
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
           },
         ],
       ]),

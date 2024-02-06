@@ -128,7 +128,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -271,7 +270,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -282,7 +280,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -452,7 +449,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -463,7 +459,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -633,7 +628,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -644,7 +638,6 @@ describe('refreshReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })

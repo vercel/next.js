@@ -2,7 +2,7 @@ import React from 'react'
 import type { FlightRouterState } from '../../../server/app-render/types'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from './create-initial-router-state'
-import { PrefetchKind } from './router-reducer-types'
+import { PrefetchCacheEntryStatus, PrefetchKind } from './router-reducer-types'
 
 const buildId = 'development'
 
@@ -38,10 +38,10 @@ describe('createInitialRouterState', () => {
       initialTree,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       initialHead: <title>Test</title>,
+      couldBeIntercepted: false,
     })
 
     const state2 = createInitialRouterState({
@@ -49,7 +49,6 @@ describe('createInitialRouterState', () => {
       initialTree,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
       initialHead: <title>Test</title>,
@@ -107,6 +106,7 @@ describe('createInitialRouterState', () => {
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
           },
         ],
       ]),

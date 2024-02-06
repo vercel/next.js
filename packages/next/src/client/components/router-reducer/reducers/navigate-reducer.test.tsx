@@ -163,7 +163,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -260,6 +259,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -382,7 +382,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -480,6 +479,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -602,7 +602,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -672,6 +671,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -764,7 +764,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -834,6 +833,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -926,7 +926,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking#hash', 'https://localhost') as any,
     })
@@ -982,7 +981,7 @@ describe('navigateReducer', () => {
         "focusAndScrollRef": {
           "apply": false,
           "hashFragment": null,
-          "onlyHashChange": false,
+          "onlyHashChange": true,
           "segmentPaths": [],
         },
         "nextUrl": "/linking",
@@ -1014,7 +1013,7 @@ describe('navigateReducer', () => {
           },
         },
         "pushRef": {
-          "mpaNavigation": true,
+          "mpaNavigation": false,
           "pendingPush": true,
           "preserveCustomHistoryState": false,
         },
@@ -1031,8 +1030,8 @@ describe('navigateReducer', () => {
               },
             ],
           },
-          undefined,
-          undefined,
+          ,
+          ,
           true,
         ],
       }
@@ -1093,7 +1092,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -1221,6 +1219,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1387,7 +1386,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/parallel-tab-bar', 'https://localhost') as any,
     })
@@ -1501,6 +1499,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1647,7 +1646,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking#hash', 'https://localhost') as any,
     })
@@ -1714,6 +1712,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1806,7 +1805,6 @@ describe('navigateReducer', () => {
       initialHead: null,
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
-      initialFlightData: [['']],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -1903,6 +1901,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": null,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {

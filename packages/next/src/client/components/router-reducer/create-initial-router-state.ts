@@ -9,7 +9,7 @@ import type {
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createPrefetchCacheKey } from './reducers/prefetch-cache-utils'
+import { createPrefetchEntry } from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
@@ -18,9 +18,9 @@ export interface InitialRouterStateParameters {
   initialCanonicalUrl: string
   initialSeedData: CacheNodeSeedData
   initialParallelRoutes: CacheNode['parallelRoutes']
-  initialFlightData: FlightData
   location: Location | null
   initialHead: ReactNode
+  couldBeIntercepted?: boolean
 }
 
 export function createInitialRouterState({
@@ -29,9 +29,9 @@ export function createInitialRouterState({
   initialSeedData,
   initialCanonicalUrl,
   initialParallelRoutes,
-  initialFlightData,
   location,
   initialHead,
+  couldBeIntercepted,
 }: InitialRouterStateParameters) {
   const isServer = !location
   const rsc = initialSeedData[2]
@@ -46,23 +46,6 @@ export function createInitialRouterState({
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()
 
-  if (location && initialFlightData.length > 0) {
-    // Seed the prefetch cache with this page's data.
-    // This is to prevent needlessly re-prefetching a page that is already reusable,
-    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
-    const url = new URL(location.pathname, location.origin)
-    const cacheKey = createPrefetchCacheKey(url)
-
-    prefetchCache.set(cacheKey, {
-      data: Promise.resolve([initialFlightData, undefined, false, false]),
-      kind: PrefetchKind.AUTO,
-      lastUsedTime: null,
-      prefetchTime: Date.now(),
-      key: cacheKey,
-      treeAtTimeOfPrefetch: initialTree,
-    })
-  }
-
   // When the cache hasn't been seeded yet we fill the cache with the head.
   if (initialParallelRoutes === null || initialParallelRoutes.size === 0) {
     fillLazyItemsTillLeafWithHead(
@@ -74,7 +57,7 @@ export function createInitialRouterState({
     )
   }
 
-  return {
+  const initialState = {
     buildId,
     tree: initialTree,
     cache,
@@ -104,4 +87,23 @@ export function createInitialRouterState({
       (extractPathFromFlightRouterState(initialTree) || location?.pathname) ??
       null,
   }
+
+  if (location) {
+    // Seed the prefetch cache with this page's data.
+    // This is to prevent needlessly re-prefetching a page that is already reusable,
+    // and will avoid triggering a loading state/data fetch stall when navigating back to the page.
+    const url = new URL(location.pathname, location.origin)
+
+    const initialFlightData: FlightData = [['', initialTree, null, null]]
+    createPrefetchEntry({
+      url,
+      kind: PrefetchKind.AUTO,
+      data: [initialFlightData, undefined, false, couldBeIntercepted],
+      tree: initialState.tree,
+      prefetchCache: initialState.prefetchCache,
+      nextUrl: initialState.nextUrl,
+    })
+  }
+
+  return initialState
 }

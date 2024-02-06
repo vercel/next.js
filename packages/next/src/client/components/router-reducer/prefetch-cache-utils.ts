@@ -1,5 +1,8 @@
 import { createHrefFromUrl } from './create-href-from-url'
-import { fetchServerResponse } from './fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from './fetch-server-response'
 import {
   PrefetchCacheEntryStatus,
   type PrefetchCacheEntry,
@@ -130,6 +133,42 @@ function prefixExistingPrefetchCacheEntry({
   const newCacheKey = createPrefetchCacheKey(url, nextUrl)
   prefetchCache.set(newCacheKey, existingCacheEntry)
   prefetchCache.delete(existingCacheKey)
+}
+
+/**
+ * Use to seed the prefetch cache with an entry for already-resolved data
+ */
+export function createPrefetchEntry({
+  nextUrl,
+  tree,
+  prefetchCache,
+  url,
+  kind,
+  data,
+}: Pick<ReadonlyReducerState, 'nextUrl' | 'tree' | 'prefetchCache'> & {
+  url: URL
+  kind: PrefetchKind
+  data: FetchServerResponseResult
+}) {
+  const [, , , intercept] = data
+  // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
+  const prefetchCacheKey = intercept
+    ? createPrefetchCacheKey(url, nextUrl)
+    : createPrefetchCacheKey(url)
+
+  const prefetchEntry = {
+    treeAtTimeOfPrefetch: tree,
+    data: Promise.resolve(data),
+    kind,
+    prefetchTime: Date.now(),
+    lastUsedTime: null,
+    key: prefetchCacheKey,
+    status: PrefetchCacheEntryStatus.fresh,
+  }
+
+  prefetchCache.set(prefetchCacheKey, prefetchEntry)
+
+  return prefetchEntry
 }
 
 /**

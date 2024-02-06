@@ -264,7 +264,7 @@ function Router({
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
-  initialFlightData,
+  couldBeIntercepted,
   assetPrefix,
   missingSlots,
 }: AppRouterProps) {
@@ -278,7 +278,7 @@ function Router({
         initialParallelRoutes,
         location: !isServer ? window.location : null,
         initialHead,
-        initialFlightData,
+        couldBeIntercepted,
       }),
     [
       buildId,
@@ -286,7 +286,7 @@ function Router({
       initialCanonicalUrl,
       initialTree,
       initialHead,
-      initialFlightData,
+      couldBeIntercepted,
     ]
   )
   const [reducerState, dispatch, sync] =
