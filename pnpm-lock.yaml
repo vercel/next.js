@@ -167,9 +167,6 @@ importers:
       '@types/selenium-webdriver':
         specifier: 4.0.15
         version: 4.0.15
-      '@types/sharp':
-        specifier: 0.29.3
-        version: 0.29.3
       '@types/string-hash':
         specifier: 1.1.1
         version: 1.1.1
@@ -7358,12 +7355,6 @@ packages:
       '@types/node': 20.2.5
     dev: true
 
-  /@types/sharp@0.29.3:
-    resolution: {integrity: sha512-83Xp05eK2hvfNnmKLr2Fz0C2A0jrr2TnSLqKRbkLTYuAu+Erj6mKQLoEMGafE73Om8p3q3ryZxtHFM/7hy4Adg==}
-    dependencies:
-      '@types/node': 20.2.5
-    dev: true
-
   /@types/shell-quote@1.7.1:
     resolution: {integrity: sha512-SWZ2Nom1pkyXCDohRSrkSKvDh8QOG9RfAsrt5/NsPQC4UQJ55eG0qClA40I+Gkez4KTQ0uDUT8ELRXThf3J5jw==}
     dev: true
@@ -8750,7 +8741,7 @@ packages:
     engines: {node: '>= 8.0.0'}
     dependencies:
       find-babel-config: 1.2.0
-      glob: 7.1.7
+      glob: 7.1.6
       pkg-up: 3.1.0
       reselect: 4.1.8
       resolve: 1.22.4
@@ -12744,7 +12735,7 @@ packages:
     engines: {node: '>= 10.17.0'}
     hasBin: true
     dependencies:
-      debug: 4.1.1
+      debug: 4.3.4
       get-stream: 5.1.0
       yauzl: 2.10.0
     optionalDependencies:
