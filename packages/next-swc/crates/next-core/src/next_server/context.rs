@@ -57,6 +57,7 @@ use crate::{
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
+            next_react_server_components::get_next_react_server_components_transform_rule,
             relay::get_relay_transform_rule,
             styled_components::get_styled_components_transform_rule,
             styled_jsx::get_styled_jsx_transform_rule,
@@ -382,11 +383,20 @@ pub async fn get_server_module_options_context(
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
+
+            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+
+            if let ServerContextType::Pages { .. } = ty.into_value() {
+                custom_source_transform_rules.push(
+                    get_next_react_server_components_transform_rule(next_config, false, None)
+                        .await?,
+                );
+            }
 
             base_next_server_rules.extend(custom_source_transform_rules);
             base_next_server_rules.extend(source_transform_rules);
@@ -408,8 +418,9 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
+            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: internal_custom_rules.clone(),
+                custom_rules: foreign_custom_transform_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -419,7 +430,7 @@ pub async fn get_server_module_options_context(
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
                 enable_jsx: Some(JsxTransformOptions::default().cell()),
-                custom_rules: internal_custom_rules,
+                custom_rules: foreign_custom_transform_rules,
                 ..module_options_context.clone()
             };
 
@@ -444,25 +455,33 @@ pub async fn get_server_module_options_context(
                 ..module_options_context
             }
         }
-        ServerContextType::AppSSR { .. } => {
-            let custom_source_transform_rules: Vec<ModuleRule> =
+        ServerContextType::AppSSR { app_dir, .. } => {
+            let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
                     .flatten()
                     .collect();
 
+            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, false, Some(app_dir))
+                    .await?,
+            );
+
             base_next_server_rules.extend(custom_source_transform_rules.clone());
             base_next_server_rules.extend(source_transform_rules);
 
             let module_options_context = ModuleOptionsContext {
-                custom_rules: custom_source_transform_rules,
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                 ..Default::default()
             };
+
+            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: internal_custom_rules.clone(),
+                custom_rules: foreign_custom_transform_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -470,7 +489,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: internal_custom_rules,
+                custom_rules: foreign_custom_transform_rules,
                 ..module_options_context.clone()
             };
 
@@ -496,6 +515,7 @@ pub async fn get_server_module_options_context(
             }
         }
         ServerContextType::AppRSC {
+            app_dir,
             ecmascript_client_reference_transition_name,
             ..
         } => {
@@ -517,6 +537,13 @@ pub async fn get_server_module_options_context(
                 ));
             }
 
+            let mut foreign_custom_transform_rules = custom_source_transform_rules.clone();
+
+            custom_source_transform_rules.push(
+                get_next_react_server_components_transform_rule(next_config, true, Some(app_dir))
+                    .await?,
+            );
+
             base_next_server_rules.extend(custom_source_transform_rules.clone());
             base_next_server_rules.extend(source_transform_rules);
 
@@ -527,9 +554,9 @@ pub async fn get_server_module_options_context(
                 ..Default::default()
             };
 
-            custom_source_transform_rules.extend(internal_custom_rules);
+            foreign_custom_transform_rules.extend(internal_custom_rules);
             let foreign_code_module_options_context = ModuleOptionsContext {
-                custom_rules: custom_source_transform_rules.clone(),
+                custom_rules: foreign_custom_transform_rules.clone(),
                 enable_webpack_loaders: foreign_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
@@ -537,7 +564,7 @@ pub async fn get_server_module_options_context(
             };
             let internal_module_options_context = ModuleOptionsContext {
                 enable_typescript_transform: Some(TypescriptTransformOptions::default().cell()),
-                custom_rules: custom_source_transform_rules,
+                custom_rules: foreign_custom_transform_rules,
                 ..module_options_context.clone()
             };
             ModuleOptionsContext {
