@@ -987,6 +987,22 @@ impl Fold for NextSsg {
                 return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
             }
         }
+
+        if let SimpleAssignTarget::Member(member_expr) = &n {
+            if let Some(id) = find_member_root_id(member_expr) {
+                if self.should_remove(&id) {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping member expression object `{}{:?}` because it should be removed",
+                        id.0,
+                        id.1
+                    );
+
+                    return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+        }
+
         n
     }
 
