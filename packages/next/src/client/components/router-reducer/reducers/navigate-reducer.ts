@@ -17,7 +17,7 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { PrefetchKind, PrefetchCacheEntryStatus } from '../router-reducer-types'
+import { PrefetchCacheEntryStatus } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
@@ -28,12 +28,9 @@ import {
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
 import {
-  createPrefetchCacheKey,
-  getPrefetchCacheEntry,
-  getPrefetchEntryCacheStatus,
+  getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
-  createPrefetchCacheEntry,
-} from './prefetch-cache-utils'
+} from '../prefetch-cache-utils'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -128,27 +125,19 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = getPrefetchCacheEntry(url, state)
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const cacheKey = createPrefetchCacheKey(url)
-    prefetchValues = createPrefetchCacheEntry({
-      state,
-      url,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchCacheKey: cacheKey,
-    })
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
+  const {
+    treeAtTimeOfPrefetch,
+    data,
+    status: prefetchEntryCacheStatus,
+  } = prefetchValues
 
-    state.prefetchCache.set(cacheKey, prefetchValues)
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  const { treeAtTimeOfPrefetch, data } = prefetchValues
   prefetchQueue.bump(data)
 
   return data.then(
@@ -305,27 +294,19 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  let prefetchValues = getPrefetchCacheEntry(url, state)
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const cacheKey = createPrefetchCacheKey(url)
-    prefetchValues = createPrefetchCacheEntry({
-      state,
-      url,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchCacheKey: cacheKey,
-    })
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
+  const {
+    treeAtTimeOfPrefetch,
+    data,
+    status: prefetchEntryCacheStatus,
+  } = prefetchValues
 
-    state.prefetchCache.set(cacheKey, prefetchValues)
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  const { treeAtTimeOfPrefetch, data } = prefetchValues
   prefetchQueue.bump(data)
 
   return data.then(

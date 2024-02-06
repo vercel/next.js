@@ -448,6 +448,7 @@ describe('serverPatchReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {

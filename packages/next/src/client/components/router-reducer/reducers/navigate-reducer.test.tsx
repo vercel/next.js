@@ -260,6 +260,7 @@ describe('navigateReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -455,6 +456,7 @@ describe('navigateReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -893,6 +895,7 @@ describe('navigateReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1120,6 +1123,7 @@ describe('navigateReducer', () => {
             "kind": "auto",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1375,6 +1379,7 @@ describe('navigateReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1719,6 +1724,7 @@ describe('navigateReducer', () => {
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
