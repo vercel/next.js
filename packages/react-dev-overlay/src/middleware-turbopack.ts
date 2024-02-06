@@ -162,7 +162,7 @@ export function getOverlayMiddleware(project: Project) {
       }
 
       try {
-        launchEditor(filePath, frame.line ?? 1, frame.column ?? 0)
+        launchEditor(filePath, frame.line ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
