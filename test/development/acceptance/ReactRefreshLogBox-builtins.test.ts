@@ -48,7 +48,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(
       process.env.TURBOPACK
         ? `
-    "./node_modules/my-package/index.js:1:13
+    "./node_modules/my-package/index.js:1:12
     Module not found: Can't resolve 'dns'
     > 1 | const dns = require('dns')
         |             ^^^^^^^^^^^^^^
@@ -57,7 +57,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     https://nextjs.org/docs/messages/module-not-found"
   `
         : `
-  "./node_modules/my-package/index.js:1:1
+  "./node_modules/my-package/index.js:1:0
   Module not found: Can't resolve 'dns'
 
   https://nextjs.org/docs/messages/module-not-found
@@ -94,7 +94,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:1:1
+        "./index.js:1:0
         Module not found: Can't resolve 'b'
         > 1 | import Comp from 'b'
             | ^^^^^^^^^^^^^^^^^^^^
@@ -106,10 +106,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:1:1
+        "./index.js:1:0
         Module not found: Can't resolve 'b'
         > 1 | import Comp from 'b'
-            | ^
           2 |
           3 | export default function Oops() {
           4 |   return (
@@ -147,7 +146,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./pages/index.js:1:1
+        "./pages/index.js:1:0
         Module not found: Can't resolve 'b'
         > 1 | import Comp from 'b'
             | ^^^^^^^^^^^^^^^^^^^^
@@ -159,10 +158,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
-        "./pages/index.js:1:1
+        "./pages/index.js:1:0
         Module not found: Can't resolve 'b'
         > 1 | import Comp from 'b'
-            | ^
           2 |
           3 | export default function Oops() {
           4 |   return (
@@ -203,7 +201,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./pages/_app.js:1:1
+        "./pages/_app.js:1:0
         Module not found: Can't resolve './non-existent.css'
         > 1 | import './non-existent.css'
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -215,10 +213,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
-        "./pages/_app.js:1:1
+        "./pages/_app.js:1:0
         Module not found: Can't resolve './non-existent.css'
         > 1 | import './non-existent.css'
-            | ^
           2 |
           3 | export default function App({ Component, pageProps }) {
           4 |   return <Component {...pageProps} />

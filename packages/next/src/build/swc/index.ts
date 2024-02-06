@@ -507,18 +507,8 @@ export interface Issue {
       content?: string
     }
     range?: {
-      start: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
-      end: {
-        // 0-indexed
-        line: number
-        // 0-indexed
-        column: number
-      }
+      start: { line: number; column: number }
+      end: { line: number; column: number }
     }
   }
   documentationLink: string
