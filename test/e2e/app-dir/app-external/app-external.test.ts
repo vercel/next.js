@@ -37,7 +37,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextStart }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -249,8 +249,12 @@ createNextDescribe(
       const html = await next.render('/test-middleware')
       expect(html).toContain('it works')
 
-      const middlewareBundle = await next.readFile('.next/server/middleware.js')
-      expect(middlewareBundle).not.toContain('image-response')
+      if (isNextStart) {
+        const middlewareBundle = await next.readFile(
+          '.next/server/middleware.js'
+        )
+        expect(middlewareBundle).not.toContain('image-response')
+      }
     })
 
     it('should use the same async storages if imported directly', async () => {
