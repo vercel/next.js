@@ -6,7 +6,7 @@ type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
  * This function allows you to render the [not-found.js file](https://nextjs.org/docs/app/api-reference/file-conventions/not-found)
  * within a route segment as well as inject a tag.
  *
- * It can be used in
+ * `notFound()` can be used in
  * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
  * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
