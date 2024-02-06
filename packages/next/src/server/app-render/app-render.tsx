@@ -571,7 +571,6 @@ async function renderToHTMLOrFlightImpl(
   // avoid that resources can be deduped by React Float if the same resource is
   // rendered or preloaded multiple times: `<link href="a.css?v={Date.now()}"/>`.
   const requestTimestamp = Date.now()
-  const abortController = new AbortController()
 
   const {
     buildManifest,
@@ -666,7 +665,6 @@ async function renderToHTMLOrFlightImpl(
     digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
-    abortController,
   })
 
   /**
@@ -1113,7 +1111,6 @@ async function renderToHTMLOrFlightImpl(
               // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
               formState,
-              signal: abortController.signal,
             },
           })
 
