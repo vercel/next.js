@@ -2,7 +2,7 @@
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery } from '../request-meta'
-import type { NextServer } from '../next'
+import type { NextServer, NextServerOptions } from '../next'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -56,20 +56,22 @@ export interface LazyRenderServerInstance {
 
 const requestHandlers: Record<string, WorkerRequestHandler> = {}
 
-export async function initialize(opts: {
-  dir: string
-  port: number
-  dev: boolean
-  server?: import('http').Server
-  minimalMode?: boolean
-  hostname?: string
-  isNodeDebugging: boolean
-  keepAliveTimeout?: number
-  customServer?: boolean
-  experimentalTestProxy?: boolean
-  experimentalHttpsServer?: boolean
-  startServerSpan?: Span
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
+export async function initialize(
+  opts: {
+    dir: string
+    port: number
+    dev: boolean
+    server?: import('http').Server
+    minimalMode?: boolean
+    hostname?: string
+    isNodeDebugging: boolean
+    keepAliveTimeout?: number
+    customServer?: boolean
+    experimentalTestProxy?: boolean
+    experimentalHttpsServer?: boolean
+    startServerSpan?: Span
+  } & Pick<NextServerOptions, 'preloadedConfig'>
+): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -78,7 +80,7 @@ export async function initialize(opts: {
   const config = await loadConfig(
     opts.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
     opts.dir,
-    { silent: false }
+    { silent: false, customConfig: opts.preloadedConfig }
   )
 
   let compress: ReturnType<typeof setupCompression> | undefined

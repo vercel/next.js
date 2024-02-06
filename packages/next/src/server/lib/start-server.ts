@@ -1,3 +1,5 @@
+import type { NextServerOptions } from '../next'
+
 if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
@@ -54,6 +56,7 @@ export async function getRequestHandlers({
   keepAliveTimeout,
   experimentalTestProxy,
   experimentalHttpsServer,
+  preloadedConfig,
 }: {
   dir: string
   port: number
@@ -65,7 +68,7 @@ export async function getRequestHandlers({
   keepAliveTimeout?: number
   experimentalTestProxy?: boolean
   experimentalHttpsServer?: boolean
-}): ReturnType<typeof initialize> {
+} & Pick<NextServerOptions, 'preloadedConfig'>): ReturnType<typeof initialize> {
   return initialize({
     dir,
     port,
@@ -78,6 +81,7 @@ export async function getRequestHandlers({
     experimentalTestProxy,
     experimentalHttpsServer,
     startServerSpan,
+    preloadedConfig,
   })
 }
 
