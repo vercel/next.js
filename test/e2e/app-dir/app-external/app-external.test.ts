@@ -37,7 +37,7 @@ createNextDescribe(
     buildCommand: 'yarn build',
     skipDeployment: true,
   },
-  ({ next, isNextStart }) => {
+  ({ next }) => {
     it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
       await next.fetch('/react-server/optout').then(async (response) => {
         const result = await resolveStreamResponse(response)
@@ -246,15 +246,13 @@ createNextDescribe(
     })
 
     it('should have proper tree-shaking for known modules in CJS', async () => {
-      const html = await next.render('/test-middleware')
-      expect(html).toContain('it works')
+      const html = await next.render('/cjs/server')
+      expect(html).toContain('resolve response')
 
-      if (isNextStart) {
-        const middlewareBundle = await next.readFile(
-          '.next/server/middleware.js'
-        )
-        expect(middlewareBundle).not.toContain('image-response')
-      }
+      const outputFile = await next.readFile(
+        '.next/server/app/cjs/server/page.js'
+      )
+      expect(outputFile).not.toContain('image-response')
     })
 
     it('should use the same async storages if imported directly', async () => {
