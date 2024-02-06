@@ -255,7 +255,12 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
 }
 
 /**
- * React Component that enables client-side transitions between routes.
+ * A React component that extends the HTML `<a>` element to provide [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
+ * and client-side navigation between routes.
+ *
+ * It is the primary way to navigate between routes in Next.js.
+ *
+ * Read more: [Next.js docs: `<Link>`](https://nextjs.org/docs/app/api-reference/components/link)
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {

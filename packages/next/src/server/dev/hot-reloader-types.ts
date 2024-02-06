@@ -147,7 +147,7 @@ export interface NextJsHotReloaderInterface {
     reloadAfterInvalidation,
   }: {
     reloadAfterInvalidation: boolean
-  }): void
+  }): Promise<void> | void
   buildFallbackError(): Promise<void>
   ensurePage({
     page,
