@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-60a927d04-20240113';
+var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -23,7 +23,6 @@ const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 const REACT_CONTEXT_TYPE = Symbol.for('react.context');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 const REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -32,7 +31,6 @@ const REACT_LAZY_TYPE = Symbol.for('react.lazy');
 const REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 const REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 const REACT_CACHE_TYPE = Symbol.for('react.cache');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -463,6 +461,39 @@ function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
 
+/**
+ * Keeps track of the current dispatcher.
+ */
+const ReactCurrentDispatcher = {
+  current: null
+};
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+const ReactCurrentCache = {
+  current: null
+};
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
+
+const ReactSharedInternals = {
+  ReactCurrentDispatcher,
+  ReactCurrentCache,
+  ReactCurrentBatchConfig,
+  ReactCurrentOwner
+};
+
+const createElement = createElement$1;
+const cloneElement = cloneElement$1;
+const createFactory = createFactory$1;
+
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
 /**
@@ -724,10 +755,7 @@ function createContext(defaultValue) {
     _threadCount: 0,
     // These are circular
     Provider: null,
-    Consumer: null,
-    // Add these to use same hidden class in VM as ServerContext
-    _defaultValue: null,
-    _globalName: null
+    Consumer: null
   };
   context.Provider = {
     $$typeof: REACT_PROVIDER_TYPE,
@@ -825,13 +853,6 @@ function memo(type, compare) {
   return elementType;
 }
 
-/**
- * Keeps track of the current Cache dispatcher.
- */
-const ReactCurrentCache = {
-  current: null
-};
-
 const UNTERMINATED = 0;
 const TERMINATED = 1;
 const ERRORED = 2;
@@ -853,7 +874,7 @@ function createCacheNode() {
   };
 }
 
-function cache(fn) {
+function cache$1(fn) {
   return function () {
     const dispatcher = ReactCurrentCache.current;
 
@@ -937,19 +958,18 @@ function cache(fn) {
   };
 }
 
+function cache(fn) {
+  {
+    return cache$1(fn);
+  }
+}
+
 function postpone(reason) {
   // eslint-disable-next-line react-internal/prod-error-codes
   const postponeInstance = new Error(reason);
   postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
   throw postponeInstance;
 }
-
-/**
- * Keeps track of the current dispatcher.
- */
-const ReactCurrentDispatcher = {
-  current: null
-};
 
 function resolveDispatcher() {
   const dispatcher = ReactCurrentDispatcher.current;
@@ -1072,88 +1092,44 @@ function useOptimistic(passthrough, reducer) {
   return dispatcher.useOptimistic(passthrough, reducer);
 }
 
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-const ReactCurrentBatchConfig = {
-  transition: null
-};
-
-const ContextRegistry = {};
-
-const ReactSharedInternals = {
-  ReactCurrentDispatcher,
-  ReactCurrentCache,
-  ReactCurrentBatchConfig,
-  ReactCurrentOwner
-};
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry;
-}
-
-function createServerContext(globalName, defaultValue) {
-
-  let wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  const context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
-    }
-
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw new Error("ServerContext: " + globalName + " already defined");
-  }
-
-  return context;
-}
-
 function startTransition(scope, options) {
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = {};
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
 
-  try {
-    scope();
-  } finally {
-    ReactCurrentBatchConfig.transition = prevTransition;
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
   }
 }
+
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
 
 function act(callback) {
   {
@@ -1161,9 +1137,6 @@ function act(callback) {
   }
 }
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
-const createFactory = createFactory$1;
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -1185,13 +1158,13 @@ exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.act = act;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createContext = createContext;
 exports.createElement = createElement;
 exports.createFactory = createFactory;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.experimental_useEffectEvent = useEffectEvent;
 exports.experimental_useOptimistic = experimental_useOptimistic;
 exports.forwardRef = forwardRef;
@@ -1203,7 +1176,6 @@ exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;

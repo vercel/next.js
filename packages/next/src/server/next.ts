@@ -270,6 +270,8 @@ class NextCustomServer extends NextServer {
   protected requestHandler: WorkerRequestHandler
   // @ts-expect-error These are initialized in prepare()
   protected upgradeHandler: WorkerUpgradeHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected renderServer: NextServer
 
   async prepare() {
     const { getRequestHandlers } =
@@ -287,6 +289,7 @@ class NextCustomServer extends NextServer {
     })
     this.requestHandler = initResult[0]
     this.upgradeHandler = initResult[1]
+    this.renderServer = initResult[2]
   }
 
   private setupWebSocketHandler(
@@ -339,6 +342,11 @@ class NextCustomServer extends NextServer {
 
     await this.requestHandler(req as any, res as any)
     return
+  }
+
+  setAssetPrefix(assetPrefix: string): void {
+    super.setAssetPrefix(assetPrefix)
+    this.renderServer.setAssetPrefix(assetPrefix)
   }
 }
 

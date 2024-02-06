@@ -27,8 +27,12 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_font::{
-        google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
-        local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
+        google::{
+            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -528,22 +532,21 @@ async fn insert_next_server_special_aliases(
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
                 indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
-        // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
-        ServerContextType::AppRSC { .. }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware
         | ServerContextType::Instrumentation => {
@@ -656,7 +659,7 @@ async fn rsc_aliases(
 
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.shared-subset");
+            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
         }
         // Use server rendering stub for RSC and SSR
         // x-ref: https://github.com/facebook/react/pull/25436
@@ -747,6 +750,14 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
+            project_path,
+        )))
+        .into(),
+    );
+
+    import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/local/target.css"),
         ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
@@ -764,6 +775,11 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

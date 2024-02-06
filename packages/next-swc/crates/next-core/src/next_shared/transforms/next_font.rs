@@ -24,9 +24,10 @@ pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
     ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 

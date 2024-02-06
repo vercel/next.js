@@ -10,6 +10,12 @@ function importModule(): Promise<
   )
 }
 
+/**
+ * The ImageResponse class allows you to generate dynamic images using JSX and CSS.
+ * This is useful for generating social media images such as Open Graph images, Twitter cards, and more.
+ *
+ * Read more: [Next.js Docs: `ImageResponse`](https://nextjs.org/docs/app/api-reference/functions/image-response)
+ */
 export class ImageResponse extends Response {
   public static displayName = 'ImageResponse'
   constructor(...args: ConstructorParameters<OgModule['ImageResponse']>) {

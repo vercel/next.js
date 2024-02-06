@@ -24,7 +24,12 @@ import { PAGE_TYPES } from '../../lib/page-types'
 // Don't forget to update the next-types-plugin file as well
 const AUTHORIZED_EXTRA_ROUTER_PROPS = ['maxDuration']
 
+/** @see https://nextjs.org/docs/app/api-reference/file-conventions/middleware#config-object-optional */
 export interface MiddlewareConfig {
+  /**
+   * @see https://nextjs.org/docs/app/api-reference/file-conventions/middleware#matcher
+   * @see https://nextjs.org/docs/app/building-your-application/routing/middleware#matching-paths
+   */
   matchers?: MiddlewareMatcher[]
   unstable_allowDynamicGlobs?: string[]
   regions?: string[] | string

@@ -1,6 +1,7 @@
 import React from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import { HotlinkedText } from '../../components/hot-linked-text'
 
 function EditorLink({
   children,
@@ -94,7 +95,9 @@ export function ComponentStackFrameRow({
 
   return (
     <div data-nextjs-component-stack-frame>
-      <h3>{component}</h3>
+      <h3>
+        <HotlinkedText text={component} />
+      </h3>
       <SourceLocation componentStackFrame={componentStackFrame} />
     </div>
   )

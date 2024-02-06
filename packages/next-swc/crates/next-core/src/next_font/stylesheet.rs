@@ -13,8 +13,6 @@ pub(crate) async fn build_fallback_definition(fallbacks: Vc<FontFallbacks>) -> R
     let mut res = "".to_owned();
     for fallback_vc in &*fallbacks.await? {
         if let FontFallback::Automatic(fallback) = &*fallback_vc.await? {
-            let fallback = fallback.await?;
-
             let override_properties = match &fallback.adjustment {
                 None => "".to_owned(),
                 Some(adjustment) => formatdoc!(

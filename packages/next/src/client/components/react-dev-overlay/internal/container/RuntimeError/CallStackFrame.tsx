@@ -5,6 +5,7 @@ import {
   type OriginalStackFrame,
 } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import { HotlinkedText } from '../../components/hot-linked-text'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
@@ -27,7 +28,7 @@ export const CallStackFrame: React.FC<{
   return (
     <div data-nextjs-call-stack-frame>
       <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
-        {f.methodName}
+        <HotlinkedText text={f.methodName} />
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}

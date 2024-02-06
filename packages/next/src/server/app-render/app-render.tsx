@@ -52,7 +52,11 @@ import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
-import { createErrorHandler, type ErrorHandler } from './create-error-handler'
+import {
+  createErrorHandler,
+  ErrorHandlerSource,
+  type ErrorHandler,
+} from './create-error-handler'
 import {
   getShortDynamicParamType,
   dynamicParamTypes,
@@ -627,7 +631,7 @@ async function renderToHTMLOrFlightImpl(
     serverModuleMap,
   })
 
-  const capturedErrors: Error[] = []
+  const digestErrorsMap: Map<string, Error> = new Map()
   const allCapturedErrors: Error[] = []
   const isNextExport = !!renderOpts.nextExport
   const { staticGenerationStore, requestStore } = baseCtx
@@ -638,27 +642,27 @@ async function renderToHTMLOrFlightImpl(
     renderOpts.experimental.ppr && isStaticGeneration
 
   const serverComponentsErrorHandler = createErrorHandler({
-    _source: 'serverComponentsRenderer',
+    source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
-    _source: 'flightDataRenderer',
+    source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
-    _source: 'htmlRenderer',
+    source: ErrorHandlerSource.html,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
-    capturedErrors,
+    digestErrorsMap,
     allCapturedErrors,
     silenceLogger: silenceStaticGenerationErrors,
   })
@@ -987,7 +991,7 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (err) {
+      } catch (err: any) {
         if (
           isStaticGenBailoutError(err) ||
           (typeof err === 'object' &&
@@ -1226,6 +1230,8 @@ async function renderToHTMLOrFlightImpl(
   // It got here, which means it did not reject, so clear the timeout to avoid
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
+  const buildFailingError =
+    digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 
   // If PPR is enabled and the postpone was triggered but lacks the postponed
   // state information then we should error out unless the client side rendering
@@ -1247,12 +1253,12 @@ async function renderToHTMLOrFlightImpl(
         `by your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`
     )
 
-    if (capturedErrors.length > 0) {
+    if (digestErrorsMap.size > 0) {
       warn(
         'The following error was thrown during build, and may help identify the source of the issue:'
       )
 
-      error(capturedErrors[0])
+      error(buildFailingError)
     }
 
     throw new MissingPostponeDataError(
@@ -1268,8 +1274,8 @@ async function renderToHTMLOrFlightImpl(
 
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
-  if (capturedErrors.length > 0) {
-    throw capturedErrors[0]
+  if (buildFailingError) {
+    throw buildFailingError
   }
 
   // Wait for and collect the flight payload data if we don't have it

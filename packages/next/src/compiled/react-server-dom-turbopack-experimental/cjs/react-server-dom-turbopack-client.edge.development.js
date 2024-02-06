@@ -385,13 +385,11 @@ function printWarning(level, format, args) {
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -1234,57 +1232,6 @@ function createServerReference$1(id, callServer) {
   return proxy;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    var context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      context._currentRenderer = null;
-      context._currentRenderer2 = null;
-      Object.defineProperties(context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
-}
-
 var ROW_ID = 0;
 var ROW_TAG = 1;
 var ROW_LENGTH = 2;
@@ -1777,12 +1724,6 @@ function parseModelString(response, parentObject, key, value) {
         {
           // Symbol
           return Symbol.for(value.slice(2));
-        }
-
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
         }
 
       case 'F':

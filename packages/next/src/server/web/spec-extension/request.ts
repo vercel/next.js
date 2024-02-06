@@ -7,6 +7,11 @@ import { RequestCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
+/**
+ * This class extends the [Web `Request` API](https://developer.mozilla.org/docs/Web/API/Request) with additional convenience methods.
+ *
+ * Read more: [Next.js Docs: `NextRequest`](https://nextjs.org/docs/app/api-reference/functions/next-request)
+ */
 export class NextRequest extends Request {
   [INTERNALS]: {
     cookies: RequestCookies

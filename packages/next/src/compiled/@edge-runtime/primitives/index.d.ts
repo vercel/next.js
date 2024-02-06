@@ -18,7 +18,7 @@ declare class ReadableStreamBYOBReader {
   get closed(): Promise<undefined>
   cancel(reason?: any): Promise<void>
   read<T extends ArrayBufferView>(
-    view: T,
+    view: T
   ): Promise<{ done: false; value: T } | { done: true; value: T | undefined }>
   releaseLock(): void
 }

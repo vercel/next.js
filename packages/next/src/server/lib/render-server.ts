@@ -125,6 +125,7 @@ export async function initialize(
   upgradeHandler: ReturnType<
     InstanceType<typeof NextServer>['getUpgradeHandler']
   >
+  app: NextServer
 }> {
   // if we already setup the server return as we only need to do
   // this on first worker boot

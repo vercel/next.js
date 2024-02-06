@@ -198,7 +198,7 @@ async function fetchTeam(id: string) {
   return res.json()
 }
 
-export default async function Profile({ params }: : { params: { id: string }) {
+export default async function Profile({ params }: { params: { id: string } }) {
   const team = await fetchTeam(params.id)
   if (!team) {
     redirect('/login')

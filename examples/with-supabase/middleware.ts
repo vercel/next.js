@@ -8,8 +8,8 @@ export async function middleware(request: NextRequest) {
     const { supabase, response } = createClient(request);
 
     // Refresh session if expired - required for Server Components
-    // https://supabase.com/docs/guides/auth/auth-helpers/nextjs#managing-session-with-middleware
-    await supabase.auth.getSession();
+    // https://supabase.com/docs/guides/auth/server-side/nextjs
+    await supabase.auth.getUser();
 
     return response;
   } catch (e) {

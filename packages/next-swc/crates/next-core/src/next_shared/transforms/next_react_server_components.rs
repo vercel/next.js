@@ -12,33 +12,37 @@ use swc_core::{
 };
 use turbo_tasks::Vc;
 use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-    turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+    ecmascript::{CustomTransformer, TransformContext},
+    turbopack::module_options::ModuleRule,
 };
 
-use super::module_rule_match_js_no_url;
+use super::get_ecma_transform_rule;
+use crate::next_config::NextConfig;
 
 /// Returns a rule which applies the Next.js react server components transform.
-pub fn get_next_react_server_components_transform_rule(
+pub async fn get_next_react_server_components_transform_rule(
+    next_config: Vc<NextConfig>,
     is_react_server_layer: bool,
-    enable_mdx_rs: bool,
-) -> ModuleRule {
-    let transformer =
-        EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextJsReactServerComponents {
-            is_react_server_layer,
-        }) as _));
-
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
-    )
+) -> Result<ModuleRule> {
+    let enable_mdx_rs = *next_config.mdx_rs().await?;
+    Ok(get_ecma_transform_rule(
+        Box::new(NextJsReactServerComponents::new(is_react_server_layer)),
+        enable_mdx_rs,
+        true,
+    ))
 }
 
 #[derive(Debug)]
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
+}
+
+impl NextJsReactServerComponents {
+    fn new(is_react_server_layer: bool) -> Self {
+        Self {
+            is_react_server_layer,
+        }
+    }
 }
 
 #[async_trait]

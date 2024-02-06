@@ -8,6 +8,7 @@
   "@mikro-orm/core",
   "@mikro-orm/knex",
   "@prisma/client",
+  "@react-pdf/renderer",
   "@sentry/profiling-node",
   "@swc/core",
   "argon2",

@@ -32,57 +32,68 @@ const runRelayCompiler = () => {
   })
 }
 
-describe('Relay Compiler Transform - Multi Project Config', () => {
-  beforeAll(() => {
-    runRelayCompiler()
-  })
-
-  describe('dev mode', () => {
-    describe('project-a', () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(projectAAppDir, appPort, { cwd: projectAAppDir })
-      })
-
-      afterAll(() => killApp(app))
-
-      runTests('Project A')
+// TODO: Support for Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)(
+  'Relay Compiler Transform - Multi Project Config',
+  () => {
+    beforeAll(() => {
+      runRelayCompiler()
     })
 
-    describe('project-b', () => {
-      beforeAll(async () => {
-        appPort = await findPort()
-        app = await launchApp(projectBAppDir, appPort, { cwd: projectBAppDir })
+    describe('dev mode', () => {
+      describe('project-a', () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(projectAAppDir, appPort, {
+            cwd: projectAAppDir,
+          })
+        })
+
+        afterAll(() => killApp(app))
+
+        runTests('Project A')
       })
 
-      afterAll(() => killApp(app))
+      describe('project-b', () => {
+        beforeAll(async () => {
+          appPort = await findPort()
+          app = await launchApp(projectBAppDir, appPort, {
+            cwd: projectBAppDir,
+          })
+        })
 
-      runTests('Project B')
-    })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    describe('project-a', () => {
-      beforeAll(async () => {
-        await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })
-        appPort = await findPort()
-        app = await nextStart(projectAAppDir, appPort)
+        afterAll(() => killApp(app))
+
+        runTests('Project B')
       })
-
-      afterAll(() => killApp(app))
-
-      runTests('Project A')
     })
+    ;(process.env.TURBOPACK ? describe.skip : describe)(
+      'production mode',
+      () => {
+        describe('project-a', () => {
+          beforeAll(async () => {
+            await nextBuild(projectAAppDir, [], { cwd: projectAAppDir })
+            appPort = await findPort()
+            app = await nextStart(projectAAppDir, appPort)
+          })
 
-    describe('project-b', () => {
-      beforeAll(async () => {
-        await nextBuild(projectBAppDir, [], { cwd: projectBAppDir })
-        appPort = await findPort()
-        app = await nextStart(projectBAppDir, appPort)
-      })
+          afterAll(() => killApp(app))
 
-      afterAll(() => killApp(app))
+          runTests('Project A')
+        })
 
-      runTests('Project B')
-    })
-  })
-})
+        describe('project-b', () => {
+          beforeAll(async () => {
+            await nextBuild(projectBAppDir, [], { cwd: projectBAppDir })
+            appPort = await findPort()
+            app = await nextStart(projectBAppDir, appPort)
+          })
+
+          afterAll(() => killApp(app))
+
+          runTests('Project B')
+        })
+      }
+    )
+  }
+)
