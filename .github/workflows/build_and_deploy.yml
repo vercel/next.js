@@ -443,6 +443,13 @@ jobs:
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      - name: Upload npm log artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-publish-logs
+          path: /home/runner/.npm/_logs/*
+
   deployExamples:
     name: Deploy examples
     runs-on: ubuntu-latest

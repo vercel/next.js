@@ -228,7 +228,6 @@ function getComponentNameFromType(type) {
             return null;
           }
         }
-
     }
   }
 
