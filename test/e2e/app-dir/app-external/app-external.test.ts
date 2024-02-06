@@ -283,5 +283,14 @@ createNextDescribe(
         }, /success/)
       })
     })
+
+    describe('app route', () => {
+      it('should resolve next/server api from external esm package', async () => {
+        const res = await next.fetch('/app-routes')
+        const text = await res.text()
+        expect(res.status).toBe(200)
+        expect(text).toBe('get route')
+      })
+    })
   }
 )

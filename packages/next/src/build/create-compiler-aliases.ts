@@ -205,6 +205,7 @@ export function createNextApiEsmAliases() {
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
+    server: 'next/dist/api/server',
     // pages api
     document: 'next/dist/api/document',
     app: 'next/dist/api/app',
