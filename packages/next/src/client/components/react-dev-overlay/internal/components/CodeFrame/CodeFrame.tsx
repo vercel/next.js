@@ -4,6 +4,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import { HotlinkedText } from '../hot-linked-text'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
@@ -66,7 +67,8 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
           title="Click to open in your editor"
         >
           <span>
-            {getFrameSource(stackFrame)} @ {stackFrame.methodName}
+            {getFrameSource(stackFrame)} @{' '}
+            <HotlinkedText text={stackFrame.methodName} />
           </span>
           <svg
             xmlns="http://www.w3.org/2000/svg"
