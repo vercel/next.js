@@ -26,21 +26,20 @@ if (isBrowserStack) {
   }
 }
 
-let browserQuit: () => Promise<void>
+let browserTeardown: (() => Promise<void>)[] = []
+let browserQuit: (() => Promise<void>) | undefined
 
 if (typeof afterAll === 'function') {
   afterAll(async () => {
+    await Promise.all(browserTeardown.map((f) => f())).catch((e) =>
+      console.error('browser teardown', e)
+    )
+
     if (browserQuit) {
       await browserQuit()
     }
   })
 }
-
-export const USE_SELENIUM = Boolean(
-  process.env.LEGACY_SAFARI ||
-    process.env.BROWSER_NAME === 'internet explorer' ||
-    process.env.SKIP_LOCAL_SELENIUM_SERVER
-)
 
 /**
  *
@@ -134,6 +133,8 @@ export default async function webdriver(
     pushErrorAsConsoleLog,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
+
+  browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
   if (waitHydration) {

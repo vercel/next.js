@@ -50,11 +50,7 @@ export class Playwright extends BrowserInterface {
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
   }
-  private async initContextTracing(
-    url: string,
-    page: Page,
-    context: BrowserContext
-  ) {
+  private async initContextTracing(url: string, context: BrowserContext) {
     if (!tracePlaywright) {
       return
     }
@@ -69,17 +65,13 @@ export class Playwright extends BrowserInterface {
         sources: true,
       })
       this.activeTrace = encodeURIComponent(url)
-
-      page.on('close', async () => {
-        await teardown(this.teardownTracing.bind(this))
-      })
     } catch (e) {
       this.activeTrace = undefined
     }
   }
 
   private async teardownTracing() {
-    if (!tracePlaywright || !this.activeTrace) {
+    if (!this.activeTrace) {
       return
     }
 
@@ -164,7 +156,8 @@ export class Playwright extends BrowserInterface {
   }
 
   async close(): Promise<void> {
-    await page.close()
+    await teardown(this.teardownTracing.bind(this))
+    await page?.close()
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
@@ -205,13 +198,15 @@ export class Playwright extends BrowserInterface {
       beforePageLoad?: (...args: any[]) => void
     }
   ) {
+    await this.close()
+
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
 
+    await this.initContextTracing(url, context)
     page = await context.newPage()
-    await this.initContextTracing(url, page, context)
 
     // in development compilation can take longer due to
     // lower CPU availability in GH actions
