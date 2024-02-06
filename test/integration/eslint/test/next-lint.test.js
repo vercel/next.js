@@ -458,6 +458,58 @@ describe('Next Lint', () => {
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
+  test('not consumed positional arguments are passed as file paths', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirFileLinting,
+      ['utils/math.js', 'pages/bar.js'],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+
+    expect(output).toContain('utils/math.js')
+    expect(output).toContain(
+      'Comments inside children section of tag should be placed inside braces'
+    )
+
+    expect(output).toContain('pages/bar.js')
+    expect(output).toContain(
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+    )
+
+    expect(output).not.toContain('pages/index.js')
+    expect(output).not.toContain('Synchronous scripts should not be used.')
+  })
+
+  test('supports absolute file paths', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirFileLinting,
+      [join(dirFileLinting, 'utils/math.js'), join(dirFileLinting, 'pages/bar.js')],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+
+    expect(output).toContain('utils/math.js')
+    expect(output).toContain(
+      'Comments inside children section of tag should be placed inside braces'
+    )
+
+    expect(output).toContain('pages/bar.js')
+    expect(output).toContain(
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+    )
+
+    expect(output).not.toContain('pages/index.js')
+    expect(output).not.toContain('Synchronous scripts should not be used.')
+  })
+
   test('output flag create a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
