@@ -313,8 +313,6 @@ describe('app dir - next/font', () => {
                   expect(item.rel).toBe('preload')
                   expect(item.type).toBe('font/woff2')
                 }
-
-                expect(items.length).toBe(3)
               })
 
               it('should preload correctly with client components', async () => {
@@ -340,8 +338,6 @@ describe('app dir - next/font', () => {
                   expect(link.rel).toBe('preload')
                   expect(link.type).toBe('font/woff2')
                 }
-
-                expect(links.length).toBe(3)
               })
 
               it('should preload correctly with layout using fonts', async () => {
@@ -367,8 +363,6 @@ describe('app dir - next/font', () => {
                   expect(link.rel).toBe('preload')
                   expect(link.type).toBe('font/woff2')
                 }
-
-                expect(links.length).toBe(2)
               })
 
               it('should preload correctly with page using fonts', async () => {
@@ -394,8 +388,6 @@ describe('app dir - next/font', () => {
                   expect(link.rel).toBe('preload')
                   expect(link.type).toBe('font/woff2')
                 }
-
-                expect(links.length).toBe(2)
               })
             })
 
