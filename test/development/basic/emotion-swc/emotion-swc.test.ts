@@ -8,6 +8,7 @@ createNextDescribe(
     dependencies: {
       '@emotion/react': '11.10.4',
       '@emotion/styled': '11.10.4',
+      '@emotion/cache': '11.10.3',
     },
   },
   ({ next }) => {

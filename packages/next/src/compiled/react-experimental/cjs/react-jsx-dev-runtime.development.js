@@ -27,7 +27,6 @@ var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -99,9 +98,9 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
-var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+var REACT_CLIENT_REFERENCE$2 = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -117,7 +116,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_CLIENT_REFERENCE$1 || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE$2 || type.getModuleId !== undefined) {
       return true;
     }
   }
@@ -139,8 +138,9 @@ function getWrappedName(outerType, innerType, wrapperName) {
 
 function getContextName(type) {
   return type.displayName || 'Context';
-} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+}
 
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
 
 function getComponentNameFromType(type) {
   if (type == null) {
@@ -148,13 +148,12 @@ function getComponentNameFromType(type) {
     return null;
   }
 
-  {
-    if (typeof type.tag === 'number') {
-      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
-    }
-  }
-
   if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE$1) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
     return type.displayName || type.name || null;
   }
 
@@ -189,6 +188,12 @@ function getComponentNameFromType(type) {
   }
 
   if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
     switch (type.$$typeof) {
       case REACT_CONTEXT_TYPE:
         var context = type;
@@ -222,13 +227,6 @@ function getComponentNameFromType(type) {
             return null;
           }
         }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
-        }
-
     }
   }
 
@@ -1116,7 +1114,7 @@ function getCurrentComponentErrorInfo(parentType) {
     var info = getDeclarationErrorAddendum();
 
     if (!info) {
-      var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+      var parentName = getComponentNameFromType(parentType);
 
       if (parentName) {
         info = "\n\nCheck the top-level render call using <" + parentName + ">.";

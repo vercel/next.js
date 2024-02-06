@@ -1,12 +1,12 @@
 /* Core */
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export async function POST(req: Request, res: Response) {
-  const body = await req.json()
-  const { amount = 1 } = body
+  const body = await req.json();
+  const { amount = 1 } = body;
 
   // simulate IO latency
-  await new Promise((r) => setTimeout(r, 500))
+  await new Promise((r) => setTimeout(r, 500));
 
-  return NextResponse.json({ data: amount })
+  return NextResponse.json({ data: amount });
 }

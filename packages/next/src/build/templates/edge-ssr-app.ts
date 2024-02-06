@@ -10,6 +10,7 @@ import type { DocumentType } from '../../shared/lib/utils'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { RequestData } from '../../server/web/types'
 import type { NextConfigComplete } from '../../server/config-shared'
+import { PAGE_TYPES } from '../../lib/page-types'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -44,7 +45,7 @@ const subresourceIntegrityManifest = sriEnabled
 const nextFontManifest = maybeJSONParse(self.__NEXT_FONT_MANIFEST)
 
 const render = getRender({
-  pagesType: 'app',
+  pagesType: PAGE_TYPES.APP,
   dev,
   page: 'VAR_PAGE',
   appMod,

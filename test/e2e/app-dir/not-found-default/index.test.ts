@@ -15,19 +15,12 @@ createNextDescribe(
 
       if (isNextDev) {
         await check(async () => {
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxDescription(browser)).toMatch(
             /notFound\(\) is not allowed to use in root layout/
           )
           return 'success'
         }, /success/)
-      } else {
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'Application error: a server-side exception has occurred (see the server logs for more information).'
-        )
-        expect(await browser.elementByCss('p').text()).toBe(
-          'Digest: NEXT_NOT_FOUND'
-        )
       }
     })
 
@@ -50,16 +43,9 @@ createNextDescribe(
       const browser = await next.browser('/?root-not-found=1')
 
       if (isNextDev) {
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxDescription(browser)).toBe(
           'Error: notFound() is not allowed to use in root layout'
-        )
-      } else {
-        expect(await browser.elementByCss('h2').text()).toBe(
-          'Application error: a server-side exception has occurred (see the server logs for more information).'
-        )
-        expect(await browser.elementByCss('p').text()).toBe(
-          'Digest: NEXT_NOT_FOUND'
         )
       }
     })

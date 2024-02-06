@@ -73,7 +73,7 @@ export type CacheNodeSeedData = [
   segment: Segment,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
-  } | null,
+  },
   node: React.ReactNode | null
 ]
 
@@ -142,7 +142,7 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  experimental: { ppr: boolean }
+  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
   postponed?: string
 }
 

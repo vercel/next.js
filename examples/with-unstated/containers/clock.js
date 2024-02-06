@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react'
-import { createContainer } from 'unstated-next'
+import { useState, useEffect } from "react";
+import { createContainer } from "unstated-next";
 
 function useClock() {
-  const [data, setData] = useState({ lastUpdate: 0, light: false })
+  const [data, setData] = useState({ lastUpdate: 0, light: false });
 
   useEffect(() => {
     let interval = setInterval(() => {
-      setData({ lastUpdate: Date.now(), light: !data.light })
-    }, 1000)
+      setData({ lastUpdate: Date.now(), light: !data.light });
+    }, 1000);
 
-    return () => clearInterval(interval)
-  }, [data.light])
+    return () => clearInterval(interval);
+  }, [data.light]);
 
-  return data
+  return data;
 }
 
-export default createContainer(useClock)
+export default createContainer(useClock);

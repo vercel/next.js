@@ -1,15 +1,15 @@
-import type { TypeA } from '../types'
+import type { TypeA } from "../types";
 
 const Example: TypeA = {
-  name: 'next',
-}
+  name: "next",
+};
 
 export default function Home() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center' }}>
+    <div style={{ display: "flex", justifyContent: "center" }}>
       <h1>
         <p>{Example.name}</p>
       </h1>
     </div>
-  )
+  );
 }

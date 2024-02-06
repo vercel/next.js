@@ -3,13 +3,13 @@ title: Route Segment Config
 description: Learn about how to configure options for Next.js route segments.
 ---
 
-The Route Segment options allows you configure the behavior of a [Page](/docs/app/building-your-application/routing/pages-and-layouts), [Layout](/docs/app/building-your-application/routing/pages-and-layouts), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
+The Route Segment options allows you to configure the behavior of a [Page](/docs/app/building-your-application/routing/pages-and-layouts), [Layout](/docs/app/building-your-application/routing/pages-and-layouts), or [Route Handler](/docs/app/building-your-application/routing/route-handlers) by directly exporting the following variables:
 
 | Option                                | Type                                                                                                                      | Default                    |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | [`dynamic`](#dynamic)                 | `'auto' \| 'force-dynamic' \| 'error' \| 'force-static'`                                                                  | `'auto'`                   |
 | [`dynamicParams`](#dynamicparams)     | `boolean`                                                                                                                 | `true`                     |
-| [`revalidate`](#revalidate)           | `false \| 'force-cache' \| 0 \| number`                                                                                   | `false`                    |
+| [`revalidate`](#revalidate)           | `false \| 0 \| number`                                                                                                    | `false`                    |
 | [`fetchCache`](#fetchcache)           | `'auto' \| 'default-cache' \| 'only-cache' \| 'force-cache' \| 'force-no-store' \| 'default-no-store' \| 'only-no-store'` | `'auto'`                   |
 | [`runtime`](#runtime)                 | `'nodejs' \| 'edge'`                                                                                                      | `'nodejs'`                 |
 | [`preferredRegion`](#preferredregion) | `'auto' \| 'global' \| 'home' \| string \| string[]`                                                                      | `'auto'`                   |
@@ -102,12 +102,12 @@ Set the default revalidation time for a layout or page. This option does not ove
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
 export const revalidate = false
-// false | 'force-cache' | 0 | number
+// false | 0 | number
 ```
 
 ```js filename="layout.js | page.js | route.js" switcher
 export const revalidate = false
-// false | 'force-cache' | 0 | number
+// false | 0 | number
 ```
 
 - **`false`**: (default) The default heuristic to cache any `fetch` requests that set their `cache` option to `'force-cache'` or are discovered before a [dynamic function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions) is used. Semantically equivalent to `revalidate: Infinity` which effectively means the resource should be cached indefinitely. It is still possible for individual `fetch` requests to use `cache: 'no-store'` or `revalidate: 0` to avoid being cached and make the route dynamically rendered. Or set `revalidate` to a positive number lower than the route default to increase the revalidation frequency of a route.
@@ -200,8 +200,10 @@ Support for `preferredRegion`, and regions supported, is dependent on your deplo
 
 ### `maxDuration`
 
-Based on your deployment platform, you may be able to use a higher default execution time for your function.
-This setting allows you to opt into a higher execution time within your plans limit.
+By default, Next.js does not limit the execution of server-side logic (rendering a page or handling an API).
+Deployment platforms can use `maxDuration` from the Next.js build output to add specific execution limits.
+For example, on [Vercel](https://vercel.com/docs/functions/serverless-functions/runtimes#max-duration).
+
 **Note**: This settings requires Next.js `13.4.10` or higher.
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher
@@ -214,7 +216,7 @@ export const maxDuration = 5
 
 > **Good to know**:
 >
-> - If a `maxDuration` is not specified, the default value is dependent on your deployment platform and plan.
+> - If using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), set the `maxDuration` at the page level to change the default timeout of all Server Actions used on the page.
 
 ### `generateStaticParams`
 

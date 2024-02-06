@@ -1,39 +1,39 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::ecmascript::OptionTransformPlugin;
+use turbopack_binding::turbopack::turbopack::module_options::ModuleRule;
 
 use crate::next_config::NextConfig;
 
-#[turbo_tasks::function]
-pub async fn get_swc_ecma_transform_plugin(
-    project_path: Vc<FileSystemPath>,
+pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
-) -> Result<Vc<OptionTransformPlugin>> {
-    let config = next_config.await?;
-    match config.experimental.swc_plugins.as_ref() {
+    project_path: Vc<FileSystemPath>,
+) -> Result<Option<ModuleRule>> {
+    match next_config.await?.experimental.swc_plugins.as_ref() {
         Some(plugin_configs) if !plugin_configs.is_empty() => {
             #[cfg(feature = "plugin")]
             {
-                get_swc_ecma_transform_plugin_impl(project_path, plugin_configs).await
+                let enable_mdx_rs = *next_config.mdx_rs().await?;
+                get_swc_ecma_transform_rule_impl(project_path, plugin_configs, enable_mdx_rs).await
             }
 
             #[cfg(not(feature = "plugin"))]
             {
-                let _ = project_path;
-                Ok(Vc::cell(None))
+                let _ = project_path; // To satisfiy lint
+                Ok(None)
             }
         }
-        _ => Ok(Vc::cell(None)),
+        _ => Ok(None),
     }
 }
 
 #[cfg(feature = "plugin")]
-pub async fn get_swc_ecma_transform_plugin_impl(
+pub async fn get_swc_ecma_transform_rule_impl(
     project_path: Vc<FileSystemPath>,
     plugin_configs: &[(String, serde_json::Value)],
-) -> Result<Vc<OptionTransformPlugin>> {
-    use anyhow::bail;
+    enable_mdx_rs: bool,
+) -> Result<Option<ModuleRule>> {
+    use anyhow::{bail, Context};
     use turbo_tasks::Value;
     use turbo_tasks_fs::FileContent;
     use turbopack_binding::turbopack::{
@@ -48,6 +48,8 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         },
         turbopack::{resolve_options, resolve_options_context::ResolveOptionsContext},
     };
+
+    use crate::next_shared::transforms::get_ecma_transform_rule;
 
     let mut plugins = vec![];
     for (name, config) in plugin_configs.iter() {
@@ -83,9 +85,10 @@ pub async fn get_swc_ecma_transform_plugin_impl(
             None,
         )
         .await?;
-        let Some(plugin_module) = *plugin_wasm_module_resolve_result.first_module().await? else {
-            bail!("Expected to find module");
-        };
+        let plugin_module = plugin_wasm_module_resolve_result
+            .first_module()
+            .await?
+            .context("Expected to find module")?;
 
         let content = &*plugin_module.content().file_content().await?;
 
@@ -102,7 +105,9 @@ pub async fn get_swc_ecma_transform_plugin_impl(
         ));
     }
 
-    return Ok(Vc::cell(Some(Vc::cell(
-        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)) as _,
-    ))));
+    Ok(Some(get_ecma_transform_rule(
+        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
+        enable_mdx_rs,
+        true,
+    )))
 }

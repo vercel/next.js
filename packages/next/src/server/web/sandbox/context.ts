@@ -50,6 +50,16 @@ const moduleContexts = new Map<string, ModuleContext>()
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
+
+/**
  * For a given path a context, this function checks if there is any module
  * context that contains the path with an older content and, if that's the
  * case, removes the context from the cache.
@@ -222,6 +232,10 @@ const NativeModuleMap = (() => {
   return new Map(Object.entries(mods))
 })()
 
+export const requestStore = new AsyncLocalStorage<{
+  headers: Headers
+}>()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -325,6 +339,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
+
+        // Forward subrequest header from incoming request to outgoing request
+        const store = requestStore.getStore()
+        if (
+          store?.headers.has('x-middleware-subrequest') &&
+          !init.headers.has('x-middleware-subrequest')
+        ) {
+          init.headers.set(
+            'x-middleware-subrequest',
+            store.headers.get('x-middleware-subrequest') ?? ''
+          )
+        }
+
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
         const value = prevs.concat(options.moduleName).join(':')

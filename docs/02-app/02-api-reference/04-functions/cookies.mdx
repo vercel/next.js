@@ -5,10 +5,10 @@ related:
   title: Next Steps
   description: For more information on what to do next, we recommend the following sections
   links:
-    - app/building-your-application/data-fetching/forms-and-mutations
+    - app/building-your-application/data-fetching/server-actions-and-mutations
 ---
 
-The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/app/building-your-application/rendering/server-components) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+The `cookies` function allows you to read the HTTP incoming request cookies from a [Server Component](/docs/app/building-your-application/rendering/server-components) or write outgoing request cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 > **Good to know**: `cookies()` is a **[Dynamic Function](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-functions)** whose returned values cannot be known ahead of time. Using it in a layout or page will opt a route into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
 
@@ -62,7 +62,7 @@ export default function Page() {
 
 A method that takes a cookie name, value, and options and sets the outgoing request cookie.
 
-> **Good to know**: HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+> **Good to know**: HTTP does not allow setting cookies after streaming starts, so you must use `.set()` in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ```js filename="app/actions.js"
 'use server'
@@ -85,7 +85,7 @@ async function create(data) {
 
 ## Deleting cookies
 
-> **Good to know**: You can only delete cookies in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+> **Good to know**: You can only delete cookies in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 There are several options for deleting a cookie:
 
@@ -98,7 +98,7 @@ You can explicitly delete a cookie with a given name.
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
+async function delete(data) {
   cookies().delete('name')
 }
 ```
@@ -112,12 +112,12 @@ Alternatively, you can set a new cookie with the same name and an empty value.
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
+async function delete(data) {
   cookies().set('name', '')
 }
 ```
 
-> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+> **Good to know**: `.set()` is only available in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 ### `cookies().set(name, value, { maxAge: 0 })`
 
@@ -128,7 +128,7 @@ Setting `maxAge` to 0 will immediately expire a cookie.
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
+async function delete(data) {
   cookies().set('name', 'value', { maxAge: 0 })
 }
 ```
@@ -142,7 +142,7 @@ Setting `expires` to any value in the past will immediately expire a cookie.
 
 import { cookies } from 'next/headers'
 
-async function create(data) {
+async function delete(data) {
   const oneDay = 24 * 60 * 60 * 1000
   cookies().set('name', 'value', { expires: Date.now() - oneDay })
 }

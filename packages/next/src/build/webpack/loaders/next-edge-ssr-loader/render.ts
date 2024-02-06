@@ -17,6 +17,7 @@ import type { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export function getRender({
   dev,
@@ -40,7 +41,7 @@ export function getRender({
   nextFontManifest,
   incrementalCacheHandler,
 }: {
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   dev: boolean
   page: string
   appMod: any

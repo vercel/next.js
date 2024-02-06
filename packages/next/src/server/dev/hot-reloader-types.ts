@@ -18,7 +18,6 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
-  FINISH_BUILDING = 'finishBuilding',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
@@ -31,7 +30,7 @@ interface ServerErrorAction {
 }
 
 export interface TurbopackMessageAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
 }
 
@@ -39,22 +38,27 @@ interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
-interface FinishBuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
+export interface CompilationError {
+  moduleName?: string
+  message: string
+  details?: string
+  moduleTrace?: Array<{ moduleName?: string }>
+  stack?: string
 }
-
-interface SyncAction {
+export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {
@@ -98,14 +102,13 @@ interface DevPagesManifestUpdateAction {
 }
 
 export interface TurbopackConnectedAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
 }
 
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
   | BuildingAction
-  | FinishBuildingAction
   | SyncAction
   | BuiltAction
   | AddedPageAction
@@ -117,6 +120,10 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
+
+export type TurbopackMsgToBrowser =
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED }
 
 export interface NextJsHotReloaderInterface {
   turbopackProject?: Project
@@ -140,7 +147,7 @@ export interface NextJsHotReloaderInterface {
     reloadAfterInvalidation,
   }: {
     reloadAfterInvalidation: boolean
-  }): void
+  }): Promise<void> | void
   buildFallbackError(): Promise<void>
   ensurePage({
     page,

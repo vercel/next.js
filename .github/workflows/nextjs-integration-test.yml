@@ -16,12 +16,6 @@ on:
       diff_base:
         type: string
         default: 'main'
-      force_post_to_slack:
-        type: boolean
-      # Skip posting to slack regardless of the conditions.
-      skip_post_to_slack:
-        type: boolean
-        default: false
 
 # Workflow-common env variables
 env:
@@ -29,9 +23,7 @@ env:
   RUST_BACKTRACE: 0
   NEXT_TELEMETRY_DISABLED: 1
   TEST_CONCURRENCY: 6
-  DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
   NEXT_JUNIT_TEST_REPORT: 'true'
-  DD_ENV: 'ci'
   # Turbopack specific customization for the test runner
   TURBOPACK: 1
   __INTERNAL_CUSTOM_TURBOPACK_BINDINGS: ${{ github.workspace }}/packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -84,22 +76,21 @@ jobs:
           corepack enable
           corepack prepare --activate yarn@1.22.19
 
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
       - name: Run test/development
         run: |
-          ls $NEXT_TEST_SKIP_RETRY_MANIFEST
-          sudo npx playwright install-deps && pnpm playwright install
-          NEXT_TEST_MODE=dev TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/3 -c ${TEST_CONCURRENCY} --type development
-          ls test/turbopack-test-junit-report
+          NEXT_TEST_MODE=dev TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/6 -c ${TEST_CONCURRENCY} --type development
         # It is currently expected to fail some of next.js integration test, do not fail CI check.
         continue-on-error: true
-        env:
-          # marker to parse log output, do not delete / change.
-          NEXT_INTEGRATION_TEST: true
 
       - name: Upload test report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-dev-${{ matrix.group }}
+          if-no-files-found: 'error'
           path: |
             test/turbopack-test-junit-report
 
@@ -131,19 +122,20 @@ jobs:
           corepack enable
           corepack prepare --activate yarn@1.22.19
 
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
       - name: Run test/integration
         run: |
-          sudo npx playwright install-deps && pnpm playwright install
           TURBOPACK=1 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
-          ls test/turbopack-test-junit-report
         continue-on-error: true
-        env:
-          NEXT_INTEGRATION_TEST: true
 
       - name: Upload test report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: test-reports
+          name: test-reports-integration-${{ matrix.group }}
+          if-no-files-found: 'error'
           path: |
             test/turbopack-test-junit-report
 
@@ -163,25 +155,21 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Collect integration test stat
         uses: ./.github/actions/next-integration-stat
         with:
           diff_base: ${{ inputs.diff_base }}
-        env:
-          NEXT_TURBO_FORCE_SLACK_UPDATE: '${{ inputs.force_post_to_slack }}'
-          NEXT_TURBO_FORCE_SKIP_SLACK_UPDATE: '${{ inputs.skip_post_to_slack }}'
 
       - name: Store artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: |
             nextjs-test-results.json
             failed-test-path-list.json
             passed-test-path-list.json
-            slack-payload.json
 
   upload_test_report:
     needs: [test-dev, test-integration]
@@ -196,12 +184,16 @@ jobs:
     steps:
       - name: Download test report artifacts
         id: download-test-reports
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: test-reports
+          pattern: test-reports-*
           path: test/reports
+          merge-multiple: true
 
       - name: Upload to datadog
+        env:
+          DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+          DD_ENV: 'ci'
         run: |
           # We'll tag this to the "Turbopack" datadog service, not "nextjs"
-          DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/report
+          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack.daily --service Turbopack ./test/reports

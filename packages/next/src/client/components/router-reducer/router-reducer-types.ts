@@ -28,7 +28,6 @@ export type RouterNavigate = (
 
 export interface Mutable {
   mpaNavigation?: boolean
-  previousTree?: FlightRouterState
   patchedTree?: FlightRouterState
   canonicalUrl?: string
   scrollableSegments?: FlightSegmentPath[]
@@ -42,23 +41,20 @@ export interface Mutable {
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  actionResultResolved?: boolean
 }
 
 /**
  * Refresh triggers a refresh of the full page data.
- * - fetches the Flight data and fills subTreeData at the root of the cache.
+ * - fetches the Flight data and fills rsc at the root of the cache.
  * - The router state is updated at the root.
  */
 export interface RefreshAction {
   type: typeof ACTION_REFRESH
-  mutable: Mutable
   origin: Location['origin']
 }
 
 export interface FastRefreshAction {
   type: typeof ACTION_FAST_REFRESH
-  mutable: Mutable
   origin: Location['origin']
 }
 
@@ -75,7 +71,6 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
-  mutable: ServerActionMutable
 }
 
 /**
@@ -115,7 +110,6 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
-  mutable: Mutable
 }
 
 /**
@@ -141,7 +135,6 @@ export interface ServerPatchAction {
   flightData: FlightData
   previousTree: FlightRouterState
   overrideCanonicalUrl: URL | undefined
-  mutable: Mutable
 }
 
 /**

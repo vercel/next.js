@@ -5,22 +5,22 @@
  * It contains typing information for all components that exist in this project.
  */
 
-import { HTMLStencilElement, JSXBase } from '@stencil/core/internal'
+import { HTMLStencilElement, JSXBase } from "@stencil/core/internal";
 
 export namespace Components {
   interface MyComponent {
     /**
      * The first name
      */
-    first: string
+    first: string;
     /**
      * The last name
      */
-    last: string
+    last: string;
     /**
      * The middle name
      */
-    middle: string
+    middle: string;
   }
 }
 
@@ -29,11 +29,11 @@ declare global {
     extends Components.MyComponent,
       HTMLStencilElement {}
   var HTMLMyComponentElement: {
-    prototype: HTMLMyComponentElement
-    new (): HTMLMyComponentElement
-  }
+    prototype: HTMLMyComponentElement;
+    new (): HTMLMyComponentElement;
+  };
   interface HTMLElementTagNameMap {
-    'my-component': HTMLMyComponentElement
+    "my-component": HTMLMyComponentElement;
   }
 }
 
@@ -42,29 +42,29 @@ declare namespace LocalJSX {
     /**
      * The first name
      */
-    first?: string
+    first?: string;
     /**
      * The last name
      */
-    last?: string
+    last?: string;
     /**
      * The middle name
      */
-    middle?: string
+    middle?: string;
   }
 
   interface IntrinsicElements {
-    'my-component': MyComponent
+    "my-component": MyComponent;
   }
 }
 
-export { LocalJSX as JSX }
+export { LocalJSX as JSX };
 
-declare module '@stencil/core' {
+declare module "@stencil/core" {
   export namespace JSX {
     interface IntrinsicElements {
-      'my-component': LocalJSX.MyComponent &
-        JSXBase.HTMLAttributes<HTMLMyComponentElement>
+      "my-component": LocalJSX.MyComponent &
+        JSXBase.HTMLAttributes<HTMLMyComponentElement>;
     }
   }
 }

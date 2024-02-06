@@ -134,6 +134,11 @@ const API_DOCS: Record<
     description: 'Next.js Metadata configurations',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/metadata',
   },
+  maxDuration: {
+    description:
+      '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
+    link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
+  },
 }
 
 function visitEntryConfig(

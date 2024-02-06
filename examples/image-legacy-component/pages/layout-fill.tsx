@@ -1,15 +1,15 @@
-import Image from 'next/legacy/image'
-import ViewSource from '../components/view-source'
-import mountains from '../public/mountains.jpg'
+import Image from "next/legacy/image";
+import ViewSource from "../components/view-source";
+import mountains from "../public/mountains.jpg";
 
 const Fill = () => (
   <div>
     <ViewSource pathname="pages/layout-fill.tsx" />
     <h1>Image Component With Layout Fill</h1>
-    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
+    <div style={{ position: "relative", width: "300px", height: "500px" }}>
       <Image alt="Mountains" src={mountains} layout="fill" objectFit="cover" />
     </div>
-    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
+    <div style={{ position: "relative", width: "300px", height: "500px" }}>
       <Image
         alt="Mountains"
         src={mountains}
@@ -17,7 +17,7 @@ const Fill = () => (
         objectFit="contain"
       />
     </div>
-    <div style={{ position: 'relative', width: '300px', height: '500px' }}>
+    <div style={{ position: "relative", width: "300px", height: "500px" }}>
       <Image
         alt="Mountains"
         src={mountains}
@@ -27,6 +27,6 @@ const Fill = () => (
       />
     </div>
   </div>
-)
+);
 
-export default Fill
+export default Fill;
