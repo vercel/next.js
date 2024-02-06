@@ -1113,6 +1113,7 @@ async function renderToHTMLOrFlightImpl(
               // Include hydration scripts in the HTML
               bootstrapScripts: [errorBootstrapScript],
               formState,
+              signal: abortController.signal,
             },
           })
 
