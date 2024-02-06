@@ -359,7 +359,7 @@ describe('Error overlay - RSC build errors', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./app/server-with-errors/error-file/error.js:1:0
+        "./app/server-with-errors/error-file/error.js:1:1
         Parsing ecmascript source code failed
         > 1 | export default function Error() {}
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
