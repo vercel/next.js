@@ -141,8 +141,8 @@ createNextDescribe(
 
           // Log the original rsc error trace
           expect(output).toContain('Error: this is a test')
-          // Log the react renderer error
-          expect(output).toContain(
+          // Does not include the react renderer error for server actions
+          expect(output).not.toContain(
             'Error: An error occurred in the Server Components render'
           )
 

@@ -52,7 +52,11 @@ import { addImplicitTags } from '../lib/patch-fetch'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
-import { createErrorHandler, type ErrorHandler } from './create-error-handler'
+import {
+  createErrorHandler,
+  ErrorHandlerSource,
+  type ErrorHandler,
+} from './create-error-handler'
 import {
   getShortDynamicParamType,
   dynamicParamTypes,
@@ -638,7 +642,7 @@ async function renderToHTMLOrFlightImpl(
     renderOpts.experimental.ppr && isStaticGeneration
 
   const serverComponentsErrorHandler = createErrorHandler({
-    _source: 'serverComponentsRenderer',
+    source: ErrorHandlerSource.serverComponents,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
@@ -646,7 +650,7 @@ async function renderToHTMLOrFlightImpl(
     silenceLogger: silenceStaticGenerationErrors,
   })
   const flightDataRendererErrorHandler = createErrorHandler({
-    _source: 'flightDataRenderer',
+    source: ErrorHandlerSource.flightData,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
@@ -654,7 +658,7 @@ async function renderToHTMLOrFlightImpl(
     silenceLogger: silenceStaticGenerationErrors,
   })
   const htmlRendererErrorHandler = createErrorHandler({
-    _source: 'htmlRenderer',
+    source: ErrorHandlerSource.html,
     dev,
     isNextExport,
     errorLogger: appDirDevErrorLogger,
@@ -987,10 +991,8 @@ async function renderToHTMLOrFlightImpl(
         }
 
         return { stream }
-      } catch (caughtError: any) {
-        const originalError = digestErrorsMap.get(caughtError.digest)
-        const err = originalError || caughtError
-
+      } catch (err: any) {
+        err = digestErrorsMap.get(err?.digest) ?? err
         if (
           isStaticGenBailoutError(err) ||
           (typeof err === 'object' &&
@@ -1229,10 +1231,8 @@ async function renderToHTMLOrFlightImpl(
   // It got here, which means it did not reject, so clear the timeout to avoid
   // it from rejecting again (which is a no-op anyways).
   clearTimeout(timeout)
-  const hasCapturedError = digestErrorsMap.size > 0
-  const firstCapturedError = hasCapturedError
-    ? digestErrorsMap.values().next().value
-    : null
+  const buildFailingError =
+    digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 
   // If PPR is enabled and the postpone was triggered but lacks the postponed
   // state information then we should error out unless the client side rendering
@@ -1259,7 +1259,7 @@ async function renderToHTMLOrFlightImpl(
         'The following error was thrown during build, and may help identify the source of the issue:'
       )
 
-      error(firstCapturedError)
+      error(buildFailingError)
     }
 
     throw new MissingPostponeDataError(
@@ -1275,8 +1275,8 @@ async function renderToHTMLOrFlightImpl(
 
   // If we encountered any unexpected errors during build we fail the
   // prerendering phase and the build.
-  if (hasCapturedError) {
-    throw firstCapturedError
+  if (buildFailingError) {
+    throw buildFailingError
   }
 
   // Wait for and collect the flight payload data if we don't have it

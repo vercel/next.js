@@ -9,6 +9,12 @@ export type ErrorHandler = (
   errorInfo: unknown
 ) => string | undefined
 
+export const ErrorHandlerSource = {
+  serverComponents: 'serverComponents',
+  flightData: 'flightData',
+  html: 'html',
+} as const
+
 /**
  * Create error handler for renderers.
  * Tolerate dynamic server errors during prerendering so console
@@ -18,15 +24,15 @@ export function createErrorHandler({
   /**
    * Used for debugging
    */
-  _source,
+  source,
   dev,
   isNextExport,
   errorLogger,
-  digestErrorsMap: capturedErrors,
+  digestErrorsMap,
   allCapturedErrors,
   silenceLogger,
 }: {
-  _source: string
+  source: (typeof ErrorHandlerSource)[keyof typeof ErrorHandlerSource]
   dev?: boolean
   isNextExport?: boolean
   errorLogger?: (err: any) => Promise<void>
@@ -35,18 +41,27 @@ export function createErrorHandler({
   silenceLogger?: boolean
 }): ErrorHandler {
   return (err: any, errorInfo: any) => {
-    // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-    const digest =
-      err.digest ||
-      stringHash(err.message + (errorInfo?.stack || err.stack || '')).toString()
-
     // If the error already has a digest, respect the original digest,
     // so it won't get re-generated into another new error.
     if (!err.digest) {
-      err.digest = digest
+      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
+      err.digest = stringHash(
+        err.message + (errorInfo?.stack || err.stack || '')
+      ).toString()
+    }
+    const digest = err.digest
+
+    let hasReusedError = false
+    if (!digestErrorsMap.has(digest)) {
+      digestErrorsMap.set(digest, err)
+    } else if (source === ErrorHandlerSource.html) {
+      // For SSR errors, if we have the existing digest in errors map,
+      // we should use the existing error object to avoid duplicate error logs.
+      err = digestErrorsMap.get(digest)
+      hasReusedError = true
     }
 
-    if (allCapturedErrors) allCapturedErrors.push(err)
+    if (allCapturedErrors && !hasReusedError) allCapturedErrors.push(err)
 
     // These errors are expected. We return the digest
     // so that they can be properly handled.
@@ -96,10 +111,6 @@ export function createErrorHandler({
           }
         }
       }
-    }
-
-    if (!capturedErrors.has(digest)) {
-      capturedErrors.set(digest, err)
     }
 
     return err.digest
