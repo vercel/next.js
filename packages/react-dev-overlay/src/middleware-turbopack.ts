@@ -16,7 +16,9 @@ interface Project {
 }
 
 interface TurbopackStackFrame {
+  // 1-based
   column: number | null
+  // 1-based
   file: string
   isServer: boolean
   line: number
@@ -87,7 +89,7 @@ export async function createOriginalStackFrame(
             {
               start: {
                 line: traced.frame.lineNumber,
-                column: traced.frame.column ?? 0,
+                column: traced.frame.column ?? 1,
               },
             },
             { forceColor: true }

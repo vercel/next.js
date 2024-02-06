@@ -57,7 +57,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./components/Comp.js:1:0
+        "./components/Comp.js:1:1
         Parsing ecmascript source code failed
         > 1 | import { cookies } from 'next/headers'
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -116,7 +116,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./components/Comp.js:1:0
+        "./components/Comp.js:1:1
         Parsing ecmascript source code failed
         > 1 | import 'server-only'
             | ^^^^^^^^^^^^^^^^^^^^
