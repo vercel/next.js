@@ -45,6 +45,8 @@ function formatMessage(
 ) {
   let stringifiedMessage = ''
   // TODO: Replace this once webpack 5 is stable
+
+  let layerInfo = ''
   if (typeof rawMessage === 'object' && rawMessage.message) {
     const filteredModuleTrace =
       rawMessage.moduleTrace &&
@@ -64,6 +66,7 @@ function formatMessage(
     // javascript/<type>|<absolute path>|<module layer>
     const moduleIdSegs = rawMessage.moduleIdentifier?.split('|')
     const bundleLayer = moduleIdSegs?.[2] || ''
+    layerInfo = bundleLayer ? ` (layer: ${bundleLayer})` : ''
 
     stringifiedMessage =
       (rawMessage.moduleName ? stripAnsi(rawMessage.moduleName) + '\n' : '') +
@@ -76,8 +79,7 @@ function formatMessage(
             .map((trace: any) => `\n${trace.moduleName}`)
             .join('')
         : '') +
-      (rawMessage.stack && verbose ? '\n' + rawMessage.stack : '') +
-      (bundleLayer ? ` (layer: ${bundleLayer})` : '')
+      (rawMessage.stack && verbose ? '\n' + rawMessage.stack : '')
   }
   let lines = stringifiedMessage.split('\n')
 
@@ -107,15 +109,15 @@ function formatMessage(
   // Clean up export errors
   message = message.replace(
     /^.*export '(.+?)' was not found in '(.+?)'.*$/gm,
-    `Attempted import error: '$1' is not exported from '$2'.`
+    `Attempted import error: '$1' is not exported from '$2'.${layerInfo}`
   )
   message = message.replace(
     /^.*export 'default' \(imported as '(.+?)'\) was not found in '(.+?)'.*$/gm,
-    `Attempted import error: '$2' does not contain a default export (imported as '$1').`
+    `Attempted import error: '$2' does not contain a default export (imported as '$1').${layerInfo}`
   )
   message = message.replace(
     /^.*export '(.+?)' \(imported as '(.+?)'\) was not found in '(.+?)'.*$/gm,
-    `Attempted import error: '$1' is not exported from '$3' (imported as '$2').`
+    `Attempted import error: '$1' is not exported from '$3' (imported as '$2').${layerInfo}`
   )
   lines = message.split('\n')
 
