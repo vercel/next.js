@@ -14,8 +14,8 @@ createNextDescribe(
     for (const packageName of packageList) {
       const normalizedPackageName = normalizePackageName(packageName)
       it(`should render with ${packageName}`, async () => {
-        const $ = await next.render$(`/list/${normalizedPackageName}`)
-        expect($('h1').text()).toBe('Hello World')
+        const browser = await next.browser(`/list/${normalizedPackageName}`)
+        expect(await browser.elementByCss('h1').text()).toBe('Hello World')
       })
     }
   }
