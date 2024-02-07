@@ -11,13 +11,13 @@ const cwd = process.cwd()
   try {
     const publishSema = new Sema(2)
 
-    let version = JSON.parse(
+    const version = JSON.parse(
       await readFile(path.join(cwd, 'lerna.json'))
     ).version
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
-    let platforms = (await readdir(nativePackagesDir)).filter(
+    const nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
+    const platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
 
@@ -26,12 +26,12 @@ const cwd = process.cwd()
         await publishSema.acquire()
 
         try {
-          let binaryName = `next-swc.${platform}.node`
+          const binaryName = `next-swc.${platform}.node`
           await cp(
             path.join(cwd, 'packages/next-swc/native', binaryName),
             path.join(nativePackagesDir, platform, binaryName)
           )
-          let pkg = JSON.parse(
+          const pkg = JSON.parse(
             await readFile(
               path.join(nativePackagesDir, platform, 'package.json')
             )
@@ -74,11 +74,11 @@ const cwd = process.cwd()
 
     // Update name/version of wasm packages and publish
     const pkgDirectory = 'packages/next-swc/crates/wasm'
-    let wasmDir = path.join(cwd, pkgDirectory)
+    const wasmDir = path.join(cwd, pkgDirectory)
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {
         await publishSema.acquire()
-        let wasmPkg = JSON.parse(
+        const wasmPkg = JSON.parse(
           await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
         )
         wasmPkg.name = `@next/swc-wasm-${wasmTarget}`
@@ -124,13 +124,12 @@ const cwd = process.cwd()
     )
 
     // Update optional dependencies versions
-    let nextPkg = JSON.parse(
+    const nextPkg = JSON.parse(
       await readFile(path.join(cwd, 'packages/next/package.json'))
     )
-    for (let platform of platforms) {
-      let optionalDependencies = nextPkg.optionalDependencies || {}
+    for (const platform of platforms) {
+      const optionalDependencies = nextPkg.optionalDependencies = nextPkg.optionalDependencies || {}
       optionalDependencies['@next/swc-' + platform] = version
-      nextPkg.optionalDependencies = optionalDependencies
     }
     await writeFile(
       path.join(path.join(cwd, 'packages/next/package.json')),
