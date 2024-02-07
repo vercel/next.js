@@ -12,7 +12,7 @@ const checkAssetStatus = async (assetId: string): Promise<Status> => {
   if (asset.status === "ready") {
     const playbackId = asset.playback_ids?.[0]?.id;
     if (playbackId) {
-      redirect(`/view/${playbackId}`);
+      redirect(`/v/${playbackId}`);
     }
   }
 

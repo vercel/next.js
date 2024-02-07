@@ -18,7 +18,7 @@ const createUpload = async () => {
 const redirectToAsset = async (uploadId: string) => {
   const upload = await mux.video.uploads.retrieve(uploadId);
   if (upload.asset_id) {
-    redirect(`/inspect/${upload.asset_id}`);
+    redirect(`/asset/${upload.asset_id}`);
   } else {
     throw new Error("No asset_id found for upload");
   }
