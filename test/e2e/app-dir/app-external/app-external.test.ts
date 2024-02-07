@@ -206,6 +206,11 @@ createNextDescribe(
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
       })
+
+      it('should support namespace import with ESM packages', async () => {
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
+      })
     })
 
     describe('mixed syntax external modules', () => {
