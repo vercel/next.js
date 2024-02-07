@@ -86,6 +86,7 @@ import { useFlightResponse } from './use-flight-response'
 import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { isInterceptionRouteAppPath } from '../future/helpers/interception-routes'
 import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
+import { isNavigationSignalError } from '../../export/helpers/is-navigation-signal-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -725,14 +726,18 @@ async function renderToHTMLOrFlightImpl(
     req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
   /**
-   * Router state provided from the client-side router. Used to handle rendering from the common layout down.
+   * Router state provided from the client-side router. Used to handle rendering
+   * from the common layout down. This value will be undefined if the request
+   * is not a client-side navigation request or if the request is a prefetch
+   * request (except when it's a prefetch request for an interception route
+   * which is always dynamic).
    */
-
   const shouldProvideFlightRouterState =
     isRSCRequest &&
     (!isPrefetchRSCRequest ||
       !renderOpts.experimental.ppr ||
-      // interception routes currently depend on the flight router state to extract dynamic params
+      // Interception routes currently depend on the flight router state to
+      // extract dynamic params.
       isInterceptionRouteAppPath(pagePath))
 
   let providedFlightRouterState = shouldProvideFlightRouterState
@@ -1234,14 +1239,15 @@ async function renderToHTMLOrFlightImpl(
     digestErrorsMap.size > 0 ? digestErrorsMap.values().next().value : null
 
   // If PPR is enabled and the postpone was triggered but lacks the postponed
-  // state information then we should error out unless the client side rendering
-  // bailout error was also emitted which indicates that part of the stream was
-  // not rendered.
+  // state information then we should error out unless the error was a
+  // navigation signal error or a client-side rendering bailout error.
   if (
     staticGenerationStore.prerenderState &&
     staticGenerationStore.prerenderState.hasDynamic &&
     !metadata.postponed &&
-    (!response.err || !isBailoutToCSRError(response.err))
+    (!response.err ||
+      (!isBailoutToCSRError(response.err) &&
+        !isNavigationSignalError(response.err)))
   ) {
     // a call to postpone was made but was caught and not detected by Next.js. We should fail the build immediately
     // as we won't be able to generate the static part
