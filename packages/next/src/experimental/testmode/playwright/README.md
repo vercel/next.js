@@ -2,7 +2,7 @@
 
 ### Prerequisites
 
-You have a Next.js project.
+You have a Next.js App Router project.
 
 ### Install `@playwright/test` in your project
 
