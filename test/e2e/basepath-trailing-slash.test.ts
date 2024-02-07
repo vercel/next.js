@@ -47,7 +47,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         }
       } finally {
         await browser.close()
@@ -73,7 +73,7 @@ describe('basePath + trailingSlash', () => {
         expect(await browser.eval('window.location.search')).toBe('?query=true')
 
         if (dev) {
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         }
       } finally {
         await browser.close()

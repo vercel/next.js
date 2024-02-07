@@ -10,5 +10,5 @@ export default function Footer() {
         Source code
       </a>
     </footer>
-  )
+  );
 }

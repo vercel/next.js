@@ -329,7 +329,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {
@@ -391,13 +391,11 @@ function printWarning(level, format, args) {
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
 var REACT_MEMO_TYPE = Symbol.for('react.memo');
 var REACT_LAZY_TYPE = Symbol.for('react.lazy');
-var REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 var FAUX_ITERATOR_SYMBOL = '@@iterator';
 function getIteratorFn(maybeIterable) {
@@ -933,14 +931,14 @@ function processReply(root, formFieldPrefix, resolve, reject) {
         } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
+          error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
         } else if (!isSimpleObject(value)) {
-          error('Only plain objects can be passed to Client Components from Server Components. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
+          error('Only plain objects can be passed to Server Functions from the Client. ' + 'Classes or other objects with methods are not supported.%s', describeObjectForErrorMessage(parent, key));
         } else if (Object.getOwnPropertySymbols) {
           var symbols = Object.getOwnPropertySymbols(value);
 
           if (symbols.length > 0) {
-            error('Only plain objects can be passed to Client Components from Server Components. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
+            error('Only plain objects can be passed to Server Functions from the Client. ' + 'Objects with symbol properties like %s are not supported.%s', symbols[0].description, describeObjectForErrorMessage(parent, key));
           }
         }
       } // $FlowFixMe[incompatible-return]
@@ -1239,57 +1237,6 @@ function createServerReference$1(id, callServer) {
   return proxy;
 }
 
-var ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    var context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    {
-      var hasWarnedAboutUsingConsumer;
-      context._currentRenderer = null;
-      context._currentRenderer2 = null;
-      Object.defineProperties(context, {
-        Consumer: {
-          get: function () {
-            if (!hasWarnedAboutUsingConsumer) {
-              error('Consumer pattern is not supported by ReactServerContext');
-
-              hasWarnedAboutUsingConsumer = true;
-            }
-
-            return null;
-          }
-        }
-      });
-    }
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
-}
-
 var ROW_ID = 0;
 var ROW_TAG = 1;
 var ROW_LENGTH = 2;
@@ -1297,6 +1244,7 @@ var ROW_CHUNK_BY_NEWLINE = 3;
 var ROW_CHUNK_BY_LENGTH = 4;
 var PENDING = 'pending';
 var BLOCKED = 'blocked';
+var CYCLIC = 'cyclic';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
@@ -1334,6 +1282,7 @@ Chunk.prototype.then = function (resolve, reject) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       if (resolve) {
         if (chunk.value === null) {
           chunk.value = [];
@@ -1378,6 +1327,7 @@ function readChunk(chunk) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       // eslint-disable-next-line no-throw-literal
       throw chunk;
 
@@ -1421,6 +1371,7 @@ function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
 
     case PENDING:
     case BLOCKED:
+    case CYCLIC:
       chunk.value = resolveListeners;
       chunk.reason = rejectListeners;
       break;
@@ -1513,9 +1464,17 @@ function initializeModelChunk(chunk) {
   var prevBlocked = initializingChunkBlockedModel;
   initializingChunk = chunk;
   initializingChunkBlockedModel = null;
+  var resolvedModel = chunk.value; // We go to the CYCLIC state until we've fully resolved this.
+  // We do this before parsing in case we try to initialize the same chunk
+  // while parsing the model. Such as in a cyclic reference.
+
+  var cyclicChunk = chunk;
+  cyclicChunk.status = CYCLIC;
+  cyclicChunk.value = null;
+  cyclicChunk.reason = null;
 
   try {
-    var value = parseModel(chunk._response, chunk.value);
+    var value = parseModel(chunk._response, resolvedModel);
 
     if (initializingChunkBlockedModel !== null && initializingChunkBlockedModel.deps > 0) {
       initializingChunkBlockedModel.value = value; // We discovered new dependencies on modules that are not yet resolved.
@@ -1526,9 +1485,14 @@ function initializeModelChunk(chunk) {
       blockedChunk.value = null;
       blockedChunk.reason = null;
     } else {
+      var resolveListeners = cyclicChunk.value;
       var initializedChunk = chunk;
       initializedChunk.status = INITIALIZED;
       initializedChunk.value = value;
+
+      if (resolveListeners !== null) {
+        wakeChunk(resolveListeners, value);
+      }
     }
   } catch (error) {
     var erroredChunk = chunk;
@@ -1629,15 +1593,18 @@ function getChunk(response, id) {
   return chunk;
 }
 
-function createModelResolver(chunk, parentObject, key) {
+function createModelResolver(chunk, parentObject, key, cyclic) {
   var blocked;
 
   if (initializingChunkBlockedModel) {
     blocked = initializingChunkBlockedModel;
-    blocked.deps++;
+
+    if (!cyclic) {
+      blocked.deps++;
+    }
   } else {
     blocked = initializingChunkBlockedModel = {
-      deps: 1,
+      deps: cyclic ? 0 : 1,
       value: null
     };
   }
@@ -1759,12 +1726,6 @@ function parseModelString(response, parentObject, key, value) {
           return Symbol.for(value.slice(2));
         }
 
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
-        }
-
       case 'F':
         {
           // Server Reference
@@ -1858,9 +1819,10 @@ function parseModelString(response, parentObject, key, value) {
 
             case PENDING:
             case BLOCKED:
+            case CYCLIC:
               var parentChunk = initializingChunk;
 
-              _chunk2.then(createModelResolver(parentChunk, parentObject, key), createModelReject(parentChunk));
+              _chunk2.then(createModelResolver(parentChunk, parentObject, key, _chunk2.status === CYCLIC), createModelReject(parentChunk));
 
               return null;
 

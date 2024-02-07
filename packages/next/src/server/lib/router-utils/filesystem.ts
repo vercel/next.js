@@ -14,7 +14,7 @@ import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import loadCustomRoutes from '../../../lib/load-custom-routes'
+import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
@@ -26,9 +26,7 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
-
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
@@ -39,6 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
+import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
 
 export type FsOutput = {
   type:
@@ -367,6 +368,18 @@ export async function setupFsCheck(opts: {
 
   let ensureFn: (item: FsOutput) => Promise<void> | undefined
 
+  const normalizers = {
+    // Because we can't know if the app directory is enabled or not at this
+    // stage, we assume that it is.
+    rsc: new RSCPathnameNormalizer(),
+    prefetchRSC: opts.config.experimental.ppr
+      ? new PrefetchRSCPathnameNormalizer()
+      : undefined,
+    postponed: opts.config.experimental.ppr
+      ? new PostponedPathnameNormalizer()
+      : undefined,
+  }
+
   return {
     headers,
     rewrites,
@@ -382,7 +395,7 @@ export async function setupFsCheck(opts: {
 
     interceptionRoutes: undefined as
       | undefined
-      | ReturnType<typeof buildCustomRoute>[],
+      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -402,18 +415,24 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      // handle minimal mode case with .rsc output path (this is
-      // mostly for testings)
-      if (opts.minimalMode && itemPath.endsWith('.rsc')) {
-        itemPath = itemPath.substring(0, itemPath.length - '.rsc'.length)
-      }
-
       const { basePath } = opts.config
 
       if (basePath && !pathHasPrefix(itemPath, basePath)) {
         return null
       }
       itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Simulate minimal mode requests by normalizing RSC and postponed
+      // requests.
+      if (opts.minimalMode) {
+        if (normalizers.prefetchRSC?.match(itemPath)) {
+          itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
+        } else if (normalizers.rsc.match(itemPath)) {
+          itemPath = normalizers.rsc.normalize(itemPath, true)
+        } else if (normalizers.postponed?.match(itemPath)) {
+          itemPath = normalizers.postponed.normalize(itemPath, true)
+        }
+      }
 
       if (itemPath !== '/' && itemPath.endsWith('/')) {
         itemPath = itemPath.substring(0, itemPath.length - 1)
@@ -453,7 +472,13 @@ export async function setupFsCheck(opts: {
             itemPath,
             // legacy behavior allows visiting static assets under
             // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+            isDynamicOutput
+              ? undefined
+              : [
+                  i18n?.defaultLocale,
+                  // default locales from domains need to be matched too
+                  ...(i18n.domains?.map((item) => item.defaultLocale) || []),
+                ]
           )
 
           if (localeResult.pathname !== curItemPath) {

@@ -17,6 +17,7 @@ import type { PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export function getRender({
   dev,
@@ -34,13 +35,13 @@ export function getRender({
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
-  serverActionsBodySizeLimit,
+  serverActions,
   config,
   buildId,
   nextFontManifest,
   incrementalCacheHandler,
 }: {
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   dev: boolean
   page: string
   appMod: any
@@ -54,9 +55,11 @@ export function getRender({
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest: any
-  serverActionsBodySizeLimit?: SizeLimit
-  appServerMod: any
+  serverActionsManifest?: any
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest
@@ -88,7 +91,7 @@ export function getRender({
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
-        serverActionsBodySizeLimit,
+        serverActions,
         nextFontManifest,
       },
       renderToHTML,

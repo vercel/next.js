@@ -24,7 +24,7 @@ import { requirePage } from './require'
 import { interopDefault } from '../lib/interop-default'
 import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
-import { loadManifest } from './load-manifest'
+import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
 export type ManifestItem = {
   id: number | string
@@ -32,6 +32,17 @@ export type ManifestItem = {
 }
 
 export type ReactLoadableManifest = { [moduleId: string]: ManifestItem }
+
+/**
+ * A manifest entry type for the react-loadable-manifest.json.
+ *
+ * The whole manifest.json is a type of `Record<pathName, LoadableManifest>`
+ * where pathName is a string-based key points to the path of the page contains
+ * each dynamic imports.
+ */
+export interface LoadableManifest {
+  [k: string]: { id: string | number; files: string[] }
+}
 
 export type LoadComponentsReturnType<NextModule = any> = {
   Component: NextComponentType
@@ -55,13 +66,32 @@ export type LoadComponentsReturnType<NextModule = any> = {
 /**
  * Load manifest file with retries, defaults to 3 attempts.
  */
-export async function loadManifestWithRetries<T>(
+export async function loadManifestWithRetries(
   manifestPath: string,
   attempts = 3
-): Promise<T> {
+): Promise<unknown> {
   while (true) {
     try {
       return loadManifest(manifestPath)
+    } catch (err) {
+      attempts--
+      if (attempts <= 0) throw err
+
+      await wait(100)
+    }
+  }
+}
+
+/**
+ * Load manifest file with retries, defaults to 3 attempts.
+ */
+export async function evalManifestWithRetries(
+  manifestPath: string,
+  attempts = 3
+): Promise<unknown> {
+  while (true) {
+    try {
+      return evalManifest(manifestPath)
     } catch (err) {
       attempts--
       if (attempts <= 0) throw err
@@ -75,14 +105,11 @@ async function loadClientReferenceManifest(
   manifestPath: string,
   entryName: string
 ): Promise<ClientReferenceManifest | undefined> {
-  process.env.NEXT_MINIMAL
-    ? // @ts-ignore
-      __non_webpack_require__(manifestPath)
-    : require(manifestPath)
   try {
-    return (globalThis as any).__RSC_MANIFEST[
-      entryName
-    ] as ClientReferenceManifest
+    const context = (await evalManifestWithRetries(manifestPath)) as {
+      __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
+    }
+    return context.__RSC_MANIFEST[entryName] as ClientReferenceManifest
   } catch (err) {
     return undefined
   }
@@ -120,10 +147,12 @@ async function loadComponentsImpl<N = any>({
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
-    loadManifestWithRetries<ReactLoadableManifest>(
+    loadManifestWithRetries(
+      join(distDir, BUILD_MANIFEST)
+    ) as Promise<BuildManifest>,
+    loadManifestWithRetries(
       join(distDir, REACT_LOADABLE_MANIFEST)
-    ),
+    ) as Promise<ReactLoadableManifest>,
     hasClientManifest
       ? loadClientReferenceManifest(
           join(

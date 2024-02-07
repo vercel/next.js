@@ -1,8 +1,6 @@
-// This takes advantage of `Promise.withResolvers` which is polyfilled in
-// this imported module.
-import './polyfill-promise-with-resolvers'
+import type { SchedulerFn } from './scheduler'
 
-import type { SchedulerFn } from '../server/lib/schedule-on-next-tick'
+import { DetachedPromise } from './detached-promise'
 
 type CacheKeyFn<K, C extends string | number | null> = (
   key: K
@@ -72,7 +70,7 @@ export class Batcher<K, V, C extends string | number | null> {
     const pending = this.pending.get(cacheKey)
     if (pending) return pending
 
-    const { promise, resolve, reject } = Promise.withResolvers<V>()
+    const { promise, resolve, reject } = new DetachedPromise<V>()
     this.pending.set(cacheKey, promise)
 
     this.schedulerFn(async () => {

@@ -163,7 +163,7 @@ function handleLoading(
 function getDynamicProps(
   fetchPriority?: string
 ): Record<string, string | undefined> {
-  const [majorStr, minorStr] = version.split('.')
+  const [majorStr, minorStr] = version.split('.', 2)
   const major = parseInt(majorStr, 10)
   const minor = parseInt(minorStr, 10)
   if (major > 18 || (major === 18 && minor >= 3)) {
@@ -352,6 +352,11 @@ function ImagePreload({
   )
 }
 
+/**
+ * The `Image` component is used to optimize images.
+ *
+ * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
+ */
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
     const pagesRouter = useContext(RouterContext)

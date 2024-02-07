@@ -2,7 +2,15 @@
 
 import '../server/lib/cpu-profile'
 import type { StartServerOptions } from '../server/lib/start-server'
-import { RESTART_EXIT_CODE, getPort, printAndExit } from '../server/lib/utils'
+import {
+  RESTART_EXIT_CODE,
+  checkNodeDebugType,
+  getDebugPort,
+  getMaxOldSpaceSize,
+  getNodeOptionsWithoutInspect,
+  getPort,
+  printAndExit,
+} from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import type { CliCommand } from '../lib/commands'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -11,36 +19,39 @@ import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
 import { setGlobal, traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
-import loadConfig, { getEnabledExperimentalFeatures } from '../server/config'
+import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
 import { fileExists, FileType } from '../lib/file-exists'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 import { createSelfSignedCertificate } from '../lib/mkcert'
 import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
-import { initialEnv, loadEnvConfig } from '@next/env'
-import { trace } from '../trace'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
+import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
+import os from 'os'
+import { once } from 'node:events'
 
 let dir: string
-let child: undefined | ReturnType<typeof fork>
+let child: undefined | ChildProcess
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: string | null) => {
-  if (child) {
-    child.kill((signal as any) || 0)
-  }
+const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+  if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+    await once(child, 'exit').catch(() => {})
+  }
 
   try {
     const { eventCliSessionStopped } =
@@ -88,7 +99,6 @@ const handleSessionStop = async (signal: string | null) => {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
-      isTurboSession,
       projectDir: dir,
       distDir: config.distDir,
     })
@@ -101,8 +111,11 @@ const handleSessionStop = async (signal: string | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+
+// exit event must be synchronous
+process.on('exit', () => child?.kill('SIGKILL'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -118,10 +131,14 @@ const nextDev: CliCommand = async (args) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
-        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
-        --help, -h      Displays this message
+        --port, -p                              A port number to start the application on
+        --hostname, -H                          Hostname start the application on (default: 0.0.0.0)
+        --experimental-https                    Start the server with HTTPS and generate a self-signed certificate
+        --experimental-https-key <path>         Path to a HTTPS key file
+        --experimental-https-cert <path>        Path to a HTTPS certificate file
+        --experimental-https-ca <path>          Path to a HTTPS certificate authority file
+        --experimental-upload-trace=<trace-url> Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
+        --help, -h                              Displays this message
     `)
     process.exit(0)
   }
@@ -184,32 +201,22 @@ const nextDev: CliCommand = async (args) => {
   // some set-ups that rely on listening on other interfaces
   const host = args['--hostname']
 
-  const { loadedEnvFiles } = loadEnvConfig(dir, true, console, false)
-
-  let expFeatureInfo: string[] = []
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    onLoadUserConfig(userConfig) {
-      const userNextConfigExperimental = getEnabledExperimentalFeatures(
-        userConfig.experimental
-      )
-      expFeatureInfo = userNextConfigExperimental.sort(
-        (a, b) => a.length - b.length
-      )
-    },
-  })
-
-  // we need to reset env if we are going to create
-  // the worker process with the esm loader so that the
-  // initial env state is correct
-  let envInfo: string[] = []
-  if (loadedEnvFiles.length > 0) {
-    envInfo = loadedEnvFiles.map((f) => f.path)
-  }
+  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
-  if (args['--experimental-upload-trace']) {
+  if (
+    args['--experimental-upload-trace'] &&
+    !process.env.NEXT_TRACE_UPLOAD_DISABLED
+  ) {
     traceUploadUrl = args['--experimental-upload-trace']
+  }
+
+  // TODO: remove in the next major version
+  if (config.analyticsId) {
+    Log.warn(
+      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
+    )
   }
 
   const devServerOptions: StartServerOptions = {
@@ -219,21 +226,13 @@ const nextDev: CliCommand = async (args) => {
     isDev: true,
     hostname: host,
     isExperimentalTestProxy,
-    envInfo,
-    expFeatureInfo,
   }
 
   if (args['--turbo']) {
     process.env.TURBOPACK = '1'
   }
 
-  if (process.env.TURBOPACK) {
-    isTurboSession = true
-    await validateTurboNextConfig({
-      ...devServerOptions,
-      isDev: true,
-    })
-  }
+  isTurboSession = !!process.env.TURBOPACK
 
   const distDir = path.join(dir, config.distDir ?? '.next')
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
@@ -245,6 +244,25 @@ const nextDev: CliCommand = async (args) => {
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
+      let NODE_OPTIONS = getNodeOptionsWithoutInspect()
+      let nodeDebugType = checkNodeDebugType()
+
+      const maxOldSpaceSize = getMaxOldSpaceSize()
+
+      if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
+        const totalMem = os.totalmem()
+        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
+        NODE_OPTIONS = `${NODE_OPTIONS} --max-old-space-size=${Math.floor(
+          totalMemInMB * 0.5
+        )}`
+      }
+
+      if (nodeDebugType) {
+        NODE_OPTIONS = `${NODE_OPTIONS} --${nodeDebugType}=${
+          getDebugPort() + 1
+        }`
+      }
+
       child = fork(startServerPath, {
         stdio: 'inherit',
         env: {
@@ -254,6 +272,7 @@ const nextDev: CliCommand = async (args) => {
           NODE_EXTRA_CA_CERTS: options.selfSignedCertificate
             ? options.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
+          NODE_OPTIONS,
         },
       })
 
@@ -273,6 +292,18 @@ const nextDev: CliCommand = async (args) => {
           return
         }
         if (code === RESTART_EXIT_CODE) {
+          // Starting the dev server will overwrite the `.next/trace` file, so we
+          // must upload the existing contents before restarting the server to
+          // preserve the metrics.
+          if (traceUploadUrl) {
+            uploadTrace({
+              traceUploadUrl,
+              mode: 'dev',
+              projectDir: dir,
+              distDir: config.distDir,
+              sync: true,
+            })
+          }
           return startServer(options)
         }
         await handleSessionStop(signal)
@@ -284,7 +315,7 @@ const nextDev: CliCommand = async (args) => {
     try {
       if (!!args['--experimental-https']) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined
@@ -318,21 +349,7 @@ const nextDev: CliCommand = async (args) => {
     }
   }
 
-  await trace('start-dev-server').traceAsyncFn(async (_) => {
-    await runDevServer(false)
-  })
+  await runDevServer(false)
 }
-
-function cleanup() {
-  if (!child) {
-    return
-  }
-
-  child.kill('SIGTERM')
-}
-
-process.on('exit', cleanup)
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
 
 export { nextDev }

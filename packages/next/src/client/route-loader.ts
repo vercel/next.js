@@ -18,6 +18,11 @@ declare global {
     __MIDDLEWARE_MATCHERS?: MiddlewareMatcher[]
     __MIDDLEWARE_MANIFEST_CB?: Function
     __PRERENDER_MANIFEST?: string
+    __REACT_LOADABLE_MANIFEST?: any
+    __RSC_MANIFEST?: any
+    __RSC_SERVER_MANIFEST?: any
+    __NEXT_FONT_MANIFEST?: any
+    __SUBRESOURCE_INTEGRITY_MANIFEST?: string
   }
 }
 
@@ -318,7 +323,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href)
+      (prom = fetch(href, { credentials: 'same-origin' })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)

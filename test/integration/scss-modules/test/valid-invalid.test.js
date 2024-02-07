@@ -98,7 +98,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
       const cssPreload = $('#nm-div')
       expect(cssPreload.text()).toMatchInlineSnapshot(
-        `"{\\"message\\":\\"Why hello there\\"} {\\"redText\\":\\"example_redText__jsP_3\\"}"`
+        `"{"message":"Why hello there"} {"redText":"example_redText__jsP_3"}"`
       )
     })
 
@@ -153,7 +153,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
       const cssPreload = $('#nm-div')
       expect(cssPreload.text()).toMatchInlineSnapshot(
-        `"{\\"message\\":\\"Why hello there\\"} {\\"other2\\":\\"example_other2__HNcoQ\\",\\"subClass\\":\\"example_subClass__SxkPt other_className___l2o_\\"}"`
+        `"{"message":"Why hello there"} {"other2":"example_other2__HNcoQ","subClass":"example_subClass__SxkPt other_className___l2o_"}"`
       )
     })
 

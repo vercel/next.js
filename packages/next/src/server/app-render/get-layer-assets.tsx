@@ -1,5 +1,5 @@
 import React from 'react'
-import { getCssInlinedLinkTags } from './get-css-inlined-link-tags'
+import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
 import type { AppRenderContext } from './app-render'
 import { getAssetQueryString } from './get-asset-query-string'
@@ -8,21 +8,24 @@ export function getLayerAssets({
   ctx,
   layoutOrPagePath,
   injectedCSS: injectedCSSWithCurrentLayout,
+  injectedJS: injectedJSWithCurrentLayout,
   injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
 }: {
   layoutOrPagePath: string | undefined
   injectedCSS: Set<string>
+  injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
 }): React.ReactNode {
-  const stylesheets: string[] = layoutOrPagePath
-    ? getCssInlinedLinkTags(
+  const { styles: styleTags, scripts: scriptTags } = layoutOrPagePath
+    ? getLinkAndScriptTags(
         ctx.clientReferenceManifest,
         layoutOrPagePath,
         injectedCSSWithCurrentLayout,
+        injectedJSWithCurrentLayout,
         true
       )
-    : []
+    : { styles: [], scripts: [] }
 
   const preloadedFontFiles = layoutOrPagePath
     ? getPreloadableFonts(
@@ -53,8 +56,8 @@ export function getLayerAssets({
     }
   }
 
-  const styles = stylesheets
-    ? stylesheets.map((href, index) => {
+  const styles = styleTags
+    ? styleTags.map((href, index) => {
         // In dev, Safari and Firefox will cache the resource during HMR:
         // - https://github.com/vercel/next.js/issues/5860
         // - https://bugs.webkit.org/show_bug.cgi?id=187726
@@ -88,7 +91,18 @@ export function getLayerAssets({
           />
         )
       })
-    : null
+    : []
 
-  return styles
+  const scripts = scriptTags
+    ? scriptTags.map((href, index) => {
+        const fullSrc = `${ctx.assetPrefix}/_next/${href}${getAssetQueryString(
+          ctx,
+          true
+        )}`
+
+        return <script src={fullSrc} async={true} key={`script-${index}`} />
+      })
+    : []
+
+  return styles.length || scripts.length ? [...styles, ...scripts] : null
 }

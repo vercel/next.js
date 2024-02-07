@@ -13,7 +13,10 @@ import { runCompiler } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
 import type { NextError } from '../../lib/is-error'
-import { TelemetryPlugin } from '../webpack/plugins/telemetry-plugin'
+import {
+  TelemetryPlugin,
+  type TelemetryPluginState,
+} from '../webpack/plugins/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
@@ -21,13 +24,21 @@ import {
 } from '../build-context'
 import { createEntrypoints } from '../entries'
 import loadConfig from '../../server/config'
-import { trace } from '../../trace'
+import {
+  getTraceEvents,
+  initializeTraceState,
+  setGlobal,
+  trace,
+  type TraceEvent,
+  type TraceState,
+} from '../../trace'
 import { WEBPACK_LAYERS } from '../../lib/constants'
 import { TraceEntryPointsPlugin } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 
 import origDebug from 'next/dist/compiled/debug'
+import { Telemetry } from '../../telemetry/storage'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -54,11 +65,12 @@ function isTraceEntryPointsPlugin(
 }
 
 export async function webpackBuildImpl(
-  compilerName?: keyof typeof COMPILER_INDEXES
+  compilerName: keyof typeof COMPILER_INDEXES | null
 ): Promise<{
   duration: number
   pluginState: any
   buildTraceContext?: BuildTraceContext
+  telemetryState?: TelemetryPluginState
 }> {
   let result: CompilerResult | null = {
     warnings: [],
@@ -261,9 +273,9 @@ export async function webpackBuildImpl(
     .traceChild('format-webpack-messages')
     .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
 
-  NextBuildContext.telemetryPlugin = (
-    clientConfig as webpack.Configuration
-  ).plugins?.find(isTelemetryPlugin)
+  const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
+    isTelemetryPlugin
+  )
 
   const traceEntryPointsPlugin = (
     serverConfig as webpack.Configuration
@@ -315,7 +327,6 @@ export async function webpackBuildImpl(
       console.warn(result.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
-      NextBuildContext.buildSpinner?.stopAndPersist()
       Log.event('Compiled successfully')
     }
 
@@ -323,6 +334,11 @@ export async function webpackBuildImpl(
       duration: webpackBuildEnd[0],
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
+      telemetryState: {
+        usages: telemetryPlugin?.usages() || [],
+        packagesUsedInServerSideProps:
+          telemetryPlugin?.packagesUsedInServerSideProps() || [],
+      },
     }
   }
 }
@@ -331,9 +347,22 @@ export async function webpackBuildImpl(
 export async function workerMain(workerData: {
   compilerName: keyof typeof COMPILER_INDEXES
   buildContext: typeof NextBuildContext
-}) {
+  traceState: TraceState
+}): Promise<
+  Awaited<ReturnType<typeof webpackBuildImpl>> & {
+    debugTraceEvents: TraceEvent[]
+  }
+> {
+  // Clone the telemetry for worker
+  const telemetry = new Telemetry({
+    distDir: workerData.buildContext.config!.distDir,
+  })
+  setGlobal('telemetry', telemetry)
   // setup new build context from the serialized data passed from the parent
   Object.assign(NextBuildContext, workerData.buildContext)
+
+  // Initialize tracer state from the parent
+  initializeTraceState(workerData.traceState)
 
   // Resume plugin state
   resumePluginState(NextBuildContext.pluginState)
@@ -343,7 +372,9 @@ export async function workerMain(workerData: {
     PHASE_PRODUCTION_BUILD,
     NextBuildContext.dir!
   )
-  NextBuildContext.nextBuildSpan = trace('next-build')
+  NextBuildContext.nextBuildSpan = trace(
+    `worker-main-${workerData.compilerName}`
+  )
 
   const result = await webpackBuildImpl(workerData.compilerName)
   const { entriesTrace, chunksTrace } = result.buildTraceContext ?? {}
@@ -361,5 +392,6 @@ export async function workerMain(workerData: {
     const entryNameFilesMap = chunksTrace.entryNameFilesMap
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
-  return result
+  NextBuildContext.nextBuildSpan.stop()
+  return { ...result, debugTraceEvents: getTraceEvents() }
 }

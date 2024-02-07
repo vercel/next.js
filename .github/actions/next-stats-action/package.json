@@ -18,8 +18,8 @@
     "typescript": "5.1.6"
   },
   "engines": {
-    "node": ">=18.18.2",
-    "pnpm": "8.9.0"
+    "node": ">=18.17.0",
+    "pnpm": "8.14.2"
   },
-  "packageManager": "pnpm@8.9.0"
+  "packageManager": "pnpm@8.14.2"
 }

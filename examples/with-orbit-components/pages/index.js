@@ -1,5 +1,5 @@
-import React from 'react'
-import { Alert, Illustration } from '@kiwicom/orbit-components'
+import React from "react";
+import { Alert, Illustration } from "@kiwicom/orbit-components";
 
 export default function Home() {
   return (
@@ -9,5 +9,5 @@ export default function Home() {
       </Alert>
       <Illustration name="Success" />
     </React.Fragment>
-  )
+  );
 }

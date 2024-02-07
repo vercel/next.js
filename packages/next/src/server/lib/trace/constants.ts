@@ -38,6 +38,8 @@ enum NextServerSpan {
 enum NextNodeServerSpan {
   compression = 'NextNodeServer.compression',
   getBuildId = 'NextNodeServer.getBuildId',
+  createComponentTree = 'NextNodeServer.createComponentTree',
+  getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
   generateFsStaticRoutes = 'NextNodeServer.generateFsStaticRoutes',
   generatePublicRoutes = 'NextNodeServer.generatePublicRoutes',
@@ -58,6 +60,7 @@ enum NextNodeServerSpan {
   renderError = 'NextNodeServer.renderError',
   renderErrorToHTML = 'NextNodeServer.renderErrorToHTML',
   render404 = 'NextNodeServer.render404',
+  startResponse = 'NextNodeServer.startResponse',
 
   // nested inner span, does not require parent scope name
   route = 'route',
@@ -99,6 +102,7 @@ enum AppRouteRouteHandlersSpan {
 
 enum ResolveMetadataSpan {
   generateMetadata = 'ResolveMetadata.generateMetadata',
+  generateViewport = 'ResolveMetadata.generateViewport',
 }
 
 type SpanTypes =
@@ -125,6 +129,11 @@ export const NextVanillaSpanAllowlist = [
   NodeSpan.runHandler,
   AppRouteRouteHandlersSpan.runHandler,
   ResolveMetadataSpan.generateMetadata,
+  ResolveMetadataSpan.generateViewport,
+  NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.findPageComponents,
+  NextNodeServerSpan.getLayoutOrPageModule,
+  NextNodeServerSpan.startResponse,
 ]
 
 export {

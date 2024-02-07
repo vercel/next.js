@@ -31,10 +31,6 @@ declare module 'react-server-dom-webpack/server.edge'
 declare module 'react-server-dom-webpack/server.node'
 declare module 'react-server-dom-webpack/client.edge'
 
-declare module 'react-dom/server-rendering-stub'
-declare module 'react-dom/server.browser'
-declare module 'react-dom/server.edge'
-
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
@@ -46,6 +42,10 @@ declare module 'next/dist/compiled/@next/react-dev-overlay/dist/client' {
 
 declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware' {
   export * from '@next/react-dev-overlay/dist/middleware'
+}
+
+declare module 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack' {
+  export * from '@next/react-dev-overlay/dist/middleware-turbopack'
 }
 
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
@@ -66,8 +66,6 @@ declare module 'next/dist/compiled/node-html-parser' {
 declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
-
-declare module 'next/dist/compiled/undici' {}
 
 declare module 'next/dist/compiled/jest-worker' {
   export * from 'jest-worker'
@@ -99,11 +97,6 @@ declare module 'next/dist/compiled/image-size' {
 
 declare module 'next/dist/compiled/@hapi/accept' {
   import m from '@hapi/accept'
-  export = m
-}
-
-declare module 'next/dist/compiled/get-orientation' {
-  import m from 'get-orientation'
   export = m
 }
 
@@ -173,10 +166,6 @@ declare module 'next/dist/compiled/babel/generator' {
   export * from '@babel/generator'
 }
 declare module 'next/dist/compiled/babel/preset-env' {
-  const anyType: any
-  export default anyType
-}
-declare module 'watchpack' {
   const anyType: any
   export default anyType
 }
@@ -278,8 +267,8 @@ declare module 'next/dist/compiled/lru-cache' {
   import m from 'lru-cache'
   export = m
 }
-declare module 'next/dist/compiled/micromatch' {
-  import m from 'micromatch'
+declare module 'next/dist/compiled/picomatch' {
+  import m from 'picomatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
@@ -300,6 +289,10 @@ declare module 'next/dist/compiled/send' {
 }
 declare module 'next/dist/compiled/source-map' {
   import m from 'source-map'
+  export = m
+}
+declare module 'next/dist/compiled/source-map08' {
+  import m from 'source-map08'
   export = m
 }
 declare module 'next/dist/compiled/string-hash' {

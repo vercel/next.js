@@ -1,15 +1,15 @@
-import useSWR from 'swr'
-import PersonComponent from '../components/Person'
-import type { Person } from '../interfaces'
+import useSWR from "swr";
+import PersonComponent from "../components/Person";
+import type { Person } from "../interfaces";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json())
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function Index() {
-  const { data, error, isLoading } = useSWR<Person[]>('/api/people', fetcher)
+  const { data, error, isLoading } = useSWR<Person[]>("/api/people", fetcher);
 
-  if (error) return <div>Failed to load</div>
-  if (isLoading) return <div>Loading...</div>
-  if (!data) return null
+  if (error) return <div>Failed to load</div>;
+  if (isLoading) return <div>Loading...</div>;
+  if (!data) return null;
 
   return (
     <ul>
@@ -17,5 +17,5 @@ export default function Index() {
         <PersonComponent key={p.id} person={p} />
       ))}
     </ul>
-  )
+  );
 }

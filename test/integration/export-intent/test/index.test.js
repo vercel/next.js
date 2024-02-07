@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild, nextExport, nextExportDefault } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
 
@@ -12,14 +12,15 @@ describe('Application Export Intent Output', () => {
     describe('Default Export', () => {
       const appDir = join(fixturesDir, 'default-export')
       const distDir = join(appDir, '.next')
+      const outDir = join(appDir, 'out')
 
       beforeAll(async () => {
         await remove(distDir)
+        await remove(outDir)
       })
 
       it('should build and export', async () => {
         await nextBuild(appDir)
-        await nextExportDefault(appDir)
       })
 
       it('should have the expected outputs for export', () => {
@@ -28,7 +29,7 @@ describe('Application Export Intent Output', () => {
             fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
           )
         ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -43,7 +44,7 @@ describe('Application Export Intent Output', () => {
           ...detail,
           outDirectory: path.basename(detail.outDirectory),
         }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": true,
           "version": 1,
@@ -59,14 +60,15 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'custom-export')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
           await nextBuild(appDir)
-          await nextExportDefault(appDir)
         })
 
         it('should have the expected outputs for export', () => {
@@ -75,7 +77,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": true,
           "isNextImageImported": false,
@@ -90,7 +92,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": true,
           "version": 1,
@@ -107,14 +109,15 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'custom-out')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'lel')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
           await nextBuild(appDir)
-          await nextExport(appDir, { outdir: join(appDir, 'lel') })
         })
 
         it('should have the expected outputs for export', () => {
@@ -123,7 +126,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": true,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -138,7 +141,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "lel",
           "success": true,
           "version": 1,
@@ -155,14 +158,17 @@ describe('Application Export Intent Output', () => {
       () => {
         const appDir = join(fixturesDir, 'bad-export')
         const distDir = join(appDir, '.next')
+        const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
           await remove(distDir)
+          await remove(outDir)
         })
 
         it('should build and export', async () => {
-          await nextBuild(appDir)
-          await nextExportDefault(appDir, { ignoreFail: true })
+          const result = await nextBuild(appDir, [], { stderr: true })
+          expect(result.stderr).toMatch('.getInitialProps()')
+          expect(result.code).toBe(1)
         })
 
         it('should have the expected outputs for export', () => {
@@ -171,7 +177,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -186,7 +192,7 @@ describe('Application Export Intent Output', () => {
             ...detail,
             outDirectory: path.basename(detail.outDirectory),
           }).toMatchInlineSnapshot(`
-        Object {
+        {
           "outDirectory": "out",
           "success": false,
           "version": 1,
@@ -218,7 +224,7 @@ describe('Application Export Intent Output', () => {
               fs.readFileSync(join(distDir, 'export-marker.json'), 'utf8')
             )
           ).toMatchInlineSnapshot(`
-        Object {
+        {
           "exportTrailingSlash": false,
           "hasExportPathMap": false,
           "isNextImageImported": false,
@@ -228,15 +234,7 @@ describe('Application Export Intent Output', () => {
 
           expect(() => {
             fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).toThrowError(/ENOENT/)
-        })
-
-        it('should export and create file', async () => {
-          await nextExportDefault(appDir)
-
-          expect(() => {
-            fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).not.toThrow()
+          }).toThrow(/ENOENT/)
         })
 
         it('should build and clean up', async () => {
@@ -244,7 +242,7 @@ describe('Application Export Intent Output', () => {
 
           expect(() => {
             fs.readFileSync(join(distDir, 'export-detail.json'), 'utf8')
-          }).toThrowError(/ENOENT/)
+          }).toThrow(/ENOENT/)
         })
       }
     )

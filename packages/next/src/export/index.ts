@@ -19,7 +19,7 @@ import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
-import { SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -54,6 +54,8 @@ import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
+import { validateRevalidate } from '../server/lib/patch-fetch'
+import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -215,6 +217,8 @@ export async function exportAppImpl(
   // attempt to load global env values so they are available in next.config.js
   span.traceChild('load-dotenv').traceFn(() => loadEnvConfig(dir, false, Log))
 
+  const { enabledDirectories } = options
+
   const nextConfig =
     options.nextConfig ||
     (await span
@@ -222,40 +226,6 @@ export async function exportAppImpl(
       .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
 
   const distDir = join(dir, nextConfig.distDir)
-  const isExportOutput = nextConfig.output === 'export'
-
-  // Running 'next export'
-  if (options.isInvokedFromCli) {
-    if (isExportOutput) {
-      if (options.hasOutdirFromCli) {
-        throw new ExportError(
-          '"next export -o <dir>" cannot be used when "output: export" is configured in next.config.js. Instead add "distDir" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-        )
-      }
-      Log.warn(
-        '"next export" is no longer needed when "output: export" is configured in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-      return null
-    }
-    if (existsSync(join(distDir, 'server', 'app'))) {
-      throw new ExportError(
-        '"next export" does not work with App Router. Please use "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-      )
-    }
-    Log.warn(
-      '"next export" is deprecated in favor of "output: export" in next.config.js https://nextjs.org/docs/advanced-features/static-html-export'
-    )
-  }
-
-  // Running 'next export' or output is set to 'export'
-  if (options.isInvokedFromCli || isExportOutput) {
-    if (nextConfig.experimental.serverActions) {
-      throw new ExportError(
-        `Server Actions are not supported with static export.`
-      )
-    }
-  }
-
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
 
   if (telemetry) {
@@ -477,6 +447,25 @@ export async function exportAppImpl(
     }
   }
 
+  let serverActionsManifest
+  if (enabledDirectories.app) {
+    serverActionsManifest = require(join(
+      distDir,
+      SERVER_DIRECTORY,
+      SERVER_REFERENCE_MANIFEST + '.json'
+    ))
+    if (nextConfig.output === 'export') {
+      if (
+        Object.keys(serverActionsManifest.node).length > 0 ||
+        Object.keys(serverActionsManifest.edge).length > 0
+      ) {
+        throw new ExportError(
+          `Server Actions are not supported with static export.`
+        )
+      }
+    }
+  }
+
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
@@ -502,26 +491,26 @@ export async function exportAppImpl(
     nextScriptWorkers: nextConfig.experimental.nextScriptWorkers,
     optimizeFonts: nextConfig.optimizeFonts as FontConfig,
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
-    serverComponents: options.hasAppDir,
-    serverActionsBodySizeLimit:
-      nextConfig.experimental.serverActionsBodySizeLimit,
+    serverActions: nextConfig.experimental.serverActions,
+    serverComponents: enabledDirectories.app,
     nextFontManifest: require(join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )),
     images: nextConfig.images,
-    ...(options.hasAppDir
+    ...(enabledDirectories.app
       ? {
-          serverActionsManifest: require(join(
-            distDir,
-            SERVER_DIRECTORY,
-            SERVER_REFERENCE_MANIFEST + '.json'
-          )),
+          serverActionsManifest,
         }
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
+    experimental: {
+      ppr: nextConfig.experimental.ppr === true,
+      missingSuspenseWithCSRBailout:
+        nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+    },
   }
 
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
@@ -575,9 +564,10 @@ export async function exportAppImpl(
   ]
 
   const filteredPaths = exportPaths.filter(
-    // Remove API routes
     (route) =>
-      exportPathMap[route]._isAppDir || !isAPIRoute(exportPathMap[route].page)
+      exportPathMap[route]._isAppDir ||
+      // Remove API routes
+      !isAPIRoute(exportPathMap[route].page)
   )
 
   if (filteredPaths.length !== exportPaths.length) {
@@ -623,7 +613,7 @@ export async function exportAppImpl(
 
     // Warn if the user defines a path for an API page
     if (hasApiRoutes || hasMiddleware) {
-      if (!options.silent) {
+      if (nextConfig.output === 'export') {
         Log.warn(
           yellow(
             `Statically exporting a Next.js application via \`next export\` disables API routes and middleware.`
@@ -649,10 +639,7 @@ export async function exportAppImpl(
 
   const progress =
     !options.silent &&
-    createProgress(
-      filteredPaths.length,
-      `${options.statusMessage || 'Exporting'}`
-    )
+    createProgress(filteredPaths.length, options.statusMessage || 'Exporting')
   const pagesDataDir = options.buildExport
     ? outDir
     : join(outDir, '_next/data', buildId)
@@ -692,6 +679,7 @@ export async function exportAppImpl(
 
       const result = await pageExportSpan.traceAsyncFn(async () => {
         return await exportPage({
+          dir,
           path,
           pathMap,
           distDir,
@@ -707,15 +695,15 @@ export async function exportAppImpl(
           optimizeCss: nextConfig.experimental.optimizeCss,
           disableOptimizedLoading:
             nextConfig.experimental.disableOptimizedLoading,
-          parentSpanId: pageExportSpan.id,
+          parentSpanId: pageExportSpan.getId(),
           httpAgentOptions: nextConfig.httpAgentOptions,
           debugOutput: options.debugOutput,
-          isrMemoryCacheSize: nextConfig.experimental.isrMemoryCacheSize,
+          cacheMaxMemorySize: nextConfig.cacheMaxMemorySize,
           fetchCache: true,
           fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
-          incrementalCacheHandlerPath:
-            nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: nextConfig.cacheHandler,
           enableExperimentalReact: needsExperimentalReact(nextConfig),
+          enabledDirectories,
         })
       })
 
@@ -733,12 +721,22 @@ export async function exportAppImpl(
     byPath: new Map(),
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
+    turborepoAccessTraceResults: new Map(),
   }
 
   for (const { result, path } of results) {
     if (!result) continue
 
     const { page } = exportPathMap[path]
+
+    if (result.turborepoAccessTraceResult) {
+      collector.turborepoAccessTraceResults?.set(
+        path,
+        TurborepoAccessTraceResult.fromSerialized(
+          result.turborepoAccessTraceResult
+        )
+      )
+    }
 
     // Capture any render errors.
     if ('error' in result) {
@@ -759,11 +757,20 @@ export async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+        info.revalidate = validateRevalidate(result.revalidate, path)
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
       }
+
+      if (typeof result.hasEmptyPrelude !== 'undefined') {
+        info.hasEmptyPrelude = result.hasEmptyPrelude
+      }
+
+      if (typeof result.hasPostponed !== 'undefined') {
+        info.hasPostponed = result.hasPostponed
+      }
+
       collector.byPath.set(path, info)
 
       // Update not found.
@@ -781,6 +788,12 @@ export async function exportAppImpl(
   }
 
   const endWorkerPromise = workers.end()
+
+  // Export mode provide static outputs that are not compatible with PPR mode.
+  if (!options.buildExport && nextConfig.experimental.ppr) {
+    // TODO: add message
+    throw new Error('Invariant: PPR cannot be enabled in export mode')
+  }
 
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
@@ -844,7 +857,7 @@ export async function exportAppImpl(
         await fs.mkdir(dirname(jsonDest), { recursive: true })
 
         const htmlSrc = `${orig}.html`
-        const jsonSrc = `${orig}${isAppPath ? '.rsc' : '.json'}`
+        const jsonSrc = `${orig}${isAppPath ? RSC_SUFFIX : '.json'}`
 
         await fs.copyFile(htmlSrc, htmlDest)
         await fs.copyFile(jsonSrc, jsonDest)

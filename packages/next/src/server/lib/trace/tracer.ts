@@ -7,6 +7,7 @@ import type {
   SpanOptions,
   Tracer,
   AttributeValue,
+  TextMapGetter,
 } from 'next/dist/compiled/@opentelemetry/api'
 
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
@@ -28,7 +29,8 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   }
 }
 
-const { context, trace, SpanStatusCode, SpanKind } = api
+const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
+  api
 
 const isPromise = <T>(p: any): p is Promise<T> => {
   return p !== null && typeof p === 'object' && typeof p.then === 'function'
@@ -139,6 +141,7 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
@@ -169,6 +172,20 @@ class NextTracerImpl implements NextTracer {
 
   public getActiveScopeSpan(): Span | undefined {
     return trace.getSpan(context?.active())
+  }
+
+  public withPropagatedContext<T, C>(
+    carrier: C,
+    fn: () => T,
+    getter?: TextMapGetter<C>
+  ): T {
+    const activeContext = context.active()
+    if (trace.getSpanContext(activeContext)) {
+      // Active span is already set, too late to propagate.
+      return fn()
+    }
+    const remoteContext = propagation.extract(activeContext, carrier, getter)
+    return context.with(remoteContext, fn)
   }
 
   // Trace, wrap implementation is inspired by datadog trace implementation
@@ -229,7 +246,9 @@ class NextTracerImpl implements NextTracer {
     let isRootSpan = false
 
     if (!spanContext) {
-      spanContext = api.ROOT_CONTEXT
+      spanContext = ROOT_CONTEXT
+      isRootSpan = true
+    } else if (trace.getSpanContext(spanContext)?.isRemote) {
       isRootSpan = true
     }
 
@@ -241,7 +260,7 @@ class NextTracerImpl implements NextTracer {
       ...options.attributes,
     }
 
-    return api.context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
+    return context.with(spanContext.setValue(rootSpanIdKey, spanId), () =>
       this.getTracerInstance().startActiveSpan(
         spanName,
         options,
@@ -266,13 +285,19 @@ class NextTracerImpl implements NextTracer {
             }
 
             const result = fn(span)
-
             if (isPromise(result)) {
-              result
-                .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
-                )
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  return res
+                })
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
                 .finally(onCleanup)
             } else {
               span.end()

@@ -38,7 +38,7 @@ const clientGlobs = [
   },
   {
     name: 'Next Runtimes',
-    globs: ['../../node_modules/next/dist/compiled/next-server/**/*.js'],
+    globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
   },
 ]
 

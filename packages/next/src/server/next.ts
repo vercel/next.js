@@ -10,7 +10,6 @@ import type { NextUrlWithParsedQuery } from './request-meta'
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
-import './node-polyfill-fetch'
 import './node-polyfill-crypto'
 
 import type { default as Server } from './next-server'
@@ -26,7 +25,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { checkIsNodeDebugging } from './lib/is-node-debugging'
+import { checkNodeDebugType } from './lib/utils'
 
 let ServerImpl: typeof Server
 
@@ -271,12 +270,14 @@ class NextCustomServer extends NextServer {
   protected requestHandler: WorkerRequestHandler
   // @ts-expect-error These are initialized in prepare()
   protected upgradeHandler: WorkerUpgradeHandler
+  // @ts-expect-error These are initialized in prepare()
+  protected renderServer: NextServer
 
   async prepare() {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = checkIsNodeDebugging()
+    const isNodeDebugging = !!checkNodeDebugType()
 
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
@@ -288,6 +289,7 @@ class NextCustomServer extends NextServer {
     })
     this.requestHandler = initResult[0]
     this.upgradeHandler = initResult[1]
+    this.renderServer = initResult[2]
   }
 
   private setupWebSocketHandler(
@@ -340,6 +342,11 @@ class NextCustomServer extends NextServer {
 
     await this.requestHandler(req as any, res as any)
     return
+  }
+
+  setAssetPrefix(assetPrefix: string): void {
+    super.setAssetPrefix(assetPrefix)
+    this.renderServer.setAssetPrefix(assetPrefix)
   }
 }
 

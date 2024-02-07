@@ -1,4 +1,4 @@
-import { ImageResponse } from 'next/server'
+import { ImageResponse } from 'next/og'
 
 export async function generateImageMetadata({ params }) {
   return [

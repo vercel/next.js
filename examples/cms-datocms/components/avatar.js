@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Avatar({ name, picture }) {
   return (
@@ -13,5 +13,5 @@ export default function Avatar({ name, picture }) {
       </div>
       <div className="text-xl font-bold">{name}</div>
     </div>
-  )
+  );
 }

@@ -1,10 +1,9 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Writable, Readable } from 'stream'
-import type { SizeLimit } from 'next/types'
 
 import { SYMBOL_CLEARED_COOKIES } from '../api-utils'
 import type { NextApiRequestCookies } from '../api-utils'
-import { parseBody } from '../api-utils/node/parse-body'
+
 import { NEXT_REQUEST_META } from '../request-meta'
 import type { RequestMeta } from '../request-meta'
 
@@ -36,10 +35,6 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
 
   constructor(private _req: Req) {
     super(_req.method!.toUpperCase(), _req.url!, _req)
-  }
-
-  async parseBody(limit: SizeLimit): Promise<any> {
-    return parseBody(this._req, limit)
   }
 }
 
