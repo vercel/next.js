@@ -110,6 +110,9 @@ const babelIncludeRegexes: RegExp[] = [
   /[\\/](strip-ansi|ansi-regex|styled-jsx)[\\/]/,
 ]
 
+const preCompileReactRegex =
+  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)($|[\\/])/
+
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
 
@@ -1468,6 +1471,7 @@ export default async function getBaseWebpackConfig(
                   {
                     test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
+                    exclude: preCompileReactRegex,
                     use: appBrowserLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
