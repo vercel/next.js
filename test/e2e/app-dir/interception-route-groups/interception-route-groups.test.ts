@@ -127,27 +127,12 @@ createNextDescribe(
       app: new FileRef(path.join(__dirname, 'app')),
     },
   },
-  ({ next, isNextStart }) => {
-    if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true' && isNextStart) {
-      // The PPR prefetch will 404 since it'll request the full page (which won't exist, since the intercepted route
-      // has no default). The default router behavior if a prefetch fails is to trigger an MPA navigation
-      it('should render the non-intercepted page on navigation', async () => {
-        const browser = await next.browser('/')
+  ({ next }) => {
+    it('should use the default fallback (a 404) if there is no custom default page', async () => {
+      const browser = await next.browser('/')
 
-        await browser.elementByCss('[href="/photos/1"]').click()
-        await check(() => browser.elementById('slot').text(), /@slot default/)
-        await check(
-          () => browser.elementById('children').text(),
-          /Photo Page \(non-intercepted\) 1/
-        )
-      })
-    } else {
-      it('should use the default fallback (a 404) if there is no custom default page', async () => {
-        const browser = await next.browser('/')
-
-        await browser.elementByCss('[href="/photos/1"]').click()
-        await check(() => browser.elementByCss('body').text(), /404/)
-      })
-    }
+      await browser.elementByCss('[href="/photos/1"]').click()
+      await check(() => browser.elementByCss('body').text(), /404/)
+    })
   }
 )

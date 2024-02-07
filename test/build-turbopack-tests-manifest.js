@@ -72,6 +72,9 @@ const SKIPPED_TEST_SUITES = {
     'app dir - metadata twitter should support twitter card summary_large_image when image present',
     'app dir - metadata viewport should support dynamic viewport export',
   ],
+  'test/e2e/app-dir/navigation/navigation.test.ts': [
+    'app dir - navigation query string useParams identity between renders should be stable in pages',
+  ],
   'test/e2e/basepath.test.ts': [
     'basePath should 404 when manually adding basePath with router.push',
     'basePath should 404 when manually adding basePath with router.replace',

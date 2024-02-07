@@ -352,6 +352,11 @@ function ImagePreload({
   )
 }
 
+/**
+ * The `Image` component is used to optimize images.
+ *
+ * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
+ */
 export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
     const pagesRouter = useContext(RouterContext)

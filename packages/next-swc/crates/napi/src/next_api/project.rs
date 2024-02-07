@@ -7,8 +7,9 @@ use napi::{
     JsFunction, Status,
 };
 use next_api::{
+    entrypoints::Entrypoints,
     project::{
-        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, ProjectContainer,
+        DefineEnv, Instrumentation, Middleware, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions,
     },
     route::{Endpoint, Route},
@@ -21,7 +22,7 @@ use tracing::Instrument;
 use tracing_subscriber::{
     prelude::__tracing_subscriber_SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry,
 };
-use turbo_tasks::{TransientInstance, TurboTasks, UpdateInfo, Vc};
+use turbo_tasks::{ReadRef, TransientInstance, TurboTasks, UpdateInfo, Vc};
 use turbopack_binding::{
     turbo::{
         tasks_fs::{FileContent, FileSystem},
@@ -29,9 +30,11 @@ use turbopack_binding::{
     },
     turbopack::{
         core::{
+            diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
-            source_map::{GenerateSourceMap, Token},
-            version::{PartialUpdate, TotalUpdate, Update},
+            issue::PlainIssue,
+            source_map::Token,
+            version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
         trace_utils::{
@@ -424,6 +427,29 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct EntrypointsWithIssues {
+    entrypoints: ReadRef<Entrypoints>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_entrypoints_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<EntrypointsWithIssues>> {
+    let entrypoints_operation = container.entrypoints();
+    let entrypoints = entrypoints_operation.strongly_consistent().await?;
+    let issues = get_issues(entrypoints_operation).await?;
+    let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    Ok(EntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -436,13 +462,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_operation = container.entrypoints();
-                let entrypoints = entrypoints_operation.strongly_consistent().await?;
-
-                let issues = get_issues(entrypoints_operation).await?;
-                let diags = get_diagnostics(entrypoints_operation).await?;
-
-                Ok((entrypoints, issues, diags))
+                let EntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    diagnostics,
+                } = &*get_entrypoints_with_issues(container)
+                    .strongly_consistent()
+                    .await?;
+                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
@@ -491,6 +518,31 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrUpdateWithIssues {
+    update: ReadRef<Update>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn hmr_update(
+    project: Vc<Project>,
+    identifier: String,
+    state: Vc<VersionState>,
+) -> Result<Vc<HmrUpdateWithIssues>> {
+    let update_operation = project.hmr_update(identifier, state);
+    let update = update_operation.strongly_consistent().await?;
+    let issues = get_issues(update_operation).await?;
+    let diagnostics = get_diagnostics(update_operation).await?;
+    Ok(HmrUpdateWithIssues {
+        update,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_events(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -510,14 +562,17 @@ pub fn project_hmr_events(
                 let identifier = outer_identifier.clone();
                 let session = session.clone();
                 async move {
-                    let state = project
-                        .project()
-                        .hmr_version_state(identifier.clone(), session);
-                    let update_operation = project.project().hmr_update(identifier, state);
-                    let update = update_operation.strongly_consistent().await?;
-                    let issues = get_issues(update_operation).await?;
-                    let diags = get_diagnostics(update_operation).await?;
-                    match &*update {
+                    let project = project.project().resolve().await?;
+                    let state = project.hmr_version_state(identifier.clone(), session);
+                    let update = hmr_update(project, identifier, state)
+                        .strongly_consistent()
+                        .await?;
+                    let HmrUpdateWithIssues {
+                        update,
+                        issues,
+                        diagnostics,
+                    } = &*update;
+                    match &**update {
                         Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
                             state.set(to.clone()).await?;
@@ -526,7 +581,7 @@ pub fn project_hmr_events(
                             state.set(to.clone()).await?;
                         }
                     }
-                    Ok((update, issues, diags))
+                    Ok((update.clone(), issues.clone(), diagnostics.clone()))
                 }
                 .instrument(tracing::info_span!(
                     "HMR subscription",
@@ -574,6 +629,29 @@ struct HmrIdentifiers {
     pub identifiers: Vec<String>,
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct HmrIdentifiersWithIssues {
+    identifiers: ReadRef<Vec<String>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+}
+
+#[turbo_tasks::function]
+async fn get_hmr_identifiers_with_issues(
+    container: Vc<ProjectContainer>,
+) -> Result<Vc<HmrIdentifiersWithIssues>> {
+    let hmr_identifiers_operation = container.hmr_identifiers();
+    let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+    let issues = get_issues(hmr_identifiers_operation).await?;
+    let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    Ok(HmrIdentifiersWithIssues {
+        identifiers: hmr_identifiers,
+        issues,
+        diagnostics,
+    }
+    .cell())
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_hmr_identifiers_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -585,20 +663,22 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let hmr_identifiers_operation = container.hmr_identifiers();
-            let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+            let HmrIdentifiersWithIssues {
+                identifiers,
+                issues,
+                diagnostics,
+            } = &*get_hmr_identifiers_with_issues(container)
+                .strongly_consistent()
+                .await?;
 
-            let issues = get_issues(hmr_identifiers_operation).await?;
-            let diags = get_diagnostics(hmr_identifiers_operation).await?;
-
-            Ok((hmr_identifiers, issues, diags))
+            Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
         move |ctx| {
-            let (hmr_identifiers, issues, diags) = ctx.value;
+            let (identifiers, issues, diagnostics) = ctx.value;
 
             Ok(vec![TurbopackResult {
                 result: HmrIdentifiers {
-                    identifiers: hmr_identifiers
+                    identifiers: identifiers
                         .iter()
                         .map(|ident| ident.to_string())
                         .collect::<Vec<_>>(),
@@ -607,10 +687,39 @@ pub fn project_hmr_identifiers_subscribe(
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
                     .collect(),
-                diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+                diagnostics: diagnostics
+                    .iter()
+                    .map(|d| NapiDiagnostic::from(d))
+                    .collect(),
             }])
         },
     )
+}
+
+enum UpdateMessage {
+    Start,
+    End(UpdateInfo),
+}
+
+#[napi(object)]
+struct NapiUpdateMessage {
+    pub update_type: String,
+    pub value: Option<NapiUpdateInfo>,
+}
+
+impl From<UpdateMessage> for NapiUpdateMessage {
+    fn from(update_message: UpdateMessage) -> Self {
+        match update_message {
+            UpdateMessage::Start => NapiUpdateMessage {
+                update_type: "start".to_string(),
+                value: None,
+            },
+            UpdateMessage::End(info) => NapiUpdateMessage {
+                update_type: "end".to_string(),
+                value: Some(info.into()),
+            },
+        }
+    }
 }
 
 #[napi(object)]
@@ -631,20 +740,41 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
-    let func: ThreadsafeFunction<UpdateInfo> = func.create_threadsafe_function(0, |ctx| {
-        let update_info = ctx.value;
-        Ok(vec![NapiUpdateInfo::from(update_info)])
+    let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
+        let message = ctx.value;
+        Ok(vec![NapiUpdateMessage::from(message)])
     })?;
     let turbo_tasks = project.turbo_tasks.clone();
     tokio::spawn(async move {
         loop {
             let update_info = turbo_tasks
-                .get_or_wait_aggregated_update_info(Duration::from_secs(1))
+                .aggregated_update_info(Duration::ZERO, Duration::ZERO)
                 .await;
 
-            let status = func.call(Ok(update_info), ThreadsafeFunctionCallMode::NonBlocking);
+            func.call(
+                Ok(UpdateMessage::Start),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
+            let update_info = match update_info {
+                Some(update_info) => update_info,
+                None => {
+                    turbo_tasks
+                        .get_or_wait_aggregated_update_info(Duration::from_millis(
+                            aggregation_ms.into(),
+                        ))
+                        .await
+                }
+            };
+
+            let status = func.call(
+                Ok(UpdateMessage::End(update_info)),
+                ThreadsafeFunctionCallMode::NonBlocking,
+            );
+
             if !matches!(status, Status::Ok) {
                 let error = anyhow!("Error calling JS function: {}", status);
                 eprintln!("{}", error);
@@ -659,10 +789,13 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
-    pub column: Option<u32>,
-    pub file: String,
     pub is_server: bool,
-    pub line: u32,
+    pub is_internal: Option<bool>,
+    pub file: String,
+    // 1-indexed, unlike source map tokens
+    pub line: Option<u32>,
+    // 1-indexed, unlike source map tokens
+    pub column: Option<u32>,
     pub method_name: Option<String>,
 }
 
@@ -674,12 +807,16 @@ pub async fn project_trace_source(
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let file = match Url::parse(&frame.file) {
+            let (file, module) = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    "file" => {
+                        let path = urlencoding::decode(url.path())?.to_string();
+                        let module = url.query_pairs().find(|(k, _)| k == "id");
+                        (path, module.map(|(_, m)| m.into_owned()))
+                    }
                     _ => bail!("Unknown url scheme"),
                 },
-                Err(_) => frame.file.to_string(),
+                Err(_) => (frame.file.to_string(), None),
             };
 
             let Some(chunk_base) = file.strip_prefix(
@@ -707,40 +844,57 @@ pub async fn project_trace_source(
                     .join(chunk_base.to_owned())
             };
 
-            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
-                project.container.get_versioned_content(path),
-            )
-            .await?
-            else {
-                bail!("Could not GenerateSourceMap")
-            };
-
-            let map = versioned
-                .generate_source_map()
+            let map = project
+                .container
+                .get_source_map(path, module)
                 .await?
-                .context("Chunk is missing a sourcemap")?;
+                .context("chunk/module is missing a sourcemap")?;
 
-            let token = map
-                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
-                .await?
-                .clone_value()
-                .context("Unable to trace token from sourcemap")?;
-
-            let Token::Original(token) = token else {
+            let Some(line) = frame.line else {
                 return Ok(None);
             };
 
-            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
-            else {
-                bail!("Original file outside project")
+            let token = map
+                .lookup_token(
+                    (line as usize).saturating_sub(1),
+                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                )
+                .await?;
+
+            let (original_file, line, column, name) = match &*token {
+                Token::Original(token) => (
+                    &token.original_file,
+                    // JS stack frames are 1-indexed, source map tokens are 0-indexed
+                    Some(token.original_line as u32 + 1),
+                    Some(token.original_column as u32 + 1),
+                    token.name.clone(),
+                ),
+                Token::Synthetic(token) => {
+                    let Some(file) = &token.guessed_original_file else {
+                        return Ok(None);
+                    };
+                    (file, None, None, None)
+                }
             };
+
+            let Some(source_file) = original_file.strip_prefix("/turbopack/") else {
+                bail!("Original file ({}) outside project", original_file)
+            };
+
+            let (source_file, is_internal) =
+                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                    (source_file, false)
+                } else {
+                    (source_file, true)
+                };
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: token.name,
-                line: token.original_line as u32,
-                column: Some(token.original_column as u32),
+                method_name: name,
+                line,
+                column,
                 is_server: frame.is_server,
+                is_internal: Some(is_internal),
             }))
         })
         .await

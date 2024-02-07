@@ -14,6 +14,7 @@ import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../../entries'
+import type { PageExtensions } from '../../../page-extensions-type'
 import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
 
@@ -31,7 +32,7 @@ interface Options {
   appDir: string
   dev: boolean
   isEdgeServer: boolean
-  pageExtensions: string[]
+  pageExtensions: PageExtensions
   typedRoutes: boolean
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
@@ -212,7 +213,12 @@ async function collectNamedSlots(layoutPath: string) {
   const items = await fs.readdir(layoutDir, { withFileTypes: true })
   const slots = []
   for (const item of items) {
-    if (item.isDirectory() && item.name.startsWith('@')) {
+    if (
+      item.isDirectory() &&
+      item.name.startsWith('@') &&
+      // `@children slots are matched to the children prop, and should not be handled separately for type-checking
+      item.name !== '@children'
+    ) {
       slots.push(item.name.slice(1))
     }
   }

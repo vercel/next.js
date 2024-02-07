@@ -1,7 +1,7 @@
-import { NextPage } from 'next'
+import { NextPage } from "next";
 
 export const AboutPage: NextPage = () => {
-  return <h1>About</h1>
-}
+  return <h1>About</h1>;
+};
 
-export default AboutPage
+export default AboutPage;

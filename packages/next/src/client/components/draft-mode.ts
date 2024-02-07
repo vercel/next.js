@@ -1,6 +1,7 @@
 import type { DraftModeProvider } from '../../server/async-storage/draft-mode-provider'
 
-import { staticGenerationBailout } from './static-generation-bailout'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
 
 export class DraftMode {
   /**
@@ -15,14 +16,20 @@ export class DraftMode {
     return this._provider.isEnabled
   }
   public enable() {
-    if (staticGenerationBailout('draftMode().enable()')) {
-      return
+    const store = staticGenerationAsyncStorage.getStore()
+    if (store) {
+      // We we have a store we want to track dynamic data access to ensure we
+      // don't statically generate routes that manipulate draft mode.
+      trackDynamicDataAccessed(store, 'draftMode().enable()')
     }
     return this._provider.enable()
   }
   public disable() {
-    if (staticGenerationBailout('draftMode().disable()')) {
-      return
+    const store = staticGenerationAsyncStorage.getStore()
+    if (store) {
+      // We we have a store we want to track dynamic data access to ensure we
+      // don't statically generate routes that manipulate draft mode.
+      trackDynamicDataAccessed(store, 'draftMode().disable()')
     }
     return this._provider.disable()
   }

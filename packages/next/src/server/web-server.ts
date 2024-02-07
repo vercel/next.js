@@ -29,12 +29,13 @@ import {
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
+import type { PAGE_TYPES } from '../lib/page-types'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
     page: string
     pathname: string
-    pagesType: 'app' | 'pages' | 'root'
+    pagesType: PAGE_TYPES
     loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
     extendRenderOpts: Partial<BaseServer['renderOpts']> &
       Pick<BaseServer['renderOpts'], 'buildId'>
@@ -54,7 +55,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     Object.assign(this.renderOpts, options.webServerConfig.extendRenderOpts)
   }
 
-  protected getIncrementalCache({
+  protected async getIncrementalCache({
     requestHeaders,
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
@@ -74,7 +75,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       minimalMode: this.minimalMode,
       fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
-      maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+      maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk: false,
       CurCacheHandler:
         this.serverOptions.webServerConfig.incrementalCacheHandler,

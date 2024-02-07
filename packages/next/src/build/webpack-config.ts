@@ -781,6 +781,12 @@ export default async function getBaseWebpackConfig(
       .join('|')})[/\\\\]`
   )
 
+  const transpilePackagesRegex = new RegExp(
+    `[/\\\\]node_modules[/\\\\](${config.transpilePackages
+      ?.map((p) => p.replace(/\//g, '[/\\\\]'))
+      .join('|')})[/\\\\]`
+  )
+
   const handleExternals = makeExternalHandler({
     config,
     optOutBundlingPackages,
@@ -960,6 +966,73 @@ export default async function getBaseWebpackConfig(
           }
         }
 
+        const frameworkCacheGroup = {
+          chunks: 'all' as const,
+          name: 'framework',
+          // Ensures the framework chunk is not created for App Router.
+          layer: isWebpackDefaultLayer,
+          test(module: any) {
+            const resource = module.nameForCondition?.()
+            return resource
+              ? topLevelFrameworkPaths.some((pkgPath) =>
+                  resource.startsWith(pkgPath)
+                )
+              : false
+          },
+          priority: 40,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
+        }
+        const libCacheGroup = {
+          test(module: {
+            size: Function
+            nameForCondition: Function
+          }): boolean {
+            return (
+              module.size() > 160000 &&
+              /node_modules[/\\]/.test(module.nameForCondition() || '')
+            )
+          },
+          name(module: {
+            layer: string | null | undefined
+            type: string
+            libIdent?: Function
+            updateHash: (hash: crypto.Hash) => void
+          }): string {
+            const hash = crypto.createHash('sha1')
+            if (isModuleCSS(module)) {
+              module.updateHash(hash)
+            } else {
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
+              }
+              hash.update(module.libIdent({ context: dir }))
+            }
+
+            // Ensures the name of the chunk is not the same between two modules in different layers
+            // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
+            // as they're never used on the same page.
+            if (module.layer) {
+              hash.update(module.layer)
+            }
+
+            return hash.digest('hex').substring(0, 8)
+          },
+          priority: 30,
+          minChunks: 1,
+          reuseExistingChunk: true,
+        }
+        const cssCacheGroup = {
+          test: /\.(css|sass|scss)$/i,
+          chunks: 'all' as const,
+          enforce: true,
+          type: /css/,
+          minChunks: 2,
+          priority: 100,
+        }
         return {
           // Keep main and _app chunks unsplitted in webpack 5
           // as we don't need a separate vendor chunk from that
@@ -967,67 +1040,16 @@ export default async function getBaseWebpackConfig(
           // duplication that need to be pulled out.
           chunks: (chunk: any) =>
             !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
-          cacheGroups: {
-            framework: {
-              chunks: 'all',
-              name: 'framework',
-              // Ensures the framework chunk is not created for App Router.
-              layer: isWebpackDefaultLayer,
-              test(module: any) {
-                const resource = module.nameForCondition?.()
-                return resource
-                  ? topLevelFrameworkPaths.some((pkgPath) =>
-                      resource.startsWith(pkgPath)
-                    )
-                  : false
+          cacheGroups: appDir
+            ? {
+                css: cssCacheGroup,
+                framework: frameworkCacheGroup,
+                lib: libCacheGroup,
+              }
+            : {
+                framework: frameworkCacheGroup,
+                lib: libCacheGroup,
               },
-              priority: 40,
-              // Don't let webpack eliminate this chunk (prevents this chunk from
-              // becoming a part of the commons chunk)
-              enforce: true,
-            },
-            lib: {
-              test(module: {
-                size: Function
-                nameForCondition: Function
-              }): boolean {
-                return (
-                  module.size() > 160000 &&
-                  /node_modules[/\\]/.test(module.nameForCondition() || '')
-                )
-              },
-              name(module: {
-                layer: string | null | undefined
-                type: string
-                libIdent?: Function
-                updateHash: (hash: crypto.Hash) => void
-              }): string {
-                const hash = crypto.createHash('sha1')
-                if (isModuleCSS(module)) {
-                  module.updateHash(hash)
-                } else {
-                  if (!module.libIdent) {
-                    throw new Error(
-                      `Encountered unknown module type: ${module.type}. Please open an issue.`
-                    )
-                  }
-                  hash.update(module.libIdent({ context: dir }))
-                }
-
-                // Ensures the name of the chunk is not the same between two modules in different layers
-                // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
-                // as they're never used on the same page.
-                if (module.layer) {
-                  hash.update(module.layer)
-                }
-
-                return hash.digest('hex').substring(0, 8)
-              },
-              priority: 30,
-              minChunks: 1,
-              reuseExistingChunk: true,
-            },
-          },
           maxInitialRequests: 25,
           minSize: 20000,
         }
@@ -1398,7 +1420,7 @@ export default async function getBaseWebpackConfig(
           ? [
               {
                 test: codeCondition.test,
-                exclude: codeCondition.exclude,
+                exclude: [codeCondition.exclude, transpilePackagesRegex],
                 issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                 use: reactRefreshLoaders,
                 resolve: {
@@ -1422,6 +1444,11 @@ export default async function getBaseWebpackConfig(
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.middleware,
               use: middlewareLayerLoaders,
+            },
+            {
+              test: codeCondition.test,
+              issuerLayer: WEBPACK_LAYERS.instrument,
+              use: appServerLayerLoaders,
             },
             ...(hasAppDir
               ? [
