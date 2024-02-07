@@ -59,7 +59,7 @@ createNextDescribe(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
       // TODO fix this case
-      const broken = isNextDev && !isTurbopack
+      const broken = isNextDev
       if (broken) {
         it.todo(name)
         continue
