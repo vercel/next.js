@@ -208,8 +208,8 @@ createNextDescribe(
       })
 
       it('should support namespace import with ESM packages', async () => {
-        const $ = await next.render$('/esm/namespace-import')
-        expect($('#namespace-import-esm')).toContain('namespace-import:esm')
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
       })
     })
 
