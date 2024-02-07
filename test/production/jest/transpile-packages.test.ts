@@ -27,6 +27,7 @@ describe('next/jest', () => {
           build: 'next build && jest',
         },
       },
+      installCommand: 'npm i',
       buildCommand: `npm run build`,
       dependencies: {
         '@hashicorp/platform-util': '0.2.0',

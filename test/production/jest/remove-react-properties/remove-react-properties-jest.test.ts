@@ -45,6 +45,7 @@ describe('next/jest', () => {
           build: 'jest --forceExit tests/index.test.tsx && next build',
         },
       },
+      installCommand: 'npm i',
       buildCommand: `npm run build`,
     })
   })

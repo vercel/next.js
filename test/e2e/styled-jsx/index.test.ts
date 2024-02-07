@@ -31,6 +31,7 @@ function runTest() {
         dependencies: {
           'styled-jsx': '5.0.0', // styled-jsx on user side
         },
+        installCommand: 'npm i',
         startCommand:
           'npm run ' + ((global as any).isNextDev ? 'dev' : 'start'),
         buildCommand: `npm run build`,

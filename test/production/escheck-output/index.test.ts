@@ -17,6 +17,7 @@ describe('ES Check .next output', () => {
           build: 'next build && es-check es2020 .next/static/**/*.js',
         },
       },
+      installCommand: 'npm i',
       buildCommand: 'npm run build',
     })
     expect(next.cliOutput).toContain(

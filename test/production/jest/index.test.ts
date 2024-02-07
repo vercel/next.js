@@ -140,6 +140,7 @@ describe('next/jest', () => {
           build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
       },
+      installCommand: 'npm i',
       buildCommand: `npm run build`,
     })
   })

@@ -45,6 +45,7 @@ describe('Edge compiler module exports preference', () => {
           start: 'next start',
         },
       },
+      installCommand: 'npm i',
       startCommand: (global as any).isNextDev ? 'npm run dev' : 'npm run start',
       buildCommand: 'npm run build',
       dependencies: {},

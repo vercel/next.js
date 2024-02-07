@@ -53,6 +53,7 @@ describe('required server files i18n', () => {
             : 'next build',
         },
       },
+      installCommand: 'npm i',
       buildCommand: 'npm run build',
       nextConfig: {
         i18n: {
