@@ -12,6 +12,7 @@ use turbopack_binding::{
     turbopack::core::{
         asset::Asset,
         output::{OutputAsset, OutputAssets},
+        source_map::{GenerateSourceMap, OptionSourceMap},
         version::VersionedContent,
     },
 };
@@ -92,10 +93,35 @@ impl VersionedContentMap {
     }
 
     #[turbo_tasks::function]
-    pub async fn get(
+    pub fn get(self: Vc<Self>, path: Vc<FileSystemPath>) -> Vc<Box<dyn VersionedContent>> {
+        self.get_asset(path).versioned_content()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_source_map(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
+        section: Option<String>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        if let Some(generate_source_map) =
+            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.get_asset(path)).await?
+        {
+            Ok(if let Some(section) = section {
+                generate_source_map.by_section(section)
+            } else {
+                generate_source_map.generate_source_map()
+            })
+        } else {
+            let path = path.to_string().await?;
+            bail!("no source map for path {}", path);
+        }
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_asset(
+        self: Vc<Self>,
+        path: Vc<FileSystemPath>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let result = self.raw_get(path).await?;
         if let Some(MapEntry {
             assets_operation,
@@ -106,15 +132,14 @@ impl VersionedContentMap {
             Vc::connect(assets_operation);
             Vc::connect(emit_operation);
 
-            for asset in assets_operation.await?.iter() {
+            for &asset in assets_operation.await?.iter() {
                 if asset.ident().path().resolve().await? == path {
-                    let content = asset.versioned_content();
-                    return Ok(content);
+                    return Ok(asset);
                 }
             }
         }
         let path = path.to_string().await?;
-        bail!("could not find versioned content for path {}", path);
+        bail!("could not find asset for path {}", path);
     }
 
     #[turbo_tasks::function]
