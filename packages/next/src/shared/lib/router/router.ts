@@ -60,6 +60,7 @@ interface TransitionOptions {
   locale?: string | false
   scroll?: boolean
   unstable_skipClientCache?: boolean
+  unstable_noStoreTransition?: boolean
 }
 
 interface NextHistoryState {

@@ -307,6 +307,7 @@ describe('serverPatchReducer', () => {
       locationSearch: '',
       navigateType: 'push',
       shouldScroll: true,
+      unstable_noStoreTransition: false,
     }
 
     const state = createInitialRouterState({

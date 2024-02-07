@@ -30,11 +30,20 @@ export function adaptForAppRouterInstance(
     refresh(): void {
       router.reload()
     },
-    push(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.push(href, undefined, { scroll })
+    push(
+      href: string,
+      { scroll, unstable_noStoreTransition }: NavigateOptions = {}
+    ): void {
+      void router.push(href, undefined, { scroll, unstable_noStoreTransition })
     },
-    replace(href: string, { scroll }: NavigateOptions = {}): void {
-      void router.replace(href, undefined, { scroll })
+    replace(
+      href: string,
+      { scroll, unstable_noStoreTransition }: NavigateOptions = {}
+    ): void {
+      void router.replace(href, undefined, {
+        scroll,
+        unstable_noStoreTransition,
+      })
     },
     prefetch(href: string): void {
       void router.prefetch(href)

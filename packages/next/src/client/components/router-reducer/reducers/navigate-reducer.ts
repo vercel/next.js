@@ -113,7 +113,13 @@ function navigateReducer_noPPR(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, shouldScroll } = action
+  const {
+    url,
+    isExternalUrl,
+    navigateType,
+    shouldScroll,
+    unstable_noStoreTransition,
+  } = action
   const mutable: Mutable = {}
   const { hash } = url
   const href = createHrefFromUrl(url)
@@ -128,7 +134,9 @@ function navigateReducer_noPPR(
   }
 
   const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
+  let prefetchValues = unstable_noStoreTransition
+    ? undefined
+    : state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -154,7 +162,9 @@ function navigateReducer_noPPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
+    if (!unstable_noStoreTransition) {
+      state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
+    }
     prefetchValues = newPrefetchValue
   }
 
@@ -305,7 +315,13 @@ function navigateReducer_PPR(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, shouldScroll } = action
+  const {
+    url,
+    isExternalUrl,
+    navigateType,
+    shouldScroll,
+    unstable_noStoreTransition,
+  } = action
   const mutable: Mutable = {}
   const { hash } = url
   const href = createHrefFromUrl(url)
@@ -320,7 +336,9 @@ function navigateReducer_PPR(
   }
 
   const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
+  let prefetchValues = unstable_noStoreTransition
+    ? undefined
+    : state.prefetchCache.get(prefetchCacheKey)
 
   // If we don't have a prefetch value, we need to create one
   if (!prefetchValues) {
@@ -346,7 +364,9 @@ function navigateReducer_PPR(
       lastUsedTime: null,
     }
 
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
+    if (!unstable_noStoreTransition) {
+      state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
+    }
     prefetchValues = newPrefetchValue
   }
 
