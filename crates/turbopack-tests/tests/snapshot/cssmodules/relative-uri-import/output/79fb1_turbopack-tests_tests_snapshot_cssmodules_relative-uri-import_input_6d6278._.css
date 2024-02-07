@@ -1,0 +1,9 @@
+/* [project]/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/other.module.css [test] (css) */
+.foo__other__4a675be2 {
+  background-color: red;
+}
+
+/* [project]/crates/turbopack-tests/tests/snapshot/cssmodules/relative-uri-import/input/index.module.css [test] (css) */
+.bar__index__c520c638 {}
+
+/*# sourceMappingURL=79fb1_turbopack-tests_tests_snapshot_cssmodules_relative-uri-import_input_6d6278._.css.map*/

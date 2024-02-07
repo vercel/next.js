@@ -72,18 +72,26 @@ impl Module for ModuleCssAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        // The inner reference must come first so it is processed before other potential
-        // references inside of the CSS, like `@import` and `composes:`.
+        // The inner reference must come last so it is loaded as the last in the
+        // resulting css. @import or composes references must be loaded first so
+        // that the css style rules in them are overridable from the local css.
+
         // This affects the order in which the resulting CSS chunks will be loaded:
-        // later references are processed first in the post-order traversal of the
-        // reference tree, and as such they will be loaded first in the resulting HTML.
-        let references = match *self.inner().await? {
-            ProcessResult::Module(inner) => Some(Vc::upcast(InternalCssAssetReference::new(inner))),
-            ProcessResult::Ignore => None,
-        }
-        .into_iter()
-        .chain(self.module_references().await?.iter().copied())
-        .collect();
+        // 1. @import or composes references are loaded first
+        // 2. The local CSS is loaded last
+
+        let references = self
+            .module_references()
+            .await?
+            .iter()
+            .copied()
+            .chain(match *self.inner().await? {
+                ProcessResult::Module(inner) => {
+                    Some(Vc::upcast(InternalCssAssetReference::new(inner)))
+                }
+                ProcessResult::Ignore => None,
+            })
+            .collect();
 
         Ok(Vc::cell(references))
     }
