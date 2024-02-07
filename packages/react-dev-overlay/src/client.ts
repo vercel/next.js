@@ -38,12 +38,17 @@ function onUnhandledError(ev: ErrorEvent) {
           (frame: any) => frame.component
         )
       : undefined
-  Bus.emit({
-    type: Bus.TYPE_UNHANDLED_ERROR,
-    reason: error,
-    frames: parseStack(e.stack!),
-    componentStack,
-  })
+
+  // Skip ModuleBuildError, as it will be sent through onBuildError callback.
+  // This is to avoid same error as different type showing up on client to cause flashing.
+  if (e.name !== 'ModuleBuildError') {
+    Bus.emit({
+      type: Bus.TYPE_UNHANDLED_ERROR,
+      reason: error,
+      frames: parseStack(e.stack!),
+      componentStack,
+    })
+  }
 }
 
 function onUnhandledRejection(ev: PromiseRejectionEvent) {
