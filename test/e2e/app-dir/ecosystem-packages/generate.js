@@ -2,7 +2,7 @@ const fs = require('fs')
 const { join, dirname } = require('path')
 const { packageList } = require('./package-list')
 const {
-  divideArrayInChunks,
+  // divideArrayInChunks,
   normalizePackageName,
 } = require('./generate-helpers')
 
