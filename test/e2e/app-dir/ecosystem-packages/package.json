@@ -77,7 +77,6 @@
     "html-react-parser": "*",
     "jwt-decode": "*",
     "antd": "*",
-    "@tanstack/react-query-devtools": "*",
     "@stripe/react-stripe-js": "*",
     "react-hot-toast": "*",
     "react-chartjs-2": "*",

@@ -103,7 +103,7 @@ const packageList = [
   'jwt-decode',
   // '@emotion/server', / Fails to resolve `@emotion/css`
   'antd',
-  '@tanstack/react-query-devtools', // Crashes the process
+  // '@tanstack/react-query-devtools', // Crashes the process
   '@stripe/react-stripe-js',
   'react-hot-toast',
   'react-chartjs-2',
