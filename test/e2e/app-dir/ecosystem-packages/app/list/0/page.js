@@ -1,3 +1,4 @@
+'use client'
 import * as axios from 'axios'
 import * as react_hook_form from 'react-hook-form'
 import * as date_fns from 'date-fns'

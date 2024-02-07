@@ -1,3 +1,4 @@
+'use client'
 import * as sonner from 'sonner'
 import * as _tiptap_react from '@tiptap/react'
 import * as _react_spring_web from '@react-spring/web'

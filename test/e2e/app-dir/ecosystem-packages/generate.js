@@ -57,14 +57,14 @@ function writeToBarrelFiles(packageList, type) {
 
     writeFile(
       join(__dirname, 'app', 'list', i.toString(), 'page.js'),
-      outdent`
+      `
       ${type === 'client' ? '"use client";' : ''}
     ${imports.join('\n')}
     ${vars.join('\n')}
   
-    export default function Page() {
-      return <h1>Hello World</h1>
-    }
+export default function Page() {
+  return <h1>Hello World</h1>
+}
   `
     )
   }

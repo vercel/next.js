@@ -1,3 +1,4 @@
+'use client'
 import * as redux_persist from 'redux-persist'
 import * as next_sitemap from 'next-sitemap'
 import * as react_query from 'react-query'

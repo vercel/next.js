@@ -1,3 +1,4 @@
+'use client'
 import * as react_spinners from 'react-spinners'
 import * as react_intl from 'react-intl'
 import * as socket_io_client from 'socket.io-client'
