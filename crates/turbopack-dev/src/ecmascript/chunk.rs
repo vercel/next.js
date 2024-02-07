@@ -120,6 +120,11 @@ impl GenerateSourceMap for EcmascriptDevChunk {
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
         self.own_content().generate_source_map()
     }
+
+    #[turbo_tasks::function]
+    fn by_section(self: Vc<Self>, section: String) -> Vc<OptionSourceMap> {
+        self.own_content().by_section(section)
+    }
 }
 
 #[turbo_tasks::function]

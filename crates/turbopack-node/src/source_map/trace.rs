@@ -136,7 +136,7 @@ impl SourceMapTrace {
             .lookup_token(this.line.saturating_sub(1), this.column.saturating_sub(1))
             .await?;
         let result = match &*token {
-            Some(Token::Original(t)) => TraceResult::Found(StackFrame {
+            Token::Original(t) => TraceResult::Found(StackFrame {
                 file: t.original_file.clone().into(),
                 line: Some(t.original_line.saturating_add(1)),
                 column: Some(t.original_column.saturating_add(1)),

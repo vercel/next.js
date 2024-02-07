@@ -88,6 +88,7 @@ pub enum Token {
 pub struct SyntheticToken {
     pub generated_line: usize,
     pub generated_column: usize,
+    pub guessed_original_file: Option<String>,
 }
 
 /// An OriginalToken represents a region of the generated file that exists in
@@ -119,9 +120,6 @@ impl Token {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionToken(Option<Token>);
-
 impl<'a> From<sourcemap::Token<'a>> for Token {
     fn from(t: sourcemap::Token) -> Self {
         if t.has_source() {
@@ -140,6 +138,7 @@ impl<'a> From<sourcemap::Token<'a>> for Token {
             Token::Synthetic(SyntheticToken {
                 generated_line: t.get_dst_line() as usize,
                 generated_column: t.get_dst_col() as usize,
+                guessed_original_file: None,
             })
         }
     }
@@ -304,18 +303,35 @@ impl SourceMap {
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
     #[turbo_tasks::function]
-    pub async fn lookup_token(
-        self: Vc<Self>,
-        line: usize,
-        column: usize,
-    ) -> Result<Vc<OptionToken>> {
+    pub async fn lookup_token(self: Vc<Self>, line: usize, column: usize) -> Result<Vc<Token>> {
         let token = match &*self.await? {
             SourceMap::Decoded(map) => {
-                map.lookup_token(line as u32, column as u32)
+                let mut token = map
+                    .lookup_token(line as u32, column as u32)
                     // The sourcemap crate incorrectly returns a previous line's token when there's
                     // not a match on this line.
                     .filter(|t| t.get_dst_line() == line as u32)
                     .map(Token::from)
+                    .unwrap_or_else(|| {
+                        Token::Synthetic(SyntheticToken {
+                            generated_line: line,
+                            generated_column: column,
+                            guessed_original_file: None,
+                        })
+                    });
+                if let Token::Synthetic(SyntheticToken {
+                    guessed_original_file,
+                    ..
+                }) = &mut token
+                {
+                    if let DecodedMap::Regular(map) = &map.map.0 {
+                        if map.get_source_count() == 1 {
+                            let source = map.sources().next().unwrap();
+                            *guessed_original_file = Some(source.to_string());
+                        }
+                    }
+                }
+                token
             }
 
             SourceMap::Sectioned(map) => {
@@ -352,10 +368,14 @@ impl SourceMap {
                     };
                     return Ok(map.lookup_token(l, c));
                 }
-                None
+                Token::Synthetic(SyntheticToken {
+                    generated_line: line,
+                    generated_column: column,
+                    guessed_original_file: None,
+                })
             }
         };
-        Ok(OptionToken(token).cell())
+        Ok(token.cell())
     }
 
     #[turbo_tasks::function]
