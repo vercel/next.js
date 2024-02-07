@@ -3233,6 +3233,39 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-order/css-order.test.ts": {
+    "passed": [
+      "css-order should load correct styles navigating first -> first-client",
+      "css-order should load correct styles navigating first -> second-client",
+      "css-order should load correct styles navigating first -> second",
+      "css-order should load correct styles navigating first -> third",
+      "css-order should load correct styles navigating first-client -> first",
+      "css-order should load correct styles navigating first-client -> second-client",
+      "css-order should load correct styles navigating first-client -> second",
+      "css-order should load correct styles navigating first-client -> third",
+      "css-order should load correct styles navigating second -> first-client",
+      "css-order should load correct styles navigating second -> first",
+      "css-order should load correct styles navigating second -> second-client",
+      "css-order should load correct styles navigating second -> third",
+      "css-order should load correct styles navigating second-client -> first-client",
+      "css-order should load correct styles navigating second-client -> first",
+      "css-order should load correct styles navigating second-client -> second",
+      "css-order should load correct styles navigating second-client -> third",
+      "css-order should load correct styles navigating third -> first-client",
+      "css-order should load correct styles navigating third -> first",
+      "css-order should load correct styles navigating third -> second-client",
+      "css-order should load correct styles navigating third -> second",
+      "css-order should load correct styles on first-client",
+      "css-order should load correct styles on first",
+      "css-order should load correct styles on second-client",
+      "css-order should load correct styles on second",
+      "css-order should load correct styles on third"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
     "passed": [
       "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
