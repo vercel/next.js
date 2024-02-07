@@ -222,7 +222,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (IS_TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:0
+        "./index.js:7:1
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
@@ -357,7 +357,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+      IS_TURBOPACK ? './index.module.css:1:9' : './index.module.css:1:1'
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')

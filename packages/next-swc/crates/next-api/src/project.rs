@@ -44,6 +44,7 @@ use turbopack_binding::{
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
+            source_map::OptionSourceMap,
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
@@ -270,6 +271,18 @@ impl ProjectContainer {
     ) -> Result<Vc<Box<dyn VersionedContent>>> {
         let this = self.await?;
         Ok(this.versioned_content_map.get(file_path))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_source_map(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+        section: Option<String>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        let this = self.await?;
+        Ok(this
+            .versioned_content_map
+            .get_source_map(file_path, section))
     }
 }
 
