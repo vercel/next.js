@@ -811,7 +811,12 @@ async function render(renderingProps: RenderRouteInfo): Promise<void> {
   // skip re-rendering the error page client-side as data-fetching operations
   // will already have been done on the server and NEXT_DATA contains the correct
   // data for straight-forward hydration of the error page
-  if (renderingProps.err && !renderingProps.isHydratePass) {
+  if (
+    renderingProps.err &&
+    // renderingProps.Component might be undefined if there is a top/module-level error
+    (typeof renderingProps.Component === 'undefined' ||
+      !renderingProps.isHydratePass)
+  ) {
     await renderError(renderingProps)
     return
   }
