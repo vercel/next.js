@@ -80,10 +80,11 @@ import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
-  RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_URL,
+  NEXT_ROUTER_STATE_TREE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -129,6 +130,7 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
+import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -321,6 +323,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: ClientReferenceManifest
+  protected interceptionRouteRewrites: ManifestRewriteRoute[]
   protected nextFontManifest?: NextFontManifest
   private readonly responseCache: ResponseCacheBase
 
@@ -329,6 +332,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
+  protected abstract getInterceptionRouteRewrites(): ManifestRewriteRoute[]
 
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
@@ -562,6 +566,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
     this.appPathRoutes = this.getAppPathRoutes()
+    this.interceptionRouteRewrites = this.getInterceptionRouteRewrites()
 
     // Configure the routes.
     this.matchers = this.getRouteMatchers()
@@ -1741,6 +1746,45 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
+  protected pathCouldBeIntercepted(resolvedPathname: string): boolean {
+    return (
+      isInterceptionRouteAppPath(resolvedPathname) ||
+      this.interceptionRouteRewrites?.some((rewrite) => {
+        return new RegExp(rewrite.regex).test(resolvedPathname)
+      })
+    )
+  }
+
+  protected setVaryHeader(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    isAppPath: boolean,
+    resolvedPathname: string
+  ): void {
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
+    const isRSCRequest =
+      Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
+      getRequestMeta(req, 'isRSCRequest')
+    let addedNextUrlToVary = false
+
+    if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
+      // Interception route responses can vary based on the `Next-URL` header.
+      // We use the Vary header to signal this behavior to the client to properly cache the response.
+      res.setHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      addedNextUrlToVary = true
+    } else if (isAppPath || isRSCRequest) {
+      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
+      // We also set this header for pages to avoid caching issues when navigating between pages and app.
+      res.setHeader('vary', baseVaryHeader)
+    }
+
+    if (!addedNextUrlToVary) {
+      // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
+      // This is to avoid any dependency on the `Next-URL` header being present when preparing the response.
+      delete req.headers[NEXT_URL]
+    }
+  }
+
   private async renderToResponseWithComponentsImpl(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
@@ -1755,6 +1799,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath === true
+
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
     const isServerAction = getIsServerAction(req)
@@ -1767,6 +1812,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
     let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+
+    this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
     let staticPaths: string[] | undefined
 
@@ -1897,12 +1944,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDynamicRSCRequest =
       opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
 
-    // For pages we need to ensure the correct Vary header is set too, to avoid
-    // caching issues when navigating between pages and app
-    if (!isAppPath && isRSCRequest) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-    }
-
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isRSCRequest) {
       res.statusCode = 404
@@ -1993,8 +2034,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (isAppPath) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-
       if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
         // If this is an RSC request but we aren't in minimal mode, then we mark
         // that this is a data request so that we can generate the flight data

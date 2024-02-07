@@ -20,6 +20,7 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import type { ManifestRewriteRoute } from '../../build'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -62,6 +63,8 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
+import { buildCustomRoute } from '../../lib/build-custom-route'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -286,6 +289,9 @@ export default class DevServer extends Server {
 
     this.ready?.resolve()
     this.ready = undefined
+
+    // In dev, this needs to be called after prepare because the build entries won't be known in the constructor
+    this.interceptionRouteRewrites = this.getInterceptionRouteRewrites()
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -541,6 +547,15 @@ export default class DevServer extends Server {
         pathJoin(this.serverDistDir, APP_PATHS_MANIFEST)
       ) ?? undefined
     )
+  }
+
+  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+    const rewrites = generateInterceptionRoutesRewrites(
+      Object.keys(this.appPathRoutes ?? {}),
+      this.nextConfig.basePath
+    ).map((route) => buildCustomRoute('rewrite', route))
+
+    return rewrites ?? []
   }
 
   protected getMiddleware() {

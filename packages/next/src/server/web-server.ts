@@ -3,7 +3,7 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { LoadComponentsReturnType } from './load-components'
-import type { PrerenderManifest } from '../build'
+import type { ManifestRewriteRoute, PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -374,7 +374,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // The web server does not need to handle fallback errors in production.
     return null
   }
-
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     // The web server does not need to handle rewrite rules. This is done by the
     // upstream proxy (edge runtime or node server).
@@ -393,5 +392,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected async getPrefetchRsc(): Promise<string | null> {
     return null
+  }
+
+  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+    // TODO: This needs to be implemented.
+    return []
   }
 }

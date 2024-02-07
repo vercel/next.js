@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { PrerenderManifest } from '../build'
+import type { ManifestRewriteRoute, PrerenderManifest } from '../build'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
@@ -101,6 +101,7 @@ import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 
 export * from './base-server'
 
@@ -369,6 +370,14 @@ export default class NextNodeServer extends BaseServer {
     return loadManifest(
       join(this.serverDistDir, APP_PATHS_MANIFEST)
     ) as PagesManifest
+  }
+
+  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+    const routesManifest = this.getRoutesManifest()
+    return (
+      routesManifest?.rewrites.beforeFiles.filter(isInterceptionRouteRewrite) ??
+      []
+    )
   }
 
   protected async hasPage(pathname: string): Promise<boolean> {
