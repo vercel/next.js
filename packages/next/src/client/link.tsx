@@ -88,6 +88,11 @@ type InternalLinkProps = {
    */
   legacyBehavior?: boolean
   /**
+   * Enable native behavior - bypass the client-side navigation
+   * @defaultValue `false`
+   */
+  nativeBehavior?: boolean;
+  /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
   onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
@@ -280,6 +285,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      nativeBehavior = false,
       ...restProps
     } = props
 
@@ -362,6 +368,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        nativeBehavior: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -403,7 +410,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           key === 'shallow' ||
           key === 'passHref' ||
           key === 'prefetch' ||
-          key === 'legacyBehavior'
+          key === 'legacyBehavior' ||
+          key === 'nativeBehavior'
         ) {
           if (props[key] != null && valType !== 'boolean') {
             throw createPropError({
@@ -568,6 +576,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         return
       }
 
+      if (nativeBehavior) {
+        return
+      }
+
       // Prefetch the URL.
       prefetch(
         router,
@@ -628,6 +640,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
+        if (nativeBehavior) {
+          return;
+        }
+
         linkClicked(
           e,
           router,
@@ -662,6 +678,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           isAppRouter
         ) {
           return
+        }
+
+        if (nativeBehavior) {
+          return;
         }
 
         prefetch(
@@ -699,6 +719,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
         if (!prefetchEnabled && isAppRouter) {
           return
+        }
+
+        if (nativeBehavior) {
+          return;
         }
 
         prefetch(
