@@ -35,11 +35,15 @@ rustflags = [
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
 
+[target.'any(not(target.wasm32-unknown-unknown), not(wasm32-wasi-preview1-threads))']
+rustflags = [
+  "-C", "link-args=-Wl,-zstack-size=4194304",
+]
+
 [target.'cfg(all())']
 rustflags = [
   "--cfg",
   "tokio_unstable",
   "-Zshare-generics=y",
-  "-C", "link-args=-Wl,-zstack-size=4194304",
   "-Csymbol-mangling-version=v0",
 ]
