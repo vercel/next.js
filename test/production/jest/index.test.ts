@@ -134,13 +134,13 @@ describe('next/jest', () => {
         '@testing-library/user-event': '13.5.0',
       },
       packageJson: {
+        packageManager: 'npm@10.4.0',
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
+          build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
       },
-      buildCommand: `yarn build`,
+      buildCommand: `npm run build`,
     })
   })
   afterAll(() => next.destroy())

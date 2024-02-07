@@ -21,18 +21,19 @@ describe('transpile packages', () => {
         sass: 'latest',
       },
       packageJson: {
+        packageManager: 'npm@10.4.0',
         scripts: {
           setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: `yarn setup && next ${
+          build: 'npm run setup && next build',
+          dev: `npm run setup && next ${
             shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
           }`,
           start: 'next start',
         },
       },
-      installCommand: 'yarn',
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'npm i',
+      startCommand: (global as any).isNextDev ? 'npm run dev' : 'npm run start',
+      buildCommand: 'npm run build',
     })
   })
   afterAll(() => next.destroy())
