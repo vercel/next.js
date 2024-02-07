@@ -41,7 +41,7 @@ function divideArrayInChunks(array, chunkSize) {
   return chunks
 }
 
-function writeToBarrelFiles(packageList) {
+function writeToBarrelFiles(packageList, type) {
   const arr = divideArrayInChunks(packageList, packageList.length / 4)
   for (let i = 0; i < arr.length; i++) {
     const imports = []
@@ -58,6 +58,7 @@ function writeToBarrelFiles(packageList) {
     writeFile(
       join(__dirname, 'app', 'list', i.toString(), 'page.js'),
       outdent`
+      ${type === 'client' ? '"use client";' : ''}
     ${imports.join('\n')}
     ${vars.join('\n')}
   
@@ -401,5 +402,5 @@ const packageList = [
   'react-calendar',
 ]
 
-writeToBarrelFiles(packageList)
+writeToBarrelFiles(packageList, 'client')
 writePackageJson(packageList)
