@@ -213,7 +213,7 @@ function esmImport(
   return (module.namespaceObject = interopEsm(
     raw,
     {},
-    (raw as any).__esModule
+    raw && (raw as any).__esModule
   ));
 }
 
