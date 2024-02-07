@@ -39,7 +39,10 @@ function getOriginalStackFrame(
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
     const params = new URLSearchParams()
-    params.append('isServer', String(type === 'server'))
+    params.append(
+      'isServer',
+      String(type === 'server' || source.file?.startsWith('/'))
+    )
     params.append('isEdgeServer', String(type === 'edge-server'))
     params.append('isAppDirectory', 'true')
     params.append('errorMessage', errorMessage)
