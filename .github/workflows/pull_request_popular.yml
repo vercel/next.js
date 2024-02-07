@@ -1,4 +1,4 @@
-name: Notify about the top 15 issues (most reacted) in the last 90 days
+name: Notify about the top 15 PRs (most reacted) in the last 90 days
 
 on:
   schedule:
@@ -16,7 +16,7 @@ jobs:
           node-version: 18
       - run: corepack enable
       - name: 'Send notification to Slack'
-        run: node ./.github/actions/next-repo-info/dist/issues/index.mjs
+        run: node ./.github/actions/next-repo-info/dist/prs/index.mjs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
