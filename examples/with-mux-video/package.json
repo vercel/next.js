@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@mux/mux-node": "8.0.0-canary.5",
+    "@mux/mux-node": "^8",
     "@mux/mux-player-react": "^2",
     "@mux/mux-uploader-react": "^1.0.0-beta.15",
     "next": "latest",
