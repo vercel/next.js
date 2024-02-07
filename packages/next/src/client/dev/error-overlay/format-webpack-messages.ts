@@ -189,8 +189,8 @@ function formatMessage(
 }
 
 type GeneratedMultiCompilerResult = {
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors?: ReadonlyArray<unknown>
+  warnings?: ReadonlyArray<unknown>
   stats?: (webpack.Stats | undefined)[]
 }
 
@@ -198,13 +198,13 @@ export default function formatWebpackMessages(
   json: GeneratedMultiCompilerResult,
   verbose?: boolean
 ) {
-  const formattedErrors = json.errors.map((message: any) => {
+  const formattedErrors = (json.errors || []).map((message: any) => {
     const isUnknownNextFontError = message.message.includes(
       'An error occured in `next/font`.'
     )
     return formatMessage(message, isUnknownNextFontError || verbose)
   })
-  const formattedWarnings = json.warnings.map((message: any) => {
+  const formattedWarnings = (json.warnings || []).map((message: any) => {
     return formatMessage(message, verbose)
   })
 

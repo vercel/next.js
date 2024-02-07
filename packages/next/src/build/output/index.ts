@@ -247,12 +247,11 @@ export function watchCompilers(
     compiler.hooks.done.tap(`NextJsDone-${key}`, (stats: webpack.Stats) => {
       buildStore.setState({ amp: {} })
 
-      const { errors, warnings } = formatWebpackMessages(
-        stats.toJson({
-          preset: 'errors-warnings',
-          moduleTrace: true,
-        })
-      )
+      const statsCompilation = stats.toJson({
+        preset: 'errors-warnings',
+        moduleTrace: true,
+      })
+      const { errors, warnings } = formatWebpackMessages(statsCompilation)
 
       const hasErrors = !!errors?.length
       const hasWarnings = !!warnings?.length
