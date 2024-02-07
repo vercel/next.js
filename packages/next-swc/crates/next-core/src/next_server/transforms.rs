@@ -14,9 +14,7 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
-        next_pure::get_next_pure_rule,
-        next_react_server_components::get_next_react_server_components_transform_rule,
-        server_actions::ActionsTransform,
+        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
 };
 
@@ -72,10 +70,6 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
-            ));
-
-            rules.push(get_next_react_server_components_transform_rule(
-                true, mdx_rs,
             ));
 
             if let Some(client_transition) = client_transition {

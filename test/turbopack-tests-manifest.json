@@ -119,7 +119,8 @@
       "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
       "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
-      "normalizeCatchallRoutes should not add the catch-all to the interception route"
+      "normalizeCatchallRoutes should not add the catch-all to the interception route",
+      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
     ],
     "failed": [],
     "pending": [],
@@ -989,11 +990,11 @@
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression app can fast refresh a page with static generation"
+      "ReactRefreshRegression app can fast refresh a page with static generation",
+      "ReactRefreshRegression app shows an overlay for server-side error in client component"
     ],
     "failed": [
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
-      "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
     "pending": [
@@ -1084,6 +1085,7 @@
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
+      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo can recover from a syntax error without losing state",
       "Error recovery app turbo client component can recover from a component error",
       "Error recovery app turbo displays build error on initial page load",
@@ -1092,7 +1094,6 @@
       "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app turbo can recover from a event handler error",
       "Error recovery app turbo client component can recover from syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo stuck error"
@@ -1166,15 +1167,15 @@
       "Error overlay - RSC build errors should error when useTransition from react is used in server component",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
-      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions"
-    ],
-    "failed": [
+      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
-      "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
+    ],
+    "failed": [
+      "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file"
     ],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
@@ -1335,11 +1336,10 @@
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
+      "ReactRefreshRegression shows an overlay for a server-side error",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
-    "failed": [
-      "ReactRefreshRegression shows an overlay for a server-side error"
-    ],
+    "failed": [],
     "pending": [
       "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
     ],
@@ -1412,11 +1412,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/server-component-compiler-errors-in-pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'server-only' in pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1488,12 +1488,11 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page"
-    ],
-    "failed": [
+      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (edge)",
       "app-dir-hmr filesystem changes should update server components pages when env files is changed (nodejs)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": true
@@ -1544,8 +1543,8 @@
     "runtimeError": false
   },
   "test/development/basic/emotion-swc/emotion-swc.test.ts": {
-    "passed": [],
-    "failed": ["emotion SWC option should have styling from the css prop"],
+    "passed": ["emotion SWC option should have styling from the css prop"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1800,23 +1799,22 @@
   },
   "test/development/basic/styled-components-disabled.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "styled-components SWC transform should have hydration mismatch with styled-components transform disabled"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/basic/styled-components.test.ts": {
+  "test/development/basic/styled-components/styled-components.test.ts": {
     "passed": [
       "styled-components SWC transform should contain styles in initial HTML",
+      "styled-components SWC transform should enable the display name transform by default",
       "styled-components SWC transform should not have hydration mismatch with styled-components transform enabled",
       "styled-components SWC transform should only render once on the server per request",
       "styled-components SWC transform should render the page with correct styles"
     ],
-    "failed": [
-      "styled-components SWC transform should enable the display name transform by default"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2333,6 +2331,8 @@
       "app-dir action handling redirects redirects properly when server action handler uses `redirect`",
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should 404 when POSTing an invalid server action",
+      "app-dir action handling should be possible to catch network errors",
+      "app-dir action handling should be possible to catch regular errors",
       "app-dir action handling should bundle external libraries if they are on the action layer",
       "app-dir action handling should handle actions executed in quick succession",
       "app-dir action handling should handle basic actions correctly",
@@ -2426,10 +2426,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app dir - crossOrigin config should render correctly with assetPrefix: \"/\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3268,6 +3268,7 @@
     "passed": [
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
       "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
+      "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
@@ -3817,15 +3818,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
-    "passed": [],
-    "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error",
+    "passed": [
       "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
       "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+    ],
+    "failed": [
+      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -3986,6 +3988,7 @@
     "passed": [
       "parallel-routes-and-interception parallel routes should display all parallel route params with useParams",
       "parallel-routes-and-interception parallel routes should gracefully handle when two page segments match the `children` parallel slot",
+      "parallel-routes-and-interception parallel routes should load CSS for a default page that exports another page",
       "parallel-routes-and-interception parallel routes should match parallel routes",
       "parallel-routes-and-interception parallel routes should match parallel routes in route groups",
       "parallel-routes-and-interception parallel routes should navigate with a link with prefetch=false",
@@ -4062,10 +4065,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-catchall should match both the catch-all page & slot",
-      "parallel-routes-catchall should match correctly when defining an explicit page & slot",
+      "parallel-routes-catchall should match correctly when defining an explicit page & slot"
+    ],
+    "failed": [
       "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
       "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
     ],
@@ -4711,8 +4715,17 @@
   },
   "test/e2e/browserslist/browserslist.test.ts": {
     "passed": [],
-    "failed": ["Browserslist should apply browserslist target"],
-    "pending": [],
+    "failed": [],
+    "pending": ["Browserslist should apply browserslist target"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/browserslist/default-target.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "default browserslist target should apply default browserslist target"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -5737,6 +5750,8 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5744,6 +5759,8 @@
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5752,12 +5769,7 @@
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
-    "failed": [
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5844,14 +5856,6 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app computed styles page using fallback fonts",
-      "next/font app computed styles page using variables",
-      "next/font app computed styles page with fonts",
-      "next/font app import values Variable font without weight range",
-      "next/font app import values page with font",
-      "next/font app import values page with local fonts"
-    ],
-    "failed": [
       "next/font app Fallback fontfaces google Fraunces",
       "next/font app Fallback fontfaces google Indie flower",
       "next/font app Fallback fontfaces local Fraunces",
@@ -5859,6 +5863,12 @@
       "next/font app Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font app computed styles page using fallback fonts",
+      "next/font app computed styles page using variables",
+      "next/font app computed styles page with fonts",
+      "next/font app import values Variable font without weight range",
+      "next/font app import values page with font",
+      "next/font app import values page with local fonts",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
@@ -5867,17 +5877,18 @@
       "next/font app preload page without fonts",
       "next/font app should use production cache control for fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-font/with-font-declarations-file.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with-font-declarations-file preload correct files at /inter",
       "next/font/google with-font-declarations-file preload correct files at /local-font",
       "next/font/google with-font-declarations-file preload correct files at /roboto"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5893,13 +5904,11 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
-      "next/font/google without-preloaded-fonts without _app without fonts"
-    ],
-    "failed": [
-      "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
+      "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
     ],
+    "failed": ["next/font/google no preloads with _app without fonts"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6624,14 +6633,13 @@
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
+      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags",
       "AMP Usage AMP dev mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP dev mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP dev mode should not contain missing files warning",
       "AMP Usage AMP dev no-warn should not warn on valid amp"
     ],
-    "failed": [
-      "AMP Usage AMP dev mode should add data-ampdevmode to development script tags"
-    ],
+    "failed": [],
     "pending": [
       "AMP Usage AMP dev mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP dev mode should detect changes and refresh an AMP page",
@@ -6950,12 +6958,11 @@
     "passed": [
       "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
-    "failed": [
-      "development mode _app chunks should be attached to de dom before page chunks"
-    ],
+    "failed": [],
     "pending": [
       "Root components import order production mode _app chunks should be attached to de dom before page chunks",
-      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects"
+      "Root components import order production mode root components should be imported in this order _document > _app > page in order to respect side effects",
+      "development mode Skipped in Turbopack _app chunks should be attached to de dom before page chunks"
     ],
     "flakey": [],
     "runtimeError": false
@@ -8191,17 +8198,13 @@
     "runtimeError": false
   },
   "test/integration/custom-server/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+    "passed": [
       "Custom Server using HTTP Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname",
       "Custom Server using HTTP compression handling should handle compression for route /",
       "Custom Server using HTTP compression handling should handle compression for route /no-query",
       "Custom Server using HTTP unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTP with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTP with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTP with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTP with dynamic assetPrefix should handle render with undefined query",
@@ -8210,15 +8213,12 @@
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTP with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTP with middleware $title should read the expected url protocol in middleware",
-      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTPS Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTPS compression handling should handle compression for route /",
       "Custom Server using HTTPS compression handling should handle compression for route /no-query",
       "Custom Server using HTTPS unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTPS with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTPS with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTPS with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTPS with dynamic assetPrefix should handle render with undefined query",
@@ -8227,8 +8227,16 @@
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTPS with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTPS with middleware $title should read the expected url protocol in middleware"
+    ],
+    "failed": [],
+    "pending": [
+      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
+      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header"
     ],
     "flakey": [],
     "runtimeError": false
@@ -9034,6 +9042,7 @@
   "test/integration/env-config/test/index.test.js": {
     "passed": [
       "Env Config dev mode should have process environment override .env",
+      "Env Config dev mode should inline global values during build",
       "Env Config dev mode should load env from .env",
       "Env Config dev mode should provide env correctly for API routes",
       "Env Config dev mode should provide env correctly for SSR",
@@ -9041,21 +9050,19 @@
       "Env Config dev mode should provide global env to next.config.js",
       "Env Config dev mode with hot reload should have process environment override .env",
       "Env Config dev mode with hot reload should have updated runtime values after change",
+      "Env Config dev mode with hot reload should inline global values during build",
       "Env Config dev mode with hot reload should load env from .env",
       "Env Config dev mode with hot reload should provide global env to next.config.js",
       "Env Config dev mode with hot reload should trigger HMR correctly when NEXT_PUBLIC_ env is changed",
       "Env Config test environment should have process environment override .env",
+      "Env Config test environment should inline global values during build",
       "Env Config test environment should load env from .env",
       "Env Config test environment should provide env correctly for API routes",
       "Env Config test environment should provide env correctly for SSR",
       "Env Config test environment should provide env for SSG",
       "Env Config test environment should provide global env to next.config.js"
     ],
-    "failed": [
-      "Env Config dev mode should inline global values during build",
-      "Env Config dev mode with hot reload should inline global values during build",
-      "Env Config test environment should inline global values during build"
-    ],
+    "failed": [],
     "pending": [
       "Env Config production mode should have process environment override .env",
       "Env Config production mode should inline global values during build",
@@ -12156,227 +12163,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/image-optimizer/test/squoosh.test.ts": {
-    "passed": [
-      "with squoosh dev support w/o next.config.js should downlevel avif format to jpeg for old Safari",
-      "with squoosh dev support w/o next.config.js should downlevel webp format to jpeg for old Safari",
-      "with squoosh dev support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with squoosh dev support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with squoosh dev support w/o next.config.js should error if the image file does not exist",
-      "with squoosh dev support w/o next.config.js should error if the resource isn't a valid image",
-      "with squoosh dev support w/o next.config.js should fail when domain is not defined in next.config.js",
-      "with squoosh dev support w/o next.config.js should fail when internal url is not an image",
-      "with squoosh dev support w/o next.config.js should fail when q is greater than 100",
-      "with squoosh dev support w/o next.config.js should fail when q is less than 1",
-      "with squoosh dev support w/o next.config.js should fail when q is missing",
-      "with squoosh dev support w/o next.config.js should fail when q is not a number",
-      "with squoosh dev support w/o next.config.js should fail when url has file protocol",
-      "with squoosh dev support w/o next.config.js should fail when url has ftp protocol",
-      "with squoosh dev support w/o next.config.js should fail when url is missing",
-      "with squoosh dev support w/o next.config.js should fail when w is 0",
-      "with squoosh dev support w/o next.config.js should fail when w is less than 0",
-      "with squoosh dev support w/o next.config.js should fail when w is missing",
-      "with squoosh dev support w/o next.config.js should fail when w is not a number",
-      "with squoosh dev support w/o next.config.js should fail when width is not in next.config.js",
-      "with squoosh dev support w/o next.config.js should handle non-ascii characters in image url",
-      "with squoosh dev support w/o next.config.js should maintain animated gif",
-      "with squoosh dev support w/o next.config.js should maintain animated png",
-      "with squoosh dev support w/o next.config.js should maintain animated png 2",
-      "with squoosh dev support w/o next.config.js should maintain animated webp",
-      "with squoosh dev support w/o next.config.js should maintain bmp",
-      "with squoosh dev support w/o next.config.js should maintain ico format",
-      "with squoosh dev support w/o next.config.js should maintain jpg format for old Safari",
-      "with squoosh dev support w/o next.config.js should maintain png format for old Safari",
-      "with squoosh dev support w/o next.config.js should not allow svg with application header",
-      "with squoosh dev support w/o next.config.js should not allow svg with comma header",
-      "with squoosh dev support w/o next.config.js should not allow svg with uppercase header",
-      "with squoosh dev support w/o next.config.js should not allow vector svg",
-      "with squoosh dev support w/o next.config.js should not change the color type of a png",
-      "with squoosh dev support w/o next.config.js should not have sharp missing warning",
-      "with squoosh dev support w/o next.config.js should not have sharp outdated warning",
-      "with squoosh dev support w/o next.config.js should not resize if requested width is larger than original source image",
-      "with squoosh dev support w/o next.config.js should resize relative url and old Chrome accept header as webp",
-      "with squoosh dev support w/o next.config.js should resize relative url and png accept header",
-      "with squoosh dev support w/o next.config.js should resize relative url and webp Firefox accept header",
-      "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as gif",
-      "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as png",
-      "with squoosh dev support w/o next.config.js should resize relative url with invalid accept header as tiff",
-      "with squoosh dev support w/o next.config.js should return home page",
-      "with squoosh dev support w/o next.config.js should set 304 status without body when etag matches if-none-match",
-      "with squoosh dev support w/o next.config.js should set cache-control to immutable for static images",
-      "with squoosh dev support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with squoosh dev support w/o next.config.js should use cached image file when parameters are the same for animated gif",
-      "with squoosh dev support with next.config.js should automatically detect image type when content-type is octet-stream",
-      "with squoosh dev support with next.config.js should compress avif smaller than webp at q=100",
-      "with squoosh dev support with next.config.js should compress avif smaller than webp at q=50",
-      "with squoosh dev support with next.config.js should compress avif smaller than webp at q=75",
-      "with squoosh dev support with next.config.js should downlevel avif format to jpeg for old Safari",
-      "with squoosh dev support with next.config.js should downlevel webp format to jpeg for old Safari",
-      "with squoosh dev support with next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with squoosh dev support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with squoosh dev support with next.config.js should error if the image file does not exist",
-      "with squoosh dev support with next.config.js should error if the resource isn't a valid image",
-      "with squoosh dev support with next.config.js should fail when domain is not defined in next.config.js",
-      "with squoosh dev support with next.config.js should fail when internal url is not an image",
-      "with squoosh dev support with next.config.js should fail when q is greater than 100",
-      "with squoosh dev support with next.config.js should fail when q is less than 1",
-      "with squoosh dev support with next.config.js should fail when q is missing",
-      "with squoosh dev support with next.config.js should fail when q is not a number",
-      "with squoosh dev support with next.config.js should fail when url fails to load an image",
-      "with squoosh dev support with next.config.js should fail when url has file protocol",
-      "with squoosh dev support with next.config.js should fail when url has ftp protocol",
-      "with squoosh dev support with next.config.js should fail when url is missing",
-      "with squoosh dev support with next.config.js should fail when w is 0",
-      "with squoosh dev support with next.config.js should fail when w is less than 0",
-      "with squoosh dev support with next.config.js should fail when w is missing",
-      "with squoosh dev support with next.config.js should fail when w is not a number",
-      "with squoosh dev support with next.config.js should fail when width is not in next.config.js",
-      "with squoosh dev support with next.config.js should handle concurrent requests",
-      "with squoosh dev support with next.config.js should handle non-ascii characters in image url",
-      "with squoosh dev support with next.config.js should maintain animated gif",
-      "with squoosh dev support with next.config.js should maintain animated png",
-      "with squoosh dev support with next.config.js should maintain animated png 2",
-      "with squoosh dev support with next.config.js should maintain animated webp",
-      "with squoosh dev support with next.config.js should maintain bmp",
-      "with squoosh dev support with next.config.js should maintain ico format",
-      "with squoosh dev support with next.config.js should maintain jpg format for old Safari",
-      "with squoosh dev support with next.config.js should maintain png format for old Safari",
-      "with squoosh dev support with next.config.js should normalize invalid status codes",
-      "with squoosh dev support with next.config.js should not allow svg with application header",
-      "with squoosh dev support with next.config.js should not allow svg with comma header",
-      "with squoosh dev support with next.config.js should not allow svg with uppercase header",
-      "with squoosh dev support with next.config.js should not allow vector svg",
-      "with squoosh dev support with next.config.js should not change the color type of a png",
-      "with squoosh dev support with next.config.js should not have sharp missing warning",
-      "with squoosh dev support with next.config.js should not have sharp outdated warning",
-      "with squoosh dev support with next.config.js should not resize if requested width is larger than original source image",
-      "with squoosh dev support with next.config.js should resize absolute url from localhost",
-      "with squoosh dev support with next.config.js should resize relative url and new Chrome accept header as avif",
-      "with squoosh dev support with next.config.js should resize relative url and old Chrome accept header as webp",
-      "with squoosh dev support with next.config.js should resize relative url and png accept header",
-      "with squoosh dev support with next.config.js should resize relative url and webp Firefox accept header",
-      "with squoosh dev support with next.config.js should resize relative url with invalid accept header as gif",
-      "with squoosh dev support with next.config.js should resize relative url with invalid accept header as png",
-      "with squoosh dev support with next.config.js should resize relative url with invalid accept header as tiff",
-      "with squoosh dev support with next.config.js should return home page",
-      "with squoosh dev support with next.config.js should set 304 status without body when etag matches if-none-match",
-      "with squoosh dev support with next.config.js should set cache-control to immutable for static images",
-      "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-      "with squoosh dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with squoosh dev support with next.config.js should use cached image file when parameters are the same for animated gif"
-    ],
-    "failed": [],
-    "pending": [
-      "with squoosh Production Mode Server support w/o next.config.js should downlevel avif format to jpeg for old Safari",
-      "with squoosh Production Mode Server support w/o next.config.js should downlevel webp format to jpeg for old Safari",
-      "with squoosh Production Mode Server support w/o next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with squoosh Production Mode Server support w/o next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with squoosh Production Mode Server support w/o next.config.js should error if the image file does not exist",
-      "with squoosh Production Mode Server support w/o next.config.js should error if the resource isn't a valid image",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when domain is not defined in next.config.js",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when internal url is not an image",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when q is greater than 100",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when q is less than 1",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when q is missing",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when q is not a number",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when url has file protocol",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when url has ftp protocol",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when url is missing",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when w is 0",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when w is less than 0",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when w is missing",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when w is not a number",
-      "with squoosh Production Mode Server support w/o next.config.js should fail when width is not in next.config.js",
-      "with squoosh Production Mode Server support w/o next.config.js should handle non-ascii characters in image url",
-      "with squoosh Production Mode Server support w/o next.config.js should have sharp missing warning",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain animated gif",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain animated png",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain animated png 2",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain animated webp",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain bmp",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain ico format",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain jpg format for old Safari",
-      "with squoosh Production Mode Server support w/o next.config.js should maintain png format for old Safari",
-      "with squoosh Production Mode Server support w/o next.config.js should not allow svg with application header",
-      "with squoosh Production Mode Server support w/o next.config.js should not allow svg with comma header",
-      "with squoosh Production Mode Server support w/o next.config.js should not allow svg with uppercase header",
-      "with squoosh Production Mode Server support w/o next.config.js should not allow vector svg",
-      "with squoosh Production Mode Server support w/o next.config.js should not change the color type of a png",
-      "with squoosh Production Mode Server support w/o next.config.js should not have sharp outdated warning",
-      "with squoosh Production Mode Server support w/o next.config.js should not resize if requested width is larger than original source image",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url and old Chrome accept header as webp",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url and png accept header",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url and webp Firefox accept header",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as gif",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as png",
-      "with squoosh Production Mode Server support w/o next.config.js should resize relative url with invalid accept header as tiff",
-      "with squoosh Production Mode Server support w/o next.config.js should return home page",
-      "with squoosh Production Mode Server support w/o next.config.js should set 304 status without body when etag matches if-none-match",
-      "with squoosh Production Mode Server support w/o next.config.js should set cache-control to immutable for static images",
-      "with squoosh Production Mode Server support w/o next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with squoosh Production Mode Server support w/o next.config.js should use cached image file when parameters are the same for animated gif",
-      "with squoosh Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
-      "with squoosh Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
-      "with squoosh Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
-      "with squoosh Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
-      "with squoosh Production Mode Server support with next.config.js should downlevel avif format to jpeg for old Safari",
-      "with squoosh Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
-      "with squoosh Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with squoosh Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with squoosh Production Mode Server support with next.config.js should error if the image file does not exist",
-      "with squoosh Production Mode Server support with next.config.js should error if the resource isn't a valid image",
-      "with squoosh Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
-      "with squoosh Production Mode Server support with next.config.js should fail when internal url is not an image",
-      "with squoosh Production Mode Server support with next.config.js should fail when q is greater than 100",
-      "with squoosh Production Mode Server support with next.config.js should fail when q is less than 1",
-      "with squoosh Production Mode Server support with next.config.js should fail when q is missing",
-      "with squoosh Production Mode Server support with next.config.js should fail when q is not a number",
-      "with squoosh Production Mode Server support with next.config.js should fail when url fails to load an image",
-      "with squoosh Production Mode Server support with next.config.js should fail when url has file protocol",
-      "with squoosh Production Mode Server support with next.config.js should fail when url has ftp protocol",
-      "with squoosh Production Mode Server support with next.config.js should fail when url is missing",
-      "with squoosh Production Mode Server support with next.config.js should fail when w is 0",
-      "with squoosh Production Mode Server support with next.config.js should fail when w is less than 0",
-      "with squoosh Production Mode Server support with next.config.js should fail when w is missing",
-      "with squoosh Production Mode Server support with next.config.js should fail when w is not a number",
-      "with squoosh Production Mode Server support with next.config.js should fail when width is not in next.config.js",
-      "with squoosh Production Mode Server support with next.config.js should handle concurrent requests",
-      "with squoosh Production Mode Server support with next.config.js should handle non-ascii characters in image url",
-      "with squoosh Production Mode Server support with next.config.js should have sharp missing warning",
-      "with squoosh Production Mode Server support with next.config.js should maintain animated gif",
-      "with squoosh Production Mode Server support with next.config.js should maintain animated png",
-      "with squoosh Production Mode Server support with next.config.js should maintain animated png 2",
-      "with squoosh Production Mode Server support with next.config.js should maintain animated webp",
-      "with squoosh Production Mode Server support with next.config.js should maintain bmp",
-      "with squoosh Production Mode Server support with next.config.js should maintain ico format",
-      "with squoosh Production Mode Server support with next.config.js should maintain jpg format for old Safari",
-      "with squoosh Production Mode Server support with next.config.js should maintain png format for old Safari",
-      "with squoosh Production Mode Server support with next.config.js should normalize invalid status codes",
-      "with squoosh Production Mode Server support with next.config.js should not allow svg with application header",
-      "with squoosh Production Mode Server support with next.config.js should not allow svg with comma header",
-      "with squoosh Production Mode Server support with next.config.js should not allow svg with uppercase header",
-      "with squoosh Production Mode Server support with next.config.js should not allow vector svg",
-      "with squoosh Production Mode Server support with next.config.js should not change the color type of a png",
-      "with squoosh Production Mode Server support with next.config.js should not have sharp outdated warning",
-      "with squoosh Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
-      "with squoosh Production Mode Server support with next.config.js should resize absolute url from localhost",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url and png accept header",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
-      "with squoosh Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
-      "with squoosh Production Mode Server support with next.config.js should return home page",
-      "with squoosh Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
-      "with squoosh Production Mode Server support with next.config.js should set cache-control to immutable for static images",
-      "with squoosh Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-      "with squoosh Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with squoosh Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/import-assertion/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -12877,15 +12663,14 @@
   },
   "test/integration/next-image-legacy/base-path/test/static.test.ts": {
     "passed": [
+      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported jpg",
+      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported png",
       "Static Image Component Tests for basePath dev mode Should allow an image with a static src to omit height and width",
       "Static Image Component Tests for basePath dev mode Should allow provided width and height to override intrinsic",
       "Static Image Component Tests for basePath dev mode Should automatically provide an image height and width",
       "Static Image Component Tests for basePath dev mode Should use immutable cache-control header for static import"
     ],
-    "failed": [
-      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported jpg",
-      "Static Image Component Tests for basePath dev mode Should add a blur placeholder to statically imported png"
-    ],
+    "failed": [],
     "pending": [
       "Build Error Tests for basePath production mode should throw build error when import statement is used with missing file",
       "Static Image Component Tests for basePath production mode Should add a blur placeholder to statically imported jpg",
@@ -13195,6 +12980,7 @@
       "Image Component Default Tests dev mode should handle the styles prop appropriately",
       "Image Component Default Tests dev mode should have blurry placeholder when enabled",
       "Image Component Default Tests dev mode should have data url placeholder when enabled",
+      "Image Component Default Tests dev mode should lazy load with placeholder=blur",
       "Image Component Default Tests dev mode should load the images",
       "Image Component Default Tests dev mode should not pass through user-provided srcset (causing a flash)",
       "Image Component Default Tests dev mode should not warn when Image is child of p",
@@ -13232,9 +13018,7 @@
       "Image Component Default Tests dev mode should work with image with blob src",
       "Image Component Default Tests dev mode should work with sizes and automatically use responsive srcset"
     ],
-    "failed": [
-      "Image Component Default Tests dev mode should lazy load with placeholder=blur"
-    ],
+    "failed": [],
     "pending": [
       "Image Component Default Tests production mode Fill-mode tests should add 100% width and height to fill images",
       "Image Component Default Tests production mode Fill-mode tests should add position styles to fill images",
@@ -13688,15 +13472,6 @@
       "Unoptimized Image Tests production mode - component should not optimize any image",
       "Unoptimized Image Tests production mode - getImageProps should not optimize any image"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/no-duplicate-compile-error/test/index.test.js": {
-    "passed": [],
-    "failed": [
-      "no duplicate compile error output should not show compile error on page refresh"
-    ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14270,11 +14045,10 @@
   },
   "test/integration/relay-graphql-swc-multi-project/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "Relay Compiler Transform - Multi Project Config dev mode project-a should resolve index page correctly",
-      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly"
-    ],
+    "failed": [],
     "pending": [
+      "Relay Compiler Transform - Multi Project Config dev mode project-a should resolve index page correctly",
+      "Relay Compiler Transform - Multi Project Config dev mode project-b should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config production mode project-b should resolve index page correctly"
     ],
@@ -15319,6 +15093,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/turborepo-access-trace/test/index.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build with proxy trace production mode should build and output trace correctly"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -15454,6 +15237,7 @@
   "test/integration/typescript/test/index.test.js": {
     "passed": [
       "TypeScript Features default behavior should not fail to render when an inactive page has an error",
+      "TypeScript Features default behavior should render the angle bracket type assertions page",
       "TypeScript Features default behavior should render the cookies page",
       "TypeScript Features default behavior should render the cookies page with cookies",
       "TypeScript Features default behavior should render the generics page",
@@ -15461,9 +15245,7 @@
       "TypeScript Features default behavior should respond to async API route correctly",
       "TypeScript Features default behavior should respond to sync API route correctly"
     ],
-    "failed": [
-      "TypeScript Features default behavior should render the angle bracket type assertions page"
-    ],
+    "failed": [],
     "pending": [
       "TypeScript Features default behavior should report type checking to stdout",
       "TypeScript Features default behavior should resolve files in correct order",

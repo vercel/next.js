@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -71,69 +71,71 @@ createNextDescribe(
       })
 
       describe('useParams identity between renders', () => {
-        async function runTests(page: string, waitForNEffects: number) {
-          const browser = await next.browser(page)
+        it.each([
+          {
+            router: 'app',
+            pathname: '/search-params/foo',
+            // App Router doesn't re-render on initial load (the params are baked
+            // server side). In development, effects will render twice.
+            waitForNEffects: isNextDev ? 2 : 1,
+          },
+          {
+            router: 'pages',
+            pathname: '/search-params-pages/foo',
+            // Pages Router re-renders on initial load and after hydration, the
+            // params when initially loaded are null.
+            waitForNEffects: 2,
+          },
+        ])(
+          'should be stable in $router',
+          async ({ pathname, waitForNEffects }) => {
+            const browser = await next.browser(pathname)
 
-          // Expect to see the params changed message at least twice.
-          let lastLogIndex = await retry(async () => {
-            const logs: Array<{ message: string }> = await browser.log()
+            // Expect to see the params changed message at least twice.
+            let lastLogIndex = await retry(async () => {
+              const logs: Array<{ message: string }> = await browser.log()
 
-            expect(
-              logs.filter(({ message }) => message === 'params changed')
-            ).toHaveLength(waitForNEffects)
+              expect(
+                logs.filter(({ message }) => message === 'params changed')
+              ).toHaveLength(waitForNEffects)
 
-            return logs.length
-          })
-
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-
-          await retry(async () => {
-            const rerender = await browser.elementById('rerender-button').text()
-
-            expect(rerender).toBe('Re-Render 3')
-          })
-
-          let logs: Array<{ message: string }> = await browser.log()
-          expect(logs.slice(lastLogIndex)).not.toContainEqual(
-            expect.objectContaining({
-              message: 'params changed',
+              return logs.length
             })
-          )
 
-          lastLogIndex = logs.length
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
 
-          await browser.elementById('change-params-button').click()
+            await retry(async () => {
+              const rerender = await browser
+                .elementById('rerender-button')
+                .text()
 
-          await retry(async () => {
-            logs = await browser.log()
+              expect(rerender).toBe('Re-Render 3')
+            })
 
-            expect(logs.slice(lastLogIndex)).toContainEqual(
+            let logs: Array<{ message: string }> = await browser.log()
+            expect(logs.slice(lastLogIndex)).not.toContainEqual(
               expect.objectContaining({
                 message: 'params changed',
               })
             )
-          })
-        }
 
-        it('should be stable in app', async () => {
-          await runTests(
-            '/search-params/foo',
-            // App Router doesn't re-render on initial load (the params are baked
-            // server side). In development, effects will render twice.
-            isNextDev ? 2 : 1
-          )
-        })
+            lastLogIndex = logs.length
 
-        it('should be stable in pages', async () => {
-          await runTests(
-            '/search-params-pages/foo',
-            // Pages Router re-renders on initial load and after hydration, the
-            // params when initially loaded are null.
-            2
-          )
-        })
+            await browser.elementById('change-params-button').click()
+
+            await retry(async () => {
+              logs = await browser.log()
+
+              expect(logs.slice(lastLogIndex)).toContainEqual(
+                expect.objectContaining({
+                  message: 'params changed',
+                })
+              )
+            })
+          }
+        )
       })
     })
 
@@ -786,6 +788,69 @@ createNextDescribe(
 
         // confirm that the scroll position was restored
         expect(newScrollPosition).toEqual(scrollPosition)
+      })
+    })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
+
+    describe('navigating to dynamic params & changing the casing', () => {
+      it('should load the page correctly', async () => {
+        const browser = await next.browser('/dynamic-param-casing-change')
+
+        // note the casing here capitalizes `ParamA`
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/ParamA']")
+          .click()
+
+        // note the `paramA` casing has now changed
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/noParam']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'noParam page'
+          )
+        })
+
+        await browser.back()
+
+        await browser
+          .elementByCss("[href='/dynamic-param-casing-change/paramA/paramB']")
+          .click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            '[paramB] page'
+          )
+        })
       })
     })
   }

@@ -33,7 +33,7 @@ function nextImageLoader(this: any, content: Buffer) {
 
     const imageSizeSpan = imageLoaderSpan.traceChild('image-size-calculation')
     const imageSize = await imageSizeSpan.traceAsyncFn(() =>
-      getImageSize(content, extension).catch((err) => err)
+      getImageSize(content).catch((err) => err)
     )
 
     if (imageSize instanceof Error) {

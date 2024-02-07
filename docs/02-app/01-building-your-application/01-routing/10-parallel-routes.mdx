@@ -167,7 +167,7 @@ export default function Layout({ user, admin }) {
 }
 ```
 
-## Tab Groups
+### Tab Groups
 
 You can add a `layout` inside a slot to allow users to navigate the slot independently. This is useful for creating tabs.
 
@@ -199,7 +199,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/dashboard/@analytics/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -307,7 +307,7 @@ export default function Page() {
 > - The convention used to intercept the route, e.g. `(.)`, depends on your file-system structure. See [Intercepting Routes convention](/docs/app/building-your-application/routing/intercepting-routes#convention).
 > - By separating the `<Modal>` functionality from the modal content (`<Login>`), you can ensure any content inside the modal, e.g. [forms](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#forms), are Server Components. See [Interleaving Client and Server Components](/docs/app/building-your-application/rendering/composition-patterns#supported-pattern-passing-server-components-to-client-components-as-props) for more information.
 
-### Opening the modal
+#### Opening the modal
 
 Now, you can leverage the Next.js router to open and close the modal. This ensures the URL is correctly updated when the modal is open, and when navigating backwards and forwards.
 
@@ -353,11 +353,11 @@ export default function Layout({ auth, children }) {
 
 When the user clicks the `<Link>`, the modal will open instead of navigating to the `/login` page. However, on refresh or initial load, navigating to `/login` will take the user to the main login page.
 
-### Closing the modal
+#### Closing the modal
 
 You can close the modal by calling `router.back()` or by using the `Link` component.
 
-```tsx filename="app/ui/modal.tsx switcher
+```tsx filename="app/ui/modal.tsx" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -380,7 +380,7 @@ export function Modal({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```tsx filename="app/ui/modal.tsx switcher
+```jsx filename="app/ui/modal.js" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'
@@ -391,13 +391,38 @@ export function Modal({ children }) {
   return (
     <>
       <button
-        type="button"
         onClick={() => {
           router.back()
         }}
       >
         Close modal
       </button>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```tsx filename="app/ui/modal.tsx" switcher
+import Link from 'next/link'
+
+export function Modal({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      <Link href="/">Close modal</Link>
+      <div>{children}</div>
+    </>
+  )
+}
+```
+
+```jsx filename="app/ui/modal.js" switcher
+import Link from 'next/link'
+
+export function Modal({ children }) {
+  return (
+    <>
+      <Link href="/">Close modal</Link>
       <div>{children}</div>
     </>
   )

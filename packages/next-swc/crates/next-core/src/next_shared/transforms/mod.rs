@@ -21,12 +21,12 @@ pub use modularize_imports::{get_next_modularize_imports_rule, ModularizeImportP
 pub use next_dynamic::get_next_dynamic_transform_rule;
 pub use next_font::get_next_font_transform_rule;
 pub use next_strip_page_exports::get_next_pages_transforms_rule;
-pub use relay::get_relay_transform_plugin;
 pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::{ReadRef, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::reference_type::{ReferenceType, UrlReferenceSubType},
+    ecmascript::{CustomTransformer, EcmascriptInputTransform},
     turbopack::module_options::{ModuleRule, ModuleRuleCondition, ModuleRuleEffect, ModuleType},
 };
 
@@ -70,6 +70,8 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
         ModuleRuleCondition::ResourcePathEndsWith(".jsx".to_string()),
         ModuleRuleCondition::ResourcePathEndsWith(".ts".to_string()),
         ModuleRuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".mjs".to_string()),
+        ModuleRuleCondition::ResourcePathEndsWith(".cjs".to_string()),
     ];
 
     if enable_mdx_rs {
@@ -84,7 +86,9 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<ModuleRuleCondition> {
     conditions
 }
 
-/// Returns a rule which applies the Next.js dynamic transform.
+/// Returns a module rule condition matches to any ecmascript (with mdx if
+/// enabled) except url reference type. This is a typical custom rule matching
+/// condition for custom ecma specific transforms.
 pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> ModuleRuleCondition {
     let conditions = match_js_extension(enable_mdx_rs);
 
@@ -109,4 +113,24 @@ pub(crate) fn module_rule_match_pages_page_file(
         ModuleRuleCondition::ResourcePathInExactDirectory(pages_directory),
         ModuleRuleCondition::any(conditions),
     ])
+}
+
+/// Create a new module rule for the given ecmatransform, runs against
+/// any ecmascript (with mdx if enabled) except url reference type
+pub(crate) fn get_ecma_transform_rule(
+    transformer: Box<dyn CustomTransformer + Send + Sync>,
+    enable_mdx_rs: bool,
+    prepend: bool,
+) -> ModuleRule {
+    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(transformer as _));
+    let (prepend, append) = if prepend {
+        (Vc::cell(vec![transformer]), Vc::cell(vec![]))
+    } else {
+        (Vc::cell(vec![]), Vc::cell(vec![transformer]))
+    };
+
+    ModuleRule::new(
+        module_rule_match_js_no_url(enable_mdx_rs),
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append }],
+    )
 }

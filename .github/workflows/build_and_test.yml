@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.11.3
+  TURBO_VERSION: 1.12.2
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -88,8 +88,8 @@ jobs:
   validate-docs-links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - run: corepack enable
@@ -178,6 +178,18 @@ jobs:
     with:
       afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs --features tracing/release_max_level_info && git checkout . && mv packages/next-swc/crates/wasm/pkg packages/next-swc/crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
+    secrets: inherit
+
+  #[NOTE] currently this only checks building wasi target
+  test-next-swc-napi-wasi:
+    name: test next-swc wasi
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: rustup target add wasm32-wasi-preview1-threads && turbo run build-native-wasi
+      stepName: 'test-next-swc-napi-wasi'
     secrets: inherit
 
   test-unit:

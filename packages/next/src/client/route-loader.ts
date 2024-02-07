@@ -323,7 +323,7 @@ export function createRouteLoader(assetPrefix: string): RouteLoader {
 
     styleSheets.set(
       href,
-      (prom = fetch(href)
+      (prom = fetch(href, { credentials: 'same-origin' })
         .then((res) => {
           if (!res.ok) {
             throw new Error(`Failed to load stylesheet: ${href}`)
