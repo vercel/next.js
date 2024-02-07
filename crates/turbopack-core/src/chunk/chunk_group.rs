@@ -125,6 +125,7 @@ pub async fn make_chunk_group(
             chunking_context.async_loader_chunk_item(module, Value::new(availability_info))
         })
         .collect::<Vec<_>>();
+    let has_async_loaders = !async_loaders.is_empty();
     let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| (chunk_item, None));
 
     // And also add output assets referenced by async chunk loaders
@@ -141,25 +142,28 @@ pub async fn make_chunk_group(
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
         chunking_context,
-        chunk_items,
-        "",
+        Vc::cell(chunk_items.into_iter().collect()),
+        "".to_string(),
         references_to_output_assets(external_module_references).await?,
     )
-    .await?;
+    .await?
+    .clone_value();
 
-    // Pass async chunk loaders to chunking algorithm
-    // We want them to be separate since they are specific to this chunk group due
-    // to available chunk items differing
-    let async_loader_chunks = make_chunks(
-        chunking_context,
-        async_loader_chunk_items,
-        "async-loader-",
-        references_to_output_assets(async_loader_external_module_references).await?,
-    )
-    .await?;
+    if has_async_loaders {
+        // Pass async chunk loaders to chunking algorithm
+        // We want them to be separate since they are specific to this chunk group due
+        // to available chunk items differing
+        let async_loader_chunks = make_chunks(
+            chunking_context,
+            Vc::cell(async_loader_chunk_items.into_iter().collect()),
+            "async-loader-".to_string(),
+            references_to_output_assets(async_loader_external_module_references).await?,
+        )
+        .await?;
 
-    // concatenate chunks
-    chunks.extend(async_loader_chunks);
+        // concatenate chunks
+        chunks.extend(async_loader_chunks.iter().copied());
+    }
 
     Ok(MakeChunkGroupResult {
         chunks,
