@@ -9,7 +9,7 @@ import {
   APP_CLIENT_INTERNALS,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import { runCompiler } from '../compiler'
+import { runCompiler, type CompilerResult } from '../compiler'
 import * as Log from '../output/log'
 import getBaseWebpackConfig, { loadProjectInfo } from '../webpack-config'
 import type { NextError } from '../../lib/is-error'
@@ -42,16 +42,10 @@ import { Telemetry } from '../../telemetry/storage'
 
 const debug = origDebug('next:build:webpack-build')
 
-type CompilerResult = {
+export type MultiCompilerResult = {
   errors: webpack.StatsError[]
   warnings: webpack.StatsError[]
   stats: (webpack.Stats | undefined)[]
-}
-
-type SingleCompilerResult = {
-  errors: webpack.StatsError[]
-  warnings: webpack.StatsError[]
-  stats: webpack.Stats | undefined
 }
 
 function isTelemetryPlugin(plugin: unknown): plugin is TelemetryPlugin {
@@ -72,7 +66,7 @@ export async function webpackBuildImpl(
   buildTraceContext?: BuildTraceContext
   telemetryState?: TelemetryPluginState
 }> {
-  let result: CompilerResult | null = {
+  let result: MultiCompilerResult = {
     warnings: [],
     errors: [],
     stats: [],
@@ -178,7 +172,7 @@ export async function webpackBuildImpl(
   await runWebpackSpan.traceAsyncFn(async () => {
     // Run the server compilers first and then the client
     // compiler to track the boundary of server/client components.
-    let clientResult: SingleCompilerResult | null = null
+    let clientResult: CompilerResult | null = null
 
     // During the server compilations, entries of client components will be
     // injected to this set and then will be consumed by the client compiler.
@@ -269,9 +263,9 @@ export async function webpackBuildImpl(
       ],
     }
   })
-  result = nextBuildSpan
+  const formattedResult = nextBuildSpan
     .traceChild('format-webpack-messages')
-    .traceFn(() => formatWebpackMessages(result, true)) as CompilerResult
+    .traceFn(() => formatWebpackMessages(result, true))
 
   const telemetryPlugin = (clientConfig as webpack.Configuration).plugins?.find(
     isTelemetryPlugin
@@ -283,13 +277,13 @@ export async function webpackBuildImpl(
 
   const webpackBuildEnd = process.hrtime(webpackBuildStart)
 
-  if (result.errors.length > 0) {
+  if (formattedResult.errors.length > 0) {
     // Only keep the first few errors. Others are often indicative
     // of the same problem, but confuse the reader with noise.
-    if (result.errors.length > 5) {
-      result.errors.length = 5
+    if (formattedResult.errors.length > 5) {
+      formattedResult.errors.length = 5
     }
-    let error = result.errors.filter(Boolean).join('\n\n')
+    let error = formattedResult.errors.filter(Boolean).join('\n\n')
 
     console.error(red('Failed to compile.\n'))
 
@@ -322,9 +316,9 @@ export async function webpackBuildImpl(
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {
-    if (result.warnings.length > 0) {
+    if (formattedResult.warnings.length > 0) {
       Log.warn('Compiled with warnings\n')
-      console.warn(result.warnings.filter(Boolean).join('\n\n'))
+      console.warn(formattedResult.warnings.filter(Boolean).join('\n\n'))
       console.warn()
     } else if (!compilerName) {
       Log.event('Compiled successfully')

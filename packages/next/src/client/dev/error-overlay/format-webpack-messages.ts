@@ -22,6 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 // This file is based on https://github.com/facebook/create-react-app/blob/7b1a32be6ec9f99a6c9a3c66813f3ac09c4736b9/packages/react-dev-utils/formatWebpackMessages.js
 // It's been edited to remove chalk and CRA-specific logic
 
@@ -38,46 +39,47 @@ let hadMissingSassError = false
 
 // Cleans up webpack error messages.
 function formatMessage(
-  message: any,
+  rawMessage: webpack.StatsError | string,
   verbose?: boolean,
   importTraceNote?: boolean
 ) {
+  let stringifiedMessage = ''
   // TODO: Replace this once webpack 5 is stable
-  if (typeof message === 'object' && message.message) {
+  if (typeof rawMessage === 'object' && rawMessage.message) {
     const filteredModuleTrace =
-      message.moduleTrace &&
-      message.moduleTrace.filter(
+      rawMessage.moduleTrace &&
+      rawMessage.moduleTrace.filter(
         (trace: any) =>
           !/next-(middleware|client-pages|route|edge-function)-loader\.js/.test(
             trace.originName
           )
       )
 
-    let body = message.message
+    let body = rawMessage.message
     const breakingChangeIndex = body.indexOf(WEBPACK_BREAKING_CHANGE_POLYFILLS)
     if (breakingChangeIndex >= 0) {
       body = body.slice(0, breakingChangeIndex)
     }
 
     // javascript/<type>|<absolute path>|<module layer>
-    const moduleIdSegs = message.moduleIdentifier.split('|')
-    const bundleLayer = moduleIdSegs[2] || ''
+    const moduleIdSegs = rawMessage.moduleIdentifier?.split('|')
+    const bundleLayer = moduleIdSegs?.[2] || ''
 
-    message =
-      (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
-      (message.file ? stripAnsi(message.file) + '\n' : '') +
+    stringifiedMessage =
+      (rawMessage.moduleName ? stripAnsi(rawMessage.moduleName) + '\n' : '') +
+      (rawMessage.file ? stripAnsi(rawMessage.file) + '\n' : '') +
       body +
-      (message.details && verbose ? '\n' + message.details : '') +
+      (rawMessage.details && verbose ? '\n' + rawMessage.details : '') +
       (filteredModuleTrace && filteredModuleTrace.length
         ? (importTraceNote || '\n\nImport trace for requested module:') +
           filteredModuleTrace
             .map((trace: any) => `\n${trace.moduleName}`)
             .join('')
         : '') +
-      (message.stack && verbose ? '\n' + message.stack : '') +
+      (rawMessage.stack && verbose ? '\n' + rawMessage.stack : '') +
       (bundleLayer ? ` (layer: ${bundleLayer})` : '')
   }
-  let lines = message.split('\n')
+  let lines = stringifiedMessage.split('\n')
 
   // Strip Webpack-added headers off errors/warnings
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
@@ -96,7 +98,7 @@ function formatMessage(
     return `${friendlySyntaxErrorLabel} ${errorMessage} (${errorLine}:${errorColumn})`
   })
 
-  message = lines.join('\n')
+  let message = lines.join('\n')
   // Smoosh syntax errors (commonly found in CSS)
   message = message.replace(
     /SyntaxError\s+\((\d+):(\d+)\)\s*(.+?)\n/g,
@@ -186,7 +188,16 @@ function formatMessage(
   return message.trim()
 }
 
-export default function formatWebpackMessages(json: any, verbose?: boolean) {
+type GeneratedMultiCompilerResult = {
+  errors: ReadonlyArray<unknown>
+  warnings: ReadonlyArray<unknown>
+  stats?: (webpack.Stats | undefined)[]
+}
+
+export default function formatWebpackMessages(
+  json: GeneratedMultiCompilerResult,
+  verbose?: boolean
+) {
   const formattedErrors = json.errors.map((message: any) => {
     const isUnknownNextFontError = message.message.includes(
       'An error occured in `next/font`.'
@@ -215,7 +226,6 @@ export default function formatWebpackMessages(json: any, verbose?: boolean) {
   }
 
   const result = {
-    ...json,
     errors: formattedErrors,
     warnings: formattedWarnings,
   }
