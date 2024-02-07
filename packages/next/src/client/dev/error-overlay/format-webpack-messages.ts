@@ -59,6 +59,10 @@ function formatMessage(
       body = body.slice(0, breakingChangeIndex)
     }
 
+    // javascript/<type>|<absolute path>|<module layer>
+    const moduleIdSegs = message.moduleIdentifier.split('|')
+    const bundleLayer = moduleIdSegs[2] || ''
+
     message =
       (message.moduleName ? stripAnsi(message.moduleName) + '\n' : '') +
       (message.file ? stripAnsi(message.file) + '\n' : '') +
@@ -70,7 +74,8 @@ function formatMessage(
             .map((trace: any) => `\n${trace.moduleName}`)
             .join('')
         : '') +
-      (message.stack && verbose ? '\n' + message.stack : '')
+      (message.stack && verbose ? '\n' + message.stack : '') +
+      (bundleLayer ? ` (layer: ${bundleLayer})` : '')
   }
   let lines = message.split('\n')
 
