@@ -159,6 +159,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -815,6 +816,7 @@ export const defaultConfig: NextConfig = {
   experimental: {
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
