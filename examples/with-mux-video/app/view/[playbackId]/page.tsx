@@ -35,7 +35,7 @@ export const generateMetadata = ({ params }) => ({
 });
 
 const Code = ({ children }: { children: React.ReactNode }) => (
-  <code className="text-mono text-sm text-red bg-red/10 px-1 py-0.5 rounded-sm">
+  <code className="text-mono text-sm text-red bg-red-500/10 px-1 py-0.5 rounded-sm">
     {children}
   </code>
 );

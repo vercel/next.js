@@ -6,7 +6,7 @@ import LibLink from "next/link";
  */
 const Link = ({ className, ...rest }: React.ComponentProps<typeof LibLink>) => (
   <LibLink
-    className={`underline hover:no-underline focus-visible:no-underline text-red ${className}`}
+    className={`underline hover:no-underline focus-visible:no-underline text-red-600 ${className}`}
     {...rest}
   />
 );
