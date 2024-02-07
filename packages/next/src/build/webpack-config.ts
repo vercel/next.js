@@ -111,7 +111,7 @@ const babelIncludeRegexes: RegExp[] = [
 ]
 
 const preCompileReactRegex =
-  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)($|[\\/])/
+  /next[\\/]dist[\\/]compiled[\\/](react|react-dom|react-server-dom-webpack)(-experimental)?($|[\\/])/
 
 const asyncStoragesRegex =
   /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/](static-generation-async-storage|action-async-storage|request-async-storage)/
