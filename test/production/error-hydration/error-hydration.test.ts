@@ -30,13 +30,19 @@ createNextDescribe(
         '/with-error'
       )
 
-      const extraConsoleMessages = consoleMessages.filter(
-        (m) =>
-          !/Failed to load resource/.test(m) || // Chrome output
-          !m.includes('Next.js page already hydrated') // test-harness output
-      )
+      expect(
+        consoleMessages.find((message) =>
+          message.startsWith('A client-side exception has occurred')
+        )
+      ).toBeUndefined()
 
-      expect(extraConsoleMessages.length).toBe(0)
+      expect(
+        consoleMessages.find(
+          (message) =>
+            message ===
+            '{name: Internal Server Error., message: 500 - Internal Server Error., statusCode: 500}'
+        )
+      ).toBeUndefined()
     })
 
     it('should not invoke the error page getInitialProps client-side for server-side errors', async () => {
