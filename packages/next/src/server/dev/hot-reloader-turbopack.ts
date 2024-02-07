@@ -27,7 +27,7 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
@@ -35,7 +35,6 @@ import {
   deleteAppClientCache,
   deleteCache,
 } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
-import { normalizeMetadataRoute } from '../../lib/metadata/get-metadata-route'
 import {
   clearAllModuleContexts,
   clearModuleContext,
@@ -65,6 +64,8 @@ import {
 } from '../lib/router-utils/setup-dev-bundler'
 import { TurbopackManifestLoader } from './turbopack/manifest-loader'
 import type { Entrypoints } from './turbopack/types'
+import { findPagePathData } from './on-demand-entry-handler'
+import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -140,7 +141,8 @@ export async function createHotReloaderTurbopack(
       instrumentation: undefined,
     },
 
-    routes: new Map(),
+    page: new Map(),
+    app: new Map(),
   }
 
   const currentIssues: CurrentIssues = new Map()
@@ -609,10 +611,25 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
-      const page = definition?.pathname ?? inputPage
+      if (inputPage !== '/_error' && BLOCKED_PAGES.indexOf(inputPage) !== -1) {
+        return
+      }
+
+      let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
+        definition ??
+        (await findPagePathData(
+          dir,
+          inputPage,
+          nextConfig.pageExtensions,
+          opts.pagesDir,
+          opts.appDir
+        ))
+
+      const page = routeDef.page
+      const pathname = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
-        let finishBuilding = startBuilding(page, requestUrl, false)
+        let finishBuilding = startBuilding(pathname, requestUrl, false)
         try {
           await handlePagesErrorRoute({
             currentIssues,
@@ -632,14 +649,13 @@ export async function createHotReloaderTurbopack(
         }
         return
       }
+
       await currentEntriesHandling
-      const route =
-        currentEntrypoints.routes.get(page) ??
-        currentEntrypoints.routes.get(
-          normalizeAppPath(
-            normalizeMetadataRoute(definition?.page ?? inputPage)
-          )
-        )
+      const route = definition?.pathname
+        ? currentEntrypoints.page.get(definition!.pathname)
+        : isApp
+        ? currentEntrypoints.app.get(page)
+        : currentEntrypoints.page.get(page)
 
       if (!route) {
         // TODO: why is this entry missing in turbopack?
@@ -660,7 +676,7 @@ export async function createHotReloaderTurbopack(
         throw new Error(`mis-matched route type: isApp && page for ${page}`)
       }
 
-      const finishBuilding = startBuilding(page, requestUrl, false)
+      const finishBuilding = startBuilding(pathname, requestUrl, false)
       try {
         await handleRouteType({
           page,
@@ -694,7 +710,7 @@ export async function createHotReloaderTurbopack(
   await currentEntriesHandling
   await manifestLoader.writeManifests({
     rewrites: opts.fsChecker.rewrites,
-    routes: currentEntrypoints.routes,
+    pageRoutes: currentEntrypoints.page,
   })
 
   async function handleProjectUpdates() {

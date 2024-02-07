@@ -166,7 +166,9 @@ export interface Binding {
   transformSync: any
   parse: any
   parseSync: any
+
   getTargetTriple(): string | undefined
+
   initCustomTraceSubscriber?: any
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
@@ -636,11 +638,13 @@ export type Route =
     }
   | {
       type: 'app-page'
+      originalName: string
       htmlEndpoint: Endpoint
       rscEndpoint: Endpoint
     }
   | {
       type: 'app-route'
+      originalName: string
       endpoint: Endpoint
     }
   | {
@@ -656,12 +660,14 @@ export type Route =
 export interface Endpoint {
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
+
   /**
    * Listen to client-side changes to the endpoint.
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
   clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+
   /**
    * Listen to server-side changes to the endpoint.
    * After serverChanged() has been awaited it will listen to changes.
@@ -883,11 +889,13 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
+            originalName: string
             htmlEndpoint: NapiEndpoint
             rscEndpoint: NapiEndpoint
           }
         | {
             type: 'app-route'
+            originalName: string
             endpoint: NapiEndpoint
           }
         | {
@@ -923,6 +931,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
+                  originalName: nativeRoute.originalName,
                   htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
                   rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
                 }
@@ -930,6 +939,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-route':
                 route = {
                   type: 'app-route',
+                  originalName: nativeRoute.originalName,
                   endpoint: new EndpointImpl(nativeRoute.endpoint),
                 }
                 break

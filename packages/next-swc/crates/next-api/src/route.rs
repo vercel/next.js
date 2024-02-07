@@ -4,7 +4,7 @@ use turbo_tasks::{Completion, Vc};
 use crate::server_paths::ServerPath;
 
 #[turbo_tasks::value(shared)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum Route {
     Page {
         html_endpoint: Vc<Box<dyn Endpoint>>,
@@ -14,10 +14,12 @@ pub enum Route {
         endpoint: Vc<Box<dyn Endpoint>>,
     },
     AppPage {
+        original_name: String,
         html_endpoint: Vc<Box<dyn Endpoint>>,
         rsc_endpoint: Vc<Box<dyn Endpoint>>,
     },
     AppRoute {
+        original_name: String,
         endpoint: Vc<Box<dyn Endpoint>>,
     },
     Conflict,

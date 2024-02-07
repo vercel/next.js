@@ -470,6 +470,16 @@ pub enum Entrypoint {
     },
 }
 
+impl Entrypoint {
+    pub fn page(&self) -> &AppPage {
+        match self {
+            Entrypoint::AppPage { page, .. } => page,
+            Entrypoint::AppRoute { page, .. } => page,
+            Entrypoint::AppMetadata { page, .. } => page,
+        }
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Entrypoints(IndexMap<AppPath, Entrypoint>);
 
@@ -556,6 +566,7 @@ async fn add_app_page(
 
             // next.js does some weird stuff when looking up routes so we have to emit the
             // correct path (shortest segments, but alphabetically the last).
+            // https://github.com/vercel/next.js/blob/194311d8c96144d68e65cd9abb26924d25978da7/packages/next/src/server/base-server.ts#L3003
             if page.len() < stored_page.len()
                 || (page.len() == stored_page.len() && page.to_string() > stored_page.to_string())
             {

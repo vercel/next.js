@@ -19,5 +19,6 @@ export type RouteEntrypoints = Map<string, Route>
 export type Entrypoints = {
   global: GlobalEntrypoints
 
-  routes: RouteEntrypoints
+  page: RouteEntrypoints
+  app: RouteEntrypoints
 }

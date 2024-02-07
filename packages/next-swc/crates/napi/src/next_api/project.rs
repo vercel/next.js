@@ -307,8 +307,10 @@ pub async fn project_update(
 #[napi(object)]
 #[derive(Default)]
 struct NapiRoute {
-    /// The relative path from project_path to the route file
+    /// The router path
     pub pathname: String,
+    /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
@@ -350,17 +352,23 @@ impl NapiRoute {
                 ..Default::default()
             },
             Route::AppPage {
+                original_name,
                 html_endpoint,
                 rsc_endpoint,
             } => NapiRoute {
                 pathname,
+                original_name: Some(original_name),
                 r#type: "app-page",
                 html_endpoint: convert_endpoint(html_endpoint),
                 rsc_endpoint: convert_endpoint(rsc_endpoint),
                 ..Default::default()
             },
-            Route::AppRoute { endpoint } => NapiRoute {
+            Route::AppRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
                 pathname,
+                original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
@@ -481,8 +489,8 @@ pub fn project_entrypoints_subscribe(
                     routes: entrypoints
                         .routes
                         .iter()
-                        .map(|(pathname, &route)| {
-                            NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
+                        .map(|(pathname, route)| {
+                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints

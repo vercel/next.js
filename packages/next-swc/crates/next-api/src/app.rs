@@ -30,7 +30,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
-    util::{get_asset_prefix_from_pathname, NextRuntime},
+    util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -367,7 +367,9 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.to_string(),
-                        *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
+                        app_entry_point_to_route(self, app_entrypoint.clone())
+                            .await?
+                            .clone_value(),
                     ))
                 })
                 .try_join()
@@ -385,6 +387,7 @@ pub async fn app_entry_point_to_route(
 ) -> Vc<Route> {
     match entrypoint {
         AppEntrypoint::AppPage { page, loader_tree } => Route::AppPage {
+            original_name: page.to_string(),
             html_endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Page {
@@ -409,6 +412,7 @@ pub async fn app_entry_point_to_route(
             ),
         },
         AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
+            original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
@@ -419,6 +423,7 @@ pub async fn app_entry_point_to_route(
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+            original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
@@ -505,19 +510,18 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let (app_entry, ty, process_client, process_ssr) = match this.ty {
+        let (app_entry, process_client, process_ssr) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
-                "page",
                 true,
                 matches!(ty, AppPageEndpointType::Html),
             ),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), "route", false, false),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), "route", false, false)
+                (self.app_metadata_entry(metadata), false, false)
             }
         };
 
@@ -657,10 +661,10 @@ impl AppEndpoint {
                     .into_iter()
                     .collect(),
             };
-            let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
+            let manifest_path_prefix = &app_entry.original_name;
             let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{manifest_path_prefix}/{ty}/app-build-manifest.json",
+                    "server/app{manifest_path_prefix}/app-build-manifest.json",
                 )),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
@@ -674,7 +678,7 @@ impl AppEndpoint {
             };
             let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{manifest_path_prefix}/{ty}/build-manifest.json",
+                    "server/app{manifest_path_prefix}/build-manifest.json",
                 )),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
@@ -720,14 +724,12 @@ impl AppEndpoint {
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
-            ty: &'static str,
-            pathname: &str,
             original_name: &str,
             filename: String,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
-            let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let manifest_path_prefix = original_name;
             let path = node_root.join(format!(
-                "server/app{manifest_path_prefix}/{ty}/app-paths-manifest.json",
+                "server/app{manifest_path_prefix}/app-paths-manifest.json",
             ));
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
@@ -747,9 +749,8 @@ impl AppEndpoint {
 
         async fn create_react_loadable_manifest(
             dynamic_import_entries: Vc<DynamicImportedChunks>,
-            ty: &'static str,
             node_root: Vc<FileSystemPath>,
-            pathname: &str,
+            original_name: &str,
         ) -> Result<Vc<OutputAssets>> {
             let dynamic_import_entries = &*dynamic_import_entries.await?;
 
@@ -789,10 +790,10 @@ impl AppEndpoint {
                 }
             }
 
-            let loadable_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let loadable_path_prefix = original_name;
             let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{loadable_path_prefix}/{ty}/react-loadable-manifest.json",
+                    "server/app{loadable_path_prefix}/react-loadable-manifest.json",
                 )),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -812,8 +813,7 @@ impl AppEndpoint {
             this.app_project.project().client_root(),
             node_root,
             this.app_project.app_dir(),
-            ty,
-            &app_entry.pathname,
+            &app_entry.original_name,
             &app_entry.original_name,
             client_assets,
             true,
@@ -841,7 +841,6 @@ impl AppEndpoint {
                         app_server_reference_modules,
                         this.app_project.project().project_path(),
                         node_root,
-                        &app_entry.pathname,
                         &app_entry.original_name,
                         NextRuntime::Edge,
                         Vc::upcast(this.app_project.edge_rsc_module_context()),
@@ -919,10 +918,10 @@ impl AppEndpoint {
                         .collect(),
                     ..Default::default()
                 };
-                let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
+                let manifest_path_prefix = &app_entry.original_name;
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/app{manifest_path_prefix}/{ty}/middleware-manifest.json",
+                        "server/app{manifest_path_prefix}/middleware-manifest.json",
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -934,13 +933,8 @@ impl AppEndpoint {
                 server_assets.push(middleware_manifest_v2);
 
                 // create app paths manifest
-                let app_paths_manifest_output = create_app_paths_manifest(
-                    node_root,
-                    ty,
-                    &app_entry.pathname,
-                    &app_entry.original_name,
-                    entry_file,
-                )?;
+                let app_paths_manifest_output =
+                    create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)?;
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
@@ -954,9 +948,8 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    ty,
                     node_root,
-                    &app_entry.pathname,
+                    &app_entry.original_name,
                 )
                 .await?;
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -977,7 +970,6 @@ impl AppEndpoint {
                         app_server_reference_modules,
                         this.app_project.project().project_path(),
                         node_root,
-                        &app_entry.pathname,
                         &app_entry.original_name,
                         NextRuntime::NodeJs,
                         Vc::upcast(this.app_project.rsc_module_context()),
@@ -1008,8 +1000,6 @@ impl AppEndpoint {
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
-                    ty,
-                    &app_entry.pathname,
                     &app_entry.original_name,
                     server_path
                         .await?
@@ -1031,9 +1021,8 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    ty,
                     node_root,
-                    &app_entry.pathname,
+                    &app_entry.original_name,
                 )
                 .await?;
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());

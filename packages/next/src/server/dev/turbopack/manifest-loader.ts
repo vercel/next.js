@@ -36,6 +36,7 @@ import {
   srcEmptySsgManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import type { RouteEntrypoints } from './types'
+import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -58,25 +59,17 @@ async function readPartialManifest<T>(
     | `${typeof NEXT_FONT_MANIFEST}.json`
     | typeof REACT_LOADABLE_MANIFEST,
   pageName: string,
-  type:
-    | 'pages'
-    | 'app'
-    | 'app-route'
-    | 'middleware'
-    | 'instrumentation' = 'pages'
+  type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
   const manifestPath = posix.join(
     distDir,
     `server`,
-    type === 'app-route' ? 'app' : type,
+    type,
     type === 'middleware' || type === 'instrumentation'
       ? ''
-      : pageName === '/'
-      ? 'index'
-      : pageName === '/index' || pageName.startsWith('/index/')
-      ? `/index${pageName}`
-      : pageName,
-    type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
+      : type === 'app'
+      ? pageName
+      : getAssetPathFromRoute(pageName),
     name
   )
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
@@ -213,17 +206,14 @@ export class TurbopackManifestLoader {
     )
   }
 
-  async loadAppPathsManifest(
-    pageName: string,
-    type: 'app' | 'app-route' = 'app'
-  ): Promise<void> {
+  async loadAppPathsManifest(pageName: string): Promise<void> {
     this.appPathsManifests.set(
       pageName,
       await readPartialManifest(
         this.distDir,
         APP_PATHS_MANIFEST,
         pageName,
-        type
+        'app'
       )
     )
   }
@@ -291,7 +281,7 @@ export class TurbopackManifestLoader {
   }
 
   private async writeBuildManifest(
-    routes: RouteEntrypoints,
+    pageRoutes: RouteEntrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
@@ -334,12 +324,12 @@ export class TurbopackManifestLoader {
         ? (normalizeRewritesForBuildManifest(rewrites) as any)
         : { afterFiles: [], beforeFiles: [], fallback: [] },
       ...Object.fromEntries(
-        [...routes.keys()].map((pathname) => [
+        [...pageRoutes.keys()].map((pathname) => [
           pathname,
           `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
         ])
       ),
-      sortedPages: [...routes.keys()],
+      sortedPages: [...pageRoutes.keys()],
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -476,7 +466,7 @@ export class TurbopackManifestLoader {
 
   async loadMiddlewareManifest(
     pageName: string,
-    type: 'pages' | 'app' | 'app-route' | 'middleware' | 'instrumentation'
+    type: 'pages' | 'app' | 'middleware' | 'instrumentation'
   ): Promise<void> {
     this.middlewareManifests.set(
       pageName,
@@ -591,16 +581,16 @@ export class TurbopackManifestLoader {
 
   async writeManifests({
     rewrites,
-    routes,
+    pageRoutes,
   }: {
     rewrites: SetupOpts['fsChecker']['rewrites']
-    routes: RouteEntrypoints
+    pageRoutes: RouteEntrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
     await this.writeAutomaticFontOptimizationManifest()
-    await this.writeBuildManifest(routes, rewrites)
+    await this.writeBuildManifest(pageRoutes, rewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()

@@ -284,7 +284,7 @@ export async function handleRouteType({
 
         await manifestLoader.writeManifests({
           rewrites,
-          routes: entrypoints.routes,
+          pageRoutes: entrypoints.page,
         })
 
         processIssues(currentIssues, page, writtenEndpoint)
@@ -345,7 +345,7 @@ export async function handleRouteType({
 
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageRoutes: entrypoints.page,
       })
 
       processIssues(currentIssues, page, writtenEndpoint)
@@ -385,12 +385,12 @@ export async function handleRouteType({
 
       await manifestLoader.loadAppBuildManifest(page)
       await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page, 'app')
+      await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageRoutes: entrypoints.page,
       })
 
       processIssues(currentIssues, page, writtenEndpoint, true)
@@ -403,16 +403,16 @@ export async function handleRouteType({
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(page, 'app-route')
+      await manifestLoader.loadAppPathsManifest(page)
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app-route')
+        await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(page)
       }
 
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageRoutes: entrypoints.page,
       })
       processIssues(currentIssues, page, writtenEndpoint, true)
 
@@ -472,15 +472,19 @@ export async function handleEntrypoints({
 
   currentEntrypoints.global.instrumentation = entrypoints.instrumentation
 
-  currentEntrypoints.routes.clear()
+  currentEntrypoints.page.clear()
+  currentEntrypoints.app.clear()
 
   for (const [pathname, route] of entrypoints.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
+        currentEntrypoints.page.set(pathname, route)
+        break
       case 'app-page':
       case 'app-route': {
-        currentEntrypoints.routes.set(pathname, route)
+        currentEntrypoints.page.set(pathname, route)
+        currentEntrypoints.app.set(route.originalName, route)
         break
       }
       default:
@@ -491,14 +495,19 @@ export async function handleEntrypoints({
 
   if (changeSubscriptions) {
     for (const [pathname, subscriptionPromise] of changeSubscriptions) {
-      if (pathname === '') {
+      const rawPathname = pathname.replace(/ \((?:client|server)\)$/, '')
+
+      if (rawPathname === '') {
         // middleware is handled below
         continue
       }
 
-      if (!currentEntrypoints.routes.has(pathname)) {
+      if (
+        !currentEntrypoints.page.has(rawPathname) &&
+        !currentEntrypoints.app.has(rawPathname)
+      ) {
         const subscription = await subscriptionPromise
-        subscription.return?.()
+        await subscription.return?.()
         changeSubscriptions.delete(pathname)
       }
     }
@@ -550,7 +559,7 @@ export async function handleEntrypoints({
     )
     await manifestLoader.writeManifests({
       rewrites: rewrites,
-      routes: currentEntrypoints.routes,
+      pageRoutes: currentEntrypoints.page,
     })
 
     if (serverFields && hooks?.propagateServerField) {
@@ -612,7 +621,7 @@ export async function handleEntrypoints({
         }
         await manifestLoader.writeManifests({
           rewrites: rewrites,
-          routes: currentEntrypoints.routes,
+          pageRoutes: currentEntrypoints.page,
         })
 
         finishBuilding?.()
@@ -686,6 +695,6 @@ export async function handlePagesErrorRoute({
 
   await manifestLoader.writeManifests({
     rewrites,
-    routes: entrypoints.routes,
+    pageRoutes: entrypoints.page,
   })
 }
