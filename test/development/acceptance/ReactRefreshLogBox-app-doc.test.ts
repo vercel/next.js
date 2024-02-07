@@ -146,7 +146,7 @@ describe.each(['default', 'turbo'])(
       await cleanup()
     })
 
-    test.only('_document syntax error shows logbox', async () => {
+    test('_document syntax error shows logbox', async () => {
       const { session, cleanup } = await sandbox(
         next,
         new Map([
