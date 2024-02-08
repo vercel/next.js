@@ -30,11 +30,11 @@ next-core = { path = "packages/next-swc/crates/next-core" }
 next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.90.3", features = [
+swc_core = { version = "0.90.6", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.17" }
+testing = { version = "0.35.18" }
 
 # Turbo crates
 turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240212.3" }
