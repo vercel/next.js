@@ -584,7 +584,7 @@ While it's common to use Server Actions within `<form>` elements, they can also 
 
 You can invoke a Server Action from event handlers such as `onClick`. For example, to increment a like count:
 
-```jsx filename="app/actions.js" switcher
+```tsx filename="app/like-button.tsx" switcher
 'use client'
 
 import { incrementLike } from './actions'
@@ -609,13 +609,13 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
 }
 ```
 
-```tsx filename="app/like-button.tsx" switcher
+```jsx filename="app/like-button.js" switcher
 'use client'
 
 import { incrementLike } from './actions'
 import { useState } from 'react'
 
-export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+export default function LikeButton({ initialLikes }) {
   const [likes, setLikes] = useState(initialLikes)
 
   return (
