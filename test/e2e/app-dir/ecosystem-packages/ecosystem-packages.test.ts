@@ -14,7 +14,10 @@ createNextDescribe(
     for (const packageName of packageList) {
       const normalizedPackageName = normalizePackageName(packageName)
       it(`should render with ${packageName}`, async () => {
-        const browser = await next.browser(`/list/${normalizedPackageName}`)
+        const url = `/list/${normalizedPackageName}`
+        // Browser has an early timeout, this ensures the page is fully compiled when the browser is loaded, disregarding the 60 second timeout that is hit for large packages
+        await next.fetch(url)
+        const browser = await next.browser(url)
         expect(await browser.elementByCss('h1').text()).toBe('Hello World')
       })
     }
