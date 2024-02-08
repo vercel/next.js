@@ -6,7 +6,7 @@ import { setupTests } from './util'
 const appDir = join(__dirname, '../app')
 const imagesDir = join(appDir, '.next', 'cache', 'images')
 
-describe('with latest sharp', () => {
+describe('with outdated sharp', () => {
   beforeAll(async () => {
     await fs.writeFile(
       join(appDir, 'package.json'),
@@ -14,7 +14,7 @@ describe('with latest sharp', () => {
         packageManager: 'npm@10.2.5',
       })
     )
-    await execa('npm', ['add', 'sharp@latest'], {
+    await execa('npm', ['add', 'sharp@0.26.3'], {
       cwd: appDir,
       stdio: 'inherit',
     })
@@ -25,5 +25,5 @@ describe('with latest sharp', () => {
     await fs.remove(join(appDir, 'package.json'))
   })
 
-  setupTests({ isSharp: true, isOutdatedSharp: false, appDir, imagesDir })
+  setupTests({ isSharp: true, isOutdatedSharp: true, appDir, imagesDir })
 })
