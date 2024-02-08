@@ -470,10 +470,18 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
+      const urlToRestore = new URL(url ?? href, href)
+      if (!window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
+        // we cannot safely recover from a missing tree -- we need trigger an MPA navigation
+        // to restore the router history to the correct state.
+        window.location.href = urlToRestore.pathname
+        return
+      }
+
       startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
-          url: new URL(url ?? href, href),
+          url: urlToRestore,
           tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
         })
       })
