@@ -11,13 +11,44 @@ function writeFile(filePath, contents) {
   fs.writeFileSync(filePath, contents)
 }
 
+const testTemplate = fs.readFileSync(
+  join(__dirname, 'ecosystem-packages-test-template.js'),
+  'utf8'
+)
+
+function createTestCode(packageName, normalizedPackageName) {
+  return testTemplate
+    .replaceAll('NORMALIZED_PACKAGE_NAME', normalizedPackageName) // Order important because `PACKAGE_NAME` is a substring of `NORMALIZED_PACKAGE_NAME`
+    .replaceAll('PACKAGE_NAME', packageName)
+}
+
 function writeIndividualFiles(packageList, type) {
-  fs.rmSync(join(__dirname, 'app', 'list'), { recursive: true })
   for (const packageName of packageList) {
     const normalizedPackageName = normalizePackageName(packageName)
 
+    const packageTestDir = join(__dirname, normalizedPackageName)
+    fs.rmSync(packageTestDir, { force: true, recursive: true })
+
     writeFile(
-      join(__dirname, 'app', 'list', normalizedPackageName, 'page.js'),
+      join(packageTestDir, `${normalizedPackageName}.test.js`),
+      createTestCode(packageName, normalizedPackageName)
+    )
+
+    const appPath = join(packageTestDir, 'app')
+    writeFile(
+      join(appPath, 'layout.js'),
+      `export default function Root({ children }) {
+  return (
+    <html>
+      <body>{children}</body>
+    </html>
+  )
+}
+    `
+    )
+
+    writeFile(
+      join(appPath, 'list', normalizedPackageName, 'page.js'),
       `${type === 'client' ? "'use client'" : ''}
 import * as ${normalizedPackageName} from '${
         entrypointMapping[packageName] || packageName
