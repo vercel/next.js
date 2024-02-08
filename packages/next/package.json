@@ -114,9 +114,6 @@
       "optional": true
     }
   },
-  "optionalDependencies": {
-    "sharp": "^0.33.2"
-  },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.22.5",
@@ -232,6 +229,7 @@
     "events": "3.3.0",
     "find-up": "4.1.0",
     "fresh": "0.5.2",
+    "get-orientation": "1.1.2",
     "glob": "7.1.7",
     "gzip-size": "5.1.1",
     "http-proxy": "1.18.1",
@@ -240,7 +238,7 @@
     "https-proxy-agent": "5.0.1",
     "icss-utils": "5.1.0",
     "ignore-loader": "0.1.2",
-    "image-size": "1.1.1",
+    "image-size": "1.0.0",
     "is-docker": "2.0.0",
     "is-wsl": "2.2.0",
     "jest-worker": "27.5.1",
