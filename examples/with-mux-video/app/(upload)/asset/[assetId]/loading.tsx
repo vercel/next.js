@@ -1,3 +1,3 @@
 export default function Loading() {
-  return <div>Checking asset state...</div>;
+  return <div>Checking asset status...</div>;
 }

@@ -35,10 +35,14 @@ export const generateMetadata = ({ params }: { params: Params }) => ({
 });
 
 const Code = ({ children }: { children: React.ReactNode }) => (
-  <code className="text-mono text-sm text-red bg-red-500/10 px-1 py-0.5 rounded-sm">
+  <code className="text-mono text-sm bg-red-500/10 px-1 py-0.5 rounded-sm">
     {children}
   </code>
 );
+
+// this function communicates with no external services and relies on no Node APIs
+// it's perfect for the edge
+export const runtime = "edge";
 
 export default function Page({ params: { playbackId } }: { params: Params }) {
   return (
@@ -51,6 +55,7 @@ export default function Page({ params: { playbackId } }: { params: Params }) {
           className="w-full"
           playbackId={playbackId}
           metadata={{ player_name: "with-mux-video" }}
+          accentColor="rgb(220 38 38)"
         />
       </div>
       <p>

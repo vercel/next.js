@@ -9,10 +9,16 @@ const mux = new Mux();
 const checkAssetStatus = async (assetId: string): Promise<Status> => {
   const asset = await mux.video.assets.retrieve(assetId);
 
+  // if the asset is ready and it has a public playback ID,
+  // (which it should, considering the upload settings we used)
+  // redirect to its playback page
   if (asset.status === "ready") {
-    const playbackId = asset.playback_ids?.[0]?.id;
-    if (playbackId) {
-      redirect(`/v/${playbackId}`);
+    const playbackIds = asset.playback_ids;
+    if (Array.isArray(playbackIds)) {
+      const playbackId = playbackIds.find((id) => id.policy === "public");
+      if (playbackId) {
+        redirect(`/v/${playbackId.id}`);
+      }
     }
   }
 
@@ -22,7 +28,11 @@ const checkAssetStatus = async (assetId: string): Promise<Status> => {
   };
 };
 
+// For better performance, we could cache and use a Mux webhook to invalidate the cache.
+// https://docs.mux.com/guides/listen-for-webhooks
+// For this example, calling the Mux API on each request and then polling is sufficient.
 export const dynamic = "force-dynamic";
+
 export default async function Page({
   params: { assetId },
 }: {
