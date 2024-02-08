@@ -117,8 +117,6 @@ describe('matchRemotePattern', () => {
     expect(m(p, new URL('https://avatars.example.com'))).toBe(false)
     expect(m(p, new URL('https://avatars.sfo1.example.com'))).toBe(true)
     expect(m(p, new URL('https://avatars.iad1.example.com'))).toBe(true)
-    /** @todo fix the check so the test works */
-    // expect(m(p, new URL('https://avatars.iad1.iad2.example.com'))).toBe(false)
     expect(m(p, new URL('https://more.avatars.iad1.example.com'))).toBe(false)
   })
 

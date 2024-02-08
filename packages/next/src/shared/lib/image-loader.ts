@@ -42,7 +42,6 @@ function defaultLoader({
 
       if (
         process.env.NODE_ENV !== 'test' &&
-        /** @todo check how picomatch works and either update it or correct the comments (micromatch -> picomatch) */
         // micromatch isn't compatible with edge runtime
         process.env.NEXT_RUNTIME !== 'edge'
       ) {

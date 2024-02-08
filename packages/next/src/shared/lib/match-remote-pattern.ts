@@ -19,10 +19,6 @@ export function matchRemotePattern(pattern: RemotePattern, url: URL): boolean {
       `Pattern should define hostname but found\n${JSON.stringify(pattern)}`
     )
   } else {
-    /**
-     * @todo add support for matching only in one part of the hostname using "*"
-     * avatars.*.example.com - should only be valid for https://avatars.iad1.example.com, not https://avatars.iad1.iad2.example.com (as it is now)
-     */
     if (!makeRe(pattern.hostname).test(url.hostname)) {
       return false
     }
