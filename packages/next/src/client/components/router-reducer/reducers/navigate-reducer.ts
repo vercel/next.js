@@ -17,14 +17,9 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { PrefetchKind } from '../router-reducer-types'
+import { PrefetchKind, PrefetchCacheEntryStatus } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import {
-  PrefetchCacheEntryStatus,
-  getPrefetchEntryCacheStatus,
-} from '../get-prefetch-cache-entry-status'
-import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
@@ -32,7 +27,11 @@ import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
-import { createPrefetchCacheKey } from './create-prefetch-cache-key'
+import {
+  createPrefetchCacheKey,
+  prunePrefetchCache,
+  getPrefetchEntryCacheStatus,
+} from '../prefetch-cache-utils'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -166,7 +165,7 @@ function navigateReducer_noPPR(
   prefetchQueue.bump(data!)
 
   return data!.then(
-    ([flightData, canonicalUrlOverride, postponed]) => {
+    ([flightData, canonicalUrlOverride]) => {
       // we only want to mark this once
       if (prefetchValues && !prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
@@ -226,11 +225,8 @@ function navigateReducer_noPPR(
           )
 
           if (
-            (!applied &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale) ||
-            // TODO-APP: If the prefetch was postponed, we don't want to apply it
-            // until we land router changes to handle the postponed case.
-            postponed
+            !applied &&
+            prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
           ) {
             applied = addRefetchToLeafSegments(
               cache,
