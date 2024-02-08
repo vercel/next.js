@@ -31,6 +31,10 @@ yarn create next-app --example with-mux-video with-mux-video-app
 pnpm create next-app --example with-mux-video with-mux-video-app
 ```
 
+```bash
+bunx create-next-app --example with-mux-video with-mux-video-app
+```
+
 ### Step 2. Create an account in Mux
 
 All you need to run this example is a [Mux account](https://www.mux.com?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app). You can sign up for free. There are no upfront charges -- you get billed monthly only for what you use.
