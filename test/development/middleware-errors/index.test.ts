@@ -250,6 +250,8 @@ createNextDescribe(
         await next.fetch('/')
         await check(async () => {
           expect(next.cliOutput).toContain(`Expected '{', got '}'`)
+          // [NOTE] [Flaky] expect at least 2 occurrences of the error message,
+          // on CI sometimes have more message appended somehow
           expect(
             next.cliOutput.split(`Expected '{', got '}'`).length
           ).toBeGreaterThanOrEqual(2)
