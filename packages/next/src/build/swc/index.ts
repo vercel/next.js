@@ -14,11 +14,6 @@ import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
 
-// Increase Rust stack size as some npm packages being compiled need more than the default.
-if (!process.env.RUST_MIN_STACK) {
-  process.env.RUST_MIN_STACK = '4194304'
-}
-
 const nextVersion = process.env.__NEXT_VERSION as string
 
 const ArchName = arch()
@@ -181,6 +176,11 @@ export interface Binding {
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  // Increase Rust stack size as some npm packages being compiled need more than the default.
+  if (!process.env.RUST_MIN_STACK) {
+    process.env.RUST_MIN_STACK = '8000000'
+  }
+
   if (pendingBindings) {
     return pendingBindings
   }
