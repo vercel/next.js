@@ -32,7 +32,6 @@ impl CjsFinder {
                 if &*i.id.sym == "exports" {
                     self.ignore_exports = true;
                 }
-            } else {
             }
         })
     }
