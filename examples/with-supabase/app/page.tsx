@@ -4,16 +4,13 @@ import { createClient } from "@/utils/supabase/server";
 import ConnectSupabaseSteps from "@/components/ConnectSupabaseSteps";
 import SignUpUserSteps from "@/components/SignUpUserSteps";
 import Header from "@/components/Header";
-import { cookies } from "next/headers";
 
 export default async function Index() {
-  const cookieStore = cookies();
-
   const canInitSupabaseClient = () => {
     // This function is just for the interactive tutorial.
     // Feel free to remove it once you have Supabase connected.
     try {
-      createClient(cookieStore);
+      createClient();
       return true;
     } catch (e) {
       return false;
