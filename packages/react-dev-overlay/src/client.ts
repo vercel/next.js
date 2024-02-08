@@ -39,9 +39,9 @@ function onUnhandledError(ev: ErrorEvent) {
         )
       : undefined
 
-  // Skip ModuleBuildError, as it will be sent through onBuildError callback.
+  // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
   // This is to avoid same error as different type showing up on client to cause flashing.
-  if (e.name !== 'ModuleBuildError') {
+  if (e.name !== 'ModuleBuildError' && e.name !== 'ModuleNotFoundError') {
     Bus.emit({
       type: Bus.TYPE_UNHANDLED_ERROR,
       reason: error,
