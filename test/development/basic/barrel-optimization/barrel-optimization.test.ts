@@ -13,21 +13,20 @@ import { hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
         },
         files: join(__dirname, 'fixture'),
         packageJson: {
-          packageManager: 'npm@10.4.0',
           scripts: {
-            setup: `cp -r ./node_modules_bak/* ./node_modules`,
-            build: `npm run setup && next build`,
-            dev: `npm run setup && next ${
+            copy: `cp -r ./node_modules_bak/* ./node_modules`,
+            build: `pnpm copy && next build`,
+            dev: `pnpm copy && next ${
               shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
             }`,
             start: 'next start',
           },
         },
-        installCommand: 'npm i',
+        installCommand: 'pnpm i',
         startCommand: (global as any).isNextDev
-          ? 'npm run dev'
-          : 'npm run start',
-        buildCommand: 'npm run build',
+          ? 'pnpm run dev'
+          : 'pnpm run start',
+        buildCommand: 'pnpm run build',
         dependencies: {
           'lucide-react': '0.264.0',
           '@headlessui/react': '1.7.17',

@@ -46,15 +46,14 @@ describe('required server files i18n', () => {
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
       },
       packageJson: {
-        packageManager: 'npm@10.4.0',
         scripts: {
           build: wasmPkgIsAvailable
             ? 'rm -rfv node_modules/@next/swc && next build'
             : 'next build',
         },
       },
-      installCommand: 'npm i',
-      buildCommand: 'npm run build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],

@@ -39,14 +39,13 @@ describe('next/jest', () => {
         '@testing-library/jest-dom': '5.16.4',
       },
       packageJson: {
-        packageManager: 'npm@10.4.0',
         scripts: {
           // Runs jest and bails if jest fails
           build: 'jest --forceExit tests/index.test.tsx && next build',
         },
       },
-      installCommand: 'npm i',
-      buildCommand: `npm run build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

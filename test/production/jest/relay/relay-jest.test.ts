@@ -60,14 +60,13 @@ describe('next/jest', () => {
         typescript: '5.2.2',
       },
       packageJson: {
-        packageManager: 'npm@10.4.0',
         scripts: {
           // Runs jest and bails if jest fails
           build: 'jest --forceExit tests/entry.test.tsx && next build',
         },
       },
-      installCommand: 'npm i',
-      buildCommand: `npm run build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

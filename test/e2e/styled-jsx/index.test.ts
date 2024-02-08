@@ -20,21 +20,19 @@ function runTest() {
           '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
-          packageManager: 'npm@10.4.0',
           scripts: {
-            setup: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
-            build: `npm run setup && next build`,
-            dev: `npm run setup && next ${devCommand}`,
+            copy: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
+            build: `pnpm copy && next build`,
+            dev: `pnpm copy && next ${devCommand}`,
             start: 'next start',
           },
         },
         dependencies: {
           'styled-jsx': '5.0.0', // styled-jsx on user side
         },
-        installCommand: 'npm i',
-        startCommand:
-          'npm run ' + ((global as any).isNextDev ? 'dev' : 'start'),
-        buildCommand: `npm run build`,
+        installCommand: 'pnpm i',
+        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+        buildCommand: `pnpm build`,
       })
     })
     afterAll(() => next.destroy())

@@ -16,18 +16,18 @@ createNextDescribe(
   {
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
     packageJson: {
-      packageManager: 'npm@10.4.0',
       scripts: {
-        setup: 'cp -r ./node_modules_bak/* ./node_modules',
-        build: 'npm run setup && next build',
-        dev: `npm run setup && next ${
+        copy: 'cp -r ./node_modules_bak/* ./node_modules',
+        build: 'pnpm copy && next build',
+        dev: `pnpm copy && next ${
           shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
         }`,
         start: 'next start',
       },
     },
-    installCommand: 'npm i',
-    startCommand: (global as any).isNextDev ? 'npm run dev' : 'npm run start',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
   },
   ({ next }) => {
     it('should show runtime errors if invalid client API from node_modules is executed', async () => {

@@ -12,13 +12,12 @@ describe('ES Check .next output', () => {
       },
       dependencies: { 'es-check': '7.0.1' },
       packageJson: {
-        packageManager: 'npm@10.4.0',
         scripts: {
           build: 'next build && es-check es2020 .next/static/**/*.js',
         },
       },
-      installCommand: 'npm i',
-      buildCommand: 'npm run build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
     })
     expect(next.cliOutput).toContain(
       'info: ES-Check: there were no ES version matching errors!  🎉'

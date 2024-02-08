@@ -23,19 +23,18 @@ createNextDescribe(
       swr: 'latest',
     },
     packageJson: {
-      packageManager: 'npm@10.4.0',
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'npm run setup && next build',
-        dev: `npm run setup && next ${
+        copy: `cp -r ./node_modules_bak/* ./node_modules`,
+        build: 'pnpm copy && next build',
+        dev: `pnpm copy && next ${
           shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
         }`,
         start: 'next start',
       },
     },
-    installCommand: 'npm i',
-    startCommand: (global as any).isNextDev ? 'npm run dev' : 'npm run start',
-    buildCommand: 'npm run build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {

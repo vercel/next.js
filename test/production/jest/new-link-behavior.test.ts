@@ -40,14 +40,13 @@ describe('next/jest newLinkBehavior', () => {
         '@testing-library/react': '12.1.2',
       },
       packageJson: {
-        packageManager: 'npm@10.4.0',
         scripts: {
           build: 'next build && jest --forceExit test/index.test.jsx',
         },
       },
-      installCommand: 'npm i',
+      installCommand: 'pnpm i',
       skipStart: true,
-      buildCommand: `npm run build`,
+      buildCommand: `pnpm build`,
     })
   })
 
