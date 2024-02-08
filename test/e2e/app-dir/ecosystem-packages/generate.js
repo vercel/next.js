@@ -22,7 +22,7 @@ function createTestCode(packageName, normalizedPackageName) {
     .replaceAll('PACKAGE_NAME', packageName)
 }
 
-function writeIndividualFiles(packageList, type) {
+function writeIndividualFiles(packageList) {
   for (const packageName of packageList) {
     const normalizedPackageName = normalizePackageName(packageName)
 
