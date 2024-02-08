@@ -157,6 +157,11 @@ export interface RenderOptsPartial {
     swrDelta: SwrDelta | undefined
   }
   postponed?: string
+  /**
+   * When true, only the skeleton of the PPR page will be rendered. This will
+   * also enable other debugging features such as logging.
+   */
+  isDebugPPRSkeleton?: boolean
   isStaticGeneration?: boolean
 }
 

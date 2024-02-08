@@ -2147,7 +2147,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     // allow debugging the skeleton in dev with PPR
     // instead of continuing to resume stream right away
-    const debugPPRSkeleton = Boolean(
+    const isDebugPPRSkeleton = Boolean(
       this.nextConfig.experimental.ppr &&
         (this.renderOpts.dev || this.experimentalTestProxy) &&
         query.__nextppronly
@@ -2227,12 +2227,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         postponed,
       }
 
-      if (debugPPRSkeleton) {
+      if (isDebugPPRSkeleton) {
         supportsDynamicHTML = false
         renderOpts.nextExport = true
         renderOpts.supportsDynamicHTML = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
+        renderOpts.isDebugPPRSkeleton = true
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -2893,12 +2894,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         }
       }
 
-      if (debugPPRSkeleton) {
-        return {
-          type: 'html',
-          body,
-          revalidate: 0,
-        }
+      // If we're debugging the skeleton, we should just serve the HTML without
+      // resuming the render. The returned HTML will be the static shell.
+      if (isDebugPPRSkeleton) {
+        return { type: 'html', body, revalidate: 0 }
       }
 
       // This request has postponed, so let's create a new transformer that the
