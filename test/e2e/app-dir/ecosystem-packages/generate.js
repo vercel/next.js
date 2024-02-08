@@ -58,6 +58,7 @@ console.log(${normalizedPackageName})
 export default function Page() {
     return <h1>Hello World</h1>
 }
+
 `
     )
 
@@ -72,6 +73,7 @@ console.log(${normalizedPackageName})
 export default function Page() {
     return <h1>Hello World</h1>
 }
+
 `
     )
   }
