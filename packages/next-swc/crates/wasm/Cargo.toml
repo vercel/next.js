@@ -30,8 +30,8 @@ turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_wasm",
   "__feature_mdx_rs",
 ] }
-swc_core = { workspace = true, features = ["ecma_ast_serde", "common"] }
-
+swc_core = { workspace = true, features = ["ecma_ast_serde", "common", "ecma_visit_path"] }
+regex = "1.5"
 
 # Workaround a bug
 [package.metadata.wasm-pack.profile.release]

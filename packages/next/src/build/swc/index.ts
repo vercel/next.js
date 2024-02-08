@@ -2,9 +2,9 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
 import { arch, platform } from 'os'
+import { promises as fs } from 'fs'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
-import { getParserOptions } from './options'
 import { eventSwcLoadFailure } from '../../telemetry/events/swc-load-failure'
 import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
@@ -15,6 +15,7 @@ import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
 
 const nextVersion = process.env.__NEXT_VERSION as string
+const isYarnPnP = !!process?.versions?.pnp
 
 const ArchName = arch()
 const PlatformName = platform()
@@ -108,6 +109,19 @@ function checkVersionMismatch(pkgData: any) {
   }
 }
 
+async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+  try {
+    return await fs.readFile(filePath, {
+      encoding: 'utf8',
+    })
+  } catch (error: any) {
+    if (shouldThrow) {
+      error.message = `Next.js ERROR: Failed to read file ${filePath}:\n${error.message}`
+      throw error
+    }
+  }
+}
+
 // These are the platforms we'll try to load wasm bindings first,
 // only try to load native bindings if loading wasm binding somehow fails.
 // Fallback to native binding is for migration period only,
@@ -160,12 +174,13 @@ export interface Binding {
       turboEngineOptions?: TurboEngineOptions
     ) => Promise<Project>
   }
+  analysis: {
+    isDynamicMetadataRoute(pageFilePath: string): Promise<boolean>
+  }
   minify: any
   minifySync: any
   transform: any
   transformSync: any
-  parse: any
-  parseSync: any
 
   getTargetTriple(): string | undefined
 
@@ -1179,6 +1194,26 @@ function bindingToApi(binding: any, _wasm: boolean) {
   return createProject
 }
 
+const warnedInvalidValueMap = {
+  runtime: new Map<string, boolean>(),
+  preferredRegion: new Map<string, boolean>(),
+} as const
+function warnInvalidValue(
+  pageFilePath: string,
+  key: keyof typeof warnedInvalidValueMap,
+  message: string
+): void {
+  if (warnedInvalidValueMap[key].has(pageFilePath)) return
+
+  Log.warn(
+    `Next.js can't recognize the exported \`${key}\` field in "${pageFilePath}" as ${message}.` +
+      '\n' +
+      'The default runtime will be used instead.'
+  )
+
+  warnedInvalidValueMap[key].set(pageFilePath, true)
+}
+
 async function loadWasm(importPath = '') {
   if (wasmBindings) {
     return wasmBindings
@@ -1220,13 +1255,33 @@ async function loadWasm(importPath = '') {
         minifySync(src: string, options: any) {
           return bindings.minifySync(src.toString(), options)
         },
-        parse(src: string, options: any) {
-          return bindings?.parse
-            ? bindings.parse(src.toString(), options)
-            : Promise.resolve(bindings.parseSync(src.toString(), options))
-        },
-        parseSync(src: string, options: any) {
-          return bindings.parseSync(src.toString(), options)
+        analysis: {
+          isDynamicMetadataRoute: async (pageFilePath: string) => {
+            const fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+            const { isDynamicMetadataRoute, warnings } =
+              await bindings.isDynamicMetadataRoute(pageFilePath, fileContent)
+
+            warnings?.forEach(
+              ({
+                key,
+                message,
+              }: {
+                key: keyof typeof warnedInvalidValueMap
+                message: string
+              }) => warnInvalidValue(pageFilePath, key, message)
+            )
+            return isDynamicMetadataRoute
+          },
+          getPageStaticInfo: async (params: Record<string, any>) => {
+            const fileContent =
+              (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
+
+            const raw = await bindings.getPageStaticInfo(
+              params.pageFilePath,
+              fileContent
+            )
+            return coercePageStaticInfo(params.pageFilePath, raw)
+          },
         },
         getTargetTriple() {
           return undefined
@@ -1391,8 +1446,40 @@ function loadNative(importPath?: string) {
         return bindings.minifySync(toBuffer(src), toBuffer(options ?? {}))
       },
 
-      parse(src: string, options: any) {
-        return bindings.parse(src, toBuffer(options ?? {}))
+      analysis: {
+        isDynamicMetadataRoute: async (pageFilePath: string) => {
+          let fileContent: string | undefined = undefined
+          if (isYarnPnP) {
+            fileContent = (await tryToReadFile(pageFilePath, true)) || ''
+          }
+
+          const { isDynamicMetadataRoute, warnings } =
+            await bindings.isDynamicMetadataRoute(pageFilePath, fileContent)
+
+          // Instead of passing js callback into napi's context, bindings bubble up the warning messages
+          // and let next.js logger handles it.
+          warnings?.forEach(
+            ({
+              key,
+              message,
+            }: {
+              key: keyof typeof warnedInvalidValueMap
+              message: string
+            }) => warnInvalidValue(pageFilePath, key, message)
+          )
+          return isDynamicMetadataRoute
+        },
+
+        getPageStaticInfo: async (params: Record<string, any>) => {
+          let fileContent: string | undefined = undefined
+          if (isYarnPnP) {
+            fileContent =
+              (await tryToReadFile(params.pageFilePath, !params.isDev)) || ''
+          }
+
+          const raw = await bindings.getPageStaticInfo(params, fileContent)
+          return coercePageStaticInfo(params.pageFilePath, raw)
+        },
       },
 
       getTargetTriple: bindings.getTargetTriple,
@@ -1481,6 +1568,31 @@ function toBuffer(t: any) {
   return Buffer.from(JSON.stringify(t))
 }
 
+function coercePageStaticInfo(pageFilePath: string, raw?: string) {
+  if (!raw) return raw
+
+  const parsed = JSON.parse(raw)
+
+  parsed?.exportsInfo?.warnings?.forEach(
+    ({
+      key,
+      message,
+    }: {
+      key: keyof typeof warnedInvalidValueMap
+      message: string
+    }) => warnInvalidValue(pageFilePath, key, message)
+  )
+
+  return {
+    ...parsed,
+    exportsInfo: {
+      ...parsed.exportsInfo,
+      directives: new Set(parsed?.exportsInfo?.directives ?? []),
+      extraProperties: new Set(parsed?.exportsInfo?.extraProperties ?? []),
+    },
+  }
+}
+
 export async function isWasm(): Promise<boolean> {
   let bindings = await loadBindings()
   return bindings.isWasm
@@ -1504,14 +1616,6 @@ export async function minify(src: string, options: any): Promise<string> {
 export function minifySync(src: string, options: any): string {
   let bindings = loadBindingsSync()
   return bindings.minifySync(src, options)
-}
-
-export async function parse(src: string, options: any): Promise<any> {
-  let bindings = await loadBindings()
-  let parserOptions = getParserOptions(options)
-  return bindings
-    .parse(src, parserOptions)
-    .then((astStr: any) => JSON.parse(astStr))
 }
 
 export function getBinaryMetadata() {
