@@ -48,8 +48,22 @@ function writeIndividualFiles(packageList, type) {
     )
 
     writeFile(
-      join(appPath, 'list', normalizedPackageName, 'page.js'),
-      `${type === 'client' ? "'use client'" : ''}
+      join(appPath, 'server-components', normalizedPackageName, 'page.js'),
+      `
+import * as ${normalizedPackageName} from '${
+        entrypointMapping[packageName] || packageName
+      }'
+console.log(${normalizedPackageName})
+
+export default function Page() {
+    return <h1>Hello World</h1>
+}
+`
+    )
+
+    writeFile(
+      join(appPath, 'client-components', normalizedPackageName, 'page.js'),
+      `"use client"
 import * as ${normalizedPackageName} from '${
         entrypointMapping[packageName] || packageName
       }'
@@ -111,5 +125,5 @@ function writePackageJson(packageList) {
   )
 }
 
-writeIndividualFiles(packageList, 'client')
+writeIndividualFiles(packageList)
 writePackageJson(packageList)
