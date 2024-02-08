@@ -101,14 +101,15 @@ const packageList = [
   '@radix-ui/react-slot',
   'html-react-parser',
   'jwt-decode',
-  // '@emotion/server', / Fails to resolve `@emotion/css`
+  '@emotion/server',
+  '@emotion/css',
   'antd',
   // '@tanstack/react-query-devtools', // Crashes the process
   '@stripe/react-stripe-js',
   'react-hot-toast',
   'react-chartjs-2',
   'redux-saga',
-  // 'firebase', // Can't resolve somehow
+  'firebase',
   'remark-gfm',
   '@emotion/cache',
   'file-saver',
@@ -181,14 +182,14 @@ const packageList = [
   '@radix-ui/react-toast',
   '@mantine/hooks',
   'react-bootstrap',
-  // '@trpc/client', // Crashes the process
+  '@trpc/client',
   'encoding',
   '@tabler/icons-react',
   'react-copy-to-clipboard',
   'notistack',
   'graphql-request',
   'moment-timezone',
-  // 'date-fns-tz', // Fails to resolve date-fns
+  // 'date-fns-tz', // Fails to resolve date-fns because it needs major version 2 as a peerDependency
   'gray-matter',
   'next-translate',
   '@radix-ui/react-icons',
@@ -257,7 +258,7 @@ const packageList = [
   'react-popper',
   'react-countup',
   'marked',
-  // 'isomorphic-unfetch', // Fails to resolve `unfetch`
+  // 'isomorphic-unfetch', // `unfetch` has an invalid `exports` field
   'universal-cookie',
   'react-window',
   'react-cookie-consent',
@@ -312,7 +313,12 @@ const packageList = [
   'react-calendar',
 ]
 
+const entrypointMapping = {
+  firebase: 'firebase/app',
+}
+
 module.exports = {
   packageList,
   serverPackageList,
+  entrypointMapping,
 }

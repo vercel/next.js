@@ -1,6 +1,6 @@
 const fs = require('fs')
 const { join, dirname } = require('path')
-const { packageList } = require('./package-list')
+const { packageList, entrypointMapping } = require('./package-list')
 const {
   // divideArrayInChunks,
   normalizePackageName,
@@ -18,14 +18,15 @@ function writeIndividualFiles(packageList, type) {
 
     writeFile(
       join(__dirname, 'app', 'list', normalizedPackageName, 'page.js'),
-      `
-      ${type === 'client' ? '"use client";' : ''}
-    import * as ${normalizedPackageName} from '${packageName}'
-    console.log(${normalizedPackageName})
+      `${type === 'client' ? "'use client'" : ''}
+import * as ${normalizedPackageName} from '${
+        entrypointMapping[packageName] || packageName
+      }'
+console.log(${normalizedPackageName})
 
-    export default function Page() {
-        return <h1>Hello World</h1>
-    }
+export default function Page() {
+    return <h1>Hello World</h1>
+}
 `
     )
   }
