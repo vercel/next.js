@@ -8,7 +8,7 @@ type Params = {
 };
 
 const title = "View this video created with Mux + Next.js";
-export const generateMetadata = ({ params }) => ({
+export const generateMetadata = ({ params }: { params: Params }) => ({
   title,
   description: undefined,
   openGraph: {
