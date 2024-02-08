@@ -1,4 +1,5 @@
+// This file should not import helpers using ESM syntax
+const E = class Foo {
 
-
-const E=foo();
+};
 exports.Component=E
