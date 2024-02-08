@@ -315,6 +315,7 @@ const packageList = [
 
 const entrypointMapping = {
   firebase: 'firebase/app',
+  'next-translate': 'next-translate/useTranslation',
 }
 
 module.exports = {
