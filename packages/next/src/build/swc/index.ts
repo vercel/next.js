@@ -178,7 +178,7 @@ export async function loadBindings(
 ): Promise<Binding> {
   // Increase Rust stack size as some npm packages being compiled need more than the default.
   if (!process.env.RUST_MIN_STACK) {
-    process.env.RUST_MIN_STACK = '8000000'
+    process.env.RUST_MIN_STACK = '8388608'
   }
 
   if (pendingBindings) {
