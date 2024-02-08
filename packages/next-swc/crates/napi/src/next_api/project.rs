@@ -845,18 +845,15 @@ pub async fn project_trace_source(
             let mut map_result = project
                 .container
                 .get_source_map(server_path, module.clone())
-                .await?;
-            if map_result.is_none() {
+                .await;
+            if map_result.is_err() {
                 // If the chunk doesn't exist as a server chunk, try a client chunk.
                 // TODO: Properly tag all server chunks and use the `isServer` query param.
                 // Currently, this is inaccurate as it does not cover RSC server
                 // chunks.
-                map_result = project
-                    .container
-                    .get_source_map(client_path, module)
-                    .await?;
+                map_result = project.container.get_source_map(client_path, module).await;
             }
-            let map = map_result.context("chunk/module is missing a sourcemap")?;
+            let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);
