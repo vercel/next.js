@@ -67,11 +67,13 @@ vercel secrets add next_example_mux_token_secret <MUX_TOKEN_SECRET>
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 
-## Note
+## Notes
+
+### Preparing for Production
 
 **Important:** When creating uploads, this demo sets `cors_origin: "*"` in the [`app/(upload)/page.tsx`](<app/(upload)/page.tsx>) file. For extra security, you should update this value to be something like `cors_origin: 'https://your-app.com'`, to restrict uploads to only be allowed from your application.
 
-## How it works
+### How it works
 
 1. Users land on the home page, `app/(upload)/page.tsx`. The Mux [Direct Uploads API](https://docs.mux.com/api-reference#video/tag/direct-uploads?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app) provides an endpoint to [Mux Uploader React](https://docs.mux.com/guides/mux-uploader?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app).
 1. The user uploads a video with Mux Uploader. When their upload is complete, Mux Uploader calls a [server action](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations) that redirects to...
