@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  popular-issues:
+  popular-prs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
