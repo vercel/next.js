@@ -16,6 +16,7 @@ app.render(
     title: "Consolidate.js",
   },
   function (err, rendered) {
+    if (err) throw err;
     assert.ok(rendered === undefined);
   }
 );

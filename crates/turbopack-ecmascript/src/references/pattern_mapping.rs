@@ -125,6 +125,7 @@ impl PatternMapping {
         resolve_type: Value<ResolveType>,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
+        // TODO Handle multiple results -> PatternMapping::Map
         let module = match result.primary.first() {
             None => {
                 return Ok(PatternMapping::Unresolveable(
@@ -132,11 +133,11 @@ impl PatternMapping {
                 )
                 .cell())
             }
-            Some(ModuleResolveResultItem::Module(module)) => *module,
-            Some(ModuleResolveResultItem::OriginalReferenceTypeExternal(s)) => {
+            Some((_, ModuleResolveResultItem::Module(module))) => *module,
+            Some((_, ModuleResolveResultItem::OriginalReferenceTypeExternal(s))) => {
                 return Ok(PatternMapping::OriginalReferenceTypeExternal(s.clone()).cell())
             }
-            Some(ModuleResolveResultItem::Ignore) => return Ok(PatternMapping::Ignored.cell()),
+            Some((_, ModuleResolveResultItem::Ignore)) => return Ok(PatternMapping::Ignored.cell()),
             _ => {
                 // TODO implement mapping
                 CodeGenerationIssue {

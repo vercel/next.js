@@ -334,6 +334,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           n: exportNamespace.bind(null, module),
           m: module,
           c: moduleCache,
+          M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),

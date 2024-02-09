@@ -249,7 +249,7 @@ async fn input_to_modules(
     let root = fs.root();
     let process_cwd = process_cwd
         .clone()
-        .map(|p| p.trim_start_matches(&context_directory).to_owned());
+        .map(|p| format!("/ROOT{}", p.trim_start_matches(&context_directory)));
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(create_module_asset(
         root,

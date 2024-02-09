@@ -183,6 +183,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
       n: exportNamespace.bind(null, module),
       m: module,
       c: moduleCache,
+      M: moduleFactories,
       l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
       w: loadWebAssembly,
       u: loadWebAssemblyModule,

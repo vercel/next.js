@@ -1,6 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use anyhow::Result;
+use indexmap::IndexSet;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     TryJoinIterExt, ValueToString, Vc,
@@ -11,7 +12,7 @@ use crate::{
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
-    resolve::ModuleResolveResult,
+    resolve::{ModuleResolveResult, RequestKey},
 };
 pub mod source_map;
 
@@ -108,7 +109,7 @@ impl SingleOutputAssetReference {
 impl ModuleReference for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::output_asset(self.asset).cell()
+        ModuleResolveResult::output_asset(RequestKey::default(), self.asset).cell()
     }
 }
 
@@ -146,7 +147,7 @@ pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
     let references_set = module.references().await?;
-    let mut modules = Vec::new();
+    let mut modules = IndexSet::new();
     let resolve_results = references_set
         .iter()
         .map(|r| r.resolve_reference())
@@ -160,7 +161,11 @@ pub async fn referenced_modules_and_affecting_sources(
                 .map(|source| Vc::upcast(RawModule::new(source))),
         );
     }
-    Ok(Vc::cell(modules))
+    let mut resolved_modules = IndexSet::new();
+    for module in modules {
+        resolved_modules.insert(module.resolve().await?);
+    }
+    Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
 
 /// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]

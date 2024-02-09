@@ -10,7 +10,7 @@ use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, LinkContent, LinkType,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(PartialOrd, Ord, Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(String),
@@ -317,6 +317,40 @@ impl Pattern {
         }
     }
 
+    pub fn split_could_match(&self, value: &str) -> (Option<Pattern>, Option<Pattern>) {
+        if let Pattern::Alternatives(list) = self {
+            let mut could_match_list = Vec::new();
+            let mut could_not_match_list = Vec::new();
+            for alt in list.iter() {
+                if alt.could_match(value) {
+                    could_match_list.push(alt.clone());
+                } else {
+                    could_not_match_list.push(alt.clone());
+                }
+            }
+            (
+                if could_match_list.is_empty() {
+                    None
+                } else if could_match_list.len() == 1 {
+                    Some(could_match_list.into_iter().next().unwrap())
+                } else {
+                    Some(Pattern::Alternatives(could_match_list))
+                },
+                if could_not_match_list.is_empty() {
+                    None
+                } else if could_not_match_list.len() == 1 {
+                    Some(could_not_match_list.into_iter().next().unwrap())
+                } else {
+                    Some(Pattern::Alternatives(could_not_match_list))
+                },
+            )
+        } else if self.could_match(value) {
+            (Some(self.clone()), None)
+        } else {
+            (None, Some(self.clone()))
+        }
+    }
+
     pub fn is_match(&self, value: &str) -> bool {
         if let Pattern::Alternatives(list) = self {
             list.iter()
@@ -357,6 +391,7 @@ impl Pattern {
         }
     }
 
+    /// Returns true the pattern could match something that starts with `value`.
     pub fn could_match(&self, value: &str) -> bool {
         if let Pattern::Alternatives(list) = self {
             list.iter()
@@ -414,7 +449,7 @@ impl Pattern {
             Pattern::Dynamic => {
                 lazy_static! {
                     static ref FORBIDDEN: Regex =
-                        Regex::new(r"(/|^)(\.|/|(node_modules|__tests?__)(/|$))").unwrap();
+                        Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap();
                     static ref FORBIDDEN_MATCH: Regex = Regex::new(r"\.d\.ts$|\.map$").unwrap();
                 };
                 if let Some(m) = FORBIDDEN.find(value) {
@@ -434,7 +469,7 @@ impl Pattern {
                 }
             }
             Pattern::Alternatives(_) => {
-                panic!("for matching a Pattern must be normalized")
+                panic!("for matching a Pattern must be normalized {:?}", self)
             }
             Pattern::Concatenation(list) => {
                 for part in list {
@@ -565,6 +600,14 @@ impl Pattern {
             }
         }
     }
+
+    pub fn or_any_nested_file(&self) -> Self {
+        let mut new = self.clone();
+        new.push(Pattern::Constant("/".to_string()));
+        new.push(Pattern::Dynamic);
+        new.normalize();
+        Pattern::alternatives([self.clone(), new])
+    }
 }
 
 impl Pattern {
@@ -583,15 +626,22 @@ impl Pattern {
 
 #[derive(PartialEq)]
 enum MatchResult<'a> {
+    /// No match
     None,
+    /// Matches only a part of the pattern before reaching the end of the string
     Partial,
+    /// Matches the whole pattern (but maybe not the whole string)
     Consumed {
+        /// Part of the string remaining after matching the whole pattern
         remaining: &'a str,
+        /// Set when the pattern ends with a dynamic part. The dynamic part
+        /// could match n bytes more of the string.
         any_offset: Option<usize>,
     },
 }
 
 impl<'a> MatchResult<'a> {
+    /// Returns true if the whole pattern matches the whole string
     fn is_match(&self) -> bool {
         match self {
             MatchResult::None => false,
@@ -608,6 +658,9 @@ impl<'a> MatchResult<'a> {
             }
         }
     }
+
+    /// Returns true if (at least a part of) the pattern matches the whole
+    /// string and can also match more bytes in the string
     fn could_match_others(&self) -> bool {
         match self {
             MatchResult::None => false,
@@ -624,6 +677,9 @@ impl<'a> MatchResult<'a> {
             }
         }
     }
+
+    /// Returns true if (at least a part of) the pattern matches the whole
+    /// string
     fn could_match(&self) -> bool {
         match self {
             MatchResult::None => false,
@@ -702,7 +758,7 @@ pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
 /// specified `lookup_dir` directory. `prefix` is the already matched part of
-/// the pattern that leads to the `lookup_dircontext_dir` directory. When
+/// the pattern that leads to the `lookup_dir` directory. When
 /// `force_in_lookup_dir` is set, leaving the `lookup_dir` directory by
 /// matching `..` is not allowed.
 ///
@@ -1132,12 +1188,12 @@ mod tests {
         assert!(!pat.could_match("./inner/../"));
         assert!(!pat.could_match("./inner/./"));
         assert!(!pat.could_match("./inner/.git/"));
-        assert!(!pat.could_match("/"));
         assert!(!pat.could_match("dir//"));
         assert!(!pat.could_match("dir//dir"));
         assert!(!pat.could_match("dir///dir"));
         assert!(!pat.could_match("/"));
         assert!(!pat.could_match("//"));
+        assert!(!pat.could_match("/ROOT/"));
 
         assert!(!pat.could_match("node_modules"));
         assert!(!pat.could_match("node_modules/package"));
@@ -1154,6 +1210,82 @@ mod tests {
         assert!(!pat.is_match("dir/file.d.ts.map"));
         assert!(!pat.is_match("dir/inner/file.d.ts.map"));
         assert!(pat.could_match("dir/inner/file.d.ts.map"));
+    }
+
+    #[rstest]
+    fn dynamic_match2() {
+        let pat = Pattern::Concatenation(vec![
+            Pattern::Dynamic,
+            Pattern::Constant("/".to_string()),
+            Pattern::Dynamic,
+        ]);
+        assert!(pat.could_match("dir"));
+        assert!(pat.could_match("dir/"));
+        assert!(pat.is_match("dir/index.js"));
+
+        // forbidden:
+        assert!(!pat.could_match("./"));
+        assert!(!pat.is_match("./"));
+        assert!(!pat.could_match("."));
+        assert!(!pat.is_match("."));
+        assert!(!pat.could_match("../"));
+        assert!(!pat.is_match("../"));
+        assert!(!pat.could_match(".."));
+        assert!(!pat.is_match(".."));
+        assert!(!pat.is_match("./../index.js"));
+        assert!(!pat.is_match("././index.js"));
+        assert!(!pat.is_match("./.git/index.js"));
+        assert!(!pat.is_match("./inner/../index.js"));
+        assert!(!pat.is_match("./inner/./index.js"));
+        assert!(!pat.is_match("./inner/.git/index.js"));
+        assert!(!pat.could_match("./../"));
+        assert!(!pat.could_match("././"));
+        assert!(!pat.could_match("./.git/"));
+        assert!(!pat.could_match("./inner/../"));
+        assert!(!pat.could_match("./inner/./"));
+        assert!(!pat.could_match("./inner/.git/"));
+        assert!(!pat.could_match("dir//"));
+        assert!(!pat.could_match("dir//dir"));
+        assert!(!pat.could_match("dir///dir"));
+        assert!(!pat.could_match("/ROOT/"));
+
+        assert!(!pat.could_match("node_modules"));
+        assert!(!pat.could_match("node_modules/package"));
+        assert!(!pat.could_match("nested/node_modules"));
+        assert!(!pat.could_match("nested/node_modules/package"));
+
+        // forbidden match
+        assert!(pat.could_match("dir/file.map"));
+        assert!(!pat.is_match("dir/file.map"));
+        assert!(pat.is_match("file.map/file.js"));
+        assert!(!pat.is_match("dir/file.d.ts"));
+        assert!(!pat.is_match("dir/file.d.ts.map"));
+        assert!(!pat.is_match("dir/file.d.ts.map"));
+        assert!(!pat.is_match("dir/file.d.ts.map"));
+        assert!(!pat.is_match("dir/inner/file.d.ts.map"));
+        assert!(pat.could_match("dir/inner/file.d.ts.map"));
+    }
+
+    #[rstest]
+    #[case::dynamic(Pattern::Dynamic)]
+    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".to_string())]))]
+    #[case::dynamic_concat2(Pattern::Concatenation(vec![
+        Pattern::Dynamic,
+        Pattern::Constant("/".to_string()),
+        Pattern::Dynamic,
+    ]))]
+    #[case::dynamic_alt_concat(Pattern::alternatives(vec![
+        Pattern::Concatenation(vec![
+            Pattern::Dynamic,
+            Pattern::Constant("/".to_string()),
+            Pattern::Dynamic,
+        ]),
+        Pattern::Dynamic,
+    ]))]
+    fn split_could_match(#[case] pat: Pattern) {
+        let (abs, rel) = pat.split_could_match("/ROOT/");
+        assert!(abs.is_none());
+        assert!(rel.is_some());
     }
 
     #[rstest]

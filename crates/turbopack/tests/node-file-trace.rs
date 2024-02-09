@@ -5,7 +5,7 @@ mod helpers;
 #[cfg(feature = "bench_against_node_nft")]
 use std::time::Instant;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     env::temp_dir,
     fmt::Display,
     fs::{
@@ -205,6 +205,7 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     CaseInput::new("integration/package-exports/fail/alt-multiple.js")
         .expected_stderr("Error [ERR_MODULE_NOT_FOUND]: Cannot find module")
 )]
+#[case::read_file("integration/read-file.mjs")]
 #[cfg_attr(
     not(feature = "bench_against_node_nft"),
     //[TODO]: WEB-1188 reenable once fixed.
@@ -443,6 +444,9 @@ fn node_file_trace<B: Backend + 'static>(
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 let output_path = rebased.ident().path();
+
+                print_graph(Vc::upcast(rebased)).await?;
+
                 emit_with_completion(Vc::upcast(rebased), output_dir).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
@@ -729,4 +733,28 @@ impl std::str::FromStr for CaseInput {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(Self::new(s))
     }
+}
+
+async fn print_graph(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
+    let mut visited = HashSet::new();
+    let mut queue = Vec::new();
+    queue.push((0, asset.clone()));
+    while let Some((depth, asset)) = queue.pop() {
+        let references = asset.references().await?;
+        let mut indent = String::new();
+        for _ in 0..depth {
+            indent.push_str("  ");
+        }
+        if visited.insert(asset) {
+            for &asset in references.iter().rev() {
+                queue.push((depth + 1, asset));
+            }
+            println!("{}{}", indent, asset.ident().to_string().await?);
+        } else if references.is_empty() {
+            println!("{}{} *", indent, asset.ident().to_string().await?);
+        } else {
+            println!("{}{} *...", indent, asset.ident().to_string().await?);
+        }
+    }
+    Ok(())
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Write};
+use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
@@ -413,9 +413,11 @@ pub async fn type_resolve(
             options,
         )
     };
-    let result = origin
-        .asset_context()
-        .process_resolve_result(result, ty.clone());
+    let result = as_typings_result(
+        origin
+            .asset_context()
+            .process_resolve_result(result, ty.clone()),
+    );
     handle_resolve_error(
         result,
         ty,
@@ -426,6 +428,19 @@ pub async fn type_resolve(
         None,
     )
     .await
+}
+
+#[turbo_tasks::function]
+pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
+    let mut result = result.await?.clone_value();
+    result.primary = take(&mut result.primary)
+        .into_iter()
+        .map(|(mut k, v)| {
+            k.conditions.insert("types".to_string(), true);
+            (k, v)
+        })
+        .collect();
+    Ok(result.cell())
 }
 
 #[turbo_tasks::function]
