@@ -500,6 +500,7 @@ function instantiateModule(id, source) {
             n: exportNamespace.bind(null, module1),
             m: module1,
             c: moduleCache,
+            M: moduleFactories,
             l: loadChunkAsync.bind(null, {
                 type: 1,
                 parentId: id

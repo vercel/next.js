@@ -88,6 +88,7 @@ impl EcmascriptChunkItemContent {
             "v: __turbopack_export_value__",
             "n: __turbopack_export_namespace__",
             "c: __turbopack_cache__",
+            "M: __turbopack_modules__",
             "l: __turbopack_load__",
             "j: __turbopack_dynamic__",
             "p: __turbopack_resolve_absolute_path__",

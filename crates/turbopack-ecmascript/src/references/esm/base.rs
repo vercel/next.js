@@ -64,7 +64,8 @@ impl ReferencedAsset {
 impl ReferencedAsset {
     #[turbo_tasks::function]
     pub async fn from_resolve_result(resolve_result: Vc<ModuleResolveResult>) -> Result<Vc<Self>> {
-        for result in resolve_result.await?.primary.iter() {
+        // TODO handle multiple keyed results
+        for (_key, result) in resolve_result.await?.primary.iter() {
             match result {
                 ModuleResolveResultItem::OriginalReferenceTypeExternal(request) => {
                     return Ok(

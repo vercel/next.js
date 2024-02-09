@@ -65,6 +65,7 @@ interface TurbopackBaseContext {
   n: ExportNamespace;
   m: Module;
   c: ModuleCache;
+  M: ModuleFactories;
   l: LoadChunk;
   w: LoadWebAssembly;
   u: LoadWebAssemblyModule;
