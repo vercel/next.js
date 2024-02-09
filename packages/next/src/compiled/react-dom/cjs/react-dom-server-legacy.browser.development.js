@@ -17,7 +17,7 @@ if (process.env.NODE_ENV !== "production") {
 var React = require("next/dist/compiled/react");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-canary-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-canary-ba5e6a832-20240208';
 
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
@@ -6823,7 +6823,7 @@ function reenableLogs() {
 
 var ReactCurrentDispatcher$1 = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
+function describeBuiltInComponentFrame(name, ownerFn) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -7088,12 +7088,12 @@ function describeNativeComponentFrame(fn, construct) {
   return syntheticFrame;
 }
 
-function describeClassComponentFrame(ctor, source, ownerFn) {
+function describeClassComponentFrame(ctor, ownerFn) {
   {
     return describeNativeComponentFrame(ctor, true);
   }
 }
-function describeFunctionComponentFrame(fn, source, ownerFn) {
+function describeFunctionComponentFrame(fn, ownerFn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -7104,7 +7104,7 @@ function shouldConstruct$1(Component) {
   return !!(prototype && prototype.isReactComponent);
 }
 
-function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
+function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
 
   if (type == null) {
     return '';
@@ -7135,7 +7135,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
       case REACT_MEMO_TYPE:
         // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
+        return describeUnknownElementTypeFrameInDEV(type.type, ownerFn);
 
       case REACT_LAZY_TYPE:
         {
@@ -7145,7 +7145,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
           try {
             // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
+            return describeUnknownElementTypeFrameInDEV(init(payload), ownerFn);
           } catch (x) {}
         }
     }
@@ -7161,7 +7161,7 @@ function setCurrentlyValidatingElement(element) {
   {
     if (element) {
       var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
       ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
     } else {
       ReactDebugCurrentFrame$1.setExtraStackFrame(null);
@@ -8903,15 +8903,15 @@ function getStackByComponentStackNode(componentStack) {
     do {
       switch (node.tag) {
         case 0:
-          info += describeBuiltInComponentFrame(node.type, null, null);
+          info += describeBuiltInComponentFrame(node.type, null);
           break;
 
         case 1:
-          info += describeFunctionComponentFrame(node.type, null, null);
+          info += describeFunctionComponentFrame(node.type, null);
           break;
 
         case 2:
-          info += describeClassComponentFrame(node.type, null, null);
+          info += describeClassComponentFrame(node.type, null);
           break;
       } // $FlowFixMe[incompatible-type] we bail out when we get a null
 

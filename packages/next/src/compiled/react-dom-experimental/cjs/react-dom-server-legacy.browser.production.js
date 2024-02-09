@@ -30,7 +30,7 @@ function formatProdErrorMessage(code) {
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
 
 // A pure JS implementation of a string hashing function. We do not use it for
 // security or obfuscation purposes, only to create compact hashes. So we
@@ -5139,7 +5139,7 @@ function getComponentNameFromType(type) {
 }
 
 let prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
+function describeBuiltInComponentFrame(name, ownerFn) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -5367,12 +5367,12 @@ function describeNativeComponentFrame(fn, construct) {
   return syntheticFrame;
 }
 
-function describeClassComponentFrame(ctor, source, ownerFn) {
+function describeClassComponentFrame(ctor, ownerFn) {
   {
     return describeNativeComponentFrame(ctor, true);
   }
 }
-function describeFunctionComponentFrame(fn, source, ownerFn) {
+function describeFunctionComponentFrame(fn, ownerFn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -6647,15 +6647,15 @@ function getStackByComponentStackNode(componentStack) {
     do {
       switch (node.tag) {
         case 0:
-          info += describeBuiltInComponentFrame(node.type, null, null);
+          info += describeBuiltInComponentFrame(node.type, null);
           break;
 
         case 1:
-          info += describeFunctionComponentFrame(node.type, null, null);
+          info += describeFunctionComponentFrame(node.type, null);
           break;
 
         case 2:
-          info += describeClassComponentFrame(node.type, null, null);
+          info += describeClassComponentFrame(node.type, null);
           break;
       } // $FlowFixMe[incompatible-type] we bail out when we get a null
 

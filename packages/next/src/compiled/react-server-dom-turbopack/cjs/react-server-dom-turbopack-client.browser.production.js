@@ -626,7 +626,8 @@ const CYCLIC = 'cyclic';
 const RESOLVED_MODEL = 'resolved_model';
 const RESOLVED_MODULE = 'resolved_module';
 const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
+const ERRORED = 'rejected'; // Dev-only
+// $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -930,6 +931,7 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
   return lazyType;
 }
 
@@ -1158,7 +1160,9 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (chunk.status) {
             case INITIALIZED:
-              return chunk.value;
+              const chunkValue = chunk.value;
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1338,6 +1342,14 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+      {
+
+        throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
       }
 
     case 80
