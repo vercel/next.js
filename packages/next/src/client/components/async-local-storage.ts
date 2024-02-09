@@ -1,5 +1,16 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 
+// polyfill for globalThis
+if (typeof window !== "undefined" && window.globalThis === undefined) {
+  document.documentElement
+    .appendChild(
+      Object.assign(document.createElement("script"), {
+        textContent: "window.globalThis = window",
+      }),
+    )
+    .remove();
+}
+
 const sharedAsyncLocalStorageNotAvailableError = new Error(
   'Invariant: AsyncLocalStorage accessed in runtime where it is not available'
 )
