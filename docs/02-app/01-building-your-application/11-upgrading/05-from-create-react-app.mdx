@@ -508,43 +508,10 @@ Alternatively, you can reference the public URL for the image asset based on the
 
 Next.js has support for `.env`
 [environment variables](/docs/app/building-your-application/configuring/environment-variables)
-similar to CRA. The main difference is the prefix used to expose environment variables on the
-client-side.
+similar to CRA.
 
-- Change all environment variables with the `VITE_` prefix to `NEXT_PUBLIC_`.
-
-Vite exposes a few built-in environment variables on the special `import.meta.env` object which
-aren’t supported by Next.js. You need to update their usage as follows:
-
-- `import.meta.env.MODE` ⇒ `process.env.NODE_ENV`
-- `import.meta.env.PROD` ⇒ `process.env.NODE_ENV === 'production'`
-- `import.meta.env.DEV` ⇒ `process.env.NODE_ENV !== 'production'`
-- `import.meta.env.SSR` ⇒ `typeof window !== 'undefined'`
-
-Next.js also doesn't provide a built-in `BASE_URL` environment variable. However, you can still
-configure one, if you need it:
-
-1. **Add the following to your `.env` file:**
-
-```bash filename=".env"
-# ...
-NEXT_PUBLIC_BASE_PATH="/some-base-path"
-```
-
-2. **Set [`basePath`](/docs/app/api-reference/next-config-js/basePath) to `process.env.NEXT_PUBLIC_BASE_PATH` in your `next.config.mjs` file:**
-
-```js filename="next.config.mjs"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
-}
-
-export default nextConfig
-```
-
-3. **Update `import.meta.env.BASE_URL` usages to `process.env.NEXT_PUBLIC_BASE_PATH`**
+The main difference is the prefix used to expose environment variables on the
+client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
 ### Step 8: Update Scripts in `package.json`
 
@@ -571,17 +538,22 @@ next-env.d.ts
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
-> **Example:** Check out [this pull request](https://github.com/inngest/vite-to-nextjs/pull/1) for a
-> working example of a CRA application migrated to Next.js.
-
 ### Step 9: Clean Up
 
-You can now clean up your codebase from Vite related artifacts:
+You can now clean up your codebase from Create React App related artifacts:
 
 - Delete `src/index.tsx`
 - Delete `public/index.html`
 - Delete `reportWebVitals` setup
 - Uninstall CRA dependencies (`react-scripts`)
+
+## Bundler Compatibility
+
+Create React App and Next.js both default to using webpack for bundling.
+
+When migrating your CRA application to Next.js, you might have a custom webpack configuration you're looking to migrate. Next.js supports providing a [custom webpack configuration](/docs/app/api-reference/next-config-js/webpack).
+
+Further, Next.js has support for [Turbopack](/docs/app/api-reference/next-config-js/turbo) through `next dev --turbo` to improve your local dev performance. Turbopack supports some [webpack loaders](/docs/app/api-reference/next-config-js/turbo) as well for compatability and incremental adoption.
 
 ## Next Steps
 
