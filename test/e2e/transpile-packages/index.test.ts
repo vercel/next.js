@@ -22,17 +22,17 @@ describe('transpile packages', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: `yarn setup && next ${
+          copy: `cp -r ./node_modules_bak/* ./node_modules`,
+          build: 'pnpm copy && next build',
+          dev: `pnpm copy && next ${
             shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
           }`,
           start: 'next start',
         },
       },
-      installCommand: 'yarn',
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm build',
     })
   })
   afterAll(() => next.destroy())

@@ -21,7 +21,7 @@ jobs:
           token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true

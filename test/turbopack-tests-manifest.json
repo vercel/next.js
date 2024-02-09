@@ -168,15 +168,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/internal/components/hot-linked-text/get-words-and-whitespaces.test.ts": {
-    "passed": [
-      "getWordsAndWhitespaces should return sequences of words and whitespaces"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "packages/next/src/client/components/redirect.test.ts": {
     "passed": ["test should throw a redirect error"],
     "failed": [],
@@ -990,13 +981,12 @@
   },
   "test/development/acceptance-app/ReactRefreshRegression.test.ts": {
     "passed": [
-      "ReactRefreshRegression app can fast refresh a page with static generation"
-    ],
-    "failed": [
+      "ReactRefreshRegression app can fast refresh a page with static generation",
       "ReactRefreshRegression app shows an overlay for anonymous function server-side error",
       "ReactRefreshRegression app shows an overlay for server-side error in client component",
       "ReactRefreshRegression app shows an overlay for server-side error in server component"
     ],
+    "failed": [],
     "pending": [
       "ReactRefreshRegression app Turbopack skipped tests custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression app styled-components hydration mismatch"
@@ -1074,11 +1064,10 @@
   },
   "test/development/acceptance-app/error-message-url.test.ts": {
     "passed": [
+      "Error overlay - error message urls should be possible to click url in build error",
       "Error overlay - error message urls should be possible to click url in runtime error"
     ],
-    "failed": [
-      "Error overlay - error message urls should be possible to click url in build error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1129,9 +1118,10 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/invalid-imports.test.ts": {
-    "passed": [],
+    "passed": [
+      "Error Overlay invalid imports should show error when external package imports client-only in server component"
+    ],
     "failed": [
-      "Error Overlay invalid imports should show error when external package imports client-only in server component",
       "Error Overlay invalid imports should show error when external package imports server-only in client component",
       "Error Overlay invalid imports should show error when using styled-jsx in server component"
     ],
@@ -1142,6 +1132,7 @@
   "test/development/acceptance-app/rsc-build-errors.test.ts": {
     "passed": [
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
+      "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
       "Error overlay - RSC build errors should error for invalid undefined module retuning from next dynamic",
       "Error overlay - RSC build errors should error when Component from react is used in server component",
       "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
@@ -1167,15 +1158,14 @@
       "Error overlay - RSC build errors should error when useTransition from react is used in server component",
       "Error overlay - RSC build errors should freeze parent resolved metadata to avoid mutating in generateMetadata",
       "Error overlay - RSC build errors should throw an error when \"Component\" is imported in server components",
-      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions"
-    ],
-    "failed": [
-      "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
+      "Error overlay - RSC build errors should throw an error when \"use client\" is on the top level but after other expressions",
       "Error overlay - RSC build errors should throw an error when error file is a server component",
-      "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
+    ],
+    "failed": [
+      "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file"
     ],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
@@ -1336,11 +1326,10 @@
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
+      "ReactRefreshRegression shows an overlay for a server-side error",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
-    "failed": [
-      "ReactRefreshRegression shows an overlay for a server-side error"
-    ],
+    "failed": [],
     "pending": [
       "ReactRefreshRegression Turbopack skipped tests custom loader (mdx) should have Fast Refresh enabled"
     ],
@@ -1413,11 +1402,11 @@
     "runtimeError": false
   },
   "test/development/acceptance/server-component-compiler-errors-in-pages.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'server-only' in pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2034,6 +2023,8 @@
       "Client Navigation resets scroll at the correct time should intentionally not reset scroll before the new page runs its lifecycles (Router#push)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
+      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
+      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
       "Client Navigation should emit routeChangeError on hash change cancel",
       "Client Navigation should handle undefined prop in head client-side",
       "Client Navigation should navigate to paths relative to the current page",
@@ -2121,10 +2112,7 @@
       "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
       "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
     ],
-    "failed": [
-      "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2548,6 +2536,7 @@
   },
   "test/e2e/app-dir/app-external/app-external.test.ts": {
     "passed": [
+      "app dir - external dependency app route should resolve next/server api from external esm package",
       "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
       "app dir - external dependency mixed syntax external modules should handle mixed module with next/dynamic",
       "app dir - external dependency react in external esm packages should use the same react in client app",
@@ -2562,6 +2551,7 @@
       "app dir - external dependency should handle external css modules",
       "app dir - external dependency should handle external css modules in pages",
       "app dir - external dependency should handle external next/font",
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
       "app dir - external dependency should resolve 3rd party package exports based on the react-server condition",
       "app dir - external dependency should resolve the subset react in server components based on the react-server condition",
       "app dir - external dependency should support exporting multiple star re-exports",
@@ -2571,8 +2561,7 @@
     ],
     "failed": [
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
-      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
+      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components"
     ],
     "pending": [],
     "flakey": [],
@@ -2667,6 +2656,13 @@
     "pending": [
       "app dir rendering mixed static and dynamic should generate static data during build and use it"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
+    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2999,10 +2995,6 @@
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir - basic bootstrap scripts should successfully bootstrap even when using CSP",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
-      "app dir - basic error component should display error digest for error in server component with default error boundary",
-      "app dir - basic error component should trigger error component when an error happens during rendering",
-      "app dir - basic error component should trigger error component when an error happens during server components rendering",
-      "app dir - basic error component should use default error boundary for prod and overlay for dev when no error component specified",
       "app dir - basic known bugs should handle as on next/link",
       "app dir - basic known bugs should handle next/link back to initially loaded page",
       "app dir - basic known bugs should handle router.refresh without resetting state",
@@ -3241,6 +3233,39 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-order/css-order.test.ts": {
+    "passed": [
+      "css-order should load correct styles navigating first -> first-client",
+      "css-order should load correct styles navigating first -> second-client",
+      "css-order should load correct styles navigating first -> second",
+      "css-order should load correct styles navigating first -> third",
+      "css-order should load correct styles navigating first-client -> first",
+      "css-order should load correct styles navigating first-client -> second-client",
+      "css-order should load correct styles navigating first-client -> second",
+      "css-order should load correct styles navigating first-client -> third",
+      "css-order should load correct styles navigating second -> first-client",
+      "css-order should load correct styles navigating second -> first",
+      "css-order should load correct styles navigating second -> second-client",
+      "css-order should load correct styles navigating second -> third",
+      "css-order should load correct styles navigating second-client -> first-client",
+      "css-order should load correct styles navigating second-client -> first",
+      "css-order should load correct styles navigating second-client -> second",
+      "css-order should load correct styles navigating second-client -> third",
+      "css-order should load correct styles navigating third -> first-client",
+      "css-order should load correct styles navigating third -> first",
+      "css-order should load correct styles navigating third -> second-client",
+      "css-order should load correct styles navigating third -> second",
+      "css-order should load correct styles on first-client",
+      "css-order should load correct styles on first",
+      "css-order should load correct styles on second-client",
+      "css-order should load correct styles on second",
+      "css-order should load correct styles on third"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts": {
     "passed": [
       "dynamic-data inside cache scope displays redbox when accessing dynamic data inside a cache scope",
@@ -3350,6 +3375,18 @@
       "app dir - not found navigation should allow navigation on not-found",
       "app dir - not found navigation should allow navigation to other routes on route that was initially not-found",
       "app dir - not found navigation should be able to navigate to other page from root not-found page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/errors/index.test.ts": {
+    "passed": [
+      "app-dir - errors error component should display error digest for error in server component with default error boundary",
+      "app-dir - errors error component should trigger error component when an error happens during rendering",
+      "app-dir - errors error component should trigger error component when an error happens during server components rendering",
+      "app-dir - errors error component should use default error boundary for prod and overlay for dev when no error component specified"
     ],
     "failed": [],
     "pending": [],
@@ -3770,6 +3807,8 @@
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+      "app dir - navigation navigating to a page with async metadata should render the final state of the page with correct metadata",
+      "app dir - navigation navigating to dynamic params & changing the casing should load the page correctly",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from app to pages",
       "app dir - navigation navigation between pages and app should not contain _rsc query while navigating from pages to app",
       "app dir - navigation navigation between pages and app should not omit the hash while navigating from app to pages",
@@ -3821,14 +3860,14 @@
   "test/e2e/app-dir/next-font/next-font.test.ts": {
     "passed": [
       "app dir - next/font app app dir - next-font computed styles should have correct styles at /",
-      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client"
-    ],
-    "failed": [
-      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error",
+      "app dir - next/font app app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app app dir - next-font import values should have correct values at /",
       "app dir - next/font app app dir - next-font import values should have correct values at /client",
       "app dir - next/font app app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app app dir - next-font navigation should not have duplicate preload tags on navigation"
+    ],
+    "failed": [
+      "app dir - next/font app app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -4219,7 +4258,13 @@
       "ppr-full HTML Response for /on-demand/c should resume with dynamic content",
       "ppr-full HTML Response for /static should allow navigations to and from a pages/ page",
       "ppr-full HTML Response for /static should have correct headers",
-      "ppr-full HTML Response for /static should not contain dynamic content"
+      "ppr-full HTML Response for /static should not contain dynamic content",
+      "ppr-full Navigation Signals notFound() for /navigation/not-found should have correct headers",
+      "ppr-full Navigation Signals notFound() for /navigation/not-found/dynamic should cache the static part",
+      "ppr-full Navigation Signals notFound() for /navigation/not-found/dynamic should have correct headers",
+      "ppr-full Navigation Signals redirect() for /navigation/redirect should have correct headers",
+      "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should cache the static part",
+      "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should have correct headers"
     ],
     "failed": [],
     "pending": [],
@@ -5751,6 +5796,8 @@
   },
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5758,6 +5805,8 @@
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer no server-only in server targets should render routes marked with restriction marks without errors /app/server-edge",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
@@ -5766,12 +5815,7 @@
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
-    "failed": [
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer no server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/hello-edge"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5858,14 +5902,6 @@
   },
   "test/e2e/next-font/index.test.ts": {
     "passed": [
-      "next/font app computed styles page using fallback fonts",
-      "next/font app computed styles page using variables",
-      "next/font app computed styles page with fonts",
-      "next/font app import values Variable font without weight range",
-      "next/font app import values page with font",
-      "next/font app import values page with local fonts"
-    ],
-    "failed": [
       "next/font app Fallback fontfaces google Fraunces",
       "next/font app Fallback fontfaces google Indie flower",
       "next/font app Fallback fontfaces local Fraunces",
@@ -5873,6 +5909,12 @@
       "next/font app Fallback fontfaces local Roboto multiple weights and styles",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 1",
       "next/font app Fallback fontfaces local Roboto multiple weights and styles - variable 2",
+      "next/font app computed styles page using fallback fonts",
+      "next/font app computed styles page using variables",
+      "next/font app computed styles page with fonts",
+      "next/font app import values Variable font without weight range",
+      "next/font app import values page with font",
+      "next/font app import values page with local fonts",
       "next/font app preload font without preloadable subsets",
       "next/font app preload font without size adjust",
       "next/font app preload google fonts with multiple weights/styles",
@@ -5881,17 +5923,18 @@
       "next/font app preload page without fonts",
       "next/font app should use production cache control for fonts"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/next-font/with-font-declarations-file.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font/google with-font-declarations-file preload correct files at /inter",
       "next/font/google with-font-declarations-file preload correct files at /local-font",
       "next/font/google with-font-declarations-file preload correct files at /roboto"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5907,13 +5950,11 @@
   },
   "test/e2e/next-font/without-preloaded-fonts.test.ts": {
     "passed": [
-      "next/font/google without-preloaded-fonts without _app without fonts"
-    ],
-    "failed": [
-      "next/font/google no preloads with _app without fonts",
       "next/font/google no preloads with _app without preload",
+      "next/font/google without-preloaded-fonts without _app without fonts",
       "next/font/google without-preloaded-fonts without _app without preload"
     ],
+    "failed": ["next/font/google no preloads with _app without fonts"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8203,17 +8244,13 @@
     "runtimeError": false
   },
   "test/integration/custom-server/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+    "passed": [
       "Custom Server using HTTP Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTP HMR with custom server Should support HMR when rendering with /index pathname",
       "Custom Server using HTTP compression handling should handle compression for route /",
       "Custom Server using HTTP compression handling should handle compression for route /no-query",
       "Custom Server using HTTP unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTP with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTP with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTP with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTP with dynamic assetPrefix should handle render with undefined query",
@@ -8222,15 +8259,12 @@
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTP with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTP with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTP with middleware $title should read the expected url protocol in middleware",
-      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
       "Custom Server using HTTPS Error when rendering without starting slash should warn in dev mode",
       "Custom Server using HTTPS compression handling should handle compression for route /",
       "Custom Server using HTTPS compression handling should handle compression for route /no-query",
       "Custom Server using HTTPS unhandled rejection stderr should include error message and stack trace",
       "Custom Server using HTTPS with a custom fetch polyfill should serve internal file from render",
-      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
       "Custom Server using HTTPS with dynamic assetPrefix should handle custom urls with requests handler",
       "Custom Server using HTTPS with dynamic assetPrefix should handle null assetPrefix accordingly",
       "Custom Server using HTTPS with dynamic assetPrefix should handle render with undefined query",
@@ -8239,8 +8273,16 @@
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix dynamically",
       "Custom Server using HTTPS with dynamic assetPrefix should set the assetPrefix to a given request",
       "Custom Server using HTTPS with generateEtags disabled response does not include etag header",
-      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header",
       "Custom Server using HTTPS with middleware $title should read the expected url protocol in middleware"
+    ],
+    "failed": [],
+    "pending": [
+      "Custom Server using HTTP Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTP with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTP with generateEtags enabled production mode response includes etag header",
+      "Custom Server using HTTPS Error when rendering without starting slash production mode should warn in production mode",
+      "Custom Server using HTTPS with dynamic assetPrefix should contain customServer in NEXT_DATA",
+      "Custom Server using HTTPS with generateEtags enabled production mode response includes etag header"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11641,9 +11683,6 @@
       "with contentDispositionType attachment dev support with next.config.js should not allow svg with comma header",
       "with contentDispositionType attachment dev support with next.config.js should not allow svg with uppercase header",
       "with contentDispositionType attachment dev support with next.config.js should not allow vector svg",
-      "with contentDispositionType attachment dev support with next.config.js should not change the color type of a png",
-      "with contentDispositionType attachment dev support with next.config.js should not have sharp missing warning",
-      "with contentDispositionType attachment dev support with next.config.js should not have sharp outdated warning",
       "with contentDispositionType attachment dev support with next.config.js should not resize if requested width is larger than original source image",
       "with contentDispositionType attachment dev support with next.config.js should resize absolute url from localhost",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11689,7 +11728,6 @@
       "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should handle concurrent requests",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should handle non-ascii characters in image url",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should have sharp missing warning",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated gif",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png 2",
@@ -11703,8 +11741,6 @@
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with comma header",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow vector svg",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not change the color type of a png",
-      "with contentDispositionType attachment Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11801,9 +11837,6 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow svg with comma header",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow svg with uppercase header",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow vector svg",
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should not change the color type of a png",
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should not have sharp missing warning",
-      "with minimumCacheTTL of 5 sec dev support with next.config.js should not have sharp outdated warning",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not resize if requested width is larger than original source image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize absolute url from localhost",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11849,7 +11882,6 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle non-ascii characters in image url",
-      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should have sharp missing warning",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated gif",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated png",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated png 2",
@@ -11863,8 +11895,6 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow svg with comma header",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow vector svg",
-      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not change the color type of a png",
-      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11880,71 +11910,6 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/image-optimizer/test/old-sharp.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "with outdated sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
-      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
-      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
-      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
-      "with outdated sharp Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
-      "with outdated sharp Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
-      "with outdated sharp Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
-      "with outdated sharp Production Mode Server support with next.config.js should error if the image file does not exist",
-      "with outdated sharp Production Mode Server support with next.config.js should error if the resource isn't a valid image",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when internal url is not an image",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when q is greater than 100",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when q is less than 1",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when q is missing",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when q is not a number",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when url has file protocol",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when url is missing",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when w is 0",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when w is less than 0",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when w is missing",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when w is not a number",
-      "with outdated sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
-      "with outdated sharp Production Mode Server support with next.config.js should handle concurrent requests",
-      "with outdated sharp Production Mode Server support with next.config.js should handle custom sharp usage",
-      "with outdated sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
-      "with outdated sharp Production Mode Server support with next.config.js should have sharp outdated warning",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain animated gif",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain animated png",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain animated png 2",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain animated webp",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain bmp",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain ico format",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain jpg format for old Safari",
-      "with outdated sharp Production Mode Server support with next.config.js should maintain png format for old Safari",
-      "with outdated sharp Production Mode Server support with next.config.js should normalize invalid status codes",
-      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with application header",
-      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with comma header",
-      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with uppercase header",
-      "with outdated sharp Production Mode Server support with next.config.js should not allow vector svg",
-      "with outdated sharp Production Mode Server support with next.config.js should not have sharp missing warning",
-      "with outdated sharp Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
-      "with outdated sharp Production Mode Server support with next.config.js should resize absolute url from localhost",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and png accept header",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
-      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
-      "with outdated sharp Production Mode Server support with next.config.js should return home page",
-      "with outdated sharp Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
-      "with outdated sharp Production Mode Server support with next.config.js should set cache-control to immutable for static images",
-      "with outdated sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
-      "with outdated sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with outdated sharp Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11984,8 +11949,6 @@
       "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
       "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support w/o next.config.js should not allow vector svg",
-      "with latest sharp dev support w/o next.config.js should not have sharp missing warning",
-      "with latest sharp dev support w/o next.config.js should not have sharp outdated warning",
       "with latest sharp dev support w/o next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp dev support w/o next.config.js should resize relative url and old Chrome accept header as webp",
       "with latest sharp dev support w/o next.config.js should resize relative url and png accept header",
@@ -12038,8 +12001,6 @@
       "with latest sharp dev support with next.config.js should not allow svg with comma header",
       "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support with next.config.js should not allow vector svg",
-      "with latest sharp dev support with next.config.js should not have sharp missing warning",
-      "with latest sharp dev support with next.config.js should not have sharp outdated warning",
       "with latest sharp dev support with next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp dev support with next.config.js should resize absolute url from localhost",
       "with latest sharp dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -12091,8 +12052,6 @@
       "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with comma header",
       "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp Production Mode Server support w/o next.config.js should not allow vector svg",
-      "with latest sharp Production Mode Server support w/o next.config.js should not have sharp missing warning",
-      "with latest sharp Production Mode Server support w/o next.config.js should not have sharp outdated warning",
       "with latest sharp Production Mode Server support w/o next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and old Chrome accept header as webp",
       "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and png accept header",
@@ -12131,7 +12090,6 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
       "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
-      "with latest sharp Production Mode Server support with next.config.js should handle custom sharp usage",
       "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated gif",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated png",
@@ -12146,8 +12104,6 @@
       "with latest sharp Production Mode Server support with next.config.js should not allow svg with comma header",
       "with latest sharp Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with latest sharp Production Mode Server support with next.config.js should not allow vector svg",
-      "with latest sharp Production Mode Server support with next.config.js should not have sharp missing warning",
-      "with latest sharp Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with latest sharp Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with latest sharp Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -14909,6 +14865,13 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/sharp-api/test/sharp-api.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["sharp api should handle custom sharp usage"],
     "flakey": [],
     "runtimeError": false
   },

@@ -16,6 +16,28 @@ function getClassNameRegex(className: string): RegExp {
     : new RegExp(`^__${className}_.{6}$`) // e.g. `__className_a8cc56`
 }
 
+function hrefMatchesFontWithSizeAdjust(href: string) {
+  if (process.env.TURBOPACK) {
+    expect(href).toMatch(
+      // Turbopack includes the file hash
+      /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
+    )
+  } else {
+    expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
+  }
+}
+
+function hrefMatchesFontWithoutSizeAdjust(href: string) {
+  if (process.env.TURBOPACK) {
+    expect(href).toMatch(
+      // Turbopack includes the file hash
+      /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/
+    )
+  } else {
+    expect(href).toMatch(/\/_next\/static\/media\/(.*)\.p\.woff2/)
+  }
+}
+
 describe('next/font', () => {
   for (const fixture of ['app', 'app-old']) {
     describe(fixture, () => {
@@ -49,8 +71,6 @@ describe('next/font', () => {
 
       if ((global as any).isNextDev) {
         it('should use production cache control for fonts', async () => {
-          const html = await next.render('/')
-          console.log({ html })
           const $ = await next.render$('/')
           const link = $('[rel="preload"][as="font"]').attr('href')
           expect(link).toBeDefined()
@@ -334,22 +354,21 @@ describe('next/font', () => {
             return a.attribs.href.localeCompare(b.attribs.href)
           })
           // From /_app
-          expect(links[0].attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
-          expect(links[1].attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/675c25f648fd6a30-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          const attributes = links[0].attribs
+          expect(attributes.as).toBe('font')
+          expect(attributes.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithSizeAdjust(attributes.href)
+          expect(attributes.rel).toBe('preload')
+          expect(attributes.type).toBe('font/woff2')
+          expect(attributes['data-next-font']).toBe('size-adjust')
+
+          const attributes2 = links[1].attribs
+          expect(attributes2.as).toBe('font')
+          expect(attributes2.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithSizeAdjust(attributes2.href)
+          expect(attributes2.rel).toBe('preload')
+          expect(attributes2.type).toBe('font/woff2')
+          expect(attributes2['data-next-font']).toBe('size-adjust')
         })
 
         test('page without fonts', async () => {
@@ -361,14 +380,14 @@ describe('next/font', () => {
 
           // From _app
           expect($('link[as="font"]').length).toBe(1)
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+
+          const attributes = $('link[as="font"]').get(0).attribs
+          expect(attributes.as).toBe('font')
+          expect(attributes.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithSizeAdjust(attributes.href)
+          expect(attributes.rel).toBe('preload')
+          expect(attributes.type).toBe('font/woff2')
+          expect(attributes['data-next-font']).toBe('size-adjust')
         })
 
         test('page with local fonts', async () => {
@@ -380,17 +399,13 @@ describe('next/font', () => {
 
           // Preload
           expect($('link[as="font"]').length).toBe(5)
-          expect(
-            Array.from($('link[as="font"]'))
-              .map((el) => el.attribs.href)
-              .sort()
-          ).toEqual([
-            '/_next/static/media/02205c9944024f15-s.p.woff2',
-            '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-            '/_next/static/media/1deec1af325840fd-s.p.woff2',
-            '/_next/static/media/ab6fdae82d1a8d92-s.p.woff2',
-            '/_next/static/media/d55edb6f37902ebf-s.p.woff2',
-          ])
+          const hrefs = Array.from($('link[as="font"]'))
+            .map((el) => el.attribs.href)
+            .sort()
+          for (const href of hrefs) {
+            hrefMatchesFontWithSizeAdjust(href)
+          }
+          expect(hrefs.length).toBe(5)
         })
 
         test('google fonts with multiple weights/styles', async () => {
@@ -403,20 +418,15 @@ describe('next/font', () => {
           // Preload
           expect($('link[as="font"]').length).toBe(8)
 
-          expect(
-            Array.from($('link[as="font"]'))
-              .map((el) => el.attribs.href)
-              .sort()
-          ).toEqual([
-            '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-            '/_next/static/media/4f3dcdf40b3ca86d-s.p.woff2',
-            '/_next/static/media/560a6db6ac485cb1-s.p.woff2',
-            '/_next/static/media/686d1702f12625fe-s.p.woff2',
-            '/_next/static/media/86d92167ff02c708-s.p.woff2',
-            '/_next/static/media/9ac01b894b856187-s.p.woff2',
-            '/_next/static/media/c9baea324111137d-s.p.woff2',
-            '/_next/static/media/fb68b4558e2a718e-s.p.woff2',
-          ])
+          const hrefs = Array.from($('link[as="font"]'))
+            .map((el) => el.attribs.href)
+            .sort()
+
+          for (const href of hrefs) {
+            hrefMatchesFontWithSizeAdjust(href)
+          }
+
+          expect(hrefs.length).toBe(8)
         })
 
         test('font without preloadable subsets', async () => {
@@ -431,39 +441,40 @@ describe('next/font', () => {
 
           // From _app
           expect($('link[as="font"]').length).toBe(1)
-          expect($('link[as="font"]').get(0).attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/0812efcfaefec5ea-s.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': 'size-adjust',
-          })
+          const attributes = $('link[as="font"]').get(0).attribs
+
+          expect(attributes.as).toBe('font')
+          expect(attributes.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithSizeAdjust(attributes.href)
+          expect(attributes.rel).toBe('preload')
+          expect(attributes.type).toBe('font/woff2')
+          expect(attributes['data-next-font']).toBe('size-adjust')
         })
 
         test('font without size adjust', async () => {
           const html = await renderViaHTTP(next.url, '/with-fallback')
           const $ = cheerio.load(html)
-          const links = Array.from($('link[as="font"]')).sort((a, b) => {
-            return a.attribs.href.localeCompare(b.attribs.href)
-          })
-          expect(links[1].attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/0812efcfaefec5ea.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': '',
-          })
+          const links = Array.from($('link[as="font"]'))
+            .map((node) => node.attribs)
+            .sort((a, b) => {
+              return a.href.localeCompare(b.href)
+            })
+          const attributes = links[1]
+          expect(attributes.as).toBe('font')
+          expect(attributes.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithoutSizeAdjust(attributes.href)
+          expect(attributes.rel).toBe('preload')
+          expect(attributes.type).toBe('font/woff2')
+          expect(attributes['data-next-font']).toBe('')
 
-          expect(links[2].attribs).toEqual({
-            as: 'font',
-            crossorigin: 'anonymous',
-            href: '/_next/static/media/ab6fdae82d1a8d92.p.woff2',
-            rel: 'preload',
-            type: 'font/woff2',
-            'data-next-font': '',
-          })
+          const attributes2 = links[2]
+
+          expect(attributes2.as).toBe('font')
+          expect(attributes2.crossorigin).toBe('anonymous')
+          hrefMatchesFontWithoutSizeAdjust(attributes2.href)
+          expect(attributes2.rel).toBe('preload')
+          expect(attributes2.type).toBe('font/woff2')
+          expect(attributes2['data-next-font']).toBe('')
         })
       })
 

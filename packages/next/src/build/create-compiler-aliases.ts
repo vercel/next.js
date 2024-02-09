@@ -205,6 +205,7 @@ export function createNextApiEsmAliases() {
     navigation: 'next/dist/api/navigation',
     headers: 'next/dist/api/headers',
     og: 'next/dist/api/og',
+    server: 'next/dist/api/server',
     // pages api
     document: 'next/dist/api/document',
     app: 'next/dist/api/app',
@@ -290,7 +291,7 @@ export function createRSCAliases(
     if (layer === WEBPACK_LAYERS.reactServerComponents) {
       alias[
         'react$'
-      ] = `next/dist/compiled/react${bundledReactChannel}/react.shared-subset`
+      ] = `next/dist/compiled/react${bundledReactChannel}/react.react-server`
     }
     // Use server rendering stub for RSC and SSR
     // x-ref: https://github.com/facebook/react/pull/25436

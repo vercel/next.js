@@ -131,12 +131,16 @@ import type { ActionManifest } from '../../../build/webpack/plugins/flight-clien
 import { denormalizePagePath } from '../../../shared/lib/page-path/denormalize-page-path'
 import type { LoadableManifest } from '../../load-components'
 import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
-import { bold, green, red } from '../../../lib/picocolors'
+import { bold, green, magenta, red } from '../../../lib/picocolors'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { trace } from '../../../trace'
 import type { VersionInfo } from '../../dev/parse-version-info'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
+import {
+  MAGIC_IDENTIFIER_REGEX,
+  decodeMagicIdentifier,
+} from '../../../shared/lib/magic-identifier'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
@@ -335,7 +339,7 @@ async function startWatcher(opts: SetupOpts) {
       if (source && source.range) {
         const { start } = source.range
         message = `${formattedFilePath}:${start.line + 1}:${
-          start.column
+          start.column + 1
         }\n${formattedTitle}`
       } else if (formattedFilePath) {
         message = `${formattedFilePath}\n${formattedTitle}`
@@ -2679,13 +2683,23 @@ export async function setupDevBundler(opts: SetupOpts) {
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
 
 function renderStyledStringToErrorAnsi(string: StyledString): string {
+  function decodeMagicIdentifiers(str: string): string {
+    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
+      try {
+        return magenta(`{${decodeMagicIdentifier(ident)}}`)
+      } catch (e) {
+        return magenta(`{${ident} (decoding failed: ${e})}`)
+      }
+    })
+  }
+
   switch (string.type) {
     case 'text':
-      return string.value
+      return decodeMagicIdentifiers(string.value)
     case 'strong':
-      return bold(red(string.value))
+      return bold(red(decodeMagicIdentifiers(string.value)))
     case 'code':
-      return green(string.value)
+      return green(decodeMagicIdentifiers(string.value))
     case 'line':
       return string.value.map(renderStyledStringToErrorAnsi).join('')
     case 'stack':
