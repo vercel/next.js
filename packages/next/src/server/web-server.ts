@@ -374,7 +374,6 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     // The web server does not need to handle fallback errors in production.
     return null
   }
-
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     // The web server does not need to handle rewrite rules. This is done by the
     // upstream proxy (edge runtime or node server).
@@ -393,5 +392,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
 
   protected async getPrefetchRsc(): Promise<string | null> {
     return null
+  }
+
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    // TODO: This needs to be implemented.
+    return []
   }
 }
