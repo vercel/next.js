@@ -78,7 +78,7 @@ Scripts denoted with this strategy are preloaded and fetched before any first-pa
 
 <PagesOnly>
 
-`beforeInteractive` scripts must be placed inside the `App` Component (`pages/_app.js`) and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+`beforeInteractive` scripts must be placed inside the `Document` Component (`pages/_document.js`) and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
 
 </PagesOnly>
 
@@ -126,7 +126,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```jsx filename="pages/_app.js"
+```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
 import Script from 'next/script'
 
