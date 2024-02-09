@@ -720,7 +720,6 @@ export default async function build(
         .traceAsyncFn(() => loadCustomRoutes(config))
 
       const { headers, rewrites, redirects } = customRoutes
-      NextBuildContext.rewrites = rewrites
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
@@ -983,6 +982,8 @@ export default async function build(
       rewrites.beforeFiles.push(
         ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
       )
+
+      NextBuildContext.rewrites = rewrites
 
       const totalAppPagesCount = appPaths.length
 

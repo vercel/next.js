@@ -68,7 +68,10 @@ import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
-import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+import {
+  generateInterceptionRoutesRewrites,
+  isInterceptionRouteRewrite,
+} from '../../../lib/generate-interception-routes-rewrites'
 import { store as consoleStore } from '../../../build/output/store'
 
 import {
@@ -87,6 +90,7 @@ import {
   REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
+  INTERCEPTION_ROUTE_REWRITE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -868,15 +872,32 @@ async function startWatcher(opts: SetupOpts) {
         'server',
         `${MIDDLEWARE_BUILD_MANIFEST}.js`
       )
+      const interceptionRewriteManifestPath = path.join(
+        distDir,
+        'server',
+        `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
+      )
       deleteCache(buildManifestPath)
       deleteCache(middlewareBuildManifestPath)
+      deleteCache(interceptionRewriteManifestPath)
       await writeFileAtomic(
         buildManifestPath,
         JSON.stringify(buildManifest, null, 2)
       )
       await writeFileAtomic(
         middlewareBuildManifestPath,
-        `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)}`
+        `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
+      )
+
+      const interceptionRewrites = JSON.stringify(
+        rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
+      )
+
+      await writeFileAtomic(
+        interceptionRewriteManifestPath,
+        `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
+          interceptionRewrites
+        )};`
       )
 
       const content: ClientBuildManifest = {
@@ -2340,18 +2361,19 @@ async function startWatcher(opts: SetupOpts) {
         ? getMiddlewareRouteMatcher(serverFields.middleware?.matchers)
         : undefined
 
-      opts.fsChecker.interceptionRoutes =
-        generateInterceptionRoutesRewrites(
-          Object.keys(appPaths),
-          opts.nextConfig.basePath
-        )?.map((item) =>
-          buildCustomRoute(
-            'before_files_rewrite',
-            item,
-            opts.nextConfig.basePath,
-            opts.nextConfig.experimental.caseSensitiveRoutes
-          )
-        ) || []
+      const interceptionRoutes = generateInterceptionRoutesRewrites(
+        Object.keys(appPaths),
+        opts.nextConfig.basePath
+      ).map((item) =>
+        buildCustomRoute(
+          'before_files_rewrite',
+          item,
+          opts.nextConfig.basePath,
+          opts.nextConfig.experimental.caseSensitiveRoutes
+        )
+      )
+
+      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
@@ -2367,19 +2389,22 @@ async function startWatcher(opts: SetupOpts) {
           ))) ||
         {}
 
-      for (const [key, value] of Object.entries(exportPathMap || {})) {
-        opts.fsChecker.interceptionRoutes.push(
-          buildCustomRoute(
-            'before_files_rewrite',
-            {
-              source: key,
-              destination: `${value.page}${
-                value.query ? '?' : ''
-              }${qs.stringify(value.query)}`,
-            },
-            opts.nextConfig.basePath,
-            opts.nextConfig.experimental.caseSensitiveRoutes
-          )
+      const exportPathMapEntries = Object.entries(exportPathMap || {})
+
+      if (exportPathMapEntries.length > 0) {
+        opts.fsChecker.exportPathMapRoutes = exportPathMapEntries.map(
+          ([key, value]) =>
+            buildCustomRoute(
+              'before_files_rewrite',
+              {
+                source: key,
+                destination: `${value.page}${
+                  value.query ? '?' : ''
+                }${qs.stringify(value.query)}`,
+              },
+              opts.nextConfig.basePath,
+              opts.nextConfig.experimental.caseSensitiveRoutes
+            )
         )
       }
 

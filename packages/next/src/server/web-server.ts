@@ -30,6 +30,8 @@ import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { IncrementalCache } from './lib/incremental-cache'
 import type { PAGE_TYPES } from '../lib/page-types'
+import type { Rewrite } from '../lib/load-custom-routes'
+import { buildCustomRoute } from '../lib/build-custom-route'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -44,6 +46,7 @@ interface WebServerOptions extends Options {
       | undefined
     incrementalCacheHandler?: any
     prerenderManifest: PrerenderManifest | undefined
+    interceptionRouteRewrites?: Rewrite[]
   }
 }
 
@@ -395,7 +398,10 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
-    // TODO: This needs to be implemented.
-    return []
+    return (
+      this.serverOptions.webServerConfig.interceptionRouteRewrites?.map(
+        (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
+      ) ?? []
+    )
   }
 }
