@@ -11,7 +11,7 @@ import {
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
 import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
-import type { ManifestRewriteRoute, PrerenderManifest } from '../build'
+import type { PrerenderManifest } from '../build'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
@@ -372,11 +372,12 @@ export default class NextNodeServer extends BaseServer {
     ) as PagesManifest
   }
 
-  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+  protected getinterceptionRoutePatterns(): RegExp[] {
     const routesManifest = this.getRoutesManifest()
     return (
-      routesManifest?.rewrites.beforeFiles.filter(isInterceptionRouteRewrite) ??
-      []
+      routesManifest?.rewrites.beforeFiles
+        .filter(isInterceptionRouteRewrite)
+        .map((rewrite) => new RegExp(rewrite.regex)) ?? []
     )
   }
 

@@ -20,7 +20,6 @@ import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
 import type { RouteEnsurer } from '../future/route-matcher-managers/dev-route-matcher-manager'
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import type { ManifestRewriteRoute } from '../../build'
 
 import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -291,7 +290,7 @@ export default class DevServer extends Server {
     this.ready = undefined
 
     // In dev, this needs to be called after prepare because the build entries won't be known in the constructor
-    this.interceptionRouteRewrites = this.getInterceptionRouteRewrites()
+    this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -549,11 +548,11 @@ export default class DevServer extends Server {
     )
   }
 
-  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+  protected getinterceptionRoutePatterns(): RegExp[] {
     const rewrites = generateInterceptionRoutesRewrites(
       Object.keys(this.appPathRoutes ?? {}),
       this.nextConfig.basePath
-    ).map((route) => buildCustomRoute('rewrite', route))
+    ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
 
     return rewrites ?? []
   }

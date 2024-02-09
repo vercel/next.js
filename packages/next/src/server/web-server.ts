@@ -3,7 +3,7 @@ import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
 import type { Params } from '../shared/lib/router/utils/route-matcher'
 import type { LoadComponentsReturnType } from './load-components'
-import type { ManifestRewriteRoute, PrerenderManifest } from '../build'
+import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -394,7 +394,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
     return null
   }
 
-  protected getInterceptionRouteRewrites(): ManifestRewriteRoute[] {
+  protected getinterceptionRoutePatterns(): RegExp[] {
     // TODO: This needs to be implemented.
     return []
   }
