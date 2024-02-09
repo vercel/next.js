@@ -400,7 +400,7 @@ async function writeImagesManifest(
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
-    pathname: makeRe(p.pathname ?? '**').source,
+    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
