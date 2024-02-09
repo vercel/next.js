@@ -890,7 +890,10 @@ function prepareToUseHooksForComponent(prevThenableState) {
   thenableState = prevThenableState;
 }
 function getThenableStateAfterSuspending() {
-  var state = thenableState;
+  // If you use() to Suspend this should always exist but if you throw a Promise instead,
+  // which is not really supported anymore, it will be empty. We use the empty set as a
+  // marker to know if this was a replay of the same component or first attempt.
+  var state = thenableState || createThenableState();
   thenableState = null;
   return state;
 }
@@ -1449,7 +1452,6 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
     onError: onError === undefined ? defaultErrorHandler : onError,
     onPostpone: onPostpone === undefined ? defaultPostponeHandler : onPostpone
   };
-  request.pendingChunks++;
   var rootTask = createTask(request, model, null, false, abortSet);
   pingedTasks.push(rootTask);
   return request;
@@ -1467,7 +1469,6 @@ function resolveRequest() {
 }
 
 function serializeThenable(request, task, thenable) {
-  request.pendingChunks++;
   var newTask = createTask(request, null, task.keyPath, // the server component sequence continues through Promise-as-a-child.
   task.implicitSlot, request.abortableTasks);
 
@@ -1616,6 +1617,69 @@ function createLazyWrapperAroundWakeable(wakeable) {
   return lazyType;
 }
 
+function renderFunctionComponent(request, task, key, Component, props) {
+  // Reset the task's thenable state before continuing, so that if a later
+  // component suspends we can reuse the same task object. If the same
+  // component suspends again, the thenable state will be restored.
+  var prevThenableState = task.thenableState;
+  task.thenableState = null;
+
+  {
+    if (debugID === null) {
+      // We don't have a chunk to assign debug info. We need to outline this
+      // component to assign it an ID.
+      return outlineTask(request, task);
+    } else if (prevThenableState !== null) ; else {
+      // This is a new component in the same task so we can emit more debug info.
+      var componentName = Component.displayName || Component.name || '';
+      request.pendingChunks++;
+      emitDebugChunk(request, debugID, {
+        name: componentName
+      });
+    }
+  }
+
+  prepareToUseHooksForComponent(prevThenableState); // The secondArg is always undefined in Server Components since refs error early.
+
+  var secondArg = undefined;
+  var result = Component(props, secondArg);
+
+  if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
+    // When the return value is in children position we can resolve it immediately,
+    // to its value without a wrapper if it's synchronously available.
+    var thenable = result;
+
+    if (thenable.status === 'fulfilled') {
+      return thenable.value;
+    } // TODO: Once we accept Promises as children on the client, we can just return
+    // the thenable here.
+
+
+    result = createLazyWrapperAroundWakeable(result);
+  } // Track this element's key on the Server Component on the keyPath context..
+
+
+  var prevKeyPath = task.keyPath;
+  var prevImplicitSlot = task.implicitSlot;
+
+  if (key !== null) {
+    // Append the key to the path. Technically a null key should really add the child
+    // index. We don't do that to hold the payload small and implementation simple.
+    task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
+  } else if (prevKeyPath === null) {
+    // This sequence of Server Components has no keys. This means that it was rendered
+    // in a slot that needs to assign an implicit key. Even if children below have
+    // explicit keys, they should not be used for the outer most key since it might
+    // collide with other slots in that set.
+    task.implicitSlot = true;
+  }
+
+  var json = renderModelDestructive(request, task, emptyRoot, '', result);
+  task.keyPath = prevKeyPath;
+  task.implicitSlot = prevImplicitSlot;
+  return json;
+}
+
 function renderFragment(request, task, children) {
 
   if (task.keyPath !== null) {
@@ -1680,6 +1744,26 @@ function renderClientElement(task, type, key, props) {
 
 
   return element;
+} // The chunk ID we're currently rendering that we can assign debug data to.
+
+
+var debugID = null;
+
+function outlineTask(request, task) {
+  var newTask = createTask(request, task.model, // the currently rendering element
+  task.keyPath, // unlike outlineModel this one carries along context
+  task.implicitSlot, request.abortableTasks);
+  retryTask(request, newTask);
+
+  if (newTask.status === COMPLETED) {
+    // We completed synchronously so we can refer to this by reference. This
+    // makes it behaves the same as prod during deserialization.
+    return serializeByValueID(newTask.id);
+  } // This didn't complete synchronously so it wouldn't have even if we didn't
+  // outline it, so this would reduce to a lazy reference even in prod.
+
+
+  return serializeLazyID(newTask.id);
 }
 
 function renderElement(request, task, type, key, ref, props) {
@@ -1702,51 +1786,10 @@ function renderElement(request, task, type, key, ref, props) {
     if (isClientReference(type)) {
       // This is a reference to a Client Component.
       return renderClientElement(task, type, key, props);
-    } // This is a server-side component.
-    // Reset the task's thenable state before continuing, so that if a later
-    // component suspends we can reuse the same task object. If the same
-    // component suspends again, the thenable state will be restored.
+    } // This is a Server Component.
 
 
-    var prevThenableState = task.thenableState;
-    task.thenableState = null;
-    prepareToUseHooksForComponent(prevThenableState);
-    var result = type(props);
-
-    if (typeof result === 'object' && result !== null && typeof result.then === 'function') {
-      // When the return value is in children position we can resolve it immediately,
-      // to its value without a wrapper if it's synchronously available.
-      var thenable = result;
-
-      if (thenable.status === 'fulfilled') {
-        return thenable.value;
-      } // TODO: Once we accept Promises as children on the client, we can just return
-      // the thenable here.
-
-
-      result = createLazyWrapperAroundWakeable(result);
-    } // Track this element's key on the Server Component on the keyPath context..
-
-
-    var prevKeyPath = task.keyPath;
-    var prevImplicitSlot = task.implicitSlot;
-
-    if (key !== null) {
-      // Append the key to the path. Technically a null key should really add the child
-      // index. We don't do that to hold the payload small and implementation simple.
-      task.keyPath = prevKeyPath === null ? key : prevKeyPath + ',' + key;
-    } else if (prevKeyPath === null) {
-      // This sequence of Server Components has no keys. This means that it was rendered
-      // in a slot that needs to assign an implicit key. Even if children below have
-      // explicit keys, they should not be used for the outer most key since it might
-      // collide with other slots in that set.
-      task.implicitSlot = true;
-    }
-
-    var json = renderModelDestructive(request, task, emptyRoot, '', result);
-    task.keyPath = prevKeyPath;
-    task.implicitSlot = prevImplicitSlot;
-    return json;
+    return renderFunctionComponent(request, task, key, type, props);
   } else if (typeof type === 'string') {
     // This is a host element. E.g. HTML.
     return renderClientElement(task, type, key, props);
@@ -1754,16 +1797,15 @@ function renderElement(request, task, type, key, ref, props) {
     if (type === REACT_FRAGMENT_TYPE && key === null) {
       // For key-less fragments, we add a small optimization to avoid serializing
       // it as a wrapper.
-      var _prevImplicitSlot = task.implicitSlot;
+      var prevImplicitSlot = task.implicitSlot;
 
       if (task.keyPath === null) {
         task.implicitSlot = true;
       }
 
-      var _json = renderModelDestructive(request, task, emptyRoot, '', props.children);
-
-      task.implicitSlot = _prevImplicitSlot;
-      return _json;
+      var json = renderModelDestructive(request, task, emptyRoot, '', props.children);
+      task.implicitSlot = prevImplicitSlot;
+      return json;
     } // This might be a built-in React component. We'll let the client decide.
     // Any built-in works as long as its props are serializable.
 
@@ -1786,36 +1828,7 @@ function renderElement(request, task, type, key, ref, props) {
 
       case REACT_FORWARD_REF_TYPE:
         {
-          var render = type.render; // Reset the task's thenable state before continuing, so that if a later
-          // component suspends we can reuse the same task object. If the same
-          // component suspends again, the thenable state will be restored.
-
-          var _prevThenableState = task.thenableState;
-          task.thenableState = null;
-          prepareToUseHooksForComponent(_prevThenableState);
-
-          var _result = render(props, undefined);
-
-          var _prevKeyPath = task.keyPath;
-          var _prevImplicitSlot2 = task.implicitSlot;
-
-          if (key !== null) {
-            // Append the key to the path. Technically a null key should really add the child
-            // index. We don't do that to hold the payload small and implementation simple.
-            task.keyPath = _prevKeyPath === null ? key : _prevKeyPath + ',' + key;
-          } else if (_prevKeyPath === null) {
-            // This sequence of Server Components has no keys. This means that it was rendered
-            // in a slot that needs to assign an implicit key. Even if children below have
-            // explicit keys, they should not be used for the outer most key since it might
-            // collide with other slots in that set.
-            task.implicitSlot = true;
-          }
-
-          var _json2 = renderModelDestructive(request, task, emptyRoot, '', _result);
-
-          task.keyPath = _prevKeyPath;
-          task.implicitSlot = _prevImplicitSlot2;
-          return _json2;
+          return renderFunctionComponent(request, task, key, type.render, props);
         }
 
       case REACT_MEMO_TYPE:
@@ -1841,6 +1854,7 @@ function pingTask(request, task) {
 }
 
 function createTask(request, model, keyPath, implicitSlot, abortSet) {
+  request.pendingChunks++;
   var id = request.nextChunkId++;
 
   if (typeof model === 'object' && model !== null) {
@@ -1997,7 +2011,6 @@ function serializeClientReference(request, parent, parentPropertyName, clientRef
 }
 
 function outlineModel(request, value) {
-  request.pendingChunks++;
   var newTask = createTask(request, value, null, // The way we use outlining is for reusing an object.
   false, // It makes no sense for that use case to be contextual.
   request.abortableTasks);
@@ -2134,7 +2147,6 @@ function renderModel(request, task, parent, key, value) {
       // $FlowFixMe[method-unbinding]
       if (typeof x.then === 'function') {
         // Something suspended, we'll need to create a new task and resolve it later.
-        request.pendingChunks++;
         var newTask = createTask(request, task.model, task.keyPath, task.implicitSlot, request.abortableTasks);
         var ping = newTask.ping;
         x.then(ping, ping);
@@ -2224,12 +2236,16 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
               // but that is able to reuse the same task if we're already in one but then that
               // will be a lazy future value rather than guaranteed to exist but maybe that's good.
               var newId = outlineModel(request, value);
-              return serializeLazyID(newId);
+              return serializeByValueID(newId);
             } else {
               // We've already emitted this as an outlined object, so we can refer to that by its
-              // existing ID. We use a lazy reference since, unlike plain objects, elements might
-              // suspend so it might not have emitted yet even if we have the ID for it.
-              return serializeLazyID(_existingId);
+              // existing ID. TODO: We should use a lazy reference since, unlike plain objects,
+              // elements might suspend so it might not have emitted yet even if we have the ID for
+              // it. However, this creates an extra wrapper when it's not needed. We should really
+              // detect whether this already was emitted and synchronously available. In that
+              // case we can refer to it synchronously and only make it lazy otherwise.
+              // We currently don't have a data structure that lets us see that though.
+              return serializeByValueID(_existingId);
             }
           } else {
             // This is the first time we've seen this object. We may never see it again
@@ -2373,7 +2389,7 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 
       if (value instanceof Float64Array) {
         // double
-        return serializeTypedArray(request, 'D', value);
+        return serializeTypedArray(request, 'd', value);
       }
 
       if (value instanceof BigInt64Array) {
@@ -2644,6 +2660,15 @@ function emitModelChunk(request, id, json) {
   request.completedRegularChunks.push(processedChunk);
 }
 
+function emitDebugChunk(request, id, debugInfo) {
+
+
+  var json = stringify(debugInfo);
+  var row = serializeRowHeader('D', id) + json + '\n';
+  var processedChunk = stringToChunk(row);
+  request.completedRegularChunks.push(processedChunk);
+}
+
 var emptyRoot = {};
 
 function retryTask(request, task) {
@@ -2652,14 +2677,29 @@ function retryTask(request, task) {
     return;
   }
 
+  var prevDebugID = debugID;
+
   try {
     // Track the root so we know that we have to emit this object even though it
     // already has an ID. This is needed because we might see this object twice
     // in the same toJSON if it is cyclic.
-    modelRoot = task.model; // We call the destructive form that mutates this task. That way if something
+    modelRoot = task.model;
+
+    if (true) {
+      // Track the ID of the current task so we can assign debug info to this id.
+      debugID = task.id;
+    } // We call the destructive form that mutates this task. That way if something
     // suspends again, we can reuse the same task instead of spawning a new one.
 
-    var resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model); // Track the root again for the resolved object.
+
+    var resolvedModel = renderModelDestructive(request, task, emptyRoot, '', task.model);
+
+    if (true) {
+      // We're now past rendering this task and future renders will spawn new tasks for their
+      // debug info.
+      debugID = null;
+    } // Track the root again for the resolved object.
+
 
     modelRoot = resolvedModel; // The keyPath resets at any terminal child node.
 
@@ -2712,6 +2752,10 @@ function retryTask(request, task) {
     task.status = ERRORED$1;
     var digest = logRecoverableError(request, x);
     emitErrorChunk(request, task.id, digest, x);
+  } finally {
+    {
+      debugID = prevDebugID;
+    }
   }
 }
 

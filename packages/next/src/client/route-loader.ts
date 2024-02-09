@@ -23,6 +23,7 @@ declare global {
     __RSC_SERVER_MANIFEST?: any
     __NEXT_FONT_MANIFEST?: any
     __SUBRESOURCE_INTEGRITY_MANIFEST?: string
+    __INTERCEPTION_ROUTE_REWRITE_MANIFEST?: string
   }
 }
 
