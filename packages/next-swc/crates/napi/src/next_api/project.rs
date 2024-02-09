@@ -830,25 +830,30 @@ pub async fn project_trace_source(
                 return Ok(None);
             };
 
-            let path = if frame.is_server {
-                project
-                    .container
-                    .project()
-                    .node_root()
-                    .join(chunk_base.to_owned())
-            } else {
-                project
-                    .container
-                    .project()
-                    .client_relative_path()
-                    .join(chunk_base.to_owned())
-            };
-
-            let map = project
+            let server_path = project
                 .container
-                .get_source_map(path, module)
-                .await?
-                .context("chunk/module is missing a sourcemap")?;
+                .project()
+                .node_root()
+                .join(chunk_base.to_owned());
+
+            let client_path = project
+                .container
+                .project()
+                .client_relative_path()
+                .join(chunk_base.to_owned());
+
+            let mut map_result = project
+                .container
+                .get_source_map(server_path, module.clone())
+                .await;
+            if map_result.is_err() {
+                // If the chunk doesn't exist as a server chunk, try a client chunk.
+                // TODO: Properly tag all server chunks and use the `isServer` query param.
+                // Currently, this is inaccurate as it does not cover RSC server
+                // chunks.
+                map_result = project.container.get_source_map(client_path, module).await;
+            }
+            let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
             let Some(line) = frame.line else {
                 return Ok(None);
