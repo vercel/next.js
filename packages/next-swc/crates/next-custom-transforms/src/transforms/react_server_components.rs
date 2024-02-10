@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::ecma::visit::VisitWith;
+use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -576,6 +576,10 @@ impl ReactServerComponentValidator {
         let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
+
+        if is_error_file {
+            //println!("---------------------- {:#?}", self.filepath);
+        }
         if is_error_file {
             if let Some(app_dir) = &self.app_dir {
                 if let Some(app_dir) = app_dir.to_str() {
@@ -726,6 +730,15 @@ impl ReactServerComponentValidator {
 
 impl Visit for ReactServerComponentValidator {
     noop_visit_type!();
+
+    // Workaround for swc's parse_program, where it detects empty file as a script.
+    // we may fix upstream to autodetect empty file as a module
+    fn visit_script(&mut self, script: &swc_core::ecma::ast::Script) {
+        if script.body.is_empty() {
+            // run validation for the context, which is still a valid when file is empty
+            self.visit_module(&Module::dummy());
+        }
+    }
 
     fn visit_module(&mut self, module: &Module) {
         let (is_client_entry, is_action_file, imports, export_names) =
