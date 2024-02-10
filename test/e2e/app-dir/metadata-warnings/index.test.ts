@@ -18,15 +18,23 @@ createNextDescribe(
 
     it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
       const logStartPosition = next.cliOutput.length
-      await fetchViaHTTP(next.url, '/')
-      //
+      await fetchViaHTTP(next.url, '/og-image-convention')
       const output = getCliOutput(logStartPosition)
       expect(output).toInclude(
-        'metadata.metadataBase is not set for resolving social open graph or twitter images,'
+        'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
       )
       expect(output).toMatch(/using "http:\/\/localhost:\d+/)
       expect(output).toInclude(
         '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
+      )
+    })
+
+    it('should not warn metadataBase is missing if there is only absolute url', async () => {
+      const logStartPosition = next.cliOutput.length
+      await fetchViaHTTP(next.url, '/absolute-url-og')
+      const output = getCliOutput(logStartPosition)
+      expect(output).not.toInclude(
+        'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
       )
     })
 
