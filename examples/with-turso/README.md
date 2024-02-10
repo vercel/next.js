@@ -102,4 +102,4 @@ You can deploy this app to Vercel in a few simple steps:
 
 6. **Deploy to Vercel**
 
-    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fhello-world&env=TURSO_DB_URL,TURSO_DB_TOKEN)
+    [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-turso&env=TURSO_DB_URL,TURSO_DB_TOKEN)
