@@ -13,8 +13,8 @@ There are several reasons why you might want to switch from Create React App to 
 
 Create React App uses purely client-side React. Client-side only applications, also known as single-page applications (SPAs), often experience slow initial page loading time. This happens due to a couple of reasons:
 
-1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load some data.
-2. Your application code grows with every new feature and extra dependency you add.
+1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load data.
+2. Your application code grows with every new feature and dependency you add.
 
 ### No automatic code splitting
 
@@ -343,7 +343,7 @@ entrypoint of your application.
 
 1. **Create a `[[...slug]]` directory in your `app` directory.**
 
-Since in this guide we're aiming first to set up our Next.js as an SPA (Single Page Application),
+Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application),
 you need your page entrypoint to catch all possible routes of your application. For that, create a
 new `[[...slug]]` directory in your `app` directory.
 
