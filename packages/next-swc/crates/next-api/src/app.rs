@@ -65,7 +65,7 @@ use crate::{
     font::create_font_manifest,
     middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
-    route::{Endpoint, Route, Routes, WrittenEndpoint},
+    route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
     server_paths::all_server_paths,
 };
@@ -386,31 +386,36 @@ pub async fn app_entry_point_to_route(
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { page, loader_tree } => Route::AppPage {
-            original_name: page.to_string(),
-            html_endpoint: Vc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Page {
-                        ty: AppPageEndpointType::Html,
-                        loader_tree,
-                    },
-                    app_project,
-                    page: page.clone(),
-                }
-                .cell(),
-            ),
-            rsc_endpoint: Vc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Page {
-                        ty: AppPageEndpointType::Rsc,
-                        loader_tree,
-                    },
-                    app_project,
-                    page,
-                }
-                .cell(),
-            ),
-        },
+        AppEntrypoint::AppPage { pages, loader_tree } => Route::AppPage(
+            pages
+                .into_iter()
+                .map(|page| AppPageRoute {
+                    original_name: page.to_string(),
+                    html_endpoint: Vc::upcast(
+                        AppEndpoint {
+                            ty: AppEndpointType::Page {
+                                ty: AppPageEndpointType::Html,
+                                loader_tree,
+                            },
+                            app_project,
+                            page: page.clone(),
+                        }
+                        .cell(),
+                    ),
+                    rsc_endpoint: Vc::upcast(
+                        AppEndpoint {
+                            ty: AppEndpointType::Page {
+                                ty: AppPageEndpointType::Rsc,
+                                loader_tree,
+                            },
+                            app_project,
+                            page,
+                        }
+                        .cell(),
+                    ),
+                })
+                .collect(),
+        ),
         AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
             original_name: page.to_string(),
             endpoint: Vc::upcast(

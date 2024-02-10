@@ -618,15 +618,21 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
+
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
     TurbopackResult<HmrIdentifiers>
   >
+
   getSourceForAsset(filePath: string): Promise<string | null>
+
   traceSource(
     stackFrame: TurbopackStackFrame
   ): Promise<TurbopackStackFrame | null>
+
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
@@ -638,9 +644,11 @@ export type Route =
     }
   | {
       type: 'app-page'
-      originalName: string
-      htmlEndpoint: Endpoint
-      rscEndpoint: Endpoint
+      pages: {
+        originalName: string
+        htmlEndpoint: Endpoint
+        rscEndpoint: Endpoint
+      }[]
     }
   | {
       type: 'app-route'
@@ -889,9 +897,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
           }
         | {
             type: 'app-page'
-            originalName: string
-            htmlEndpoint: NapiEndpoint
-            rscEndpoint: NapiEndpoint
+            pages: {
+              originalName: string
+              htmlEndpoint: NapiEndpoint
+              rscEndpoint: NapiEndpoint
+            }[]
           }
         | {
             type: 'app-route'
@@ -931,9 +941,11 @@ function bindingToApi(binding: any, _wasm: boolean) {
               case 'app-page':
                 route = {
                   type: 'app-page',
-                  originalName: nativeRoute.originalName,
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  rscEndpoint: new EndpointImpl(nativeRoute.rscEndpoint),
+                  pages: nativeRoute.pages.map((page) => ({
+                    originalName: page.originalName,
+                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
+                  })),
                 }
                 break
               case 'app-route':

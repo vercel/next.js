@@ -306,6 +306,16 @@ pub async fn project_update(
 
 #[napi(object)]
 #[derive(Default)]
+struct AppPageNapiRoute {
+    /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
+
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+}
+
+#[napi(object)]
+#[derive(Default)]
 struct NapiRoute {
     /// The router path
     pub pathname: String,
@@ -314,6 +324,8 @@ struct NapiRoute {
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
+
+    pub pages: Option<Vec<AppPageNapiRoute>>,
 
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
@@ -351,16 +363,19 @@ impl NapiRoute {
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage {
-                original_name,
-                html_endpoint,
-                rsc_endpoint,
-            } => NapiRoute {
+            Route::AppPage(pages) => NapiRoute {
                 pathname,
-                original_name: Some(original_name),
                 r#type: "app-page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                rsc_endpoint: convert_endpoint(rsc_endpoint),
+                pages: Some(
+                    pages
+                        .into_iter()
+                        .map(|page_route| AppPageNapiRoute {
+                            original_name: Some(page_route.original_name),
+                            html_endpoint: convert_endpoint(page_route.html_endpoint),
+                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                        })
+                        .collect(),
+                ),
                 ..Default::default()
             },
             Route::AppRoute {

@@ -353,14 +353,17 @@ export async function handleRouteType({
       break
     }
     case 'app-page': {
-      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+      const pageRoute =
+        route.pages.find((p) => p.originalName === page) ?? route.pages[0]
+
+      const writtenEndpoint = await pageRoute.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
       hooks?.subscribeToChanges(
         page,
         'server',
         true,
-        route.rscEndpoint,
+        pageRoute.rscEndpoint,
         (_page, change) => {
           if (change.issues.some((issue) => issue.severity === 'error')) {
             // Ignore any updates that has errors
@@ -481,7 +484,14 @@ export async function handleEntrypoints({
       case 'page-api':
         currentEntrypoints.page.set(pathname, route)
         break
-      case 'app-page':
+      case 'app-page': {
+        currentEntrypoints.page.set(pathname, route)
+        // ideally we wouldn't put the whole route in here
+        route.pages.forEach((page) => {
+          currentEntrypoints.app.set(page.originalName, route)
+        })
+        break
+      }
       case 'app-route': {
         currentEntrypoints.page.set(pathname, route)
         currentEntrypoints.app.set(route.originalName, route)
@@ -510,6 +520,15 @@ export async function handleEntrypoints({
         await subscription.return?.()
         changeSubscriptions.delete(pathname)
       }
+    }
+  }
+
+  for (const [page] of currentIssues) {
+    if (
+      !currentEntrypoints.page.has(page) &&
+      !currentEntrypoints.app.has(page)
+    ) {
+      currentIssues.delete(page)
     }
   }
 

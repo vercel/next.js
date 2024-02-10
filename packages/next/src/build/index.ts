@@ -1383,7 +1383,9 @@ export default async function build(
             middleware: undefined,
             instrumentation: undefined,
           },
-          routes: new Map(),
+
+          app: new Map(),
+          page: new Map(),
         }
 
         const currentIssues: CurrentIssues = new Map()
@@ -1417,7 +1419,21 @@ export default async function build(
         })
 
         const promises = []
-        for (const [page, route] of currentEntrypoints.routes) {
+        for (const [page, route] of currentEntrypoints.page) {
+          promises.push(
+            handleRouteType({
+              page,
+              route,
+
+              currentIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              rewrites: emptyRewritesObjToBeImplemented,
+            })
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.app) {
           promises.push(
             handleRouteType({
               page,
@@ -1443,7 +1459,7 @@ export default async function build(
 
         await manifestLoader.writeManifests({
           rewrites: emptyRewritesObjToBeImplemented,
-          routes: currentEntrypoints.routes,
+          pageRoutes: currentEntrypoints.page,
         })
 
         const errors: {
