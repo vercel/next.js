@@ -1,4 +1,4 @@
-  {
+{
   "name": "with-turso",
   "version": "0.1.0",
   "private": true,
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@libsql/client": "0.4.0",
-    "next": "14.1.0",
+    "next": "latest",
     "react": "^18",
     "react-dom": "^18"
   },

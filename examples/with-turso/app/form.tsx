@@ -19,7 +19,6 @@ export function Form() {
       className="rounded-md border border-gray-300 p-3 shadow-sm"
       ref={formRef}
     >
-
       <input
         id="description"
         name="description"
@@ -36,7 +35,7 @@ export function Form() {
   );
 }
 
-export function Submit() {
+function Submit() {
   const { pending } = useFormStatus();
 
   return (
