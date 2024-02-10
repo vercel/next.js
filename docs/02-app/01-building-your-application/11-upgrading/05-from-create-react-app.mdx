@@ -1,20 +1,20 @@
 ---
-title: Migrating from Vite
-description: Learn how to migrate your existing React application from Vite to Next.js.
+title: Migrating from Create React App
+description: Learn how to migrate your existing React application from Create React App to Next.js.
 ---
 
-This guide will help you migrate an existing Vite application to Next.js.
+This guide will help you migrate an existing Create React App site to Next.js.
 
 ## Why Switch?
 
-There are several reasons why you might want to switch from Vite to Next.js:
+There are several reasons why you might want to switch from Create React App to Next.js:
 
 ### Slow initial page loading time
 
-If you have built your application with the [default Vite plugin for React](https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react), your application is a purely client-side application. Client-side only applications, also known as single-page applications (SPAs), often experience slow initial page loading time. This happens due to a couple of reasons:
+Create React App uses purely client-side React. Client-side only applications, also known as single-page applications (SPAs), often experience slow initial page loading time. This happens due to a couple of reasons:
 
-1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load some data.
-2. Your application code grows with every new feature and extra dependency you add.
+1. The browser needs to wait for the React code and your entire application bundle to download and run before your code is able to send requests to load data.
+2. Your application code grows with every new feature and dependency you add.
 
 ### No automatic code splitting
 
@@ -78,47 +78,41 @@ export default nextConfig
 
 ### Step 3: Update TypeScript Configuration
 
-If you're using TypeScript, you need to update your `tsconfig.json` file with the following changes
-to make it compatible with Next.js. If you're not using TypeScript, you can skip this step.
-
-1. Remove the [project reference](https://www.typescriptlang.org/tsconfig#references) to `tsconfig.node.json`
-2. Add `./dist/types/**/*.ts` and `./next-env.d.ts` to the [`include` array](https://www.typescriptlang.org/tsconfig#include)
-3. Add `./node_modules` to the [`exclude` array](https://www.typescriptlang.org/tsconfig#exclude)
-4. Add `{ "name": "next" }` to the [`plugins` array in `compilerOptions`](https://www.typescriptlang.org/tsconfig#plugins): `"plugins": [{ "name": "next" }]`
-5. Set [`esModuleInterop`](https://www.typescriptlang.org/tsconfig#esModuleInterop) to `true`: `"esModuleInterop": true`
-6. Set [`jsx`](https://www.typescriptlang.org/tsconfig#jsx) to `preserve`: `"jsx": "preserve"`
-7. Set [`allowJs`](https://www.typescriptlang.org/tsconfig#allowJs) to `true`: `"allowJs": true`
-8. Set [`forceConsistentCasingInFileNames`](https://www.typescriptlang.org/tsconfig#forceConsistentCasingInFileNames) to `true`: `"forceConsistentCasingInFileNames": true`
-9. Set [`incremental`](https://www.typescriptlang.org/tsconfig#incremental) to `true`: `"incremental": true`
-
-Here's an example of a working `tsconfig.json` with those changes:
+If you're using TypeScript, you need to update your `tsconfig.json` file with the following changes to make it compatible with Next.js:
 
 ```json filename="tsconfig.json"
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
-    "esModuleInterop": true,
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
     "skipLibCheck": true,
-    "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    "strict": false,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
     "jsx": "preserve",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "allowJs": true,
-    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
     "incremental": true,
-    "plugins": [{ "name": "next" }]
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "strictNullChecks": true
   },
-  "include": ["./src", "./dist/types/**/*.ts", "./next-env.d.ts"],
-  "exclude": ["./node_modules"]
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "./dist/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
 }
 ```
 
@@ -133,9 +127,7 @@ file, which is a [React Server Component](/docs/app/building-your-application/re
 that will wrap all pages in your application. This file is defined at the top level of the `app`
 directory.
 
-The closest equivalent to the root layout file in a Vite application is the
-[`index.html` file](https://vitejs.dev/guide/#index-html-and-project-root), which contains your
-`<html>`, `<head>`, and `<body>` tags.
+The closest equivalent to the root layout file in a CRA application is the `index.html` file, which contains your `<html>`, `<head>`, and `<body>` tags.
 
 In this step, you'll convert your `index.html` file into a root layout file:
 
@@ -173,10 +165,10 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -192,10 +184,10 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <head>
         <meta charset="UTF-8" />
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -204,6 +196,8 @@ export default function RootLayout({ children }) {
   )
 }
 ```
+
+> **Good to know**: We'll ignore the [manifest file](/docs/app/api-reference/file-conventions/metadata), additional iconography other than the favicon, and [testing configuration](/docs/app/building-your-application/testing), but if these are requirements, Next.js also supports these options.
 
 4. Next.js already includes by default the
    [meta charset](https://developer.mozilla.org/docs/Web/HTML/Element/meta#charset) and
@@ -219,9 +213,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -236,9 +230,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <link rel="icon" type="image/svg+xml" href="/icon.svg" />
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -264,8 +258,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -280,8 +274,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
-        <title>My App</title>
-        <meta name="description" content="My App is a..." />
+        <title>React App</title>
+        <meta name="description" content="Web site created..." />
       </head>
       <body>
         <div id="root">{children}</div>
@@ -300,8 +294,8 @@ export default function RootLayout({ children }) {
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'My App',
-  description: 'My App is a...',
+  title: 'React App',
+  description: 'Web site created with Next.js.',
 }
 
 export default function RootLayout({
@@ -321,8 +315,8 @@ export default function RootLayout({
 
 ```jsx filename="app/layout.js" switcher
 export const metadata = {
-  title: 'My App',
-  description: 'My App is a...',
+  title: 'React App',
+  description: 'Web site created with Next.js.',
 }
 
 export default function RootLayout({ children }) {
@@ -344,12 +338,12 @@ to more easily improve your SEO and web shareability of your pages.
 ### Step 5: Create the Entrypoint Page
 
 On Next.js you declare an entrypoint for your application by creating a `page.tsx` file. The
-closest equivalent of this file on Vite is your `main.tsx` file. In this step, you’ll set up the
+closest equivalent of this file on CRA is your `src/index.tsx` file. In this step, you’ll set up the
 entrypoint of your application.
 
 1. **Create a `[[...slug]]` directory in your `app` directory.**
 
-Since in this guide we're aiming first to set up our Next.js as an SPA (Single Page Application),
+Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application),
 you need your page entrypoint to catch all possible routes of your application. For that, create a
 new `[[...slug]]` directory in your `app` directory.
 
@@ -363,7 +357,7 @@ containing `page.tsx` file.
 2. **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
+import '../../src/index.css'
 
 export function generateStaticParams() {
   return [{ slug: [''] }]
@@ -375,7 +369,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
+import '../../src/index.css'
 
 export function generateStaticParams() {
   return [{ slug: [''] }]
@@ -392,7 +386,7 @@ This file is a [Server Component](/docs/app/building-your-application/rendering/
 
 This file imports our global CSS and tells [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) we are only going to generate one route, the index route at `/`.
 
-Now, let's move the rest of our Vite application which will run client-only.
+Now, let's move the rest of our CRA application which will run client-only.
 
 ```tsx filename="app/[[...slug]]/client.tsx" switcher
 'use client'
@@ -400,7 +394,7 @@ Now, let's move the rest of our Vite application which will run client-only.
 import React from 'react'
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import('../../src/App'), { ssr: false })
 
 export function ClientOnly() {
   return <App />
@@ -413,7 +407,7 @@ export function ClientOnly() {
 import React from 'react'
 import dynamic from 'next/dynamic'
 
-const App = dynamic(() => import('../../App'), { ssr: false })
+const App = dynamic(() => import('../../src/App'), { ssr: false })
 
 export function ClientOnly() {
   return <App />
@@ -432,7 +426,7 @@ const App = dynamic(() => import('../../App'), { ssr: false })
 Now, update your entrypoint page to use the new component:
 
 ```tsx filename="app/[[...slug]]/page.tsx" switcher
-import '../../index.css'
+import '../../src/index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -445,7 +439,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/[[...slug]]/page.js" switcher
-import '../../index.css'
+import '../../src/index.css'
 import { ClientOnly } from './client'
 
 export function generateStaticParams() {
@@ -459,11 +453,11 @@ export default function Page() {
 
 ### Step 6: Update Static Image Imports
 
-Next.js handles static image imports slightly different from Vite. With Vite, importing an image
+Next.js handles static image imports slightly different from CRA. With CRA, importing an image
 file will return its public URL as a string:
 
 ```tsx filename="App.tsx"
-import image from './img.png' // `image` will be '/assets/img.2d8efhg.png' in production
+import image from './img.png'
 
 export default function App() {
   return <img src={image} />
@@ -514,43 +508,10 @@ Alternatively, you can reference the public URL for the image asset based on the
 
 Next.js has support for `.env`
 [environment variables](/docs/app/building-your-application/configuring/environment-variables)
-similar to Vite. The main difference is the prefix used to expose environment variables on the
-client-side.
+similar to CRA.
 
-- Change all environment variables with the `VITE_` prefix to `NEXT_PUBLIC_`.
-
-Vite exposes a few built-in environment variables on the special `import.meta.env` object which
-aren’t supported by Next.js. You need to update their usage as follows:
-
-- `import.meta.env.MODE` ⇒ `process.env.NODE_ENV`
-- `import.meta.env.PROD` ⇒ `process.env.NODE_ENV === 'production'`
-- `import.meta.env.DEV` ⇒ `process.env.NODE_ENV !== 'production'`
-- `import.meta.env.SSR` ⇒ `typeof window !== 'undefined'`
-
-Next.js also doesn't provide a built-in `BASE_URL` environment variable. However, you can still
-configure one, if you need it:
-
-1. **Add the following to your `.env` file:**
-
-```bash filename=".env"
-# ...
-NEXT_PUBLIC_BASE_PATH="/some-base-path"
-```
-
-2. **Set [`basePath`](/docs/app/api-reference/next-config-js/basePath) to `process.env.NEXT_PUBLIC_BASE_PATH` in your `next.config.mjs` file:**
-
-```js filename="next.config.mjs"
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  output: 'export', // Outputs a Single-Page Application (SPA).
-  distDir: './dist', // Changes the build output directory to `./dist/`.
-  basePath: process.env.NEXT_PUBLIC_BASE_PATH, // Sets the base path to `/some-base-path`.
-}
-
-export default nextConfig
-```
-
-3. **Update `import.meta.env.BASE_URL` usages to `process.env.NEXT_PUBLIC_BASE_PATH`**
+The main difference is the prefix used to expose environment variables on the
+client-side. Change all environment variables with the `REACT_APP_` prefix to `NEXT_PUBLIC_`.
 
 ### Step 8: Update Scripts in `package.json`
 
@@ -577,19 +538,22 @@ next-env.d.ts
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
 
-> **Example:** Check out [this pull request](https://github.com/inngest/vite-to-nextjs/pull/1) for a
-> working example of a Vite application migrated to Next.js.
-
 ### Step 9: Clean Up
 
-You can now clean up your codebase from Vite related artifacts:
+You can now clean up your codebase from Create React App related artifacts:
 
-- Delete `main.tsx`
-- Delete `index.html`
-- Delete `vite-env.d.ts`
-- Delete `tsconfig.node.json`
-- Delete `vite.config.ts`
-- Uninstall Vite dependencies
+- Delete `src/index.tsx`
+- Delete `public/index.html`
+- Delete `reportWebVitals` setup
+- Uninstall CRA dependencies (`react-scripts`)
+
+## Bundler Compatibility
+
+Create React App and Next.js both default to using webpack for bundling.
+
+When migrating your CRA application to Next.js, you might have a custom webpack configuration you're looking to migrate. Next.js supports providing a [custom webpack configuration](/docs/app/api-reference/next-config-js/webpack).
+
+Further, Next.js has support for [Turbopack](/docs/app/api-reference/next-config-js/turbo) through `next dev --turbo` to improve your local dev performance. Turbopack supports some [webpack loaders](/docs/app/api-reference/next-config-js/turbo) as well for compatability and incremental adoption.
 
 ## Next Steps
 
@@ -606,3 +570,5 @@ do next:
 - [Optimize fonts with `next/font`](/docs/app/building-your-application/optimizing/fonts)
 - [Optimize third-party scripts with the `<Script>` component](/docs/app/building-your-application/optimizing/scripts)
 - [Update your ESLint configuration to support Next.js rules](/docs/app/building-your-application/configuring/eslint)
+
+> **Good to know:** Using a static export [does not currently support](https://github.com/vercel/next.js/issues/54393) using the `useParams` hook.

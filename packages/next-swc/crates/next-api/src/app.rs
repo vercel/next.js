@@ -892,6 +892,7 @@ impl AppEndpoint {
                     "server/middleware-build-manifest.js".to_string(),
                     "server/middleware-react-loadable-manifest.js".to_string(),
                     "server/next-font-manifest.js".to_string(),
+                    "server/interception-route-rewrite-manifest.js".to_string(),
                 ];
                 let mut wasm_paths_from_root = vec![];
 
