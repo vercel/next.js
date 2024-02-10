@@ -1,6 +1,9 @@
 import { createNextDescribe } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
+const METADATA_BASE_WARN_STRING =
+  'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
+
 createNextDescribe(
   'app dir - metadata missing metadataBase',
   {
@@ -20,9 +23,7 @@ createNextDescribe(
       const logStartPosition = next.cliOutput.length
       await fetchViaHTTP(next.url, '/og-image-convention')
       const output = getCliOutput(logStartPosition)
-      expect(output).toInclude(
-        'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
-      )
+      expect(output).toInclude(METADATA_BASE_WARN_STRING)
       expect(output).toMatch(/using "http:\/\/localhost:\d+/)
       expect(output).toInclude(
         '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
@@ -33,9 +34,7 @@ createNextDescribe(
       const logStartPosition = next.cliOutput.length
       await fetchViaHTTP(next.url, '/absolute-url-og')
       const output = getCliOutput(logStartPosition)
-      expect(output).not.toInclude(
-        'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
-      )
+      expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     })
 
     it('should warn for unsupported metadata properties', async () => {
