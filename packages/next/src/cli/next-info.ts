@@ -4,7 +4,6 @@ import os from 'os'
 import childProcess from 'child_process'
 
 import { bold, cyan, yellow } from '../lib/picocolors'
-import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { getRegistry } from '../lib/helpers/get-registry'
@@ -12,7 +11,9 @@ import { parseVersionInfo } from '../server/dev/parse-version-info'
 import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
 import { warn } from '../build/output/log'
 
-const dir = process.cwd()
+type NextInfoOptions = {
+  verbose?: boolean
+}
 
 type TaskResult = {
   // Additional messages to notify to the users, i.e certain script cannot be run due to missing xyz.
@@ -23,6 +24,7 @@ type TaskResult = {
 }
 
 type TaskScript = () => Promise<TaskResult>
+
 type PlatformTaskScript =
   | {
       win32: TaskScript
@@ -59,7 +61,7 @@ function getPackageVersion(packageName: string) {
 }
 
 async function getNextConfig() {
-  const config = await loadConfig(PHASE_INFO, dir)
+  const config = await loadConfig(PHASE_INFO, process.cwd())
 
   return {
     output: config.output ?? 'N/A',
@@ -69,10 +71,6 @@ async function getNextConfig() {
   }
 }
 
-/**
- * Returns the version of the specified binary, by supplying `--version` argument.
- * N/A if it fails to run the binary.
- */
 function getBinaryVersion(binaryName: string) {
   try {
     return childProcess
@@ -84,37 +82,17 @@ function getBinaryVersion(binaryName: string) {
   }
 }
 
-function printHelp() {
-  console.log(
-    `
-Description
-  Prints relevant details about the current system which can be used to report Next.js bugs
-
-Usage
-  $ next info
-
-Options
-  --help, -h    Displays this message
-  --verbose     Collect additional information for debugging
-
-Learn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
-  )
-}
-
-/**
- * Collect basic next.js installation information and print it to stdout.
- */
-async function printDefaultInfo() {
+async function printInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
 
   let stalenessWithTitle = ''
   let title = ''
   let versionInfo
+
   try {
     const registry = getRegistry()
     const res = await fetch(`${registry}-/package/next/dist-tags`)
-
     const tags = await res.json()
 
     versionInfo = parseVersionInfo({
@@ -122,8 +100,12 @@ async function printDefaultInfo() {
       latest: tags.latest,
       canary: tags.canary,
     })
+
     title = getStaleness(versionInfo).title
-    if (title) stalenessWithTitle = ` // ${title}`
+
+    if (title) {
+      stalenessWithTitle = ` // ${title}`
+    }
   } catch (e) {
     console.warn(
       `${yellow(
@@ -133,7 +115,9 @@ async function printDefaultInfo() {
       }.)
       Detected "${installedRelease}". Visit https://github.com/vercel/next.js/releases.
       Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-      Read more - https://nextjs.org/docs/messages/opening-an-issue`
+      \nLearn more: ${cyan(
+        'https://nextjs.org/docs/messages/opening-an-issue'
+      )}`
     )
   }
 
@@ -154,23 +138,9 @@ Relevant Packages:
   react-dom: ${getPackageVersion('react-dom')}
   typescript: ${getPackageVersion('typescript')}
 Next.js Config:
-  output: ${nextConfig.output}
-
-`)
-
-  if (versionInfo?.staleness.startsWith('stale')) {
-    warn(`${title}
-   Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-   Read more - https://nextjs.org/docs/messages/opening-an-issue`)
-  }
+  output: ${nextConfig.output}`)
 }
 
-/**
- * Using system-installed tools per each platform, trying to read shared dependencies of next-swc.
- * This is mainly for debugging DLOPEN failure.
- *
- * We don't / can't install these tools by ourselves, will skip the check if we can't find them.
- */
 async function runSharedDependencyCheck(
   tools: Array<{ bin: string; checkArgs: Array<string>; args: Array<string> }>,
   skipMessage: string
@@ -243,10 +213,7 @@ async function runSharedDependencyCheck(
   }
 }
 
-/**
- * Collect additional diagnostics information.
- */
-async function printVerbose() {
+async function printVerboseInfo() {
   const fs = require('fs')
   const currentPlatform = os.platform()
 
@@ -584,21 +551,11 @@ async function printVerbose() {
   }
 }
 
-/**
- * Runs few scripts to collect system information to help with debugging next.js installation issues.
- * There are 2 modes, by default it collects basic next.js installation with runtime information. If
- * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
- */
-const nextInfo: CliCommand = async (args) => {
-  if (args['--help']) {
-    printHelp()
-    return
-  }
-
-  if (!args['--verbose']) {
-    await printDefaultInfo()
+const nextInfo = async (options: NextInfoOptions) => {
+  if (options.verbose) {
+    await printVerboseInfo()
   } else {
-    await printVerbose()
+    await printInfo()
   }
 }
 

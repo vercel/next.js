@@ -7,6 +7,7 @@ import { bold, cyan, italic } from '../lib/picocolors'
 import { myParseInt } from '../server/lib/utils'
 import { nextBuild } from '../cli/next-build'
 import { nextExport } from '../cli/next-export'
+import { nextInfo } from '../cli/next-info'
 import { nextStart } from '../cli/next-start'
 import { nextTelemetry } from '../cli/next-telemetry'
 
@@ -64,9 +65,21 @@ program
 program.command('export', { hidden: true }).action(nextExport).helpOption(false)
 
 program
+  .command('info')
+  .description(
+    'Prints relevant details about the current system which can be used to report Next.js bugs.'
+  )
+  .addHelpText(
+    'after',
+    `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+  )
+  .option('--verbose', 'Collects additional information for debugging.')
+  .action((options) => nextInfo(options))
+
+program
   .command('start')
   .description(
-    `Starts Next.js in production mode. The application should be compiled with \`next build\` first.`
+    'Starts Next.js in production mode. The application should be compiled with `next build` first.'
   )
   .argument(
     '[directory]',
@@ -104,10 +117,7 @@ program
       'completely anonymous'
     )} telemetry collection.`
   )
-  .addHelpText(
-    'after',
-    `\nLearn more: ${cyan('https://nextjs.org/telemetry')} `
-  )
+  .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
   .addOption(
     new Option('--enable', `Enables Next.js' telemetry collection.`).conflicts(
       'disable'
