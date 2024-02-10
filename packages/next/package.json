@@ -96,7 +96,7 @@
     "@swc/helpers": "0.5.5",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
-    "commander": "2.20.0",
+    "commander": "12.0.0",
     "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.1"
