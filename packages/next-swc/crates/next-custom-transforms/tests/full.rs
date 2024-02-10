@@ -53,6 +53,7 @@ fn test(input: &Path, minify: bool) {
                                 tsx: true,
                                 ..Default::default()
                             })),
+                            external_helpers: true.into(),
                             ..Default::default()
                         },
                         ..Default::default()
@@ -67,7 +68,7 @@ fn test(input: &Path, minify: bool) {
                 is_server_compiler: false,
                 server_components: None,
                 styled_components: Some(assert_json("{}")),
-                styled_jsx: Some(assert_json("{}")),
+                styled_jsx: assert_json("{}"),
                 remove_console: None,
                 react_remove_properties: None,
                 relay: None,

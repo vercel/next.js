@@ -204,6 +204,13 @@ export type PrefetchCacheEntry = {
   lastUsedTime: number | null
 }
 
+export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
+}
+
 /**
  * Handles keeping the state of app-router.
  */

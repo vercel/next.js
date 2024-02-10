@@ -83,7 +83,7 @@ describe('Middleware Runtime', () => {
           },
         },
         startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-        buildCommand: 'pnpm run build',
+        buildCommand: 'pnpm build',
         env: {
           ANOTHER_MIDDLEWARE_TEST: 'asdf2',
           STRING_ENV_VAR: 'asdf3',
