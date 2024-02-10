@@ -1,4 +1,4 @@
-import { InvalidArgumentError } from '@commander-js/extra-typings'
+import { InvalidArgumentError } from 'commander'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {

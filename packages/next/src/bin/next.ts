@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
-import { Command, Option } from '@commander-js/extra-typings'
+import { Command, Option } from 'commander'
 
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { myParseInt } from '../server/lib/utils'
-import { nextBuild } from '../cli/future-next-build'
+import { nextBuild } from '../cli/next-build'
 import { nextExport } from '../cli/next-export'
 import { nextStart } from '../cli/next-start'
 import { nextTelemetry } from '../cli/next-telemetry'
@@ -26,6 +26,7 @@ program
   .description(
     'The Next.js CLI allows you to start, build, and export your application.'
   )
+  .configureHelp({ subcommandTerm: (cmd) => cmd.name() + ' ' + cmd.usage() })
   .helpCommand(false)
   .helpOption('-h, --help', 'Displays this message.')
   .version(
@@ -51,7 +52,14 @@ program
   .option('--no-mangling', 'Disables mangling.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
+  .addOption(
+    new Option('--build-mode <mode>')
+      .choices(['experimental-compile', 'experimental-generate'])
+      .default('default')
+      .hideHelp()
+  )
   .action((directory, options) => nextBuild(options, directory))
+  .usage('[directory] [options]')
 
 program.command('export', { hidden: true }).action(nextExport).helpOption(false)
 
@@ -87,6 +95,7 @@ program
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
   .action((directory, options) => nextStart(options, directory))
+  .usage('[directory] [options]')
 
 program
   .command('telemetry')

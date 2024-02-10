@@ -38,6 +38,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
         1
       )
     }
+
     keepAliveTimeout = Math.ceil(keepAliveTimeout)
   }
 
