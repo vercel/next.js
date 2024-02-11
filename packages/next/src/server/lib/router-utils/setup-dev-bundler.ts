@@ -145,6 +145,16 @@ import {
   MAGIC_IDENTIFIER_REGEX,
   decodeMagicIdentifier,
 } from '../../../shared/lib/magic-identifier'
+import {
+  mergeActionManifests,
+  mergeAppBuildManifests,
+  mergeBuildManifests,
+  mergeFontManifests,
+  mergeLoadableManifests,
+  mergeMiddlewareManifests,
+  mergePagesManifests,
+  type TurbopackMiddlewareManifest,
+} from './turbopack-utils'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
@@ -577,14 +587,6 @@ async function startWatcher(opts: SetupOpts) {
       ) as T
     }
 
-    type InstrumentationDefinition = {
-      files: string[]
-      name: 'instrumentation'
-    }
-    type TurbopackMiddlewareManifest = MiddlewareManifest & {
-      instrumentation?: InstrumentationDefinition
-    }
-
     const buildManifests = new Map<string, BuildManifest>()
     const appBuildManifests = new Map<string, AppBuildManifest>()
     const pagesManifests = new Map<string, PagesManifest>()
@@ -711,155 +713,6 @@ async function startWatcher(opts: SetupOpts) {
         changeSubscriptions.delete(key)
       }
       issues.delete(key)
-    }
-
-    function mergeBuildManifests(manifests: Iterable<BuildManifest>) {
-      const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
-        pages: {
-          '/_app': [],
-        },
-        // Something in next.js depends on these to exist even for app dir rendering
-        devFiles: [],
-        ampDevFiles: [],
-        polyfillFiles: [],
-        lowPriorityFiles: [
-          'static/development/_ssgManifest.js',
-          'static/development/_buildManifest.js',
-        ],
-        rootMainFiles: [],
-        ampFirstPages: [],
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.pages, m.pages)
-        if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
-      }
-      return manifest
-    }
-
-    function mergeAppBuildManifests(manifests: Iterable<AppBuildManifest>) {
-      const manifest: AppBuildManifest = {
-        pages: {},
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.pages, m.pages)
-      }
-      return manifest
-    }
-
-    function mergePagesManifests(manifests: Iterable<PagesManifest>) {
-      const manifest: PagesManifest = {}
-      for (const m of manifests) {
-        Object.assign(manifest, m)
-      }
-      return manifest
-    }
-
-    function mergeMiddlewareManifests(
-      manifests: Iterable<TurbopackMiddlewareManifest>
-    ): MiddlewareManifest {
-      const manifest: MiddlewareManifest = {
-        version: 2,
-        middleware: {},
-        sortedMiddleware: [],
-        functions: {},
-      }
-      let instrumentation: InstrumentationDefinition | undefined = undefined
-      for (const m of manifests) {
-        Object.assign(manifest.functions, m.functions)
-        Object.assign(manifest.middleware, m.middleware)
-        if (m.instrumentation) {
-          instrumentation = m.instrumentation
-        }
-      }
-      const updateFunctionDefinition = (
-        fun: EdgeFunctionDefinition
-      ): EdgeFunctionDefinition => {
-        return {
-          ...fun,
-          files: [...(instrumentation?.files ?? []), ...fun.files],
-        }
-      }
-      for (const key of Object.keys(manifest.middleware)) {
-        const value = manifest.middleware[key]
-        manifest.middleware[key] = updateFunctionDefinition(value)
-      }
-      for (const key of Object.keys(manifest.functions)) {
-        const value = manifest.functions[key]
-        manifest.functions[key] = updateFunctionDefinition(value)
-      }
-      for (const fun of Object.values(manifest.functions).concat(
-        Object.values(manifest.middleware)
-      )) {
-        for (const matcher of fun.matchers) {
-          if (!matcher.regexp) {
-            matcher.regexp = pathToRegexp(matcher.originalSource, [], {
-              delimiter: '/',
-              sensitive: false,
-              strict: true,
-            }).source.replaceAll('\\/', '/')
-          }
-        }
-      }
-      manifest.sortedMiddleware = Object.keys(manifest.middleware)
-
-      return manifest
-    }
-
-    async function mergeActionManifests(manifests: Iterable<ActionManifest>) {
-      type ActionEntries = ActionManifest['edge' | 'node']
-      const manifest: ActionManifest = {
-        node: {},
-        edge: {},
-        encryptionKey: await generateRandomActionKeyRaw(true),
-      }
-
-      function mergeActionIds(
-        actionEntries: ActionEntries,
-        other: ActionEntries
-      ): void {
-        for (const key in other) {
-          const action = (actionEntries[key] ??= {
-            workers: {},
-            layer: {},
-          })
-          Object.assign(action.workers, other[key].workers)
-          Object.assign(action.layer, other[key].layer)
-        }
-      }
-
-      for (const m of manifests) {
-        mergeActionIds(manifest.node, m.node)
-        mergeActionIds(manifest.edge, m.edge)
-      }
-
-      return manifest
-    }
-
-    function mergeFontManifests(manifests: Iterable<NextFontManifest>) {
-      const manifest: NextFontManifest = {
-        app: {},
-        appUsingSizeAdjust: false,
-        pages: {},
-        pagesUsingSizeAdjust: false,
-      }
-      for (const m of manifests) {
-        Object.assign(manifest.app, m.app)
-        Object.assign(manifest.pages, m.pages)
-
-        manifest.appUsingSizeAdjust =
-          manifest.appUsingSizeAdjust || m.appUsingSizeAdjust
-        manifest.pagesUsingSizeAdjust =
-          manifest.pagesUsingSizeAdjust || m.pagesUsingSizeAdjust
-      }
-      return manifest
-    }
-
-    function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
-      const manifest: LoadableManifest = {}
-      for (const m of manifests) {
-        Object.assign(manifest, m)
-      }
-      return manifest
     }
 
     async function writeBuildManifest(
