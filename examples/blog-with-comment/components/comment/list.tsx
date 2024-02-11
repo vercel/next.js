@@ -12,7 +12,7 @@ export default function CommentList({ comments, onDelete }: CommentListProps) {
 
   return (
     <div className="space-y-6 mt-10">
-      {comments &&
+      {!!comments.length &&
         comments.map((comment) => {
           const isAuthor = user && user.sub === comment.user.sub;
           const isAdmin =
