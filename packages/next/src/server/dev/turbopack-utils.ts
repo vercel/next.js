@@ -1,15 +1,15 @@
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
-import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
-import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
-import type { LoadableManifest } from '../../load-components'
+import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
+import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
+import { generateRandomActionKeyRaw } from '../app-render/action-encryption-utils'
+import type { LoadableManifest } from '../load-components'
 import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
-} from '../../../build/webpack/plugins/middleware-plugin'
-import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
-import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
-import type { BuildManifest } from '../../get-page-files'
+} from '../../build/webpack/plugins/middleware-plugin'
+import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
+import type { AppBuildManifest } from '../../build/webpack/plugins/app-build-manifest-plugin'
+import type { BuildManifest } from '../get-page-files'
 
 export interface InstrumentationDefinition {
   files: string[]
