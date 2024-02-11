@@ -10,13 +10,20 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next, isNextStart }) => {
+  ({ next, isNextDev }) => {
     // If it's start mode, we get the whole logs since they're from build process.
     // If it's dev mode, we get the logs after request
     function getCliOutput(logStartPosition: number) {
-      return isNextStart
-        ? next.cliOutput
-        : next.cliOutput.slice(logStartPosition)
+      return isNextDev ? next.cliOutput.slice(logStartPosition) : next.cliOutput
+    }
+
+    if (isNextDev) {
+      it('should not warn metadataBase is missing if there is only absolute url', async () => {
+        const logStartPosition = next.cliOutput.length
+        await fetchViaHTTP(next.url, '/absolute-url-og')
+        const output = getCliOutput(logStartPosition)
+        expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
+      })
     }
 
     it('should fallback to localhost if metadataBase is missing for absolute urls resolving', async () => {
@@ -28,13 +35,6 @@ createNextDescribe(
       expect(output).toInclude(
         '. See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase'
       )
-    })
-
-    it('should not warn metadataBase is missing if there is only absolute url', async () => {
-      const logStartPosition = next.cliOutput.length
-      await fetchViaHTTP(next.url, '/absolute-url-og')
-      const output = getCliOutput(logStartPosition)
-      expect(output).not.toInclude(METADATA_BASE_WARN_STRING)
     })
 
     it('should warn for unsupported metadata properties', async () => {
