@@ -2,7 +2,11 @@ import type {
   AlternateLinkDescriptor,
   ResolvedAlternateURLs,
 } from '../types/alternative-urls-types'
-import type { Metadata, ResolvedMetadata } from '../types/metadata-interface'
+import type {
+  Metadata,
+  ResolvedMetadata,
+  Viewport,
+} from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
 import type {
   FieldResolver,
@@ -25,9 +29,11 @@ function resolveAlternateUrl(
   return resolveAbsoluteUrlWithPathname(url, metadataBase, pathname)
 }
 
-export const resolveThemeColor: FieldResolver<'themeColor'> = (themeColor) => {
+export const resolveThemeColor: FieldResolver<'themeColor', Viewport> = (
+  themeColor
+) => {
   if (!themeColor) return null
-  const themeColorDescriptors: ResolvedMetadata['themeColor'] = []
+  const themeColorDescriptors: Viewport['themeColor'] = []
 
   resolveAsArrayOrUndefined(themeColor)?.forEach((descriptor) => {
     if (typeof descriptor === 'string')
