@@ -22,7 +22,7 @@ import type {
 
 import ws from 'next/dist/compiled/ws'
 import { createDefineEnv } from '../../build/swc'
-import path from 'path'
+import { join, posix } from 'path'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
@@ -305,31 +305,31 @@ export async function createHotReloaderTurbopack(
   const issues: Issues = new Map()
   const serverPathState = new Map<string, string>()
 
-  async function processResult(
+  async function handleRequireCacheClearing(
     id: string,
     result: TurbopackResult<WrittenEndpoint>
   ): Promise<TurbopackResult<WrittenEndpoint>> {
     // Figure out if the server files have changed
     let hasChange = false
-    for (const { path: p, contentHash } of result.serverPaths) {
+    for (const { path, contentHash } of result.serverPaths) {
       // We ignore source maps
-      if (p.endsWith('.map')) continue
-      const key = `${id}:${p}`
+      if (path.endsWith('.map')) continue
+      const key = `${id}:${path}`
       const localHash = serverPathState.get(key)
-      const globalHash = serverPathState.get(p)
+      const globalHash = serverPathState.get(path)
       if (
         (localHash && localHash !== contentHash) ||
         (globalHash && globalHash !== contentHash)
       ) {
         hasChange = true
         serverPathState.set(key, contentHash)
-        serverPathState.set(p, contentHash)
+        serverPathState.set(path, contentHash)
       } else {
         if (!localHash) {
           serverPathState.set(key, contentHash)
         }
         if (!globalHash) {
-          serverPathState.set(p, contentHash)
+          serverPathState.set(path, contentHash)
         }
       }
     }
@@ -347,7 +347,7 @@ export async function createHotReloaderTurbopack(
     }
 
     const serverPaths = result.serverPaths.map(({ path: p }) =>
-      path.join(distDir, p)
+      join(distDir, p)
     )
 
     for (const file of serverPaths) {
@@ -450,7 +450,7 @@ export async function createHotReloaderTurbopack(
       | 'middleware'
       | 'instrumentation' = 'pages'
   ): Promise<T> {
-    const manifestPath = path.posix.join(
+    const manifestPath = posix.join(
       distDir,
       `server`,
       type === 'app-route' ? 'app' : type,
@@ -464,9 +464,7 @@ export async function createHotReloaderTurbopack(
       type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
       name
     )
-    return JSON.parse(
-      await readFile(path.posix.join(manifestPath), 'utf-8')
-    ) as T
+    return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
   }
 
   const buildManifests = new Map<string, BuildManifest>()
@@ -598,13 +596,13 @@ export async function createHotReloaderTurbopack(
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
     const buildManifest = mergeBuildManifests(buildManifests.values())
-    const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
-    const middlewareBuildManifestPath = path.join(
+    const buildManifestPath = join(distDir, BUILD_MANIFEST)
+    const middlewareBuildManifestPath = join(
       distDir,
       'server',
       `${MIDDLEWARE_BUILD_MANIFEST}.js`
     )
-    const interceptionRewriteManifestPath = path.join(
+    const interceptionRewriteManifestPath = join(
       distDir,
       'server',
       `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
@@ -648,11 +646,11 @@ export async function createHotReloaderTurbopack(
       content
     )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
     await writeFileAtomic(
-      path.join(distDir, 'static', 'development', '_buildManifest.js'),
+      join(distDir, 'static', 'development', '_buildManifest.js'),
       buildManifestJs
     )
     await writeFileAtomic(
-      path.join(distDir, 'static', 'development', '_ssgManifest.js'),
+      join(distDir, 'static', 'development', '_ssgManifest.js'),
       srcEmptySsgManifest
     )
   }
@@ -663,7 +661,7 @@ export async function createHotReloaderTurbopack(
         Boolean
       ) as BuildManifest[]
     )
-    const fallbackBuildManifestPath = path.join(
+    const fallbackBuildManifestPath = join(
       distDir,
       `fallback-${BUILD_MANIFEST}`
     )
@@ -676,7 +674,7 @@ export async function createHotReloaderTurbopack(
 
   async function writeAppBuildManifest(): Promise<void> {
     const appBuildManifest = mergeAppBuildManifests(appBuildManifests.values())
-    const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
+    const appBuildManifestPath = join(distDir, APP_BUILD_MANIFEST)
     deleteCache(appBuildManifestPath)
     await writeFileAtomic(
       appBuildManifestPath,
@@ -686,7 +684,7 @@ export async function createHotReloaderTurbopack(
 
   async function writePagesManifest(): Promise<void> {
     const pagesManifest = mergePagesManifests(pagesManifests.values())
-    const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
+    const pagesManifestPath = join(distDir, 'server', PAGES_MANIFEST)
     deleteCache(pagesManifestPath)
     await writeFileAtomic(
       pagesManifestPath,
@@ -696,11 +694,7 @@ export async function createHotReloaderTurbopack(
 
   async function writeAppPathsManifest(): Promise<void> {
     const appPathsManifest = mergePagesManifests(appPathsManifests.values())
-    const appPathsManifestPath = path.join(
-      distDir,
-      'server',
-      APP_PATHS_MANIFEST
-    )
+    const appPathsManifestPath = join(distDir, 'server', APP_PATHS_MANIFEST)
     deleteCache(appPathsManifestPath)
     await writeFileAtomic(
       appPathsManifestPath,
@@ -712,11 +706,7 @@ export async function createHotReloaderTurbopack(
     const middlewareManifest = mergeMiddlewareManifests(
       middlewareManifests.values()
     )
-    const middlewareManifestPath = path.join(
-      distDir,
-      'server',
-      MIDDLEWARE_MANIFEST
-    )
+    const middlewareManifestPath = join(distDir, 'server', MIDDLEWARE_MANIFEST)
     deleteCache(middlewareManifestPath)
     await writeFileAtomic(
       middlewareManifestPath,
@@ -726,12 +716,12 @@ export async function createHotReloaderTurbopack(
 
   async function writeActionManifest(): Promise<void> {
     const actionManifest = await mergeActionManifests(actionManifests.values())
-    const actionManifestJsonPath = path.join(
+    const actionManifestJsonPath = join(
       distDir,
       'server',
       `${SERVER_REFERENCE_MANIFEST}.json`
     )
-    const actionManifestJsPath = path.join(
+    const actionManifestJsPath = join(
       distDir,
       'server',
       `${SERVER_REFERENCE_MANIFEST}.js`
@@ -751,12 +741,12 @@ export async function createHotReloaderTurbopack(
     const fontManifest = mergeFontManifests(fontManifests.values())
     const json = JSON.stringify(fontManifest, null, 2)
 
-    const fontManifestJsonPath = path.join(
+    const fontManifestJsonPath = join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.json`
     )
-    const fontManifestJsPath = path.join(
+    const fontManifestJsPath = join(
       distDir,
       'server',
       `${NEXT_FONT_MANIFEST}.js`
@@ -772,8 +762,8 @@ export async function createHotReloaderTurbopack(
 
   async function writeLoadableManifest(): Promise<void> {
     const loadableManifest = mergeLoadableManifests(loadableManifests.values())
-    const loadableManifestPath = path.join(distDir, REACT_LOADABLE_MANIFEST)
-    const middlewareloadableManifestPath = path.join(
+    const loadableManifestPath = join(distDir, REACT_LOADABLE_MANIFEST)
+    const middlewareloadableManifestPath = join(
       distDir,
       'server',
       `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
@@ -912,7 +902,7 @@ export async function createHotReloaderTurbopack(
             name: string,
             prop: 'nodeJs' | 'edge'
           ) => {
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               displayName,
               await instrumentation[prop].writeToDisk()
             )
@@ -947,7 +937,7 @@ export async function createHotReloaderTurbopack(
         }
         if (middleware) {
           const processMiddleware = async () => {
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               'middleware',
               await middleware.endpoint.writeToDisk()
             )
@@ -1018,10 +1008,10 @@ export async function createHotReloaderTurbopack(
   }
 
   // Write empty manifests
-  await mkdir(path.join(distDir, 'server'), { recursive: true })
-  await mkdir(path.join(distDir, 'static/development'), { recursive: true })
+  await mkdir(join(distDir, 'server'), { recursive: true })
+  await mkdir(join(distDir, 'static/development'), { recursive: true })
   await writeFile(
-    path.join(distDir, 'package.json'),
+    join(distDir, 'package.json'),
     JSON.stringify(
       {
         type: 'commonjs',
@@ -1051,7 +1041,7 @@ export async function createHotReloaderTurbopack(
           finishBuilding = startBuilding(page, requestUrl)
           try {
             if (globalEntries.app) {
-              const writtenEndpoint = await processResult(
+              const writtenEndpoint = await handleRequireCacheClearing(
                 '_app',
                 await globalEntries.app.writeToDisk()
               )
@@ -1061,7 +1051,7 @@ export async function createHotReloaderTurbopack(
             await loadPagesManifest('_app')
 
             if (globalEntries.document) {
-              const writtenEndpoint = await processResult(
+              const writtenEndpoint = await handleRequireCacheClearing(
                 '_document',
                 await globalEntries.document.writeToDisk()
               )
@@ -1069,7 +1059,7 @@ export async function createHotReloaderTurbopack(
             }
             await loadPagesManifest('_document')
 
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               page,
               await route.htmlEndpoint.writeToDisk()
             )
@@ -1132,7 +1122,7 @@ export async function createHotReloaderTurbopack(
         }
         case 'page-api': {
           finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await processResult(
+          const writtenEndpoint = await handleRequireCacheClearing(
             page,
             await route.endpoint.writeToDisk()
           )
@@ -1155,7 +1145,7 @@ export async function createHotReloaderTurbopack(
         }
         case 'app-page': {
           finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await processResult(
+          const writtenEndpoint = await handleRequireCacheClearing(
             page,
             await route.htmlEndpoint.writeToDisk()
           )
@@ -1200,7 +1190,7 @@ export async function createHotReloaderTurbopack(
         }
         case 'app-route': {
           finishBuilding = startBuilding(page, requestUrl)
-          const writtenEndpoint = await processResult(
+          const writtenEndpoint = await handleRequireCacheClearing(
             page,
             await route.endpoint.writeToDisk()
           )
@@ -1427,7 +1417,7 @@ export async function createHotReloaderTurbopack(
         let finishBuilding = startBuilding(page, requestUrl)
         try {
           if (globalEntries.app) {
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               '_app',
               await globalEntries.app.writeToDisk()
             )
@@ -1438,7 +1428,7 @@ export async function createHotReloaderTurbopack(
           await loadFontManifest('_app')
 
           if (globalEntries.document) {
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               '_document',
               await globalEntries.document.writeToDisk()
             )
@@ -1456,7 +1446,7 @@ export async function createHotReloaderTurbopack(
           await loadPagesManifest('_document')
 
           if (globalEntries.error) {
-            const writtenEndpoint = await processResult(
+            const writtenEndpoint = await handleRequireCacheClearing(
               '_error',
               await globalEntries.error.writeToDisk()
             )
