@@ -687,9 +687,16 @@ impl PageEndpoint {
                 assets,
             )));
 
-            if let Some(base_assets) = base_assets {
-                new_assets.extend(base_assets.await?.iter().copied());
-            }
+            let new_assets = if let Some(base_assets) = base_assets {
+                base_assets
+                    .await?
+                    .iter()
+                    .copied()
+                    .chain(new_assets.into_iter())
+                    .collect()
+            } else {
+                new_assets
+            };
 
             Ok(ChunkGroupResult {
                 assets: Vc::cell(new_assets),
