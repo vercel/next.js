@@ -314,7 +314,7 @@ export async function createHotReloaderTurbopack(
     for (const { path: p, contentHash } of result.serverPaths) {
       // We ignore source maps
       if (p.endsWith('.map')) continue
-      let key = `${id}:${p}`
+      const key = `${id}:${p}`
       const localHash = serverPathState.get(key)
       const globalHash = serverPathState.get(p)
       if (
