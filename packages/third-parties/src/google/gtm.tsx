@@ -15,7 +15,7 @@ export function GoogleTagManager(props: GTMParams) {
     auth,
     preview,
     dataLayer,
-    scriptStrategy = 'afterInteractive',
+    strategy = 'afterInteractive',
   } = props
 
   if (currDataLayerName === undefined) {
@@ -51,11 +51,12 @@ export function GoogleTagManager(props: GTMParams) {
         ${dataLayer ? `w[l].push(${JSON.stringify(dataLayer)})` : ''}
       })(window,'${dataLayerName}');`,
         }}
-        strategy={scriptStrategy}
+        strategy={strategy}
       />
       <Script
         id="_next-gtm"
         data-ntpc="GTM"
+        strategy={strategy}
         src={`https://www.googletagmanager.com/gtm.js?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
       />
     </>
