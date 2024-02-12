@@ -270,14 +270,14 @@ export async function createHotReloaderTurbopack(
     }),
     serverAddr: `127.0.0.1:${opts.port}`,
   })
-  const iter = project.entrypointsSubscribe()
+  const entrypointsSubscription = project.entrypointsSubscribe()
   const currentEntries: Map<string, Route> = new Map()
   const changeSubscriptions: Map<
     string,
     Promise<AsyncIterator<any>>
   > = new Map()
   let prevMiddleware: boolean | undefined = undefined
-  const globalEntries: {
+  const globalEntrypoints: {
     app: Endpoint | undefined
     document: Endpoint | undefined
     error: Endpoint | undefined
@@ -827,16 +827,16 @@ export async function createHotReloaderTurbopack(
 
   try {
     async function handleEntries() {
-      for await (const entrypoints of iter) {
+      for await (const entrypoints of entrypointsSubscription) {
         if (!currentEntriesHandlingResolve) {
           currentEntriesHandling = new Promise(
             // eslint-disable-next-line no-loop-func
             (resolve) => (currentEntriesHandlingResolve = resolve)
           )
         }
-        globalEntries.app = entrypoints.pagesAppEndpoint
-        globalEntries.document = entrypoints.pagesDocumentEndpoint
-        globalEntries.error = entrypoints.pagesErrorEndpoint
+        globalEntrypoints.app = entrypoints.pagesAppEndpoint
+        globalEntrypoints.document = entrypoints.pagesDocumentEndpoint
+        globalEntrypoints.error = entrypoints.pagesErrorEndpoint
 
         currentEntries.clear()
 
@@ -1031,20 +1031,20 @@ export async function createHotReloaderTurbopack(
         case 'page': {
           finishBuilding = startBuilding(page, requestUrl)
           try {
-            if (globalEntries.app) {
+            if (globalEntrypoints.app) {
               const writtenEndpoint = await handleRequireCacheClearing(
                 '_app',
-                await globalEntries.app.writeToDisk()
+                await globalEntrypoints.app.writeToDisk()
               )
               processIssues(issues, '_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
 
-            if (globalEntries.document) {
+            if (globalEntrypoints.document) {
               const writtenEndpoint = await handleRequireCacheClearing(
                 '_document',
-                await globalEntries.document.writeToDisk()
+                await globalEntrypoints.document.writeToDisk()
               )
               processIssues(issues, '_document', writtenEndpoint)
             }
@@ -1096,12 +1096,12 @@ export async function createHotReloaderTurbopack(
                 }
               }
             )
-            if (globalEntries.document) {
+            if (globalEntrypoints.document) {
               changeSubscription(
                 '_document',
                 'server',
                 false,
-                globalEntries.document,
+                globalEntrypoints.document,
                 () => {
                   return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
                 }
@@ -1407,10 +1407,10 @@ export async function createHotReloaderTurbopack(
       if (page === '/_error') {
         let finishBuilding = startBuilding(page, requestUrl)
         try {
-          if (globalEntries.app) {
+          if (globalEntrypoints.app) {
             const writtenEndpoint = await handleRequireCacheClearing(
               '_app',
-              await globalEntries.app.writeToDisk()
+              await globalEntrypoints.app.writeToDisk()
             )
             processIssues(issues, '_app', writtenEndpoint)
           }
@@ -1418,16 +1418,16 @@ export async function createHotReloaderTurbopack(
           await loadPagesManifest('_app')
           await loadFontManifest('_app')
 
-          if (globalEntries.document) {
+          if (globalEntrypoints.document) {
             const writtenEndpoint = await handleRequireCacheClearing(
               '_document',
-              await globalEntries.document.writeToDisk()
+              await globalEntrypoints.document.writeToDisk()
             )
             changeSubscription(
               '_document',
               'server',
               false,
-              globalEntries.document,
+              globalEntrypoints.document,
               () => {
                 return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               }
@@ -1436,10 +1436,10 @@ export async function createHotReloaderTurbopack(
           }
           await loadPagesManifest('_document')
 
-          if (globalEntries.error) {
+          if (globalEntrypoints.error) {
             const writtenEndpoint = await handleRequireCacheClearing(
               '_error',
-              await globalEntries.error.writeToDisk()
+              await globalEntrypoints.error.writeToDisk()
             )
             processIssues(issues, page, writtenEndpoint)
           }
