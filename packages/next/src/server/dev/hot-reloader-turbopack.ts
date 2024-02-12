@@ -826,7 +826,7 @@ export async function createHotReloaderTurbopack(
   }
 
   try {
-    async function handleEntries() {
+    async function handleEntrypointsSubscription() {
       for await (const entrypoints of entrypointsSubscription) {
         if (!currentEntriesHandlingResolve) {
           currentEntriesHandling = new Promise(
@@ -990,7 +990,7 @@ export async function createHotReloaderTurbopack(
       }
     }
 
-    handleEntries().catch((err) => {
+    handleEntrypointsSubscription().catch((err) => {
       console.error(err)
       process.exit(1)
     })
