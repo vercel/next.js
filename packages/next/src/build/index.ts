@@ -1338,6 +1338,7 @@ export default async function build(
           serverAddr: `127.0.0.1:3000`,
         })
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const iter = project.entrypointsSubscribe()
         // for await (const entrypoints of iter) {
         // }
