@@ -67,7 +67,11 @@ export function useMDXComponents(components) {
 Update the `next.config.js` file at your project's root to configure it to use MDX:
 
 ```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+const withMDX = require('@next/mdx')({
+  options: {
+    providerImportSource: '@mdx-js/react',
+  },
+})
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
