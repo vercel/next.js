@@ -14,7 +14,7 @@ export async function install(
   /** Indicate whether there is an active Internet connection.*/
   isOnline: boolean
 ): Promise<void> {
-  let args: string[] = ['install']
+  const args: string[] = ['install']
   if (!isOnline) {
     console.log(
       yellow('You appear to be offline.\nFalling back to the local cache.')

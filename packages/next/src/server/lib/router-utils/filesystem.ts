@@ -14,7 +14,7 @@ import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import LRUCache from 'next/dist/compiled/lru-cache'
-import loadCustomRoutes from '../../../lib/load-custom-routes'
+import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
@@ -325,7 +325,6 @@ export async function setupFsCheck(opts: {
     )
   )
   const rewrites = {
-    // TODO: add interception routes generateInterceptionRoutesRewrites()
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
       buildCustomRoute('before_files_rewrite', item)
     ),
@@ -393,9 +392,9 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
-    interceptionRoutes: undefined as
+    exportPathMapRoutes: undefined as
       | undefined
-      | ReturnType<typeof buildCustomRoute>[],
+      | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
     devVirtualFsItems: new Set<string>(),
 
@@ -472,7 +471,13 @@ export async function setupFsCheck(opts: {
             itemPath,
             // legacy behavior allows visiting static assets under
             // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+            isDynamicOutput
+              ? undefined
+              : [
+                  i18n?.defaultLocale,
+                  // default locales from domains need to be matched too
+                  ...(i18n.domains?.map((item) => item.defaultLocale) || []),
+                ]
           )
 
           if (localeResult.pathname !== curItemPath) {

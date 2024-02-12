@@ -62,11 +62,11 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'yarn jest --forceExit tests/entry.test.tsx && yarn next build',
+          build: 'jest --forceExit tests/entry.test.tsx && next build',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

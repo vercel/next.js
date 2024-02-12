@@ -13,15 +13,16 @@ description: Use CSS-in-JS libraries with Next.js
 
 The following libraries are supported in Client Components in the `app` directory (alphabetical):
 
+- [`chakra-ui`](https://chakra-ui.com/getting-started/nextjs-app-guide)
 - [`kuma-ui`](https://kuma-ui.com)
 - [`@mui/material`](https://mui.com/material-ui/guides/next-js-app-router/)
 - [`pandacss`](https://panda-css.com)
 - [`styled-jsx`](#styled-jsx)
 - [`styled-components`](#styled-components)
-- [`style9`](https://github.com/johanholmerin/style9)
+- [`stylex`](https://stylexjs.com)
 - [`tamagui`](https://tamagui.dev/docs/guides/next-js#server-components)
 - [`tss-react`](https://tss-react.dev/)
-- [`vanilla-extract`](https://github.com/vercel/next.js/tree/canary/examples/with-vanilla-extract)
+- [`vanilla-extract`](https://vanilla-extract.style)
 
 The following are currently working on support:
 
@@ -131,7 +132,17 @@ export default function RootLayout({ children }) {
 
 Below is an example of how to configure `styled-components@6` or newer:
 
-First, use the `styled-components` API to create a global registry component to collect all CSS style rules generated during a render, and a function to return those rules. Then use the `useServerInsertedHTML` hook to inject the styles collected in the registry into the `<head>` HTML tag in the root layout.
+First, enable styled-components in `next.config.js`.
+
+```js filename="next.config.js"
+module.exports = {
+  compiler: {
+    styledComponents: true,
+  },
+}
+```
+
+Then, use the `styled-components` API to create a global registry component to collect all CSS style rules generated during a render, and a function to return those rules. Then use the `useServerInsertedHTML` hook to inject the styles collected in the registry into the `<head>` HTML tag in the root layout.
 
 ```tsx filename="lib/registry.tsx" switcher
 'use client'
@@ -234,6 +245,7 @@ export default function RootLayout({ children }) {
 > - During server rendering, styles will be extracted to a global registry and flushed to the `<head>` of your HTML. This ensures the style rules are placed before any content that might use them. In the future, we may use an upcoming React feature to determine where to inject the styles.
 > - During streaming, styles from each chunk will be collected and appended to existing styles. After client-side hydration is complete, `styled-components` will take over as usual and inject any further dynamic styles.
 > - We specifically use a Client Component at the top level of the tree for the style registry because it's more efficient to extract CSS rules this way. It avoids re-generating styles on subsequent server renders, and prevents them from being sent in the Server Component payload.
+> - For advanced use cases where you need to configure individual properties of styled-components compilation, you can read our [Next.js styled-components API reference](/docs/architecture/nextjs-compiler#styled-components) to learn more.
 
 </AppOnly>
 
@@ -246,16 +258,14 @@ export default function RootLayout({ children }) {
 - [Styled Components](https://github.com/vercel/next.js/tree/canary/examples/with-styled-components)
 - [Emotion](https://github.com/vercel/next.js/tree/canary/examples/with-emotion)
 - [Linaria](https://github.com/vercel/next.js/tree/canary/examples/with-linaria)
-- [Tailwind CSS + Emotion](https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss-emotion)
 - [Styletron](https://github.com/vercel/next.js/tree/canary/examples/with-styletron)
 - [Cxs](https://github.com/vercel/next.js/tree/canary/examples/with-cxs)
-- [Aphrodite](https://github.com/vercel/next.js/tree/canary/examples/with-aphrodite)
 - [Fela](https://github.com/vercel/next.js/tree/canary/examples/with-fela)
 - [Stitches](https://github.com/vercel/next.js/tree/canary/examples/with-stitches)
 
 </details>
 
-It's possible to use any existing CSS-in-JS solution.The simplest one is inline styles:
+It's possible to use any existing CSS-in-JS solution. The simplest one is inline styles:
 
 ```jsx
 function HiThere() {

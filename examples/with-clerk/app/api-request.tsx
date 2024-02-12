@@ -1,13 +1,13 @@
-'use client'
+"use client";
 
-import { SignedIn, SignedOut } from '@clerk/nextjs'
-import { useEffect, useState } from 'react'
-import styles from '../styles/Home.module.css'
-import '../styles/prism.css'
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import styles from "../styles/Home.module.css";
+import "../styles/prism.css";
 
 declare global {
   interface Window {
-    Prism: any
+    Prism: any;
   }
 }
 
@@ -20,30 +20,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ id: null }, { status: 401 })
   }
   return NextResponse.json({ id: userId }, { status: 200 })
-}`
+}`;
 
 export const APIRequest = () => {
   useEffect(() => {
     if (window.Prism) {
-      window.Prism.highlightAll()
+      window.Prism.highlightAll();
     }
-  })
+  });
 
-  const [response, setResponse] = useState('// Click above to run the request')
+  const [response, setResponse] = useState("// Click above to run the request");
 
   const makeRequest = async () => {
-    setResponse('// Loading...')
+    setResponse("// Loading...");
 
     try {
-      const res = await fetch('/api/getAuthenticatedUserId')
-      const body = await res.json()
-      setResponse(JSON.stringify(body, null, '  '))
+      const res = await fetch("/api/getAuthenticatedUserId");
+      const body = await res.json();
+      setResponse(JSON.stringify(body, null, "  "));
     } catch (e) {
       setResponse(
-        '// There was an error with the request. Please contact support@clerk.dev'
-      )
+        "// There was an error with the request. Please contact support@clerk.dev",
+      );
     }
-  }
+  };
 
   return (
     <div className={styles.backend}>
@@ -86,5 +86,5 @@ export const APIRequest = () => {
         <code className="language-js">{apiSample}</code>
       </pre>
     </div>
-  )
-}
+  );
+};

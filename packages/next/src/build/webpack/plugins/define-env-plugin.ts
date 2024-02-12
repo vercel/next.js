@@ -95,9 +95,7 @@ export function getDefineEnv({
       isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : ''
     ),
     'process.env.NEXT_MINIMAL': JSON.stringify(''),
-    'process.env.__NEXT_WINDOW_HISTORY_SUPPORT': JSON.stringify(
-      config.experimental.windowHistorySupport
-    ),
+    'process.env.__NEXT_PPR': JSON.stringify(config.experimental.ppr === true),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
@@ -192,7 +190,7 @@ export function getDefineEnv({
     'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
-    'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId), // TODO: remove in the next major version
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
     ),
@@ -208,6 +206,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
+    ),
+    'process.env.__NEXT_LINK_NO_TOUCH_START': JSON.stringify(
+      config.experimental.linkNoTouchStart
     ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeOrEdgeCompilation

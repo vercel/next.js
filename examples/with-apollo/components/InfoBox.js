@@ -12,6 +12,6 @@ const InfoBox = ({ children }) => (
     `}</style>
     {children}
   </div>
-)
+);
 
-export default InfoBox
+export default InfoBox;

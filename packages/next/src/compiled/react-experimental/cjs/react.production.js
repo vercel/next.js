@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-experimental-2c338b16f-20231116';
+var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -23,7 +23,6 @@ const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 const REACT_CONTEXT_TYPE = Symbol.for('react.context');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 const REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -32,7 +31,6 @@ const REACT_LAZY_TYPE = Symbol.for('react.lazy');
 const REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for('react.debug_trace_mode');
 const REACT_OFFSCREEN_TYPE = Symbol.for('react.offscreen');
 const REACT_CACHE_TYPE = Symbol.for('react.cache');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -242,13 +240,6 @@ const ReactCurrentOwner = {
   current: null
 };
 
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
-
 function hasValidRef(config) {
 
   return config.ref !== undefined;
@@ -280,7 +271,7 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -300,14 +291,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
+
 function createElement$1(type, config, children) {
   let propName; // Reserved names are extracted
 
   const props = {};
   let key = null;
   let ref = null;
-  let self = null;
-  let source = null;
 
   if (config != null) {
     if (hasValidRef(config)) {
@@ -317,13 +307,19 @@ function createElement$1(type, config, children) {
     if (hasValidKey(config)) {
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -356,7 +352,7 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  return ReactElement(type, key, ref, ReactCurrentOwner.current, props);
 }
 /**
  * Return a function that produces ReactElements of a given type.
@@ -374,7 +370,7 @@ function createFactory$1(type) {
   return factory;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
+  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._owner, oldElement.props);
   return newElement;
 }
 /**
@@ -392,13 +388,7 @@ function cloneElement$1(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Self is preserved since the owner is preserved.
-
-  const self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  const source = element._source; // Owner will be preserved, unless ref is overridden
+  let ref = element.ref; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
@@ -422,7 +412,15 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -449,7 +447,7 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  return ReactElement(element.type, key, ref, owner, props);
 }
 /**
  * Verifies the object is a ReactElement.
@@ -462,6 +460,39 @@ function cloneElement$1(element, config, children) {
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
+
+/**
+ * Keeps track of the current dispatcher.
+ */
+const ReactCurrentDispatcher = {
+  current: null
+};
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+const ReactCurrentCache = {
+  current: null
+};
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
+
+const ReactSharedInternals = {
+  ReactCurrentDispatcher,
+  ReactCurrentCache,
+  ReactCurrentBatchConfig,
+  ReactCurrentOwner
+};
+
+const createElement = createElement$1;
+const cloneElement = cloneElement$1;
+const createFactory = createFactory$1;
 
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
@@ -533,6 +564,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            throw new Error('Cannot render an Async Component, Promise or React.Lazy inside React.Children. ' + 'We recommend not iterating over children and just rendering them plain.');
         }
 
     }
@@ -600,6 +635,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     } else if (type === 'object') {
       // eslint-disable-next-line react-internal/safe-string-coercion
       const childrenString = String(children);
+
+      if (typeof children.then === 'function') {
+        throw new Error('Cannot render an Async Component, Promise or React.Lazy inside React.Children. ' + 'We recommend not iterating over children and just rendering them plain.');
+      }
+
       throw new Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
     }
   }
@@ -724,10 +764,7 @@ function createContext(defaultValue) {
     _threadCount: 0,
     // These are circular
     Provider: null,
-    Consumer: null,
-    // Add these to use same hidden class in VM as ServerContext
-    _defaultValue: null,
-    _globalName: null
+    Consumer: null
   };
   context.Provider = {
     $$typeof: REACT_PROVIDER_TYPE,
@@ -825,13 +862,6 @@ function memo(type, compare) {
   return elementType;
 }
 
-/**
- * Keeps track of the current Cache dispatcher.
- */
-const ReactCurrentCache = {
-  current: null
-};
-
 const UNTERMINATED = 0;
 const TERMINATED = 1;
 const ERRORED = 2;
@@ -853,7 +883,7 @@ function createCacheNode() {
   };
 }
 
-function cache(fn) {
+function cache$1(fn) {
   return function () {
     const dispatcher = ReactCurrentCache.current;
 
@@ -937,19 +967,14 @@ function cache(fn) {
   };
 }
 
+const cache = cache$1;
+
 function postpone(reason) {
   // eslint-disable-next-line react-internal/prod-error-codes
   const postponeInstance = new Error(reason);
   postponeInstance.$$typeof = REACT_POSTPONE_TYPE;
   throw postponeInstance;
 }
-
-/**
- * Keeps track of the current dispatcher.
- */
-const ReactCurrentDispatcher = {
-  current: null
-};
 
 function resolveDispatcher() {
   const dispatcher = ReactCurrentDispatcher.current;
@@ -1072,88 +1097,44 @@ function useOptimistic(passthrough, reducer) {
   return dispatcher.useOptimistic(passthrough, reducer);
 }
 
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-const ReactCurrentBatchConfig = {
-  transition: null
-};
-
-const ContextRegistry = {};
-
-const ReactSharedInternals = {
-  ReactCurrentDispatcher,
-  ReactCurrentCache,
-  ReactCurrentBatchConfig,
-  ReactCurrentOwner
-};
-
-{
-  ReactSharedInternals.ContextRegistry = ContextRegistry;
-}
-
-function createServerContext(globalName, defaultValue) {
-
-  let wasDefined = true;
-
-  if (!ContextRegistry[globalName]) {
-    wasDefined = false;
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: defaultValue,
-      _currentValue2: defaultValue,
-      _defaultValue: defaultValue,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  const context = ContextRegistry[globalName];
-
-  if (context._defaultValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-    context._defaultValue = defaultValue;
-
-    if (context._currentValue === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue = defaultValue;
-    }
-
-    if (context._currentValue2 === REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED) {
-      context._currentValue2 = defaultValue;
-    }
-  } else if (wasDefined) {
-    throw new Error("ServerContext: " + globalName + " already defined");
-  }
-
-  return context;
-}
-
 function startTransition(scope, options) {
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = {};
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
 
-  try {
-    scope();
-  } finally {
-    ReactCurrentBatchConfig.transition = prevTransition;
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
   }
 }
+
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
 
 function act(callback) {
   {
@@ -1161,9 +1142,6 @@ function act(callback) {
   }
 }
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
-const createFactory = createFactory$1;
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -1185,13 +1163,13 @@ exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.act = act;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createContext = createContext;
 exports.createElement = createElement;
 exports.createFactory = createFactory;
 exports.createRef = createRef;
-exports.createServerContext = createServerContext;
 exports.experimental_useEffectEvent = useEffectEvent;
 exports.experimental_useOptimistic = experimental_useOptimistic;
 exports.forwardRef = forwardRef;
@@ -1203,7 +1181,6 @@ exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
 exports.unstable_Cache = REACT_CACHE_TYPE;
 exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_act = act;
 exports.unstable_getCacheForType = getCacheForType;
 exports.unstable_getCacheSignal = getCacheSignal;
 exports.unstable_postpone = postpone;

@@ -1,9 +1,9 @@
-import Head from 'next/head'
-import Link from 'next/link'
-import styles from '../styles/Home.module.css'
+import Head from "next/head";
+import Link from "next/link";
+import styles from "../styles/Home.module.css";
 
 // Import the generated Lists API from Keystone
-import { lists } from '.keystone/api'
+import { lists } from ".keystone/api";
 
 // Home receives a `posts` prop from `getStaticProps` below
 export default function Home({ posts }) {
@@ -41,7 +41,7 @@ export default function Home({ posts }) {
             </li>
           )}
         </ul>
-        {process.env.NODE_ENV !== 'production' && (
+        {process.env.NODE_ENV !== "production" && (
           <Link
             href="/api/graphql?query=%7BallPosts%7Btitle%2Cslug%2Ccontent%7D%7D"
             className={styles.playground}
@@ -51,12 +51,12 @@ export default function Home({ posts }) {
         )}
       </main>
     </div>
-  )
+  );
 }
 
 // Here we use the Lists API to load all the posts we want to display
 // The return of this function is provided to the `Home` component
 export async function getStaticProps() {
-  const posts = await lists.Post.findMany({ query: 'id title slug' })
-  return { props: { posts } }
+  const posts = await lists.Post.findMany({ query: "id title slug" });
+  return { props: { posts } };
 }

@@ -30,8 +30,8 @@ describe('next/font/google with-font-declarations-file', () => {
         'fonts.js': new FileRef(
           join(__dirname, 'with-font-declarations-file/fonts.js')
         ),
-        'my-font.woff2': new FileRef(
-          join(__dirname, 'with-font-declarations-file/my-font.woff2')
+        'my-font-roboto.woff2': new FileRef(
+          join(__dirname, 'with-font-declarations-file/my-font-roboto.woff2')
         ),
       },
       env: {
@@ -135,7 +135,7 @@ describe('next/font/google with-font-declarations-file', () => {
       expect($('link[as="font"]').get(1).attribs).toEqual({
         as: 'font',
         crossorigin: 'anonymous',
-        href: '/_next/static/media/2a931eed088772c9-s.p.woff2',
+        href: '/_next/static/media/934c4b7cb736f2a3-s.p.woff2',
         rel: 'preload',
         type: 'font/woff2',
         'data-next-font': 'size-adjust',

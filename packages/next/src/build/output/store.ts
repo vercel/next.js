@@ -1,11 +1,7 @@
 import createStore from 'next/dist/compiled/unistore'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { type Span, flushAllTraces, trace } from '../../trace'
-import {
-  teardownCrashReporter,
-  teardownHeapProfiler,
-  teardownTraceSubscriber,
-} from '../swc'
+import { teardownHeapProfiler, teardownTraceSubscriber } from '../swc'
 import * as Log from './log'
 
 const MAX_LOG_SKIP_DURATION = 500 // 500ms
@@ -16,6 +12,7 @@ export type OutputState =
       | {
           loading: true
           trigger: string | undefined
+          url: string | undefined
         }
       | {
           loading: false
@@ -26,6 +23,19 @@ export type OutputState =
           hasEdgeServer: boolean
         }
     ))
+
+const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
+export function formatTrigger(trigger: string) {
+  for (const segment of internalSegments) {
+    if (trigger.includes(segment)) {
+      trigger = trigger.replace(segment, '')
+    }
+  }
+  if (trigger.length > 1 && trigger.endsWith('/')) {
+    trigger = trigger.slice(0, -1)
+  }
+  return trigger
+}
 
 export const store = createStore<OutputState>({
   appUrl: null,
@@ -51,6 +61,7 @@ function hasStoreChanged(nextStore: OutputState) {
 
 let startTime = 0
 let trigger = '' // default, use empty string for trigger
+let triggerUrl: string | undefined = undefined
 let loadingLogTimer: NodeJS.Timeout | null = null
 let traceSpan: Span | null = null
 
@@ -65,7 +76,8 @@ store.subscribe((state) => {
 
   if (state.loading) {
     if (state.trigger) {
-      trigger = state.trigger
+      trigger = formatTrigger(state.trigger)
+      triggerUrl = state.url
       if (trigger !== 'initial') {
         traceSpan = trace('compile-path', undefined, {
           trigger: trigger,
@@ -73,7 +85,15 @@ store.subscribe((state) => {
         if (!loadingLogTimer) {
           // Only log compiling if compiled is not finished in 3 seconds
           loadingLogTimer = setTimeout(() => {
-            Log.wait(`Compiling ${trigger} ...`)
+            if (
+              triggerUrl &&
+              triggerUrl !== trigger &&
+              process.env.NEXT_TRIGGER_URL
+            ) {
+              Log.wait(`Compiling ${trigger} (${triggerUrl}) ...`)
+            } else {
+              Log.wait(`Compiling ${trigger} ...`)
+            }
           }, MAX_LOG_SKIP_DURATION)
         }
       }
@@ -85,6 +105,7 @@ store.subscribe((state) => {
   }
 
   if (state.errors) {
+    // Log compilation errors
     Log.error(state.errors[0])
 
     const cleanError = stripAnsi(state.errors[0])
@@ -105,7 +126,6 @@ store.subscribe((state) => {
     flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
@@ -130,7 +150,6 @@ store.subscribe((state) => {
     flushAllTraces()
     teardownTraceSubscriber()
     teardownHeapProfiler()
-    teardownCrashReporter()
     return
   }
 
@@ -162,5 +181,4 @@ store.subscribe((state) => {
   flushAllTraces()
   teardownTraceSubscriber()
   teardownHeapProfiler()
-  teardownCrashReporter()
 })

@@ -341,11 +341,11 @@ Next.js has an in-memory client-side cache that stores the React Server Componen
   height="1375"
 />
 
-As a user navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#1-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
+As a user navigates between routes, Next.js caches visited route segments and [prefetches](/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching) the routes the user is likely to navigate to (based on `<Link>` components in their viewport).
 
 This results in an improved navigation experience for the user:
 
-- Instant backward/forward navigation because visited routes are cached and fast navigation to new routes because of prefetching and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#3-partial-rendering).
+- Instant backward/forward navigation because visited routes are cached and fast navigation to new routes because of prefetching and [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering).
 - No full-page reload between navigations, and React state and browser state are preserved.
 
 > **Difference between the Router Cache and Full Route Cache**:
@@ -378,9 +378,9 @@ There are two ways you can invalidate the Router Cache:
 
 ### Opting out
 
-It's not possible to opt out of the Router Cache.
+It's not possible to opt out of the Router Cache. However, you can invalidate it by calling [`router.refresh`](/docs/app/api-reference/functions/use-router), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) (see above). This will clear the cache and make a new request to the server, ensuring the latest data is shown.
 
-You can opt out of **prefetching** by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation. Visited routes will still be cached.
+You can also opt out of **prefetching** by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation. Visited routes will still be cached.
 
 ## Cache Interactions
 
@@ -394,7 +394,7 @@ When configuring the different caching mechanisms, it's important to understand 
 ### Data Cache and Client-side Router cache
 
 - Revalidating the Data Cache in a [Route Handler](/docs/app/building-your-application/routing/route-handlers) **will not** immediately invalidate the Router Cache as the Route Handler isn't tied to a specific route. This means Router Cache will continue to serve the previous payload until a hard refresh, or the automatic invalidation period has elapsed.
-- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/forms-and-mutations).
+- To immediately invalidate the Data Cache and Router cache, you can use [`revalidatePath`](#revalidatepath) or [`revalidateTag`](#fetch-optionsnexttags-and-revalidatetag) in a [Server Action](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
 
 ## APIs
 
@@ -414,7 +414,7 @@ The following table provides an overview of how different Next.js APIs affect ca
 | [`const revalidate`](#segment-config-options)                           |                            | Revalidate or Opt out | Revalidate or Opt out |             |
 | [`const dynamic`](#segment-config-options)                              |                            | Cache or Opt out      | Cache or Opt out      |             |
 | [`cookies`](#cookies)                                                   | Revalidate (Server Action) | Opt out               |                       |             |
-| [`headers`, `useSearchParams`, `searchParams`](#dynamic-functions)      |                            | Opt out               |                       |             |
+| [`headers`, `searchParams`](#dynamic-functions)                         |                            | Opt out               |                       |             |
 | [`generateStaticParams`](#generatestaticparams)                         |                            | Cache                 |                       |             |
 | [`React.cache`](#react-cache-function)                                  |                            |                       |                       | Cache       |
 | [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache)    |                            |                       |                       |             |
@@ -446,7 +446,7 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 Data returned from `fetch` is automatically cached in the Data Cache.
 
 ```jsx
-// Cached by default. `force-cache` is the default option and can be ommitted.
+// Cached by default. `force-cache` is the default option and can be omitted.
 fetch(`https://...`, { cache: 'force-cache' })
 ```
 
@@ -500,7 +500,7 @@ revalidateTag('a')
 There are two places you can use `revalidateTag`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response of a third party event (e.g. webhook). This will not invalidate the Router Cache immediately as the Router Handler isn't tied to a specific route.
-2. [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
+2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) - to revalidate data after a user action (e.g. form submission). This will invalidate the Router Cache for the associated route.
 
 ### `revalidatePath`
 
@@ -513,7 +513,7 @@ revalidatePath('/')
 There are two places you can use `revalidatePath`, depending on what you're trying to achieve:
 
 1. [Route Handlers](/docs/app/building-your-application/routing/route-handlers) - to revalidate data in response to a third party event (e.g. webhook).
-2. [Server Actions](/docs/app/building-your-application/data-fetching/forms-and-mutations) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
+2. [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) - to revalidate data after a user interaction (e.g. form submission, clicking a button).
 
 See the [`revalidatePath` API reference](/docs/app/api-reference/functions/revalidatePath) for more information.
 
@@ -525,7 +525,7 @@ See the [`revalidatePath` API reference](/docs/app/api-reference/functions/reval
 
 ### Dynamic Functions
 
-`cookies`, `headers`, `useSearchParams`, and `searchParams` are all dynamic functions that depend on runtime incoming request information. Using them will opt a route out of the Full Route Cache, in other words, the route will be dynamically rendered.
+Dynamic functions like `cookies` and `headers`, and the `searchParams` prop in Pages depend on runtime incoming request information. Using them will opt a route out of the Full Route Cache, in other words, the route will be dynamically rendered.
 
 #### `cookies`
 

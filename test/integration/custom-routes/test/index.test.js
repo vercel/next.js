@@ -296,7 +296,7 @@ const runTests = (isDev = false) => {
     expect(await browser.eval('window.beforeNav')).toBe(1)
 
     if (isDev) {
-      expect(await hasRedbox(browser, false)).toBe(false)
+      expect(await hasRedbox(browser)).toBe(false)
     }
   })
 
@@ -2558,8 +2558,7 @@ const runTests = (isDev = false) => {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
           didPostponeHeader: 'x-nextjs-postponed',
-          varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',

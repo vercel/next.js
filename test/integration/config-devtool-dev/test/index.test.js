@@ -35,21 +35,21 @@ const appDir = join(__dirname, '../')
       )
 
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       if (process.platform === 'win32') {
         // TODO: add win32 snapshot
       } else {
         expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-"pages/index.js (5:10) @ eval
+          "pages/index.js (5:11) @ eval
 
-  3 | export default function Index(props) {
-  4 | useEffect(() => {
-> 5 |   throw new Error('this should render')
-    |        ^
-  6 | }, [])
-  7 | return <div>Index Page</div>
-  8 | }"
-`)
+            3 | export default function Index(props) {
+            4 |   useEffect(() => {
+          > 5 |     throw new Error('this should render')
+              |           ^
+            6 |   }, [])
+            7 |   return <div>Index Page</div>
+            8 | }"
+        `)
       }
       await browser.close()
 

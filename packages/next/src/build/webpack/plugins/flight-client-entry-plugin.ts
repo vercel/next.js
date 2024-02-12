@@ -29,11 +29,15 @@ import {
   isCSSMod,
   regexCSS,
 } from '../loaders/utils'
-import { traverseModules, forEachEntryModule } from '../utils'
+import {
+  traverseModules,
+  forEachEntryModule,
+  formatBarrelOptimizedResource,
+} from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
-import semver from 'next/dist/compiled/semver'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
+import { PAGE_TYPES } from '../../../lib/page-types'
 
 interface Options {
   dev: boolean
@@ -194,7 +198,11 @@ export class FlightClientEntryPlugin {
         const modQuery = mod.resourceResolveData?.query || ''
         // query is already part of mod.resource
         // so it's only necessary to add it for matchResource or mod.resourceResolveData
-        const modResource = modPath ? modPath + modQuery : mod.resource
+        const modResource = modPath
+          ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
+            ? formatBarrelOptimizedResource(mod.resource, modPath)
+            : modPath + modQuery
+          : mod.resource
 
         if (mod.layer !== WEBPACK_LAYERS.serverSideRendering) {
           return
@@ -394,14 +402,14 @@ export class FlightClientEntryPlugin {
       // We need to create extra action entries that are created from the
       // client layer.
       // Start from each entry's created SSR dependency from our previous step.
-      for (const [name, ssrEntryDepdendencies] of Object.entries(
+      for (const [name, ssrEntryDependencies] of Object.entries(
         createdSSRDependenciesForEntry
       )) {
         // Collect from all entries, e.g. layout.js, page.js, loading.js, ...
-        // add agregate them.
+        // add aggregate them.
         const actionEntryImports = this.collectClientActionsFromDependencies({
           compilation,
-          dependencies: ssrEntryDepdendencies,
+          dependencies: ssrEntryDependencies,
         })
 
         if (actionEntryImports.size > 0) {
@@ -711,7 +719,11 @@ export class FlightClientEntryPlugin {
     // Inject the entry to the client compiler.
     if (this.dev) {
       const entries = getEntries(compiler.outputPath)
-      const pageKey = getEntryKey(COMPILER_NAMES.client, 'app', bundlePath)
+      const pageKey = getEntryKey(
+        COMPILER_NAMES.client,
+        PAGE_TYPES.APP,
+        bundlePath
+      )
 
       if (!entries[pageKey]) {
         entries[pageKey] = {
@@ -787,17 +799,6 @@ export class FlightClientEntryPlugin {
     fromClient?: boolean
   }) {
     const actionsArray = Array.from(actions.entries())
-
-    // Node < 18.11 does not have sufficient support for FormData
-    if (actionsArray.length > 0 && semver.lt(process.version, '18.11.0')) {
-      compilation.errors.push(
-        new compilation.compiler.webpack.WebpackError(
-          'Your version of Node does not support server actions. Please upgrade to Node 18.11 or higher.'
-        )
-      )
-
-      return Promise.resolve()
-    }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
       actions: JSON.stringify(actionsArray),

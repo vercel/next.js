@@ -1,63 +1,63 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef } from "react";
 
-import MainMenuLink from './main-menu-link'
+import MainMenuLink from "./main-menu-link";
 
 export default function ManiMenu({ mainMenuLinks }) {
   const [activeMenuLink, setActiveMenuLink] = useState(
-    mainMenuLinks.length ? mainMenuLinks[0].url : ''
-  )
+    mainMenuLinks.length ? mainMenuLinks[0].url : "",
+  );
 
   function highlightLinks() {
-    const sections = document.querySelectorAll('.page-scroll')
+    const sections = document.querySelectorAll(".page-scroll");
     const scrollPos =
       window.pageYOffset ||
       document.documentElement.scrollTop ||
-      document.body.scrollTop
+      document.body.scrollTop;
 
     sections.forEach((currLink) => {
-      const val = currLink.getAttribute('href').slice(1)
-      if (val[0] !== '#') {
-        return
+      const val = currLink.getAttribute("href").slice(1);
+      if (val[0] !== "#") {
+        return;
       }
-      const refElement = document.querySelector(val)
+      const refElement = document.querySelector(val);
 
       if (!refElement) {
-        return
+        return;
       }
 
-      const scrollTopMinus = scrollPos + 73
+      const scrollTopMinus = scrollPos + 73;
 
       if (
         refElement.offsetTop <= scrollTopMinus &&
         refElement.offsetTop + refElement.offsetHeight > scrollTopMinus
       ) {
-        setActiveMenuLink(val)
+        setActiveMenuLink(val);
       }
-    })
+    });
   }
 
   useEffect(() => {
-    window.addEventListener('scroll', highlightLinks)
+    window.addEventListener("scroll", highlightLinks);
 
     return () => {
-      window.removeEventListener('scroll', highlightLinks)
-    }
-  }, [])
+      window.removeEventListener("scroll", highlightLinks);
+    };
+  }, []);
 
-  const [isMenuActive, setMenuActive] = useState(false)
-  const menuLinksEl = useRef(null)
+  const [isMenuActive, setMenuActive] = useState(false);
+  const menuLinksEl = useRef(null);
 
   function inactivateMenu() {
-    setMenuActive(false)
+    setMenuActive(false);
     if (menuLinksEl.current) {
-      menuLinksEl.current.classList.remove('show')
+      menuLinksEl.current.classList.remove("show");
     }
   }
 
   return (
     <>
       <button
-        className={`navbar-toggler ${isMenuActive ? 'active' : ''}`}
+        className={`navbar-toggler ${isMenuActive ? "active" : ""}`}
         type="button"
         data-bs-toggle="collapse"
         data-bs-target="#navbarSupportedContent"
@@ -91,5 +91,5 @@ export default function ManiMenu({ mainMenuLinks }) {
         </div>
       </div>
     </>
-  )
+  );
 }
