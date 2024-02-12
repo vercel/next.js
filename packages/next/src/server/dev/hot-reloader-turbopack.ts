@@ -271,7 +271,7 @@ export async function createHotReloaderTurbopack(
     serverAddr: `127.0.0.1:${opts.port}`,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntries: Map<string, Route> = new Map()
+  const currentEntrypoints: Map<string, Route> = new Map()
   const changeSubscriptions: Map<
     string,
     Promise<AsyncIterator<any>>
@@ -626,12 +626,12 @@ export async function createHotReloaderTurbopack(
         ? (normalizeRewritesForBuildManifest(rewrites) as any)
         : { afterFiles: [], beforeFiles: [], fallback: [] },
       ...Object.fromEntries(
-        [...currentEntries.keys()].map((pathname) => [
+        [...currentEntrypoints.keys()].map((pathname) => [
           pathname,
           `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
         ])
       ),
-      sortedPages: [...currentEntries.keys()],
+      sortedPages: [...currentEntrypoints.keys()],
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -838,7 +838,7 @@ export async function createHotReloaderTurbopack(
         globalEntrypoints.document = entrypoints.pagesDocumentEndpoint
         globalEntrypoints.error = entrypoints.pagesErrorEndpoint
 
-        currentEntries.clear()
+        currentEntrypoints.clear()
 
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
@@ -846,7 +846,7 @@ export async function createHotReloaderTurbopack(
             case 'page-api':
             case 'app-page':
             case 'app-route': {
-              currentEntries.set(pathname, route)
+              currentEntrypoints.set(pathname, route)
               break
             }
             default:
@@ -861,7 +861,7 @@ export async function createHotReloaderTurbopack(
             continue
           }
 
-          if (!currentEntries.has(pathname)) {
+          if (!currentEntrypoints.has(pathname)) {
             const subscription = await subscriptionPromise
             subscription.return?.()
             changeSubscriptions.delete(pathname)
@@ -1455,8 +1455,8 @@ export async function createHotReloaderTurbopack(
       }
       await currentEntriesHandling
       const route =
-        currentEntries.get(page) ??
-        currentEntries.get(
+        currentEntrypoints.get(page) ??
+        currentEntrypoints.get(
           normalizeAppPath(
             normalizeMetadataRoute(definition?.page ?? inputPage)
           )
