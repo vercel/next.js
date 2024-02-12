@@ -24,17 +24,17 @@ createNextDescribe(
     },
     packageJson: {
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
+        copy: `cp -r ./node_modules_bak/* ./node_modules`,
+        build: 'pnpm copy && next build',
+        dev: `pnpm copy && next ${
           shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
         }`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {
@@ -205,6 +205,11 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+      })
+
+      it('should support namespace import with ESM packages', async () => {
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
       })
     })
 

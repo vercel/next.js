@@ -519,12 +519,6 @@ function getComponentNameFromType(type) {
 // $FlowFixMe[method-unbinding]
 var hasOwnProperty = Object.prototype.hasOwnProperty;
 
-var RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
 var specialPropKeyWarningShown, specialPropRefWarningShown, didWarnAboutStringRefs;
 
 {
@@ -630,7 +624,7 @@ function warnIfStringRefCannotBeAutoConverted(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, owner, props) {
   var element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -658,21 +652,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
       enumerable: false,
       writable: true,
       value: false
-    }); // self and source are DEV only properties.
+    }); // debugInfo contains Server Component debug information.
 
-    Object.defineProperty(element, '_self', {
+    Object.defineProperty(element, '_debugInfo', {
       configurable: false,
       enumerable: false,
-      writable: false,
-      value: self
-    }); // Two elements created in two different places should be considered
-    // equal for testing purposes and therefore we hide it from enumeration.
-
-    Object.defineProperty(element, '_source', {
-      configurable: false,
-      enumerable: false,
-      writable: false,
-      value: source
+      writable: true,
+      value: null
     });
 
     if (Object.freeze) {
@@ -688,14 +674,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
+
 function createElement$1(type, config, children) {
   var propName; // Reserved names are extracted
 
   var props = {};
   var key = null;
   var ref = null;
-  var self = null;
-  var source = null;
 
   if (config != null) {
     if (hasValidRef(config)) {
@@ -712,13 +697,19 @@ function createElement$1(type, config, children) {
       }
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -771,10 +762,10 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  return ReactElement(type, key, ref, ReactCurrentOwner.current, props);
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  var newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
+  var newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._owner, oldElement.props);
   return newElement;
 }
 /**
@@ -792,13 +783,7 @@ function cloneElement$1(element, config, children) {
   var props = assign({}, element.props); // Reserved names are extracted
 
   var key = element.key;
-  var ref = element.ref; // Self is preserved since the owner is preserved.
-
-  var self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  var source = element._source; // Owner will be preserved, unless ref is overridden
+  var ref = element.ref; // Owner will be preserved, unless ref is overridden
 
   var owner = element._owner;
 
@@ -825,7 +810,15 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -852,7 +845,7 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  return ReactElement(element.type, key, ref, owner, props);
 }
 /**
  * Verifies the object is a ReactElement.
@@ -986,7 +979,7 @@ function reenableLogs() {
 
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
+function describeBuiltInComponentFrame(name, ownerFn) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -1250,7 +1243,7 @@ function describeNativeComponentFrame(fn, construct) {
 
   return syntheticFrame;
 }
-function describeFunctionComponentFrame(fn, source, ownerFn) {
+function describeFunctionComponentFrame(fn, ownerFn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -1261,7 +1254,7 @@ function shouldConstruct(Component) {
   return !!(prototype && prototype.isReactComponent);
 }
 
-function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
+function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
 
   if (type == null) {
     return '';
@@ -1292,7 +1285,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
       case REACT_MEMO_TYPE:
         // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
+        return describeUnknownElementTypeFrameInDEV(type.type, ownerFn);
 
       case REACT_LAZY_TYPE:
         {
@@ -1302,7 +1295,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
           try {
             // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
+            return describeUnknownElementTypeFrameInDEV(init(payload), ownerFn);
           } catch (x) {}
         }
     }
@@ -1318,7 +1311,7 @@ function setCurrentlyValidatingElement$1(element) {
   {
     if (element) {
       var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
       ReactDebugCurrentFrame.setExtraStackFrame(stack);
     } else {
       ReactDebugCurrentFrame.setExtraStackFrame(null);
@@ -1381,7 +1374,7 @@ function setCurrentlyValidatingElement(element) {
   {
     if (element) {
       var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
       setExtraStackFrame(stack);
     } else {
       setExtraStackFrame(null);
@@ -1619,6 +1612,7 @@ function validateFragmentProps(fragment) {
     }
   }
 }
+
 function createElementWithValidation(type, props, children) {
   var validType = isValidElementType(type); // We warn in this case but don't throw. We expect the element creation to
   // succeed and there will likely be errors in render.
@@ -1777,6 +1771,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            throw new Error('Cannot render an Async Component, Promise or React.Lazy inside React.Children. ' + 'We recommend not iterating over children and just rendering them plain.');
         }
 
     }
@@ -1865,6 +1863,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     } else if (type === 'object') {
       // eslint-disable-next-line react-internal/safe-string-coercion
       var childrenString = String(children);
+
+      if (typeof children.then === 'function') {
+        throw new Error('Cannot render an Async Component, Promise or React.Lazy inside React.Children. ' + 'We recommend not iterating over children and just rendering them plain.');
+      }
+
       throw new Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
     }
   }
@@ -2444,7 +2447,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
 
 var getPrototypeOf = Object.getPrototypeOf;
 
