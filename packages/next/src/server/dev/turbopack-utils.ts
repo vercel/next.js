@@ -36,7 +36,17 @@ import {
 } from '../../build/webpack/plugins/build-manifest-plugin'
 import type { SetupOpts } from '../lib/router-utils/setup-dev-bundler'
 import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
-import type { Route } from '../../build/swc'
+import type {
+  Issue,
+  Route,
+  TurbopackResult,
+  StyledString,
+} from '../../build/swc'
+import {
+  MAGIC_IDENTIFIER_REGEX,
+  decodeMagicIdentifier,
+} from '../../shared/lib/magic-identifier'
+import { bold, green, magenta, red } from '../../lib/picocolors'
 
 export interface InstrumentationDefinition {
   files: string[]
@@ -589,4 +599,151 @@ export async function writeManifests(
   await writeFontManifest(distDir, fontManifests)
   await writeLoadableManifest(distDir, loadableManifests)
   await writeFallbackBuildManifest(distDir, buildManifests)
+}
+
+class ModuleBuildError extends Error {}
+
+function issueKey(issue: Issue): string {
+  return [
+    issue.severity,
+    issue.filePath,
+    JSON.stringify(issue.title),
+    JSON.stringify(issue.description),
+  ].join('-')
+}
+
+export function formatIssue(issue: Issue) {
+  const { filePath, title, description, source } = issue
+  let { documentationLink } = issue
+  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
+    /\n/g,
+    '\n    '
+  )
+
+  // TODO: Use error codes to identify these
+  // TODO: Generalize adapting Turbopack errors to Next.js errors
+  if (formattedTitle.includes('Module not found')) {
+    // For compatiblity with webpack
+    // TODO: include columns in webpack errors.
+    documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
+  }
+
+  let formattedFilePath = filePath
+    .replace('[project]/', './')
+    .replaceAll('/./', '/')
+    .replace('\\\\?\\', '')
+
+  let message
+
+  if (source && source.range) {
+    const { start } = source.range
+    message = `${formattedFilePath}:${start.line + 1}:${
+      start.column + 1
+    }\n${formattedTitle}`
+  } else if (formattedFilePath) {
+    message = `${formattedFilePath}\n${formattedTitle}`
+  } else {
+    message = formattedTitle
+  }
+  message += '\n'
+
+  if (source?.range && source.source.content) {
+    const { start, end } = source.range
+    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+
+    message +=
+      codeFrameColumns(
+        source.source.content,
+        {
+          start: {
+            line: start.line + 1,
+            column: start.column + 1,
+          },
+          end: {
+            line: end.line + 1,
+            column: end.column + 1,
+          },
+        },
+        { forceColor: true }
+      ).trim() + '\n\n'
+  }
+
+  if (description) {
+    message += renderStyledStringToErrorAnsi(description) + '\n\n'
+  }
+
+  // TODO: make it possible to enable this for debugging, but not in tests.
+  // if (detail) {
+  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
+  // }
+
+  // TODO: Include a trace from the issue.
+
+  if (documentationLink) {
+    message += documentationLink + '\n\n'
+  }
+
+  return message
+}
+
+export type CurrentIssues = Map<string, Map<string, Issue>>
+
+export function processIssues(
+  currentIssues: CurrentIssues,
+  name: string,
+  result: TurbopackResult,
+  throwIssue = false
+) {
+  const newIssues = new Map<string, Issue>()
+  currentIssues.set(name, newIssues)
+
+  const relevantIssues = new Set()
+
+  for (const issue of result.issues) {
+    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    const key = issueKey(issue)
+    const formatted = formatIssue(issue)
+    newIssues.set(key, issue)
+
+    // We show errors in node_modules to the console, but don't throw for them
+    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
+    relevantIssues.add(formatted)
+  }
+
+  if (relevantIssues.size && throwIssue) {
+    throw new ModuleBuildError([...relevantIssues].join('\n\n'))
+  }
+}
+
+export function renderStyledStringToErrorAnsi(string: StyledString): string {
+  function decodeMagicIdentifiers(str: string): string {
+    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
+      try {
+        return magenta(`{${decodeMagicIdentifier(ident)}}`)
+      } catch (e) {
+        return magenta(`{${ident} (decoding failed: ${e})}`)
+      }
+    })
+  }
+
+  switch (string.type) {
+    case 'text':
+      return decodeMagicIdentifiers(string.value)
+    case 'strong':
+      return bold(red(decodeMagicIdentifiers(string.value)))
+    case 'code':
+      return green(decodeMagicIdentifiers(string.value))
+    case 'line':
+      return string.value.map(renderStyledStringToErrorAnsi).join('')
+    case 'stack':
+      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
+    default:
+      throw new Error('Unknown StyledString type', string)
+  }
+}
+
+const MILLISECONDS_IN_NANOSECOND = 1_000_000
+
+export function msToNs(ms: number): bigint {
+  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }

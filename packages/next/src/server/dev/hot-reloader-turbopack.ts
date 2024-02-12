@@ -3,8 +3,6 @@ import type {
   Route,
   TurbopackResult,
   WrittenEndpoint,
-  Issue,
-  StyledString,
 } from '../../build/swc'
 import type { Socket } from 'net'
 import type { OutputState } from '../../build/output/store'
@@ -43,13 +41,8 @@ import {
   clearAllModuleContexts,
 } from '../lib/render-server'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { bold, green, magenta, red } from '../../lib/picocolors'
 import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
-import {
-  MAGIC_IDENTIFIER_REGEX,
-  decodeMagicIdentifier,
-} from '../../shared/lib/magic-identifier'
 import {
   getTurbopackJsConfig,
   type BuildManifests,
@@ -70,6 +63,11 @@ import {
   loadAppPathManifest,
   loadActionManifest,
   type CurrentEntrypoints,
+  type CurrentIssues,
+  processIssues,
+  msToNs,
+  formatIssue,
+  renderStyledStringToErrorAnsi,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -77,127 +75,12 @@ import {
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 
-const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
   process.env.NEXT_TEST_MODE ||
   process.env.__NEXT_TEST_MODE ||
   process.env.DEBUG
 )
-
-class ModuleBuildError extends Error {}
-
-function issueKey(issue: Issue): string {
-  return [
-    issue.severity,
-    issue.filePath,
-    JSON.stringify(issue.title),
-    JSON.stringify(issue.description),
-  ].join('-')
-}
-
-function formatIssue(issue: Issue) {
-  const { filePath, title, description, source } = issue
-  let { documentationLink } = issue
-  let formattedTitle = renderStyledStringToErrorAnsi(title).replace(
-    /\n/g,
-    '\n    '
-  )
-
-  // TODO: Use error codes to identify these
-  // TODO: Generalize adapting Turbopack errors to Next.js errors
-  if (formattedTitle.includes('Module not found')) {
-    // For compatiblity with webpack
-    // TODO: include columns in webpack errors.
-    documentationLink = 'https://nextjs.org/docs/messages/module-not-found'
-  }
-
-  let formattedFilePath = filePath
-    .replace('[project]/', './')
-    .replaceAll('/./', '/')
-    .replace('\\\\?\\', '')
-
-  let message
-
-  if (source && source.range) {
-    const { start } = source.range
-    message = `${formattedFilePath}:${start.line + 1}:${
-      start.column + 1
-    }\n${formattedTitle}`
-  } else if (formattedFilePath) {
-    message = `${formattedFilePath}\n${formattedTitle}`
-  } else {
-    message = formattedTitle
-  }
-  message += '\n'
-
-  if (source?.range && source.source.content) {
-    const { start, end } = source.range
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
-
-    message +=
-      codeFrameColumns(
-        source.source.content,
-        {
-          start: {
-            line: start.line + 1,
-            column: start.column + 1,
-          },
-          end: {
-            line: end.line + 1,
-            column: end.column + 1,
-          },
-        },
-        { forceColor: true }
-      ).trim() + '\n\n'
-  }
-
-  if (description) {
-    message += renderStyledStringToErrorAnsi(description) + '\n\n'
-  }
-
-  // TODO: make it possible to enable this for debugging, but not in tests.
-  // if (detail) {
-  //   message += renderStyledStringToErrorAnsi(detail) + '\n\n'
-  // }
-
-  // TODO: Include a trace from the issue.
-
-  if (documentationLink) {
-    message += documentationLink + '\n\n'
-  }
-
-  return message
-}
-
-type CurrentIssues = Map<string, Map<string, Issue>>
-
-function processIssues(
-  currentIssues: CurrentIssues,
-  name: string,
-  result: TurbopackResult,
-  throwIssue = false
-) {
-  const newIssues = new Map<string, Issue>()
-  currentIssues.set(name, newIssues)
-
-  const relevantIssues = new Set()
-
-  for (const issue of result.issues) {
-    if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-    const key = issueKey(issue)
-    const formatted = formatIssue(issue)
-    newIssues.set(key, issue)
-
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-    relevantIssues.add(formatted)
-  }
-
-  if (relevantIssues.size && throwIssue) {
-    throw new ModuleBuildError([...relevantIssues].join('\n\n'))
-  }
-}
 
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
@@ -1345,35 +1228,4 @@ export async function createHotReloaderTurbopack(
   })()
 
   return hotReloader
-}
-
-function renderStyledStringToErrorAnsi(string: StyledString): string {
-  function decodeMagicIdentifiers(str: string): string {
-    return str.replaceAll(MAGIC_IDENTIFIER_REGEX, (ident) => {
-      try {
-        return magenta(`{${decodeMagicIdentifier(ident)}}`)
-      } catch (e) {
-        return magenta(`{${ident} (decoding failed: ${e})}`)
-      }
-    })
-  }
-
-  switch (string.type) {
-    case 'text':
-      return decodeMagicIdentifiers(string.value)
-    case 'strong':
-      return bold(red(decodeMagicIdentifiers(string.value)))
-    case 'code':
-      return green(decodeMagicIdentifiers(string.value))
-    case 'line':
-      return string.value.map(renderStyledStringToErrorAnsi).join('')
-    case 'stack':
-      return string.value.map(renderStyledStringToErrorAnsi).join('\n')
-    default:
-      throw new Error('Unknown StyledString type', string)
-  }
-}
-
-function msToNs(ms: number): bigint {
-  return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }
