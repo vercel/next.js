@@ -64,7 +64,7 @@ createNextDescribe('x-forwarded-headers', { files: __dirname }, ({ next }) => {
       expect(headers['middleware-x-forwarded-proto']).toBe(reqHeaders.proto)
     })
 
-    it.only('should work with multiple x-forwarded-* headers', async () => {
+    it('should work with multiple x-forwarded-* headers', async () => {
       const res = await next.fetch('/', {
         headers: { 'x-forwarded-proto': 'https, https' },
       })
