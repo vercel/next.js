@@ -440,7 +440,7 @@ createNextDescribe(
         let gotInlinedData = false
 
         await resolveStreamResponse(response, (_, result) => {
-          gotInlinedData = result.includes('self.__next_f=')
+          gotInlinedData = result.includes('self.__rsc_payload=')
           gotData = result.includes('next_streaming_data')
           if (!gotFallback) {
             gotFallback = result.includes('next_streaming_fallback')
