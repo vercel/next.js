@@ -814,12 +814,12 @@ export default function Page() {
   const { props: { srcSet: light, ...rest } } = getImageProps({ ...common, src: '/light.png' })
 
   return (
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcSet={dark} />
-    <source media="(prefers-color-scheme: light)" srcSet={light} />
-    <img {...rest} />
-  </picture>
-)
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+      <source media="(prefers-color-scheme: light)" srcSet={light} />
+      <img {...rest} />
+    </picture>
+  )
 }
 ```
 
