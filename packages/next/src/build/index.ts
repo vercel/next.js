@@ -127,9 +127,11 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
+  loadBindings,
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownHeapProfiler,
+  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -165,6 +167,7 @@ import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { getTurbopackJsConfig } from '../server/dev/hot-reloader-turbopack'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -720,6 +723,13 @@ export default async function build(
         .traceAsyncFn(() => loadCustomRoutes(config))
 
       const { headers, rewrites, redirects } = customRoutes
+      const combinedRewrites: Rewrite[] = [
+        ...rewrites.beforeFiles,
+        ...rewrites.afterFiles,
+        ...rewrites.fallback,
+      ]
+      const hasRewrites = combinedRewrites.length > 0
+
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
@@ -1132,12 +1142,6 @@ export default async function build(
         }
       }
 
-      const combinedRewrites: Rewrite[] = [
-        ...rewrites.beforeFiles,
-        ...rewrites.afterFiles,
-        ...rewrites.fallback,
-      ]
-
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
           (r: any) => !r.internal
@@ -1305,8 +1309,38 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
-        throw new Error("next build doesn't support turbopack yet")
+      async function turbopackBuild(): Promise<void> {
+        if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
+          throw new Error("next build doesn't support turbopack yet")
+        }
+        const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const project = await bindings.turbo.createProject({
+          projectPath: dir,
+          rootPath: config.experimental.outputFileTracingRoot || dir,
+          nextConfig: config.nextConfig,
+          jsConfig: await getTurbopackJsConfig(dir, config),
+          watch: true,
+          env: process.env as Record<string, string>,
+          defineEnv: createDefineEnv({
+            isTurbopack: true,
+            allowedRevalidateHeaderKeys: undefined,
+            clientRouterFilters: undefined,
+            config,
+            dev: true,
+            distDir,
+            fetchCacheKeyPrefix: undefined,
+            hasRewrites,
+            middlewareMatchers: undefined,
+            previewModeId: undefined,
+          }),
+          // TODO: fix
+          // serverAddr: `127.0.0.1:${opts.port}`,
+          serverAddr: `127.0.0.1:3000`,
+        })
+
+        const iter = project.entrypointsSubscribe()
+        // for await (const entrypoints of iter) {
+        // }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
