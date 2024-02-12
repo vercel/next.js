@@ -176,6 +176,11 @@ export interface Binding {
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  // Increase Rust stack size as some npm packages being compiled need more than the default.
+  if (!process.env.RUST_MIN_STACK) {
+    process.env.RUST_MIN_STACK = '8388608'
+  }
+
   if (pendingBindings) {
     return pendingBindings
   }
@@ -507,8 +512,18 @@ export interface Issue {
       content?: string
     }
     range?: {
-      start: { line: number; column: number }
-      end: { line: number; column: number }
+      start: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
+      end: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
     }
   }
   documentationLink: string

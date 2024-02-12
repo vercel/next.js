@@ -17,14 +17,9 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { PrefetchKind } from '../router-reducer-types'
+import { PrefetchKind, PrefetchCacheEntryStatus } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import {
-  PrefetchCacheEntryStatus,
-  getPrefetchEntryCacheStatus,
-} from '../get-prefetch-cache-entry-status'
-import { prunePrefetchCache } from './prune-prefetch-cache'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
@@ -32,7 +27,11 @@ import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
-import { createPrefetchCacheKey } from './create-prefetch-cache-key'
+import {
+  createPrefetchCacheKey,
+  prunePrefetchCache,
+  getPrefetchEntryCacheStatus,
+} from '../prefetch-cache-utils'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,

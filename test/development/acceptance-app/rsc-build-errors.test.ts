@@ -356,26 +356,36 @@ describe('Error overlay - RSC build errors', () => {
       () => session.getRedboxSource(),
       /must be a Client \n| Component/
     )
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      `
-      "./app/server-with-errors/error-file/error.js
-      Error: 
-        x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
-        | of the file to resolve this issue.
-        | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
-        | 
-        | 
-         ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
-       1 | export default function Error() {}
-         : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         \`----
+    if (process.env.TURBOPACK) {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./app/server-with-errors/error-file/error.js:1:1
+        Parsing ecmascript source code failed
+        > 1 | export default function Error() {}
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-      Import trace for requested module:
-      ./app/server-with-errors/error-file/error.js"
-    `
-    )
+        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+        Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components"
+      `)
+    } else {
+      expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+        .toMatchInlineSnapshot(`
+        "./app/server-with-errors/error-file/error.js
+        Error: 
+          x TEST_DIR/app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top
+          | of the file to resolve this issue.
+          | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+          | 
+          | 
+           ,-[TEST_DIR/app/server-with-errors/error-file/error.js:1:1]
+         1 | export default function Error() {}
+           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           \`----
+
+        Import trace for requested module:
+        ./app/server-with-errors/error-file/error.js"
+      `)
+    }
 
     await cleanup()
   })
