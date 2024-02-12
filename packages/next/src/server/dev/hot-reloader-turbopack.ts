@@ -188,16 +188,16 @@ function formatIssue(issue: Issue) {
   return message
 }
 
-type Issues = Map<string, Map<string, Issue>>
+type CurrentIssues = Map<string, Map<string, Issue>>
 
 function processIssues(
-  issues: Issues,
+  currentIssues: CurrentIssues,
   name: string,
   result: TurbopackResult,
   throwIssue = false
 ) {
   const newIssues = new Map<string, Issue>()
-  issues.set(name, newIssues)
+  currentIssues.set(name, newIssues)
 
   const relevantIssues = new Set()
 
@@ -303,7 +303,7 @@ export async function createHotReloaderTurbopack(
   const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
   const turbopackUpdates: TurbopackUpdate[] = []
 
-  const issues: Issues = new Map()
+  const currentIssues: CurrentIssues = new Map()
   const serverPathState = new Map<string, string>()
 
   async function handleRequireCacheClearing(
@@ -401,7 +401,7 @@ export async function createHotReloaderTurbopack(
   let hmrEventHappened = false
   let hmrHash = 0
   const sendEnqueuedMessages = () => {
-    for (const [, issueMap] of issues) {
+    for (const [, issueMap] of currentIssues) {
       if (issueMap.size > 0) {
         // During compilation errors we want to delay the HMR events until errors are fixed
         return
@@ -553,7 +553,7 @@ export async function createHotReloaderTurbopack(
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(issues, page, change)
+      processIssues(currentIssues, page, change)
       const payload = await makePayload(page, change)
       if (payload) {
         sendHmr(key, payload)
@@ -571,7 +571,7 @@ export async function createHotReloaderTurbopack(
       subscription.return?.()
       changeSubscriptions.delete(key)
     }
-    issues.delete(key)
+    currentIssues.delete(key)
   }
 
   async function writeBuildManifest(
@@ -791,7 +791,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(issues, id, data)
+        processIssues(currentIssues, id, data)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -888,7 +888,7 @@ export async function createHotReloaderTurbopack(
               displayName,
               await instrumentation[prop].writeToDisk()
             )
-            processIssues(issues, name, writtenEndpoint)
+            processIssues(currentIssues, name, writtenEndpoint)
           }
           await processInstrumentation(
             'instrumentation (node.js)',
@@ -923,7 +923,7 @@ export async function createHotReloaderTurbopack(
               'middleware',
               await middleware.endpoint.writeToDisk()
             )
-            processIssues(issues, 'middleware', writtenEndpoint)
+            processIssues(currentIssues, 'middleware', writtenEndpoint)
             await loadMiddlewareManifest('middleware', 'middleware')
             serverFields.middleware = {
               match: null as any,
@@ -1027,7 +1027,7 @@ export async function createHotReloaderTurbopack(
                 '_app',
                 await globalEntrypoints.app.writeToDisk()
               )
-              processIssues(issues, '_app', writtenEndpoint)
+              processIssues(currentIssues, '_app', writtenEndpoint)
             }
             await loadBuildManifest('_app')
             await loadPagesManifest('_app')
@@ -1037,7 +1037,7 @@ export async function createHotReloaderTurbopack(
                 '_document',
                 await globalEntrypoints.document.writeToDisk()
               )
-              processIssues(issues, '_document', writtenEndpoint)
+              processIssues(currentIssues, '_document', writtenEndpoint)
             }
             await loadPagesManifest('_document')
 
@@ -1060,7 +1060,7 @@ export async function createHotReloaderTurbopack(
 
             await writeManifests()
 
-            processIssues(issues, page, writtenEndpoint)
+            processIssues(currentIssues, page, writtenEndpoint)
           } finally {
             changeSubscription(
               page,
@@ -1121,7 +1121,7 @@ export async function createHotReloaderTurbopack(
 
           await writeManifests()
 
-          processIssues(issues, page, writtenEndpoint)
+          processIssues(currentIssues, page, writtenEndpoint)
 
           break
         }
@@ -1166,7 +1166,7 @@ export async function createHotReloaderTurbopack(
           await loadFontManifest(page, 'app')
           await writeManifests()
 
-          processIssues(issues, page, writtenEndpoint, true)
+          processIssues(currentIssues, page, writtenEndpoint, true)
 
           break
         }
@@ -1188,7 +1188,7 @@ export async function createHotReloaderTurbopack(
 
           await writeManifests()
 
-          processIssues(issues, page, writtenEndpoint, true)
+          processIssues(currentIssues, page, writtenEndpoint, true)
 
           break
         }
@@ -1315,7 +1315,7 @@ export async function createHotReloaderTurbopack(
         client.send(JSON.stringify(turbopackConnected))
 
         const errors = []
-        for (const pageIssues of issues.values()) {
+        for (const pageIssues of currentIssues.values()) {
           for (const issue of pageIssues.values()) {
             errors.push({
               message: formatIssue(issue),
@@ -1353,7 +1353,7 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async getCompilationErrors(page) {
-      const thisPageIssues = issues.get(page)
+      const thisPageIssues = currentIssues.get(page)
       if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         return [...thisPageIssues.values()].map(
@@ -1363,7 +1363,7 @@ export async function createHotReloaderTurbopack(
 
       // Otherwise, return all errors across pages
       const errors = []
-      for (const pageIssues of issues.values()) {
+      for (const pageIssues of currentIssues.values()) {
         for (const issue of pageIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
@@ -1403,7 +1403,7 @@ export async function createHotReloaderTurbopack(
               '_app',
               await globalEntrypoints.app.writeToDisk()
             )
-            processIssues(issues, '_app', writtenEndpoint)
+            processIssues(currentIssues, '_app', writtenEndpoint)
           }
           await loadBuildManifest('_app')
           await loadPagesManifest('_app')
@@ -1423,7 +1423,7 @@ export async function createHotReloaderTurbopack(
                 return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
               }
             )
-            processIssues(issues, '_document', writtenEndpoint)
+            processIssues(currentIssues, '_document', writtenEndpoint)
           }
           await loadPagesManifest('_document')
 
@@ -1432,7 +1432,7 @@ export async function createHotReloaderTurbopack(
               '_error',
               await globalEntrypoints.error.writeToDisk()
             )
-            processIssues(issues, page, writtenEndpoint)
+            processIssues(currentIssues, page, writtenEndpoint)
           }
           await loadBuildManifest('_error')
           await loadPagesManifest('_error')
@@ -1487,7 +1487,7 @@ export async function createHotReloaderTurbopack(
           sendEnqueuedMessages()
 
           const errors = new Map<string, CompilationError>()
-          for (const [, issueMap] of issues) {
+          for (const [, issueMap] of currentIssues) {
             for (const [key, issue] of issueMap) {
               if (errors.has(key)) continue
 
