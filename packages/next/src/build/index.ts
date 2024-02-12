@@ -1339,8 +1339,8 @@ export default async function build(
         })
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const iter = project.entrypointsSubscribe()
-        // for await (const entrypoints of iter) {
+        const entrypointsSubscription = project.entrypointsSubscribe()
+        // for await (const entrypoints of entrypointsSubscription) {
         // }
         throw new Error("next build doesn't support turbopack yet")
       }
