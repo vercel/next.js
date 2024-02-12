@@ -62,6 +62,8 @@ import LRUCache from 'next/dist/compiled/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
+import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
+import { buildCustomRoute } from '../../lib/build-custom-route'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -102,7 +104,7 @@ export default class DevServer extends Server {
   private actualMiddlewareFile?: string
   private actualInstrumentationHookFile?: string
   private middleware?: MiddlewareRoutingItem
-  private originalFetch: typeof fetch
+  private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
     string,
@@ -152,7 +154,7 @@ export default class DevServer extends Server {
     this.bundlerService = options.bundlerService
     this.startServerSpan =
       options.startServerSpan ?? trace('start-next-dev-server')
-    this.originalFetch = global.fetch
+    this.storeGlobals()
     this.renderOpts.dev = true
     this.renderOpts.appDirDevErrorLogger = (err: any) =>
       this.logErrorWithOriginalStack(err, 'app-dir')
@@ -281,8 +283,14 @@ export default class DevServer extends Server {
       .traceAsyncFn(() => this.runInstrumentationHookIfAvailable())
     await this.matchers.reload()
 
+    // Store globals again to preserve changes made by the instrumentation hook.
+    this.storeGlobals()
+
     this.ready?.resolve()
     this.ready = undefined
+
+    // In dev, this needs to be called after prepare because the build entries won't be known in the constructor
+    this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // This is required by the tracing subsystem.
     setGlobal('appDir', this.appDir)
@@ -540,6 +548,15 @@ export default class DevServer extends Server {
     )
   }
 
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    const rewrites = generateInterceptionRoutesRewrites(
+      Object.keys(this.appPathRoutes ?? {}),
+      this.nextConfig.basePath
+    ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
+
+    return rewrites ?? []
+  }
+
   protected getMiddleware() {
     // We need to populate the match
     // field as it isn't serializable
@@ -695,11 +712,10 @@ export default class DevServer extends Server {
           page,
           isAppPath,
           requestHeaders,
-          incrementalCacheHandlerPath:
-            this.nextConfig.experimental.incrementalCacheHandlerPath,
+          cacheHandler: this.nextConfig.cacheHandler,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
-          maxMemoryCacheSize: this.nextConfig.experimental.isrMemoryCacheSize,
+          maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           ppr: this.nextConfig.experimental.ppr === true,
         })
         return pathsResult
@@ -755,8 +771,12 @@ export default class DevServer extends Server {
     return nextInvoke as NonNullable<typeof result>
   }
 
+  private storeGlobals(): void {
+    this.originalFetch = global.fetch
+  }
+
   private restorePatchedGlobals(): void {
-    global.fetch = this.originalFetch
+    global.fetch = this.originalFetch ?? global.fetch
   }
 
   protected async ensurePage(opts: {

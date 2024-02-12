@@ -350,6 +350,7 @@ async fn get_page_entry_for_file(
         ssr_module_context,
         source,
         Vc::cell(original_name),
+        todo_get_pages_structure(),
         NextRuntime::NodeJs,
         next_config,
     );
@@ -368,6 +369,10 @@ async fn get_page_entry_for_file(
         client_module,
     }
     .cell())
+}
+
+fn todo_get_pages_structure() -> Vc<PagesStructure> {
+    todo!("add pages structure to next-build");
 }
 
 /// Computes the pathname for a given path.

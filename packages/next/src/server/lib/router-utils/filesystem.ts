@@ -325,7 +325,6 @@ export async function setupFsCheck(opts: {
     )
   )
   const rewrites = {
-    // TODO: add interception routes generateInterceptionRoutesRewrites()
     beforeFiles: customRoutes.rewrites.beforeFiles.map((item) =>
       buildCustomRoute('before_files_rewrite', item)
     ),
@@ -393,7 +392,7 @@ export async function setupFsCheck(opts: {
     dynamicRoutes,
     nextDataRoutes,
 
-    interceptionRoutes: undefined as
+    exportPathMapRoutes: undefined as
       | undefined
       | ReturnType<typeof buildCustomRoute<Rewrite>>[],
 
@@ -472,7 +471,13 @@ export async function setupFsCheck(opts: {
             itemPath,
             // legacy behavior allows visiting static assets under
             // default locale but no other locale
-            isDynamicOutput ? undefined : [i18n?.defaultLocale]
+            isDynamicOutput
+              ? undefined
+              : [
+                  i18n?.defaultLocale,
+                  // default locales from domains need to be matched too
+                  ...(i18n.domains?.map((item) => item.defaultLocale) || []),
+                ]
           )
 
           if (localeResult.pathname !== curItemPath) {

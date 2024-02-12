@@ -41,7 +41,6 @@ export interface Mutable {
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  actionResultResolved?: boolean
 }
 
 /**
@@ -203,6 +202,13 @@ export type PrefetchCacheEntry = {
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
+}
+
+export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
 }
 
 /**

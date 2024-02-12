@@ -27,8 +27,12 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_font::{
-        google::{NextFontGoogleCssModuleReplacer, NextFontGoogleReplacer},
-        local::{NextFontLocalCssModuleReplacer, NextFontLocalReplacer},
+        google::{
+            NextFontGoogleCssModuleReplacer, NextFontGoogleFontFileReplacer, NextFontGoogleReplacer,
+        },
+        local::{
+            NextFontLocalCssModuleReplacer, NextFontLocalFontFileReplacer, NextFontLocalReplacer,
+        },
     },
     next_server::context::ServerContextType,
     util::NextRuntime,
@@ -40,7 +44,6 @@ use crate::{
 pub async fn get_next_client_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -51,7 +54,6 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -66,32 +68,7 @@ pub async fn get_next_client_import_map(
     .await?;
 
     match ty.into_value() {
-        ClientContextType::Pages { pages_dir } => {
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    request_to_import_mapping(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    request_to_import_mapping(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                &mut import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    request_to_import_mapping(pages_dir, "next/error"),
-                ],
-            );
-        }
+        ClientContextType::Pages { .. } => {}
         ClientContextType::App { app_dir } => {
             let react_flavor =
                 if *next_config.enable_ppr().await? || *next_config.enable_taint().await? {
@@ -261,7 +238,6 @@ pub fn get_next_client_fallback_import_map(ty: Value<ClientContextType>) -> Vc<I
 pub async fn get_next_server_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -272,7 +248,6 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -338,7 +313,6 @@ pub async fn get_next_server_import_map(
 pub async fn get_next_edge_import_map(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ImportMap>> {
@@ -399,7 +373,6 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
-        mode,
     )
     .await?;
 
@@ -521,33 +494,23 @@ async fn insert_next_server_special_aliases(
         external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
     );
 
-    match ty {
-        ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_app"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_app"),
-                    external_if_node(pages_dir, "next/app"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_document"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_document"),
-                    external_if_node(pages_dir, "next/document"),
-                ],
-            );
-            insert_alias_to_alternatives(
-                import_map,
-                format!("{VIRTUAL_PACKAGE_NAME}/pages/_error"),
-                vec![
-                    request_to_import_mapping(pages_dir, "./_error"),
-                    external_if_node(pages_dir, "next/error"),
-                ],
+    let image_config = next_config.image_config().await?;
+    if let Some(loader_file) = image_config.loader_file.as_deref() {
+        import_map.insert_exact_alias(
+            "next/dist/shared/lib/image-loader",
+            request_to_import_mapping(project_path, loader_file),
+        );
+
+        if runtime == NextRuntime::Edge {
+            import_map.insert_exact_alias(
+                "next/dist/esm/shared/lib/image-loader",
+                request_to_import_mapping(project_path, loader_file),
             );
         }
+    }
+
+    match ty {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
@@ -568,25 +531,27 @@ async fn insert_next_server_special_aliases(
     }
 
     // see https://github.com/vercel/next.js/blob/8013ef7372fc545d49dbd060461224ceb563b454/packages/next/src/build/webpack-config.ts#L1449-L1531
+    // Sets runtime aliases for the import to client|server-only. Depends on the
+    // context, it'll resolve to the noop where it's allowed, or aliased into
+    // the error which throws a runtime error. This works with in combination of
+    // build-time error as well, refer https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_server/context.rs#L103
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } => {
             insert_exact_alias_map(
                 import_map,
                 project_path,
                 indexmap! {
-                    "server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
                     "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
                 },
             );
         }
-        // TODO: should include `ServerContextType::PagesApi` routes, but that type doesn't exist.
-        ServerContextType::AppRSC { .. }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware
         | ServerContextType::Instrumentation => {
             insert_exact_alias_map(
                 import_map,
@@ -611,21 +576,22 @@ async fn insert_next_server_special_aliases(
                 },
             );
         }
-    }
-
-    // Potential the bundle introduced into middleware and api can be poisoned by
-    // client-only but not being used, so we disabled the `client-only` erroring
-    // on these layers. `server-only` is still available.
-    if ty == ServerContextType::Middleware {
-        insert_exact_alias_map(
-            import_map,
-            project_path,
-            indexmap! {
-                "client-only" => "next/dist/compiled/client-only/index".to_string(),
-                "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
-                "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
-            },
-        );
+        // Potential the bundle introduced into middleware and api can be poisoned by
+        // client-only but not being used, so we disabled the `client-only` erroring
+        // on these layers. `server-only` is still available.
+        ServerContextType::Middleware => {
+            insert_exact_alias_map(
+                import_map,
+                project_path,
+                indexmap! {
+                    "server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                    "client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    "next/dist/compiled/server-only" => "next/dist/compiled/server-only/empty".to_string(),
+                    "next/dist/compiled/client-only" => "next/dist/compiled/client-only/index".to_string(),
+                    "next/dist/compiled/client-only/error" => "next/dist/compiled/client-only/index".to_string(),
+                },
+            );
+        }
     }
 
     import_map.insert_exact_alias(
@@ -697,7 +663,7 @@ async fn rsc_aliases(
 
     if runtime == NextRuntime::Edge {
         if matches!(ty, ServerContextType::AppRSC { .. }) {
-            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.shared-subset");
+            alias["react"] = format!("next/dist/compiled/react{react_channel}/react.react-server");
         }
         // Use server rendering stub for RSC and SSR
         // x-ref: https://github.com/facebook/react/pull/25436
@@ -745,7 +711,6 @@ async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
-    mode: NextMode,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -758,15 +723,6 @@ async fn insert_next_shared_aliases(
                 request_to_import_mapping(project_path, "./src/mdx-components"),
                 request_to_import_mapping(project_path, "@mdx-js/react"),
             ],
-        );
-    }
-
-    if mode != NextMode::Development {
-        // we use the next.js hydration code, so we replace the error overlay with our
-        // own
-        import_map.insert_exact_alias(
-            "next/dist/compiled/@next/react-dev-overlay/dist/client",
-            request_to_import_mapping(package_root, "./overlay/client.ts"),
         );
     }
 
@@ -798,6 +754,14 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
+            project_path,
+        )))
+        .into(),
+    );
+
+    import_map.insert_alias(
         // Request path from js via next-font swc transform
         AliasPattern::exact("next/font/local/target.css"),
         ImportMapping::Dynamic(Vc::upcast(NextFontLocalReplacer::new(project_path))).into(),
@@ -815,6 +779,11 @@ async fn insert_next_shared_aliases(
             project_path,
         )))
         .into(),
+    );
+
+    import_map.insert_alias(
+        AliasPattern::exact("@vercel/turbopack-next/internal/font/local/font"),
+        ImportMapping::Dynamic(Vc::upcast(NextFontLocalFontFileReplacer::new(project_path))).into(),
     );
 
     import_map.insert_singleton_alias("@swc/helpers", get_next_package(project_path));

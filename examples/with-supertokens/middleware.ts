@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { SessionContainer } from "supertokens-node/recipe/session";
-import { withSession } from "./app/sessionUtils";
+import { withSession } from "supertokens-node/nextjs";
+import { ensureSuperTokensInit } from "./app/config/backend";
+
+ensureSuperTokensInit();
 
 export async function middleware(
   request: NextRequest & { session?: SessionContainer },
@@ -18,7 +21,10 @@ export async function middleware(
     return NextResponse.next();
   }
 
-  return withSession(request, async (session) => {
+  return withSession(request, async (err, session) => {
+    if (err) {
+      return NextResponse.json(err, { status: 500 });
+    }
     if (session === undefined) {
       return NextResponse.next();
     }

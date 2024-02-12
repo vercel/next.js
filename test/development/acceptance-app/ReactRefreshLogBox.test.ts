@@ -1,7 +1,11 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import {
+  check,
+  describeVariants as describe,
+  expandCallStack,
+} from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -26,14 +30,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         export default function Page() {
           return (
             <>
+              <p>index page</p>
 
-                          <p>index page</p>
-
-                          <a onClick={() => {
-                            throw new Error('idk')
-                          }}>
-                            click me
-                          </a>
+              <a onClick={() => {
+                throw new Error('idk')
+              }}>
+                click me
+              </a>
             </>
           )
         }
@@ -220,20 +223,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
     expect(await session.hasRedbox()).toBe(true)
 
-    const source = await session.getRedboxSource()
-    expect(next.normalizeTestDirContent(source)).toMatchInlineSnapshot(
-      IS_TURBOPACK
-        ? `
-      "./index.js:7:1
-      Parsing ecmascript source code failed
-        5 |     div
-        6 |   )
-      > 7 | }
-          |  ^
+    const source = next.normalizeTestDirContent(await session.getRedboxSource())
+    if (IS_TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:7:1
+        Parsing ecmascript source code failed
+          5 |     div
+          6 |   )
+        > 7 | }
+            | ^
 
-      Unexpected eof"
-    `
-        : `
+        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
@@ -259,8 +262,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         Import trace for requested module:
         ./index.js
         ./app/page.js"
-      `
-    )
+      `)
+    }
 
     await cleanup()
   })
@@ -358,7 +361,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      IS_TURBOPACK ? './index.module.css:1:8' : './index.module.css:1:1'
+      IS_TURBOPACK ? './index.module.css:1:9' : './index.module.css:1:1'
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
@@ -818,10 +821,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
 
       expect(await session.hasRedbox()).toBe(true)
 
-      // Open full Call Stack
-      await browser
-        .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
-        .click()
+      await expandCallStack(browser)
 
       // Expect more than the default amount of frames
       // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements

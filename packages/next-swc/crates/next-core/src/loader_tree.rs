@@ -107,6 +107,15 @@ impl LoaderTreeBuilder {
             let i = self.unique_number();
             let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
 
+            let source = Vc::upcast(FileSource::new(component));
+            let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::Undefined,
+            ));
+            let module = self
+                .server_component_transition
+                .process(source, self.context, reference_ty)
+                .module();
+
             match self.mode {
                 NextMode::Development => {
                     let chunks_identifier =
@@ -131,7 +140,7 @@ impl LoaderTreeBuilder {
                         self.loader_tree_code,
                         "  {name}: [() => {identifier}, {path}],",
                         name = StringifyJs(name),
-                        path = StringifyJs(&component.to_string().await?)
+                        path = StringifyJs(&module.ident().path().to_string().await?)
                     )?;
 
                     self.imports.push(formatdoc!(
@@ -143,16 +152,6 @@ impl LoaderTreeBuilder {
                     ));
                 }
             }
-
-            let source = Vc::upcast(FileSource::new(component));
-            let reference_ty = Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            ));
-
-            let module = self
-                .server_component_transition
-                .process(source, self.context, reference_ty)
-                .module();
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }

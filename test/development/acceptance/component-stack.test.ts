@@ -14,13 +14,30 @@ createNextDescribe(
 
       expect(await hasRedbox(browser)).toBe(true)
 
-      expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-        "p
-        div
-        Component
-        main
-        Mismatch"
-      `)
+      if (process.env.TURBOPACK) {
+        expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
+          "p
+          div
+          Component
+          main
+          Mismatch
+          App
+          PathnameContextProviderAdapter
+          ErrorBoundary
+          ReactDevOverlay
+          Container
+          AppContainer
+          Root"
+        `)
+      } else {
+        expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
+          "p
+          div
+          Component
+          main
+          Mismatch"
+        `)
+      }
     })
   }
 )

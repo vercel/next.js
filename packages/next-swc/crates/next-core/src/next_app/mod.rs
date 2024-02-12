@@ -16,9 +16,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{
-        get_app_client_references_chunks, ClientReferenceChunks, ClientReferencesChunks,
-    },
+    app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
     app_client_shared_chunks::get_app_client_shared_chunks,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
@@ -296,6 +294,10 @@ impl AppPath {
                     | PathSegment::OptionalCatchAll(_),)
             )
         })
+    }
+
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn contains(&self, other: &AppPath) -> bool {

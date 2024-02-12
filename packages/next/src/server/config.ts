@@ -456,6 +456,26 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental?.incrementalCacheHandlerPath) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.incrementalCacheHandlerPath',
+      'The "experimental.incrementalCacheHandlerPath" option has been renamed to "cacheHandler". Please update your next.config.js.',
+      silent
+    )
+  }
+
+  if (result.experimental?.isrMemoryCacheSize) {
+    // TODO: Remove this warning in Next.js 15
+    warnOptionHasBeenDeprecated(
+      result,
+      'experimental.isrMemoryCacheSize',
+      'The "experimental.isrMemoryCacheSize" option has been renamed to "cacheMaxMemorySize". Please update your next.config.js.',
+      silent
+    )
+  }
+
   if (typeof result.experimental?.serverActions === 'boolean') {
     // TODO: Remove this warning in Next.js 15
     warnOptionHasBeenDeprecated(
@@ -810,9 +830,6 @@ function assignDefaults(
     },
     lodash: {
       transform: 'lodash/{{member}}',
-    },
-    'next/server': {
-      transform: 'next/dist/server/web/exports/{{ kebabCase member }}',
     },
   }
 

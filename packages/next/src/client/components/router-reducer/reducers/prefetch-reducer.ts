@@ -5,10 +5,12 @@ import type {
   ReadonlyReducerState,
 } from '../router-reducer-types'
 import { PrefetchKind } from '../router-reducer-types'
-import { prunePrefetchCache } from './prune-prefetch-cache'
 import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
 import { PromiseQueue } from '../../promise-queue'
-import { createPrefetchCacheKey } from './create-prefetch-cache-key'
+import {
+  createPrefetchCacheKey,
+  prunePrefetchCache,
+} from '../prefetch-cache-utils'
 
 export const prefetchQueue = new PromiseQueue(5)
 

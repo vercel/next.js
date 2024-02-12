@@ -1,11 +1,11 @@
-import { unstable_getImgProps as getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
 function loader({ src, width, quality }) {
   return `${src}?wid=${width}&qual=${quality || 35}`
 }
 
 export default function Page() {
-  const { props: img1 } = getImgProps({
+  const { props: img1 } = getImageProps({
     id: 'img1',
     alt: 'img1',
     src: '/logo.png',
@@ -13,7 +13,7 @@ export default function Page() {
     height: '400',
     priority: true,
   })
-  const { props: img2 } = getImgProps({
+  const { props: img2 } = getImageProps({
     id: 'img2',
     alt: 'img2',
     src: '/logo.png',

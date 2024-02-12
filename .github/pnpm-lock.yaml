@@ -65,8 +65,8 @@ importers:
         specifier: 6.0.0
         version: 6.0.0
       '@slack/web-api':
-        specifier: ^6.11.2
-        version: 6.11.2
+        specifier: ^7.0.1
+        version: 7.0.1
     devDependencies:
       '@vercel/ncc':
         specifier: ^0.38.1
@@ -398,9 +398,9 @@ packages:
       '@octokit/openapi-types': 12.11.0
     dev: false
 
-  /@slack/logger@3.0.0:
-    resolution: {integrity: sha512-DTuBFbqu4gGfajREEMrkq5jBhcnskinhr4+AnfJEk48zhVeEv3XnUKGIX98B74kxhYsIMfApGGySTn7V3b5yBA==}
-    engines: {node: '>= 12.13.0', npm: '>= 6.12.0'}
+  /@slack/logger@4.0.0:
+    resolution: {integrity: sha512-Wz7QYfPAlG/DR+DfABddUZeNgoeY7d1J39OCR2jR+v7VBsB8ezulDK5szTnDDPDwLH5IWhLvXIHlCFZV7MSKgA==}
+    engines: {node: '>= 18', npm: '>= 8.6.0'}
     dependencies:
       '@types/node': 18.16.19
     dev: false
@@ -410,21 +410,21 @@ packages:
     engines: {node: '>= 12.13.0', npm: '>= 6.12.0'}
     dev: false
 
-  /@slack/web-api@6.11.2:
-    resolution: {integrity: sha512-s4qCQGXasr8jpCf/+6+V/smq+Z2RX7EIBnJeO/xe7Luie1nyBihFMgjICNyvzWoWBdaGntSnn5CcZdFm4ItBWg==}
-    engines: {node: '>= 12.13.0', npm: '>= 6.12.0'}
+  /@slack/web-api@7.0.1:
+    resolution: {integrity: sha512-xXm3Eq7fDT5FQQlQH8tP4WzoyZXFMnbCSydFF5VZwi+LwIYIJ8yV5ujqvh5zE9XW15SPcPYb6cGEOOg1vAC65w==}
+    engines: {node: '>= 18', npm: '>= 8.6.0'}
     dependencies:
-      '@slack/logger': 3.0.0
+      '@slack/logger': 4.0.0
       '@slack/types': 2.11.0
-      '@types/is-stream': 1.1.0
       '@types/node': 18.16.19
-      axios: 1.6.5
-      eventemitter3: 3.1.2
-      form-data: 2.5.1
+      axios: 1.6.7
+      eventemitter3: 5.0.1
+      form-data: 4.0.0
       is-electron: 2.2.2
-      is-stream: 1.1.0
+      is-stream: 2.0.1
       p-queue: 6.6.2
       p-retry: 4.6.2
+      retry: 0.13.1
     transitivePeerDependencies:
       - debug
     dev: false
@@ -432,12 +432,6 @@ packages:
   /@types/github-slugger@1.3.0:
     resolution: {integrity: sha512-J/rMZa7RqiH/rT29TEVZO4nBoDP9XJOjnbbIofg7GQKs4JIduEO3WLpte+6WeUz/TcrXKlY+bM7FYrp8yFB+3g==}
     dev: true
-
-  /@types/is-stream@1.1.0:
-    resolution: {integrity: sha512-jkZatu4QVbR60mpIzjINmtS1ZF4a/FqdTUTBeQDVOQ2PYyidtwFKr0B5G6ERukKwliq+7mIXvxyppwzG5EgRYg==}
-    dependencies:
-      '@types/node': 18.16.19
-    dev: false
 
   /@types/node@18.16.19:
     resolution: {integrity: sha512-IXl7o+R9iti9eBW4Wg2hx1xQDig183jj7YLn8F7udNceyfkbn1ZxmzZXuak20gR40D7pIkIY1kYGx5VIGbaHKA==}
@@ -497,10 +491,10 @@ packages:
     resolution: {integrity: sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q==}
     dev: false
 
-  /axios@1.6.5:
-    resolution: {integrity: sha512-Ii012v05KEVuUoFWmMW/UQv9aRIc3ZwkWDcM+h5Il8izZCtRVpDUfwpoFf7eOtajT3QiGR4yDUx7lPqHJULgbg==}
+  /axios@1.6.7:
+    resolution: {integrity: sha512-/hDJGff6/c7u0hDkvkGxR/oy6CbCs8ziCsC7SqmhjfozqiJGc8Z11wrv9z9lYfY4K8l+H9TpjcMDX0xOZmx+RA==}
     dependencies:
-      follow-redirects: 1.15.4
+      follow-redirects: 1.15.5
       form-data: 4.0.0
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -611,12 +605,12 @@ packages:
     hasBin: true
     dev: false
 
-  /eventemitter3@3.1.2:
-    resolution: {integrity: sha512-tvtQIeLVHjDkJYnzf2dgVMxfuSGJeM/7UCG17TT4EumTfNtF+0nebF/4zWOIkCreAbtNqhGEboB6BWrwqNaw4Q==}
-    dev: false
-
   /eventemitter3@4.0.7:
     resolution: {integrity: sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw==}
+    dev: false
+
+  /eventemitter3@5.0.1:
+    resolution: {integrity: sha512-GWkBvjiSZK87ELrYOSESUYeVIc9mvLLf/nXalMOS5dYrgZq9o5OVkbZAVM06CVxYsCwH9BDZFPlQTlPA1j4ahA==}
     dev: false
 
   /execa@2.0.3:
@@ -645,23 +639,14 @@ packages:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
     dev: false
 
-  /follow-redirects@1.15.4:
-    resolution: {integrity: sha512-Cr4D/5wlrb0z9dgERpUL3LrmPKVDsETIJhaCMeDfuFYcqa5bldGV6wBsAN6X/vxlXQtFBMrXdXxdL8CbDTGniw==}
+  /follow-redirects@1.15.5:
+    resolution: {integrity: sha512-vSFWUON1B+yAw1VN4xMfxgn5fTUiaOzAJCKBwIIgT/+7CuGy9+r+5gITvP62j3RmaD5Ph65UaERdOSRGUzZtgw==}
     engines: {node: '>=4.0'}
     peerDependencies:
       debug: '*'
     peerDependenciesMeta:
       debug:
         optional: true
-    dev: false
-
-  /form-data@2.5.1:
-    resolution: {integrity: sha512-m21N3WOmEEURgk6B9GLOE4RuWOFf28Lhh9qGYeNlGq4VDXUlJy2th2slBNU8Gp8EzloYZOibZJ7t5ecIrFSjVA==}
-    engines: {node: '>= 0.12'}
-    dependencies:
-      asynckit: 0.4.0
-      combined-stream: 1.0.8
-      mime-types: 2.1.35
     dev: false
 
   /form-data@4.0.0:
@@ -840,11 +825,6 @@ packages:
 
   /is-plain-object@5.0.0:
     resolution: {integrity: sha512-VRSzKkbMm5jMDoKLbltAkFQ5Qr7VDiTFGXxYFXXowVj387GeGNOCsOH6Msy00SGZ3Fp84b1Naa1psqgcCIEP5Q==}
-    engines: {node: '>=0.10.0'}
-    dev: false
-
-  /is-stream@1.1.0:
-    resolution: {integrity: sha512-uQPm8kcs47jx38atAcWTVxyltQYoPT68y9aWYdV6yWXSyW8mzSat0TL6CiWdZeCdF3KrAvpVtnHbTv4RN+rqdQ==}
     engines: {node: '>=0.10.0'}
     dev: false
 

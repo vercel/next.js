@@ -14,12 +14,16 @@ import {
 
 type Callback = (...args: any[]) => Promise<any>
 
+let noStoreFetchIdx = 0
+
 async function cacheNewResult<T>(
   result: T,
   incrementalCache: IncrementalCache,
   cacheKey: string,
   tags: string[],
-  revalidate: number | false | undefined
+  revalidate: number | false | undefined,
+  fetchIdx: number,
+  fetchUrl: string
 ): Promise<unknown> {
   await incrementalCache.set(
     cacheKey,
@@ -38,11 +42,18 @@ async function cacheNewResult<T>(
       revalidate,
       fetchCache: true,
       tags,
+      fetchIdx,
+      fetchUrl,
     }
   )
   return
 }
 
+/**
+ * This function allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
+ *
+ * Read more: [Next.js Docs: `unstable_cache`](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
+ */
 export function unstable_cache<T extends Callback>(
   cb: T,
   keyParts?: string[],
@@ -104,8 +115,12 @@ export function unstable_cache<T extends Callback>(
     // the keyspace smaller than the execution space
     const invocationKey = `${fixedKey}-${JSON.stringify(args)}`
     const cacheKey = await incrementalCache.fetchCacheKey(invocationKey)
+    const fetchUrl = `unstable_cache ${cb.name ? ` ${cb.name}` : cacheKey}`
+    const fetchIdx = (store ? store.nextFetchId : noStoreFetchIdx) ?? 1
 
     if (store) {
+      store.nextFetchId = fetchIdx + 1
+
       // We are in an App Router context. We try to return the cached entry if it exists and is valid
       // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
       // the background. If the entry is missing or invalid we generate a new entry and return it.
@@ -156,6 +171,7 @@ export function unstable_cache<T extends Callback>(
           revalidate: options.revalidate,
           tags,
           softTags: implicitTags,
+          fetchIdx,
         })
 
         if (cacheEntry && cacheEntry.value) {
@@ -198,7 +214,9 @@ export function unstable_cache<T extends Callback>(
                       incrementalCache,
                       cacheKey,
                       tags,
-                      options.revalidate
+                      options.revalidate,
+                      fetchIdx,
+                      fetchUrl
                     )
                   })
                   // @TODO This error handling seems wrong. We swallow the error?
@@ -232,10 +250,13 @@ export function unstable_cache<T extends Callback>(
         incrementalCache,
         cacheKey,
         tags,
-        options.revalidate
+        options.revalidate,
+        fetchIdx,
+        fetchUrl
       )
       return result
     } else {
+      noStoreFetchIdx += 1
       // We are in Pages Router or were called outside of a render. We don't have a store
       // so we just call the callback directly when it needs to run.
       // If the entry is fresh we return it. If the entry is stale we return it but revalidate the entry in
@@ -285,7 +306,7 @@ export function unstable_cache<T extends Callback>(
           isUnstableCacheCallback: true,
           urlPathname: '/',
           isStaticGeneration: false,
-          postpone: undefined,
+          prerenderState: null,
         },
         cb,
         ...args
@@ -295,7 +316,9 @@ export function unstable_cache<T extends Callback>(
         incrementalCache,
         cacheKey,
         tags,
-        options.revalidate
+        options.revalidate,
+        fetchIdx,
+        fetchUrl
       )
       return result
     }

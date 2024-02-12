@@ -1,10 +1,12 @@
-import { codeFrameColumns } from '@babel/code-frame'
+// @ts-ignore Package exists
+import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { constants as FS, promises as fs } from 'fs'
 import type { IncomingMessage, ServerResponse } from 'http'
 import path from 'path'
-import type { NullableMappedPosition, RawSourceMap } from 'source-map'
-import { SourceMapConsumer } from 'source-map'
-import type { StackFrame } from 'stacktrace-parser'
+// @ts-ignore Package exists
+import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+// @ts-ignore Package exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import url from 'url'
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -32,7 +34,7 @@ export type OriginalStackFrameResponse = {
   sourcePackage?: string
 }
 
-type Source = { map: () => RawSourceMap } | null
+type Source = { map: () => any } | null
 
 function getModuleId(compilation: any, module: any) {
   return compilation.chunkGraph.getModuleId(module)
@@ -87,12 +89,10 @@ async function findOriginalSourcePositionAndContent(
 ) {
   const consumer = await new SourceMapConsumer(webpackSource.map())
   try {
-    const sourcePosition: NullableMappedPosition = consumer.originalPositionFor(
-      {
-        line: position.line,
-        column: position.column ?? 0,
-      }
-    )
+    const sourcePosition = consumer.originalPositionFor({
+      line: position.line,
+      column: position.column ?? 0,
+    })
 
     if (!sourcePosition.source) {
       return null
@@ -194,6 +194,7 @@ export async function createOriginalStackFrame({
 
       return moduleNotFoundResult
     }
+    // This returns 1-based lines and 0-based columns
     return await findOriginalSourcePositionAndContent(source, {
       line,
       column,
@@ -225,7 +226,7 @@ export async function createOriginalStackFrame({
       ? path.relative(rootDirectory, filePath)
       : sourcePosition.source,
     lineNumber: sourcePosition.line,
-    column: sourcePosition.column,
+    column: (sourcePosition.column ?? 0) + 1,
     methodName:
       sourcePosition.name ||
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
@@ -245,7 +246,7 @@ export async function createOriginalStackFrame({
           {
             start: {
               line: sourcePosition.line,
-              column: sourcePosition.column ?? 0,
+              column: (sourcePosition.column ?? 0) + 1,
             },
           },
           { forceColor: true }
