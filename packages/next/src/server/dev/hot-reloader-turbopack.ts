@@ -217,6 +217,15 @@ function processIssues(
   }
 }
 
+type BuildManifests = Map<string, BuildManifest>
+type AppBuildManifests = Map<string, AppBuildManifest>
+type PagesManifests = Map<string, PagesManifest>
+type AppPathsManifests = Map<string, PagesManifest>
+type MiddlewareManifests = Map<string, TurbopackMiddlewareManifest>
+type ActionManifests = Map<string, ActionManifest>
+type FontManifests = Map<string, NextFontManifest>
+type LoadableManifests = Map<string, LoadableManifest>
+
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
   serverFields: ServerFields,
@@ -424,15 +433,20 @@ export async function createHotReloaderTurbopack(
     sendEnqueuedMessagesDebounce()
   }
 
-  const buildManifests = new Map<string, BuildManifest>()
-  const appBuildManifests = new Map<string, AppBuildManifest>()
-  const pagesManifests = new Map<string, PagesManifest>()
-  const appPathsManifests = new Map<string, PagesManifest>()
-  const middlewareManifests = new Map<string, TurbopackMiddlewareManifest>()
-  const actionManifests = new Map<string, ActionManifest>()
-  const fontManifests = new Map<string, NextFontManifest>()
-  const loadableManifests = new Map<string, LoadableManifest>()
-  const clientToHmrSubscription = new Map<ws, Map<string, AsyncIterator<any>>>()
+  const buildManifests: BuildManifests = new Map()
+  const appBuildManifests: AppBuildManifests = new Map()
+  const pagesManifests: PagesManifests = new Map()
+  const appPathsManifests: AppPathsManifests = new Map()
+  const middlewareManifests: MiddlewareManifests = new Map()
+  const actionManifests: ActionManifests = new Map()
+  const fontManifests: FontManifests = new Map()
+  const loadableManifests: LoadableManifests = new Map()
+
+  const clientToHmrSubscription: Map<
+    ws,
+    Map<string, AsyncIterator<any>>
+  > = new Map()
+
   const clients = new Set<ws>()
 
   async function loadMiddlewareManifest(
