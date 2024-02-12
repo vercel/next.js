@@ -25,7 +25,7 @@ import RenderResult, {
   type RenderResultResponse,
 } from '../render-result'
 import {
-  concatStreams,
+  chainStreams,
   renderToInitialFizzStream,
   continueFizzStream,
   continueDynamicPrerender,
@@ -1065,7 +1065,7 @@ async function renderToHTMLOrFlightImpl(
                   resumeChildren
                 )
                 // First we write everything from the prerender, then we write everything from the aborted resume render
-                renderedHTMLStream = concatStreams(stream, resumeStream)
+                renderedHTMLStream = chainStreams(stream, resumeStream)
               }
 
               return {
