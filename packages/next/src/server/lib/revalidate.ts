@@ -10,6 +10,8 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
 export type Revalidate = number | false
 
 export function formatRevalidate(revalidate: Revalidate): string {
+  // revalidate...
+
   if (revalidate === 0) {
     return 'private, no-cache, no-store, max-age=0, must-revalidate'
   } else if (typeof revalidate === 'number') {
