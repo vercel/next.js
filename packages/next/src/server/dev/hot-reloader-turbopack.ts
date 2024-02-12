@@ -22,7 +22,7 @@ import type {
 
 import ws from 'next/dist/compiled/ws'
 import { createDefineEnv } from '../../build/swc'
-import { join, posix } from 'path'
+import { join } from 'path'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
@@ -46,7 +46,7 @@ import {
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
 } from '../../shared/lib/constants'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import {
   type ClientBuildManifest,
