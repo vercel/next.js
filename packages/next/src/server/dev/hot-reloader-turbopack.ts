@@ -271,7 +271,7 @@ export async function createHotReloaderTurbopack(
     serverAddr: `127.0.0.1:${opts.port}`,
   })
   const iter = project.entrypointsSubscribe()
-  const curEntries: Map<string, Route> = new Map()
+  const currentEntries: Map<string, Route> = new Map()
   const changeSubscriptions: Map<
     string,
     Promise<AsyncIterator<any>>
@@ -626,12 +626,12 @@ export async function createHotReloaderTurbopack(
         ? (normalizeRewritesForBuildManifest(rewrites) as any)
         : { afterFiles: [], beforeFiles: [], fallback: [] },
       ...Object.fromEntries(
-        [...curEntries.keys()].map((pathname) => [
+        [...currentEntries.keys()].map((pathname) => [
           pathname,
           `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
         ])
       ),
-      sortedPages: [...curEntries.keys()],
+      sortedPages: [...currentEntries.keys()],
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -838,7 +838,7 @@ export async function createHotReloaderTurbopack(
         globalEntries.document = entrypoints.pagesDocumentEndpoint
         globalEntries.error = entrypoints.pagesErrorEndpoint
 
-        curEntries.clear()
+        currentEntries.clear()
 
         for (const [pathname, route] of entrypoints.routes) {
           switch (route.type) {
@@ -846,7 +846,7 @@ export async function createHotReloaderTurbopack(
             case 'page-api':
             case 'app-page':
             case 'app-route': {
-              curEntries.set(pathname, route)
+              currentEntries.set(pathname, route)
               break
             }
             default:
@@ -861,7 +861,7 @@ export async function createHotReloaderTurbopack(
             continue
           }
 
-          if (!curEntries.has(pathname)) {
+          if (!currentEntries.has(pathname)) {
             const subscription = await subscriptionPromise
             subscription.return?.()
             changeSubscriptions.delete(pathname)
@@ -1455,8 +1455,8 @@ export async function createHotReloaderTurbopack(
       }
       await currentEntriesHandling
       const route =
-        curEntries.get(page) ??
-        curEntries.get(
+        currentEntries.get(page) ??
+        currentEntries.get(
           normalizeAppPath(
             normalizeMetadataRoute(definition?.page ?? inputPage)
           )
