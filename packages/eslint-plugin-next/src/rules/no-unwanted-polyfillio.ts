@@ -34,6 +34,7 @@ const NEXT_POLYFILLED_FEATURES = [
   'Object.is',
   'Object.keys',
   'Object.values',
+  'Object.hasOwn',
   'Reflect',
   'Set',
   'Symbol',
