@@ -8,9 +8,6 @@ import type {
 } from '../../build/swc'
 import type { Socket } from 'net'
 import type { OutputState } from '../../build/output/store'
-import type { BuildManifest } from '../get-page-files'
-import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
-import type { AppBuildManifest } from '../../build/webpack/plugins/app-build-manifest-plugin'
 import type {
   CompilationError,
   HMR_ACTION_TYPES,
@@ -29,30 +26,10 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
 import { store as consoleStore } from '../../build/output/store'
-
-import {
-  APP_BUILD_MANIFEST,
-  APP_PATHS_MANIFEST,
-  BUILD_MANIFEST,
-  MIDDLEWARE_MANIFEST,
-  NEXT_FONT_MANIFEST,
-  PAGES_MANIFEST,
-  SERVER_REFERENCE_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
-  MIDDLEWARE_BUILD_MANIFEST,
-  INTERCEPTION_ROUTE_REWRITE_MANIFEST,
-} from '../../shared/lib/constants'
 import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
 import { mkdir, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../shared/lib/utils'
-import {
-  type ClientBuildManifest,
-  normalizeRewritesForBuildManifest,
-  srcEmptySsgManifest,
-} from '../../build/webpack/plugins/build-manifest-plugin'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../build/swc'
 import { debounce } from '../utils'
@@ -65,29 +42,34 @@ import {
   clearModuleContext,
   clearAllModuleContexts,
 } from '../lib/render-server'
-import type { ActionManifest } from '../../build/webpack/plugins/flight-client-entry-plugin'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import type { LoadableManifest } from '../load-components'
 import { bold, green, magenta, red } from '../../lib/picocolors'
-import { writeFileAtomic } from '../../lib/fs/write-atomic'
 import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
-import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import {
   MAGIC_IDENTIFIER_REGEX,
   decodeMagicIdentifier,
 } from '../../shared/lib/magic-identifier'
 import {
   getTurbopackJsConfig,
-  mergeActionManifests,
-  mergeAppBuildManifests,
-  mergeBuildManifests,
-  mergeFontManifests,
-  mergeLoadableManifests,
-  mergeMiddlewareManifests,
-  mergePagesManifests,
-  readPartialManifest,
-  type TurbopackMiddlewareManifest,
+  type BuildManifests,
+  type AppBuildManifests,
+  type PagesManifests,
+  type AppPathsManifests,
+  type MiddlewareManifests,
+  type ActionManifests,
+  type FontManifests,
+  type LoadableManifests,
+  loadMiddlewareManifest,
+  writeManifests,
+  loadBuildManifest,
+  loadPagesManifest,
+  loadLoadableManifest,
+  loadFontManifest,
+  loadAppBuildManifest,
+  loadAppPathManifest,
+  loadActionManifest,
+  type CurrentEntrypoints,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -215,356 +197,6 @@ function processIssues(
   if (relevantIssues.size && throwIssue) {
     throw new ModuleBuildError([...relevantIssues].join('\n\n'))
   }
-}
-
-type BuildManifests = Map<string, BuildManifest>
-type AppBuildManifests = Map<string, AppBuildManifest>
-type PagesManifests = Map<string, PagesManifest>
-type AppPathsManifests = Map<string, PagesManifest>
-type MiddlewareManifests = Map<string, TurbopackMiddlewareManifest>
-type ActionManifests = Map<string, ActionManifest>
-type FontManifests = Map<string, NextFontManifest>
-type LoadableManifests = Map<string, LoadableManifest>
-type CurrentEntrypoints = Map<string, Route>
-
-async function loadMiddlewareManifest(
-  distDir: string,
-  middlewareManifests: MiddlewareManifests,
-  pageName: string,
-  type: 'pages' | 'app' | 'app-route' | 'middleware' | 'instrumentation'
-): Promise<void> {
-  middlewareManifests.set(
-    pageName,
-    await readPartialManifest(distDir, MIDDLEWARE_MANIFEST, pageName, type)
-  )
-}
-
-async function loadBuildManifest(
-  distDir: string,
-  buildManifests: BuildManifests,
-  pageName: string,
-  type: 'app' | 'pages' = 'pages'
-): Promise<void> {
-  buildManifests.set(
-    pageName,
-    await readPartialManifest(distDir, BUILD_MANIFEST, pageName, type)
-  )
-}
-
-async function loadAppBuildManifest(
-  distDir: string,
-  appBuildManifests: AppBuildManifests,
-  pageName: string
-): Promise<void> {
-  appBuildManifests.set(
-    pageName,
-    await readPartialManifest(distDir, APP_BUILD_MANIFEST, pageName, 'app')
-  )
-}
-
-async function loadPagesManifest(
-  distDir: string,
-  pagesManifests: PagesManifests,
-  pageName: string
-): Promise<void> {
-  pagesManifests.set(
-    pageName,
-    await readPartialManifest(distDir, PAGES_MANIFEST, pageName)
-  )
-}
-
-async function loadAppPathManifest(
-  distDir: string,
-  appPathsManifests: AppPathsManifests,
-  pageName: string,
-  type: 'app' | 'app-route' = 'app'
-): Promise<void> {
-  appPathsManifests.set(
-    pageName,
-    await readPartialManifest(distDir, APP_PATHS_MANIFEST, pageName, type)
-  )
-}
-
-async function loadActionManifest(
-  distDir: string,
-  actionManifests: ActionManifests,
-  pageName: string
-): Promise<void> {
-  actionManifests.set(
-    pageName,
-    await readPartialManifest(
-      distDir,
-      `${SERVER_REFERENCE_MANIFEST}.json`,
-      pageName,
-      'app'
-    )
-  )
-}
-
-async function loadFontManifest(
-  distDir: string,
-  fontManifests: FontManifests,
-  pageName: string,
-  type: 'app' | 'pages' = 'pages'
-): Promise<void> {
-  fontManifests.set(
-    pageName,
-    await readPartialManifest(
-      distDir,
-      `${NEXT_FONT_MANIFEST}.json`,
-      pageName,
-      type
-    )
-  )
-}
-
-async function loadLoadableManifest(
-  distDir: string,
-  loadableManifests: LoadableManifests,
-  pageName: string,
-  type: 'app' | 'pages' = 'pages'
-): Promise<void> {
-  loadableManifests.set(
-    pageName,
-    await readPartialManifest(distDir, REACT_LOADABLE_MANIFEST, pageName, type)
-  )
-}
-
-async function writeBuildManifest(
-  distDir: string,
-  buildManifests: BuildManifests,
-  currentEntrypoints: CurrentEntrypoints,
-  rewrites: SetupOpts['fsChecker']['rewrites']
-): Promise<void> {
-  const buildManifest = mergeBuildManifests(buildManifests.values())
-  const buildManifestPath = join(distDir, BUILD_MANIFEST)
-  const middlewareBuildManifestPath = join(
-    distDir,
-    'server',
-    `${MIDDLEWARE_BUILD_MANIFEST}.js`
-  )
-  const interceptionRewriteManifestPath = join(
-    distDir,
-    'server',
-    `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`
-  )
-  deleteCache(buildManifestPath)
-  deleteCache(middlewareBuildManifestPath)
-  deleteCache(interceptionRewriteManifestPath)
-  await writeFileAtomic(
-    buildManifestPath,
-    JSON.stringify(buildManifest, null, 2)
-  )
-  await writeFileAtomic(
-    middlewareBuildManifestPath,
-    `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
-  )
-
-  const interceptionRewrites = JSON.stringify(
-    rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
-  )
-
-  await writeFileAtomic(
-    interceptionRewriteManifestPath,
-    `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
-      interceptionRewrites
-    )};`
-  )
-
-  const content: ClientBuildManifest = {
-    __rewrites: rewrites
-      ? (normalizeRewritesForBuildManifest(rewrites) as any)
-      : { afterFiles: [], beforeFiles: [], fallback: [] },
-    ...Object.fromEntries(
-      [...currentEntrypoints.keys()].map((pathname) => [
-        pathname,
-        `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
-      ])
-    ),
-    sortedPages: [...currentEntrypoints.keys()],
-  }
-  const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-    content
-  )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
-  await writeFileAtomic(
-    join(distDir, 'static', 'development', '_buildManifest.js'),
-    buildManifestJs
-  )
-  await writeFileAtomic(
-    join(distDir, 'static', 'development', '_ssgManifest.js'),
-    srcEmptySsgManifest
-  )
-}
-
-async function writeFallbackBuildManifest(
-  distDir: string,
-  buildManifests: BuildManifests
-): Promise<void> {
-  const fallbackBuildManifest = mergeBuildManifests(
-    [buildManifests.get('_app'), buildManifests.get('_error')].filter(
-      Boolean
-    ) as BuildManifest[]
-  )
-  const fallbackBuildManifestPath = join(distDir, `fallback-${BUILD_MANIFEST}`)
-  deleteCache(fallbackBuildManifestPath)
-  await writeFileAtomic(
-    fallbackBuildManifestPath,
-    JSON.stringify(fallbackBuildManifest, null, 2)
-  )
-}
-
-async function writeAppBuildManifest(
-  distDir: string,
-  appBuildManifests: AppBuildManifests
-): Promise<void> {
-  const appBuildManifest = mergeAppBuildManifests(appBuildManifests.values())
-  const appBuildManifestPath = join(distDir, APP_BUILD_MANIFEST)
-  deleteCache(appBuildManifestPath)
-  await writeFileAtomic(
-    appBuildManifestPath,
-    JSON.stringify(appBuildManifest, null, 2)
-  )
-}
-
-async function writePagesManifest(
-  distDir: string,
-  pagesManifests: PagesManifests
-): Promise<void> {
-  const pagesManifest = mergePagesManifests(pagesManifests.values())
-  const pagesManifestPath = join(distDir, 'server', PAGES_MANIFEST)
-  deleteCache(pagesManifestPath)
-  await writeFileAtomic(
-    pagesManifestPath,
-    JSON.stringify(pagesManifest, null, 2)
-  )
-}
-
-async function writeAppPathsManifest(
-  distDir: string,
-  appPathsManifests: AppPathsManifests
-): Promise<void> {
-  const appPathsManifest = mergePagesManifests(appPathsManifests.values())
-  const appPathsManifestPath = join(distDir, 'server', APP_PATHS_MANIFEST)
-  deleteCache(appPathsManifestPath)
-  await writeFileAtomic(
-    appPathsManifestPath,
-    JSON.stringify(appPathsManifest, null, 2)
-  )
-}
-
-async function writeMiddlewareManifest(
-  distDir: string,
-  middlewareManifests: MiddlewareManifests
-): Promise<void> {
-  const middlewareManifest = mergeMiddlewareManifests(
-    middlewareManifests.values()
-  )
-  const middlewareManifestPath = join(distDir, 'server', MIDDLEWARE_MANIFEST)
-  deleteCache(middlewareManifestPath)
-  await writeFileAtomic(
-    middlewareManifestPath,
-    JSON.stringify(middlewareManifest, null, 2)
-  )
-}
-
-async function writeActionManifest(
-  distDir: string,
-  actionManifests: ActionManifests
-): Promise<void> {
-  const actionManifest = await mergeActionManifests(actionManifests.values())
-  const actionManifestJsonPath = join(
-    distDir,
-    'server',
-    `${SERVER_REFERENCE_MANIFEST}.json`
-  )
-  const actionManifestJsPath = join(
-    distDir,
-    'server',
-    `${SERVER_REFERENCE_MANIFEST}.js`
-  )
-  const json = JSON.stringify(actionManifest, null, 2)
-  deleteCache(actionManifestJsonPath)
-  deleteCache(actionManifestJsPath)
-  await writeFile(actionManifestJsonPath, json, 'utf-8')
-  await writeFile(
-    actionManifestJsPath,
-    `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
-    'utf-8'
-  )
-}
-
-async function writeFontManifest(
-  distDir: string,
-  fontManifests: FontManifests
-): Promise<void> {
-  const fontManifest = mergeFontManifests(fontManifests.values())
-  const json = JSON.stringify(fontManifest, null, 2)
-
-  const fontManifestJsonPath = join(
-    distDir,
-    'server',
-    `${NEXT_FONT_MANIFEST}.json`
-  )
-  const fontManifestJsPath = join(distDir, 'server', `${NEXT_FONT_MANIFEST}.js`)
-  deleteCache(fontManifestJsonPath)
-  deleteCache(fontManifestJsPath)
-  await writeFileAtomic(fontManifestJsonPath, json)
-  await writeFileAtomic(
-    fontManifestJsPath,
-    `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
-  )
-}
-
-async function writeLoadableManifest(
-  distDir: string,
-  loadableManifests: LoadableManifests
-): Promise<void> {
-  const loadableManifest = mergeLoadableManifests(loadableManifests.values())
-  const loadableManifestPath = join(distDir, REACT_LOADABLE_MANIFEST)
-  const middlewareloadableManifestPath = join(
-    distDir,
-    'server',
-    `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-  )
-
-  const json = JSON.stringify(loadableManifest, null, 2)
-
-  deleteCache(loadableManifestPath)
-  deleteCache(middlewareloadableManifestPath)
-  await writeFileAtomic(loadableManifestPath, json)
-  await writeFileAtomic(
-    middlewareloadableManifestPath,
-    `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
-  )
-}
-
-async function writeManifests(
-  opts: SetupOpts,
-  distDir: string,
-  buildManifests: BuildManifests,
-  appBuildManifests: AppBuildManifests,
-  pagesManifests: PagesManifests,
-  appPathsManifests: AppPathsManifests,
-  middlewareManifests: MiddlewareManifests,
-  actionManifests: ActionManifests,
-  fontManifests: FontManifests,
-  loadableManifests: LoadableManifests,
-  currentEntrypoints: CurrentEntrypoints
-): Promise<void> {
-  await writeBuildManifest(
-    distDir,
-    buildManifests,
-    currentEntrypoints,
-    opts.fsChecker.rewrites
-  )
-  await writeAppBuildManifest(distDir, appBuildManifests)
-  await writePagesManifest(distDir, pagesManifests)
-  await writeAppPathsManifest(distDir, appPathsManifests)
-  await writeMiddlewareManifest(distDir, middlewareManifests)
-  await writeActionManifest(distDir, actionManifests)
-  await writeFontManifest(distDir, fontManifests)
-  await writeLoadableManifest(distDir, loadableManifests)
-  await writeFallbackBuildManifest(distDir, buildManifests)
 }
 
 export async function createHotReloaderTurbopack(
