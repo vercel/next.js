@@ -787,6 +787,8 @@ async function renderToHTMLOrFlightImpl(
     res,
   }
 
+  getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
+
   if (isRSCRequest && !isStaticGeneration) {
     return generateFlight(ctx)
   }
@@ -830,8 +832,6 @@ async function renderToHTMLOrFlightImpl(
   // injected nodes from user code (`useServerInsertedHTML`).
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-
-  getTracer().getRootSpanAttributes()?.set('next.route', pagePath)
 
   // Create a promise that will help us signal when the headers have been
   // written to the metadata for static generation as they aren't written to the
