@@ -12,6 +12,18 @@ import type { AppBuildManifest } from '../../build/webpack/plugins/app-build-man
 import type { BuildManifest } from '../get-page-files'
 import type { NextConfigComplete } from '../config-shared'
 import loadJsConfig from '../../build/load-jsconfig'
+import { posix } from 'path'
+import { readFile } from 'fs/promises'
+import type {
+  APP_BUILD_MANIFEST,
+  APP_PATHS_MANIFEST,
+  BUILD_MANIFEST,
+  MIDDLEWARE_MANIFEST,
+  NEXT_FONT_MANIFEST,
+  PAGES_MANIFEST,
+  SERVER_REFERENCE_MANIFEST,
+  REACT_LOADABLE_MANIFEST,
+} from '../../shared/lib/constants'
 
 export interface InstrumentationDefinition {
   files: string[]
@@ -178,4 +190,40 @@ export async function getTurbopackJsConfig(
 ) {
   const { jsConfig } = await loadJsConfig(dir, nextConfig)
   return jsConfig ?? { compilerOptions: {} }
+}
+
+export async function readPartialManifest<T>(
+  distDir: string,
+  name:
+    | typeof MIDDLEWARE_MANIFEST
+    | typeof BUILD_MANIFEST
+    | typeof APP_BUILD_MANIFEST
+    | typeof PAGES_MANIFEST
+    | typeof APP_PATHS_MANIFEST
+    | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+    | `${typeof NEXT_FONT_MANIFEST}.json`
+    | typeof REACT_LOADABLE_MANIFEST,
+  pageName: string,
+  type:
+    | 'pages'
+    | 'app'
+    | 'app-route'
+    | 'middleware'
+    | 'instrumentation' = 'pages'
+): Promise<T> {
+  const manifestPath = posix.join(
+    distDir,
+    `server`,
+    type === 'app-route' ? 'app' : type,
+    type === 'middleware' || type === 'instrumentation'
+      ? ''
+      : pageName === '/'
+      ? 'index'
+      : pageName === '/index' || pageName.startsWith('/index/')
+      ? `/index${pageName}`
+      : pageName,
+    type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
+    name
+  )
+  return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }

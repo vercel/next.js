@@ -86,6 +86,7 @@ import {
   mergeLoadableManifests,
   mergeMiddlewareManifests,
   mergePagesManifests,
+  readPartialManifest,
   type TurbopackMiddlewareManifest,
 } from './turbopack-utils'
 import {
@@ -423,41 +424,6 @@ export async function createHotReloaderTurbopack(
     sendEnqueuedMessagesDebounce()
   }
 
-  async function loadPartialManifest<T>(
-    name:
-      | typeof MIDDLEWARE_MANIFEST
-      | typeof BUILD_MANIFEST
-      | typeof APP_BUILD_MANIFEST
-      | typeof PAGES_MANIFEST
-      | typeof APP_PATHS_MANIFEST
-      | `${typeof SERVER_REFERENCE_MANIFEST}.json`
-      | `${typeof NEXT_FONT_MANIFEST}.json`
-      | typeof REACT_LOADABLE_MANIFEST,
-    pageName: string,
-    type:
-      | 'pages'
-      | 'app'
-      | 'app-route'
-      | 'middleware'
-      | 'instrumentation' = 'pages'
-  ): Promise<T> {
-    const manifestPath = posix.join(
-      distDir,
-      `server`,
-      type === 'app-route' ? 'app' : type,
-      type === 'middleware' || type === 'instrumentation'
-        ? ''
-        : pageName === '/'
-        ? 'index'
-        : pageName === '/index' || pageName.startsWith('/index/')
-        ? `/index${pageName}`
-        : pageName,
-      type === 'app' ? 'page' : type === 'app-route' ? 'route' : '',
-      name
-    )
-    return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
-  }
-
   const buildManifests = new Map<string, BuildManifest>()
   const appBuildManifests = new Map<string, AppBuildManifest>()
   const pagesManifests = new Map<string, PagesManifest>()
@@ -475,7 +441,7 @@ export async function createHotReloaderTurbopack(
   ): Promise<void> {
     middlewareManifests.set(
       pageName,
-      await loadPartialManifest(MIDDLEWARE_MANIFEST, pageName, type)
+      await readPartialManifest(distDir, MIDDLEWARE_MANIFEST, pageName, type)
     )
   }
 
@@ -485,21 +451,21 @@ export async function createHotReloaderTurbopack(
   ): Promise<void> {
     buildManifests.set(
       pageName,
-      await loadPartialManifest(BUILD_MANIFEST, pageName, type)
+      await readPartialManifest(distDir, BUILD_MANIFEST, pageName, type)
     )
   }
 
   async function loadAppBuildManifest(pageName: string): Promise<void> {
     appBuildManifests.set(
       pageName,
-      await loadPartialManifest(APP_BUILD_MANIFEST, pageName, 'app')
+      await readPartialManifest(distDir, APP_BUILD_MANIFEST, pageName, 'app')
     )
   }
 
   async function loadPagesManifest(pageName: string): Promise<void> {
     pagesManifests.set(
       pageName,
-      await loadPartialManifest(PAGES_MANIFEST, pageName)
+      await readPartialManifest(distDir, PAGES_MANIFEST, pageName)
     )
   }
 
@@ -509,14 +475,15 @@ export async function createHotReloaderTurbopack(
   ): Promise<void> {
     appPathsManifests.set(
       pageName,
-      await loadPartialManifest(APP_PATHS_MANIFEST, pageName, type)
+      await readPartialManifest(distDir, APP_PATHS_MANIFEST, pageName, type)
     )
   }
 
   async function loadActionManifest(pageName: string): Promise<void> {
     actionManifests.set(
       pageName,
-      await loadPartialManifest(
+      await readPartialManifest(
+        distDir,
         `${SERVER_REFERENCE_MANIFEST}.json`,
         pageName,
         'app'
@@ -530,7 +497,12 @@ export async function createHotReloaderTurbopack(
   ): Promise<void> {
     fontManifests.set(
       pageName,
-      await loadPartialManifest(`${NEXT_FONT_MANIFEST}.json`, pageName, type)
+      await readPartialManifest(
+        distDir,
+        `${NEXT_FONT_MANIFEST}.json`,
+        pageName,
+        type
+      )
     )
   }
 
@@ -540,7 +512,12 @@ export async function createHotReloaderTurbopack(
   ): Promise<void> {
     loadableManifests.set(
       pageName,
-      await loadPartialManifest(REACT_LOADABLE_MANIFEST, pageName, type)
+      await readPartialManifest(
+        distDir,
+        REACT_LOADABLE_MANIFEST,
+        pageName,
+        type
+      )
     )
   }
 
