@@ -737,6 +737,14 @@ impl From<UpdateInfo> for NapiUpdateInfo {
     }
 }
 
+/// Wait for Turbopack for the specified time, notify the invalidated tasks.
+/// The Javascript binding of next-swc notifies the callback events of this interface by [changing](https://github.com/vercel/next.js/blob/a3f4c35d972d7a1b3ca71aba09d7c934aae4789e/packages/next/src/build/swc/index.ts#L753-L756) to an AsyncIterator.
+///
+/// Internally, this interface loops by sending an `UpdateMessage` of type
+/// `start` first, then waits for Turbopack's behavior for a specified amount of
+/// time. After the time has elapsed, it notifies the `UpdateMessage` of type
+/// `end` with the changed Task stored in the `UpdateInfo` structure until
+/// subscription completes.
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
