@@ -10,6 +10,8 @@ import type {
 import type { PagesManifest } from '../../build/webpack/plugins/pages-manifest-plugin'
 import type { AppBuildManifest } from '../../build/webpack/plugins/app-build-manifest-plugin'
 import type { BuildManifest } from '../get-page-files'
+import type { NextConfigComplete } from '../config-shared'
+import loadJsConfig from '../../build/load-jsconfig'
 
 export interface InstrumentationDefinition {
   files: string[]
@@ -168,4 +170,12 @@ export function mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
     Object.assign(manifest, m)
   }
   return manifest
+}
+
+export async function getTurbopackJsConfig(
+  dir: string,
+  nextConfig: NextConfigComplete
+) {
+  const { jsConfig } = await loadJsConfig(dir, nextConfig)
+  return jsConfig ?? { compilerOptions: {} }
 }
