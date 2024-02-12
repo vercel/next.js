@@ -373,8 +373,8 @@ importers:
         specifier: ^2.24.0
         version: 2.24.0
       nanoid:
-        specifier: 3.1.30
-        version: 3.1.30
+        specifier: 3.1.31
+        version: 3.1.31
       next:
         specifier: workspace:*
         version: link:packages/next
@@ -1255,8 +1255,8 @@ importers:
         specifier: 1.3.0
         version: 1.3.0(typescript@5.2.2)
       nanoid:
-        specifier: 3.1.32
-        version: 3.1.32
+        specifier: 3.1.31
+        version: 3.1.31
       native-url:
         specifier: 0.3.4
         version: 0.3.4
@@ -18065,14 +18065,8 @@ packages:
   /mute-stream@0.0.8:
     resolution: {integrity: sha512-nnbWWOkoWyUsTjKrhgD0dcz22mdkSnpYqbEjIm2nhwhuxlSkpywJmBo8h0ZqJdkp73mb90SssHkN4rsRaBAfAA==}
 
-  /nanoid@3.1.30:
-    resolution: {integrity: sha512-zJpuPDwOv8D2zq2WRoMe1HsfZthVewpel9CAvTfc/2mBD1uUT/agc5f7GHGWXlYkFvi1mVxe4IjvP2HNrop7nQ==}
-    engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
-    hasBin: true
-    dev: true
-
-  /nanoid@3.1.32:
-    resolution: {integrity: sha512-F8mf7R3iT9bvThBoW4tGXhXFHCctyCiUUPrWF8WaTqa3h96d9QybkSeba43XVOOE3oiLfkVDe4bT8MeGmkrTxw==}
+  /nanoid@3.1.31:
+    resolution: {integrity: sha512-ZivnJm0o9bb13p2Ot5CpgC2rQdzB9Uxm/mFZweqm5eMViqOJe3PV6LU2E30SiLgheesmcPrjquqraoolONSA0A==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
     dev: true
@@ -20595,7 +20589,7 @@ packages:
     engines: {node: ^10 || ^12 || >=14}
     dependencies:
       colorette: 1.4.0
-      nanoid: 3.1.32
+      nanoid: 3.1.31
       source-map: 0.6.1
     dev: true
 
@@ -22154,7 +22148,7 @@ packages:
     peerDependencies:
       rollup: ^2.0.0
     dependencies:
-      nanoid: 3.1.32
+      nanoid: 3.3.6
       open: 8.4.0
       rollup: 2.35.1
       source-map: 0.7.4

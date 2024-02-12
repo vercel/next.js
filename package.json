@@ -175,7 +175,7 @@
     "lost": "8.3.1",
     "minimatch": "3.0.4",
     "moment": "^2.24.0",
-    "nanoid": "3.1.30",
+    "nanoid": "3.1.31",
     "next": "workspace:*",
     "node-fetch": "2.6.7",
     "node-plop": "0.31.1",
