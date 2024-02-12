@@ -33,7 +33,7 @@ turbopack-ecmascript = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 
 parcel_sourcemap = "2.1.1"
-smallvec = "1.11.0"
+smallvec = { workspace = true }
 swc_core = { workspace = true, features = [
   "css_ast",
   "css_codegen",
