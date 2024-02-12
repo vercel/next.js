@@ -411,8 +411,8 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  function sendHmr(key: string, id: string, payload: HMR_ACTION_TYPES) {
-    hmrPayloads.set(`${key}:${id}`, payload)
+  function sendHmr(id: string, payload: HMR_ACTION_TYPES) {
+    hmrPayloads.set(`${id}`, payload)
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
@@ -565,7 +565,7 @@ export async function createHotReloaderTurbopack(
       processIssues(issues, page, change)
       const payload = await makePayload(page, change)
       if (payload) {
-        sendHmr('endpoint-change', key, payload)
+        sendHmr(key, payload)
       }
     }
   }
@@ -875,12 +875,12 @@ export async function createHotReloaderTurbopack(
         if (prevMiddleware === true && !middleware) {
           // Went from middleware to no middleware
           await clearChangeSubscription('middleware', 'server')
-          sendHmr('entrypoint-change', 'middleware', {
+          sendHmr('middleware', {
             event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
           })
         } else if (prevMiddleware === false && middleware) {
           // Went from no middleware to middleware
-          sendHmr('endpoint-change', 'middleware', {
+          sendHmr('middleware', {
             event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
           })
         }
