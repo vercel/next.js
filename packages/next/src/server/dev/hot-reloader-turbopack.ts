@@ -1421,7 +1421,7 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
-      let page = definition?.pathname ?? inputPage
+      const page = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
         let finishBuilding = startBuilding(page, requestUrl)
