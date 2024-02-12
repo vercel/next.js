@@ -35,7 +35,7 @@ import {
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
-import type { RouteEntrypoints } from './types'
+import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 
 interface InstrumentationDefinition {
@@ -281,7 +281,7 @@ export class TurbopackManifestLoader {
   }
 
   private async writeBuildManifest(
-    pageRoutes: RouteEntrypoints,
+    pageEntrypoints: PageEntrypoints,
     rewrites: SetupOpts['fsChecker']['rewrites']
   ): Promise<void> {
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
@@ -324,12 +324,12 @@ export class TurbopackManifestLoader {
         ? (normalizeRewritesForBuildManifest(rewrites) as any)
         : { afterFiles: [], beforeFiles: [], fallback: [] },
       ...Object.fromEntries(
-        [...pageRoutes.keys()].map((pathname) => [
+        [...pageEntrypoints.keys()].map((pathname) => [
           pathname,
           `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
         ])
       ),
-      sortedPages: [...pageRoutes.keys()],
+      sortedPages: [...pageEntrypoints.keys()],
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -581,16 +581,16 @@ export class TurbopackManifestLoader {
 
   async writeManifests({
     rewrites,
-    pageRoutes,
+    pageEntrypoints,
   }: {
     rewrites: SetupOpts['fsChecker']['rewrites']
-    pageRoutes: RouteEntrypoints
+    pageEntrypoints: PageEntrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
     await this.writeAutomaticFontOptimizationManifest()
-    await this.writeBuildManifest(pageRoutes, rewrites)
+    await this.writeBuildManifest(pageEntrypoints, rewrites)
     await this.writeFallbackBuildManifest()
     await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()

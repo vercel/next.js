@@ -8,7 +8,6 @@ import type {
   Endpoint,
   Entrypoints as RawEntrypoints,
   Issue,
-  Route,
   StyledString,
   TurbopackResult,
   WrittenEndpoint,
@@ -25,7 +24,7 @@ import {
 import * as Log from '../../build/output/log'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from './turbopack/manifest-loader'
-import type { Entrypoints } from './turbopack/types'
+import type { AppRoute, Entrypoints, PageRoute } from './turbopack/types'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -237,7 +236,7 @@ export async function handleRouteType({
   hooks,
 }: {
   page: string
-  route: Route
+  route: PageRoute | AppRoute
 
   currentIssues: CurrentIssues
   entrypoints: Entrypoints
@@ -284,7 +283,7 @@ export async function handleRouteType({
 
         await manifestLoader.writeManifests({
           rewrites,
-          pageRoutes: entrypoints.page,
+          pageEntrypoints: entrypoints.page,
         })
 
         processIssues(currentIssues, page, writtenEndpoint)
@@ -345,7 +344,7 @@ export async function handleRouteType({
 
       await manifestLoader.writeManifests({
         rewrites,
-        pageRoutes: entrypoints.page,
+        pageEntrypoints: entrypoints.page,
       })
 
       processIssues(currentIssues, page, writtenEndpoint)
@@ -353,17 +352,14 @@ export async function handleRouteType({
       break
     }
     case 'app-page': {
-      const pageRoute =
-        route.pages.find((p) => p.originalName === page) ?? route.pages[0]
-
-      const writtenEndpoint = await pageRoute.htmlEndpoint.writeToDisk()
+      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
       hooks?.subscribeToChanges(
         page,
         'server',
         true,
-        pageRoute.rscEndpoint,
+        route.rscEndpoint,
         (_page, change) => {
           if (change.issues.some((issue) => issue.severity === 'error')) {
             // Ignore any updates that has errors
@@ -393,7 +389,7 @@ export async function handleRouteType({
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
-        pageRoutes: entrypoints.page,
+        pageEntrypoints: entrypoints.page,
       })
 
       processIssues(currentIssues, page, writtenEndpoint, true)
@@ -415,7 +411,7 @@ export async function handleRouteType({
 
       await manifestLoader.writeManifests({
         rewrites,
-        pageRoutes: entrypoints.page,
+        pageEntrypoints: entrypoints.page,
       })
       processIssues(currentIssues, page, writtenEndpoint, true)
 
@@ -485,15 +481,15 @@ export async function handleEntrypoints({
         currentEntrypoints.page.set(pathname, route)
         break
       case 'app-page': {
-        currentEntrypoints.page.set(pathname, route)
-        // ideally we wouldn't put the whole route in here
         route.pages.forEach((page) => {
-          currentEntrypoints.app.set(page.originalName, route)
+          currentEntrypoints.app.set(page.originalName, {
+            type: 'app-page',
+            ...page,
+          })
         })
         break
       }
       case 'app-route': {
-        currentEntrypoints.page.set(pathname, route)
         currentEntrypoints.app.set(route.originalName, route)
         break
       }
@@ -578,7 +574,7 @@ export async function handleEntrypoints({
     )
     await manifestLoader.writeManifests({
       rewrites: rewrites,
-      pageRoutes: currentEntrypoints.page,
+      pageEntrypoints: currentEntrypoints.page,
     })
 
     if (serverFields && hooks?.propagateServerField) {
@@ -640,7 +636,7 @@ export async function handleEntrypoints({
         }
         await manifestLoader.writeManifests({
           rewrites: rewrites,
-          pageRoutes: currentEntrypoints.page,
+          pageEntrypoints: currentEntrypoints.page,
         })
 
         finishBuilding?.()
@@ -714,6 +710,6 @@ export async function handlePagesErrorRoute({
 
   await manifestLoader.writeManifests({
     rewrites,
-    pageRoutes: entrypoints.page,
+    pageEntrypoints: entrypoints.page,
   })
 }
