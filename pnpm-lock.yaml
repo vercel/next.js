@@ -361,8 +361,8 @@ importers:
         specifier: 10.1.7
         version: 10.1.7
       lodash:
-        specifier: 4.17.20
-        version: 4.17.20
+        specifier: 4.17.21
+        version: 4.17.21
       lost:
         specifier: 8.3.1
         version: 8.3.1
@@ -8598,7 +8598,7 @@ packages:
     resolution: {integrity: sha512-0dv5RNRUlUKxGYIIErl01lpvi8b7W2R04Qcl1mCj70ahwZcgiklfXnFlh4FGnRh6aayCfSZKdhiMryVzcq5Dmg==}
     engines: {node: '>= 8.x.x'}
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.20
       traverse: 0.6.6
     dev: true
 
@@ -14342,7 +14342,7 @@ packages:
       cli-width: 3.0.0
       external-editor: 3.1.0
       figures: 3.1.0
-      lodash: 4.17.21
+      lodash: 4.17.20
       mute-stream: 0.0.8
       run-async: 2.4.1
       rxjs: 6.6.2
@@ -16796,6 +16796,7 @@ packages:
 
   /lodash@4.17.21:
     resolution: {integrity: sha512-v2kDEe57lecTulaDIuNTPy3Ry4gLGJ6Z1O3vE1krgXZNrsQ+LFTGHVxVjcXPs17LhbZVGedAJv8XZ1tvj5FvSg==}
+    dev: true
 
   /log-driver@1.2.7:
     resolution: {integrity: sha512-U7KCmLdqsGHBLeWqYlFA0V0Sl6P08EE1ZrmA9cxjUE0WVqT9qnyVDPz1kzpFEP0jdJuFnasWIfSd7fsaNXkpbg==}
@@ -21820,7 +21821,7 @@ packages:
     peerDependencies:
       request: ^2.34
     dependencies:
-      lodash: 4.17.21
+      lodash: 4.17.20
       request: 2.88.2
     dev: true
 
@@ -25084,7 +25085,7 @@ packages:
       chalk: 4.1.2
       commander: 7.2.0
       gzip-size: 6.0.0
-      lodash: 4.17.21
+      lodash: 4.17.20
       opener: 1.5.2
       sirv: 1.0.10
       ws: 7.5.3
