@@ -1,5 +1,5 @@
 'use client'
-import { experimental_useFormStatus as useFormStatus } from 'react-dom'
+import { useFormStatus } from 'react-dom'
 import { addToCart } from './actions'
 
 function SubmitButton() {
@@ -12,7 +12,7 @@ function SubmitButton() {
   )
 }
 
-export default async function Page() {
+export default function Page() {
   return (
     <>
       <h1>Add to cart</h1>

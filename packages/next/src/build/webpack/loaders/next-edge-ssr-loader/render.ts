@@ -13,18 +13,11 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
-
-const NEXT_PRIVATE_GLOBAL_WAIT_UNTIL = Symbol.for(
-  '__next_private_global_wait_until__'
-)
-
-// @ts-ignore
-globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] =
-  // @ts-ignore
-  globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL] || []
+import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
+import type { PAGE_TYPES } from '../../../../lib/page-types'
 
 export function getRender({
   dev,
@@ -38,17 +31,18 @@ export function getRender({
   buildManifest,
   prerenderManifest,
   reactLoadableManifest,
+  interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
   serverActionsManifest,
-  serverActionsBodySizeLimit,
+  serverActions,
   config,
   buildId,
   nextFontManifest,
   incrementalCacheHandler,
 }: {
-  pagesType: 'app' | 'pages' | 'root'
+  pagesType: PAGE_TYPES
   dev: boolean
   page: string
   appMod: any
@@ -61,10 +55,13 @@ export function getRender({
   prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
+  interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
-  serverActionsManifest: any
-  serverActionsBodySizeLimit?: SizeLimit
-  appServerMod: any
+  serverActionsManifest?: any
+  serverActions?: {
+    bodySizeLimit?: SizeLimit
+    allowedOrigins?: string[]
+  }
   config: NextConfigComplete
   buildId: string
   nextFontManifest: NextFontManifest
@@ -90,13 +87,14 @@ export function getRender({
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
+      interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicHTML: true,
         disableOptimizedLoading: true,
         serverActionsManifest,
-        serverActionsBodySizeLimit,
+        serverActions,
         nextFontManifest,
       },
       renderToHTML,
@@ -161,10 +159,10 @@ export function getRender({
     const result = await extendedRes.toResponse()
 
     if (event && event.waitUntil) {
-      event.waitUntil(
-        // @ts-ignore
-        Promise.all([...globalThis[NEXT_PRIVATE_GLOBAL_WAIT_UNTIL]])
-      )
+      const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
+      if (waitUntilPromise) {
+        event.waitUntil(waitUntilPromise)
+      }
     }
 
     // fetchMetrics is attached to the web request that going through the server,

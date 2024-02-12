@@ -36,13 +36,14 @@ import type {
 } from '@jest/transform'
 import type { Config } from '@jest/types'
 import type { NextConfig, ExperimentalConfig } from '../../server/config-shared'
+import type { ResolvedBaseUrl } from '../load-jsconfig'
 
 type TransformerConfig = Config.TransformerConfig[1]
 export interface JestTransformerConfig extends TransformerConfig {
   jsConfig: any
-  resolvedBaseUrl?: string
+  resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
-  hasServerComponents?: boolean
+  serverComponents?: boolean
   isEsmProject: boolean
   modularizeImports?: NextConfig['modularizeImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
@@ -91,7 +92,7 @@ const createTransformer: TransformerCreator<
       jsConfig: inputOptions?.jsConfig,
       resolvedBaseUrl: inputOptions?.resolvedBaseUrl,
       pagesDir: inputOptions?.pagesDir,
-      hasServerComponents: inputOptions?.hasServerComponents,
+      serverComponents: inputOptions?.serverComponents,
       modularizeImports: inputOptions?.modularizeImports,
       swcPlugins: inputOptions?.swcPlugins,
       compilerOptions: inputOptions?.compilerOptions,

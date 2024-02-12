@@ -69,7 +69,7 @@ async function getCurrentRules() {
     restrictions: {
       users: data.restrictions.users?.map((user) => user.login) || [],
       teams: data.restrictions.teams?.map((team) => team.slug) || [],
-      apps: [],
+      apps: data.restrictions.apps?.map((app) => app.slug) || [],
     },
   }
 }

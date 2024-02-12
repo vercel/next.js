@@ -15,6 +15,7 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
 }
 
 export interface DefineEnvPluginOptions {
+  isTurbopack: boolean
   allowedRevalidateHeaderKeys: string[] | undefined
   clientRouterFilters?: {
     staticFilter: ReturnType<
@@ -38,6 +39,7 @@ export interface DefineEnvPluginOptions {
 }
 
 export function getDefineEnv({
+  isTurbopack,
   allowedRevalidateHeaderKeys,
   clientRouterFilters,
   config,
@@ -85,18 +87,20 @@ export function getDefineEnv({
             process.env.NEXT_EDGE_RUNTIME_PROVIDER || 'edge-runtime'
           ),
         }),
-    'process.turbopack': JSON.stringify(false),
+    'process.turbopack': JSON.stringify(isTurbopack),
+    'process.env.TURBOPACK': JSON.stringify(isTurbopack),
     // TODO: enforce `NODE_ENV` on `process.env`, and add a test:
     'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
     'process.env.NEXT_RUNTIME': JSON.stringify(
-      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : undefined
+      isEdgeServer ? 'edge' : isNodeServer ? 'nodejs' : ''
     ),
     'process.env.NEXT_MINIMAL': JSON.stringify(''),
+    'process.env.__NEXT_PPR': JSON.stringify(config.experimental.ppr === true),
     'process.env.__NEXT_ACTIONS_DEPLOYMENT_ID': JSON.stringify(
       config.experimental.useDeploymentIdServerActions
     ),
     'process.env.NEXT_DEPLOYMENT_ID': JSON.stringify(
-      config.experimental.deploymentId
+      config.experimental.deploymentId || false
     ),
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX':
       JSON.stringify(fetchCacheKeyPrefix),
@@ -186,7 +190,7 @@ export function getDefineEnv({
     'process.env.__NEXT_CONFIG_OUTPUT': JSON.stringify(config.output),
     'process.env.__NEXT_I18N_SUPPORT': JSON.stringify(!!config.i18n),
     'process.env.__NEXT_I18N_DOMAINS': JSON.stringify(config.i18n?.domains),
-    'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId),
+    'process.env.__NEXT_ANALYTICS_ID': JSON.stringify(config.analyticsId), // TODO: remove in the next major version
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE': JSON.stringify(
       config.skipMiddlewareUrlNormalize
     ),
@@ -203,6 +207,9 @@ export function getDefineEnv({
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
     ),
+    'process.env.__NEXT_LINK_NO_TOUCH_START': JSON.stringify(
+      config.experimental.linkNoTouchStart
+    ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeOrEdgeCompilation
       ? {
@@ -212,8 +219,7 @@ export function getDefineEnv({
           'global.GENTLY': JSON.stringify(false),
         }
       : undefined),
-    'process.env.TURBOPACK': JSON.stringify(false),
-    ...(isNodeServer
+    ...(isNodeOrEdgeCompilation
       ? {
           'process.env.__NEXT_EXPERIMENTAL_REACT': JSON.stringify(
             needsExperimentalReact(config)

@@ -1,35 +1,35 @@
-import { useState } from 'react'
-import { useRouter } from 'next/router'
-import Link from 'next/link'
-import dbConnect from '../../lib/dbConnect'
-import Pet, { Pets } from '../../models/Pet'
-import { GetServerSideProps, GetServerSidePropsContext } from 'next'
-import { ParsedUrlQuery } from 'querystring'
+import { useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
+import dbConnect from "../../lib/dbConnect";
+import Pet, { Pets } from "../../models/Pet";
+import { GetServerSideProps, GetServerSidePropsContext } from "next";
+import { ParsedUrlQuery } from "querystring";
 
 interface Params extends ParsedUrlQuery {
-  id: string
+  id: string;
 }
 
 type Props = {
-  pet: Pets
-}
+  pet: Pets;
+};
 
 /* Allows you to view pet card info and delete pet card*/
 const PetPage = ({ pet }: Props) => {
-  const router = useRouter()
-  const [message, setMessage] = useState('')
+  const router = useRouter();
+  const [message, setMessage] = useState("");
   const handleDelete = async () => {
-    const petID = router.query.id
+    const petID = router.query.id;
 
     try {
       await fetch(`/api/pets/${petID}`, {
-        method: 'Delete',
-      })
-      router.push('/')
+        method: "Delete",
+      });
+      router.push("/");
     } catch (error) {
-      setMessage('Failed to delete the pet.')
+      setMessage("Failed to delete the pet.");
     }
-  }
+  };
 
   return (
     <div key={pet._id}>
@@ -70,36 +70,36 @@ const PetPage = ({ pet }: Props) => {
       </div>
       {message && <p>{message}</p>}
     </div>
-  )
-}
+  );
+};
 
 export const getServerSideProps: GetServerSideProps<Props, Params> = async ({
   params,
 }: GetServerSidePropsContext) => {
-  await dbConnect()
+  await dbConnect();
 
   if (!params?.id) {
     return {
       notFound: true,
-    }
+    };
   }
 
-  const pet = await Pet.findById(params.id).lean()
+  const pet = await Pet.findById(params.id).lean();
 
   if (!pet) {
     return {
       notFound: true,
-    }
+    };
   }
 
   /* Ensures all objectIds and nested objectIds are serialized as JSON data */
-  const serializedPet = JSON.parse(JSON.stringify(pet))
+  const serializedPet = JSON.parse(JSON.stringify(pet));
 
   return {
     props: {
       pet: serializedPet,
     },
-  }
-}
+  };
+};
 
-export default PetPage
+export default PetPage;

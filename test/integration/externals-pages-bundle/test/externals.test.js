@@ -21,16 +21,17 @@ describe('default', () => {
       const app = await launchApp(appDir, port)
       await renderViaHTTP(port, '/')
       if (process.env.TURBOPACK) {
-        const ssrPath = join(appDir, '.next/server/chunks/ssr')
-        const pageBundleBasename = (await fs.readdir(ssrPath)).find((p) =>
-          p.match(/pages_index_[0-9a-f]+\.js$/)
+        const ssrPath = join(appDir, '.next/server/chunks')
+        const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
+          p.match(/\.js$/)
         )
-        expect(pageBundleBasename).not.toBeUndefined()
-        const output = await fs.readFile(
-          join(ssrPath, pageBundleBasename),
-          'utf8'
-        )
-        expect(output).toContain(
+        expect(pageBundleBasenames).not.toBeEmpty()
+        let allBundles = ''
+        for (const basename of pageBundleBasenames) {
+          const output = await fs.readFile(join(ssrPath, basename), 'utf8')
+          allBundles += output
+        }
+        expect(allBundles).toContain(
           '__turbopack_external_require__("external-package", true)'
         )
       } else {

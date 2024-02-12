@@ -1,6 +1,6 @@
 # Stytch + Next.js example app on Vercel
 
-This is a [Stytch](https://stytch.com) + [Next.js](https://nextjs.org/) project that showcases how to enable elegant authentication in your applicaiton.
+This is a [Stytch](https://stytch.com) + [Next.js](https://nextjs.org/) project that showcases how to enable elegant authentication in your application.
 
 <p align="center"><img src="./public/example-app-image.png" alt="stytch" width="50%"/></p>
 

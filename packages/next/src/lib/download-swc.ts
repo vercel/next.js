@@ -2,9 +2,6 @@ import fs from 'fs'
 import path from 'path'
 import * as Log from '../build/output/log'
 import tar from 'next/dist/compiled/tar'
-const { fetch } = require('next/dist/compiled/undici') as {
-  fetch: typeof global.fetch
-}
 const { WritableStream } = require('node:stream/web') as {
   WritableStream: typeof global.WritableStream
 }
@@ -58,10 +55,28 @@ async function extractBinary(
       return body.pipeTo(
         new WritableStream({
           write(chunk) {
-            cacheWriteStream.write(chunk)
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.write(chunk, (error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
           close() {
-            cacheWriteStream.close()
+            return new Promise<void>((resolve, reject) =>
+              cacheWriteStream.close((error) => {
+                if (error) {
+                  reject(error)
+                  return
+                }
+
+                resolve()
+              })
+            )
           },
         })
       )

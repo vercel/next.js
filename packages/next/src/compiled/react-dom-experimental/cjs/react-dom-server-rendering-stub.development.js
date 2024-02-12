@@ -16,16 +16,6 @@ if (process.env.NODE_ENV !== "production") {
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '18.3.0-experimental-d900fadbf-20230929';
-
-var Internals = {
-  usingClientEntryPoint: false,
-  Events: null,
-  Dispatcher: {
-    current: null
-  }
-};
-
 var ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
 
 function error(format) {
@@ -64,6 +54,16 @@ function printWarning(level, format, args) {
     Function.prototype.apply.call(console[level], console, argsWithFormat);
   }
 }
+
+var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
+
+var Internals = {
+  usingClientEntryPoint: false,
+  Events: null,
+  Dispatcher: {
+    current: null
+  }
+};
 
 function getCrossOriginString(input) {
   if (typeof input === 'string') {
@@ -358,10 +358,25 @@ function batchedUpdates(fn, a) {
   return fn(a);
 }
 
+function experimental_useFormStatus() {
+  {
+    error('useFormStatus is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormStatus();
+}
+function experimental_useFormState(action, initialState, permalink) {
+  {
+    error('useFormState is now in canary. Remove the experimental_ prefix. ' + 'The prefixed alias will be removed in an upcoming release.');
+  }
+
+  return useFormState(action, initialState, permalink);
+}
+
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = Internals;
 exports.createPortal = createPortal;
-exports.experimental_useFormState = useFormState;
-exports.experimental_useFormStatus = useFormStatus;
+exports.experimental_useFormState = experimental_useFormState;
+exports.experimental_useFormStatus = experimental_useFormStatus;
 exports.flushSync = flushSync;
 exports.preconnect = preconnect;
 exports.prefetchDNS = prefetchDNS;
@@ -370,6 +385,8 @@ exports.preinitModule = preinitModule;
 exports.preload = preload;
 exports.preloadModule = preloadModule;
 exports.unstable_batchedUpdates = batchedUpdates;
+exports.useFormState = useFormState;
+exports.useFormStatus = useFormStatus;
 exports.version = ReactVersion;
   })();
 }

@@ -55,7 +55,7 @@ createNextDescribe(
 
       it('should have proper error when no children are provided', async () => {
         const browser = await webdriver(next.appPort, '/link-no-child')
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxHeader(browser)).toContain(
           'No children were passed to <Link> with `href` of `/about` but one child is required'
         )
@@ -63,7 +63,7 @@ createNextDescribe(
 
       it('should not throw error when one number type child is provided', async () => {
         const browser = await webdriver(next.appPort, '/link-number-child')
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
         if (browser) await browser.close()
       })
 
@@ -281,7 +281,7 @@ createNextDescribe(
         try {
           browser = await webdriver(next.appPort, '/nav')
           await browser.elementByCss('#empty-props').click()
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatch(
             /should resolve to an object\. But found "null" instead\./
           )
@@ -1381,11 +1381,11 @@ createNextDescribe(
         let browser
         try {
           browser = await webdriver(next.appPort, '/error-inside-browser-page')
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(
-            /pages[\\/]error-inside-browser-page\.js \(5:12\)/
+            /pages[\\/]error-inside-browser-page\.js \(5:13\)/
           )
         } finally {
           if (browser) {
@@ -1401,10 +1401,10 @@ createNextDescribe(
             next.appPort,
             '/error-in-the-browser-global-scope'
           )
-          expect(await hasRedbox(browser, true)).toBe(true)
+          expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
-          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
         } finally {
           if (browser) {
             await browser.close()
@@ -1679,7 +1679,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
@@ -1699,7 +1699,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()
@@ -1717,7 +1717,7 @@ createNextDescribe(
           await browser.waitForElementByCss('.nav-about')
           await browser.back()
           await waitFor(1000)
-          expect(await hasRedbox(browser, false)).toBe(false)
+          expect(await hasRedbox(browser)).toBe(false)
         } finally {
           if (browser) {
             await browser.close()

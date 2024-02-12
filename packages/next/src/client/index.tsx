@@ -27,7 +27,7 @@ import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import type { StyleSheetTuple } from './page-loader'
-import measureWebVitals from './performance-relayer'
+import measureWebVitals from './performance-relayer' // TODO: remove in the next major version
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
 import { getProperError } from '../lib/is-error'
@@ -66,6 +66,7 @@ declare global {
 type RenderRouteInfo = PrivateRouteInfo & {
   App: AppComponent
   scroll?: { x: number; y: number } | null
+  isHydratePass?: boolean
 }
 type RenderErrorProps = Omit<RenderRouteInfo, 'Component' | 'styleSheets'>
 type RegisterFn = (input: [string, () => void]) => void
@@ -604,6 +605,7 @@ function Root({
     () => callbacks.forEach((callback) => callback()),
     [callbacks]
   )
+  // TODO: remove in the next major version
   // We should ask to measure the Web Vitals after rendering completes so we
   // don't cause any hydration delay:
   React.useEffect(() => {
@@ -805,7 +807,16 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 }
 
 async function render(renderingProps: RenderRouteInfo): Promise<void> {
-  if (renderingProps.err) {
+  // if an error occurs in a server-side page (e.g. in getInitialProps),
+  // skip re-rendering the error page client-side as data-fetching operations
+  // will already have been done on the server and NEXT_DATA contains the correct
+  // data for straight-forward hydration of the error page
+  if (
+    renderingProps.err &&
+    // renderingProps.Component might be undefined if there is a top/module-level error
+    (typeof renderingProps.Component === 'undefined' ||
+      !renderingProps.isHydratePass)
+  ) {
     await renderError(renderingProps)
     return
   }
@@ -974,6 +985,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     Component: CachedComponent,
     props: initialData.props,
     err: initialErr,
+    isHydratePass: true,
   }
 
   if (opts?.beforeRender) {

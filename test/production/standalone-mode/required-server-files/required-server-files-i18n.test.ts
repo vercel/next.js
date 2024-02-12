@@ -48,11 +48,12 @@ describe('required server files i18n', () => {
       packageJson: {
         scripts: {
           build: wasmPkgIsAvailable
-            ? 'rm -rfv node_modules/@next/swc && yarn next build'
-            : 'yarn next build',
+            ? 'rm -rfv node_modules/@next/swc && next build'
+            : 'next build',
         },
       },
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
       nextConfig: {
         i18n: {
           locales: ['en', 'fr'],

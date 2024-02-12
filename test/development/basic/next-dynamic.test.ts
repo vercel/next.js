@@ -192,7 +192,26 @@ describe.each([
                   () => browser.elementByCss('body').text(),
                   /navigator/
                 )
-                expect(await hasRedbox(browser, false)).toBe(false)
+                expect(await hasRedbox(browser)).toBe(false)
+              } finally {
+                if (browser) {
+                  await browser.close()
+                }
+              }
+            })
+
+            it('should import and render the ESM module correctly on client side', async () => {
+              let browser
+              try {
+                browser = await webdriver(
+                  next.url,
+                  basePath + '/dynamic/no-ssr-esm'
+                )
+                await check(
+                  () => browser.elementByCss('body').text(),
+                  /esm.mjs/
+                )
+                expect(await hasRedbox(browser)).toBe(false)
               } finally {
                 if (browser) {
                   await browser.close()
@@ -237,32 +256,35 @@ describe.each([
               })
             }
           })
+          // Turbopack doesn't have this feature.
+          ;(process.env.TURBOPACK ? describe.skip : describe)(
+            'custom chunkfilename',
+            () => {
+              it('should render the correct filename', async () => {
+                const $ = await get$(basePath + '/dynamic/chunkfilename')
+                expect($('body').text()).toMatch(/test chunkfilename/)
+                expect($('html').html()).toMatch(/hello-world\.js/)
+              })
 
-          describe('custom chunkfilename', () => {
-            it('should render the correct filename', async () => {
-              const $ = await get$(basePath + '/dynamic/chunkfilename')
-              expect($('body').text()).toMatch(/test chunkfilename/)
-              expect($('html').html()).toMatch(/hello-world\.js/)
-            })
-
-            it('should render the component on client side', async () => {
-              let browser
-              try {
-                browser = await webdriver(
-                  next.url,
-                  basePath + '/dynamic/chunkfilename'
-                )
-                await check(
-                  () => browser.elementByCss('body').text(),
-                  /test chunkfilename/
-                )
-              } finally {
-                if (browser) {
-                  await browser.close()
+              it('should render the component on client side', async () => {
+                let browser
+                try {
+                  browser = await webdriver(
+                    next.url,
+                    basePath + '/dynamic/chunkfilename'
+                  )
+                  await check(
+                    () => browser.elementByCss('body').text(),
+                    /test chunkfilename/
+                  )
+                } finally {
+                  if (browser) {
+                    await browser.close()
+                  }
                 }
-              }
-            })
-          })
+              })
+            }
+          )
 
           describe('custom loading', () => {
             it('should render custom loading on the server side when `ssr:false` and `loading` is provided', async () => {
@@ -289,45 +311,49 @@ describe.each([
             })
           })
 
-          describe('Multiple modules', () => {
-            it('should only include the rendered module script tag', async () => {
-              const $ = await get$(basePath + '/dynamic/multiple-modules')
-              const html = $('html').html()
-              expect(html).toMatch(/hello1\.js/)
-              expect(html).not.toMatch(/hello2\.js/)
-            })
-
-            it('should only load the rendered module in the browser', async () => {
-              let browser
-              try {
-                browser = await webdriver(
-                  next.url,
-                  basePath + '/dynamic/multiple-modules'
-                )
-                const html = await browser.eval(
-                  'document.documentElement.innerHTML'
-                )
+          // TODO: Make this test work with Turbopack. Currently the test relies on `chunkFileName` which is not supported by Turbopack.
+          ;(process.env.TURBOPACK ? describe.skip : describe)(
+            'Multiple modules',
+            () => {
+              it('should only include the rendered module script tag', async () => {
+                const $ = await get$(basePath + '/dynamic/multiple-modules')
+                const html = $('html').html()
                 expect(html).toMatch(/hello1\.js/)
                 expect(html).not.toMatch(/hello2\.js/)
-              } finally {
-                if (browser) {
-                  await browser.close()
-                }
-              }
-            })
+              })
 
-            it('should only render one bundle if component is used multiple times', async () => {
-              const $ = await get$(basePath + '/dynamic/multiple-modules')
-              const html = $('html').html()
-              try {
-                expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(1)
-                expect(html).not.toMatch(/hello2\.js/)
-              } catch (err) {
-                console.error(html)
-                throw err
-              }
-            })
-          })
+              it('should only load the rendered module in the browser', async () => {
+                let browser
+                try {
+                  browser = await webdriver(
+                    next.url,
+                    basePath + '/dynamic/multiple-modules'
+                  )
+                  const html = await browser.eval(
+                    'document.documentElement.innerHTML'
+                  )
+                  expect(html).toMatch(/hello1\.js/)
+                  expect(html).not.toMatch(/hello2\.js/)
+                } finally {
+                  if (browser) {
+                    await browser.close()
+                  }
+                }
+              })
+
+              it('should only render one bundle if component is used multiple times', async () => {
+                const $ = await get$(basePath + '/dynamic/multiple-modules')
+                const html = $('html').html()
+                try {
+                  expect(html.match(/chunks[\\/]hello1\.js/g).length).toBe(1)
+                  expect(html).not.toMatch(/hello2\.js/)
+                } catch (err) {
+                  console.error(html)
+                  throw err
+                }
+              })
+            }
+          )
         })
       }
     )

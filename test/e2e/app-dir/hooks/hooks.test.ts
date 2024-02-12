@@ -85,7 +85,7 @@ createNextDescribe(
         initialRand = $('#rand').text()
       })
 
-      it('should genenerate rand when draft mode enabled', async () => {
+      it('should generate rand when draft mode enabled', async () => {
         const res = await next.fetch('/enable')
         const h = res.headers.get('set-cookie') || ''
         const cookie = h

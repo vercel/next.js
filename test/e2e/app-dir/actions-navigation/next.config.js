@@ -1,5 +1,3 @@
 module.exports = {
-  experimental: {
-    serverActions: true,
-  },
+  experimental: {},
 }

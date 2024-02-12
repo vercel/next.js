@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import 'flat-map-polyfill'
 import { readdir, readFile, remove } from 'fs-extra'
 import {
   findPort,
@@ -62,35 +61,35 @@ describe('CSS Support', () => {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-        Object {
-          "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
-          "sourcesContent": Array [
-            "@media (480px <= width < 768px) {
-          ::placeholder {
-            color: green;
+          {
+            "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
+            "sourcesContent": [
+              "@media (480px <= width < 768px) {
+            ::placeholder {
+              color: green;
+            }
           }
-        }
 
-        .flex-parsing {
-          flex: 0 0 calc(50% - var(--vertical-gutter));
-        }
+          .flex-parsing {
+            flex: 0 0 calc(50% - var(--vertical-gutter));
+          }
 
-        .transform-parsing {
-          transform: translate3d(0px, 0px);
-        }
+          .transform-parsing {
+            transform: translate3d(0px, 0px);
+          }
 
-        .css-grid-shorthand {
-          grid-column: span 2;
-        }
+          .css-grid-shorthand {
+            grid-column: span 2;
+          }
 
-        .g-docs-sidenav .filter::-webkit-input-placeholder {
-          opacity: 80%;
-        }
-        ",
-          ],
-          "version": 3,
-        }
-      `)
+          .g-docs-sidenav .filter::-webkit-input-placeholder {
+            opacity: 80%;
+          }
+          ",
+            ],
+            "version": 3,
+          }
+        `)
       })
     })
 

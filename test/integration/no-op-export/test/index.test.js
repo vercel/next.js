@@ -3,7 +3,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild, nextExport } from 'next-test-utils'
+import { nextBuild } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -82,6 +82,7 @@ describe('no-op export', () => {
         nextConfig,
         `
       module.exports = {
+        output: 'export',
         exportPathMap() {
           return {}
         }
@@ -93,11 +94,6 @@ describe('no-op export', () => {
         stdout: 'log',
       })
       expect(buildResult.code).toBe(0)
-
-      const exportResult = await nextExport(appDir, {
-        outdir: join(appDir, 'out'),
-      })
-      expect(exportResult.code).toBe(0)
     })
   })
 })

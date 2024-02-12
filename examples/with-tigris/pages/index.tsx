@@ -1,29 +1,29 @@
-import type { NextPage } from 'next'
-import Image from 'next/image'
-import Head from 'next/head'
-import React, { useEffect, useState } from 'react'
-import EachTodo from '../components/EachToDo'
-import LoaderWave from '../components/LoaderWave'
-import { TodoItem } from '../db/models/todoItems'
-import styles from '../styles/Home.module.css'
+import type { NextPage } from "next";
+import Image from "next/image";
+import Head from "next/head";
+import React, { useEffect, useState } from "react";
+import EachTodo from "../components/EachToDo";
+import LoaderWave from "../components/LoaderWave";
+import { TodoItem } from "../db/models/todoItems";
+import styles from "../styles/Home.module.css";
 
 const Home: NextPage = () => {
   // This is the input field
-  const [textInput, setTextInput] = useState('')
+  const [textInput, setTextInput] = useState("");
 
   // Todo list array which displays the todo items
-  const [todoList, setTodoList] = useState<TodoItem[]>([])
+  const [todoList, setTodoList] = useState<TodoItem[]>([]);
 
   // Loading and Error flags for the template
-  const [isLoading, setIsLoading] = useState(false)
-  const [isError, setIsError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
 
   // This is use to animate the input text field
-  const [wiggleError, setWiggleError] = useState(false)
+  const [wiggleError, setWiggleError] = useState(false);
 
   // Two separate views. 1. List view for todo items & 2. Search result view
-  type viewModeType = 'list' | 'search'
-  const [viewMode, setViewMode] = useState<viewModeType>('list')
+  type viewModeType = "list" | "search";
+  const [viewMode, setViewMode] = useState<viewModeType>("list");
 
   // Util search query/input check
   /*
@@ -31,24 +31,24 @@ const Home: NextPage = () => {
   This also wiggles the text input if the regex doesn't find any match.
   */
   const queryCheckWiggle = () => {
-    const result: RegExpMatchArray | null = textInput.match('^\\S.{0,100}$')
+    const result: RegExpMatchArray | null = textInput.match("^\\S.{0,100}$");
     if (result === null) {
-      setWiggleError(true)
-      return true
+      setWiggleError(true);
+      return true;
     }
-    return false
-  }
+    return false;
+  };
 
   useEffect(() => {
     if (!wiggleError) {
-      return
+      return;
     }
     const timeOut = setTimeout(() => {
-      setWiggleError(false)
-    }, 500)
+      setWiggleError(false);
+    }, 500);
 
-    return () => clearTimeout(timeOut)
-  }, [wiggleError])
+    return () => clearTimeout(timeOut);
+  }, [wiggleError]);
 
   // Search query
   /*
@@ -57,22 +57,22 @@ const Home: NextPage = () => {
   */
   const searchQuery = () => {
     if (queryCheckWiggle()) {
-      return
+      return;
     }
-    setIsLoading(true)
+    setIsLoading(true);
 
     fetch(`/api/items/search?q=${encodeURI(textInput)}`, {
-      method: 'GET',
+      method: "GET",
     })
       .then((response) => response.json())
       .then((data) => {
-        setIsLoading(false)
+        setIsLoading(false);
         if (data.result) {
-          setViewMode('search')
-          setTodoList(data.result)
+          setViewMode("search");
+          setTodoList(data.result);
         }
-      })
-  }
+      });
+  };
 
   // Fetch Todo List
   /*
@@ -82,30 +82,30 @@ const Home: NextPage = () => {
    If the 'result' key is present we safely set the 'todoList'.
   */
   const fetchListItems = () => {
-    setIsLoading(true)
-    setIsError(false)
+    setIsLoading(true);
+    setIsError(false);
 
-    fetch('/api/items')
+    fetch("/api/items")
       .then((response) => response.json())
       .then((data) => {
-        setIsLoading(false)
+        setIsLoading(false);
         if (data.result) {
-          setViewMode('list')
-          setTodoList(data.result)
+          setViewMode("list");
+          setTodoList(data.result);
         } else {
-          setIsError(true)
+          setIsError(true);
         }
       })
       .catch(() => {
-        setIsLoading(false)
-        setIsError(true)
-      })
-  }
+        setIsLoading(false);
+        setIsError(true);
+      });
+  };
 
   // Load the initial list of todo-items
   useEffect(() => {
-    fetchListItems()
-  }, [])
+    fetchListItems();
+  }, []);
 
   // Add a new todo-item
   /*
@@ -114,19 +114,19 @@ const Home: NextPage = () => {
   */
   const addToDoItem = () => {
     if (queryCheckWiggle()) {
-      return
+      return;
     }
-    setIsLoading(true)
+    setIsLoading(true);
 
-    fetch('/api/items', {
-      method: 'POST',
+    fetch("/api/items", {
+      method: "POST",
       body: JSON.stringify({ text: textInput, completed: false }),
     }).then(() => {
-      setIsLoading(false)
-      setTextInput('')
-      fetchListItems()
-    })
-  }
+      setIsLoading(false);
+      setTextInput("");
+      fetchListItems();
+    });
+  };
 
   // Delete Todo-item
   /*
@@ -134,19 +134,19 @@ const Home: NextPage = () => {
   It calls the endpoint 'api/item/<id>' with the 'DELETE' method. Read the method 'handleDelete' under pages/api/item/[id]' to learn more how the api handles deletion.
   */
   const deleteTodoItem = (id?: number) => {
-    setIsLoading(true)
+    setIsLoading(true);
 
-    fetch('/api/item/' + id, {
-      method: 'DELETE',
+    fetch("/api/item/" + id, {
+      method: "DELETE",
     }).then(() => {
-      setIsLoading(false)
-      if (viewMode === 'list') {
-        fetchListItems()
+      setIsLoading(false);
+      if (viewMode === "list") {
+        fetchListItems();
       } else {
-        searchQuery()
+        searchQuery();
       }
-    })
-  }
+    });
+  };
 
   // Update Todo-item (mark complete/incomplete)
   /*
@@ -154,21 +154,21 @@ const Home: NextPage = () => {
   Navigate to 'api/item/[id]' and read more how the api handles updates under the 'handlePut' method.
   */
   const updateTodoItem = (item: TodoItem) => {
-    item.completed = !item.completed
-    setIsLoading(true)
+    item.completed = !item.completed;
+    setIsLoading(true);
 
-    fetch('/api/item/' + item.id, {
-      method: 'PUT',
+    fetch("/api/item/" + item.id, {
+      method: "PUT",
       body: JSON.stringify(item),
     }).then(() => {
-      setIsLoading(false)
-      if (viewMode === 'list') {
-        fetchListItems()
+      setIsLoading(false);
+      if (viewMode === "list") {
+        fetchListItems();
       } else {
-        searchQuery()
+        searchQuery();
       }
-    })
-  }
+    });
+  };
 
   return (
     <div>
@@ -184,12 +184,12 @@ const Home: NextPage = () => {
         <div className={styles.searchHeader}>
           <input
             className={`${styles.searchInput} ${
-              wiggleError ? styles.invalid : ''
+              wiggleError ? styles.invalid : ""
             }`}
             value={textInput}
             onChange={(e) => {
-              setWiggleError(false)
-              setTextInput(e.target.value)
+              setWiggleError(false);
+              setTextInput(e.target.value);
             }}
             placeholder="Type an item to add or search"
           />
@@ -204,12 +204,12 @@ const Home: NextPage = () => {
             <p className={styles.errorText}>Something went wrong.. </p>
           )}
           {isLoading && <LoaderWave />}
-          {viewMode === 'search' && (
+          {viewMode === "search" && (
             <button
               className={styles.clearSearch}
               onClick={() => {
-                setTextInput('')
-                fetchListItems()
+                setTextInput("");
+                fetchListItems();
               }}
             >
               Go back to list
@@ -219,9 +219,9 @@ const Home: NextPage = () => {
           {/* Todo Item List */}
           {todoList.length < 1 ? (
             <p className={styles.noItems}>
-              {viewMode === 'search'
-                ? 'No items found.. '
-                : 'Add a todo by typing in the field above and hit Add!'}
+              {viewMode === "search"
+                ? "No items found.. "
+                : "Add a todo by typing in the field above and hit Add!"}
             </p>
           ) : (
             <ul>
@@ -233,7 +233,7 @@ const Home: NextPage = () => {
                     deleteHandler={deleteTodoItem}
                     updateHandler={updateTodoItem}
                   />
-                )
+                );
               })}
             </ul>
           )}
@@ -249,7 +249,7 @@ const Home: NextPage = () => {
         </a>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

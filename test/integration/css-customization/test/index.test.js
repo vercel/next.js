@@ -55,9 +55,9 @@ describe('CSS Customization', () => {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-Object {
+{
   "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
-  "sourcesContent": Array [
+  "sourcesContent": [
     "/* this should pass through untransformed */
 @media (480px <= width < 768px) {
   ::placeholder {
@@ -103,7 +103,7 @@ Object {
         expect(
           cssContent.replace(/\/\*.*?\*\//g, '').trim()
         ).toMatchInlineSnapshot(
-          `"@media (480px <= width < 768px){a:before{content:\\"\\"}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
+          `"@media (480px <= width < 768px){a:before{content:""}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
         )
 
         // Contains a source map
@@ -123,9 +123,9 @@ Object {
 
         const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
         expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-Object {
+{
   "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
-  "sourcesContent": Array [
+  "sourcesContent": [
     "/* this should pass through untransformed */
 @media (480px <= width < 768px) {
   a::before {

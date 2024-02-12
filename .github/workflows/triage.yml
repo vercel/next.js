@@ -1,0 +1,37 @@
+name: Triage issues
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created]
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+permissions:
+  issues: write
+
+jobs:
+  triage:
+    name: Nissuer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: balazsorban44/nissuer@1.9.2
+        with:
+          label-area-prefix: 'area:'
+          label-area-section: 'Which area\(s\) are affected\? \(Select all that apply\)(.*)### Additional context'
+          label-comments: |
+            {
+              "good first issue": ".github/comments/good-first-issue.md",
+              "please add a complete reproduction": ".github/comments/invalid-reproduction.md",
+              "please simplify reproduction": ".github/comments/simplify-reproduction.md",
+              "please verify canary": ".github/comments/verify-canary.md",
+              "resolved": ".github/comments/resolved.md"
+            }
+          reproduction-comment: '.github/comments/invalid-link.md'
+          reproduction-hosts: 'github.com,codesandbox.io'
+          reproduction-blocklist: 'github.com/vercel/next.js.*,github.com/\\w*/?$,github.com$'
+          reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
+          reproduction-invalid-label: 'invalid link'
+          reproduction-issue-labels: 'template: bug,'

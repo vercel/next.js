@@ -1,4 +1,3 @@
-/* global location */
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
@@ -12,6 +11,10 @@ import { GlobalLayoutRouterContext } from '../shared/lib/app-router-context.shar
 import onRecoverableError from './on-recoverable-error'
 import { callServer } from './app-call-server'
 import { isNextRouterError } from './components/is-next-router-error'
+import {
+  ActionQueueContext,
+  createMutableActionQueue,
+} from '../shared/lib/router/action-queue'
 
 // Since React doesn't call onerror for errors caught in error boundaries.
 const origConsoleError = window.console.error
@@ -32,11 +35,6 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
-
-const getCacheKey = () => {
-  const { pathname, search } = location
-  return pathname + search
-}
 
 const encoder = new TextEncoder()
 
@@ -114,36 +112,18 @@ const nextServerDataLoadingGlobal = ((self as any).__next_f =
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function createResponseCache() {
-  return new Map<string, any>()
-}
-const rscCache = createResponseCache()
+const readable = new ReadableStream({
+  start(controller) {
+    nextServerDataRegisterWriter(controller)
+  },
+})
 
-function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
-  const response = rscCache.get(cacheKey)
-  if (response) return response
+const initialServerResponse = createFromReadableStream(readable, {
+  callServer,
+})
 
-  const readable = new ReadableStream({
-    start(controller) {
-      nextServerDataRegisterWriter(controller)
-    },
-  })
-
-  const newResponse = createFromReadableStream(readable, {
-    callServer,
-  })
-
-  rscCache.set(cacheKey, newResponse)
-  return newResponse
-}
-
-function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
-  React.useEffect(() => {
-    rscCache.delete(cacheKey)
-  })
-  const response = useInitialServerResponse(cacheKey)
-  const root = use(response)
-  return root
+function ServerRoot(): React.ReactNode {
+  return use(initialServerResponse)
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -151,6 +131,7 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  // TODO: remove in the next major version
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -170,10 +151,6 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   }
 
   return children as React.ReactElement
-}
-
-function RSCComponent(props: any): JSX.Element {
-  return <ServerRoot {...props} cacheKey={getCacheKey()} />
 }
 
 export function hydrate() {
@@ -222,6 +199,8 @@ export function hydrate() {
     }
   }
 
+  const actionQueue = createMutableActionQueue()
+
   const reactEl = (
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider
@@ -229,9 +208,11 @@ export function hydrate() {
           appDir: true,
         }}
       >
-        <Root>
-          <RSCComponent />
-        </Root>
+        <ActionQueueContext.Provider value={actionQueue}>
+          <Root>
+            <ServerRoot />
+          </Root>
+        </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
   )
@@ -299,7 +280,7 @@ export function hydrate() {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
         ...options,
-        experimental_formState: initialFormStateData,
+        formState: initialFormStateData,
       })
     )
   }

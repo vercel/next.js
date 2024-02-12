@@ -8,7 +8,7 @@ import { stringify as stringifyQs } from 'querystring'
 // we need to re-encode them here but still allow passing through
 // values from rewrites/redirects
 export const stringifyQuery = (req: BaseNextRequest, query: ParsedUrlQuery) => {
-  const initialQuery = getRequestMeta(req, '__NEXT_INIT_QUERY') || {}
+  const initialQuery = getRequestMeta(req, 'initQuery') || {}
   const initialQueryValues = Object.values(initialQuery)
 
   return stringifyQs(query, undefined, undefined, {

@@ -27,7 +27,6 @@ var REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 var REACT_PROFILER_TYPE = Symbol.for('react.profiler');
 var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
 var REACT_CONTEXT_TYPE = Symbol.for('react.context');
-var REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -100,9 +99,9 @@ var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
-var enableDebugTracing = false; // Track which Fiber(s) schedule render work.
+var enableDebugTracing = false;
 
-var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference');
+var REACT_CLIENT_REFERENCE$2 = Symbol.for('react.client.reference');
 function isValidElementType(type) {
   if (typeof type === 'string' || typeof type === 'function') {
     return true;
@@ -118,7 +117,7 @@ function isValidElementType(type) {
     // types supported by any Flight configuration anywhere since
     // we don't know which Flight build this will end up being used
     // with.
-    type.$$typeof === REACT_CLIENT_REFERENCE$1 || type.getModuleId !== undefined) {
+    type.$$typeof === REACT_CLIENT_REFERENCE$2 || type.getModuleId !== undefined) {
       return true;
     }
   }
@@ -140,8 +139,9 @@ function getWrappedName(outerType, innerType, wrapperName) {
 
 function getContextName(type) {
   return type.displayName || 'Context';
-} // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
+}
 
+var REACT_CLIENT_REFERENCE$1 = Symbol.for('react.client.reference'); // Note that the reconciler package should generally prefer to use getComponentNameFromFiber() instead.
 
 function getComponentNameFromType(type) {
   if (type == null) {
@@ -149,13 +149,12 @@ function getComponentNameFromType(type) {
     return null;
   }
 
-  {
-    if (typeof type.tag === 'number') {
-      error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
-    }
-  }
-
   if (typeof type === 'function') {
+    if (type.$$typeof === REACT_CLIENT_REFERENCE$1) {
+      // TODO: Create a convention for naming client references with debug info.
+      return null;
+    }
+
     return type.displayName || type.name || null;
   }
 
@@ -190,6 +189,12 @@ function getComponentNameFromType(type) {
   }
 
   if (typeof type === 'object') {
+    {
+      if (typeof type.tag === 'number') {
+        error('Received an unexpected object in getComponentNameFromType(). ' + 'This is likely a bug in React. Please file an issue.');
+      }
+    }
+
     switch (type.$$typeof) {
       case REACT_CONTEXT_TYPE:
         var context = type;
@@ -223,13 +228,6 @@ function getComponentNameFromType(type) {
             return null;
           }
         }
-
-      case REACT_SERVER_CONTEXT_TYPE:
-        {
-          var context2 = type;
-          return (context2.displayName || context2._globalName) + '.Provider';
-        }
-
     }
   }
 
@@ -334,7 +332,7 @@ function reenableLogs() {
 
 var ReactCurrentDispatcher = ReactSharedInternals.ReactCurrentDispatcher;
 var prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
+function describeBuiltInComponentFrame(name, ownerFn) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -357,6 +355,18 @@ var componentFrameCache;
   var PossiblyWeakMap = typeof WeakMap === 'function' ? WeakMap : Map;
   componentFrameCache = new PossiblyWeakMap();
 }
+/**
+ * Leverages native browser/VM stack frames to get proper details (e.g.
+ * filename, line + col number) for a single component in a component stack. We
+ * do this by:
+ *   (1) throwing and catching an error in the function - this will be our
+ *       control error.
+ *   (2) calling the component which will eventually throw an error that we'll
+ *       catch - this will be our sample error.
+ *   (3) diffing the control and sample error stacks to find the stack frame
+ *       which represents our component.
+ */
+
 
 function describeNativeComponentFrame(fn, construct) {
   // If something asked for a stack inside a fake render, it should get ignored.
@@ -372,7 +382,6 @@ function describeNativeComponentFrame(fn, construct) {
     }
   }
 
-  var control;
   reentry = true;
   var previousPrepareStackTrace = Error.prepareStackTrace; // $FlowFixMe[incompatible-type] It does accept undefined.
 
@@ -386,81 +395,140 @@ function describeNativeComponentFrame(fn, construct) {
     ReactCurrentDispatcher.current = null;
     disableLogs();
   }
+  /**
+   * Finding a common stack frame between sample and control errors can be
+   * tricky given the different types and levels of stack trace truncation from
+   * different JS VMs. So instead we'll attempt to control what that common
+   * frame should be through this object method:
+   * Having both the sample and control errors be in the function under the
+   * `DescribeNativeComponentFrameRoot` property, + setting the `name` and
+   * `displayName` properties of the function ensures that a stack
+   * frame exists that has the method name `DescribeNativeComponentFrameRoot` in
+   * it for both control and sample stacks.
+   */
+
+
+  var RunInRootFrame = {
+    DetermineComponentFrameRoot: function () {
+      var control;
+
+      try {
+        // This should throw.
+        if (construct) {
+          // Something should be setting the props in the constructor.
+          var Fake = function () {
+            throw Error();
+          }; // $FlowFixMe[prop-missing]
+
+
+          Object.defineProperty(Fake.prototype, 'props', {
+            set: function () {
+              // We use a throwing setter instead of frozen or non-writable props
+              // because that won't throw in a non-strict mode function.
+              throw Error();
+            }
+          });
+
+          if (typeof Reflect === 'object' && Reflect.construct) {
+            // We construct a different control for this case to include any extra
+            // frames added by the construct call.
+            try {
+              Reflect.construct(Fake, []);
+            } catch (x) {
+              control = x;
+            }
+
+            Reflect.construct(fn, [], Fake);
+          } else {
+            try {
+              Fake.call();
+            } catch (x) {
+              control = x;
+            } // $FlowFixMe[prop-missing] found when upgrading Flow
+
+
+            fn.call(Fake.prototype);
+          }
+        } else {
+          try {
+            throw Error();
+          } catch (x) {
+            control = x;
+          } // TODO(luna): This will currently only throw if the function component
+          // tries to access React/ReactDOM/props. We should probably make this throw
+          // in simple components too
+
+
+          var maybePromise = fn(); // If the function component returns a promise, it's likely an async
+          // component, which we don't yet support. Attach a noop catch handler to
+          // silence the error.
+          // TODO: Implement component stacks for async client components?
+
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch(function () {});
+          }
+        }
+      } catch (sample) {
+        // This is inlined manually because closure doesn't do it for us.
+        if (sample && control && typeof sample.stack === 'string') {
+          return [sample.stack, control.stack];
+        }
+      }
+
+      return [null, null];
+    }
+  }; // $FlowFixMe[prop-missing]
+
+  RunInRootFrame.DetermineComponentFrameRoot.displayName = 'DetermineComponentFrameRoot';
+  var namePropDescriptor = Object.getOwnPropertyDescriptor(RunInRootFrame.DetermineComponentFrameRoot, 'name'); // Before ES6, the `name` property was not configurable.
+
+  if (namePropDescriptor && namePropDescriptor.configurable) {
+    // V8 utilizes a function's `name` property when generating a stack trace.
+    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, // Configurable properties can be updated even if its writable descriptor
+    // is set to `false`.
+    // $FlowFixMe[cannot-write]
+    'name', {
+      value: 'DetermineComponentFrameRoot'
+    });
+  }
 
   try {
-    // This should throw.
-    if (construct) {
-      // Something should be setting the props in the constructor.
-      var Fake = function () {
-        throw Error();
-      }; // $FlowFixMe[prop-missing]
+    var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
+        sampleStack = _RunInRootFrame$Deter[0],
+        controlStack = _RunInRootFrame$Deter[1];
 
-
-      Object.defineProperty(Fake.prototype, 'props', {
-        set: function () {
-          // We use a throwing setter instead of frozen or non-writable props
-          // because that won't throw in a non-strict mode function.
-          throw Error();
-        }
-      });
-
-      if (typeof Reflect === 'object' && Reflect.construct) {
-        // We construct a different control for this case to include any extra
-        // frames added by the construct call.
-        try {
-          Reflect.construct(Fake, []);
-        } catch (x) {
-          control = x;
-        }
-
-        Reflect.construct(fn, [], Fake);
-      } else {
-        try {
-          Fake.call();
-        } catch (x) {
-          control = x;
-        } // $FlowFixMe[prop-missing] found when upgrading Flow
-
-
-        fn.call(Fake.prototype);
-      }
-    } else {
-      try {
-        throw Error();
-      } catch (x) {
-        control = x;
-      } // TODO(luna): This will currently only throw if the function component
-      // tries to access React/ReactDOM/props. We should probably make this throw
-      // in simple components too
-
-
-      var maybePromise = fn(); // If the function component returns a promise, it's likely an async
-      // component, which we don't yet support. Attach a noop catch handler to
-      // silence the error.
-      // TODO: Implement component stacks for async client components?
-
-      if (maybePromise && typeof maybePromise.catch === 'function') {
-        maybePromise.catch(function () {});
-      }
-    }
-  } catch (sample) {
-    // This is inlined manually because closure doesn't do it for us.
-    if (sample && control && typeof sample.stack === 'string') {
+    if (sampleStack && controlStack) {
       // This extracts the first frame from the sample that isn't also in the control.
       // Skipping one frame that we assume is the frame that calls the two.
-      var sampleLines = sample.stack.split('\n');
-      var controlLines = control.stack.split('\n');
-      var s = sampleLines.length - 1;
-      var c = controlLines.length - 1;
+      var sampleLines = sampleStack.split('\n');
+      var controlLines = controlStack.split('\n');
+      var s = 0;
+      var c = 0;
 
-      while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
-        // We expect at least one stack frame to be shared.
-        // Typically this will be the root most one. However, stack frames may be
-        // cut off due to maximum stack limits. In this case, one maybe cut off
-        // earlier than the other. We assume that the sample is longer or the same
-        // and there for cut off earlier. So we should find the root most frame in
-        // the sample somewhere in the control.
-        c--;
+      while (s < sampleLines.length && !sampleLines[s].includes('DetermineComponentFrameRoot')) {
+        s++;
+      }
+
+      while (c < controlLines.length && !controlLines[c].includes('DetermineComponentFrameRoot')) {
+        c++;
+      } // We couldn't find our intentionally injected common root frame, attempt
+      // to find another common root frame by search from the bottom of the
+      // control stack...
+
+
+      if (s === sampleLines.length || c === controlLines.length) {
+        s = sampleLines.length - 1;
+        c = controlLines.length - 1;
+
+        while (s >= 1 && c >= 0 && sampleLines[s] !== controlLines[c]) {
+          // We expect at least one stack frame to be shared.
+          // Typically this will be the root most one. However, stack frames may be
+          // cut off due to maximum stack limits. In this case, one maybe cut off
+          // earlier than the other. We assume that the sample is longer or the same
+          // and there for cut off earlier. So we should find the root most frame in
+          // the sample somewhere in the control.
+          c--;
+        }
       }
 
       for (; s >= 1 && c >= 0; s--, c--) {
@@ -489,7 +557,7 @@ function describeNativeComponentFrame(fn, construct) {
                   _frame = _frame.replace('<anonymous>', fn.displayName);
                 }
 
-                {
+                if (true) {
                   if (typeof fn === 'function') {
                     componentFrameCache.set(fn, _frame);
                   }
@@ -528,7 +596,7 @@ function describeNativeComponentFrame(fn, construct) {
 
   return syntheticFrame;
 }
-function describeFunctionComponentFrame(fn, source, ownerFn) {
+function describeFunctionComponentFrame(fn, ownerFn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -539,7 +607,7 @@ function shouldConstruct(Component) {
   return !!(prototype && prototype.isReactComponent);
 }
 
-function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
+function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
 
   if (type == null) {
     return '';
@@ -570,7 +638,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
       case REACT_MEMO_TYPE:
         // Memo may contain any component type so we recursively resolve it.
-        return describeUnknownElementTypeFrameInDEV(type.type, source, ownerFn);
+        return describeUnknownElementTypeFrameInDEV(type.type, ownerFn);
 
       case REACT_LAZY_TYPE:
         {
@@ -580,7 +648,7 @@ function describeUnknownElementTypeFrameInDEV(type, source, ownerFn) {
 
           try {
             // Lazy may contain any component type so we recursively resolve it.
-            return describeUnknownElementTypeFrameInDEV(init(payload), source, ownerFn);
+            return describeUnknownElementTypeFrameInDEV(init(payload), ownerFn);
           } catch (x) {}
         }
     }
@@ -599,7 +667,7 @@ function setCurrentlyValidatingElement$1(element) {
   {
     if (element) {
       var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
       ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
     } else {
       ReactDebugCurrentFrame$1.setExtraStackFrame(null);
@@ -723,7 +791,7 @@ function testStringCoercion(value) {
 function checkKeyStringCoercion(value) {
   {
     if (willCoercionThrow(value)) {
-      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before before using it here.', typeName(value));
+      error('The provided key is an unsupported type %s.' + ' This value must be coerced to a string before using it here.', typeName(value));
 
       return testStringCoercion(value); // throw (to help callers find troubleshooting comments)
     }
@@ -731,12 +799,6 @@ function checkKeyStringCoercion(value) {
 }
 
 var ReactCurrentOwner$1 = ReactSharedInternals.ReactCurrentOwner;
-var RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
 var specialPropKeyWarningShown;
 var specialPropRefWarningShown;
 var didWarnAboutStringRefs;
@@ -872,21 +934,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
       enumerable: false,
       writable: true,
       value: false
-    }); // self and source are DEV only properties.
+    }); // debugInfo contains Server Component debug information.
 
-    Object.defineProperty(element, '_self', {
+    Object.defineProperty(element, '_debugInfo', {
       configurable: false,
       enumerable: false,
-      writable: false,
-      value: self
-    }); // Two elements created in two different places should be considered
-    // equal for testing purposes and therefore we hide it from enumeration.
-
-    Object.defineProperty(element, '_source', {
-      configurable: false,
-      enumerable: false,
-      writable: false,
-      value: source
+      writable: true,
+      value: null
     });
 
     if (Object.freeze) {
@@ -940,7 +994,9 @@ function jsxDEV$1(type, config, maybeKey, source, self) {
 
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref') {
         props[propName] = config[propName];
       }
     } // Resolve default props
@@ -980,7 +1036,7 @@ function setCurrentlyValidatingElement(element) {
   {
     if (element) {
       var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, element._source, owner ? owner.type : null);
+      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
       ReactDebugCurrentFrame.setExtraStackFrame(stack);
     } else {
       ReactDebugCurrentFrame.setExtraStackFrame(null);
@@ -1047,7 +1103,7 @@ function getCurrentComponentErrorInfo(parentType) {
     var info = getDeclarationErrorAddendum();
 
     if (!info) {
-      var parentName = typeof parentType === 'string' ? parentType : parentType.displayName || parentType.name;
+      var parentName = getComponentNameFromType(parentType);
 
       if (parentName) {
         info = "\n\nCheck the top-level render call using <" + parentName + ">.";

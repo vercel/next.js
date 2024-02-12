@@ -1,7 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useContext } from 'react'
 import { usePathname } from './navigation'
+import { isNotFoundError } from './not-found'
+import { warnOnce } from '../../shared/lib/utils/warn-once'
+import { MissingSlotContext } from '../../shared/lib/app-router-context.shared-runtime'
 
 interface NotFoundBoundaryProps {
   notFound?: React.ReactNode
@@ -12,6 +15,7 @@ interface NotFoundBoundaryProps {
 
 interface NotFoundErrorBoundaryProps extends NotFoundBoundaryProps {
   pathname: string
+  missingSlots: Set<string>
 }
 
 interface NotFoundErrorBoundaryState {
@@ -31,9 +35,34 @@ class NotFoundErrorBoundary extends React.Component<
     }
   }
 
+  componentDidCatch(): void {
+    if (
+      process.env.NODE_ENV === 'development' &&
+      // A missing children slot is the typical not-found case, so no need to warn
+      !this.props.missingSlots.has('children')
+    ) {
+      let warningMessage =
+        'No default component was found for a parallel route rendered on this page. Falling back to nearest NotFound boundary.\n' +
+        'Learn more: https://nextjs.org/docs/app/building-your-application/routing/parallel-routes#defaultjs\n\n'
+
+      if (this.props.missingSlots.size > 0) {
+        const formattedSlots = Array.from(this.props.missingSlots)
+          .sort((a, b) => a.localeCompare(b))
+          .map((slot) => `@${slot}`)
+          .join(', ')
+
+        warningMessage += 'Missing slots: ' + formattedSlots
+      }
+
+      warnOnce(warningMessage)
+    }
+  }
+
   static getDerivedStateFromError(error: any) {
-    if (error?.digest === 'NEXT_NOT_FOUND') {
-      return { notFoundTriggered: true }
+    if (isNotFoundError(error)) {
+      return {
+        notFoundTriggered: true,
+      }
     }
     // Re-throw if error is not for 404
     throw error
@@ -86,12 +115,14 @@ export function NotFoundBoundary({
   children,
 }: NotFoundBoundaryProps) {
   const pathname = usePathname()
+  const missingSlots = useContext(MissingSlotContext)
   return notFound ? (
     <NotFoundErrorBoundary
       pathname={pathname}
       notFound={notFound}
       notFoundStyles={notFoundStyles}
       asNotFound={asNotFound}
+      missingSlots={missingSlots}
     >
       {children}
     </NotFoundErrorBoundary>

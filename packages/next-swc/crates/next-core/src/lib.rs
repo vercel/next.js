@@ -4,22 +4,20 @@
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
-#![feature(async_fn_in_trait)]
 
-mod app_render;
 mod app_segment_config;
 pub mod app_structure;
 mod babel;
 mod bootstrap;
 mod embed_js;
 mod emit;
+pub mod instrumentation;
 mod loader_tree;
 pub mod middleware;
 pub mod mode;
 pub mod next_app;
 mod next_build;
 pub mod next_client;
-mod next_client_component;
 pub mod next_client_reference;
 pub mod next_config;
 pub mod next_dynamic;
@@ -67,3 +65,9 @@ pub fn register() {
     turbopack::ecmascript_plugin::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
+
+#[cfg(all(feature = "native-tls", feature = "rustls-tls"))]
+compile_error!("You can't enable both `native-tls` and `rustls-tls`");
+
+#[cfg(all(not(feature = "native-tls"), not(feature = "rustls-tls")))]
+compile_error!("You have to enable one of the TLS backends: `native-tls` or `rustls-tls`");

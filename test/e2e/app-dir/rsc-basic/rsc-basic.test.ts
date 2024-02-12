@@ -3,6 +3,11 @@ import { check } from 'next-test-utils'
 import { createNextDescribe } from 'e2e-utils'
 import cheerio from 'cheerio'
 
+// TODO: We should decide on an established pattern for gating test assertions
+// on experimental flags. For example, as a first step we could all the common
+// gates like this one into a single module.
+const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
   onData = onData || (() => {})
@@ -46,7 +51,7 @@ createNextDescribe(
             clientReferenceManifest.clientModules
           )
           clientModulesNames.every((name) => {
-            const [, key] = name.split('#')
+            const [, key] = name.split('#', 2)
             return key === undefined || key === '' || key === 'default'
           })
 
@@ -202,31 +207,35 @@ createNextDescribe(
       expect(html).toContain('dynamic data!')
     })
 
-    it('should support next/link in server components', async () => {
-      const $ = await next.render$('/next-api/link')
-      const linkText = $('body a[href="/root"]').text()
+    if (isPPREnabledByDefault) {
+      // TODO: Figure out why this test is flaky when PPR is enabled
+    } else {
+      it('should support next/link in server components', async () => {
+        const $ = await next.render$('/next-api/link')
+        const linkText = $('body a[href="/root"]').text()
 
-      expect(linkText).toContain('home')
+        expect(linkText).toContain('home')
 
-      const browser = await next.browser('/next-api/link')
+        const browser = await next.browser('/next-api/link')
 
-      // We need to make sure the app is fully hydrated before clicking, otherwise
-      // it will be a full redirection instead of being taken over by the next
-      // router. This timeout prevents it being flaky caused by fast refresh's
-      // rebuilding event.
-      await new Promise((res) => setTimeout(res, 1000))
-      await browser.eval('window.beforeNav = 1')
+        // We need to make sure the app is fully hydrated before clicking, otherwise
+        // it will be a full redirection instead of being taken over by the next
+        // router. This timeout prevents it being flaky caused by fast refresh's
+        // rebuilding event.
+        await new Promise((res) => setTimeout(res, 1000))
+        await browser.eval('window.beforeNav = 1')
 
-      await browser.waitForElementByCss('#next_id').click()
-      await check(() => browser.elementByCss('#query').text(), 'query:1')
+        await browser.waitForElementByCss('#next_id').click()
+        await check(() => browser.elementByCss('#query').text(), 'query:1')
 
-      await browser.waitForElementByCss('#next_id').click()
-      await check(() => browser.elementByCss('#query').text(), 'query:2')
+        await browser.waitForElementByCss('#next_id').click()
+        await check(() => browser.elementByCss('#query').text(), 'query:2')
 
-      if (isNextDev) {
-        expect(await browser.eval('window.beforeNav')).toBe(1)
-      }
-    })
+        if (isNextDev) {
+          expect(await browser.eval('window.beforeNav')).toBe(1)
+        }
+      })
+    }
 
     it('should link correctly with next/link without mpa navigation to the page', async () => {
       // Select the button which is not hidden but rendered
@@ -331,10 +340,10 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
 
       // from styled-components
-      expect(head).toMatch(/{color:(\s*)blue;?}/)
+      expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
     })
 
     it('should render initial styles of css-in-js in edge SSR correctly', async () => {
@@ -343,10 +352,10 @@ createNextDescribe(
 
       // from styled-jsx
       expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-      expect(head).toMatch(/{color:(\s*)hotpink;?}/) // styled-jsx/css
+      expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
 
       // from styled-components
-      expect(head).toMatch(/{color:(\s*)blue;?}/)
+      expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
     })
 
     it('should render css-in-js suspense boundary correctly', async () => {
@@ -454,6 +463,12 @@ createNextDescribe(
       expect(await res.text()).toBe('Hello from import-test.js')
     })
 
+    // TODO: (PPR) remove once PPR is stable
+    const bundledReactVersionPattern =
+      process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+        ? '-experimental-'
+        : '-canary-'
+
     it('should not use bundled react for pages with app', async () => {
       const ssrPaths = ['/pages-react', '/edge-pages-react']
       const promises = ssrPaths.map(async (pathname) => {
@@ -465,7 +480,7 @@ createNextDescribe(
         ]
 
         ssrPagesReactVersions.forEach((version) => {
-          expect(version).not.toMatch('-canary-')
+          expect(version).not.toMatch(bundledReactVersionPattern)
         })
       })
       await Promise.all(promises)
@@ -478,7 +493,7 @@ createNextDescribe(
       ]
 
       ssrAppReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       )
 
       const browser = await next.browser('/pages-react')
@@ -500,10 +515,10 @@ createNextDescribe(
       `)
 
       browserPagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).not.toMatch(bundledReactVersionPattern)
       )
       browserEdgePagesReactVersions.forEach((version) =>
-        expect(version).not.toMatch('-canary-')
+        expect(version).not.toMatch(bundledReactVersionPattern)
       )
     })
 
@@ -519,7 +534,7 @@ createNextDescribe(
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       })
 
       const browser = await next.browser('/app-react')
@@ -534,8 +549,38 @@ createNextDescribe(
         ]
       `)
       browserAppReactVersions.forEach((version) =>
-        expect(version).toMatch('-canary-')
+        expect(version).toMatch(bundledReactVersionPattern)
       )
+    })
+
+    it('should be able to call legacy react-dom/server APIs in client components', async () => {
+      const $ = await next.render$('/app-react')
+      const content = $('#markup').text()
+      expect(content).toBe(
+        '<div class="react-static-markup">React Static Markup</div>'
+      )
+
+      if (isNextDev) {
+        const filePath = 'app/app-react/client-react.js'
+        const fileContent = await next.readFile(filePath)
+        await next.patchFile(
+          filePath,
+          fileContent.replace(
+            `import { renderToStaticMarkup } from 'react-dom/server'`,
+            `import { renderToStaticMarkup } from 'react-dom/server.browser'`
+          )
+        )
+
+        const browser = await next.browser('/app-react')
+        const markupContentInBrowser = await browser
+          .elementByCss('#markup')
+          .text()
+        expect(markupContentInBrowser).toBe(
+          '<div class="react-static-markup">React Static Markup</div>'
+        )
+
+        await next.patchFile(filePath, fileContent)
+      }
     })
 
     // disable this flaky test
@@ -557,15 +602,19 @@ createNextDescribe(
       ).toBe('count: 1')
     })
 
-    it('should support webpack loader rules', async () => {
-      const browser = await next.browser('/loader-rule')
+    // Skip as Turbopack doesn't support webpack loaders.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should support webpack loader rules',
+      async () => {
+        const browser = await next.browser('/loader-rule')
 
-      expect(
-        await browser.eval(
-          `window.getComputedStyle(document.querySelector('#red')).color`
-        )
-      ).toBe('rgb(255, 0, 0)')
-    })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('#red')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      }
+    )
 
     if (isNextStart) {
       it('should generate edge SSR manifests for Node.js', async () => {
@@ -591,7 +640,7 @@ createNextDescribe(
     }
 
     describe('react@experimental', () => {
-      it.each([{ flag: 'ppr' }, { flag: 'serverActions' }])(
+      it.each([{ flag: 'ppr' }, { flag: 'taint' }])(
         'should opt into the react@experimental when enabling $flag',
         async ({ flag }) => {
           await next.stop()

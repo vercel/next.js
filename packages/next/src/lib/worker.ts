@@ -1,10 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
-
-// We need this as we're using `Promise.withResolvers` which is not available in the node typings
-import '../lib/polyfill-promise-with-resolvers'
-
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
@@ -17,58 +13,46 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
-type Options<
-  T extends object = object,
-  Args extends any[] = any[]
-> = FarmOptions & {
-  timeout?: number
-  onRestart?: (method: string, args: Args, attempts: number) => void
-  exposedMethods: ReadonlyArray<keyof T>
-  enableWorkerThreads?: boolean
-}
+export class Worker {
+  private _worker: JestWorker | undefined
 
-export class Worker<T extends object = object, Args extends any[] = any[]> {
-  private _worker?: JestWorker
-
-  /**
-   * Creates a new worker with the correct typings associated with the selected
-   * methods.
-   */
-  public static create<T extends object, Args extends any[] = any[]>(
+  constructor(
     workerPath: string,
-    options: Options<T, Args>
-  ): Worker<T, Args> & T {
-    return new Worker(workerPath, options) as Worker<T, Args> & T
-  }
-
-  constructor(workerPath: string, options: Options<T, Args>) {
-    let { timeout, onRestart, ...farmOptions } = options
+    options: FarmOptions & {
+      timeout?: number
+      onRestart?: (method: string, args: any[], attempts: number) => void
+      logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
+      exposedMethods: ReadonlyArray<string>
+      enableWorkerThreads?: boolean
+    }
+  ) {
+    let { timeout, onRestart, logger = console, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
     let activeTasks = 0
 
+    this._worker = undefined
+
     const createWorker = () => {
-      const worker = new JestWorker(workerPath, {
+      this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
           env: {
-            ...farmOptions.forkOptions?.env,
+            ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            // We don't pass down NODE_OPTIONS as it can lead to extra memory
-            // usage,
+            // we don't pass down NODE_OPTIONS as it can
+            // extra memory usage
             NODE_OPTIONS: getNodeOptionsWithoutInspect()
               .replace(/--max-old-space-size=[\d]{1,}/, '')
               .trim(),
-          },
-          stdio: 'inherit',
+          } as any,
         },
-      })
-
-      const { promise, resolve } = Promise.withResolvers<typeof RESTARTED>()
-      restartPromise = promise
-      resolveRestartPromise = resolve
+      }) as JestWorker
+      restartPromise = new Promise(
+        (resolve) => (resolveRestartPromise = resolve)
+      )
 
       /**
        * Jest Worker has two worker types, ChildProcessWorker (uses child_process) and NodeThreadWorker (uses worker_threads)
@@ -80,40 +64,35 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
        * But this property is not available in NodeThreadWorker, so we need to check if we are using ChildProcessWorker
        */
       if (!farmOptions.enableWorkerThreads) {
-        const poolWorkers: { _child?: ChildProcess }[] =
-          // @ts-expect-error - we're accessing a private property
-          worker._workerPool?._workers ?? []
-
-        for (const poolWorker of poolWorkers) {
-          if (!poolWorker._child) continue
-
-          poolWorker._child.once('exit', (code, signal) => {
-            // log unexpected exit if .end() wasn't called
+        for (const worker of ((this._worker as any)._workerPool?._workers ||
+          []) as {
+          _child?: ChildProcess
+        }[]) {
+          worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
-              console.error(
-                `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+              logger.error(
+                `Static worker exited with code: ${code} and signal: ${signal}`
               )
             }
           })
         }
       }
 
-      return worker
+      this._worker.getStdout().pipe(process.stdout)
+      this._worker.getStderr().pipe(process.stderr)
     }
-
-    // Create the first worker.
-    this._worker = createWorker()
+    createWorker()
 
     const onHanging = () => {
       const worker = this._worker
       if (!worker) return
-
-      // Grab the current restart promise, and create a new worker.
       const resolve = resolveRestartPromise
-      this._worker = createWorker()
-
-      // Once the old worker is ended, resolve the restart promise to signal to
-      // any active tasks that the worker had to be restarted.
+      createWorker()
+      logger.warn(
+        `Sending SIGTERM signal to static worker due to timeout${
+          timeout ? ` of ${timeout / 1000} seconds` : ''
+        }. Subsequent errors may be a result of the worker exiting.`
+      )
       worker.end().then(() => {
         resolve(RESTARTED)
       })
@@ -122,63 +101,33 @@ export class Worker<T extends object = object, Args extends any[] = any[]> {
     let hangingTimer: NodeJS.Timeout | false = false
 
     const onActivity = () => {
-      // If there was an active hanging timer, clear it.
       if (hangingTimer) clearTimeout(hangingTimer)
-
-      // If there are no active tasks, we don't need to start a new hanging
-      // timer.
-      if (activeTasks === 0) return
-
-      hangingTimer = setTimeout(onHanging, timeout)
+      hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 
-    const wrapMethodWithTimeout =
-      <M extends (...args: unknown[]) => Promise<unknown> | unknown>(
-        method: M
-      ) =>
-      async (...args: Args) => {
-        activeTasks++
-
-        try {
-          let attempts = 0
-          for (;;) {
-            // Mark that we're doing work, we want to ensure that if the worker
-            // halts for any reason, we restart it.
-            onActivity()
-
-            const result = await Promise.race([
-              // Either we'll get the result from the worker, or we'll get the
-              // restart promise to fire.
-              method(...args),
-              restartPromise,
-            ])
-
-            // If the result anything besides `RESTARTED`, we can return it, as
-            // it's the actual result from the worker.
-            if (result !== RESTARTED) {
-              return result
+    for (const method of farmOptions.exposedMethods) {
+      if (method.startsWith('_')) continue
+      ;(this as any)[method] = timeout
+        ? // eslint-disable-next-line no-loop-func
+          async (...args: any[]) => {
+            activeTasks++
+            try {
+              let attempts = 0
+              for (;;) {
+                onActivity()
+                const result = await Promise.race([
+                  (this._worker as any)[method](...args),
+                  restartPromise,
+                ])
+                if (result !== RESTARTED) return result
+                if (onRestart) onRestart(method, args, ++attempts)
+              }
+            } finally {
+              activeTasks--
+              onActivity()
             }
-
-            // Otherwise, we'll need to restart the worker, and try again.
-            if (onRestart) onRestart(method.name, args, ++attempts)
           }
-        } finally {
-          activeTasks--
-          onActivity()
-        }
-      }
-
-    for (const name of farmOptions.exposedMethods) {
-      if (name.startsWith('_')) continue
-
-      // @ts-expect-error - we're grabbing a dynamic method on the worker
-      let method = this._worker[name].bind(this._worker)
-      if (timeout) {
-        method = wrapMethodWithTimeout(method)
-      }
-
-      // @ts-expect-error - we're dynamically creating methods
-      this[name] = method
+        : (this._worker as any)[method].bind(this._worker)
     }
   }
 

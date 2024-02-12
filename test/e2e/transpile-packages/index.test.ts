@@ -22,17 +22,17 @@ describe('transpile packages', () => {
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./node_modules_bak/* ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: `yarn setup && next ${
+          copy: `cp -r ./node_modules_bak/* ./node_modules`,
+          build: 'pnpm copy && next build',
+          dev: `pnpm copy && next ${
             shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
           }`,
           start: 'next start',
         },
       },
-      installCommand: 'yarn',
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm build',
     })
   })
   afterAll(() => next.destroy())
@@ -82,6 +82,19 @@ describe('transpile packages', () => {
           `window.getComputedStyle(document.querySelector('h1')).backgroundColor`
         )
       ).toBe('rgb(0, 0, 255)')
+    })
+  })
+  describe('optional deps', () => {
+    it('should not throw an error when optional deps are not installed', async () => {
+      expect(next.cliOutput).not.toContain(
+        "Module not found: Error: Can't resolve 'foo'"
+      )
+    })
+
+    it('should hide dynammic module dependency errors from node_modules', async () => {
+      expect(next.cliOutput).not.toContain(
+        'Critical dependency: the request of a dependency is an expression'
+      )
     })
   })
 })
