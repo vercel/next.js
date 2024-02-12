@@ -21,7 +21,9 @@
     "navigation-types",
     "types/compiled.d.ts",
     "types/global.d.ts",
-    "types/index.d.ts"
+    "types/index.d.ts",
+    "!taskfile*",
+    "!webpack*.config.js"
   ],
   "bin": {
     "next": "./dist/bin/next"
