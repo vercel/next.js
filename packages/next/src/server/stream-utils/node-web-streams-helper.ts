@@ -43,14 +43,22 @@ export function streamFromString(str: string): ReadableStream<Uint8Array> {
   })
 }
 
+const voidCatch = () => {
+  // this catcher is designed to be used with pipeTo where we expect the underlying
+  // pipe implementation to forward errors but we don't want the pipeTo promise to reject
+  // and be unhandled
+}
 export function concatStreams<T>(
   first: ReadableStream<T>,
   second: ReadableStream<T>
 ) {
   const { readable, writable } = new TransformStream<T, T>()
-  first.pipeTo(writable, { preventClose: true }).then(() => {
-    second.pipeTo(writable)
-  })
+  first
+    .pipeTo(writable, { preventClose: true })
+    .then(() => {
+      second.pipeTo(writable).catch(voidCatch)
+    })
+    .catch(voidCatch)
   return readable
 }
 
@@ -78,7 +86,7 @@ export function createBufferedTransformStream(): TransformStream<
   Uint8Array
 > {
   let bufferedChunks: Array<Uint8Array> = []
-  let bufferSize: number = 0
+  let bufferByteLength: number = 0
   let pending: DetachedPromise<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
@@ -90,15 +98,17 @@ export function createBufferedTransformStream(): TransformStream<
 
     scheduleImmediate(() => {
       try {
-        const chunk = new Uint8Array(bufferSize)
+        const chunk = new Uint8Array(bufferByteLength)
         let copiedBytes = 0
         for (let i = 0; i < bufferedChunks.length; i++) {
           const bufferedChunk = bufferedChunks[i]
           chunk.set(bufferedChunk, copiedBytes)
           copiedBytes += bufferedChunk.byteLength
         }
+        // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
+        // and our bufferByteLength to prepare for the next round of buffered chunks
         bufferedChunks.length = 0
-        bufferSize = 0
+        bufferByteLength = 0
         controller.enqueue(chunk)
       } catch {
         // If an error occurs while enqueuing it can't be due to this
@@ -115,7 +125,7 @@ export function createBufferedTransformStream(): TransformStream<
     transform(chunk, controller) {
       // Combine the previous buffer with the new chunk.
       bufferedChunks.push(chunk)
-      bufferSize += chunk.byteLength
+      bufferByteLength += chunk.byteLength
 
       // Flush the buffer to the controller.
       flush(controller)

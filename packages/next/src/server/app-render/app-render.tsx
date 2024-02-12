@@ -79,7 +79,11 @@ import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-st
 import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './action-encryption-utils'
-import { createStaticRenderer, DYNAMIC_DATA } from './static/static-renderer'
+import {
+  createStaticRenderer,
+  getDynamicDataPostponedState,
+  getDynamicHTMLPostponedState,
+} from './static/static-renderer'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
   useFlightStream,
@@ -551,6 +555,10 @@ function ReactServerEntrypoint<T>({
   return React.use(response)
 }
 
+// We use a trick with TS Generics to branch streams with a type so we can
+// consume the parsed value of a Readable Stream if it was constructed with a
+// certain object shape. The generic type is not used directly in the type so it
+// requires a disabling of the eslint rule disallowing unused vars
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type BinaryStreamOf<T> = ReadableStream<Uint8Array>
 
@@ -918,9 +926,10 @@ async function renderToHTMLOrFlightImpl(
         isStaticGeneration,
         // If provided, the postpone state should be parsed as JSON so it can be
         // provided to React.
-        postponed: renderOpts.postponed
-          ? JSON.parse(renderOpts.postponed)
-          : null,
+        postponed:
+          typeof renderOpts.postponed === 'string'
+            ? JSON.parse(renderOpts.postponed)
+            : null,
         streamOptions: {
           onError: htmlRendererErrorHandler,
           onHeaders,
@@ -953,12 +962,16 @@ async function renderToHTMLOrFlightImpl(
 
           // First we check if we have any dynamic holes in our HTML prerender
           if (usedDynamicAPIs(prerenderState)) {
-            if (postponed) {
+            if (postponed != null) {
               // This is the Dynamic HTML case.
-              metadata.postponed = JSON.stringify(postponed)
+              metadata.postponed = JSON.stringify(
+                getDynamicHTMLPostponedState(postponed)
+              )
             } else {
               // This is the Dynamic Data case
-              metadata.postponed = JSON.stringify(DYNAMIC_DATA)
+              metadata.postponed = JSON.stringify(
+                getDynamicDataPostponedState()
+              )
             }
             // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
             // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -979,12 +992,16 @@ async function renderToHTMLOrFlightImpl(
 
             if (usedDynamicAPIs(prerenderState)) {
               // This is the same logic above just repeated after ensuring the RSC stream itself has completed
-              if (postponed) {
+              if (postponed != null) {
                 // This is the Dynamic HTML case.
-                metadata.postponed = JSON.stringify(postponed)
+                metadata.postponed = JSON.stringify(
+                  getDynamicHTMLPostponedState(postponed)
+                )
               } else {
                 // This is the Dynamic Data case
-                metadata.postponed = JSON.stringify(DYNAMIC_DATA)
+                metadata.postponed = JSON.stringify(
+                  getDynamicDataPostponedState()
+                )
               }
               // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
               // server inserted html in the static response because the html that is part of the prerender may depend on it
@@ -1006,15 +1023,13 @@ async function renderToHTMLOrFlightImpl(
                 )
               }
 
-              if (postponed) {
+              if (postponed != null) {
                 // We postponed but nothing dynamic was used. We resume the render now and immediately abort it
                 // so we can set all the postponed boundaries to client render mode before we store the HTML response
                 const resumeRenderer = createStaticRenderer({
                   ppr: true,
                   isStaticGeneration: false,
-                  // If provided, the postpone state should be parsed as JSON so it can be
-                  // provided to React.
-                  postponed: JSON.parse(JSON.stringify(postponed)),
+                  postponed: getDynamicHTMLPostponedState(postponed),
                   streamOptions: {
                     signal: createPostponedAbortSignal(
                       'static prerender resume'

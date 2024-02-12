@@ -91,6 +91,23 @@ type StreamOptions = Pick<
 >
 
 export const DYNAMIC_DATA = 1 as const
+export const DYNAMIC_HTML = 2 as const
+
+type DynamicDataPostponedState = typeof DYNAMIC_DATA
+type DynamicHTMLPostponedState = [typeof DYNAMIC_HTML, object]
+export type PostponedState =
+  | DynamicDataPostponedState
+  | DynamicHTMLPostponedState
+
+export function getDynamicHTMLPostponedState(
+  data: object
+): DynamicHTMLPostponedState {
+  return [DYNAMIC_HTML, data]
+}
+
+export function getDynamicDataPostponedState(): DynamicDataPostponedState {
+  return DYNAMIC_DATA
+}
 
 type Options = {
   /**
@@ -109,7 +126,7 @@ type Options = {
    * The postponed state for the render. This is only used when resuming a
    * prerender that has postponed.
    */
-  postponed: object | typeof DYNAMIC_DATA | null
+  postponed: null | PostponedState
 
   /**
    * The options for any of the renderers. This is a union of all the possible
@@ -154,8 +171,9 @@ export function createStaticRenderer({
         // The HTML was complete, we don't actually need to render anything
         return new VoidRenderer()
       } else if (postponed) {
+        const reactPostponedState = postponed[1]
         // The HTML had dynamic holes and we need to resume it
-        return new StaticResumeRenderer(postponed, {
+        return new StaticResumeRenderer(reactPostponedState, {
           signal,
           onError,
           onPostpone,

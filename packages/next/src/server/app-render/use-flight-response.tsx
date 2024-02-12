@@ -69,19 +69,12 @@ export async function flightRenderComplete(
 ): Promise<void> {
   const flightReader = flightStream.getReader()
 
-  return new Promise(async (resolve, reject) => {
-    try {
-      while (true) {
-        const { done } = await flightReader.read()
-        if (done) {
-          resolve()
-          return
-        }
-      }
-    } catch (error) {
-      reject(error)
+  while (true) {
+    const { done } = await flightReader.read()
+    if (done) {
+      return
     }
-  })
+  }
 }
 
 /**
