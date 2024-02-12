@@ -53,7 +53,7 @@ export function validateLocalFontFunctionCall(
   if (!allowedDisplayValues.includes(display)) {
     nextFontError(
       `Invalid display value \`${display}\`.\nAvailable display values: ${formatAvailableValues(
-        allowedDisplayValues
+        allowedDisplayValues.map((item) => item)
       )}`
     )
   }

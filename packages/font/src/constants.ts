@@ -4,4 +4,6 @@ export const allowedDisplayValues = [
   'swap',
   'fallback',
   'optional',
-]
+] as const
+
+export type Display = (typeof allowedDisplayValues)[number]

@@ -11,7 +11,7 @@ import {
 patchConsoleError()
 
 let isRegistered = false
-let stackTraceLimit: number | undefined = undefined
+let stackTraceLimit: number | undefined
 
 function onUnhandledError(ev: ErrorEvent) {
   const error = ev?.error
@@ -35,7 +35,7 @@ function onUnhandledError(ev: ErrorEvent) {
   const componentStack =
     typeof hydrationErrorComponentStack === 'string'
       ? parseComponentStack(hydrationErrorComponentStack).map(
-          (frame: any) => frame.component
+          (frame) => frame.component
         )
       : undefined
 
