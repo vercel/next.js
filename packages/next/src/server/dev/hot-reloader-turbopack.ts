@@ -28,7 +28,6 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
-import loadJsConfig from '../../build/load-jsconfig'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
 import { store as consoleStore } from '../../build/output/store'
@@ -79,6 +78,7 @@ import {
   decodeMagicIdentifier,
 } from '../../shared/lib/magic-identifier'
 import {
+  getTurbopackJsConfig,
   mergeActionManifests,
   mergeAppBuildManifests,
   mergeBuildManifests,
@@ -93,7 +93,6 @@ import {
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
-import type { NextConfigComplete } from '../config-shared'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const wsServer = new ws.Server({ noServer: true })
@@ -104,14 +103,6 @@ const isTestMode = !!(
 )
 
 class ModuleBuildError extends Error {}
-
-export async function getTurbopackJsConfig(
-  dir: string,
-  nextConfig: NextConfigComplete
-) {
-  const { jsConfig } = await loadJsConfig(dir, nextConfig)
-  return jsConfig ?? { compilerOptions: {} }
-}
 
 function issueKey(issue: Issue): string {
   return [

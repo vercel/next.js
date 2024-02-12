@@ -166,8 +166,8 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { getTurbopackJsConfig } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
-import { getTurbopackJsConfig } from '../server/dev/hot-reloader-turbopack'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1309,7 +1309,7 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<void> {
+      async function turbopackBuild(): Promise<never> {
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
@@ -1342,6 +1342,7 @@ export default async function build(
         const iter = project.entrypointsSubscribe()
         // for await (const entrypoints of iter) {
         // }
+        throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
