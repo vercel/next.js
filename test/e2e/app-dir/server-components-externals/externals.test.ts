@@ -2,11 +2,11 @@ import path from 'path'
 import { createNextDescribe } from 'e2e-utils'
 
 createNextDescribe(
-  'externals-app',
+  'app-dir - server components externals',
   {
     files: __dirname,
   },
-  ({ next }) => {
+  ({ next, isTurbopack, isNextStart }) => {
     it('should have externals for those in config.experimental.serverComponentsExternalPackages', async () => {
       const $ = await next.render$('/')
 
@@ -22,5 +22,13 @@ createNextDescribe(
       const text = $('#directory').text()
       expect(text).toBe(path.join(next.testDir, 'node_modules', 'sqlite3'))
     })
+
+    // Inspect webpack server bundles
+    if (!isTurbopack && isNextStart) {
+      it('should externalize serverComponentsExternalPackages for server rendering layer', async () => {
+        const ssrBundle = await next.readFile('.next/server/app/client/page.js')
+        expect(ssrBundle).not.toContain('external-package-mark')
+      })
+    }
   }
 )
