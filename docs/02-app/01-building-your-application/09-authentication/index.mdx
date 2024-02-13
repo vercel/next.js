@@ -841,7 +841,7 @@ export async function getSession() {
 
 Deciding between cookie-based and database sessions in Next.js depends on your application's needs. Cookie-based sessions are simpler and suit smaller applications with lower server load but may offer less security. Database sessions, while more complex, provide better security and scalability, ideal for larger, data-sensitive applications.
 
-With [authentication solutions](#examples) such as [Auth.js](https://authjs.dev/guides/upgrade-to-v5), session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
+With [authentication solutions](#examples) such as [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5), session management becomes more efficient, using either cookies or database storage. This automation simplifies the development process, but it's important to understand the session management method used by your chosen solution. Ensure it aligns with your application's security and performance requirements.
 
 Regardless of your choice, prioritize security in your session management strategy. For cookie-based sessions, using secure and HTTP-only cookies is crucial to protect session data. For database sessions, regular backups and secure handling of session data are essential. Implementing session expiry and cleanup mechanisms is vital in both approaches to prevent unauthorized access and maintain application performance and reliability.
 
@@ -852,10 +852,10 @@ Here are authentication solutions compatible with Next.js, please refer to the q
 {/* TODO: Change link to authjs.dev when new documentation is ready */}
 
 - [Auth0](https://auth0.com/docs/quickstart/webapp/nextjs/01-login)
-- [Auth.js](https://authjs.dev/guides/upgrade-to-v5)
 - [Clerk](https://clerk.com/docs/quickstarts/nextjs)
 - [Kinde](https://kinde.com/docs/developer-tools/nextjs-sdk)
 - [Lucia](https://lucia-auth.com/getting-started/nextjs-app)
+- [NextAuth.js](https://authjs.dev/guides/upgrade-to-v5)
 - [Supabase](https://supabase.com/docs/guides/getting-started/quickstarts/nextjs)
 - [Stytch](https://stytch.com/docs/guides/quickstarts/nextjs)
 - [Iron Session](https://github.com/vvo/iron-session)
