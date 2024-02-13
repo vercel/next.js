@@ -67,12 +67,8 @@ export interface SWCLoaderOptions {
 
 // these are exact code conditions checked
 // for to force transpiling a `node_module`
-const FORCE_TRANSPILE_CONDITIONS = [
-  'next/font',
-  'next/dynamic',
-  'use server',
-  'use client',
-]
+const FORCE_TRANSPILE_CONDITIONS =
+  /(next\/font|next\/dynamic|use server|use client)/
 
 async function loaderTransform(
   this: any,
@@ -94,7 +90,7 @@ async function loaderTransform(
       throw new Error(`Invariant might be excluded but missing source`)
     }
 
-    if (!FORCE_TRANSPILE_CONDITIONS.some((item) => source.includes(item))) {
+    if (!FORCE_TRANSPILE_CONDITIONS.test(source)) {
       return [source, inputSourceMap]
     }
   }
