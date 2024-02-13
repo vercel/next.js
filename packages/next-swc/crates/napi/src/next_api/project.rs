@@ -457,48 +457,82 @@ pub async fn project_entrypoints(
         .strongly_consistent()
         .await?;
 
-    let result = TurbopackResult {
-        result: NapiEntrypoints {
-            routes: entrypoints
+    let issues_result = issues
+        .iter()
+        .map(|issue| NapiIssue::from(&**issue))
+        .collect();
+    let diagnostics_result = diagnostics
+        .iter()
+        .map(|d| NapiDiagnostic::from(d))
+        .collect();
+
+    let (
+        routes,
+        middleware,
+        instrumentation,
+        pages_document_endpoint,
+        pages_app_endpoint,
+        pages_error_endpoint,
+    ) = turbo_tasks
+        .run_once(async move {
+            let routes = entrypoints
                 .routes
                 .iter()
                 .map(|(pathname, &route)| {
                     NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
                 })
-                .collect::<Vec<_>>(),
-            middleware: entrypoints
+                .collect::<Vec<_>>();
+            let middleware = entrypoints
                 .middleware
                 .as_ref()
                 .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
-                .transpose()?,
-            instrumentation: entrypoints
+                .transpose()?;
+            let instrumentation = entrypoints
                 .instrumentation
                 .as_ref()
                 .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
-                .transpose()?,
-            pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                .transpose()?;
+
+            let pages_document_endpoint = External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 entrypoints.pages_document_endpoint,
-            ))),
-            pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
+            )));
+
+            let pages_app_endpoint = External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 entrypoints.pages_app_endpoint,
-            ))),
-            pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
+            )));
+
+            let pages_error_endpoint = External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 entrypoints.pages_error_endpoint,
-            ))),
+            )));
+
+            Ok((
+                routes,
+                middleware,
+                instrumentation,
+                pages_document_endpoint,
+                pages_app_endpoint,
+                pages_error_endpoint,
+            ))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    let turbopack_result = TurbopackResult {
+        result: NapiEntrypoints {
+            routes,
+            middleware,
+            instrumentation,
+            pages_document_endpoint,
+            pages_app_endpoint,
+            pages_error_endpoint,
         },
-        issues: issues
-            .iter()
-            .map(|issue| NapiIssue::from(&**issue))
-            .collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
+        issues: issues_result,
+        diagnostics: diagnostics_result,
     };
-    Ok(result)
+    Ok(turbopack_result)
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
