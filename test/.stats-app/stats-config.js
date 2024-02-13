@@ -40,6 +40,10 @@ const clientGlobs = [
     name: 'Next Runtimes',
     globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
   },
+  {
+    name: 'build cache',
+    globs: ['.next/cache/**/*'],
+  },
 ]
 
 const renames = [

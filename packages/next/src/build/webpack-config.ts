@@ -1469,30 +1469,34 @@ export default async function getBaseWebpackConfig(
             ...(hasAppDir
               ? [
                   {
+                    ...codeCondition,
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: asyncStoragesRegex,
+                    exclude: [asyncStoragesRegex, codeCondition.exclude],
                     use: appServerLayerLoaders,
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     resourceQuery: new RegExp(
                       WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                     ),
                     use: appServerLayerLoaders,
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                     // Exclude the transpilation of the app layer due to compilation issues
-                    exclude: browserNonTranspileModules,
+                    exclude: [
+                      browserNonTranspileModules,
+                      codeCondition.exclude,
+                    ],
                     use: appBrowserLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
-                    test: codeCondition.test,
+                    ...codeCondition,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     use: appSSRLayerLoaders,
                     resolve: {
