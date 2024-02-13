@@ -2,7 +2,11 @@ import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_RESTORE } from '../router-reducer-types'
+import {
+  ACTION_RESTORE,
+  PrefetchCacheEntryStatus,
+  PrefetchKind,
+} from '../router-reducer-types'
 import type { RestoreAction } from '../router-reducer-types'
 import { restoreReducer } from './restore-reducer'
 
@@ -85,7 +89,6 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const action: RestoreAction = {
@@ -118,7 +121,20 @@ describe('serverPatchReducer', () => {
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
-      prefetchCache: new Map(),
+      prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,
@@ -240,7 +256,6 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
     const state2 = createInitialRouterState({
@@ -250,7 +265,6 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -286,7 +300,20 @@ describe('serverPatchReducer', () => {
 
     const expectedState: ReturnType<typeof restoreReducer> = {
       buildId,
-      prefetchCache: new Map(),
+      prefetchCache: new Map([
+        [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
+      ]),
       pushRef: {
         mpaNavigation: false,
         pendingPush: false,

@@ -198,10 +198,12 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: Promise<FetchServerResponseResult> | null
+  data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
+  key: string
+  status: PrefetchCacheEntryStatus
 }
 
 export enum PrefetchCacheEntryStatus {
