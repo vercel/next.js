@@ -103,7 +103,7 @@ if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
 
-const babelIncludeRegexes: RegExp[] = [
+export const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
@@ -453,6 +453,7 @@ export default async function getBaseWebpackConfig(
         hasReactRefresh: dev && isClient,
         nextConfig: config,
         jsConfig,
+        transpilePackages: config.transpilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,
@@ -1469,34 +1470,30 @@ export default async function getBaseWebpackConfig(
             ...(hasAppDir
               ? [
                   {
-                    ...codeCondition,
                     test: codeCondition.test,
                     issuerLayer: isWebpackServerLayer,
-                    exclude: [asyncStoragesRegex, codeCondition.exclude],
+                    exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },
                   {
-                    ...codeCondition,
+                    test: codeCondition.test,
                     resourceQuery: new RegExp(
                       WEBPACK_RESOURCE_QUERIES.edgeSSREntry
                     ),
                     use: appServerLayerLoaders,
                   },
                   {
-                    ...codeCondition,
+                    test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.appPagesBrowser,
                     // Exclude the transpilation of the app layer due to compilation issues
-                    exclude: [
-                      browserNonTranspileModules,
-                      codeCondition.exclude,
-                    ],
+                    exclude: browserNonTranspileModules,
                     use: appBrowserLayerLoaders,
                     resolve: {
                       mainFields: getMainField(compilerType, true),
                     },
                   },
                   {
-                    ...codeCondition,
+                    test: codeCondition.test,
                     issuerLayer: WEBPACK_LAYERS.serverSideRendering,
                     use: appSSRLayerLoaders,
                     resolve: {
