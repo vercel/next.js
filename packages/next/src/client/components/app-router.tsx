@@ -101,6 +101,36 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
   return urlWithoutFlightParameters
 }
 
+// this function performs a depth-first search of the tree to find the selected
+// params
+function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = currentTree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
+}
+
 type AppRouterProps = Omit<
   Omit<InitialRouterStateParameters, 'isServer' | 'location'>,
   'initialParallelRoutes'
@@ -580,38 +610,8 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
-  // this function performs a depth-first search of the tree to find the selected
-  // params
-  function getSelectedParams(
-    tree: FlightRouterState,
-    params: Params = {}
-  ): Params {
-    const parallelRoutes = tree[1]
-
-    for (const parallelRoute of Object.values(parallelRoutes)) {
-      const segment = parallelRoute[0]
-      const isDynamicParameter = Array.isArray(segment)
-      const segmentValue = isDynamicParameter ? segment[1] : segment
-      if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-      // Ensure catchAll and optional catchall are turned into an array
-      const isCatchAll =
-        isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-      if (isCatchAll) {
-        params[segment[0]] = segment[1].split('/')
-      } else if (isDynamicParameter) {
-        params[segment[0]] = segment[1]
-      }
-
-      params = getSelectedParams(parallelRoute, params)
-    }
-
-    return params
-  }
-
-  // Add memoized pathparams for useParams.
-  const pathparams = useMemo(() => {
+  // Add memoized pathParams for useParams.
+  const pathParams = useMemo(() => {
     return getSelectedParams(tree)
   }, [tree])
 
@@ -661,7 +661,7 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
-      <PathParamsContext.Provider value={pathparams}>
+      <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
           <SearchParamsContext.Provider value={searchParams}>
             <GlobalLayoutRouterContext.Provider
