@@ -151,6 +151,7 @@ pub async fn get_client_resolve_options_context(
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
         custom_conditions: vec![mode.node_env().to_string()],
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
         resolved_map: Some(next_client_resolved_map),

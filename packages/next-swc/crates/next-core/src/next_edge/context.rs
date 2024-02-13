@@ -124,6 +124,7 @@ pub async fn get_edge_resolve_options_context(
         enable_node_modules: Some(project_path.root().resolve().await?),
         enable_edge_node_externals: true,
         custom_conditions,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,

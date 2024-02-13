@@ -237,6 +237,7 @@ pub async fn get_server_resolve_options_context(
         enable_node_native_modules: true,
         module: true,
         custom_conditions,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_server_import_map),
         plugins,
         ..Default::default()
