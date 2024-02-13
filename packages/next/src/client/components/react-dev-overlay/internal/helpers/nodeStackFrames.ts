@@ -20,7 +20,7 @@ export function getFilesystemFrame(frame: StackFrame): StackFrame {
   return f
 }
 
-const symbolError = Symbol('NextjsError')
+const symbolError = Symbol.for('NextjsError')
 
 export function getErrorSource(error: Error): 'server' | 'edge-server' | null {
   return (error as any)[symbolError] || null

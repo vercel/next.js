@@ -287,7 +287,8 @@ export async function getSourceById(
     }
 
     const module = getModuleById(id, compilation)
-    return getModuleSource(compilation, module)
+    const moduleSource = getModuleSource(compilation, module)
+    return moduleSource
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
     return null
@@ -318,7 +319,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
             frame.file?.startsWith('file://') ||
-            frame.file?.startsWith('webpack:///')) &&
+            frame.file?.startsWith('webpack://')) &&
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
@@ -328,11 +329,11 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       const moduleId: string = frame.file.replace(
-        /webpack-internal:(\/)+|file:\/\//,
+        /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)/,
         ''
       )
       const modulePath = frame.file.replace(
-        /webpack-internal:(\/)+|file:\/\/(\(.*\)\/)?/,
+        /^(webpack-internal:\/\/\/|file:\/\/|webpack:\/\/(_N_E\/)?)(\(.*\)\/?)/,
         ''
       )
 
@@ -341,37 +342,27 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
       const edgeCompilation = options.edgeServerStats()?.compilation
+      const isFile = frame.file.startsWith('file:')
+
       try {
         if (isClientError || isAppDirectory) {
           // Try Client Compilation first
           // In `pages` we leverage `isClientError` to check
           // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
-          source = await getSourceById(
-            frame.file.startsWith('file:'),
-            moduleId,
-            clientCompilation
-          )
+          source = await getSourceById(isFile, moduleId, clientCompilation)
           sourcePackage = findCallStackFramePackage(moduleId, clientCompilation)
         }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
         // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
         if ((isServerError || isAppDirectory) && source === null) {
-          source = await getSourceById(
-            frame.file.startsWith('file:'),
-            moduleId,
-            serverCompilation
-          )
+          source = await getSourceById(isFile, moduleId, serverCompilation)
           sourcePackage = findCallStackFramePackage(moduleId, serverCompilation)
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
         if ((isEdgeServerError || isAppDirectory) && source === null) {
-          source = await getSourceById(
-            frame.file.startsWith('file:'),
-            moduleId,
-            edgeCompilation
-          )
+          source = await getSourceById(isFile, moduleId, edgeCompilation)
           sourcePackage = findCallStackFramePackage(moduleId, edgeCompilation)
         }
       } catch (err) {

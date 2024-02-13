@@ -128,8 +128,8 @@ export function getOriginalStackFrames(
 
 function formatFrameSourceFile(file: string) {
   return file
-    .replace(/^webpack-internal:(\/)+(\.)?/, '')
-    .replace(/^webpack:(\/)+(\.)?/, '')
+    .replace(/^webpack-internal:\/\/\/(\.)?/, '')
+    .replace(/^webpack:\/\/\/(\.)?/, '')
 }
 
 export function getFrameSource(frame: StackFrame): string {

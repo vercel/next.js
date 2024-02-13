@@ -179,9 +179,8 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const {
-        ReactDevOverlay,
-      } = require('./components/react-dev-overlay/pages/client')
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
+        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
       return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
     }
   }
@@ -914,9 +913,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const {
-      getServerError,
-    } = require('./components/react-dev-overlay/pages/client')
+    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
+      require('./components/react-dev-overlay/pages/client').getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -934,7 +932,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source)
+          throw getServerError(error, initialErr!.source!)
         })
       }
       // We replaced the server-side error with a client-side error, and should
