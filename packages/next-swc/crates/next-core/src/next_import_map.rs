@@ -757,6 +757,7 @@ async fn insert_next_shared_aliases(
         AliasPattern::exact("@vercel/turbopack-next/internal/font/google/font"),
         ImportMapping::Dynamic(Vc::upcast(NextFontGoogleFontFileReplacer::new(
             project_path,
+            execution_context,
         )))
         .into(),
     );

@@ -67,5 +67,7 @@ describe('next/font/google with proxy', () => {
     expect(proxiedRequests).toContain(
       '/s/oswald/v49/TK3iWkUHHAIjg752Fz8Gl-1PK62t.woff2'
     )
+
+    expect(true).toBe(false);
   })
 })

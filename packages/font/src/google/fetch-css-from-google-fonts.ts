@@ -44,6 +44,7 @@ export async function fetchCSSFromGoogleFonts(
         ? setTimeout(() => controller.abort(), 3000)
         : undefined
 
+        console.log("==============", url);
       const res = await fetch(url, {
         agent: getProxyAgent(),
         // Add a timeout in dev

@@ -11,7 +11,7 @@ use turbopack_binding::{
         tasks::{Completion, Value},
         tasks_bytes::stream::SingleValue,
         tasks_env::{CommandLineProcessEnv, ProcessEnv},
-        tasks_fetch::{fetch, HttpResponseBody},
+        tasks_fetch::{fetch, HttpResponseBody, OptionProxyConfig, ProxyConfig},
         tasks_fs::{
             json::parse_json_with_source_context, DiskFileSystem, File, FileContent, FileSystem,
             FileSystemPath,
@@ -228,10 +228,12 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
         let mocked_responses_path = &*env
             .read("NEXT_FONT_GOOGLE_MOCKED_RESPONSES".to_string())
             .await?;
+
+        let proxy_config = get_proxy_config_from_env(self.execution_context.env());
         let stylesheet_str = mocked_responses_path
             .as_ref()
             .map_or_else(
-                || fetch_real_stylesheet(stylesheet_url, css_virtual_path).boxed(),
+                || fetch_real_stylesheet(stylesheet_url, css_virtual_path, proxy_config).boxed(),
                 |p| get_mock_stylesheet(stylesheet_url, p, self.execution_context).boxed(),
             )
             .await?;
@@ -282,13 +284,20 @@ struct NextFontGoogleFontFileOptions {
 #[turbo_tasks::value(shared)]
 pub struct NextFontGoogleFontFileReplacer {
     project_path: Vc<FileSystemPath>,
+    execution_context: Vc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontGoogleFontFileReplacer {
     #[turbo_tasks::function]
-    pub fn new(project_path: Vc<FileSystemPath>) -> Vc<Self> {
-        Self::cell(NextFontGoogleFontFileReplacer { project_path })
+    pub fn new(
+        project_path: Vc<FileSystemPath>,
+        execution_context: Vc<ExecutionContext>,
+    ) -> Vc<Self> {
+        Self::cell(NextFontGoogleFontFileReplacer {
+            project_path,
+            execution_context,
+        })
     }
 }
 
@@ -339,9 +348,12 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         let font_virtual_path = next_js_file_path("internal/font/google".to_string())
             .join(format!("/{}.{}", name, ext));
 
+        let proxy_config = get_proxy_config_from_env(self.execution_context.env());
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) = fetch_from_google_fonts(Vc::cell(url), font_virtual_path).await? else {
+        let Some(font) =
+            fetch_from_google_fonts(Vc::cell(url), font_virtual_path, proxy_config).await?
+        else {
             return Ok(ImportMapResult::Result(ResolveResult::unresolveable().into()).into());
         };
 
@@ -572,8 +584,9 @@ async fn font_file_options_from_query_map(
 async fn fetch_real_stylesheet(
     stylesheet_url: Vc<String>,
     css_virtual_path: Vc<FileSystemPath>,
+    proxy: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<String>>> {
-    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path).await?;
+    let body = fetch_from_google_fonts(stylesheet_url, css_virtual_path, proxy).await?;
 
     Ok(body.map(|body| body.to_string()))
 }
@@ -581,8 +594,14 @@ async fn fetch_real_stylesheet(
 async fn fetch_from_google_fonts(
     url: Vc<String>,
     virtual_path: Vc<FileSystemPath>,
+    proxy: Vc<OptionProxyConfig>,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch(url, Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned()))).await?;
+    let result = fetch(
+        url,
+        Vc::cell(Some(USER_AGENT_FOR_GOOGLE_FONTS.to_owned())),
+        proxy,
+    )
+    .await?;
 
     Ok(match &*result {
         Ok(r) => Some(r.await?.body),
@@ -675,4 +694,14 @@ async fn get_mock_stylesheet(
             panic!("Unexpected error evaluating JS")
         }
     }
+}
+
+#[turbo_tasks::function]
+async fn get_proxy_config_from_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<OptionProxyConfig>> {
+    Ok(Vc::cell(
+        env.read("http_proxy".to_string())
+            .await?
+            .as_ref()
+            .map(|v| ProxyConfig::Https(v.to_string())),
+    ))
 }
