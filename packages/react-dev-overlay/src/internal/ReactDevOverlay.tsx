@@ -164,6 +164,8 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
       : null
     const isMounted = errorType !== null
 
+    const displayPrevented = shouldPreventDisplay(errorType, preventDisplay)
+
     return (
       <React.Fragment>
         <ErrorBoundary
@@ -179,10 +181,7 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
             <Base />
             <ComponentStyles />
 
-            {shouldPreventDisplay(
-              errorType,
-              preventDisplay
-            ) ? null : hasBuildError ? (
+            {displayPrevented ? null : hasBuildError ? (
               <BuildError message={state.buildError!} />
             ) : hasRuntimeErrors ? (
               <Errors errors={state.errors} />

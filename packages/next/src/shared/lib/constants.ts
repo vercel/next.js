@@ -77,6 +77,9 @@ export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js
 export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
   'middleware-react-loadable-manifest'
+// server/interception-route-rewrite-manifest.js
+export const INTERCEPTION_ROUTE_REWRITE_MANIFEST =
+  'interception-route-rewrite-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`

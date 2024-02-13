@@ -524,7 +524,7 @@ describe.each([[''], ['/docs']])(
           `)
         } else if (basePath === '' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:0
+            "./pages/hmr/about2.js:7:1
             Parsing ecmascript source code failed
               5 |     div
               6 |   )
@@ -562,7 +562,7 @@ describe.each([[''], ['/docs']])(
           `)
         } else if (basePath === '/docs' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:0
+            "./pages/hmr/about2.js:7:1
             Parsing ecmascript source code failed
               5 |     div
               6 |   )

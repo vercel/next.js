@@ -15,55 +15,31 @@ import { clientHookInServerComponentError } from './client-hook-in-server-compon
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
-const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
-  'internal for urlsearchparams readonly'
-)
-
-function readonlyURLSearchParamsError() {
-  return new Error('ReadonlyURLSearchParams cannot be modified')
+/** @internal */
+class ReadonlyURLSearchParamsError extends Error {
+  constructor() {
+    super(
+      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams'
+    )
+  }
 }
 
-export class ReadonlyURLSearchParams {
-  [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
-
-  entries: URLSearchParams['entries']
-  forEach: URLSearchParams['forEach']
-  get: URLSearchParams['get']
-  getAll: URLSearchParams['getAll']
-  has: URLSearchParams['has']
-  keys: URLSearchParams['keys']
-  values: URLSearchParams['values']
-  toString: URLSearchParams['toString']
-  size: any | URLSearchParams['size']
-
-  constructor(urlSearchParams: URLSearchParams) {
-    this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
-
-    this.entries = urlSearchParams.entries.bind(urlSearchParams)
-    this.forEach = urlSearchParams.forEach.bind(urlSearchParams)
-    this.get = urlSearchParams.get.bind(urlSearchParams)
-    this.getAll = urlSearchParams.getAll.bind(urlSearchParams)
-    this.has = urlSearchParams.has.bind(urlSearchParams)
-    this.keys = urlSearchParams.keys.bind(urlSearchParams)
-    this.values = urlSearchParams.values.bind(urlSearchParams)
-    this.toString = urlSearchParams.toString.bind(urlSearchParams)
-    this.size = urlSearchParams.size
-  }
-  [Symbol.iterator]() {
-    return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
-  }
-
+export class ReadonlyURLSearchParams extends URLSearchParams {
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   append() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   delete() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   set() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   sort() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
 }
 

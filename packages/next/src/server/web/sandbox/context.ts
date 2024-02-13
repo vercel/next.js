@@ -232,6 +232,10 @@ const NativeModuleMap = (() => {
   return new Map(Object.entries(mods))
 })()
 
+export const requestStore = new AsyncLocalStorage<{
+  headers: Headers
+}>()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -335,6 +339,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
+
+        // Forward subrequest header from incoming request to outgoing request
+        const store = requestStore.getStore()
+        if (
+          store?.headers.has('x-middleware-subrequest') &&
+          !init.headers.has('x-middleware-subrequest')
+        ) {
+          init.headers.set(
+            'x-middleware-subrequest',
+            store.headers.get('x-middleware-subrequest') ?? ''
+          )
+        }
+
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
         const value = prevs.concat(options.moduleName).join(':')

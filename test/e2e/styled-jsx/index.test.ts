@@ -21,17 +21,18 @@ function runTest() {
         },
         packageJson: {
           scripts: {
-            setup: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
-            build: `yarn setup && next build`,
-            dev: `yarn setup && next ${devCommand}`,
+            copy: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
+            build: `pnpm copy && next build`,
+            dev: `pnpm copy && next ${devCommand}`,
             start: 'next start',
           },
         },
         dependencies: {
           'styled-jsx': '5.0.0', // styled-jsx on user side
         },
-        startCommand: 'yarn ' + ((global as any).isNextDev ? 'dev' : 'start'),
-        buildCommand: `yarn build`,
+        installCommand: 'pnpm i',
+        startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+        buildCommand: `pnpm build`,
       })
     })
     afterAll(() => next.destroy())
