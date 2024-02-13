@@ -10,6 +10,7 @@ import type {
   Issue,
   StyledString,
   TurbopackResult,
+  Update as TurbopackUpdate,
   WrittenEndpoint,
 } from '../../build/swc'
 import {
@@ -30,6 +31,7 @@ import {
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
+import type ws from 'next/dist/compiled/ws'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -199,7 +201,7 @@ export type HandleWrittenEndpoint = (
 export type StartChangeSubscription = (
   key: EntryKey,
   includeIssues: boolean,
-  endpoint: Endpoint | undefined,
+  endpoint: Endpoint,
   makePayload: (
     change: TurbopackResult
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
@@ -216,6 +218,15 @@ export type StartBuilding = (
 ) => () => void
 
 export type ReadyIds = Set<string>
+
+export type ClientState = {
+  clientIssues: EntryIssuesMap
+  hmrPayloads: Map<string, HMR_ACTION_TYPES>
+  turbopackUpdates: TurbopackUpdate[]
+  subscriptions: Map<string, AsyncIterator<any>>
+}
+
+export type ClientStateMap = WeakMap<ws, ClientState>
 
 // hooks only used by the dev server.
 type HandleRouteTypeHooks = {
@@ -423,6 +434,117 @@ export async function handleRouteType({
   }
 }
 
+/**
+ * Maintains a mapping between entrypoins and the corresponding client asset paths.
+ */
+export class AssetMapper {
+  private entryMap: Map<EntryKey, Set<string>> = new Map()
+  private assetMap: Map<string, Set<EntryKey>> = new Map()
+
+  /**
+   * Overrides asset paths for a key and updates the mapping from path to key.
+   *
+   * @param key
+   * @param assetPaths asset paths relative to the .next directory
+   */
+  setPathsForKey(key: EntryKey, assetPaths: string[]): void {
+    this.delete(key)
+
+    const newAssetPaths = new Set(assetPaths)
+    this.entryMap.set(key, newAssetPaths)
+
+    for (const assetPath of newAssetPaths) {
+      let assetPathKeys = this.assetMap.get(assetPath)
+      if (!assetPathKeys) {
+        assetPathKeys = new Set()
+        this.assetMap.set(assetPath, assetPathKeys)
+      }
+
+      assetPathKeys!.add(key)
+    }
+  }
+
+  /**
+   * Deletes the key and any asset only referenced by this key.
+   *
+   * @param key
+   */
+  delete(key: EntryKey) {
+    for (const assetPath of this.getAssetPathsByKey(key)) {
+      const assetPathKeys = this.assetMap.get(assetPath)
+
+      assetPathKeys?.delete(key)
+
+      if (!assetPathKeys?.size) {
+        this.assetMap.delete(assetPath)
+      }
+    }
+
+    this.entryMap.delete(key)
+  }
+
+  getAssetPathsByKey(key: EntryKey): string[] {
+    return Array.from(this.entryMap.get(key) ?? [])
+  }
+
+  getKeysByAsset(path: string): EntryKey[] {
+    return Array.from(this.assetMap.get(path) ?? [])
+  }
+
+  keys(): IterableIterator<EntryKey> {
+    return this.entryMap.keys()
+  }
+}
+
+export function hasEntrypointForKey(
+  entrypoints: Entrypoints,
+  key: EntryKey,
+  assetMapper: AssetMapper | undefined
+): boolean {
+  const { type, page } = splitEntryKey(key)
+
+  switch (type) {
+    case 'app':
+      return entrypoints.app.has(page)
+    case 'pages':
+      switch (page) {
+        case '_app':
+          return entrypoints.global.app != null
+        case '_document':
+          return entrypoints.global.document != null
+        case '_error':
+          return entrypoints.global.error != null
+        default:
+          return entrypoints.page.has(page)
+      }
+    case 'root':
+      switch (page) {
+        case 'middleware':
+          return entrypoints.global.middleware != null
+        case 'instrumentation':
+          return entrypoints.global.instrumentation != null
+        default:
+          return false
+      }
+    case 'assets':
+      if (!assetMapper) {
+        return false
+      }
+
+      return assetMapper
+        .getKeysByAsset(page)
+        .some((pageKey) =>
+          hasEntrypointForKey(entrypoints, pageKey, assetMapper)
+        )
+    default: {
+      // validation that we covered all cases, this should never run.
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _: never = type
+      return false
+    }
+  }
+}
+
 // hooks only used by the dev server.
 type HandleEntrypointsHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
@@ -434,6 +556,7 @@ type HandleEntrypointsHooks = {
   startBuilding: StartBuilding
   subscribeToChanges: StartChangeSubscription
   unsubscribeFromChanges: StopChangeSubscription
+  unsubscribeFromHmrEvents: (client: ws, id: string) => void
 }
 
 export async function handleEntrypoints({
@@ -446,7 +569,10 @@ export async function handleEntrypoints({
   nextConfig,
   rewrites,
 
+  assetMapper,
   changeSubscriptions,
+  clients,
+  clientStates,
   serverFields,
 
   hooks,
@@ -460,7 +586,10 @@ export async function handleEntrypoints({
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
 
+  assetMapper?: AssetMapper // dev
   changeSubscriptions?: ChangeSubscriptions // dev
+  clients?: Set<ws> // dev
+  clientStates?: ClientStateMap // dev
   serverFields?: ServerFields // dev
 
   hooks?: HandleEntrypointsHooks //dev
@@ -499,30 +628,54 @@ export async function handleEntrypoints({
     }
   }
 
-  if (changeSubscriptions) {
-    for (const [key, subscriptionPromise] of changeSubscriptions) {
-      const { type, page } = splitEntryKey(key)
+  // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
+  if (assetMapper) {
+    for (const key of assetMapper.keys()) {
+      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+        assetMapper.delete(key)
+      }
+    }
+  }
 
+  if (changeSubscriptions) {
+    for (const key of changeSubscriptions.keys()) {
       // middleware is handled below
-      if (
-        (type === 'app' && !currentEntrypoints.page.has(page)) ||
-        (type === 'pages' && !currentEntrypoints.app.has(page))
-      ) {
-        const subscription = await subscriptionPromise
-        await subscription.return?.()
-        changeSubscriptions.delete(key)
+      if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+        await hooks?.unsubscribeFromChanges(key)
       }
     }
   }
 
   for (const [key] of currentEntryIssues) {
-    const { type, page } = splitEntryKey(key)
-
-    if (
-      (type === 'app' && !currentEntrypoints.page.has(page)) ||
-      (type === 'pages' && !currentEntrypoints.app.has(page))
-    ) {
+    if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       currentEntryIssues.delete(key)
+    }
+  }
+
+  if (clients && clientStates) {
+    for (const client of clients) {
+      const state = clientStates.get(client)
+      if (!state) {
+        continue
+      }
+
+      for (const key of state.clientIssues.keys()) {
+        if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
+          state.clientIssues.delete(key)
+        }
+      }
+
+      for (const id of state.subscriptions.keys()) {
+        if (
+          !hasEntrypointForKey(
+            currentEntrypoints,
+            getEntryKey('assets', 'client', id),
+            assetMapper
+          )
+        ) {
+          hooks?.unsubscribeFromHmrEvents(client, id)
+        }
+      }
     }
   }
 
@@ -546,7 +699,7 @@ export async function handleEntrypoints({
     })
   }
 
-  currentEntrypoints.global.middleware = entrypoints.middleware
+  currentEntrypoints.global.middleware = middleware
 
   if (nextConfig.experimental.instrumentationHook && instrumentation) {
     const processInstrumentation = async (
