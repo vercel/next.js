@@ -21,7 +21,6 @@ use turbo_tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
-    environment::ServerAddr,
     issue::{IssueReporter, IssueSeverity},
     resolve::parse::Request,
     server_fs::ServerFileSystem,
@@ -367,7 +366,21 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
     let server = server.build().await?;
 
     {
-        let index_uri = ServerAddr::new(server.addr).to_string()?;
+        let addr = &server.addr;
+        let hostname = if addr.ip().is_loopback() || addr.ip().is_unspecified() {
+            "localhost".to_string()
+        } else if addr.is_ipv6() {
+            // When using an IPv6 address, we need to surround the IP in brackets to
+            // distinguish it from the port's `:`.
+            format!("[{}]", addr.ip())
+        } else {
+            addr.ip().to_string()
+        };
+        let index_uri = match addr.port() {
+            443 => format!("https://{hostname}"),
+            80 => format!("http://{hostname}"),
+            port => format!("http://{hostname}:{port}"),
+        };
         println!(
             "{} - started server on {}, url: {}",
             "ready".green(),

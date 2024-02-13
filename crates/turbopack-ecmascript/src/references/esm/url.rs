@@ -213,7 +213,7 @@ impl CodeGenerateable for UrlAssetReference {
                 // `import.meta.url`.
                 let rewrite_url_base = match &*this.rendering.await? {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),
-                    Rendering::None | Rendering::Server(..) => None,
+                    Rendering::None | Rendering::Server => None,
                 };
 
                 match &*referenced_asset {
