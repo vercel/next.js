@@ -149,7 +149,7 @@ impl<C: Comments> ReactServerComponents<C> {
                             span: DUMMY_SP,
                             props: vec![ObjectPatProp::Assign(AssignPatProp {
                                 span: DUMMY_SP,
-                                key: proxy_ident,
+                                key: proxy_ident.into(),
                                 value: None,
                             })],
                             optional: false,
@@ -169,11 +169,12 @@ impl<C: Comments> ReactServerComponents<C> {
                     span: DUMMY_SP,
                     expr: Box::new(Expr::Assign(AssignExpr {
                         span: DUMMY_SP,
-                        left: PatOrExpr::Expr(Box::new(Expr::Member(MemberExpr {
+                        left: MemberExpr {
                             span: DUMMY_SP,
                             obj: Box::new(Expr::Ident(quote_ident!("module"))),
                             prop: MemberProp::Ident(quote_ident!("exports")),
-                        }))),
+                        }
+                        .into(),
                         op: op!("="),
                         right: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,

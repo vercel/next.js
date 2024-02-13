@@ -1,7 +1,6 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use serde_json::Value as JsonValue;
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
@@ -13,7 +12,6 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            environment::{ServerAddr, ServerInfo},
             ident::AssetIdent,
             issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
             module::Module,
@@ -30,10 +28,7 @@ use turbopack_binding::{
     },
 };
 
-use crate::{
-    next_config::{NextConfig, OutputType},
-    next_import_map::get_next_package,
-};
+use crate::{next_config::NextConfig, next_import_map::get_next_package};
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
 
@@ -706,36 +701,4 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
-}
-
-#[turbo_tasks::function]
-pub async fn render_data(
-    next_config: Vc<NextConfig>,
-    server_addr: Vc<ServerAddr>,
-) -> Result<Vc<JsonValue>> {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct Data {
-        next_config_output: Option<OutputType>,
-        server_info: Option<ServerInfo>,
-        allowed_revalidate_header_keys: Option<Vec<String>>,
-        fetch_cache_key_prefix: Option<String>,
-        isr_memory_cache_size: Option<f64>,
-        isr_flush_to_disk: Option<bool>,
-    }
-
-    let config = next_config.await?;
-    let server_info = ServerInfo::try_from(&*server_addr.await?);
-
-    let experimental = &config.experimental;
-
-    let value = serde_json::to_value(Data {
-        next_config_output: config.output.clone(),
-        server_info: server_info.ok(),
-        allowed_revalidate_header_keys: experimental.allowed_revalidate_header_keys.clone(),
-        fetch_cache_key_prefix: experimental.fetch_cache_key_prefix.clone(),
-        isr_memory_cache_size: config.cache_max_memory_size,
-        isr_flush_to_disk: experimental.isr_flush_to_disk,
-    })?;
-    Ok(Vc::cell(value))
 }
