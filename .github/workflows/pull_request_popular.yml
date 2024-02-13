@@ -1,4 +1,4 @@
-name: Notify about the top 15 PRs (most reacted) in the last 90 days
+name: Notify about the top PRs (most reacted) in the last 90 days
 
 on:
   schedule:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  popular-issues:
+  popular-prs:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:

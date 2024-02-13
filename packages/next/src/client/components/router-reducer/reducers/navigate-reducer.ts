@@ -154,7 +154,7 @@ function navigateReducer_noPPR(
       }
 
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
@@ -242,7 +242,6 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           }
 
-          currentCache = cache
           currentTree = newTree
 
           for (const subSegment of generateSegmentsFromPatch(treePatch)) {
@@ -323,7 +322,7 @@ function navigateReducer_PPR(
       }
 
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this

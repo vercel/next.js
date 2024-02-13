@@ -49,7 +49,6 @@ describe('Component Stack in error overlay', () => {
         ErrorBoundary
         AppRouter
         ServerRoot
-        RSCComponent
         Root"
       `)
     } else {
