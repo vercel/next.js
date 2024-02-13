@@ -108,6 +108,12 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        with:
+          mdbook-version: 'latest'
+
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
         run: |

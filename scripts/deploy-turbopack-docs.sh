@@ -25,7 +25,7 @@ if [ -z ${VERCEL_API_TOKEN+x} ]; then
 fi
 
 
-DOCS_OUTDIR="$(pwd)/target/doc"
+DOCS_OUTDIR="$(pwd)/target/mdbook"
 PROJECT="turbopack-rust-docs"
 echo "Deploying directory $DOCS_OUTDIR as $PROJECT to Vercel..."
 
