@@ -1,0 +1,21 @@
+{
+  "@vercel/og": "",
+  "babel-packages": "",
+  "babel": "",
+  "cssnano-simple": "",
+  "find-cache-dir": "",
+  "is-animated": "",
+  "node-fetch": "",
+  "postcss-plugin-stub-for-cssnano-simple": "",
+  "react-dom-experimental": "",
+  "react-dom": "",
+  "react-experimental": "",
+  "react-server-dom-turbopack-experimental": "",
+  "react-server-dom-turbopack": "",
+  "react-server-dom-webpack-experimental": "",
+  "react-server-dom-webpack": "",
+  "react": "",
+  "scheduler-experimental": "",
+  "scheduler": "",
+  "web-vitals-attribution": ""
+}
