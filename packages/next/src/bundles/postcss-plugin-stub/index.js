@@ -3,7 +3,7 @@
 /**
  * This file creates a stub postcss plugin
  *
- * It will be pre-compiled into "src/compiled/postcss-plugin-stub-for-cssnano-simple",
+ * It will be pre-compiled into "vendored/postcss-plugin-stub-for-cssnano-simple",
  * which "postcss-svgo" will be aliased to when creating "cssnano-preset-simple"
  */
 

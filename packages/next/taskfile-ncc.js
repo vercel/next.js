@@ -81,7 +81,7 @@ function writePackageManifest(
 
   const compiledPackagePath = join(
     __dirname,
-    `${!precompiled ? 'dist/' : ''}src/compiled/${bundleName || packageName}`
+    `${!precompiled ? 'dist/' : ''}vendored/${bundleName || packageName}`
   )
 
   const potentialLicensePath = join(dirname(packagePath), './LICENSE')
