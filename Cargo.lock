@@ -3350,7 +3350,6 @@ dependencies = [
  "rustc-hash",
  "serde",
  "serde_json",
- "swc_core",
  "thiserror",
  "tracing",
  "turbo-tasks",

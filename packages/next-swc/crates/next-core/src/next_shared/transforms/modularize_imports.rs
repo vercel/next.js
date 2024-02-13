@@ -4,16 +4,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
-    swc::custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    swc::{
+        core::{
+            common::util::take::Take,
+            ecma::{
+                ast::{Module, Program},
+                visit::FoldWith,
+            },
+        },
+        custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    },
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
