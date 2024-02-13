@@ -44,7 +44,8 @@ pub struct Options {
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
-/// server component. [NOTE] Turbopack uses ClientDirectiveTransformer for the
+/// server component.
+/// **NOTE** Turbopack uses ClientDirectiveTransformer for the
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,

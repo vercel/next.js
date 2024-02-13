@@ -82,8 +82,10 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
 
-/// Collect [turbopack::core::diagnostics::Diagnostic] from given source,
-/// returns [turbopack::core::diagnostics::PlainDiagnostic]
+/// Reads the [turbopack_binding::turbopack::core::diagnostics::Diagnostic] held
+/// by the given source and returns it as a
+/// [turbopack_binding::turbopack::core::diagnostics::PlainDiagnostic]. It does
+/// not consume any Diagnostics held by the source.
 pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
 

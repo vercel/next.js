@@ -169,7 +169,7 @@ fn action_modifier() -> Vc<String> {
     Vc::cell("action".to_string())
 }
 
-/// Traverses the entire module graph starting from [module], looking for magic
+/// Traverses the entire module graph starting from [Module], looking for magic
 /// comment which identifies server actions. Every found server action will be
 /// returned along with the module which exports that action.
 #[turbo_tasks::function]
@@ -258,7 +258,7 @@ async fn to_rsc_context(
 }
 
 /// Our graph traversal visitor, which finds the primary modules directly
-/// referenced by [parent].
+/// referenced by parent.
 async fn get_referenced_modules(
     (layer, module): (ActionLayer, Vc<Box<dyn Module>>),
 ) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
@@ -291,7 +291,7 @@ pub fn parse_server_actions<C: Comments>(
     })
 }
 
-/// Inspects the comments inside [module] looking for the magic actions comment.
+/// Inspects the comments inside [Module] looking for the magic actions comment.
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
@@ -318,7 +318,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     Ok(Vc::cell(Some(Vc::cell(actions))))
 }
 
-/// Converts our cached [parsed_actions] call into a data type suitable for
+/// Converts our cached [parse_actions] call into a data type suitable for
 /// collecting into a flat-mapped [IndexMap].
 async fn parse_actions_filter_map(
     (layer, module): (ActionLayer, Vc<Box<dyn Module>>),

@@ -1110,8 +1110,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     Ok(Vc::cell(result))
 }
 
-/// ref: https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119
-/// if path contains %5F, replace it with _.
+/// If path contains %5F, replace it with _. [reference](https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119)
 fn get_underscore_normalized_path(path: &str) -> String {
     path.replace("%5F", "_")
 }

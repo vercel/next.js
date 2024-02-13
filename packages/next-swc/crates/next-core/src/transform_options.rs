@@ -65,7 +65,7 @@ pub async fn get_typescript_transform_options(
 }
 
 /// Build the transform options for the decorators.
-/// [TODO]: Currnently only typescript's legacy decorators are supported
+/// **TODO** Currnently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
     project_path: Vc<FileSystemPath>,
