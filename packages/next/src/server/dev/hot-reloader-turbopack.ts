@@ -463,8 +463,8 @@ export async function createHotReloaderTurbopack(
             'instrumentation',
             'instrumentation'
           )
-          await writeManifests(
-            opts.fsChecker.rewrites,
+          await writeManifests({
+            rewrites: opts.fsChecker.rewrites,
             distDir,
             buildManifests,
             appBuildManifests,
@@ -474,8 +474,8 @@ export async function createHotReloaderTurbopack(
             actionManifests,
             fontManifests,
             loadableManifests,
-            currentEntrypoints
-          )
+            currentEntrypoints,
+          })
 
           serverFields.actualInstrumentationHookFile = '/instrumentation'
           await propagateServerField(
@@ -533,8 +533,8 @@ export async function createHotReloaderTurbopack(
                 'middleware',
                 serverFields.middleware
               )
-              await writeManifests(
-                opts.fsChecker.rewrites,
+              await writeManifests({
+                rewrites: opts.fsChecker.rewrites,
                 distDir,
                 buildManifests,
                 appBuildManifests,
@@ -544,8 +544,8 @@ export async function createHotReloaderTurbopack(
                 actionManifests,
                 fontManifests,
                 loadableManifests,
-                currentEntrypoints
-              )
+                currentEntrypoints,
+              })
 
               finishBuilding()
               return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
@@ -592,8 +592,8 @@ export async function createHotReloaderTurbopack(
     )
   )
   await currentEntriesHandling
-  await writeManifests(
-    opts.fsChecker.rewrites,
+  await writeManifests({
+    rewrites: opts.fsChecker.rewrites,
     distDir,
     buildManifests,
     appBuildManifests,
@@ -603,8 +603,8 @@ export async function createHotReloaderTurbopack(
     actionManifests,
     fontManifests,
     loadableManifests,
-    currentEntrypoints
-  )
+    currentEntrypoints,
+  })
   const overlayMiddleware = getOverlayMiddleware(project)
   const versionInfo: VersionInfo = await getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
@@ -840,8 +840,8 @@ export async function createHotReloaderTurbopack(
           await loadPagesManifest(distDir, pagesManifests, '_error')
           await loadFontManifest(distDir, fontManifests, '_error')
 
-          await writeManifests(
-            opts.fsChecker.rewrites,
+          await writeManifests({
+            rewrites: opts.fsChecker.rewrites,
             distDir,
             buildManifests,
             appBuildManifests,
@@ -851,8 +851,8 @@ export async function createHotReloaderTurbopack(
             actionManifests,
             fontManifests,
             loadableManifests,
-            currentEntrypoints
-          )
+            currentEntrypoints,
+          })
         } finally {
           finishBuilding()
         }
@@ -888,8 +888,8 @@ export async function createHotReloaderTurbopack(
 
       const finishBuilding = startBuilding(page, requestUrl)
       try {
-        await handleRouteType(
-          opts.fsChecker.rewrites,
+        await handleRouteType({
+          rewrites: opts.fsChecker.rewrites,
           distDir,
           globalEntrypoints,
           currentIssues,
@@ -906,8 +906,8 @@ export async function createHotReloaderTurbopack(
           changeSubscription,
           readyIds,
           page,
-          route
-        )
+          route,
+        })
       } finally {
         finishBuilding()
       }

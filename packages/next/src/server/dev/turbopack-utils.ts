@@ -578,19 +578,31 @@ async function writeLoadableManifest(
   )
 }
 
-export async function writeManifests(
-  rewrites: SetupOpts['fsChecker']['rewrites'],
-  distDir: string,
-  buildManifests: BuildManifests,
-  appBuildManifests: AppBuildManifests,
-  pagesManifests: PagesManifests,
-  appPathsManifests: AppPathsManifests,
-  middlewareManifests: MiddlewareManifests,
-  actionManifests: ActionManifests,
-  fontManifests: FontManifests,
-  loadableManifests: LoadableManifests,
+export async function writeManifests({
+  rewrites,
+  distDir,
+  buildManifests,
+  appBuildManifests,
+  pagesManifests,
+  appPathsManifests,
+  middlewareManifests,
+  actionManifests,
+  fontManifests,
+  loadableManifests,
+  currentEntrypoints,
+}: {
+  rewrites: SetupOpts['fsChecker']['rewrites']
+  distDir: string
+  buildManifests: BuildManifests
+  appBuildManifests: AppBuildManifests
+  pagesManifests: PagesManifests
+  appPathsManifests: AppPathsManifests
+  middlewareManifests: MiddlewareManifests
+  actionManifests: ActionManifests
+  fontManifests: FontManifests
+  loadableManifests: LoadableManifests
   currentEntrypoints: CurrentEntrypoints
-): Promise<void> {
+}): Promise<void> {
   await writeBuildManifest(
     distDir,
     buildManifests,
@@ -778,26 +790,45 @@ export type ChangeSubscription = (
 
 export type ReadyIds = Set<string>
 
-export async function handleRouteType(
-  rewrites: SetupOpts['fsChecker']['rewrites'],
-  distDir: string,
-  globalEntrypoints: GlobalEntrypoints,
-  currentIssues: CurrentIssues,
-  buildManifests: BuildManifests,
-  appBuildManifests: AppBuildManifests,
-  pagesManifests: PagesManifests,
-  appPathsManifests: AppPathsManifests,
-  middlewareManifests: MiddlewareManifests,
-  actionManifests: ActionManifests,
-  fontManifests: FontManifests,
-  loadableManifests: LoadableManifests,
-  currentEntrypoints: CurrentEntrypoints,
-  handleRequireCacheClearing: HandleRequireCacheClearing | undefined,
-  changeSubscription: ChangeSubscription | undefined,
-  readyIds: ReadyIds,
-  page: string,
+export async function handleRouteType({
+  rewrites,
+  distDir,
+  globalEntrypoints,
+  currentIssues,
+  buildManifests,
+  appBuildManifests,
+  pagesManifests,
+  appPathsManifests,
+  middlewareManifests,
+  actionManifests,
+  fontManifests,
+  loadableManifests,
+  currentEntrypoints,
+  handleRequireCacheClearing,
+  changeSubscription,
+  readyIds,
+  page,
+  route,
+}: {
+  rewrites: SetupOpts['fsChecker']['rewrites']
+  distDir: string
+  globalEntrypoints: GlobalEntrypoints
+  currentIssues: CurrentIssues
+  buildManifests: BuildManifests
+  appBuildManifests: AppBuildManifests
+  pagesManifests: PagesManifests
+  appPathsManifests: AppPathsManifests
+  middlewareManifests: MiddlewareManifests
+  actionManifests: ActionManifests
+  fontManifests: FontManifests
+  loadableManifests: LoadableManifests
+  currentEntrypoints: CurrentEntrypoints
+  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
+  changeSubscription: ChangeSubscription | undefined
+  readyIds: ReadyIds
+  page: string
   route: Route
-) {
+}) {
   switch (route.type) {
     case 'page': {
       try {
@@ -836,7 +867,7 @@ export async function handleRouteType(
         await loadFontManifest(distDir, fontManifests, page, 'pages')
         await loadLoadableManifest(distDir, loadableManifests, page, 'pages')
 
-        await writeManifests(
+        await writeManifests({
           rewrites,
           distDir,
           buildManifests,
@@ -847,8 +878,8 @@ export async function handleRouteType(
           actionManifests,
           fontManifests,
           loadableManifests,
-          currentEntrypoints
-        )
+          currentEntrypoints,
+        })
 
         processIssues(currentIssues, page, writtenEndpoint)
       } finally {
@@ -905,7 +936,7 @@ export async function handleRouteType(
       }
       await loadLoadableManifest(distDir, loadableManifests, page, 'pages')
 
-      await writeManifests(
+      await writeManifests({
         rewrites,
         distDir,
         buildManifests,
@@ -916,8 +947,8 @@ export async function handleRouteType(
         actionManifests,
         fontManifests,
         loadableManifests,
-        currentEntrypoints
-      )
+        currentEntrypoints,
+      })
 
       processIssues(currentIssues, page, writtenEndpoint)
 
@@ -959,7 +990,7 @@ export async function handleRouteType(
       await loadAppPathManifest(distDir, appPathsManifests, page, 'app')
       await loadActionManifest(distDir, actionManifests, page)
       await loadFontManifest(distDir, fontManifests, page, 'app')
-      await writeManifests(
+      await writeManifests({
         rewrites,
         distDir,
         buildManifests,
@@ -970,8 +1001,8 @@ export async function handleRouteType(
         actionManifests,
         fontManifests,
         loadableManifests,
-        currentEntrypoints
-      )
+        currentEntrypoints,
+      })
 
       processIssues(currentIssues, page, writtenEndpoint, true)
 
@@ -995,7 +1026,7 @@ export async function handleRouteType(
         middlewareManifests.delete(page)
       }
 
-      await writeManifests(
+      await writeManifests({
         rewrites,
         distDir,
         buildManifests,
@@ -1006,8 +1037,8 @@ export async function handleRouteType(
         actionManifests,
         fontManifests,
         loadableManifests,
-        currentEntrypoints
-      )
+        currentEntrypoints,
+      })
       processIssues(currentIssues, page, writtenEndpoint, true)
 
       break
