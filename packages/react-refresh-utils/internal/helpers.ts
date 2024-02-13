@@ -63,12 +63,16 @@ function registerExportsForReactRefresh(
   moduleExports: unknown,
   moduleID: string
 ) {
-  RefreshRuntime.register(moduleExports, moduleID + ' %exports%')
   if (moduleExports == null || typeof moduleExports !== 'object') {
     // Exit if we can't iterate over exports.
     // (This is important for legacy environments.)
     return
   }
+
+  if (isClassComponent(moduleExports)) {
+    RefreshRuntime.register(moduleExports, moduleID + ' ' + moduleExports.name)
+  }
+
   for (var key in moduleExports) {
     if (isSafeExport(key)) {
       continue
@@ -79,9 +83,21 @@ function registerExportsForReactRefresh(
       // This might fail due to circular dependencies
       continue
     }
-    var typeID = moduleID + ' %exports% ' + key
-    RefreshRuntime.register(exportValue, typeID)
+
+    if (isClassComponent(exportValue)) {
+      var typeID = moduleID + ' ' + exportValue.name
+      RefreshRuntime.register(exportValue, typeID)
+    }
   }
+}
+
+function isClassComponent(component: unknown): component is Function {
+  return (
+    typeof component === 'function' &&
+    typeof component.prototype === 'object' &&
+    component.prototype !== null &&
+    component.prototype.isReactComponent
+  )
 }
 
 function getRefreshBoundarySignature(moduleExports: unknown): Array<unknown> {
