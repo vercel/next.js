@@ -142,7 +142,7 @@ function prefixExistingPrefetchCacheEntry({
 /**
  * Use to seed the prefetch cache with data that has already been fetched.
  */
-export function createPrefetchEntry({
+export function createPrefetchCacheEntryForInitialLoad({
   nextUrl,
   tree,
   prefetchCache,

@@ -9,7 +9,7 @@ import type {
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { extractPathFromFlightRouterState } from './compute-changed-path'
-import { createPrefetchEntry } from './prefetch-cache-utils'
+import { createPrefetchCacheEntryForInitialLoad } from './prefetch-cache-utils'
 import { PrefetchKind, type PrefetchCacheEntry } from './router-reducer-types'
 
 export interface InitialRouterStateParameters {
@@ -95,7 +95,7 @@ export function createInitialRouterState({
     const url = new URL(location.pathname, location.origin)
 
     const initialFlightData: FlightData = [['', initialTree, null, null]]
-    createPrefetchEntry({
+    createPrefetchCacheEntryForInitialLoad({
       url,
       kind: PrefetchKind.AUTO,
       data: [initialFlightData, undefined, false, couldBeIntercepted],
