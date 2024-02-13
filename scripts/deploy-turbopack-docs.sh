@@ -12,8 +12,12 @@ else
     fi
 fi
 
+mdbook build --dest-dir $(pwd)/target/mdbook ./packages/next-swc/docs
+
 PACKAGES="-p next-swc-napi -p next-api -p next-build -p next-core -p next-custom-transforms"
-RUSTDOCFLAGS="-Z unstable-options --index-page $(pwd)/packages/next-swc/docs/index.md" cargo doc $PACKAGES --no-deps --document-private-items
+RUSTDOCFLAGS="-Z unstable-options --enable-index-page" cargo doc $PACKAGES --no-deps --document-private-items
+
+cp -r $(pwd)/target/doc $(pwd)/target/mdbook/rustdoc
 
 if [ -z ${VERCEL_API_TOKEN+x} ]; then
   echo "VERCEL_API_TOKEN was not providing, skipping..."
