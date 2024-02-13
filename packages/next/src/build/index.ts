@@ -1333,9 +1333,6 @@ export default async function build(
             middlewareMatchers: undefined,
             previewModeId: undefined,
           }),
-          // TODO: fix
-          // serverAddr: `127.0.0.1:${opts.port}`,
-          serverAddr: `127.0.0.1:3000`,
         })
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
