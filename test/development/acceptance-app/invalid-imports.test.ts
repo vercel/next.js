@@ -145,7 +145,7 @@ describe('Error Overlay invalid imports', () => {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./node_modules/client-only-package
         Invalid import
-        'client-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
+        'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
         The error was caused by importing 'node_modules/client-only-package'"
       `)
     } else {
