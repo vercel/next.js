@@ -48,7 +48,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.getRedboxSource()).toMatchInlineSnapshot(
       process.env.TURBOPACK
         ? `
-    "./node_modules/my-package/index.js:1:13
+    "./node_modules/my-package/index.js:1:1
     Module not found: Can't resolve 'dns'
     > 1 | const dns = require('dns')
         |             ^^^^^^^^^^^^^^
