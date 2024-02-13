@@ -531,7 +531,11 @@ async function createComponentTreeInternal({
       seedData: [
         actualSegment,
         parallelRouteCacheNodeSeedData,
-        <Postpone reason='dynamic = "force-dynamic" was used' />,
+        <Postpone
+          prerenderState={staticGenerationStore.prerenderState}
+          reason='dynamic = "force-dynamic" was used'
+          pathname={staticGenerationStore.urlPathname}
+        />,
       ],
       styles: layerAssets,
     }

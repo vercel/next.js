@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 createNextDescribe(
@@ -434,6 +434,29 @@ createNextDescribe(
             `window.getComputedStyle(document.getElementById("red-text")).color`
           )
         ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should handle a loading state', async () => {
+        const browser = await next.browser('/with-loading')
+        expect(await browser.elementById('slot').text()).toBe('Root Slot')
+        expect(await browser.elementById('children').text()).toBe('Root Page')
+
+        // should have triggered a loading state
+        expect(
+          await browser
+            .elementByCss('[href="/with-loading/foo"]')
+            .click()
+            .waitForElementByCss('#loading-page')
+            .text()
+        ).toBe('Loading...')
+
+        // should eventually load the full page
+        await retry(async () => {
+          expect(await browser.elementById('slot').text()).toBe('Nested Slot')
+          expect(await browser.elementById('children').text()).toBe(
+            'Welcome to Foo Page'
+          )
+        })
       })
 
       if (isNextDev) {
