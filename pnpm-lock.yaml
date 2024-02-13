@@ -1074,8 +1074,8 @@ importers:
         specifier: 0.34.0
         version: 0.34.0
       '@vercel/nft':
-        specifier: 0.26.3
-        version: 0.26.3
+        specifier: 0.26.4
+        version: 0.26.4
       '@vercel/turbopack-ecmascript-runtime':
         specifier: https://gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240213.5
         version: '@gitpkg-fork.vercel.sh/vercel/turbo/crates/turbopack-ecmascript-runtime/js?turbopack-240213.5(react-refresh@0.12.0)(webpack@5.90.0)'
@@ -2169,6 +2169,7 @@ packages:
   /@babel/plugin-proposal-dynamic-import@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-I8SW9Ho3/8DRSdmDdH3gORdyUuYnk1m4cMxUAdu5oy4n3OfN8flDEH+d60iG7dUfi0KkYwSvoalHzzdRzpWHTg==}
     engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-dynamic-import instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2180,6 +2181,7 @@ packages:
   /@babel/plugin-proposal-export-namespace-from@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-ZxdtqDXLRGBL64ocZcs7ovt71L3jhC1RGSyR996svrCi3PYqHNkb3SwPJCs8RIzD86s+WPpt2S73+EHCGO+NUA==}
     engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-export-namespace-from instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2203,6 +2205,7 @@ packages:
   /@babel/plugin-proposal-logical-assignment-operators@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-K3XzyZJGQCr00+EtYtrDjmwX7o7PLK6U9bi1nCwkQioRFVUv6dJoxbQjtWVtP+bCPy82bONBKG8NPyQ4+i6yjg==}
     engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-logical-assignment-operators instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2225,6 +2228,7 @@ packages:
   /@babel/plugin-proposal-numeric-separator@7.16.7(@babel/core@7.22.5):
     resolution: {integrity: sha512-vQgPMknOIgiuVqbokToyXbkY/OmmjAzr/0lhSIbG/KmnzXPGwW/AdhdKpi+O4X/VkWiWjnkKOBiqJrTaC98VKw==}
     engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -2275,6 +2279,7 @@ packages:
   /@babel/plugin-proposal-private-methods@7.16.11(@babel/core@7.22.5):
     resolution: {integrity: sha512-F/2uAkPlXDr8+BHpZvo19w3hLFKge+k75XUprE6jaqKxjGkSYcK+4c+bup5PdW/7W/Rpjwql7FTVEDW+fRAQsw==}
     engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
     peerDependencies:
       '@babel/core': 7.22.5
     dependencies:
@@ -4426,7 +4431,7 @@ packages:
       jest-haste-map: 27.5.1
       jest-regex-util: 27.5.1
       jest-util: 27.5.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pirates: 4.0.5
       slash: 3.0.0
       source-map: 0.6.1
@@ -4473,7 +4478,7 @@ packages:
       jest-haste-map: 29.7.0
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       pirates: 4.0.5
       slash: 3.0.0
       write-file-atomic: 4.0.2
@@ -7554,8 +7559,8 @@ packages:
     hasBin: true
     dev: true
 
-  /@vercel/nft@0.26.3:
-    resolution: {integrity: sha512-h1z/NN9ppS4YOKwSgBoopJlhm7tS2Qb/9Ld1HXjDpvvTE7mY0xVD8nllXs+RihD9uTGJISOIMzp18Eg0EApaMA==}
+  /@vercel/nft@0.26.4:
+    resolution: {integrity: sha512-j4jCOOXke2t8cHZCIxu1dzKLHLcFmYzC3yqAK6MfZznOL1QIJKd0xcFsXK3zcqzU7ScsE2zWkiMMNHGMHgp+FA==}
     engines: {node: '>=16'}
     hasBin: true
     dependencies:
@@ -15331,7 +15336,7 @@ packages:
       jest-runner: 29.7.0
       jest-util: 29.7.0
       jest-validate: 29.7.0
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       parse-json: 5.2.0
       pretty-format: 29.7.0
       slash: 3.0.0
@@ -15475,7 +15480,7 @@ packages:
       jest-serializer: 27.5.1
       jest-util: 27.5.1
       jest-worker: 27.5.1
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
@@ -15513,7 +15518,7 @@ packages:
       jest-regex-util: 29.6.3
       jest-util: 29.7.0
       jest-worker: 29.7.0
-      micromatch: 4.0.4
+      micromatch: 4.0.5
       walker: 1.0.8
     optionalDependencies:
       fsevents: 2.3.3
