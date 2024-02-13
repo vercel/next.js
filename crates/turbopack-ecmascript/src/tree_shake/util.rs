@@ -4,7 +4,7 @@ use indexmap::IndexSet;
 use rustc_hash::FxHasher;
 use swc_core::ecma::{
     ast::{
-        BlockStmtOrExpr, Constructor, Expr, Function, Id, Ident, MemberProp, Pat, PatOrExpr,
+        AssignTarget, BlockStmtOrExpr, Constructor, Expr, Function, Id, Ident, MemberProp, Pat,
         PropName,
     },
     visit::{noop_visit_type, visit_obj_and_computed, Visit, VisitWith},
@@ -35,6 +35,12 @@ impl IdentUsageCollector {
 }
 
 impl Visit for IdentUsageCollector {
+    fn visit_assign_target(&mut self, n: &AssignTarget) {
+        self.with_mode(Mode::Write, |this| {
+            n.visit_children_with(this);
+        })
+    }
+
     fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr) {
         if self.ignore_nested {
             return;
@@ -88,17 +94,6 @@ impl Visit for IdentUsageCollector {
         })
     }
 
-    fn visit_pat_or_expr(&mut self, n: &PatOrExpr) {
-        if let PatOrExpr::Expr(e) = n {
-            self.with_mode(Mode::Write, |this| {
-                // Skip `visit_expr`
-                e.visit_children_with(this);
-            })
-        } else {
-            n.visit_children_with(self);
-        }
-    }
-
     fn visit_prop_name(&mut self, n: &PropName) {
         if let PropName::Computed(..) = n {
             n.visit_children_with(self);
@@ -136,6 +131,12 @@ impl CapturedIdCollector {
 }
 
 impl Visit for CapturedIdCollector {
+    fn visit_assign_target(&mut self, n: &AssignTarget) {
+        self.with_mode(Mode::Write, |this| {
+            n.visit_children_with(this);
+        })
+    }
+
     fn visit_block_stmt_or_expr(&mut self, n: &BlockStmtOrExpr) {
         self.with_nested(|this| {
             n.visit_children_with(this);
@@ -179,17 +180,6 @@ impl Visit for CapturedIdCollector {
         self.with_mode(Mode::Write, |this| {
             p.visit_children_with(this);
         })
-    }
-
-    fn visit_pat_or_expr(&mut self, n: &PatOrExpr) {
-        if let PatOrExpr::Expr(e) = n {
-            self.with_mode(Mode::Write, |this| {
-                // Skip `visit_expr`
-                e.visit_children_with(this);
-            })
-        } else {
-            n.visit_children_with(self);
-        }
     }
 
     fn visit_prop_name(&mut self, n: &PropName) {

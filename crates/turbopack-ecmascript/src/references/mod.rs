@@ -42,7 +42,7 @@ use swc_core::{
     ecma::{
         ast::*,
         visit::{
-            fields::{AssignExprField, ExprField, PatField, PatOrExprField},
+            fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithPath,
         },
     },
@@ -1844,9 +1844,8 @@ async fn handle_free_var_reference(
         [
             ..,
             AstParentKind::AssignExpr(AssignExprField::Left),
-            AstParentKind::PatOrExpr(PatOrExprField::Pat),
-            AstParentKind::Pat(PatField::Expr),
-            AstParentKind::Expr(ExprField::Member),
+            AstParentKind::AssignTarget(AssignTargetField::Simple),
+            AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Member),
         ]
     ) {
         return Ok(false);
