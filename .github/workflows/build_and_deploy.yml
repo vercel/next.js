@@ -498,7 +498,7 @@ jobs:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
           DEPLOY_ENVIRONMENT: preview
       - name: Deploy production docs
-        if: ${{ needs.build.outputs.isRelease == 'true' }}
+        if: ${{ github.ref_name == 'canary' || needs.build.outputs.isRelease == 'true' }}
         run: ./scripts/deploy-turbopack-docs.sh
         env:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}

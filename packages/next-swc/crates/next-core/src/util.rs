@@ -1,13 +1,13 @@
 use anyhow::{bail, Context, Result};
 use indexmap::{IndexMap, IndexSet};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use swc_core::{
-    common::GLOBALS,
-    ecma::ast::{Expr, Lit, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, util::join_path, File};
 use turbopack_binding::{
+    swc::core::{
+        common::GLOBALS,
+        ecma::ast::{Expr, Lit, Program},
+    },
     turbo::tasks_fs::{json::parse_json_rope_with_source_context, FileContent, FileSystemPath},
     turbopack::{
         core::{
