@@ -1,7 +1,7 @@
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { StoreProvider } from "./StoreProvider";
 import { Nav } from "./components/Nav";
-import Image from "next/image";
 
 import "./styles/globals.css";
 import styles from "./styles/layout.module.css";
