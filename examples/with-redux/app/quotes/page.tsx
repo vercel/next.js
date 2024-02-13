@@ -1,4 +1,4 @@
-import { Quotes } from '../components/Quotes/Quotes'
+import { Quotes } from "../components/Quotes/Quotes";
 
 export default function QuotesPage() {
   return (
@@ -7,5 +7,5 @@ export default function QuotesPage() {
       <p>This page is intended to showcase RTK Query.</p>
       <Quotes />
     </>
-  )
+  );
 }
