@@ -434,14 +434,6 @@ pub struct ResolveOptions {
 
 #[turbo_tasks::value_impl]
 impl ResolveOptions {
-    #[turbo_tasks::function]
-    pub async fn modules(self: Vc<Self>) -> Result<Vc<ResolveModulesOptions>> {
-        Ok(ResolveModulesOptions {
-            modules: self.await?.modules.clone(),
-        }
-        .into())
-    }
-
     /// Returns a new [Vc<ResolveOptions>] with its import map extended to
     /// include the given import map.
     #[turbo_tasks::function]
@@ -489,14 +481,17 @@ impl ResolveOptions {
 #[derive(Hash, Clone, Debug)]
 pub struct ResolveModulesOptions {
     pub modules: Vec<ResolveModules>,
+    pub extensions: Vec<String>,
 }
 
 #[turbo_tasks::function]
 pub async fn resolve_modules_options(
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveModulesOptions>> {
+    let options = options.await?;
     Ok(ResolveModulesOptions {
-        modules: options.await?.modules.clone(),
+        modules: options.modules.clone(),
+        extensions: options.extensions.clone(),
     }
     .into())
 }

@@ -9,9 +9,10 @@ use std::{
 
 use anyhow::{anyhow, bail, Result};
 use indexmap::{indexmap, IndexMap};
+use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tracing::{Instrument, Level};
-use turbo_tasks::{TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{
     util::{normalize_path, normalize_request},
     FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -931,6 +932,28 @@ async fn type_exists(
     })
 }
 
+async fn any_exists(
+    fs_path: Vc<FileSystemPath>,
+    refs: &mut Vec<Vc<Box<dyn Source>>>,
+) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
+    let result = fs_path.resolve().await?.realpath_with_links().await?;
+    for path in result.symlinks.iter() {
+        refs.push(Vc::upcast(FileSource::new(*path)));
+    }
+    let path = result.path.resolve().await?;
+    let ty = *path.get_type().await?;
+    Ok(
+        if matches!(
+            ty,
+            FileSystemEntryType::NotFound | FileSystemEntryType::Error
+        ) {
+            None
+        } else {
+            Some((ty, path))
+        },
+    )
+}
+
 #[turbo_tasks::value(shared)]
 enum ExportsFieldResult {
     Some(#[turbo_tasks(debug_ignore, trace_ignore)] ExportsField),
@@ -1054,9 +1077,15 @@ pub async fn find_context_file(
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug)]
+enum FindPackageItem {
+    PackageDirectory(Vc<FileSystemPath>),
+    PackageFile(Vc<FileSystemPath>),
+}
+
 #[turbo_tasks::value]
 struct FindPackageResult {
-    packages: Vec<Vc<FileSystemPath>>,
+    packages: Vec<FindPackageItem>,
     affecting_sources: Vec<Vc<Box<dyn Source>>>,
 }
 
@@ -1084,7 +1113,7 @@ async fn find_package(
                             if let Some(fs_path) =
                                 dir_exists(fs_path, &mut affecting_sources).await?
                             {
-                                packages.push(fs_path);
+                                packages.push(FindPackageItem::PackageDirectory(fs_path));
                             }
                         }
                     }
@@ -1098,11 +1127,25 @@ async fn find_package(
             }
             ResolveModules::Path(context) => {
                 let package_dir = context.join(package_name.clone());
-                if dir_exists(package_dir, &mut affecting_sources)
-                    .await?
-                    .is_some()
+                if let Some((ty, package_dir)) =
+                    any_exists(package_dir, &mut affecting_sources).await?
                 {
-                    packages.push(package_dir.resolve().await?);
+                    match ty {
+                        FileSystemEntryType::Directory => {
+                            packages.push(FindPackageItem::PackageDirectory(package_dir));
+                        }
+                        FileSystemEntryType::File => {
+                            packages.push(FindPackageItem::PackageFile(package_dir));
+                        }
+                        _ => {}
+                    }
+                }
+                for extension in &options.extensions {
+                    let package_file = package_dir.append(extension.clone());
+                    if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
+                    {
+                        packages.push(FindPackageItem::PackageFile(package_file));
+                    }
                 }
             }
             ResolveModules::Registry(_, _) => todo!(),
@@ -1483,8 +1526,16 @@ async fn resolve_internal_inline(
             path,
             query,
         } => {
-            resolve_module_request(lookup_path, options, options_value, module, path, *query)
-                .await?
+            resolve_module_request(
+                lookup_path,
+                request,
+                options,
+                options_value,
+                module,
+                path,
+                *query,
+            )
+            .await?
         }
         Request::ServerRelative { path, query } => {
             let mut new_pat = path.clone();
@@ -1770,6 +1821,7 @@ async fn resolve_relative_request(
 #[tracing::instrument(level = Level::TRACE, skip_all)]
 async fn resolve_module_request(
     lookup_path: Vc<FileSystemPath>,
+    request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
     module: &str,
@@ -1846,13 +1898,32 @@ async fn resolve_module_request(
     // resolve packages. A request to "foo/bar" might resolve to either
     // "[baseUrl]/foo/bar" or "[baseUrl]/node_modules/foo/bar", and we'll need to
     // try both.
-    for &package_path in &result.packages {
-        results.push(resolve_into_package(
-            Value::new(path.clone()),
-            package_path.resolve().await?,
-            query,
-            options,
-        ));
+    for item in &result.packages {
+        match *item {
+            FindPackageItem::PackageDirectory(package_path) => {
+                results.push(resolve_into_package(
+                    Value::new(path.clone()),
+                    package_path,
+                    query,
+                    options,
+                ));
+            }
+            FindPackageItem::PackageFile(package_path) => {
+                if path.is_match("") {
+                    let resolved = resolved(
+                        RequestKey::new(".".to_string()),
+                        package_path,
+                        lookup_path,
+                        request,
+                        options_value,
+                        options,
+                        query,
+                    )
+                    .await?;
+                    results.push(resolved)
+                }
+            }
+        }
     }
 
     Ok(
