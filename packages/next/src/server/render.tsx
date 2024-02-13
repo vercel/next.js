@@ -370,10 +370,10 @@ export function errorToJSON(err: Error) {
     'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('../client/components/react-dev-overlay/server/middleware').getErrorSource(
-        err
-      ) || 'server'
+    const getErrorSource: typeof import('../client/components/react-dev-overlay/server/middleware').getErrorSource =
+      require('../client/components/react-dev-overlay/server/middleware').getErrorSource
+
+    source = getErrorSource(err) || 'server'
   }
 
   return {

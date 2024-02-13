@@ -64,6 +64,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
+import { decorateServerError } from '../../client/components/react-dev-overlay/server/middleware'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -397,7 +398,7 @@ export default class DevServer extends Server {
       }
 
       const err = getProperError(error)
-      ;(err as any).middleware = true
+      decorateServerError(err, 'edge-server')
       const { request, response, parsedUrl } = params
 
       /**
