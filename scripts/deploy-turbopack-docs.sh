@@ -12,7 +12,8 @@ else
     fi
 fi
 
-RUSTDOCFLAGS="-Z unstable-options --index-page $(pwd)/packages/next-swc/docs/index.md" cargo doc -p turbo-tasks-fs --no-deps
+PACKAGES="-p next-swc-napi -p next-api -p next-build -p next-core -p next-custom-transforms"
+RUSTDOCFLAGS="-Z unstable-options --index-page $(pwd)/packages/next-swc/docs/index.md" cargo doc $PACKAGES --no-deps --document-private-items
 
 if [ -z ${VERCEL_API_TOKEN+x} ]; then
   echo "VERCEL_API_TOKEN was not providing, skipping..."
