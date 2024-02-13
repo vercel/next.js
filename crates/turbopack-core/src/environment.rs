@@ -1,12 +1,9 @@
 use std::{
-    fmt,
-    net::SocketAddr,
     process::{Command, Stdio},
     str::FromStr,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
-use serde::{Deserialize, Serialize};
+use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_env::ProcessEnv;
@@ -15,124 +12,13 @@ use crate::target::CompileTarget;
 
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
-#[turbo_tasks::value(shared)]
-#[derive(Default)]
-pub struct ServerAddr(#[turbo_tasks(trace_ignore)] Option<SocketAddr>);
-
-impl ServerAddr {
-    pub fn new(addr: SocketAddr) -> Self {
-        Self(Some(addr))
-    }
-
-    /// The hostname portion of the address, without the port. Prefers
-    /// "localhost" when using a loopback address.
-    pub fn hostname(&self) -> Option<String> {
-        self.0.map(|addr| {
-            if addr.ip().is_loopback() || addr.ip().is_unspecified() {
-                "localhost".to_string()
-            } else if addr.is_ipv6() {
-                // When using an IPv6 address, we need to surround the IP in brackets to
-                // distinguish it from the port's `:`.
-                format!("[{}]", addr.ip())
-            } else {
-                addr.ip().to_string()
-            }
-        })
-    }
-
-    pub fn ip(&self) -> Option<String> {
-        self.0.map(|addr| addr.ip().to_string())
-    }
-
-    pub fn port(&self) -> Option<u16> {
-        self.0.map(|addr| addr.port())
-    }
-
-    /// Constructs a URL out of the address.
-    pub fn to_string(&self) -> Result<String> {
-        let (hostname, port) = self
-            .hostname()
-            .zip(self.port())
-            .context("expected some server address")?;
-        let protocol = Protocol::from(port);
-        Ok(match port {
-            80 | 443 => format!("{protocol}://{hostname}"),
-            _ => format!("{protocol}://{hostname}:{port}"),
-        })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ServerAddr {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        ServerAddr(None).cell()
-    }
-}
-
-/// A simple serializable structure meant to carry information about Turbopack's
-/// server to node rendering processes.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ServerInfo {
-    pub ip: String,
-    pub port: u16,
-
-    /// The protocol, either `http` or `https`
-    pub protocol: Protocol,
-
-    /// A formatted hostname (eg, "localhost") or the IP address of the server
-    pub hostname: String,
-}
-
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Protocol {
-    HTTP,
-    HTTPS,
-}
-
-impl From<u16> for Protocol {
-    fn from(value: u16) -> Self {
-        match value {
-            443 => Self::HTTPS,
-            _ => Self::HTTP,
-        }
-    }
-}
-
-impl fmt::Display for Protocol {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::HTTP => f.write_str("http"),
-            Self::HTTPS => f.write_str("https"),
-        }
-    }
-}
-
-impl TryFrom<&ServerAddr> for ServerInfo {
-    type Error = anyhow::Error;
-
-    fn try_from(addr: &ServerAddr) -> Result<Self> {
-        if addr.0.is_none() {
-            bail!("cannot unwrap ServerAddr");
-        };
-        let port = addr.port().unwrap();
-        Ok(ServerInfo {
-            ip: addr.ip().unwrap(),
-            hostname: addr.hostname().unwrap(),
-            port,
-            protocol: Protocol::from(port),
-        })
-    }
-}
-
 #[turbo_tasks::value]
 #[derive(Default)]
 pub enum Rendering {
     #[default]
     None,
     Client,
-    Server(Vc<ServerAddr>),
+    Server,
 }
 
 impl Rendering {
@@ -308,13 +194,10 @@ impl Environment {
     pub async fn rendering(self: Vc<Self>) -> Result<Vc<Rendering>> {
         let env = self.await?;
         Ok(match env.execution {
-            ExecutionEnvironment::NodeJsBuildTime(env)
-            | ExecutionEnvironment::NodeJsLambda(env) => {
-                Rendering::Server(env.await?.server_addr).cell()
+            ExecutionEnvironment::NodeJsBuildTime(_) | ExecutionEnvironment::NodeJsLambda(_) => {
+                Rendering::Server.cell()
             }
-            ExecutionEnvironment::EdgeWorker(env) => {
-                Rendering::Server(env.await?.server_addr).cell()
-            }
+            ExecutionEnvironment::EdgeWorker(_) => Rendering::Server.cell(),
             ExecutionEnvironment::Browser(_) => Rendering::Client.cell(),
             _ => Rendering::None.cell(),
         })
@@ -344,7 +227,6 @@ pub struct NodeJsEnvironment {
     pub node_version: Vc<NodeJsVersion>,
     // user specified process.cwd
     pub cwd: Vc<Option<String>>,
-    pub server_addr: Vc<ServerAddr>,
 }
 
 impl Default for NodeJsEnvironment {
@@ -353,7 +235,6 @@ impl Default for NodeJsEnvironment {
             compile_target: CompileTarget::current(),
             node_version: NodeJsVersion::default().cell(),
             cwd: Vc::cell(None),
-            server_addr: ServerAddr::empty(),
         }
     }
 }
@@ -377,12 +258,11 @@ impl NodeJsEnvironment {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: Vc<Box<dyn ProcessEnv>>, server_addr: Vc<ServerAddr>) -> Vc<Self> {
+    pub fn current(process_env: Vc<Box<dyn ProcessEnv>>) -> Vc<Self> {
         Self::cell(NodeJsEnvironment {
             compile_target: CompileTarget::current(),
             node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env)),
             cwd: Vc::cell(None),
-            server_addr,
         })
     }
 }
@@ -408,9 +288,7 @@ pub struct BrowserEnvironment {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct EdgeWorkerEnvironment {
-    pub server_addr: Vc<ServerAddr>,
-}
+pub struct EdgeWorkerEnvironment {}
 
 #[turbo_tasks::value(transparent)]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
