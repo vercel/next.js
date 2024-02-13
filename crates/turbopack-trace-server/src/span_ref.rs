@@ -331,6 +331,21 @@ impl<'a> SpanRef<'a> {
                         .and_modify(|_, v| v.push(span.span.index))
                         .or_insert_with(|| (name.to_string(), vec![span.span.index]));
                 }
+                for (_, value) in span.span.args.iter() {
+                    index
+                        .raw_entry_mut()
+                        .from_key(value)
+                        .and_modify(|_, v| v.push(span.span.index))
+                        .or_insert_with(|| (value.to_string(), vec![span.span.index]));
+                }
+                if !span.is_complete() {
+                    let name = "incomplete";
+                    index
+                        .raw_entry_mut()
+                        .from_key(name)
+                        .and_modify(|_, v| v.push(span.span.index))
+                        .or_insert_with(|| (name.to_string(), vec![span.span.index]));
+                }
                 for child in span.children() {
                     queue.push_back(child);
                 }
