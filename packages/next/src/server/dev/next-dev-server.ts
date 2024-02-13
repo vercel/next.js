@@ -64,10 +64,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
-import {
-  decorateServerError,
-  getErrorSource,
-} from '../../client/components/react-dev-overlay/server/middleware'
+import { decorateServerError } from '../../client/components/react-dev-overlay/server/middleware'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
