@@ -1006,13 +1006,17 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
-            match &n.left {
-                PatOrExpr::Expr(expr) => {
-                    if let Some(key) = expr.as_ident() {
+
+            match n.op {
+                AssignOp::Assign => {
+                    self.current_value = Some(self.eval_context.eval(&n.right));
+                    n.left.visit_children_with_path(self, &mut ast_path);
+                    self.current_value = None;
+                }
+
+                _ => {
+                    if let Some(key) = n.left.as_ident() {
                         let value = match n.op {
-                            AssignOp::Assign => unreachable!(
-                                "AssignOp::Assign will never have an expression in n.left"
-                            ),
                             AssignOp::AndAssign | AssignOp::OrAssign | AssignOp::NullishAssign => {
                                 let right = self.eval_context.eval(&n.right);
                                 // We can handle the right value as alternative to the existing
@@ -1020,7 +1024,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 Some(right)
                             }
                             AssignOp::AddAssign => {
-                                let left = self.eval_context.eval(expr);
+                                let left = self.eval_context.eval(&Expr::Ident(key.clone()));
                                 let right = self.eval_context.eval(&n.right);
                                 Some(JsValue::add(vec![left, right]))
                             }
@@ -1030,18 +1034,9 @@ impl VisitAstPath for Analyzer<'_> {
                             self.add_value(key.to_id(), value);
                         }
                     }
-
-                    let mut ast_path = ast_path
-                        .with_guard(AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Expr));
-                    self.visit_expr(expr, &mut ast_path);
-                }
-                PatOrExpr::Pat(pat) => {
-                    debug_assert!(n.op == AssignOp::Assign);
-                    let mut ast_path = ast_path
-                        .with_guard(AstParentNodeRef::PatOrExpr(&n.left, PatOrExprField::Pat));
-                    self.current_value = Some(self.eval_context.eval(&n.right));
-                    self.visit_pat(pat, &mut ast_path);
-                    self.current_value = None;
+                    if n.left.as_ident().is_none() {
+                        n.left.visit_children_with_path(self, &mut ast_path);
+                    }
                 }
             }
         }
@@ -1413,6 +1408,25 @@ impl VisitAstPath for Analyzer<'_> {
 
             self.visit_opt_expr(n.init.as_ref(), &mut ast_path);
         }
+    }
+
+    fn visit_simple_assign_target<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast SimpleAssignTarget,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let value = self.current_value.take();
+        if let SimpleAssignTarget::Ident(i) = n {
+            self.add_value(
+                i.to_id(),
+                value.unwrap_or_else(|| {
+                    JsValue::unknown(JsValue::Variable(i.to_id()), false, "pattern without value")
+                }),
+            );
+            return;
+        }
+
+        n.visit_children_with_path(self, ast_path);
     }
 
     fn visit_pat<'ast: 'r, 'r>(

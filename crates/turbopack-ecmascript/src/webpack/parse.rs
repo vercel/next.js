@@ -5,8 +5,9 @@ use swc_core::{
     common::GLOBALS,
     ecma::{
         ast::{
-            ArrowExpr, AssignOp, BinExpr, BinaryOp, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
-            FnExpr, Lit, Module, ModuleItem, Program, Script, Stmt,
+            ArrowExpr, AssignOp, AssignTarget, BinExpr, BinaryOp, CallExpr, Callee, Expr,
+            ExprOrSpread, ExprStmt, FnExpr, Lit, Module, ModuleItem, Program, Script,
+            SimpleAssignTarget, Stmt,
         },
         visit::{Visit, VisitWith},
     },
@@ -77,6 +78,23 @@ fn is_webpack_require_decl(stmt: &Stmt) -> bool {
     false
 }
 
+fn get_assign_target_identifier(expr: &AssignTarget) -> Option<Cow<'_, str>> {
+    match expr.as_simple()? {
+        SimpleAssignTarget::Ident(ident) => Some(Cow::Borrowed(&*ident.sym)),
+        SimpleAssignTarget::Member(member) => {
+            if let Some(obj_name) = get_expr_identifier(&member.obj) {
+                if let Some(ident) = member.prop.as_ident() {
+                    return Some(Cow::Owned(obj_name.into_owned() + "." + &*ident.sym));
+                }
+            }
+            None
+        }
+        SimpleAssignTarget::Paren(p) => get_expr_identifier(&p.expr),
+
+        _ => None,
+    }
+}
+
 fn get_expr_identifier(expr: &Expr) -> Option<Cow<'_, str>> {
     let expr = unparen(expr);
     if let Some(ident) = expr.as_ident() {
@@ -102,11 +120,9 @@ fn get_assignment<'a>(stmts: &'a Vec<Stmt>, property: &str) -> Option<&'a Expr> 
         if let Some(expr_stmt) = stmt.as_expr() {
             if let Some(assign) = unparen(&expr_stmt.expr).as_assign() {
                 if assign.op == AssignOp::Assign {
-                    if let Some(expr) = assign.left.as_expr() {
-                        if let Some(name) = get_expr_identifier(expr) {
-                            if name == property {
-                                return Some(unparen(&assign.right));
-                            }
+                    if let Some(name) = get_assign_target_identifier(&assign.left) {
+                        if name == property {
+                            return Some(unparen(&assign.right));
                         }
                     }
                 }
