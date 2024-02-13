@@ -32,10 +32,15 @@ module.exports = async function collectDiffs(
     filesToTrack.map(async (fileGroup) => {
       const { globs } = fileGroup
       const curFiles = []
+      const prettierExts = ['.js', '.html', '.css', '.json']
 
       await Promise.all(
         globs.map(async (pattern) => {
-          curFiles.push(...(await glob(pattern, { cwd: statsAppDir })))
+          curFiles.push(
+            ...(await glob(pattern, { cwd: statsAppDir })).filter((item) =>
+              prettierExts.includes(path.extname(item))
+            )
+          )
         })
       )
 
