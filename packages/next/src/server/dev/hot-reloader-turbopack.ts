@@ -129,7 +129,6 @@ export async function createHotReloaderTurbopack(
       middlewareMatchers: undefined,
       previewModeId: undefined,
     }),
-    serverAddr: `127.0.0.1:${opts.port}`,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
   const currentEntrypoints: CurrentEntrypoints = new Map()
