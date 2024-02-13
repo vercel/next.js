@@ -15,7 +15,7 @@ examples/with-mobx/**
 examples/with-tigris/db/models/todoItems.ts
 packages/next/src/bundles/webpack/packages/*.runtime.js
 packages/next/src/bundles/webpack/packages/lazy-compilation-*.js
-packages/next/src/compiled/**/*
+packages/next/vendored/**/*
 packages/react-refresh-utils/**/*.js
 packages/react-dev-overlay/lib/**
 **/__tmp__/**
