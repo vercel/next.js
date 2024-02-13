@@ -35,20 +35,26 @@ impl CollectExportsVisitor {
 
 impl Visit for CollectExportsVisitor {
     fn visit_module_items(&mut self, stmts: &[swc_core::ecma::ast::ModuleItem]) {
+        let mut is_directive = true;
+
         for stmt in stmts {
             if let ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                 expr: box Expr::Lit(Lit::Str(Str { value, .. })),
                 ..
             })) = stmt
             {
-                if value == "use server" {
-                    let export_info = self.export_info.get_or_insert(Default::default());
-                    export_info.directives.insert("server".to_string());
+                if is_directive {
+                    if value == "use server" {
+                        let export_info = self.export_info.get_or_insert(Default::default());
+                        export_info.directives.insert("server".to_string());
+                    }
+                    if value == "use client" {
+                        let export_info = self.export_info.get_or_insert(Default::default());
+                        export_info.directives.insert("client".to_string());
+                    }
                 }
-                if value == "use client" {
-                    let export_info = self.export_info.get_or_insert(Default::default());
-                    export_info.directives.insert("client".to_string());
-                }
+            } else {
+                is_directive = false;
             }
 
             stmt.visit_children_with(self);

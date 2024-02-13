@@ -106,6 +106,11 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
 
                         match extract_value(ctx, &elem.expr, id.clone()) {
                             Some(Const::Value(value)) => a.push(value),
+                            Some(Const::Unsupported(message)) => {
+                                return Some(Const::Unsupported(format!(
+                                    "Unsupported value in the Array Expression: {message}"
+                                )))
+                            }
                             _ => {
                                 return Some(Const::Unsupported(
                                     "Unsupported value in the Array Expression".to_string(),
@@ -125,16 +130,20 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
             let mut o = Map::new();
 
             for prop in &obj.props {
-                let kv = match prop {
-                    PropOrSpread::Prop(box Prop::KeyValue(kv)) => match kv.key {
-                        PropName::Ident(_) | PropName::Str(_) => kv,
-                        _ => {
-                            return Some(Const::Unsupported(format!(
-                                "Unsupported key type in the Object Expression at \"{}\"",
-                                id
-                            )))
-                        }
-                    },
+                let (key, value) = match prop {
+                    PropOrSpread::Prop(box Prop::KeyValue(kv)) => (
+                        match &kv.key {
+                            PropName::Ident(i) => i.sym.as_ref(),
+                            PropName::Str(s) => s.value.as_ref(),
+                            _ => {
+                                return Some(Const::Unsupported(format!(
+                                    "Unsupported key type in the Object Expression at \"{}\"",
+                                    id
+                                )))
+                            }
+                        },
+                        &kv.value,
+                    ),
                     _ => {
                         return Some(Const::Unsupported(format!(
                             "Unsupported spread operator in the Object Expression at \"{}\"",
@@ -142,18 +151,7 @@ fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
                         )))
                     }
                 };
-
-                let key = match &kv.key {
-                    PropName::Ident(i) => i.sym.as_ref(),
-                    PropName::Str(s) => s.value.as_ref(),
-                    _ => {
-                        return Some(Const::Unsupported(format!(
-                            "Unsupported key type \"{:#?}\" in the Object Expression",
-                            kv.key
-                        )))
-                    }
-                };
-                let new_value = extract_value(ctx, &kv.value, format!("{}.{}", id, key));
+                let new_value = extract_value(ctx, value, format!("{}.{}", id, key));
                 if let Some(Const::Unsupported(msg)) = new_value {
                     return Some(Const::Unsupported(msg));
                 }
