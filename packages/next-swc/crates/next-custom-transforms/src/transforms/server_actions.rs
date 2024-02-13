@@ -1169,7 +1169,7 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
             span: DUMMY_SP,
             expr: Box::new(Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
-                left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.into()))),
+                left: ident.into(),
                 op: op!("="),
                 right: Box::new(expr),
             })),

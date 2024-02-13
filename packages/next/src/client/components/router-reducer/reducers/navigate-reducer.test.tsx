@@ -256,9 +256,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -450,9 +452,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -887,9 +891,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/linking" => {
             "data": Promise {},
+            "key": "/linking",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1113,9 +1119,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "auto",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1367,9 +1375,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/parallel-tab-bar/demographics" => {
             "data": Promise {},
+            "key": "/parallel-tab-bar/demographics",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -1710,9 +1720,11 @@ describe('navigateReducer', () => {
         "prefetchCache": Map {
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
