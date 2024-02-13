@@ -11,6 +11,7 @@ bench = false
 [features]
 __swc = []
 __swc_core = ["__swc"]
+__swc_core_serde = ["swc_core/ecma_ast_serde"]
 __swc_core_next_core = [
   "__swc_core",
   "swc_core/common_concurrent",
