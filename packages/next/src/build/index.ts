@@ -1317,7 +1317,7 @@ export default async function build(
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config.nextConfig,
+          nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
           env: process.env as Record<string, string>,
@@ -1335,8 +1335,8 @@ export default async function build(
           }),
         })
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const entrypointsSubscription = project.entrypointsSubscribe()
+        const entrypoints = await project.entrypoints()
+        console.log({ entrypoints })
         // for await (const entrypoints of entrypointsSubscription) {
         // }
         throw new Error("next build doesn't support turbopack yet")

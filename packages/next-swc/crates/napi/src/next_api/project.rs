@@ -298,7 +298,7 @@ pub async fn project_update(
 
 #[napi(object)]
 #[derive(Default)]
-struct NapiRoute {
+pub struct NapiRoute {
     /// The relative path from project_path to the route file
     pub pathname: String,
 
@@ -367,7 +367,7 @@ impl NapiRoute {
 }
 
 #[napi(object)]
-struct NapiMiddleware {
+pub struct NapiMiddleware {
     pub endpoint: External<ExternalEndpoint>,
 }
 
@@ -386,7 +386,7 @@ impl NapiMiddleware {
 }
 
 #[napi(object)]
-struct NapiInstrumentation {
+pub struct NapiInstrumentation {
     pub node_js: External<ExternalEndpoint>,
     pub edge: External<ExternalEndpoint>,
 }
@@ -410,7 +410,7 @@ impl NapiInstrumentation {
 }
 
 #[napi(object)]
-struct NapiEntrypoints {
+pub struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
     pub instrumentation: Option<NapiInstrumentation>,
@@ -440,6 +440,65 @@ async fn get_entrypoints_with_issues(
         diagnostics,
     }
     .cell())
+}
+
+#[napi]
+pub async fn project_entrypoints(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let container = project.container;
+
+    let EntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+    } = &*get_entrypoints_with_issues(container)
+        .strongly_consistent()
+        .await?;
+
+    let result = TurbopackResult {
+        result: NapiEntrypoints {
+            routes: entrypoints
+                .routes
+                .iter()
+                .map(|(pathname, &route)| {
+                    NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
+                })
+                .collect::<Vec<_>>(),
+            middleware: entrypoints
+                .middleware
+                .as_ref()
+                .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
+                .transpose()?,
+            instrumentation: entrypoints
+                .instrumentation
+                .as_ref()
+                .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
+                .transpose()?,
+            pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                entrypoints.pages_document_endpoint,
+            ))),
+            pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                entrypoints.pages_app_endpoint,
+            ))),
+            pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
+                turbo_tasks.clone(),
+                entrypoints.pages_error_endpoint,
+            ))),
+        },
+        issues: issues
+            .iter()
+            .map(|issue| NapiIssue::from(&**issue))
+            .collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    };
+    Ok(result)
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

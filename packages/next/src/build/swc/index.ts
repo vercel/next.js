@@ -611,6 +611,7 @@ export interface UpdateInfo {
 
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
+  entrypoints(): Promise<TurbopackResult<Entrypoints>>
   entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
   hmrIdentifiersSubscribe(): AsyncIterableIterator<
@@ -839,6 +840,10 @@ function bindingToApi(binding: any, _wasm: boolean) {
           await rustifyProjectOptions(options)
         )
       )
+    }
+
+    entrypoints() {
+      return binding.projectEntrypoints(this._nativeProject)
     }
 
     entrypointsSubscribe() {

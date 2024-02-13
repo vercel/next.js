@@ -131,11 +131,7 @@ export async function createHotReloaderTurbopack(
     }),
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntrypoints: CurrentEntrypoints = new Map()
-  const changeSubscriptions: Map<
-    string,
-    Promise<AsyncIterator<any>>
-  > = new Map()
+
   let prevMiddleware: boolean | undefined = undefined
 
   const globalEntrypoints: GlobalEntrypoints = {
@@ -295,6 +291,10 @@ export async function createHotReloaderTurbopack(
   > = new Map()
 
   const clients = new Set<ws>()
+  const changeSubscriptions: Map<
+    string,
+    Promise<AsyncIterator<any>>
+  > = new Map()
 
   const changeSubscription: ChangeSubscription = async (
     page,
@@ -373,6 +373,8 @@ export async function createHotReloaderTurbopack(
     const subscription = mapping?.get(id)
     subscription?.return!()
   }
+
+  const currentEntrypoints: CurrentEntrypoints = new Map()
 
   try {
     async function handleEntrypointsSubscription() {
