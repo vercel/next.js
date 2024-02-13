@@ -390,6 +390,25 @@ createNextDescribe(
           expect(newNumber).not.toBe(randomNumber)
         })
       })
+
+      it('should seed the prefetch cache with the fetched page data', async () => {
+        const browser = (await next.browser(
+          '/1',
+          browserConfigWithFixedTime
+        )) as BrowserInterface
+
+        const initialNumber = await browser.elementById('random-number').text()
+
+        // Move forward a few seconds, navigate off the page and then back to it
+        await browser.eval(fastForwardTo, 5 * 1000)
+        await browser.elementByCss('[href="/"]').click()
+        await browser.elementByCss('[href="/1"]').click()
+
+        const newNumber = await browser.elementById('random-number').text()
+
+        // The number should be the same as we've seeded it in the prefetch cache when we loaded the full page
+        expect(newNumber).toBe(initialNumber)
+      })
       describe('router.push', () => {
         it('should re-use the cache for 30 seconds', async () => {})
         it('should fully refetch the page after 30 seconds', async () => {})

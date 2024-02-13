@@ -38,6 +38,7 @@ import { stripInternalQueries } from '../internal-utils'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE,
+  NEXT_URL,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataComponents } from '../../lib/metadata/metadata'
@@ -429,6 +430,13 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     missingSlots,
   })
 
+  // When the `vary` response header is present with `Next-URL`, that means there's a chance
+  // it could respond differently if there's an interception route. We provide this information
+  // to `AppRouter` so that it can properly seed the prefetch cache with a prefix, if needed.
+  const varyHeader = ctx.res.getHeader('vary')
+  const couldBeIntercepted =
+    typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
+
   return (
     <>
       {styles}
@@ -440,6 +448,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
         initialTree={initialTree}
         // This is the tree of React nodes that are seeded into the cache
         initialSeedData={seedData}
+        couldBeIntercepted={couldBeIntercepted}
         initialHead={
           <>
             {ctx.res.statusCode > 400 && (

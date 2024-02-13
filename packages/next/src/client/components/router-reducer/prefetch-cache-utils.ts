@@ -1,5 +1,8 @@
 import { createHrefFromUrl } from './create-href-from-url'
-import { fetchServerResponse } from './fetch-server-response'
+import {
+  fetchServerResponse,
+  type FetchServerResponseResult,
+} from './fetch-server-response'
 import {
   PrefetchCacheEntryStatus,
   type PrefetchCacheEntry,
@@ -113,6 +116,10 @@ export function getOrCreatePrefetchCacheEntry({
   })
 }
 
+/*
+ * Used to take an existing cache entry and prefix it with the nextUrl, if it exists.
+ * This ensures that we don't have conflicting cache entries for the same URL (as is the case with route interception).
+ */
 function prefixExistingPrefetchCacheEntry({
   url,
   nextUrl,
@@ -133,7 +140,43 @@ function prefixExistingPrefetchCacheEntry({
 }
 
 /**
- * Creates a prefetch entry for data that has not been resolved. This will add the prefetch request to a promise queue.
+ * Use to seed the prefetch cache with data that has already been fetched.
+ */
+export function createPrefetchCacheEntryForInitialLoad({
+  nextUrl,
+  tree,
+  prefetchCache,
+  url,
+  kind,
+  data,
+}: Pick<ReadonlyReducerState, 'nextUrl' | 'tree' | 'prefetchCache'> & {
+  url: URL
+  kind: PrefetchKind
+  data: FetchServerResponseResult
+}) {
+  const [, , , intercept] = data
+  // if the prefetch corresponds with an interception route, we use the nextUrl to prefix the cache key
+  const prefetchCacheKey = intercept
+    ? createPrefetchCacheKey(url, nextUrl)
+    : createPrefetchCacheKey(url)
+
+  const prefetchEntry = {
+    treeAtTimeOfPrefetch: tree,
+    data: Promise.resolve(data),
+    kind,
+    prefetchTime: Date.now(),
+    lastUsedTime: null,
+    key: prefetchCacheKey,
+    status: PrefetchCacheEntryStatus.fresh,
+  }
+
+  prefetchCache.set(prefetchCacheKey, prefetchEntry)
+
+  return prefetchEntry
+}
+
+/**
+ * Creates a prefetch entry entry and enqueues a fetch request to retrieve the data.
  */
 function createLazyPrefetchEntry({
   url,
