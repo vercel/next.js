@@ -5,11 +5,11 @@ import {
 import { getModuleBuildInfo } from './get-module-build-info'
 import { regexCSS } from './utils'
 
-export type ClientComponentImports = string[]
+export type ClientComponentImports = Record<string, Set<string>>
 export type CssImports = Record<string, string[]>
 
 export type NextFlightClientEntryLoaderOptions = {
-  modules: ClientComponentImports
+  modules: string[]
   /** This is transmitted as a string to `getOptions` */
   server: boolean | 'true' | 'false'
 }
@@ -19,22 +19,23 @@ export default function transformSource(this: any) {
     this.getOptions()
   const isServer = server === 'true'
 
-  if (!Array.isArray(modules)) {
-    modules = modules ? [modules] : []
-  }
+  // if (!Array.isArray(modules)) {
+  //   modules = modules ? [modules] : []
+  // }
 
-  const requests = modules as string[]
-  const code = requests
+  const mods = modules || []
+  const importsCode = mods
     // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
-    .map(
-      (request) =>
-        `import(/* webpackMode: "eager" */ ${JSON.stringify(
-          request.startsWith(BARREL_OPTIMIZATION_PREFIX)
-            ? request.replace(':', '!=!')
-            : request
-        )})`
-    )
+    .map((request, index) => {
+      const importPath = JSON.stringify(
+        request.startsWith(BARREL_OPTIMIZATION_PREFIX)
+          ? request.replace(':', '!=!')
+          : request
+      )
+      // return !isServer ? `import * as _mod${index} from ${importPath}` :
+      return `import(/* webpackMode: "eager" */ ${importPath})`
+    })
     .join(';\n')
 
   const buildInfo = getModuleBuildInfo(this._module)
@@ -43,5 +44,14 @@ export default function transformSource(this: any) {
     type: RSC_MODULE_TYPES.client,
   }
 
+  const code = `
+  // function callMod(m) { m }
+
+  ${importsCode}
+
+  // ${mods.map((_, index) => `callMod(_mod${index})`).join(';\n')}
+  `
+
+  // console.log(code)
   return code
 }

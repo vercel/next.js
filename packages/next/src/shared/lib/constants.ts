@@ -97,6 +97,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = 'polyfills'
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
+export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
