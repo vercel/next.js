@@ -37,6 +37,7 @@ import {
 } from '../../../build/webpack/plugins/build-manifest-plugin'
 import type { PageEntrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
+import { getEntryKey, type EntryKey } from './entry-key'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -76,13 +77,13 @@ async function readPartialManifest<T>(
 }
 
 export class TurbopackManifestLoader {
-  private actionManifests: Map<string, ActionManifest> = new Map()
-  private appBuildManifests: Map<string, AppBuildManifest> = new Map()
-  private appPathsManifests: Map<string, PagesManifest> = new Map()
-  private buildManifests: Map<string, BuildManifest> = new Map()
-  private fontManifests: Map<string, NextFontManifest> = new Map()
-  private loadableManifests: Map<string, LoadableManifest> = new Map()
-  private middlewareManifests: Map<string, TurbopackMiddlewareManifest> =
+  private actionManifests: Map<EntryKey, ActionManifest> = new Map()
+  private appBuildManifests: Map<EntryKey, AppBuildManifest> = new Map()
+  private appPathsManifests: Map<EntryKey, PagesManifest> = new Map()
+  private buildManifests: Map<EntryKey, BuildManifest> = new Map()
+  private fontManifests: Map<EntryKey, NextFontManifest> = new Map()
+  private loadableManifests: Map<EntryKey, LoadableManifest> = new Map()
+  private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
   private pagesManifests: Map<string, PagesManifest> = new Map()
 
@@ -94,20 +95,20 @@ export class TurbopackManifestLoader {
     this.buildId = buildId
   }
 
-  delete(pageName: string) {
-    this.actionManifests.delete(pageName)
-    this.appBuildManifests.delete(pageName)
-    this.appPathsManifests.delete(pageName)
-    this.buildManifests.delete(pageName)
-    this.fontManifests.delete(pageName)
-    this.loadableManifests.delete(pageName)
-    this.middlewareManifests.delete(pageName)
-    this.pagesManifests.delete(pageName)
+  delete(key: EntryKey) {
+    this.actionManifests.delete(key)
+    this.appBuildManifests.delete(key)
+    this.appPathsManifests.delete(key)
+    this.buildManifests.delete(key)
+    this.fontManifests.delete(key)
+    this.loadableManifests.delete(key)
+    this.middlewareManifests.delete(key)
+    this.pagesManifests.delete(key)
   }
 
   async loadActionManifest(pageName: string): Promise<void> {
     this.actionManifests.set(
-      pageName,
+      getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
         `${SERVER_REFERENCE_MANIFEST}.json`,
@@ -174,7 +175,7 @@ export class TurbopackManifestLoader {
 
   async loadAppBuildManifest(pageName: string): Promise<void> {
     this.appBuildManifests.set(
-      pageName,
+      getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
         APP_BUILD_MANIFEST,
@@ -208,7 +209,7 @@ export class TurbopackManifestLoader {
 
   async loadAppPathsManifest(pageName: string): Promise<void> {
     this.appPathsManifests.set(
-      pageName,
+      getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
         APP_PATHS_MANIFEST,
@@ -252,7 +253,7 @@ export class TurbopackManifestLoader {
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
     this.buildManifests.set(
-      pageName,
+      getEntryKey(type, 'server', pageName),
       await readPartialManifest(this.distDir, BUILD_MANIFEST, pageName, type)
     )
   }
@@ -347,8 +348,8 @@ export class TurbopackManifestLoader {
   private async writeFallbackBuildManifest(): Promise<void> {
     const fallbackBuildManifest = this.mergeBuildManifests(
       [
-        this.buildManifests.get('_app'),
-        this.buildManifests.get('_error'),
+        this.buildManifests.get(getEntryKey('pages', 'server', '_app')),
+        this.buildManifests.get(getEntryKey('pages', 'server', '_error')),
       ].filter(Boolean) as BuildManifest[]
     )
     const fallbackBuildManifestPath = join(
@@ -367,7 +368,7 @@ export class TurbopackManifestLoader {
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
     this.fontManifests.set(
-      pageName,
+      getEntryKey(type, 'server', pageName),
       await readPartialManifest(
         this.distDir,
         `${NEXT_FONT_MANIFEST}.json`,
@@ -424,7 +425,7 @@ export class TurbopackManifestLoader {
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
     this.loadableManifests.set(
-      pageName,
+      getEntryKey(type, 'server', pageName),
       await readPartialManifest(
         this.distDir,
         REACT_LOADABLE_MANIFEST,
@@ -469,7 +470,11 @@ export class TurbopackManifestLoader {
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
   ): Promise<void> {
     this.middlewareManifests.set(
-      pageName,
+      getEntryKey(
+        type === 'middleware' || type === 'instrumentation' ? 'root' : type,
+        'server',
+        pageName
+      ),
       await readPartialManifest(
         this.distDir,
         MIDDLEWARE_MANIFEST,
@@ -479,12 +484,12 @@ export class TurbopackManifestLoader {
     )
   }
 
-  getMiddlewareManifest(pageName: string) {
-    return this.middlewareManifests.get(pageName)
+  getMiddlewareManifest(key: EntryKey) {
+    return this.middlewareManifests.get(key)
   }
 
-  deleteMiddlewareManifest(pageName: string) {
-    return this.middlewareManifests.delete(pageName)
+  deleteMiddlewareManifest(key: EntryKey) {
+    return this.middlewareManifests.delete(key)
   }
 
   private mergeMiddlewareManifests(
@@ -556,7 +561,7 @@ export class TurbopackManifestLoader {
 
   async loadPagesManifest(pageName: string): Promise<void> {
     this.pagesManifests.set(
-      pageName,
+      getEntryKey('pages', 'server', pageName),
       await readPartialManifest(this.distDir, PAGES_MANIFEST, pageName)
     )
   }

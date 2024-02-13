@@ -66,6 +66,11 @@ import { TurbopackManifestLoader } from './turbopack/manifest-loader'
 import type { Entrypoints } from './turbopack/types'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
+import {
+  type EntryKey,
+  getEntryKey,
+  splitEntryKey,
+} from './turbopack/entry-key'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -160,14 +165,17 @@ export async function createHotReloaderTurbopack(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
 
-  function clearRequireCache(id: string, writtenEndpoint: WrittenEndpoint) {
+  function clearRequireCache(
+    key: EntryKey,
+    writtenEndpoint: WrittenEndpoint
+  ): void {
     // Figure out if the server files have changed
     let hasChange = false
     for (const { path, contentHash } of writtenEndpoint.serverPaths) {
       // We ignore source maps
       if (path.endsWith('.map')) continue
-      const key = `${id}:${path}`
-      const localHash = serverPathState.get(key)
+      const localKey = `${key}:${path}`
+      const localHash = serverPathState.get(localKey)
       const globalHash = serverPathState.get(path)
       if (
         (localHash && localHash !== contentHash) ||
@@ -286,39 +294,34 @@ export async function createHotReloaderTurbopack(
   const clients = new Set<ws>()
 
   async function subscribeToChanges(
-    page: string,
-    type: 'client' | 'server',
+    key: EntryKey,
     includeIssues: boolean,
     endpoint: Endpoint | undefined,
     makePayload: (
-      page: string,
       change: TurbopackResult
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
-    const key = `${page} (${type})`
+    const [, side] = splitEntryKey(key)
+
     if (!endpoint || changeSubscriptions.has(key)) return
 
-    const changedPromise = endpoint[`${type}Changed`](includeIssues)
+    const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentIssues, page, change)
-      const payload = await makePayload(page, change)
+      processIssues(currentIssues, key, change)
+      const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
       }
     }
   }
 
-  async function unsubscribeFromChanges(
-    page: string,
-    type: 'server' | 'client'
-  ) {
-    const key = `${page} (${type})`
+  async function unsubscribeFromChanges(key: EntryKey) {
     const subscription = await changeSubscriptions.get(key)
     if (subscription) {
-      subscription.return?.()
+      await subscription.return?.()
       changeSubscriptions.delete(key)
     }
     currentIssues.delete(key)
@@ -335,13 +338,15 @@ export async function createHotReloaderTurbopack(
     const subscription = project!.hmrEvents(id)
     mapping.set(id, subscription)
 
+    const key = getEntryKey('assets', 'client', id)
+
     // The subscription will always emit once, which is the initial
     // computation. This is not a change, so swallow it.
     try {
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(currentIssues, id, data)
+        processIssues(currentIssues, key, data)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -349,7 +354,7 @@ export async function createHotReloaderTurbopack(
     } catch (e) {
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
-      // `hotReloader.send` since that would force very connected client to
+      // `hotReloader.send` since that would force every connected client to
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
@@ -571,7 +576,11 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async getCompilationErrors(page) {
-      const thisPageIssues = currentIssues.get(page)
+      const appKey = getEntryKey('app', 'server', page)
+      const pagesKey = getEntryKey('pages', 'server', page)
+
+      const thisPageIssues =
+        currentIssues.get(appKey) ?? currentIssues.get(pagesKey)
       if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         return [...thisPageIssues.values()].map(
@@ -679,6 +688,7 @@ export async function createHotReloaderTurbopack(
       try {
         await handleRouteType({
           page,
+          pathname,
           route,
 
           currentIssues,
@@ -709,7 +719,7 @@ export async function createHotReloaderTurbopack(
   await currentEntriesHandling
   await manifestLoader.writeManifests({
     rewrites: opts.fsChecker.rewrites,
-    pageRoutes: currentEntrypoints.page,
+    pageEntrypoints: currentEntrypoints.page,
   })
 
   async function handleProjectUpdates() {

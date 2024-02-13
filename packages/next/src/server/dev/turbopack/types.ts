@@ -1,9 +1,4 @@
-import type {
-  Endpoint,
-  Instrumentation,
-  Middleware,
-  Route,
-} from '../../../build/swc'
+import type { Endpoint, Instrumentation, Middleware } from '../../../build/swc'
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

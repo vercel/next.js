@@ -1423,6 +1423,7 @@ export default async function build(
           promises.push(
             handleRouteType({
               page,
+              pathname: page,
               route,
 
               currentIssues,
@@ -1437,6 +1438,7 @@ export default async function build(
           promises.push(
             handleRouteType({
               page,
+              pathname: normalizeAppPath(page),
               route,
 
               currentIssues,
