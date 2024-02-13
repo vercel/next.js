@@ -1,8 +1,7 @@
-//! The original transform is available on the Next.js repository:
-//! https://github.com/vercel/next.js/blob/f7fecf00cb40c2f784387ff8ccc5e213b8bdd9ca/packages/next-swc/crates/core/src/next_ssg.rs
+//! The original transform is available on the [Next.js repository](https://github.com/vercel/next.js/blob/f7fecf00cb40c2f784387ff8ccc5e213b8bdd9ca/packages/next-swc/crates/core/src/next_ssg.rs):
 //!
 //! This version adds support for eliminating client-side exports only.
-//! [TODO] may consolidate into next_ssg
+//! **TODO** may consolidate into next_ssg
 
 use std::{cell::RefCell, mem::take, rc::Rc};
 
