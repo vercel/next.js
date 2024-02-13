@@ -1,6 +1,7 @@
 import { createNextDescribe, FileRef } from 'e2e-utils'
 import { getRedboxSource, hasRedbox } from 'next-test-utils'
 import { join } from 'path'
+import cheerio from 'cheerio'
 
 // TODO-APP: due to a current implementation limitation, we don't have proper tree
 // shaking when across the server/client boundaries (e.g. all referenced client
@@ -291,28 +292,30 @@ describe('app dir - next/font', () => {
           if (!isDev) {
             describe('preload', () => {
               it('should preload correctly with server components', async () => {
-                const $ = await next.render$('/')
+                const result = await next.fetch('/')
+                const headers = result.headers
+
+                const html = await result.text()
+                const $ = cheerio.load(html)
 
                 // Preconnect
                 expect($('link[rel="preconnect"]').length).toBe(0)
 
+                const fontPreloadlinksInHeaders = headers
+                  .get('link')
+                  .split(', ')
+                  .filter((link) => link.match(/as=.*font/))
+                expect(fontPreloadlinksInHeaders.length).toBeGreaterThan(2)
+                for (const link of fontPreloadlinksInHeaders) {
+                  expect(link).toMatch(/<[^>]*?_next[^>]*?\.woff2>/)
+                  expect(link).toMatch(/rel=.*preload/)
+                  expect(link).toMatch(/crossorigin=""/)
+                }
+
                 const items = getAttrs($('link[as="font"]'))
 
-                for (const item of items) {
-                  expect(item.as).toBe('font')
-                  expect(item.crossorigin).toBe('')
-                  if (process.env.TURBOPACK) {
-                    expect(item.href).toMatch(
-                      /\/_next\/static\/media\/(.*)-s.p.(.*)\.woff2/
-                    )
-                  } else {
-                    expect(item.href).toMatch(
-                      /\/_next\/static\/media\/(.*)-s.p.woff2/
-                    )
-                  }
-                  expect(item.rel).toBe('preload')
-                  expect(item.type).toBe('font/woff2')
-                }
+                // We expect the font preloads to be in headers exclusively
+                expect(items.length).toBe(0)
               })
 
               it('should preload correctly with client components', async () => {

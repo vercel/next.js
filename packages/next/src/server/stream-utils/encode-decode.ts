@@ -8,11 +8,3 @@ export function createDecodeTransformStream(decoder = new TextDecoder()) {
     },
   })
 }
-
-export function createEncodeTransformStream(encoder = new TextEncoder()) {
-  return new TransformStream<string, Uint8Array>({
-    transform(chunk, controller) {
-      return controller.enqueue(encoder.encode(chunk))
-    },
-  })
-}
