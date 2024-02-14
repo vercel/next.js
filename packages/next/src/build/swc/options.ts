@@ -484,7 +484,7 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typesof) {
+    if (options.jsc.transform.optimizer.globals?.typeofs) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }
