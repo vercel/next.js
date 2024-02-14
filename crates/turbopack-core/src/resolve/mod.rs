@@ -1686,8 +1686,14 @@ async fn resolve_into_folder(
             } => {
                 if let Some(package_json) = &*read_package_json(package_json_path).await? {
                     if let Some(field_value) = package_json[name].as_str() {
-                        let request =
-                            Request::parse(Value::new(normalize_request(field_value).into()));
+                        let normalized_request = normalize_request(field_value);
+                        if normalized_request.is_empty()
+                            || normalized_request == "."
+                            || normalized_request == "./"
+                        {
+                            continue;
+                        }
+                        let request = Request::parse(Value::new(normalized_request.into()));
 
                         let options = if let Some(extensions) = extensions {
                             options.with_extensions(extensions.clone())
