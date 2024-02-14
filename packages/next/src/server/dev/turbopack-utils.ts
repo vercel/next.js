@@ -272,6 +272,7 @@ export type ActionManifests = Map<string, ActionManifest>
 export type FontManifests = Map<string, NextFontManifest>
 export type LoadableManifests = Map<string, LoadableManifest>
 export type CurrentEntrypoints = Map<string, Route>
+export type ChangeSubscriptions = Map<string, Promise<AsyncIterator<any>>>
 
 export async function loadMiddlewareManifest(
   distDir: string,
@@ -794,6 +795,19 @@ export type ChangeSubscription = (
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
 ) => Promise<void>
 
+export type ClearChangeSubscription = (
+  page: string,
+  type: 'server' | 'client'
+) => Promise<void>
+
+export type SendHmr = (id: string, payload: HMR_ACTION_TYPES) => void
+
+export type StartBuilding = (
+  id: string,
+  requestUrl: string | undefined,
+  forceRebuild: boolean
+) => () => void
+
 export type ReadyIds = Set<string>
 
 export async function handleRouteType({
@@ -1085,18 +1099,11 @@ export async function handleEntrypoints({
   distDir: string
   globalEntrypoints: GlobalEntrypoints
   currentEntrypoints: CurrentEntrypoints
-  changeSubscriptions: Map<string, Promise<AsyncIterator<any>>>
+  changeSubscriptions: ChangeSubscriptions
   changeSubscription: ChangeSubscription
-  clearChangeSubscription: (
-    page: string,
-    type: 'server' | 'client'
-  ) => Promise<void>
-  sendHmr: (id: string, payload: HMR_ACTION_TYPES) => void
-  startBuilding: (
-    id: string,
-    requestUrl: string | undefined,
-    forceRebuild: boolean
-  ) => () => void
+  clearChangeSubscription: ClearChangeSubscription
+  sendHmr: SendHmr
+  startBuilding: StartBuilding
   handleRequireCacheClearing: HandleRequireCacheClearing
   prevMiddleware: boolean | undefined
   currentIssues: CurrentIssues

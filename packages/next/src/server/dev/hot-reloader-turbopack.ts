@@ -63,6 +63,10 @@ import {
   type ChangeSubscription,
   handleRouteType,
   handleEntrypoints,
+  type ClearChangeSubscription,
+  type SendHmr,
+  type StartBuilding,
+  type ChangeSubscriptions,
 } from './turbopack-utils'
 import {
   type ServerFields,
@@ -151,10 +155,7 @@ export async function createHotReloaderTurbopack(
   const loadableManifests: LoadableManifests = new Map()
 
   // Dev specific
-  const changeSubscriptions: Map<
-    string,
-    Promise<AsyncIterator<any>>
-  > = new Map()
+  const changeSubscriptions: ChangeSubscriptions = new Map()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
@@ -216,11 +217,11 @@ export async function createHotReloaderTurbopack(
   }
   const buildingIds = new Set()
 
-  function startBuilding(
-    id: string,
-    requestUrl: string | undefined,
-    forceRebuild: boolean = false
-  ) {
+  const startBuilding: StartBuilding = (
+    id,
+    requestUrl,
+    forceRebuild = false
+  ) => {
     if (!forceRebuild && readyIds.has(id)) {
       return () => {}
     }
@@ -275,7 +276,7 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  function sendHmr(id: string, payload: HMR_ACTION_TYPES) {
+  const sendHmr: SendHmr = (id, payload) => {
     hmrPayloads.set(`${id}`, payload)
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
@@ -317,10 +318,10 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  async function clearChangeSubscription(
-    page: string,
-    type: 'server' | 'client'
-  ) {
+  const clearChangeSubscription: ClearChangeSubscription = async (
+    page,
+    type
+  ) => {
     const key = `${page} (${type})`
     const subscription = await changeSubscriptions.get(key)
     if (subscription) {
