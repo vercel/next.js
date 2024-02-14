@@ -25,7 +25,7 @@ describe('Edge compiler module exports preference', () => {
             })
           }
         `,
-        'my-lib/package.json': JSON.stringify({
+        'node_modules/my-lib/package.json': JSON.stringify({
           name: 'my-lib',
           version: '1.0.0',
           main: 'index.js',
