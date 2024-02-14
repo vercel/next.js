@@ -1121,6 +1121,7 @@ createNextDescribe(
           await browser.elementByCss('#router-replace').click()
           await browser.elementByCss('#router-replace').click()
 
+          await check(() => browser.waitForElementByCss('#counter').text(), '2')
           await check(() => browser.waitForElementByCss('#error').text(), '')
         } finally {
           await browser.close()
