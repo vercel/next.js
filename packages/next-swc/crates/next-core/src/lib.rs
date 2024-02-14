@@ -48,8 +48,7 @@ pub use next_edge::context::{
     get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
-use turbopack_binding::turbo;
-pub use turbopack_binding::{turbopack, turbopack::node::source_map};
+use turbopack_binding::{turbo, turbopack};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
 
 pub fn register() {
