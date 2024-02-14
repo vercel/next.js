@@ -5,9 +5,12 @@ const tasks: (() => Promise<any>)[] = []
 
 async function resolveTasksSequentially(): Promise<void> {
   let result = Promise.resolve()
-  tasks.forEach((task) => {
+
+  for (let i = 0; i < tasks.length; i++) {
+    const task = tasks[i]
     result = result.then(() => task())
-  })
+  }
+
   await result
   tasks.length = 0 // Clear tasks after all are executed
 }
