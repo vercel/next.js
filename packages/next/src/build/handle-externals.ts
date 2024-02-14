@@ -151,6 +151,7 @@ export function makeExternalHandler({
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+  const optOutBundlingPackagesSet = new Set(optOutBundlingPackages)
 
   return async function handleExternals(
     context: string,
@@ -220,27 +221,6 @@ export function makeExternalHandler({
     // Also disable esm request when appDir is enabled
     const isEsmRequested = dependencyType === 'esm'
 
-    /**
-     * @param localRes the full path to the file
-     * @returns the externalized path
-     * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
-     * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
-     * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
-     */
-    const resolveNextExternal = (localRes: string) => {
-      const isExternal = externalPattern.test(localRes)
-
-      // if the file ends with .external, we need to make it a commonjs require in all cases
-      // this is used mainly to share the async local storage across the routing, rendering and user layers.
-      if (isExternal) {
-        // it's important we return the path that starts with `next/dist/` here instead of the absolute path
-        // otherwise NFT will get tripped up
-        return `commonjs ${normalizePathSep(
-          localRes.replace(/.*?next[/\\]dist/, 'next/dist')
-        )}`
-      }
-    }
-
     // Don't bundle @vercel/og nodejs bundle for nodejs runtime.
     // TODO-APP: bundle route.js with different layer that externals common node_module deps.
     // Make sure @vercel/og is loaded as ESM for Node.js runtime
@@ -288,11 +268,17 @@ export function makeExternalHandler({
     // Early return if the request needs to be bundled, such as in the client layer.
     // Treat react packages and next internals as external for SSR layer,
     // also map react to builtin ones with require-hook.
+    // Otherwise keep continue the process to resolve the externals.
     if (layer === WEBPACK_LAYERS.serverSideRendering) {
       const isRelative = request.startsWith('.')
       const fullRequest = isRelative
         ? normalizePathSep(path.join(context, request))
         : request
+
+      // Check if it's opt out bundling package first
+      if (optOutBundlingPackagesSet.has(fullRequest)) {
+        return fullRequest
+      }
       return resolveNextExternal(fullRequest)
     }
 
@@ -374,28 +360,85 @@ export function makeExternalHandler({
       }
     }
 
-    const shouldBeBundled =
-      isResourceInPackages(
-        res,
-        config.transpilePackages,
-        resolvedExternalPackageDirs
-      ) ||
-      (isEsm && isAppLayer) ||
-      (!isAppLayer && config.experimental.bundlePagesExternals)
-
-    if (nodeModulesRegex.test(res)) {
-      if (isWebpackServerLayer(layer)) {
-        if (!optOutBundlingPackageRegex.test(res)) {
-          return // Bundle for server layer
-        }
-        return `${externalType} ${request}` // Externalize if opted out
-      }
-
-      if (!shouldBeBundled || optOutBundlingPackageRegex.test(res)) {
-        return `${externalType} ${request}` // Externalize if not bundled or opted out
-      }
+    const resolvedBundlingOptOutRes = resolveBundlingOptOutPackages({
+      resolvedRes: res,
+      optOutBundlingPackageRegex,
+      config,
+      resolvedExternalPackageDirs,
+      isEsm,
+      isAppLayer,
+      layer,
+      externalType,
+      request,
+    })
+    if (resolvedBundlingOptOutRes) {
+      return resolvedBundlingOptOutRes
     }
 
     // if here, we default to bundling the file
+    return
+  }
+}
+
+function resolveBundlingOptOutPackages({
+  resolvedRes,
+  optOutBundlingPackageRegex,
+  config,
+  resolvedExternalPackageDirs,
+  isEsm,
+  isAppLayer,
+  layer,
+  externalType,
+  request,
+}: {
+  resolvedRes: string
+  optOutBundlingPackageRegex: RegExp
+  config: NextConfigComplete
+  resolvedExternalPackageDirs: Map<string, string>
+  isEsm: boolean
+  isAppLayer: boolean
+  layer: WebpackLayerName | null
+  externalType: string
+  request: string
+}) {
+  const shouldBeBundled =
+    isResourceInPackages(
+      resolvedRes,
+      config.transpilePackages,
+      resolvedExternalPackageDirs
+    ) ||
+    (isEsm && isAppLayer) ||
+    (!isAppLayer && config.experimental.bundlePagesExternals)
+
+  if (nodeModulesRegex.test(resolvedRes)) {
+    const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
+    if (isWebpackServerLayer(layer)) {
+      if (isOptOutBundling) {
+        return `${externalType} ${request}` // Externalize if opted out
+      }
+    } else if (!shouldBeBundled || isOptOutBundling) {
+      return `${externalType} ${request}` // Externalize if not bundled or opted out
+    }
+  }
+}
+
+/**
+ * @param localRes the full path to the file
+ * @returns the externalized path
+ * @description returns an externalized path if the file is a Next.js file and ends with either `.shared-runtime.js` or `.external.js`
+ * This is used to ensure that files used across the rendering runtime(s) and the user code are one and the same. The logic in this function
+ * will rewrite the require to the correct bundle location depending on the layer at which the file is being used.
+ */
+function resolveNextExternal(localRes: string) {
+  const isExternal = externalPattern.test(localRes)
+
+  // if the file ends with .external, we need to make it a commonjs require in all cases
+  // this is used mainly to share the async local storage across the routing, rendering and user layers.
+  if (isExternal) {
+    // it's important we return the path that starts with `next/dist/` here instead of the absolute path
+    // otherwise NFT will get tripped up
+    return `commonjs ${normalizePathSep(
+      localRes.replace(/.*?next[/\\]dist/, 'next/dist')
+    )}`
   }
 }
