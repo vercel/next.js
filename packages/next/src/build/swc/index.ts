@@ -410,11 +410,6 @@ export interface ProjectOptions {
    * Whether to watch the filesystem for file changes.
    */
   watch: boolean
-
-  /**
-   * The address of the dev server.
-   */
-  serverAddr: string
 }
 
 type RustifiedEnv = { name: string; value: string }[]

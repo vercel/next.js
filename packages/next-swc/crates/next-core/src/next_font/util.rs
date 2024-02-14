@@ -64,7 +64,7 @@ pub(crate) async fn get_scoped_font_family(
     Ok(Vc::cell(format!("__{}_{}", font_family_name, hash)))
 }
 
-/// Returns a [[Vc<String>]] uniquely identifying the request for the font.
+/// Returns a [Vc] for [String] uniquely identifying the request for the font.
 #[turbo_tasks::function]
 pub async fn get_request_id(font_family: Vc<String>, request_hash: Vc<u32>) -> Result<Vc<String>> {
     Ok(Vc::cell(format!(

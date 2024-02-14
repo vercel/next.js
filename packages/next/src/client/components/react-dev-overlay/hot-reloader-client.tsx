@@ -80,6 +80,8 @@ function reportHmrLatency(
 ) {
   if (!startLatency) return
   let endLatency = Date.now()
+  const latency = endLatency - startLatency
+  console.log(`[Fast Refresh] done in ${latency}ms`)
   sendMessage(
     JSON.stringify({
       event: 'client-hmr-latency',
