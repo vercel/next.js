@@ -5,15 +5,15 @@ import type {
   UnhandledErrorAction,
 } from './error-overlay-reducer'
 
-import { ShadowPortal } from './components/ShadowPortal'
-import { BuildError } from './container/BuildError'
-import { Errors } from './container/Errors'
-import type { SupportedErrorEvent } from './container/Errors'
-import { RootLayoutError } from './container/RootLayoutError'
-import { parseStack } from './helpers/parseStack'
-import { Base } from './styles/Base'
-import { ComponentStyles } from './styles/ComponentStyles'
-import { CssReset } from './styles/CssReset'
+import { ShadowPortal } from '../internal/components/ShadowPortal'
+import { BuildError } from '../internal/container/BuildError'
+import { Errors } from '../internal/container/Errors'
+import type { SupportedErrorEvent } from '../internal/container/Errors'
+import { RootLayoutError } from '../internal/container/RootLayoutError'
+import { parseStack } from '../internal/helpers/parseStack'
+import { Base } from '../internal/styles/Base'
+import { ComponentStyles } from '../internal/styles/ComponentStyles'
+import { CssReset } from '../internal/styles/CssReset'
 
 interface ReactDevOverlayState {
   reactError: SupportedErrorEvent | null
@@ -86,12 +86,14 @@ class ReactDevOverlay extends React.PureComponent<
               />
             ) : reactError ? (
               <Errors
+                isAppDir={true}
                 versionInfo={state.versionInfo}
                 initialDisplayState="fullscreen"
                 errors={[reactError]}
               />
             ) : hasRuntimeErrors ? (
               <Errors
+                isAppDir={true}
                 initialDisplayState="minimized"
                 errors={state.errors}
                 versionInfo={state.versionInfo}

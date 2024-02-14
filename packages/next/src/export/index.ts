@@ -516,7 +516,7 @@ export async function exportAppImpl(
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
-    ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
+    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.

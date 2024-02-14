@@ -136,7 +136,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 

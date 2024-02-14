@@ -619,8 +619,8 @@ function Router({
         </DevRootNotFoundBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
-      require('./react-dev-overlay/hot-reloader-client').default
+    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
+      require('./react-dev-overlay/app/hot-reloader-client').default
 
     content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
   }

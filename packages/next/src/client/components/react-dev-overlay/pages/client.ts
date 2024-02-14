@@ -1,11 +1,11 @@
-import * as Bus from './internal/bus'
-import { parseStack } from './internal/helpers/parseStack'
-import { parseComponentStack } from 'next/dist/client/components/react-dev-overlay/internal/helpers/parse-component-stack'
+import * as Bus from './bus'
+import { parseStack } from '../internal/helpers/parseStack'
+import { parseComponentStack } from '../internal/helpers/parse-component-stack'
 import {
   hydrationErrorComponentStack,
   hydrationErrorWarning,
   patchConsoleError,
-} from 'next/dist/client/components/react-dev-overlay/internal/helpers/hydration-error-info'
+} from '../internal/helpers/hydration-error-info'
 
 // Patch console.error to collect information about hydration errors
 patchConsoleError()
@@ -32,11 +32,9 @@ function onUnhandledError(ev: ErrorEvent) {
   }
 
   const e = error
-  const componentStack =
+  const componentStackFrames =
     typeof hydrationErrorComponentStack === 'string'
-      ? parseComponentStack(hydrationErrorComponentStack).map(
-          (frame: any) => frame.component
-        )
+      ? parseComponentStack(hydrationErrorComponentStack)
       : undefined
 
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
@@ -46,7 +44,7 @@ function onUnhandledError(ev: ErrorEvent) {
       type: Bus.TYPE_UNHANDLED_ERROR,
       reason: error,
       frames: parseStack(e.stack!),
-      componentStack,
+      componentStackFrames,
     })
   }
 }
@@ -119,9 +117,9 @@ function onBeforeRefresh() {
   Bus.emit({ type: Bus.TYPE_BEFORE_REFRESH })
 }
 
-export { getErrorByType } from './internal/helpers/getErrorByType'
-export { getServerError } from './internal/helpers/nodeStackFrames'
-export { default as ReactDevOverlay } from './internal/ReactDevOverlay'
+export { getErrorByType } from '../internal/helpers/getErrorByType'
+export { getServerError } from '../internal/helpers/nodeStackFrames'
+export { default as ReactDevOverlay } from './ReactDevOverlay'
 export {
   onBuildOk,
   onBuildError,
