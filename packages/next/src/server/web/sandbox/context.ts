@@ -29,15 +29,16 @@ interface ModuleContext {
 }
 
 let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
-let decorateServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').decorateServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
   const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
   getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**

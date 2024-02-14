@@ -105,6 +105,7 @@ import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
+import { getErrorSource } from '../shared/lib/error-source'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -370,9 +371,6 @@ export function errorToJSON(err: Error) {
     'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    const getErrorSource: typeof import('../client/components/react-dev-overlay/server/middleware').getErrorSource =
-      require('../client/components/react-dev-overlay/server/middleware').getErrorSource
-
     source = getErrorSource(err) || 'server'
   }
 

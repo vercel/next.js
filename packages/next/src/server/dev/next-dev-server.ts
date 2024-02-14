@@ -34,6 +34,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PAGES_MANIFEST,
   APP_PATHS_MANIFEST,
+  COMPILER_NAMES,
 } from '../../shared/lib/constants'
 import Server, { WrappedBuildError } from '../next-server'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -64,7 +65,7 @@ import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
 import { generateInterceptionRoutesRewrites } from '../../lib/generate-interception-routes-rewrites'
 import { buildCustomRoute } from '../../lib/build-custom-route'
-import { decorateServerError } from '../../client/components/react-dev-overlay/server/middleware'
+import { decorateServerError } from '../../shared/lib/error-source'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: FunctionComponent
@@ -398,7 +399,7 @@ export default class DevServer extends Server {
       }
 
       const err = getProperError(error)
-      decorateServerError(err, 'edge-server')
+      decorateServerError(err, COMPILER_NAMES.edgeServer)
       const { request, response, parsedUrl } = params
 
       /**

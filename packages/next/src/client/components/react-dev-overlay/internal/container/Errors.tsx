@@ -18,12 +18,12 @@ import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
 import { getErrorByType } from '../helpers/getErrorByType'
 import type { ReadyRuntimeError } from '../helpers/getErrorByType'
-import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {

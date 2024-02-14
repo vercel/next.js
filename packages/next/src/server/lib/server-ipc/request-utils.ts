@@ -1,3 +1,4 @@
+import { decorateServerError } from '../../../shared/lib/error-source'
 import { PageNotFoundError } from '../../../shared/lib/utils'
 import { invokeRequest } from './invoke-request'
 
@@ -24,8 +25,6 @@ export const deserializeErr = (serializedErr: any) => {
     process.env.NODE_ENV === 'development' &&
     process.env.NEXT_RUNTIME !== 'edge'
   ) {
-    const { decorateServerError } =
-      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
     decorateServerError(err, serializedErr.source || 'server')
   }
   return err

@@ -61,7 +61,6 @@ import {
 } from '../../../build/utils'
 import {
   createOriginalStackFrame,
-  getErrorSource,
   getSourceById,
   parseStack,
 } from '../../../client/components/react-dev-overlay/server/middleware'
@@ -71,6 +70,7 @@ import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
+import { getErrorSource } from '../../../shared/lib/error-source'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance

@@ -8,12 +8,7 @@ import url from 'url'
 import type webpack from 'webpack'
 import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
 import { launchEditor } from '../internal/helpers/launchEditor'
-
-export { getErrorSource } from '../internal/helpers/nodeStackFrames'
-export {
-  decorateServerError,
-  getServerError,
-} from '../internal/helpers/nodeStackFrames'
+export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { parseStack } from '../internal/helpers/parseStack'
 
 export type OverlayMiddlewareOptions = {

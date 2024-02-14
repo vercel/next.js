@@ -3,10 +3,10 @@ import {
   ACTION_UNHANDLED_REJECTION,
 } from '../../app/error-overlay-reducer'
 import type { SupportedErrorEvent } from '../container/Errors'
-import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
 import type { ComponentStackFrame } from './parse-component-stack'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 
 export type ReadyRuntimeError = {
   id: number
