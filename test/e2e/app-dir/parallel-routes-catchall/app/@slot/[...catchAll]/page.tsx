@@ -1,3 +1,9 @@
+import { ClientComponent } from './client-component'
+
 export default function Page() {
-  return 'slot catchall'
+  return (
+    <div>
+      slot catchall <ClientComponent />
+    </div>
+  )
 }

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use turbo_tasks::Vc;
@@ -10,7 +12,10 @@ use turbopack_binding::turbopack::{
         module::Module,
         reference::ModuleReferences,
     },
-    ecmascript::chunk::EcmascriptChunkType,
+    ecmascript::{
+        chunk::EcmascriptChunkType,
+        references::esm::{EsmExport, EsmExports},
+    },
     turbopack::ecmascript::{
         chunk::{
             EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
@@ -97,8 +102,21 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        // TODO This should be EsmExports
-        EcmascriptExports::Value.cell()
+        let exports = BTreeMap::from([(
+            "default".to_string(),
+            EsmExport::ImportedNamespace(Vc::upcast(NextServerComponentModuleReference::new(
+                Vc::upcast(self.module),
+            ))),
+        )]);
+
+        EcmascriptExports::EsmExports(
+            EsmExports {
+                exports,
+                star_exports: Default::default(),
+            }
+            .cell(),
+        )
+        .cell()
     }
 }
 

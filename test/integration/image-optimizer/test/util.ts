@@ -20,6 +20,8 @@ import type { RequestInit } from 'node-fetch'
 const largeSize = 1080 // defaults defined in server/config.ts
 const sharpMissingText = `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended`
 const sharpOutdatedText = `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version`
+const animatedWarnText =
+  'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
 
 export async function serveSlowImage() {
   const port = await findPort()
@@ -208,6 +210,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.gif"`
     )
     await expectWidth(res, 50, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated png', async () => {
@@ -224,6 +227,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.png"`
     )
     await expectWidth(res, 100, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated png 2', async () => {
@@ -240,6 +244,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated2.png"`
     )
     await expectWidth(res, 1105, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   it('should maintain animated webp', async () => {
@@ -256,6 +261,7 @@ export function runTests(ctx) {
       `${contentDispositionType}; filename="animated.webp"`
     )
     await expectWidth(res, 400, { expectAnimated: true })
+    expect(ctx.nextOutput).toContain(animatedWarnText)
   })
 
   if (ctx.dangerouslyAllowSVG) {
@@ -282,6 +288,7 @@ export function runTests(ctx) {
         'utf8'
       )
       expect(actual).toMatch(expected)
+      expect(ctx.nextOutput).not.toContain('The requested resource')
     })
   } else {
     it('should not allow vector svg', async () => {
@@ -1320,6 +1327,12 @@ export const setupTests = (ctx) => {
       }
 
       beforeAll(async () => {
+        const json = JSON.stringify({
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
+        })
+        nextConfig.replace('{ /* replaceme */ }', json)
         curCtx.nextOutput = ''
         curCtx.appPort = await findPort()
         curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
@@ -1336,6 +1349,7 @@ export const setupTests = (ctx) => {
         await cleanImagesDir(ctx)
       })
       afterAll(async () => {
+        nextConfig.restore()
         if (curCtx.app) await killApp(curCtx.app)
       })
 
@@ -1365,6 +1379,9 @@ export const setupTests = (ctx) => {
       beforeAll(async () => {
         const json = JSON.stringify({
           images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)
@@ -1403,6 +1420,12 @@ export const setupTests = (ctx) => {
           isDev: false,
         }
         beforeAll(async () => {
+          const json = JSON.stringify({
+            experimental: {
+              outputFileTracingRoot: join(__dirname, '../../../..'),
+            },
+          })
+          nextConfig.replace('{ /* replaceme */ }', json)
           curCtx.nextOutput = ''
           await nextBuild(curCtx.appDir)
           await cleanImagesDir(ctx)
@@ -1420,6 +1443,7 @@ export const setupTests = (ctx) => {
           })
         })
         afterAll(async () => {
+          nextConfig.restore()
           if (curCtx.app) await killApp(curCtx.app)
         })
 
@@ -1452,6 +1476,9 @@ export const setupTests = (ctx) => {
       beforeAll(async () => {
         const json = JSON.stringify({
           images: curCtx.nextConfigImages,
+          experimental: {
+            outputFileTracingRoot: join(__dirname, '../../../..'),
+          },
         })
         curCtx.nextOutput = ''
         nextConfig.replace('{ /* replaceme */ }', json)

@@ -416,12 +416,20 @@ export async function renderToHTMLImpl(
 
   const metadata: PagesRenderResultMetadata = {}
 
-  // In dev we invalidate the cache by appending a timestamp to the resource URL.
-  // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-  // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-  metadata.assetQueryString = renderOpts.dev
-    ? renderOpts.assetQueryString || `?ts=${Date.now()}`
-    : ''
+  metadata.assetQueryString =
+    (renderOpts.dev && renderOpts.assetQueryString) || ''
+
+  if (renderOpts.dev && !metadata.assetQueryString) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
+    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      // In dev we invalidate the cache by appending a timestamp to the resource URL.
+      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
+      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
+      // Note: The workaround breaks breakpoints on reload since the script url always changes,
+      // so we only apply it to Safari.
+      metadata.assetQueryString = `?ts=${Date.now()}`
+    }
+  }
 
   // if deploymentId is provided we append it to all asset requests
   if (renderOpts.deploymentId) {

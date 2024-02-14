@@ -122,10 +122,7 @@ function HistoryUpdater({
   useInsertionEffect(() => {
     const { tree, pushRef, canonicalUrl } = appRouterState
     const historyState = {
-      ...(process.env.__NEXT_WINDOW_HISTORY_SUPPORT &&
-      pushRef.preserveCustomHistoryState
-        ? window.history.state
-        : {}),
+      ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
       // Identifier is shortened intentionally.
       // __NA is used to identify if the history entry can be handled by the app-router.
       // __N is used to identify if the history entry can be handled by the old router.
@@ -267,6 +264,7 @@ function Router({
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
+  couldBeIntercepted,
   assetPrefix,
   missingSlots,
 }: AppRouterProps) {
@@ -278,11 +276,18 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
-        isServer,
         location: !isServer ? window.location : null,
         initialHead,
+        couldBeIntercepted,
       }),
-    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
+    [
+      buildId,
+      initialSeedData,
+      initialCanonicalUrl,
+      initialTree,
+      initialHead,
+      couldBeIntercepted,
+    ]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
@@ -467,65 +472,72 @@ function Router({
     const originalReplaceState = window.history.replaceState.bind(
       window.history
     )
-    if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
-      // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
-      const applyUrlFromHistoryPushReplace = (
-        url: string | URL | null | undefined
-      ) => {
-        const href = window.location.href
-        startTransition(() => {
-          dispatch({
-            type: ACTION_RESTORE,
-            url: new URL(url ?? href, href),
-            tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-          })
-        })
+
+    // Ensure the canonical URL in the Next.js Router is updated when the URL is changed so that `usePathname` and `useSearchParams` hold the pushed values.
+    const applyUrlFromHistoryPushReplace = (
+      url: string | URL | null | undefined
+    ) => {
+      const href = window.location.href
+      const urlToRestore = new URL(url ?? href, href)
+      if (!window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
+        // we cannot safely recover from a missing tree -- we need trigger an MPA navigation
+        // to restore the router history to the correct state.
+        window.location.href = urlToRestore.pathname
+        return
       }
 
-      /**
-       * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
-       * Ensures Next.js internal history state is copied to the new history entry.
-       * Ensures usePathname and useSearchParams hold the newly provided url.
-       */
-      window.history.pushState = function pushState(
-        data: any,
-        _unused: string,
-        url?: string | URL | null
-      ): void {
-        // Avoid a loop when Next.js internals trigger pushState/replaceState
-        if (data?.__NA || data?._N) {
-          return originalPushState(data, _unused, url)
-        }
-        data = copyNextJsInternalHistoryState(data)
+      startTransition(() => {
+        dispatch({
+          type: ACTION_RESTORE,
+          url: urlToRestore,
+          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        })
+      })
+    }
 
-        if (url) {
-          applyUrlFromHistoryPushReplace(url)
-        }
-
+    /**
+     * Patch pushState to ensure external changes to the history are reflected in the Next.js Router.
+     * Ensures Next.js internal history state is copied to the new history entry.
+     * Ensures usePathname and useSearchParams hold the newly provided url.
+     */
+    window.history.pushState = function pushState(
+      data: any,
+      _unused: string,
+      url?: string | URL | null
+    ): void {
+      // Avoid a loop when Next.js internals trigger pushState/replaceState
+      if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
       }
+      data = copyNextJsInternalHistoryState(data)
 
-      /**
-       * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
-       * Ensures Next.js internal history state is copied to the new history entry.
-       * Ensures usePathname and useSearchParams hold the newly provided url.
-       */
-      window.history.replaceState = function replaceState(
-        data: any,
-        _unused: string,
-        url?: string | URL | null
-      ): void {
-        // Avoid a loop when Next.js internals trigger pushState/replaceState
-        if (data?.__NA || data?._N) {
-          return originalReplaceState(data, _unused, url)
-        }
-        data = copyNextJsInternalHistoryState(data)
+      if (url) {
+        applyUrlFromHistoryPushReplace(url)
+      }
 
-        if (url) {
-          applyUrlFromHistoryPushReplace(url)
-        }
+      return originalPushState(data, _unused, url)
+    }
+
+    /**
+     * Patch replaceState to ensure external changes to the history are reflected in the Next.js Router.
+     * Ensures Next.js internal history state is copied to the new history entry.
+     * Ensures usePathname and useSearchParams hold the newly provided url.
+     */
+    window.history.replaceState = function replaceState(
+      data: any,
+      _unused: string,
+      url?: string | URL | null
+    ): void {
+      // Avoid a loop when Next.js internals trigger pushState/replaceState
+      if (data?.__NA || data?._N) {
         return originalReplaceState(data, _unused, url)
       }
+      data = copyNextJsInternalHistoryState(data)
+
+      if (url) {
+        applyUrlFromHistoryPushReplace(url)
+      }
+      return originalReplaceState(data, _unused, url)
     }
 
     /**
@@ -560,10 +572,8 @@ function Router({
     // Register popstate event to call onPopstate.
     window.addEventListener('popstate', onPopState)
     return () => {
-      if (process.env.__NEXT_WINDOW_HISTORY_SUPPORT) {
-        window.history.pushState = originalPushState
-        window.history.replaceState = originalReplaceState
-      }
+      window.history.pushState = originalPushState
+      window.history.replaceState = originalReplaceState
       window.removeEventListener('popstate', onPopState)
     }
   }, [dispatch])

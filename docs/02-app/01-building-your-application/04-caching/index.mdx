@@ -378,9 +378,9 @@ There are two ways you can invalidate the Router Cache:
 
 ### Opting out
 
-It's not possible to opt out of the Router Cache.
+It's not possible to opt out of the Router Cache. However, you can invalidate it by calling [`router.refresh`](/docs/app/api-reference/functions/use-router), [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath), or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) (see above). This will clear the cache and make a new request to the server, ensuring the latest data is shown.
 
-You can opt out of **prefetching** by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation. Visited routes will still be cached.
+You can also opt out of **prefetching** by setting the `prefetch` prop of the `<Link>` component to `false`. However, this will still temporarily store the route segments for 30s to allow instant navigation between nested segments, such as tab bars, or back and forward navigation. Visited routes will still be cached.
 
 ## Cache Interactions
 
@@ -446,7 +446,7 @@ See the [`useRouter` hook](/docs/app/api-reference/functions/use-router) API ref
 Data returned from `fetch` is automatically cached in the Data Cache.
 
 ```jsx
-// Cached by default. `force-cache` is the default option and can be ommitted.
+// Cached by default. `force-cache` is the default option and can be omitted.
 fetch(`https://...`, { cache: 'force-cache' })
 ```
 

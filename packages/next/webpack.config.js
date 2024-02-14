@@ -32,7 +32,7 @@ const appExternals = [
 function makeAppAliases(reactChannel = '') {
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
-    'react/shared-subset$': `next/dist/compiled/react${reactChannel}/react.shared-subset`,
+    'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
     'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
@@ -235,10 +235,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
             },
           },
           layer: 'react-server',
@@ -250,10 +250,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
             },
           },
         },

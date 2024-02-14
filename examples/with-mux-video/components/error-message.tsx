@@ -1,11 +1,11 @@
 interface ErrorMessageProps {
-  message?: string
+  message?: string;
 }
 
 export default function ErrorMessage({ message }: ErrorMessageProps) {
   return (
     <>
-      <div className="message">{message || 'Unknown error'}</div>
+      <div className="message">{message || "Unknown error"}</div>
       <style jsx>{`
         .message {
           color: #650303;
@@ -16,5 +16,5 @@ export default function ErrorMessage({ message }: ErrorMessageProps) {
         }
       `}</style>
     </>
-  )
+  );
 }

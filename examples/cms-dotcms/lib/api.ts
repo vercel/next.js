@@ -8,28 +8,28 @@
  */
 async function fetchAPI(query, { variables } = { variables: null }) {
   const res = await fetch(
-    process.env.NEXT_PUBLIC_DOTCMS_HOST + '/api/v1/graphql',
+    process.env.NEXT_PUBLIC_DOTCMS_HOST + "/api/v1/graphql",
     {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Bearer ${process.env.DOTCMS_TOKEN}`,
       },
       body: JSON.stringify({
         query,
         variables,
       }),
-    }
-  )
+    },
+  );
 
-  const json = await res.json()
+  const json = await res.json();
 
   if (json.errors) {
-    console.error(json.errors)
-    throw new Error('Failed to fetch API')
+    console.error(json.errors);
+    throw new Error("Failed to fetch API");
   }
 
-  return json.data
+  return json.data;
 }
 
 /**
@@ -40,9 +40,9 @@ async function fetchAPI(query, { variables } = { variables: null }) {
  */
 const showPreviewPosts = (preview) => {
   return preview === true
-    ? '+working:true +deleted:false'
-    : '+live:true +deleted:false'
-}
+    ? "+working:true +deleted:false"
+    : "+live:true +deleted:false";
+};
 
 /**
  * Fetch a single post and more posts
@@ -96,15 +96,15 @@ export async function getPostAndMorePosts(slug, preview) {
       variables: {
         query: `+urlmap:/blog/post/${slug} ${showPreviewPosts(preview)}`,
         morePostsQuery: `-urlmap:/blog/post/${slug} ${showPreviewPosts(
-          preview
+          preview,
         )}`,
       },
-    }
-  )
+    },
+  );
   return {
     post: data?.post[0] ?? {},
     morePosts: data?.morePosts ?? [],
-  }
+  };
 }
 
 /**
@@ -115,7 +115,7 @@ export async function getPostAndMorePosts(slug, preview) {
  * @returns {Promise<{post, morePosts}>}
  */
 export async function getPreviewPostBySlug(slug, isPreview) {
-  return await getPostAndMorePosts(slug, isPreview)
+  return await getPostAndMorePosts(slug, isPreview);
 }
 
 /**
@@ -133,9 +133,9 @@ export async function getAllPostsWithSlug() {
         urlTitle
       }
     }
-  `)
+  `);
 
-  return entries?.BlogCollection ?? []
+  return entries?.BlogCollection ?? [];
 }
 
 /**
@@ -170,7 +170,7 @@ export async function getAllPostsForHome(preview) {
       variables: {
         query: `${showPreviewPosts(preview)}`,
       },
-    }
-  )
-  return entries?.BlogCollection ?? []
+    },
+  );
+  return entries?.BlogCollection ?? [];
 }

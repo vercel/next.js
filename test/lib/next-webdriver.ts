@@ -1,4 +1,4 @@
-import { getFullUrl } from 'next-test-utils'
+import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
 import { BrowserInterface } from './browsers/base'
 
@@ -69,6 +69,7 @@ export default async function webdriver(
     headless?: boolean
     ignoreHTTPSErrors?: boolean
     cpuThrottleRate?: number
+    pushErrorAsConsoleLog?: boolean
   }
 ): Promise<BrowserInterface> {
   let CurrentInterface: new () => BrowserInterface
@@ -89,6 +90,7 @@ export default async function webdriver(
     ignoreHTTPSErrors,
     headless,
     cpuThrottleRate,
+    pushErrorAsConsoleLog,
   } = options
 
   // we import only the needed interface
@@ -133,6 +135,7 @@ export default async function webdriver(
     disableCache,
     cpuThrottleRate,
     beforePageLoad,
+    pushErrorAsConsoleLog,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
@@ -185,6 +188,13 @@ export default async function webdriver(
     }
 
     console.log(`\n> Hydration complete for ${fullUrl}\n`)
+  }
+
+  // This is a temporary workaround for turbopack starting watching too late.
+  // So we delay file changes by 500ms to give it some time
+  // to connect the WebSocket and start watching.
+  if (process.env.TURBOPACK) {
+    await waitFor(1000)
   }
   return browser
 }

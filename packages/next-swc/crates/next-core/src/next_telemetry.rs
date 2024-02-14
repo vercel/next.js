@@ -5,10 +5,8 @@ use turbopack_binding::{
     turbopack::core::diagnostics::{Diagnostic, DiagnosticPayload},
 };
 
-/// A struct represent telemetry event if certain feature of next.js
-/// is enabled, such as next.config.swcMinify.
-/// This is an equivalent representation of the following code:
-/// https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516
+/// A structure that keeps track of whether a particular Next.js feature is
+/// enabled for the telemetry. The original implementation code can be found at the following [link](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516).
 #[turbo_tasks::value(shared)]
 pub struct NextFeatureTelemetry {
     pub event_name: String,

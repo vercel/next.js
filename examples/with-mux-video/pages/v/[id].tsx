@@ -2,35 +2,35 @@ import type {
   InferGetStaticPropsType,
   GetStaticProps,
   GetStaticPaths,
-} from 'next'
-import MuxPlayer from '@mux/mux-player-react'
-import Link from 'next/link'
-import Layout from '../../components/layout'
-import Spinner from '../../components/spinner'
-import { MUX_HOME_PAGE_URL } from '../../constants'
-import { useRouter } from 'next/router'
+} from "next";
+import MuxPlayer from "@mux/mux-player-react";
+import Link from "next/link";
+import Layout from "../../components/layout";
+import Spinner from "../../components/spinner";
+import { MUX_HOME_PAGE_URL } from "../../constants";
+import { useRouter } from "next/router";
 
 type Params = {
-  id?: string
-}
+  id?: string;
+};
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
-  const { id: playbackId } = params as Params
-  const poster = `https://image.mux.com/${playbackId}/thumbnail.png`
+  const { id: playbackId } = params as Params;
+  const poster = `https://image.mux.com/${playbackId}/thumbnail.png`;
 
-  return { props: { playbackId, poster } }
-}
+  return { props: { playbackId, poster } };
+};
 
 export const getStaticPaths: GetStaticPaths = () => {
   return {
     paths: [],
     fallback: true,
-  }
-}
+  };
+};
 
 type CodeProps = {
-  children: React.ReactNode
-}
+  children: React.ReactNode;
+};
 
 const Code = ({ children }: CodeProps) => (
   <>
@@ -44,20 +44,20 @@ const Code = ({ children }: CodeProps) => (
       }
     `}</style>
   </>
-)
+);
 
 export default function Playback({
   playbackId,
   poster,
 }: InferGetStaticPropsType<typeof getStaticProps>) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (router.isFallback) {
     return (
       <Layout>
         <Spinner />
       </Layout>
-    )
+    );
   }
 
   return (
@@ -68,31 +68,31 @@ export default function Playback({
     >
       <div className="flash-message">This video is ready for playback</div>
       <MuxPlayer
-        style={{ width: '100%' }}
+        style={{ width: "100%" }}
         playbackId={playbackId}
-        metadata={{ player_name: 'with-mux-video' }}
+        metadata={{ player_name: "with-mux-video" }}
       />
       <p>
-        Go{' '}
+        Go{" "}
         <Link href="/" legacyBehavior>
           <a>back home</a>
-        </Link>{' '}
+        </Link>{" "}
         to upload another video.
       </p>
       <div className="about-playback">
         <p>
-          This video was uploaded and processed by{' '}
+          This video was uploaded and processed by{" "}
           <a href={MUX_HOME_PAGE_URL} target="_blank" rel="noopener noreferrer">
             Mux
           </a>
-          . This page was pre-rendered with{' '}
+          . This page was pre-rendered with{" "}
           <a
             href="https://nextjs.org/"
             target="_blank"
             rel="noopener noreferrer"
           >
             Next.js
-          </a>{' '}
+          </a>{" "}
           using <Code>`getStaticPaths`</Code> and <Code>`getStaticProps`</Code>.
         </p>
         <p>
@@ -112,7 +112,7 @@ export default function Playback({
           </a>
         </div>
         <p>
-          To learn more,{' '}
+          To learn more,{" "}
           <a
             href="https://github.com/vercel/next.js/tree/canary/examples/with-mux-video"
             target="_blank"
@@ -140,5 +140,5 @@ export default function Playback({
         }
       `}</style>
     </Layout>
-  )
+  );
 }

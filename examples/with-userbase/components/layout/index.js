@@ -1,4 +1,4 @@
-import Nav from '../nav'
+import Nav from "../nav";
 
 export default function Layout({ user, setUser, children }) {
   return (
@@ -6,5 +6,5 @@ export default function Layout({ user, setUser, children }) {
       <Nav user={user} setUser={setUser} />
       {children}
     </div>
-  )
+  );
 }

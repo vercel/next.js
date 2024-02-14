@@ -1,4 +1,5 @@
-import Anser from 'anser'
+// @ts-ignore Package exists
+import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
 
 export type TerminalProps = { content: string }
@@ -17,7 +18,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   return (
     <div data-nextjs-terminal>
       <pre>
-        {decoded.map((entry, index) => (
+        {decoded.map((entry: any, index: any) => (
           <span
             key={`terminal-entry-${index}`}
             style={{

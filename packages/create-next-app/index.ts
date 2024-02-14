@@ -184,7 +184,7 @@ async function run(): Promise<void> {
         if (validation.valid) {
           return true
         }
-        return 'Invalid project name: ' + validation.problems![0]
+        return 'Invalid project name: ' + validation.problems[0]
       },
     })
 
@@ -207,15 +207,17 @@ async function run(): Promise<void> {
   const resolvedProjectPath = path.resolve(projectPath)
   const projectName = path.basename(resolvedProjectPath)
 
-  const { valid, problems } = validateNpmName(projectName)
-  if (!valid) {
+  const validation = validateNpmName(projectName)
+  if (!validation.valid) {
     console.error(
       `Could not create a project called ${red(
         `"${projectName}"`
       )} because of npm naming restrictions:`
     )
 
-    problems!.forEach((p) => console.error(`    ${red(bold('*'))} ${p}`))
+    validation.problems.forEach((p) =>
+      console.error(`    ${red(bold('*'))} ${p}`)
+    )
     process.exit(1)
   }
 

@@ -29,7 +29,11 @@ import {
   isCSSMod,
   regexCSS,
 } from '../loaders/utils'
-import { traverseModules, forEachEntryModule } from '../utils'
+import {
+  traverseModules,
+  forEachEntryModule,
+  formatBarrelOptimizedResource,
+} from '../utils'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { getProxiedPluginState } from '../../build-context'
 import { generateRandomActionKeyRaw } from '../../../server/app-render/action-encryption-utils'
@@ -196,7 +200,7 @@ export class FlightClientEntryPlugin {
         // so it's only necessary to add it for matchResource or mod.resourceResolveData
         const modResource = modPath
           ? modPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
-            ? mod.resource
+            ? formatBarrelOptimizedResource(mod.resource, modPath)
             : modPath + modQuery
           : mod.resource
 

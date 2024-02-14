@@ -5,36 +5,28 @@ use next_core::{
     app_structure::{find_app_dir_if_enabled, get_entrypoints, Entrypoint},
     mode::NextMode,
     next_app::{
-        get_app_client_shared_chunks, get_app_page_entry, get_app_route_entry,
-        metadata::route::get_app_metadata_route_entry, AppEntry, ClientReferencesChunks,
+        get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
+        AppEntry,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType,
     },
-    next_client_reference::{ClientReferenceGraph, NextEcmascriptClientReferenceTransition},
+    next_client_reference::NextEcmascriptClientReferenceTransition,
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
-    next_manifests::{AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest},
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
-    util::NextRuntime,
 };
 use turbo_tasks::{TryJoinIterExt, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
-        build::BuildChunkingContext,
         core::{
-            chunk::{ChunkingContext, EvaluatableAssets},
-            compile_time_info::CompileTimeInfo,
-            file_source::FileSource,
-            ident::AssetIdent,
-            output::OutputAsset,
+            chunk::EvaluatableAssets, compile_time_info::CompileTimeInfo, file_source::FileSource,
         },
-        ecmascript::chunk::EcmascriptChunkingContext,
         node::execution_context::ExecutionContext,
         turbopack::{transition::ContextTransition, ModuleAssetContext},
     },
@@ -244,128 +236,4 @@ pub async fn get_app_entries(
         rsc_runtime_entries: runtime_entries.resolve_entries(Vc::upcast(rsc_context)),
         client_runtime_entries: client_runtime_entries.resolve_entries(Vc::upcast(client_context)),
     }))
-}
-
-/// Computes and returns all chunks for app entries. The chunks will be appended
-/// to `all_chunks`, and the chunking information will be added to the provided
-/// manifests.
-pub async fn compute_app_entries_chunks(
-    next_config: Vc<NextConfig>,
-    app_entries: &AppEntries,
-    app_client_reference_graph: Vc<ClientReferenceGraph>,
-    app_client_references_chunks: Vc<ClientReferencesChunks>,
-    rsc_chunking_context: Vc<BuildChunkingContext>,
-    client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-    node_root: Vc<FileSystemPath>,
-    client_relative_path: Vc<FileSystemPath>,
-    app_paths_manifest_dir_path: &FileSystemPath,
-    app_build_manifest: &mut AppBuildManifest,
-    build_manifest: &mut BuildManifest,
-    app_paths_manifest: &mut AppPathsManifest,
-    all_chunks: &mut Vec<Vc<Box<dyn OutputAsset>>>,
-    runtime: NextRuntime,
-) -> Result<()> {
-    let client_relative_path_ref = client_relative_path.await?;
-
-    let app_client_shared_chunks = get_app_client_shared_chunks(
-        AssetIdent::from_path(
-            client_chunking_context
-                .context_path()
-                .join("client shared chunk group".to_string()),
-        ),
-        app_entries.client_runtime_entries,
-        client_chunking_context,
-    );
-
-    let mut app_shared_client_chunks_paths = vec![];
-    for chunk in app_client_shared_chunks.await?.iter().copied() {
-        all_chunks.push(chunk);
-
-        let chunk_path = chunk.ident().path().await?;
-        if chunk_path.extension_ref() == Some("js") {
-            if let Some(chunk_path) = client_relative_path.await?.get_path_to(&chunk_path) {
-                app_shared_client_chunks_paths.push(chunk_path.to_string());
-                build_manifest.root_main_files.push(chunk_path.to_string());
-            }
-        }
-    }
-
-    let app_client_references_chunks_ref = app_client_references_chunks.await?;
-
-    for app_entry in app_entries.entries.iter().copied() {
-        let app_entry = app_entry.await?;
-
-        let app_entry_client_references = app_client_reference_graph
-            .entry(Vc::upcast(app_entry.rsc_entry))
-            .await?;
-
-        let rsc_chunk = rsc_chunking_context.entry_chunk_group(
-            node_root.join(format!(
-                "server/app/{original_name}.js",
-                original_name = app_entry.original_name
-            )),
-            app_entry.rsc_entry,
-            app_entries.rsc_runtime_entries,
-        );
-        all_chunks.push(rsc_chunk);
-
-        let mut app_entry_client_chunks = vec![];
-        // TODO(alexkirsz) In which manifest should this go?
-        let mut app_entry_ssr_chunks = vec![];
-
-        for client_reference in app_entry_client_references.iter() {
-            let client_reference_chunks = app_client_references_chunks_ref
-                .get(client_reference.ty())
-                .expect("client reference should have corresponding chunks");
-            app_entry_client_chunks
-                .extend(client_reference_chunks.client_chunks.await?.iter().copied());
-            app_entry_ssr_chunks.extend(client_reference_chunks.ssr_chunks.await?.iter().copied());
-        }
-
-        let app_entry_client_chunks_paths = app_entry_client_chunks
-            .iter()
-            .map(|chunk| chunk.ident().path())
-            .try_join()
-            .await?;
-        let mut app_entry_client_chunks_paths: Vec<_> = app_entry_client_chunks_paths
-            .iter()
-            .map(|path| {
-                client_relative_path_ref
-                    .get_path_to(path)
-                    .expect("asset path should be inside client root")
-                    .to_string()
-            })
-            .collect();
-        app_entry_client_chunks_paths.extend(app_shared_client_chunks_paths.iter().cloned());
-
-        app_build_manifest.pages.insert(
-            app_entry.original_name.clone(),
-            app_entry_client_chunks_paths,
-        );
-
-        app_paths_manifest.node_server_app_paths.pages.insert(
-            app_entry.original_name.clone(),
-            app_paths_manifest_dir_path
-                .get_path_to(&*rsc_chunk.ident().path().await?)
-                .expect("RSC chunk path should be within app paths manifest directory")
-                .to_string(),
-        );
-
-        let entry_manifest = ClientReferenceManifest::build_output(
-            node_root,
-            client_relative_path,
-            app_entry.original_name.clone(),
-            app_client_reference_graph.entry(Vc::upcast(app_entry.rsc_entry)),
-            app_client_references_chunks,
-            client_chunking_context,
-            ssr_chunking_context,
-            next_config.computed_asset_prefix(),
-            runtime,
-        );
-
-        all_chunks.push(entry_manifest);
-    }
-
-    Ok(())
 }

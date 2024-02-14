@@ -4,13 +4,13 @@ import deleteFromDb from 'db';
 const v1 = 'v1';
 export function Item({ id1, id2, id3, id4 }) {
     const v2 = id2;
-    function deleteItem() {}
-    return <Button action={createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
+    var deleteItem = createActionProxy("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_0).bind(null, encryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", [
         id1,
         v2,
         id3,
         id4.x
-    ]))}>Delete</Button>;
+    ]));
+    return <Button action={deleteItem}>Delete</Button>;
 }
 export async function $$ACTION_0($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3] = await decryptActionBoundArgs("6d53ce510b2e36499b8f56038817b9bad86cabb4", $$ACTION_CLOSURE_BOUND);

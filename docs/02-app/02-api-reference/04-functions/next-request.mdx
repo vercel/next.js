@@ -109,7 +109,6 @@ The following options are available:
 | -------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `basePath`     | `string`                | The [base path](/docs/app/api-reference/next-config-js/basePath) of the URL.                                                  |
 | `buildId`      | `string` \| `undefined` | The build identifier of the Next.js application. Can be [customized](/docs/app/api-reference/next-config-js/generateBuildId). |
-| `url`          | `URL`                   | The URL object.                                                                                                               |
 | `pathname`     | `string`                | The pathname of the URL.                                                                                                      |
 | `searchParams` | `Object`                | The search parameters of the URL.                                                                                             |
 
@@ -150,9 +149,3 @@ function getGeo(request) {
   // Use a third-party service to lookup the geographic information
 }
 ```
-
-## Version History
-
-| Version   | Changes                       |
-| --------- | ----------------------------- |
-| `v13.0.0` | `useSearchParams` introduced. |

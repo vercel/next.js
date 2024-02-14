@@ -130,6 +130,10 @@ const WEBPACK_LAYERS_NAMES = {
    */
   middleware: 'middleware',
   /**
+   * The layer for the instrumentation hooks.
+   */
+  instrument: 'instrument',
+  /**
    * The layer for assets on the edge.
    */
   edgeAsset: 'edge-asset',
@@ -158,9 +162,10 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.actionBrowser,
       WEBPACK_LAYERS_NAMES.appMetadataRoute,
       WEBPACK_LAYERS_NAMES.appRouteHandler,
+      WEBPACK_LAYERS_NAMES.instrument,
     ],
     nonClientServerTarget: [
-      // plus middleware and pages api
+      // middleware and pages api
       WEBPACK_LAYERS_NAMES.middleware,
       WEBPACK_LAYERS_NAMES.api,
     ],
@@ -172,6 +177,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.serverSideRendering,
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
+      WEBPACK_LAYERS_NAMES.instrument,
     ],
   },
 }

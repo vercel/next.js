@@ -5,17 +5,17 @@ import {
   TigrisCollection,
   TigrisCollectionType,
   TigrisDataTypes,
-} from '@tigrisdata/core'
+} from "@tigrisdata/core";
 
-@TigrisCollection('todoItems')
+@TigrisCollection("todoItems")
 export class TodoItem implements TigrisCollectionType {
   @PrimaryKey(TigrisDataTypes.INT32, { order: 1, autoGenerate: true })
-  id!: number
+  id!: number;
 
   @SearchField()
   @Field()
-  text!: string
+  text!: string;
 
   @Field()
-  completed!: boolean
+  completed!: boolean;
 }

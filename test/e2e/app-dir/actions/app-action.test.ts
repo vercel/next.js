@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request, Response } from 'playwright-chromium'
+import { Request, Response, Route } from 'playwright-chromium'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -410,6 +410,7 @@ createNextDescribe(
     })
 
     it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
       const res = await next.fetch('/non-existent-route', {
         method: 'POST',
         headers: {
@@ -418,6 +419,12 @@ createNextDescribe(
         body: 'foo=bar',
       })
 
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
       expect(res.status).toBe(404)
     })
 
@@ -435,6 +442,51 @@ createNextDescribe(
         () => next.cliOutput,
         /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
       )
+    })
+
+    it('should be possible to catch network errors', async () => {
+      const browser = await next.browser('/catching-error', {
+        beforePageLoad(page) {
+          page.route('**/catching-error', (route: Route) => {
+            if (route.request().method() !== 'POST') {
+              route.fallback()
+              return
+            }
+
+            route.abort('internetdisconnected')
+          })
+        },
+      })
+
+      await browser.elementById('good-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
+    })
+
+    it('should be possible to catch regular errors', async () => {
+      const browser = await next.browser('/catching-error')
+
+      await browser.elementById('bad-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
     })
 
     if (isNextStart) {
@@ -458,7 +510,7 @@ createNextDescribe(
     if (isNextDev) {
       describe('HMR', () => {
         it('should support updating the action', async () => {
-          const filePath = 'app/server/actions.js'
+          const filePath = 'app/server/actions-3.js'
           const origContent = await next.readFile(filePath)
 
           try {
@@ -1039,6 +1091,27 @@ createNextDescribe(
         // verify that the POST request was only made to the action handler
         expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
         expect(responseCodes).toEqual([303])
+      })
+
+      it('merges cookies correctly when redirecting', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+
+        // set foo and bar to be both 1, and verify
+        await browser.eval(
+          `document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`
+        )
+        await browser.refresh()
+        expect(await browser.elementByCss('h1').text()).toBe('foo=1; bar=1')
+
+        // delete foo and set bar to 2, redirect
+        await browser.elementById('redirect-with-cookie-mutation').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target/
+        )
+
+        // verify that the cookies were merged correctly
+        expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
       })
 
       it.each(['307', '308'])(

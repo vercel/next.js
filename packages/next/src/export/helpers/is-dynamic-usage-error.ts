@@ -1,8 +1,8 @@
-import { DYNAMIC_ERROR_CODE } from '../../client/components/hooks-server-context'
-import { isNotFoundError } from '../../client/components/not-found'
-import { isRedirectError } from '../../client/components/redirect'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
+import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { isNavigationSignalError } from './is-navigation-signal-error'
 
-export const isDynamicUsageError = (err: any) =>
-  err.digest === DYNAMIC_ERROR_CODE ||
-  isNotFoundError(err) ||
-  isRedirectError(err)
+export const isDynamicUsageError = (err: unknown) =>
+  isDynamicServerError(err) ||
+  isBailoutToCSRError(err) ||
+  isNavigationSignalError(err)

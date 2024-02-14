@@ -27,7 +27,7 @@ describe('CachedFileReader', () => {
       cached.read('<root>/app'),
     ])
 
-    expect(reader.read).toBeCalledTimes(2)
+    expect(reader.read).toHaveBeenCalledTimes(2)
     expect(results).toHaveLength(4)
     expect(results[0]).toBe(pages)
     expect(results[1]).toBe(pages)
@@ -54,13 +54,13 @@ describe('CachedFileReader', () => {
     await Promise.all(
       ['reject', 'resolve', 'reject', 'resolve'].map(async (directory) => {
         if (directory === 'reject') {
-          await expect(cached.read(directory)).rejects.toThrowError('rejected')
+          await expect(cached.read(directory)).rejects.toThrow('rejected')
         } else {
           await expect(cached.read(directory)).resolves.toEqual(resolved)
         }
       })
     )
 
-    expect(reader.read).toBeCalledTimes(2)
+    expect(reader.read).toHaveBeenCalledTimes(2)
   })
 })

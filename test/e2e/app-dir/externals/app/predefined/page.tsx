@@ -1,5 +1,5 @@
-import { foo } from 'sqlite3'
+import { dir } from 'sqlite3'
 
 export default function Predefined() {
-  return <div>{foo}</div>
+  return <div id="directory">{dir}</div>
 }

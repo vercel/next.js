@@ -9,13 +9,6 @@ autobenches = false
 [lib]
 bench = false
 
-[features]
-default = ["custom_allocator"]
-custom_allocator = [
-  "turbopack-binding/__turbo_tasks_malloc",
-  "turbopack-binding/__turbo_tasks_malloc_custom_allocator",
-]
-
 [lints]
 workspace = true
 

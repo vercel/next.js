@@ -1,5 +1,7 @@
-import type { StackFrame } from 'stacktrace-parser'
-import { parse } from 'stacktrace-parser'
+// @ts-ignore Package Exists
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+// @ts-ignore Package Exists
+import { parse } from 'next/dist/compiled/stacktrace-parser'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }
@@ -49,7 +51,7 @@ export function getServerError(error: Error, type: ErrorType): Error {
   try {
     n.stack = `${n.toString()}\n${parse(error.stack!)
       .map(getFilesystemFrame)
-      .map((f) => {
+      .map((f: any) => {
         let str = `    at ${f.methodName}`
         if (f.file) {
           let loc = f.file

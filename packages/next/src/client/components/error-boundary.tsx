@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { usePathname } from './navigation'
+import { isNextRouterError } from './is-next-router-error'
 
 const styles = {
   error: {
@@ -73,6 +74,12 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error) {
+    if (isNextRouterError(error)) {
+      // Re-throw if an expected internal Next.js router error occurs
+      // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
+      throw error
+    }
+
     return { error }
   }
 

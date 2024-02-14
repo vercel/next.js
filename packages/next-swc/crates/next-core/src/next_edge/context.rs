@@ -9,7 +9,7 @@ use turbopack_binding::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
             },
-            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
+            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
         dev::DevChunkingContext,
@@ -79,11 +79,10 @@ async fn next_edge_free_vars(
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
+        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
     )))
     .defines(next_edge_defines(define_env))
     .free_var_references(next_edge_free_vars(project_path, define_env))
@@ -99,7 +98,7 @@ pub async fn get_edge_resolve_options_context(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_edge_import_map =
-        get_next_edge_import_map(project_path, ty, mode, next_config, execution_context);
+        get_next_edge_import_map(project_path, ty, next_config, execution_context);
 
     let ty = ty.into_value();
 
@@ -154,6 +153,8 @@ pub async fn get_edge_resolve_options_context(
 pub fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
     let output_root = node_root.join("server/edge".to_string());
@@ -161,10 +162,12 @@ pub fn get_edge_chunking_context(
         DevChunkingContext::builder(
             project_path,
             output_root,
+            client_root,
             output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            client_root.join("static/media".to_string()),
             environment,
         )
+        .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
         .build(),
     )

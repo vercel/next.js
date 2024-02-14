@@ -1,11 +1,11 @@
-import Image from 'next/image'
-import ViewSource from '../../components/view-source'
-import styles from '../../styles.module.css'
-import mountains from '../../public/mountains.jpg'
+import Image from "next/image";
+import ViewSource from "../../components/view-source";
+import styles from "../../styles.module.css";
+import mountains from "../../public/mountains.jpg";
 
 const BackgroundPage = () => (
   <div>
-    <ViewSource pathname="pages/background.tsx" />
+    <ViewSource pathname="app/background/page.tsx" />
     <div className={styles.bgWrap}>
       <Image
         alt="Mountains"
@@ -15,7 +15,7 @@ const BackgroundPage = () => (
         fill
         sizes="100vw"
         style={{
-          objectFit: 'cover',
+          objectFit: "cover",
         }}
       />
     </div>
@@ -25,6 +25,6 @@ const BackgroundPage = () => (
       as a Background
     </p>
   </div>
-)
+);
 
-export default BackgroundPage
+export default BackgroundPage;

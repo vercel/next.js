@@ -1,4 +1,4 @@
-import TodoForm from '../components/todo-form'
+import TodoForm from "../components/todo-form";
 
 function Index({ user }) {
   if (user) {
@@ -9,10 +9,10 @@ function Index({ user }) {
         </h3>
         <TodoForm />
       </div>
-    )
+    );
   } else {
-    return null
+    return null;
   }
 }
 
-export default Index
+export default Index;
