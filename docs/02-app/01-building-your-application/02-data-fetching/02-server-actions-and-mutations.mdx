@@ -445,6 +445,79 @@ export function Signup() {
 >
 > - Before mutating data, you should always ensure a user is also authorized to perform the action. See [Authentication and Authorization](#authentication-and-authorization).
 
+#### Client-side effects
+
+Combining `useEffect` with the `useFormState` hook and the returned `state` (See [Server-side validation and error handling](#server-side-validation-and-error-handling)), it is also possible to invoke functions based on the data returned by the action. Like showing toast messages or other UI elements with a library like [Sonner](https://sonner.emilkowal.ski).
+
+```tsx filename="app/ui/reset-password.tsx" switcher
+'use client'
+
+import { useEffect } from 'react'
+import { useFormState } from 'react-dom'
+import { toast } from 'sonner'
+import { sendPasswordResetEmail } from '@/app/actions'
+
+const initialState = {
+  state: '',
+  message: '',
+}
+
+export function ResetPassword() {
+  const [state, formAction] = useFormState(sendPasswordResetEmail, initialState)
+
+  useEffect(() => {
+    if (state.status === 'success') {
+      toast.success('Email sent.')
+    }
+    if (state.status === 'error') {
+      toast.error(state.message || 'Error sending password reset email.')
+    }
+  }, [state])
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      <button>Send me a new password</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/reset-password.js" switcher
+'use client'
+
+import { useEffect } from 'react'
+import { useFormState } from 'react-dom'
+import { toast } from 'sonner'
+import { sendPasswordResetEmail } from '@/app/actions'
+
+const initialState = {
+  state: '',
+  message: '',
+}
+
+export function Signup() {
+  const [state, formAction] = useFormState(sendPasswordResetEmail, initialState)
+
+  useEffect(() => {
+    if (state.status === 'success') {
+      toast.success('Email sent.')
+    }
+    if (state.status === 'error') {
+      toast.error(state.message || 'Error sending password reset email.')
+    }
+  }, [state])
+
+  return (
+    <form action={formAction}>
+      <label htmlFor="email">Email</label>
+      <input type="text" id="email" name="email" required />
+      <button>Send me a new password</button>
+    </form>
+  )
+}
+
 #### Optimistic updates
 
 You can use the React [`useOptimistic`](https://react.dev/reference/react/useOptimistic) hook to optimistically update the UI before the Server Action finishes, rather than waiting for the response:
