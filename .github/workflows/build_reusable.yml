@@ -114,6 +114,9 @@ jobs:
         with:
           mdbook-version: 'latest'
 
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.6.3
+
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
         run: |

@@ -4,3 +4,13 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Turbopack"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["assets/mermaid.min.js", "assets/mermaid-init.js"]
