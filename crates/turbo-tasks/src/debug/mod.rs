@@ -69,6 +69,12 @@ pub trait ValueDebugFormat {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString;
 }
 
+impl ValueDebugFormat for String {
+    fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString {
+        ValueDebugFormatString::Sync(format!("{:#?}", self))
+    }
+}
+
 // Use autoref specialization [1] to implement `ValueDebugFormat` for `T:
 // Debug` as a fallback if `T` does not implement it directly, hence the `for
 // &T` clause.
