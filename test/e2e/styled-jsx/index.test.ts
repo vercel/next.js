@@ -16,6 +16,7 @@ function runTest() {
       next = await createNext({
         files: {
           pages: new FileRef(path.join(appDir, 'pages')),
+          node_modules: new FileRef(path.join(appDir, 'node_modules')),
           '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
