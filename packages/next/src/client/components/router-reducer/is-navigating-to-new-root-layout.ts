@@ -9,7 +9,7 @@ export function isNavigatingToNewRootLayout(
   const currentTreeSegment = currentTree[0]
   const nextTreeSegment = nextTree[0]
 
-  // We currently special-case the global not found segment key, but we don't it to be treated as a root layout change
+  // We currently special-case the global not found segment key, but we don't want it to be treated as a root layout change
   if (currentTreeSegment === GLOBAL_NOT_FOUND_SEGMENT_KEY) return false
 
   // If any segment is different before we find the root layout, the root layout has changed.
