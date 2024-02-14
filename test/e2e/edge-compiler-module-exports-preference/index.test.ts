@@ -31,16 +31,13 @@ describe('Edge compiler module exports preference', () => {
           main: 'index.js',
           browser: 'browser.js',
         }),
-        'my-lib/index.js': `module.exports = "Node.js"`,
-        'my-lib/browser.js': `module.exports = "Browser"`,
+        'node_modules/my-lib/index.js': `module.exports = "Node.js"`,
+        'node_modules/my-lib/browser.js': `module.exports = "Browser"`,
       },
       packageJson: {
         scripts: {
-          copy: `cp -r ./my-lib ./node_modules`,
-          build: 'pnpm copy && next build',
-          dev: `pnpm copy && next ${
-            shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-          }`,
+          build: 'next build',
+          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
           start: 'next start',
         },
       },

@@ -7,10 +7,8 @@ createNextDescribe(
     files: __dirname,
     packageJson: {
       scripts: {
-        build: 'pnpm copy && next build',
-        dev: `pnpm copy && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
