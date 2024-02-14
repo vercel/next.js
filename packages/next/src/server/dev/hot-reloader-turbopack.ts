@@ -217,11 +217,7 @@ export async function createHotReloaderTurbopack(
   }
   const buildingIds = new Set()
 
-  const startBuilding: StartBuilding = (
-    id,
-    requestUrl,
-    forceRebuild = false
-  ) => {
+  const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
     if (!forceRebuild && readyIds.has(id)) {
       return () => {}
     }
@@ -646,7 +642,7 @@ export async function createHotReloaderTurbopack(
       const page = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
-        let finishBuilding = startBuilding(page, requestUrl)
+        let finishBuilding = startBuilding(page, requestUrl, false)
         try {
           if (globalEntrypoints.app) {
             const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
@@ -729,7 +725,7 @@ export async function createHotReloaderTurbopack(
         throw new Error(`mis-matched route type: isApp && page for ${page}`)
       }
 
-      const finishBuilding = startBuilding(page, requestUrl)
+      const finishBuilding = startBuilding(page, requestUrl, false)
       try {
         await handleRouteType({
           rewrites: opts.fsChecker.rewrites,

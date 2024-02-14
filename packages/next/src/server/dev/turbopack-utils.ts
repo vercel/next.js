@@ -272,7 +272,10 @@ export type ActionManifests = Map<string, ActionManifest>
 export type FontManifests = Map<string, NextFontManifest>
 export type LoadableManifests = Map<string, LoadableManifest>
 export type CurrentEntrypoints = Map<string, Route>
-export type ChangeSubscriptions = Map<string, Promise<AsyncIterator<any>>>
+export type ChangeSubscriptions = Map<
+  string,
+  Promise<AsyncIterableIterator<TurbopackResult>>
+>
 
 export async function loadMiddlewareManifest(
   distDir: string,
