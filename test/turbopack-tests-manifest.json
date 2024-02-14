@@ -920,6 +920,7 @@
   "test/development/acceptance-app/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox app turbo Call stack count is correct for client error",
+      "ReactRefreshLogBox app turbo Call stack count is correct for server error",
       "ReactRefreshLogBox app turbo Can't resolve @import in CSS file",
       "ReactRefreshLogBox app turbo Import trace when module not found in layout",
       "ReactRefreshLogBox app turbo Server component errors should open up in fullscreen",
@@ -933,7 +934,6 @@
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [
-      "ReactRefreshLogBox app turbo Call stack count is correct for server error",
       "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo css syntax errors"
     ],
@@ -1079,12 +1079,12 @@
       "Error recovery app turbo client component can recover from a component error",
       "Error recovery app turbo displays build error on initial page load",
       "Error recovery app turbo render error not shown right after syntax error",
+      "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
       "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
       "Error recovery app turbo client component can recover from syntax error",
-      "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo stuck error"
     ],
     "pending": [
@@ -1178,11 +1178,10 @@
       "Error overlay - RSC runtime errors should contain nextjs version check in error overlay",
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
       "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
-      "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
-    ],
-    "failed": [
+      "Error overlay - RSC runtime errors should show source code for jsx errors from server component",
       "Error overlay - RSC runtime errors should show the userland code error trace when fetch failed error occurred"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1439,6 +1438,13 @@
     "passed": ["basic app-dir tests should reload app pages without error"],
     "failed": [],
     "pending": ["basic app-dir tests should reload app pages without error"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/dynamic-error-trace/index.test.ts": {
+    "passed": ["app dir - dynamic error trace should show the error trace"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1908,18 +1914,18 @@
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
+      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
-      "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly"
+      "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly",
+      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
     ],
     "failed": [
       "middleware - development errors when middleware throws synchronously logs the error correctly",
-      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
-      "middleware - development errors when throwing while loading the module logs the error correctly",
-      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
+      "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
     "flakey": [
@@ -2469,10 +2475,10 @@
       "app dir - css sass support server layouts should support global sass/scss inside server layouts",
       "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
       "app dir - css sass support server pages should support global sass/scss inside server pages",
-      "app dir - css sass support server pages should support sass/scss modules inside server pages"
+      "app dir - css sass support server pages should support sass/scss modules inside server pages",
+      "app dir - css HMR should not create duplicate link tags during HMR"
     ],
     "failed": [
-      "app dir - css HMR should not create duplicate link tags during HMR",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support should not preload styles twice during HMR"
@@ -2539,6 +2545,7 @@
       "app dir - external dependency app route should resolve next/server api from external esm package",
       "app dir - external dependency mixed syntax external modules should handle mixed module in server and client components",
       "app dir - external dependency mixed syntax external modules should handle mixed module with next/dynamic",
+      "app dir - external dependency react in external esm packages should support namespace import with ESM packages",
       "app dir - external dependency react in external esm packages should use the same react in client app",
       "app dir - external dependency react in external esm packages should use the same react in edge server app",
       "app dir - external dependency react in external esm packages should use the same react in pages",
@@ -3206,6 +3213,60 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-order/css-order.test.ts": {
+    "passed": [
+      "css-order should load correct styles navigating first -> first-client",
+      "css-order should load correct styles navigating first -> second",
+      "css-order should load correct styles navigating first -> second-client",
+      "css-order should load correct styles navigating first -> third",
+      "css-order should load correct styles navigating first-client -> first",
+      "css-order should load correct styles navigating first-client -> second",
+      "css-order should load correct styles navigating first-client -> second-client",
+      "css-order should load correct styles navigating first-client -> third",
+      "css-order should load correct styles navigating second -> first",
+      "css-order should load correct styles navigating second -> first-client",
+      "css-order should load correct styles navigating second -> second-client",
+      "css-order should load correct styles navigating second -> third",
+      "css-order should load correct styles navigating second-client -> first",
+      "css-order should load correct styles navigating second-client -> first-client",
+      "css-order should load correct styles navigating second-client -> second",
+      "css-order should load correct styles navigating second-client -> third",
+      "css-order should load correct styles navigating third -> first",
+      "css-order should load correct styles navigating third -> first-client",
+      "css-order should load correct styles navigating third -> second",
+      "css-order should load correct styles navigating third -> second-client",
+      "css-order should load correct styles on first",
+      "css-order should load correct styles on first-client",
+      "css-order should load correct styles on second",
+      "css-order should load correct styles on second-client",
+      "css-order should load correct styles on third"
+    ],
+    "failed": [],
+    "pending": [
+      "css-order should load correct styles navigating back again first -> first-client -> first -> first-client",
+      "css-order should load correct styles navigating back again first -> second -> first -> second",
+      "css-order should load correct styles navigating back again first -> second-client -> first -> second-client",
+      "css-order should load correct styles navigating back again first -> third -> first -> third",
+      "css-order should load correct styles navigating back again first-client -> first -> first-client -> first",
+      "css-order should load correct styles navigating back again first-client -> second -> first-client -> second",
+      "css-order should load correct styles navigating back again first-client -> second-client -> first-client -> second-client",
+      "css-order should load correct styles navigating back again first-client -> third -> first-client -> third",
+      "css-order should load correct styles navigating back again second -> first -> second -> first",
+      "css-order should load correct styles navigating back again second -> first-client -> second -> first-client",
+      "css-order should load correct styles navigating back again second -> second-client -> second -> second-client",
+      "css-order should load correct styles navigating back again second -> third -> second -> third",
+      "css-order should load correct styles navigating back again second-client -> first -> second-client -> first",
+      "css-order should load correct styles navigating back again second-client -> first-client -> second-client -> first-client",
+      "css-order should load correct styles navigating back again second-client -> second -> second-client -> second",
+      "css-order should load correct styles navigating back again second-client -> third -> second-client -> third",
+      "css-order should load correct styles navigating back again third -> first -> third -> first",
+      "css-order should load correct styles navigating back again third -> first-client -> third -> first-client",
+      "css-order should load correct styles navigating back again third -> second -> third -> second",
+      "css-order should load correct styles navigating back again third -> second-client -> third -> second-client"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/draft-mode/draft-mode.test.ts": {
     "passed": [
       "app dir - draft mode in edge runtime should be disabled from api route handler",
@@ -3229,39 +3290,6 @@
       "app dir - draft mode in edge runtime should genenerate rand when draft mode enabled",
       "app dir - draft mode in edge runtime should read other cookies when draft mode enabled"
     ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/css-order/css-order.test.ts": {
-    "passed": [
-      "css-order should load correct styles navigating first -> first-client",
-      "css-order should load correct styles navigating first -> second-client",
-      "css-order should load correct styles navigating first -> second",
-      "css-order should load correct styles navigating first -> third",
-      "css-order should load correct styles navigating first-client -> first",
-      "css-order should load correct styles navigating first-client -> second-client",
-      "css-order should load correct styles navigating first-client -> second",
-      "css-order should load correct styles navigating first-client -> third",
-      "css-order should load correct styles navigating second -> first-client",
-      "css-order should load correct styles navigating second -> first",
-      "css-order should load correct styles navigating second -> second-client",
-      "css-order should load correct styles navigating second -> third",
-      "css-order should load correct styles navigating second-client -> first-client",
-      "css-order should load correct styles navigating second-client -> first",
-      "css-order should load correct styles navigating second-client -> second",
-      "css-order should load correct styles navigating second-client -> third",
-      "css-order should load correct styles navigating third -> first-client",
-      "css-order should load correct styles navigating third -> first",
-      "css-order should load correct styles navigating third -> second-client",
-      "css-order should load correct styles navigating third -> second",
-      "css-order should load correct styles on first-client",
-      "css-order should load correct styles on first",
-      "css-order should load correct styles on second-client",
-      "css-order should load correct styles on second",
-      "css-order should load correct styles on third"
-    ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3553,7 +3581,8 @@
   },
   "test/e2e/app-dir/interception-route-prefetch-cache/interception-route-prefetch-cache.test.ts": {
     "passed": [
-      "interception-route-prefetch-cache should render the correct interception when two distinct layouts share the same path structure"
+      "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure",
+      "interception-route-prefetch-cache runtime = nodejs should render the correct interception when two distinct layouts share the same path structure"
     ],
     "failed": [],
     "pending": [],
@@ -4555,6 +4584,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts": {
+    "passed": ["syntax-highlighter-crash should render the page"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/taint/process-taint.test.ts": {
     "passed": [
       "app dir - taint should error when passing process env to client component"
@@ -4595,6 +4631,13 @@
       "app-dir trailingSlash handling should redirect route when requesting it directly by browser",
       "app-dir trailingSlash handling should render link with trailing slash"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
+    "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -5023,9 +5066,10 @@
     "runtimeError": false
   },
   "test/e2e/fetch-failures-have-good-stack-traces-in-edge-runtime/fetch-failures-have-good-stack-traces-in-edge-runtime.test.ts": {
-    "passed": [],
+    "passed": [
+      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved"
+    ],
     "failed": [
-      "fetch failures have good stack traces in edge runtime when awaiting `fetch` using an unknown domain, stack traces are preserved",
       "fetch failures have good stack traces in edge runtime when returning `fetch` using an unknown domain, stack traces are preserved"
     ],
     "pending": [],
@@ -7172,6 +7216,13 @@
       "Babel should allow setting targets to a string",
       "Babel should allow setting targets.browsers"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/babel-next-image/babel-next-image.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": ["babel-next-image should work with babel and next/image"],
     "flakey": [],
     "runtimeError": false
   },
@@ -11683,6 +11734,9 @@
       "with contentDispositionType attachment dev support with next.config.js should not allow svg with comma header",
       "with contentDispositionType attachment dev support with next.config.js should not allow svg with uppercase header",
       "with contentDispositionType attachment dev support with next.config.js should not allow vector svg",
+      "with contentDispositionType attachment dev support with next.config.js should not change the color type of a png",
+      "with contentDispositionType attachment dev support with next.config.js should not have sharp missing warning",
+      "with contentDispositionType attachment dev support with next.config.js should not have sharp outdated warning",
       "with contentDispositionType attachment dev support with next.config.js should not resize if requested width is larger than original source image",
       "with contentDispositionType attachment dev support with next.config.js should resize absolute url from localhost",
       "with contentDispositionType attachment dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11728,6 +11782,7 @@
       "with contentDispositionType attachment Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should handle concurrent requests",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with contentDispositionType attachment Production Mode Server support with next.config.js should have sharp missing warning",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated gif",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should maintain animated png 2",
@@ -11741,6 +11796,8 @@
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with comma header",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not allow vector svg",
+      "with contentDispositionType attachment Production Mode Server support with next.config.js should not change the color type of a png",
+      "with contentDispositionType attachment Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with contentDispositionType attachment Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11837,6 +11894,9 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow svg with comma header",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow svg with uppercase header",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not allow vector svg",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should not change the color type of a png",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should not have sharp missing warning",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should not have sharp outdated warning",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should not resize if requested width is larger than original source image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize absolute url from localhost",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11882,6 +11942,7 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle concurrent requests",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should have sharp missing warning",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated gif",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated png",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should maintain animated png 2",
@@ -11895,6 +11956,8 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow svg with comma header",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not allow vector svg",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not change the color type of a png",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -11910,6 +11973,71 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/image-optimizer/test/old-sharp.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "with outdated sharp Production Mode Server support with next.config.js should automatically detect image type when content-type is octet-stream",
+      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=100",
+      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=50",
+      "with outdated sharp Production Mode Server support with next.config.js should compress avif smaller than webp at q=75",
+      "with outdated sharp Production Mode Server support with next.config.js should downlevel webp format to jpeg for old Safari",
+      "with outdated sharp Production Mode Server support with next.config.js should emit blur svg when width is 8 in dev but not prod",
+      "with outdated sharp Production Mode Server support with next.config.js should emit blur svg when width is less than 8 in dev but not prod",
+      "with outdated sharp Production Mode Server support with next.config.js should error if the image file does not exist",
+      "with outdated sharp Production Mode Server support with next.config.js should error if the resource isn't a valid image",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when domain is not defined in next.config.js",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when internal url is not an image",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when q is greater than 100",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when q is less than 1",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when q is missing",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when q is not a number",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when url has file protocol",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when url is missing",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when w is 0",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when w is less than 0",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when w is missing",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when w is not a number",
+      "with outdated sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
+      "with outdated sharp Production Mode Server support with next.config.js should handle concurrent requests",
+      "with outdated sharp Production Mode Server support with next.config.js should handle custom sharp usage",
+      "with outdated sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
+      "with outdated sharp Production Mode Server support with next.config.js should have sharp outdated warning",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain animated gif",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain animated png",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain animated png 2",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain animated webp",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain bmp",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain ico format",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain jpg format for old Safari",
+      "with outdated sharp Production Mode Server support with next.config.js should maintain png format for old Safari",
+      "with outdated sharp Production Mode Server support with next.config.js should normalize invalid status codes",
+      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with application header",
+      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with comma header",
+      "with outdated sharp Production Mode Server support with next.config.js should not allow svg with uppercase header",
+      "with outdated sharp Production Mode Server support with next.config.js should not allow vector svg",
+      "with outdated sharp Production Mode Server support with next.config.js should not have sharp missing warning",
+      "with outdated sharp Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
+      "with outdated sharp Production Mode Server support with next.config.js should resize absolute url from localhost",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and old Chrome accept header as webp",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and png accept header",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url and webp Firefox accept header",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as gif",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as png",
+      "with outdated sharp Production Mode Server support with next.config.js should resize relative url with invalid accept header as tiff",
+      "with outdated sharp Production Mode Server support with next.config.js should return home page",
+      "with outdated sharp Production Mode Server support with next.config.js should set 304 status without body when etag matches if-none-match",
+      "with outdated sharp Production Mode Server support with next.config.js should set cache-control to immutable for static images",
+      "with outdated sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
+      "with outdated sharp Production Mode Server support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with outdated sharp Production Mode Server support with next.config.js should use cached image file when parameters are the same for animated gif"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11949,6 +12077,8 @@
       "with latest sharp dev support w/o next.config.js should not allow svg with comma header",
       "with latest sharp dev support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support w/o next.config.js should not allow vector svg",
+      "with latest sharp dev support w/o next.config.js should not have sharp missing warning",
+      "with latest sharp dev support w/o next.config.js should not have sharp outdated warning",
       "with latest sharp dev support w/o next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp dev support w/o next.config.js should resize relative url and old Chrome accept header as webp",
       "with latest sharp dev support w/o next.config.js should resize relative url and png accept header",
@@ -12001,6 +12131,8 @@
       "with latest sharp dev support with next.config.js should not allow svg with comma header",
       "with latest sharp dev support with next.config.js should not allow svg with uppercase header",
       "with latest sharp dev support with next.config.js should not allow vector svg",
+      "with latest sharp dev support with next.config.js should not have sharp missing warning",
+      "with latest sharp dev support with next.config.js should not have sharp outdated warning",
       "with latest sharp dev support with next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp dev support with next.config.js should resize absolute url from localhost",
       "with latest sharp dev support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -12052,6 +12184,8 @@
       "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with comma header",
       "with latest sharp Production Mode Server support w/o next.config.js should not allow svg with uppercase header",
       "with latest sharp Production Mode Server support w/o next.config.js should not allow vector svg",
+      "with latest sharp Production Mode Server support w/o next.config.js should not have sharp missing warning",
+      "with latest sharp Production Mode Server support w/o next.config.js should not have sharp outdated warning",
       "with latest sharp Production Mode Server support w/o next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and old Chrome accept header as webp",
       "with latest sharp Production Mode Server support w/o next.config.js should resize relative url and png accept header",
@@ -12090,6 +12224,7 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when w is not a number",
       "with latest sharp Production Mode Server support with next.config.js should fail when width is not in next.config.js",
       "with latest sharp Production Mode Server support with next.config.js should handle concurrent requests",
+      "with latest sharp Production Mode Server support with next.config.js should handle custom sharp usage",
       "with latest sharp Production Mode Server support with next.config.js should handle non-ascii characters in image url",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated gif",
       "with latest sharp Production Mode Server support with next.config.js should maintain animated png",
@@ -12104,6 +12239,8 @@
       "with latest sharp Production Mode Server support with next.config.js should not allow svg with comma header",
       "with latest sharp Production Mode Server support with next.config.js should not allow svg with uppercase header",
       "with latest sharp Production Mode Server support with next.config.js should not allow vector svg",
+      "with latest sharp Production Mode Server support with next.config.js should not have sharp missing warning",
+      "with latest sharp Production Mode Server support with next.config.js should not have sharp outdated warning",
       "with latest sharp Production Mode Server support with next.config.js should not resize if requested width is larger than original source image",
       "with latest sharp Production Mode Server support with next.config.js should resize absolute url from localhost",
       "with latest sharp Production Mode Server support with next.config.js should resize relative url and new Chrome accept header as avif",
@@ -14865,13 +15002,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/sharp-api/test/sharp-api.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": ["sharp api should handle custom sharp usage"],
     "flakey": [],
     "runtimeError": false
   },

@@ -17,7 +17,7 @@ import type {
   ReadonlyReducerState,
   ReducerState,
 } from '../router-reducer-types'
-import { PrefetchKind, PrefetchCacheEntryStatus } from '../router-reducer-types'
+import { PrefetchCacheEntryStatus } from '../router-reducer-types'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
@@ -28,9 +28,8 @@ import {
   updateCacheNodeOnNavigation,
 } from '../ppr-navigations'
 import {
-  createPrefetchCacheKey,
+  getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
-  getPrefetchEntryCacheStatus,
 } from '../prefetch-cache-utils'
 
 export function handleExternalUrl(
@@ -126,48 +125,25 @@ function navigateReducer_noPPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
+  const {
+    treeAtTimeOfPrefetch,
+    data,
+    status: prefetchEntryCacheStatus,
+  } = prefetchValues
 
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const data = fetchServerResponse(
-      url,
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // in order to simulate the behavior of the prefetch cache
-      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-    )
+  prefetchQueue.bump(data)
 
-    const newPrefetchValue = {
-      data,
-      // this will make sure that the entry will be discarded after 30s
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchTime: Date.now(),
-      treeAtTimeOfPrefetch: state.tree,
-      lastUsedTime: null,
-    }
-
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
-    prefetchValues = newPrefetchValue
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  // The one before last item is the router state tree patch
-  const { treeAtTimeOfPrefetch, data } = prefetchValues
-
-  prefetchQueue.bump(data!)
-
-  return data!.then(
+  return data.then(
     ([flightData, canonicalUrlOverride]) => {
       // we only want to mark this once
-      if (prefetchValues && !prefetchValues.lastUsedTime) {
+      if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
       }
@@ -178,7 +154,7 @@ function navigateReducer_noPPR(
       }
 
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       for (const flightDataPath of flightData) {
         const flightSegmentPath = flightDataPath.slice(
@@ -220,7 +196,7 @@ function navigateReducer_noPPR(
             currentCache,
             cache,
             flightDataPath,
-            prefetchValues?.kind === 'auto' &&
+            prefetchValues.kind === 'auto' &&
               prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
           )
 
@@ -266,7 +242,6 @@ function navigateReducer_noPPR(
             mutable.cache = cache
           }
 
-          currentCache = cache
           currentTree = newTree
 
           for (const subSegment of generateSegmentsFromPatch(treePatch)) {
@@ -318,48 +293,25 @@ function navigateReducer_PPR(
     return handleExternalUrl(state, mutable, url.toString(), pendingPush)
   }
 
-  const prefetchCacheKey = createPrefetchCacheKey(url, state.nextUrl)
-  let prefetchValues = state.prefetchCache.get(prefetchCacheKey)
+  const prefetchValues = getOrCreatePrefetchCacheEntry({
+    url,
+    nextUrl: state.nextUrl,
+    tree: state.tree,
+    buildId: state.buildId,
+    prefetchCache: state.prefetchCache,
+  })
+  const {
+    treeAtTimeOfPrefetch,
+    data,
+    status: prefetchEntryCacheStatus,
+  } = prefetchValues
 
-  // If we don't have a prefetch value, we need to create one
-  if (!prefetchValues) {
-    const data = fetchServerResponse(
-      url,
-      state.tree,
-      state.nextUrl,
-      state.buildId,
-      // in dev, there's never gonna be a prefetch entry so we want to prefetch here
-      // in order to simulate the behavior of the prefetch cache
-      process.env.NODE_ENV === 'development' ? PrefetchKind.AUTO : undefined
-    )
+  prefetchQueue.bump(data)
 
-    const newPrefetchValue = {
-      data,
-      // this will make sure that the entry will be discarded after 30s
-      kind:
-        process.env.NODE_ENV === 'development'
-          ? PrefetchKind.AUTO
-          : PrefetchKind.TEMPORARY,
-      prefetchTime: Date.now(),
-      treeAtTimeOfPrefetch: state.tree,
-      lastUsedTime: null,
-    }
-
-    state.prefetchCache.set(prefetchCacheKey, newPrefetchValue)
-    prefetchValues = newPrefetchValue
-  }
-
-  const prefetchEntryCacheStatus = getPrefetchEntryCacheStatus(prefetchValues)
-
-  // The one before last item is the router state tree patch
-  const { treeAtTimeOfPrefetch, data } = prefetchValues
-
-  prefetchQueue.bump(data!)
-
-  return data!.then(
+  return data.then(
     ([flightData, canonicalUrlOverride, _postponed]) => {
       // we only want to mark this once
-      if (prefetchValues && !prefetchValues.lastUsedTime) {
+      if (!prefetchValues.lastUsedTime) {
         // important: we should only mark the cache node as dirty after we unsuspend from the call above
         prefetchValues.lastUsedTime = Date.now()
       }
@@ -370,7 +322,7 @@ function navigateReducer_PPR(
       }
 
       let currentTree = state.tree
-      let currentCache = state.cache
+      const currentCache = state.cache
       let scrollableSegments: FlightSegmentPath[] = []
       // TODO: In practice, this is always a single item array. We probably
       // aren't going to every send multiple segments, at least not in this
@@ -496,7 +448,7 @@ function navigateReducer_PPR(
               currentCache,
               cache,
               flightDataPath,
-              prefetchValues?.kind === 'auto' &&
+              prefetchValues.kind === 'auto' &&
                 prefetchEntryCacheStatus === PrefetchCacheEntryStatus.reusable
             )
 

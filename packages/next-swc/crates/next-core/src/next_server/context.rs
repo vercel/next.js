@@ -13,9 +13,7 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{
-                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
-            },
+            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
@@ -290,11 +288,10 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env)),
     )))
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))

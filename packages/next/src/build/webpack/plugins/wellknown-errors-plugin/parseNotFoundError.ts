@@ -1,6 +1,6 @@
 import { bold, cyan, green, red, yellow } from '../../../../lib/picocolors'
 import { SimpleWebpackError } from './simpleWebpackError'
-import { createOriginalStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { createOriginalStackFrame } from '../../../../client/components/react-dev-overlay/server/middleware'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 // Based on https://github.com/webpack/webpack/blob/fcdd04a833943394bbb0a9eeb54a962a24cc7e41/lib/stats/DefaultStatsFactoryPlugin.js#L422-L431

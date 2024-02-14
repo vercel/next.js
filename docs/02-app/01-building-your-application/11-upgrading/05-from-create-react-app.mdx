@@ -30,7 +30,7 @@ While fetching data on the client is supported with Next.js, it also gives you t
 
 With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls.
 
-This enables you to build pages that are faster to load and also eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
+This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
 ### Choose the data fetching strategy
 
@@ -533,10 +533,12 @@ and add `.next` and `next-env.d.ts` to your `.gitignore`:
 # ...
 .next
 next-env.d.ts
-.dist
+dist
 ```
 
 Now run `npm run dev`, and open [`http://localhost:3000`](http://localhost:3000). You should see your application now running on Next.js.
+
+> **Example:** Check out [this repository](https://github.com/vercel/cra-to-next) for a working example of a CRA application migrated to Next.js.
 
 ### Step 9: Clean Up
 
@@ -553,7 +555,7 @@ Create React App and Next.js both default to using webpack for bundling.
 
 When migrating your CRA application to Next.js, you might have a custom webpack configuration you're looking to migrate. Next.js supports providing a [custom webpack configuration](/docs/app/api-reference/next-config-js/webpack).
 
-Further, Next.js has support for [Turbopack](/docs/app/api-reference/next-config-js/turbo) through `next dev --turbo` to improve your local dev performance. Turbopack supports some [webpack loaders](/docs/app/api-reference/next-config-js/turbo) as well for compatability and incremental adoption.
+Further, Next.js has support for [Turbopack](/docs/app/api-reference/next-config-js/turbo) through `next dev --turbo` to improve your local dev performance. Turbopack supports some [webpack loaders](/docs/app/api-reference/next-config-js/turbo) as well for compatibility and incremental adoption.
 
 ## Next Steps
 

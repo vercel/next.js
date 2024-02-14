@@ -4,24 +4,30 @@ import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
 function generateBlocks(prs) {
+  let text = ''
+  let count = 0
+
   const blocks = [
-    {
-      type: 'section',
-      text: {
-        type: 'mrkdwn',
-        text: '*A list of the top 15 PRs sorted by most :+1: reactions over the last 90 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._',
-      },
-    },
     {
       type: 'divider',
     },
   ]
 
-  let text = ''
   prs.forEach((pr, i) => {
-    text += `${i + 1}. [<${pr.html_url}|#${pr.number}>, :+1: ${
-      pr.reactions['+1']
-    }]: ${pr.title}\n`
+    if (pr.reactions['+1'] > 1) {
+      text += `${i + 1}. [<${pr.html_url}|#${pr.number}>, :+1: ${
+        pr.reactions['+1']
+      }]: ${pr.title}\n`
+      count++
+    }
+  })
+
+  blocks.unshift({
+    type: 'section',
+    text: {
+      type: 'mrkdwn',
+      text: `*A list of the top ${count} PRs sorted by most :+1: reactions (> 1) over the last 90 days.*\n_Note: This :github2: workflow will run every Monday at 1PM UTC (9AM EST)._`,
+    },
   })
 
   blocks.push({
