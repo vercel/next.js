@@ -1102,11 +1102,11 @@ export async function handleEntrypoints({
   distDir: string
   globalEntrypoints: GlobalEntrypoints
   currentEntrypoints: CurrentEntrypoints
-  changeSubscriptions: ChangeSubscriptions
-  changeSubscription: ChangeSubscription
-  clearChangeSubscription: ClearChangeSubscription
-  sendHmr: SendHmr
-  startBuilding: StartBuilding
+  changeSubscriptions: ChangeSubscriptions | undefined
+  changeSubscription: ChangeSubscription | undefined
+  clearChangeSubscription: ClearChangeSubscription | undefined
+  sendHmr: SendHmr | undefined
+  startBuilding: StartBuilding | undefined
   handleRequireCacheClearing: HandleRequireCacheClearing
   prevMiddleware: boolean | undefined
   currentIssues: CurrentIssues
@@ -1140,16 +1140,18 @@ export async function handleEntrypoints({
     }
   }
 
-  for (const [pathname, subscriptionPromise] of changeSubscriptions) {
-    if (pathname === '') {
-      // middleware is handled below
-      continue
-    }
+  if (changeSubscriptions) {
+    for (const [pathname, subscriptionPromise] of changeSubscriptions) {
+      if (pathname === '') {
+        // middleware is handled below
+        continue
+      }
 
-    if (!currentEntrypoints.has(pathname)) {
-      const subscription = await subscriptionPromise
-      subscription.return?.()
-      changeSubscriptions.delete(pathname)
+      if (!currentEntrypoints.has(pathname)) {
+        const subscription = await subscriptionPromise
+        subscription.return?.()
+        changeSubscriptions.delete(pathname)
+      }
     }
   }
 
@@ -1159,13 +1161,13 @@ export async function handleEntrypoints({
   // unnecessary during the first serve)
   if (prevMiddleware === true && !middleware) {
     // Went from middleware to no middleware
-    await clearChangeSubscription('middleware', 'server')
-    sendHmr('middleware', {
+    await clearChangeSubscription?.('middleware', 'server')
+    sendHmr?.('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   } else if (prevMiddleware === false && middleware) {
     // Went from no middleware to middleware
-    sendHmr('middleware', {
+    sendHmr?.('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
@@ -1244,13 +1246,13 @@ export async function handleEntrypoints({
     }
     await processMiddleware()
 
-    changeSubscription(
+    changeSubscription?.(
       'middleware',
       'server',
       false,
       middleware.endpoint,
       async () => {
-        const finishBuilding = startBuilding('middleware', undefined, true)
+        const finishBuilding = startBuilding?.('middleware', undefined, true)
         await processMiddleware()
         await propagateServerField(
           opts,
@@ -1272,7 +1274,7 @@ export async function handleEntrypoints({
           currentEntrypoints,
         })
 
-        finishBuilding()
+        finishBuilding?.()
         return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
       }
     )
