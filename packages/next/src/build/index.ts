@@ -181,9 +181,11 @@ import {
   type FontManifests,
   type LoadableManifests,
   handleRouteType,
+  writeManifests,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import type { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
+import { FontManifest } from '../server/font-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1342,7 +1344,8 @@ export default async function build(
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
-            dev: false,
+            // When passing `false` you get `react.jsxDEV is not a function`
+            dev: true,
             distDir,
             fetchCacheKeyPrefix: undefined,
             hasRewrites,
@@ -1448,6 +1451,35 @@ export default async function build(
           await Promise.all(promises)
           break
         }
+        await writeManifests({
+          rewrites: rewrites,
+          distDir,
+          buildManifests,
+          appBuildManifests,
+          pagesManifests,
+          appPathsManifests,
+          middlewareManifests,
+          actionManifests,
+          fontManifests,
+          loadableManifests,
+          currentEntrypoints,
+        })
+
+        // Temporary
+        await writeBuildId(distDir, buildId)
+        const prerenderManifest: Readonly<PrerenderManifest> = {
+          version: 4,
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: previewProps,
+        }
+        await writePrerenderManifest(distDir, prerenderManifest)
+        await writeManifest<FontManifest>(
+          path.join(distDir, 'server', FONT_MANIFEST),
+          []
+        )
+        // End temporary
         throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
