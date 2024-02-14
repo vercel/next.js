@@ -18,9 +18,6 @@ indent_style = tab
 [{go.mod,go.sum,*.go}]
 indent_style = tab
 
-[nginx.conf]
-indent_size = 8
-
 [*.rs]
 # Keep in sync with rustfmt
 max_line_length = 100
