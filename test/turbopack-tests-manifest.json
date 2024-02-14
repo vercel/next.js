@@ -2560,7 +2560,8 @@
     "failed": [
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
       "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
-      "app dir - external dependency should have proper tree-shaking for known modules in CJS"
+      "app dir - external dependency should have proper tree-shaking for known modules in CJS",
+      "app dir - external dependency should not apply swc optimizer transform for external packages in browser layer"
     ],
     "pending": [],
     "flakey": [],
