@@ -29,7 +29,7 @@
   "todo-tree.filtering.excludeGlobs": [
     "**/node_modules",
     "**/dist",
-    "**/compiled"
+    "**/vendored"
   ],
   // Match TODO-APP in addition to other TODOs.
   "todo-tree.general.tags": [
