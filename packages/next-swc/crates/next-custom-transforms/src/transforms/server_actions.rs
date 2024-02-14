@@ -1047,19 +1047,19 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             if self.config.is_react_server_layer {
                 // Inlined actions are only allowed on the server layer.
-                // import { createActionProxy } from 'private-next-rsc-action-proxy'
-                // createActionProxy("action_id")
+                // import { registerServerReference } from 'private-next-rsc-server-reference'
+                // registerServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("createActionProxy"),
+                        local: quote_ident!("registerServerReference"),
                         imported: None,
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-proxy".into(),
+                        value: "private-next-rsc-server-reference".into(),
                         raw: None,
                     }),
                     type_only: false,
@@ -1218,13 +1218,13 @@ fn annotate_ident_as_action(
     file_name: &str,
     export_name: String,
 ) -> Expr {
-    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
+    // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: quote_ident!("createActionProxy").as_callee(),
+        callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             // $$id
             ExprOrSpread {
