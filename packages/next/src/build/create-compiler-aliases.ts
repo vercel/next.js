@@ -148,7 +148,7 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/action-client-wrapper',
 
     [RSC_ACTION_PROXY_ALIAS]:
-      'next/dist/build/webpack/loaders/next-flight-loader/action-proxy',
+      'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]:
       'next/dist/server/app-render/action-encryption',

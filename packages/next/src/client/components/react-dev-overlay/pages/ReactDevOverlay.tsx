@@ -1,14 +1,14 @@
 import * as React from 'react'
 
 import * as Bus from './bus'
-import { ShadowPortal } from './components/ShadowPortal'
-import { BuildError } from './container/BuildError'
-import type { SupportedErrorEvent } from './container/Errors'
-import { Errors } from './container/Errors'
+import { ShadowPortal } from '../internal/components/ShadowPortal'
+import { BuildError } from '../internal/container/BuildError'
+import type { SupportedErrorEvent } from '../internal/container/Errors'
+import { Errors } from '../internal/container/Errors'
 import { ErrorBoundary } from './ErrorBoundary'
-import { Base } from './styles/Base'
-import { ComponentStyles } from './styles/ComponentStyles'
-import { CssReset } from './styles/CssReset'
+import { Base } from '../internal/styles/Base'
+import { ComponentStyles } from '../internal/styles/ComponentStyles'
+import { CssReset } from '../internal/styles/CssReset'
 
 type RefreshState =
   | {
@@ -176,7 +176,7 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
           {children ?? null}
         </ErrorBoundary>
         {isMounted ? (
-          <ShadowPortal globalOverlay={globalOverlay}>
+          <ShadowPortal>
             <CssReset />
             <Base />
             <ComponentStyles />
@@ -184,7 +184,11 @@ const ReactDevOverlay: React.FunctionComponent<ReactDevOverlayProps> =
             {displayPrevented ? null : hasBuildError ? (
               <BuildError message={state.buildError!} />
             ) : hasRuntimeErrors ? (
-              <Errors errors={state.errors} />
+              <Errors
+                isAppDir={false}
+                errors={state.errors}
+                initialDisplayState={'fullscreen'}
+              />
             ) : undefined}
           </ShadowPortal>
         ) : undefined}

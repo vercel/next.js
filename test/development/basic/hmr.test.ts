@@ -728,7 +728,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: The default export is not a React Component in page: "/hmr/about5"
@@ -831,7 +831,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: The default export is not a React Component in page: "/hmr/about7"
@@ -1008,7 +1008,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-            " 1 of 1 unhandled error
+            "1 of 1 unhandled error
             Unhandled Runtime Error
 
             Error: an-expected-error-in-gip"
@@ -1052,7 +1052,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: an-expected-error-in-gip
