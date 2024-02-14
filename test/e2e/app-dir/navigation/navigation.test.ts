@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright-chromium'
+import type { Request } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
@@ -35,7 +35,7 @@ createNextDescribe(
         }> = []
 
         const browser = await next.browser('/search-params?name=名')
-        browser.on('request', async (req: Request) => {
+        async function requestHandler(req: Request) {
           const res = await req.response()
           if (!res) return
 
@@ -44,7 +44,8 @@ createNextDescribe(
             ok: res.ok(),
             headers: res.headers(),
           })
-        })
+        }
+        browser.on('request', requestHandler)
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
 
@@ -57,6 +58,9 @@ createNextDescribe(
             }),
           })
         )
+
+        browser.off('request', requestHandler)
+        await browser.close()
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
