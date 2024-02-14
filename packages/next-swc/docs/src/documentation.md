@@ -4,7 +4,7 @@ Turbopack has two main types of documentation. One is a description of the code 
 
 ## Write a general overview document
 
-Files written in markdown format in `packages/next-swc/docs/src` can be read by [mdbook](https://rust-lang.github.io/mdBook/).(Like the page you're looking at now)
+Files written in markdown format in `packages/next-swc/docs/src` can be read by [mdbook](https://rust-lang.github.io/mdBook/)(Like the page you're looking at now). Our configuration includes [mermaid](https://mermaid.js.org/) support to include diagrams. See [archtecture](archtecture.md) how it looks like.
 
 ## Write a rustdoc comment
 
@@ -13,3 +13,21 @@ If you write a [documentation comment](https://doc.rust-lang.org/reference/comme
 ## Build the documentation
 
 The `scripts/deploy-turbopack-docs.sh` script bundles the mdbook and rustdoc and deploys them. You can use it locally as a build script because it won't run the deployment if it doesn't have a token. The script runs a rustdoc build followed by an mdbook build, and then copies the output of the rustdoc build under `mdbook/rustdoc`.
+
+To locally build the documentation, ensure these are installed
+
+- Rust compiler
+- [mdbook](https://github.com/rust-lang/mdBook)
+- [mdbook-mermaid](https://github.com/badboy/mdbook-mermaid)
+
+```
+./scripts/deploy-turbopack-docs.sh
+open ./target/mdbook/index.html
+```
+
+or
+
+```
+// note you can't check rustdoc links when running devserver
+mdbook serve --dest-dir $(pwd)/target/mdbook ./packages/next-swc/docs
+```
