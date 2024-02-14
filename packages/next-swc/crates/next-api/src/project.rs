@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::MAIN_SEPARATOR};
+use std::path::MAIN_SEPARATOR;
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -39,7 +39,6 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
-            environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
@@ -91,9 +90,6 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
-
-    /// The address of the dev server.
-    pub server_addr: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -121,9 +117,6 @@ pub struct PartialProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: Option<bool>,
-
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -187,9 +180,6 @@ impl ProjectContainer {
         if let Some(watch) = options.watch {
             new_options.watch = watch;
         }
-        if let Some(server_addr) = options.server_addr {
-            new_options.server_addr = server_addr;
-        }
 
         self.options_state.set(new_options);
 
@@ -200,7 +190,7 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
@@ -214,7 +204,6 @@ impl ProjectContainer {
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
-            let server_addr = options.server_addr.parse()?;
             (
                 env,
                 define_env,
@@ -223,7 +212,6 @@ impl ProjectContainer {
                 root_path,
                 project_path,
                 watch,
-                server_addr,
             )
         };
 
@@ -237,7 +225,6 @@ impl ProjectContainer {
             root_path,
             project_path,
             watch,
-            server_addr,
             next_config,
             js_config,
             dist_dir,
@@ -300,10 +287,6 @@ pub struct Project {
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
-
-    /// The address of the dev server.
-    #[turbo_tasks(trace_ignore)]
-    server_addr: SocketAddr,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -395,11 +378,6 @@ impl Project {
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
-    }
-
-    #[turbo_tasks::function]
-    fn server_addr(&self) -> Vc<ServerAddr> {
-        ServerAddr::new(self.server_addr).cell()
     }
 
     #[turbo_tasks::function]
@@ -498,7 +476,6 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             self.env(),
-            self.server_addr(),
             this.define_env.nodejs(),
         ))
     }
@@ -508,7 +485,6 @@ impl Project {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
             self.project_path(),
-            self.server_addr(),
             this.define_env.edge(),
         ))
     }
@@ -549,8 +525,7 @@ impl Project {
         )
     }
 
-    /// Emit a telemetry event corresponding to webpack configuration telemetry
-    /// (https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {

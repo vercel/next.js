@@ -225,8 +225,8 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
         root,
         "client-only".to_string(),
         vec![
-            "'client-only' cannot be imported from a Client Component module. It should only be \
-             used from a Server Component."
+            "'client-only' cannot be imported from a Server Component module. It should only be \
+             used from a Client Component."
                 .to_string(),
         ],
     )
