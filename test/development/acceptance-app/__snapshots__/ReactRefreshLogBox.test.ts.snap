@@ -42,14 +42,14 @@ exports[`ReactRefreshLogBox app default boundaries 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = `
-"Child.js (6:11) @ ClickCount.render
+"Child.js (4:11) @ ClickCount.render
 
-  4 | export default class ClickCount extends Component {
-  5 |   render() {
-> 6 |     throw new Error()
+  2 | export default class ClickCount extends Component {
+  3 |   render() {
+> 4 |     throw new Error()
     |           ^
-  7 |   }
-  8 | }"
+  5 |   }
+  6 | }"
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
