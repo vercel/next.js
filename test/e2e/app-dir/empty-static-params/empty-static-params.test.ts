@@ -6,7 +6,7 @@ createNextDescribe(
     files: __dirname,
   },
   () => {
-    // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
+    // Runs a dummy test to ensure the test suite has built while working around the fact that `next start` does not work with exports
     it('should have built', async () => {})
   }
 )
