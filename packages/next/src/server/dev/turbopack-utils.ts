@@ -34,9 +34,9 @@ import {
   type ClientBuildManifest,
   srcEmptySsgManifest,
 } from '../../build/webpack/plugins/build-manifest-plugin'
-import {
-  type ServerFields,
-  type SetupOpts,
+import type {
+  ServerFields,
+  SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
 import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
 import type {
