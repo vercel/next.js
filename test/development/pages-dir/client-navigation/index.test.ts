@@ -1114,6 +1114,18 @@ createNextDescribe(
           await browser.close()
         }
       })
+
+      it('router.replace with shallow=true shall not throw route cancelled errors', async () => {
+        const browser = await webdriver(next.appPort, '/nav/query-only-shallow')
+        try {
+          await browser.elementByCss('#router-replace').click()
+          await browser.elementByCss('#router-replace').click()
+
+          await check(() => browser.waitForElementByCss('#error').text(), '')
+        } finally {
+          await browser.close()
+        }
+      })
     })
 
     describe('with getInitialProp redirect', () => {
