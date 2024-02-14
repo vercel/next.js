@@ -1388,7 +1388,7 @@ export default async function build(
         const loadableManifests: LoadableManifests = new Map()
 
         // TODO: implement this
-        const rewrites = {
+        const emptyRewritesObjToBeImplemented = {
           beforeFiles: [],
           afterFiles: [],
           fallback: [],
@@ -1396,7 +1396,7 @@ export default async function build(
 
         for await (const entrypoints of entrypointsSubscription) {
           await handleEntrypoints({
-            rewrites,
+            rewrites: emptyRewritesObjToBeImplemented,
             nextConfig: config,
             entrypoints,
             serverFields: undefined,
@@ -1426,7 +1426,7 @@ export default async function build(
           for (const [page, route] of currentEntrypoints) {
             promises.push(
               handleRouteType({
-                rewrites,
+                rewrites: emptyRewritesObjToBeImplemented,
                 distDir,
                 globalEntrypoints,
                 currentIssues,
@@ -1451,7 +1451,7 @@ export default async function build(
           break
         }
         await writeManifests({
-          rewrites: rewrites,
+          rewrites: emptyRewritesObjToBeImplemented,
           distDir,
           buildManifests,
           appBuildManifests,
