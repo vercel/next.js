@@ -1446,6 +1446,7 @@ export default async function build(
             )
           }
           await Promise.all(promises)
+          break
         }
         throw new Error("next build doesn't support turbopack yet")
       }
