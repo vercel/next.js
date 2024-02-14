@@ -35,7 +35,6 @@ import {
   srcEmptySsgManifest,
 } from '../../build/webpack/plugins/build-manifest-plugin'
 import {
-  propagateServerField,
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
@@ -59,6 +58,7 @@ import {
   type HMR_ACTION_TYPES,
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
+import type { PropagateToWorkersField } from '../lib/router-utils/types'
 
 export interface InstrumentationDefinition {
   files: string[]
@@ -1073,9 +1073,11 @@ export async function handleRouteType({
 }
 
 export async function handleEntrypoints({
+  rewrites,
+  nextConfig,
   entrypoints,
-  opts,
   serverFields,
+  propagateServerField,
   distDir,
   globalEntrypoints,
   currentEntrypoints,
@@ -1096,9 +1098,13 @@ export async function handleEntrypoints({
   fontManifests,
   loadableManifests,
 }: {
+  rewrites: SetupOpts['fsChecker']['rewrites']
+  nextConfig: NextConfigComplete
   entrypoints: TurbopackResult<Entrypoints>
-  opts: SetupOpts
-  serverFields: ServerFields
+  serverFields: ServerFields | undefined
+  propagateServerField:
+    | ((field: PropagateToWorkersField, args: any) => Promise<void>)
+    | undefined
   distDir: string
   globalEntrypoints: GlobalEntrypoints
   currentEntrypoints: CurrentEntrypoints
@@ -1107,7 +1113,7 @@ export async function handleEntrypoints({
   clearChangeSubscription: ClearChangeSubscription | undefined
   sendHmr: SendHmr | undefined
   startBuilding: StartBuilding | undefined
-  handleRequireCacheClearing: HandleRequireCacheClearing
+  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
   prevMiddleware: boolean | undefined
   currentIssues: CurrentIssues
   buildManifests: BuildManifests
@@ -1172,14 +1178,14 @@ export async function handleEntrypoints({
     })
   }
 
-  if (opts.nextConfig.experimental.instrumentationHook && instrumentation) {
+  if (nextConfig.experimental.instrumentationHook && instrumentation) {
     const processInstrumentation = async (
       displayName: string,
       name: string,
       prop: 'nodeJs' | 'edge'
     ) => {
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      handleRequireCacheClearing(displayName, writtenEndpoint)
+      handleRequireCacheClearing?.(displayName, writtenEndpoint)
       processIssues(currentIssues, name, writtenEndpoint)
     }
     await processInstrumentation(
@@ -1199,7 +1205,7 @@ export async function handleEntrypoints({
       'instrumentation'
     )
     await writeManifests({
-      rewrites: opts.fsChecker.rewrites,
+      rewrites: rewrites,
       distDir,
       buildManifests,
       appBuildManifests,
@@ -1212,24 +1218,26 @@ export async function handleEntrypoints({
       currentEntrypoints,
     })
 
-    serverFields.actualInstrumentationHookFile = '/instrumentation'
-    await propagateServerField(
-      opts,
-      'actualInstrumentationHookFile',
-      serverFields.actualInstrumentationHookFile
-    )
+    if (serverFields && propagateServerField) {
+      serverFields.actualInstrumentationHookFile = '/instrumentation'
+      await propagateServerField(
+        'actualInstrumentationHookFile',
+        serverFields.actualInstrumentationHookFile
+      )
+    }
   } else {
-    serverFields.actualInstrumentationHookFile = undefined
-    await propagateServerField(
-      opts,
-      'actualInstrumentationHookFile',
-      serverFields.actualInstrumentationHookFile
-    )
+    if (serverFields && propagateServerField) {
+      serverFields.actualInstrumentationHookFile = undefined
+      await propagateServerField(
+        'actualInstrumentationHookFile',
+        serverFields.actualInstrumentationHookFile
+      )
+    }
   }
   if (middleware) {
     const processMiddleware = async () => {
       const writtenEndpoint = await middleware.endpoint.writeToDisk()
-      handleRequireCacheClearing('middleware', writtenEndpoint)
+      handleRequireCacheClearing?.('middleware', writtenEndpoint)
       processIssues(currentIssues, 'middleware', writtenEndpoint)
       await loadMiddlewareManifest(
         distDir,
@@ -1237,11 +1245,13 @@ export async function handleEntrypoints({
         'middleware',
         'middleware'
       )
-      serverFields.middleware = {
-        match: null as any,
-        page: '/',
-        matchers:
-          middlewareManifests.get('middleware')?.middleware['/'].matchers,
+      if (serverFields) {
+        serverFields.middleware = {
+          match: null as any,
+          page: '/',
+          matchers:
+            middlewareManifests.get('middleware')?.middleware['/'].matchers,
+        }
       }
     }
     await processMiddleware()
@@ -1254,14 +1264,15 @@ export async function handleEntrypoints({
       async () => {
         const finishBuilding = startBuilding?.('middleware', undefined, true)
         await processMiddleware()
-        await propagateServerField(
-          opts,
-          'actualMiddlewareFile',
-          serverFields.actualMiddlewareFile
-        )
-        await propagateServerField(opts, 'middleware', serverFields.middleware)
+        if (serverFields && propagateServerField) {
+          await propagateServerField(
+            'actualMiddlewareFile',
+            serverFields.actualMiddlewareFile
+          )
+          await propagateServerField('middleware', serverFields.middleware)
+        }
         await writeManifests({
-          rewrites: opts.fsChecker.rewrites,
+          rewrites: rewrites,
           distDir,
           buildManifests,
           appBuildManifests,
@@ -1281,14 +1292,17 @@ export async function handleEntrypoints({
     prevMiddleware = true
   } else {
     middlewareManifests.delete('middleware')
-    serverFields.actualMiddlewareFile = undefined
-    serverFields.middleware = undefined
-    prevMiddleware = false
+    if (serverFields) {
+      serverFields.actualMiddlewareFile = undefined
+      serverFields.middleware = undefined
+      prevMiddleware = false
+    }
   }
-  await propagateServerField(
-    opts,
-    'actualMiddlewareFile',
-    serverFields.actualMiddlewareFile
-  )
-  await propagateServerField(opts, 'middleware', serverFields.middleware)
+  if (serverFields && propagateServerField) {
+    await propagateServerField(
+      'actualMiddlewareFile',
+      serverFields.actualMiddlewareFile
+    )
+    await propagateServerField('middleware', serverFields.middleware)
+  }
 }

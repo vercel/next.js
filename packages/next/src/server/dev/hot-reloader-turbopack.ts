@@ -69,6 +69,7 @@ import {
   type ChangeSubscriptions,
 } from './turbopack-utils'
 import {
+  propagateServerField,
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
@@ -139,8 +140,6 @@ export async function createHotReloaderTurbopack(
     document: undefined,
     error: undefined,
   }
-  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
-  const turbopackUpdates: TurbopackUpdate[] = []
 
   const currentEntrypoints: CurrentEntrypoints = new Map()
   const currentIssues: CurrentIssues = new Map()
@@ -155,6 +154,8 @@ export async function createHotReloaderTurbopack(
   const loadableManifests: LoadableManifests = new Map()
 
   // Dev specific
+  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+  const turbopackUpdates: TurbopackUpdate[] = []
   const changeSubscriptions: ChangeSubscriptions = new Map()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
@@ -380,9 +381,13 @@ export async function createHotReloaderTurbopack(
         }
 
         handleEntrypoints({
+          rewrites: opts.fsChecker.rewrites,
+          nextConfig: opts.nextConfig,
           entrypoints,
-          opts,
           serverFields,
+          propagateServerField: async (key, value) => {
+            await propagateServerField(opts, key, value)
+          },
           distDir,
           globalEntrypoints,
           currentEntrypoints,
