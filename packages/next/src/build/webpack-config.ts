@@ -372,7 +372,7 @@ export default async function getBaseWebpackConfig(
 
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (hasCustomExportOutput(config)) {
+  if (!dev && hasCustomExportOutput(config)) {
     config.distDir = '.next'
   }
   const distDir = path.join(dir, config.distDir)
