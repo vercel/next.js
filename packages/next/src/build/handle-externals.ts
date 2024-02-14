@@ -409,9 +409,8 @@ function resolveBundlingOptOutPackages({
     (isEsm && isAppLayer) ||
     (!isAppLayer && config.experimental.bundlePagesExternals)
 
-  const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
-
   if (nodeModulesRegex.test(resolvedRes)) {
+    const isOptOutBundling = optOutBundlingPackageRegex.test(resolvedRes)
     if (isWebpackServerLayer(layer)) {
       if (isOptOutBundling) {
         return `${externalType} ${request}` // Externalize if opted out
