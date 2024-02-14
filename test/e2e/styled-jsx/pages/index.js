@@ -1,4 +1,4 @@
-import { Button } from 'test/e2e/styled-jsx/app/my-comps/button'
+import { Button } from 'my-comps/button'
 
 export default function Page() {
   return (

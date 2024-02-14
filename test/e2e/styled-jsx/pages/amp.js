@@ -1,4 +1,4 @@
-import { Button } from 'test/e2e/styled-jsx/app/my-comps/button'
+import { Button } from 'my-comps/button'
 
 export const config = { amp: true }
 
