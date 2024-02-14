@@ -6,13 +6,19 @@ const tasks: (() => Promise<any>)[] = []
 async function resolveTasksSequentially(): Promise<void> {
   let result = Promise.resolve()
 
-  for (let i = 0; i < tasks.length; i++) {
-    const task = tasks[i]
-    result = result.then(() => task())
+  function handleNext() {
+    if (tasks.length) {
+      const task = tasks.shift()
+      result = result.then(() => {
+        handleNext()
+        return task?.()
+      })
+    }
   }
 
-  await result
-  tasks.length = 0 // Clear tasks after all are executed
+  handleNext()
+
+  return result
 }
 
 export function internal_getCurrentFunctionWaitUntil() {
