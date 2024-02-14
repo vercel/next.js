@@ -1,7 +1,7 @@
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { BrowserInterface } from 'test/lib/browsers/base'
-import { Request } from 'playwright-chromium'
+import type { Request } from 'playwright'
 
 const getPathname = (url: string) => {
   const urlObj = new URL(url)

@@ -148,7 +148,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: ./scripts/deploy-turbopack-docs.sh
+      afterBuild: cargo binstall mdbook-mermaid --no-confirm && ./scripts/deploy-turbopack-docs.sh
       stepName: 'rust-doc-check'
     secrets: inherit
 

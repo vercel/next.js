@@ -46,6 +46,7 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
+  PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import {
   useReducerWithReduxDevtools,
@@ -64,6 +65,8 @@ import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import type { Params } from '../../shared/lib/router/utils/route-matcher'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -96,6 +99,36 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
     }
   }
   return urlWithoutFlightParameters
+}
+
+// this function performs a depth-first search of the tree to find the selected
+// params
+function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = currentTree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
 }
 
 type AppRouterProps = Omit<
@@ -585,6 +618,11 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  // Add memoized pathParams for useParams.
+  const pathParams = useMemo(() => {
+    return getSelectedParams(tree)
+  }, [tree])
+
   let head
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
@@ -631,33 +669,35 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
-      <PathnameContext.Provider value={pathname}>
-        <SearchParamsContext.Provider value={searchParams}>
-          <GlobalLayoutRouterContext.Provider
-            value={{
-              buildId,
-              changeByServerResponse,
-              tree,
-              focusAndScrollRef,
-              nextUrl,
-            }}
-          >
-            <AppRouterContext.Provider value={appRouter}>
-              <LayoutRouterContext.Provider
-                value={{
-                  childNodes: cache.parallelRoutes,
-                  tree,
-                  // Root node always has `url`
-                  // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                  url: canonicalUrl,
-                }}
-              >
-                {content}
-              </LayoutRouterContext.Provider>
-            </AppRouterContext.Provider>
-          </GlobalLayoutRouterContext.Provider>
-        </SearchParamsContext.Provider>
-      </PathnameContext.Provider>
+      <PathParamsContext.Provider value={pathParams}>
+        <PathnameContext.Provider value={pathname}>
+          <SearchParamsContext.Provider value={searchParams}>
+            <GlobalLayoutRouterContext.Provider
+              value={{
+                buildId,
+                changeByServerResponse,
+                tree,
+                focusAndScrollRef,
+                nextUrl,
+              }}
+            >
+              <AppRouterContext.Provider value={appRouter}>
+                <LayoutRouterContext.Provider
+                  value={{
+                    childNodes: cache.parallelRoutes,
+                    tree,
+                    // Root node always has `url`
+                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                    url: canonicalUrl,
+                  }}
+                >
+                  {content}
+                </LayoutRouterContext.Provider>
+              </AppRouterContext.Provider>
+            </GlobalLayoutRouterContext.Provider>
+          </SearchParamsContext.Provider>
+        </PathnameContext.Provider>
+      </PathParamsContext.Provider>
     </>
   )
 }
