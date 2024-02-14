@@ -745,13 +745,24 @@ createNextDescribe(
                 ),
               'rgb(255, 0, 0)'
             )
-            await check(
-              () =>
-                browser.eval(
-                  `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
-                ),
-              1
-            )
+
+            if (process.env.TURBOPACK) {
+              await check(
+                () =>
+                  browser.eval(
+                    `document.querySelectorAll('link[rel="stylesheet"][href*="/app_hmr_global_"]').length`
+                  ),
+                1
+              )
+            } else {
+              await check(
+                () =>
+                  browser.eval(
+                    `document.querySelectorAll('link[rel="stylesheet"][href*="/page.css"]').length`
+                  ),
+                1
+              )
+            }
           } finally {
             await next.patchFile(filePath, origContent)
           }
