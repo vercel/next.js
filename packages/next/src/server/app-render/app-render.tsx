@@ -405,6 +405,16 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     query
   )
 
+  // If the page we're rendering is being treated as the global not-found page, we want to special-case
+  // the segment key so it doesn't collide with a page matching the same path.
+  // This is necessary because when rendering the global not-found, it will always be the root segment.
+  // If the not-found page prefetched a link to the root page, it would have the same data path
+  // (e.g., ['', { children: ['__PAGE__', {}] }]). Without this disambiguation, the router would interpret
+  // these pages as being able to share the same cache nodes, which is not the case as they render different things.
+  if (asNotFound) {
+    initialTree[0] = '__NOT_FOUND__'
+  }
+
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
