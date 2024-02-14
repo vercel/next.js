@@ -184,8 +184,7 @@ import {
   writeManifests,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
-import type { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
-import { FontManifest } from '../server/font-utils'
+import type { FontManifest } from '../server/font-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
