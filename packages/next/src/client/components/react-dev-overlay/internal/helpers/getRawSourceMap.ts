@@ -1,4 +1,3 @@
-// @ts-ignore Package Exists
 import dataUriToBuffer from 'next/dist/compiled/data-uri-to-buffer'
 import { getSourceMapUrl } from './getSourceMapUrl'
 

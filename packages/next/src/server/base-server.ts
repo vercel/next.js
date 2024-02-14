@@ -1,5 +1,4 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { DomainLocale } from './config'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -21,7 +20,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
+import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
@@ -37,7 +36,6 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -216,51 +214,10 @@ export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
 
-type BaseRenderOpts = {
-  deploymentId?: string
+type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
-  buildId: string
   generateEtags: boolean
-  runtimeConfig?: { [key: string]: any }
-  assetPrefix?: string
-  canonicalBase: string
-  dev?: boolean
   previewProps: __ApiPreviewProps
-  customServer?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
-  basePath: string
-  optimizeFonts: FontConfig
-  images: ImageConfigComplete
-  fontManifest?: FontManifest
-  disableOptimizedLoading?: boolean
-  optimizeCss: any
-  nextConfigOutput: 'standalone' | 'export'
-  nextScriptWorkers: any
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
-  distDir: string
-  runtime?: ServerRuntime
-  serverComponents?: boolean
-  enableTainting?: boolean
-  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-  supportsDynamicHTML?: boolean
-  isBot?: boolean
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
-  serverActionsManifest?: any
-  nextFontManifest?: NextFontManifest
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
-  largePageDataBytes?: number
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  strictNextHead: boolean
-  isExperimentalCompile?: boolean
-  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -510,6 +467,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     this.renderOpts = {
+      supportsDynamicHTML: true,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
