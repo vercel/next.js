@@ -380,7 +380,7 @@ export async function createHotReloaderTurbopack(
           )
         }
 
-        handleEntrypoints({
+        await handleEntrypoints({
           rewrites: opts.fsChecker.rewrites,
           nextConfig: opts.nextConfig,
           entrypoints,
