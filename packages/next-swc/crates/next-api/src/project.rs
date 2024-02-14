@@ -1,4 +1,4 @@
-use std::path::MAIN_SEPARATOR;
+use std::path::{PathBuf, MAIN_SEPARATOR};
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -356,9 +356,18 @@ impl Project {
     #[turbo_tasks::function]
     async fn project_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
+
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.to_string(),
             this.root_path.to_string(),
+            vec![
+                format!("{}/{}", this.root_path, self.dist_dir().await?.to_string()),
+                format!(
+                    "{}/{}",
+                    this.project_path,
+                    self.dist_dir().await?.to_string()
+                ),
+            ],
         );
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -375,7 +384,15 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
+        let disk_fs = DiskFileSystem::new(
+            "node".to_string(),
+            this.project_path.clone(),
+            vec![format!(
+                "{}/{}",
+                this.project_path,
+                self.dist_dir().await?.to_string()
+            )],
+        );
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
     }

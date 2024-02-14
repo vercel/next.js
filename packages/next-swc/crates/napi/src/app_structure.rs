@@ -1,38 +1,18 @@
-use std::{collections::HashMap, path::MAIN_SEPARATOR, sync::Arc};
+use std::collections::HashMap;
 
 use anyhow::{anyhow, Result};
-use napi::{
-    bindgen_prelude::External,
-    threadsafe_function::{ErrorStrategy, ThreadsafeFunction, ThreadsafeFunctionCallMode},
-    JsFunction,
-};
 use next_core::app_structure::{
-    find_app_dir, get_entrypoints as get_entrypoints_impl, Components, Entrypoint, Entrypoints,
-    LoaderTree, MetadataItem, MetadataWithAltItem,
+    Components, Entrypoint, Entrypoints, LoaderTree, MetadataItem, MetadataWithAltItem,
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{ReadRef, Vc};
 use turbopack_binding::{
     turbo::{
-        tasks::{
-            debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, TurboTasks, ValueToString,
-        },
+        tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, TryJoinIterExt, ValueToString},
         tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath},
-        tasks_memory::MemoryBackend,
     },
     turbopack::core::PROJECT_FILESYSTEM_NAME,
 };
-
-use crate::register;
-
-#[turbo_tasks::function]
-async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
-    if watching {
-        disk_fs.await?.start_watching_with_invalidation_reason()?;
-    }
-    Ok(Vc::upcast(disk_fs))
-}
 
 #[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
@@ -321,110 +301,4 @@ async fn prepare_entrypoints_for_js(
         .into_iter()
         .collect();
     Ok(Vc::cell(entrypoints))
-}
-
-#[turbo_tasks::function]
-async fn get_value(
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
-    watching: bool,
-) -> Result<Vc<OptionEntrypointsForJs>> {
-    let page_extensions = Vc::cell(page_extensions);
-    let fs = project_fs(root_dir.clone(), watching);
-    let project_relative = project_dir.strip_prefix(&root_dir).unwrap();
-    let project_relative = project_relative
-        .strip_prefix(MAIN_SEPARATOR)
-        .unwrap_or(project_relative)
-        .replace(MAIN_SEPARATOR, "/");
-    let project_path = fs.root().join(project_relative);
-
-    let app_dir = find_app_dir(project_path);
-
-    let result = if let Some(app_dir) = *app_dir.await? {
-        let entrypoints = get_entrypoints_impl(app_dir, page_extensions);
-        let entrypoints_for_js = prepare_entrypoints_for_js(project_path, entrypoints);
-
-        Some(entrypoints_for_js)
-    } else {
-        None
-    };
-
-    Ok(Vc::cell(result))
-}
-
-#[napi]
-pub fn stream_entrypoints(
-    turbo_tasks: External<Arc<TurboTasks<MemoryBackend>>>,
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
-    func: JsFunction,
-) -> napi::Result<()> {
-    register();
-    let func: ThreadsafeFunction<Option<ReadRef<EntrypointsForJs>>, ErrorStrategy::CalleeHandled> =
-        func.create_threadsafe_function(0, |ctx| {
-            let value = ctx.value;
-            let value = serde_json::to_value(value)?;
-            Ok(vec![value])
-        })?;
-    let root_dir = Arc::new(root_dir);
-    let project_dir = Arc::new(project_dir);
-    let page_extensions = Arc::new(page_extensions);
-    turbo_tasks.spawn_root_task(move || {
-        let func: ThreadsafeFunction<Option<ReadRef<EntrypointsForJs>>> = func.clone();
-        let project_dir = project_dir.clone();
-        let root_dir = root_dir.clone();
-        let page_extensions: Arc<Vec<String>> = page_extensions.clone();
-        Box::pin(async move {
-            if let Some(entrypoints) = &*get_value(
-                (*root_dir).clone(),
-                (*project_dir).clone(),
-                page_extensions.iter().map(|s| s.to_string()).collect(),
-                true,
-            )
-            .await?
-            {
-                func.call(
-                    Ok(Some(entrypoints.await?)),
-                    ThreadsafeFunctionCallMode::NonBlocking,
-                );
-            } else {
-                func.call(Ok(None), ThreadsafeFunctionCallMode::NonBlocking);
-            }
-
-            Ok::<Vc<()>, _>(Default::default())
-        })
-    });
-    Ok(())
-}
-
-#[napi]
-pub async fn get_entrypoints(
-    turbo_tasks: External<Arc<TurboTasks<MemoryBackend>>>,
-    root_dir: String,
-    project_dir: String,
-    page_extensions: Vec<String>,
-) -> napi::Result<serde_json::Value> {
-    register();
-    let result = turbo_tasks
-        .run_once(async move {
-            let value = if let Some(entrypoints) = &*get_value(
-                root_dir,
-                project_dir,
-                page_extensions.iter().map(|s| s.to_string()).collect(),
-                false,
-            )
-            .await?
-            {
-                Some(entrypoints.await?)
-            } else {
-                None
-            };
-
-            let value = serde_json::to_value(value)?;
-            Ok(value)
-        })
-        .await?;
-    Ok(result)
 }
