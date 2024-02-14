@@ -26,5 +26,8 @@ export function internal_getCurrentFunctionWaitUntil() {
 }
 
 export function internal_runWithWaitUntil<T>(fn: () => Promise<T>) {
+  // We don't want to start executing the tasks until the function has returned.
+  // `internal_getCurrentFunctionWaitUntil` is called when a function is done executing, and we'll walk
+  // through the tasks then.
   tasks.push(fn)
 }
