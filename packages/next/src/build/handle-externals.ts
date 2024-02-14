@@ -264,6 +264,23 @@ export function makeExternalHandler({
       return resolveNextExternal(request)
     }
 
+    // Early return if the request needs to be bundled, such as in the client layer.
+    // Treat react packages and next internals as external for SSR layer,
+    // also map react to builtin ones with require-hook.
+    // Otherwise keep continue the process to resolve the externals.
+    if (layer === WEBPACK_LAYERS.serverSideRendering) {
+      const isRelative = request.startsWith('.')
+      const fullRequest = isRelative
+        ? normalizePathSep(path.join(context, request))
+        : request
+
+      // Check if it's opt out bundling package first
+      if (optOutBundlingPackages.includes(fullRequest)) {
+        return fullRequest
+      }
+      return resolveNextExternal(fullRequest)
+    }
+
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
     const resolveResult = await resolveExternal(
       dir,
@@ -303,34 +320,6 @@ export function makeExternalHandler({
     }
 
     const externalType = isEsm ? 'module' : 'commonjs'
-
-    // Early return if the request needs to be bundled, such as in the client layer.
-    // Treat react packages and next internals as external for SSR layer,
-    // also map react to builtin ones with require-hook.
-    // Otherwise keep continue the process to resolve the externals.
-    if (layer === WEBPACK_LAYERS.serverSideRendering) {
-      const isRelative = request.startsWith('.')
-      const fullRequest = isRelative
-        ? normalizePathSep(path.join(context, request))
-        : request
-
-      // Check if it's external first
-      let resolved = resolveBundlingOptOutPackages({
-        resolvedRes: fullRequest,
-        optOutBundlingPackageRegex,
-        config,
-        resolvedExternalPackageDirs,
-        isEsm,
-        isAppLayer,
-        layer,
-        externalType,
-        request,
-      })
-      if (resolved) return resolved
-      resolved = resolveNextExternal(fullRequest)
-
-      return resolved
-    }
 
     // Default pages have to be transpiled
     if (

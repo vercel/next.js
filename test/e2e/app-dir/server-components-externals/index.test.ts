@@ -6,7 +6,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isTurbopack, isNextStart }) => {
+  ({ next, isTurbopack }) => {
     it('should have externals for those in config.experimental.serverComponentsExternalPackages', async () => {
       const $ = await next.render$('/')
 
@@ -24,8 +24,9 @@ createNextDescribe(
     })
 
     // Inspect webpack server bundles
-    if (!isTurbopack && isNextStart) {
+    if (!isTurbopack) {
       it('should externalize serverComponentsExternalPackages for server rendering layer', async () => {
+        await next.fetch('/client')
         const ssrBundle = await next.readFile('.next/server/app/client/page.js')
         expect(ssrBundle).not.toContain('external-package-mark')
       })
