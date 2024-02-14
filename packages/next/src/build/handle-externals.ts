@@ -151,6 +151,7 @@ export function makeExternalHandler({
 }) {
   let resolvedExternalPackageDirs: Map<string, string>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
+  const optOutBundlingPackagesSet = new Set(optOutBundlingPackages)
 
   return async function handleExternals(
     context: string,
@@ -275,7 +276,7 @@ export function makeExternalHandler({
         : request
 
       // Check if it's opt out bundling package first
-      if (optOutBundlingPackages.includes(fullRequest)) {
+      if (optOutBundlingPackagesSet.has(fullRequest)) {
         return fullRequest
       }
       return resolveNextExternal(fullRequest)
