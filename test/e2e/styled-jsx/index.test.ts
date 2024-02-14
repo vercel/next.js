@@ -15,15 +15,13 @@ function runTest() {
 
       next = await createNext({
         files: {
-          node_modules_bak: new FileRef(path.join(appDir, 'node_modules_bak')),
           pages: new FileRef(path.join(appDir, 'pages')),
           '.npmrc': new FileRef(path.join(appDir, '.npmrc')),
         },
         packageJson: {
           scripts: {
-            copy: `cp -r ./node_modules_bak/my-comps ./node_modules;`,
-            build: `pnpm copy && next build`,
-            dev: `pnpm copy && next ${devCommand}`,
+            build: `next build`,
+            dev: `next ${devCommand}`,
             start: 'next start',
           },
         },
