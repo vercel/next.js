@@ -19,7 +19,7 @@ import {
 } from './hot-reloader-webpack'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { store as consoleStore } from '../../build/output/store'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
+import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { mkdir, writeFile } from 'fs/promises'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -129,7 +129,6 @@ export async function createHotReloaderTurbopack(
       middlewareMatchers: undefined,
       previewModeId: undefined,
     }),
-    serverAddr: `127.0.0.1:${opts.port}`,
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
   const currentEntrypoints: CurrentEntrypoints = new Map()
