@@ -101,6 +101,7 @@ import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
 } from './dynamic-rendering'
+import { GLOBAL_NOT_FOUND_SEGMENT_KEY } from '../../shared/lib/segment'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -412,7 +413,7 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
   // (e.g., ['', { children: ['__PAGE__', {}] }]). Without this disambiguation, the router would interpret
   // these pages as being able to share the same cache nodes, which is not the case as they render different things.
   if (asNotFound) {
-    initialTree[0] = '__NOT_FOUND__'
+    initialTree[0] = GLOBAL_NOT_FOUND_SEGMENT_KEY
   }
 
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
