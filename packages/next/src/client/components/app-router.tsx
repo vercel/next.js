@@ -471,11 +471,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
+      const tree: FlightRouterState | undefined =
+        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
+
       startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          tree,
         })
       })
     }
@@ -494,6 +497,7 @@ function Router({
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
       }
+
       data = copyNextJsInternalHistoryState(data)
 
       if (url) {

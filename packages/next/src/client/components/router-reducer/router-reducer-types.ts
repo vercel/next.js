@@ -115,15 +115,17 @@ export interface NavigateAction {
 
 /**
  * Restore applies the provided router state.
- * - Only used for `popstate` (back/forward navigation) where a known router state has to be applied.
- * - Router state is applied as-is from the history state.
+ * - Used for `popstate` (back/forward navigation) where a known router state has to be applied.
+ * - Also used when syncing the router state with `pushState`/`replaceState` calls.
+ * - Router state is applied as-is from the history state, if available.
+ * - If the history state does not contain the router state, the existing router state is used.
  * - If any cache node is missing it will be fetched in layout-router during rendering and the server-patch case.
  * - If existing cache nodes match these are used.
  */
 export interface RestoreAction {
   type: typeof ACTION_RESTORE
   url: URL
-  tree: FlightRouterState
+  tree: FlightRouterState | undefined
 }
 
 /**
