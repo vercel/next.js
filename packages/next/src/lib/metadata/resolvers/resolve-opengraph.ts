@@ -135,8 +135,8 @@ function validateResolvedImageUrl(
 
 export const resolveOpenGraph: FieldResolverExtraArgs<
   'openGraph',
-  [ResolvedMetadataBase, MetadataContext, string | null]
-> = (openGraph, metadataBase, { pathname }, titleTemplate) => {
+  [ResolvedMetadata['metadataBase'], MetadataContext, string | null]
+> = (openGraph, metadataBase, metadataContext, titleTemplate) => {
   if (!openGraph) return null
 
   function resolveProps(target: ResolvedOpenGraph, og: OpenGraph) {
@@ -163,7 +163,11 @@ export const resolveOpenGraph: FieldResolverExtraArgs<
   resolveProps(resolved, openGraph)
 
   resolved.url = openGraph.url
-    ? resolveAbsoluteUrlWithPathname(openGraph.url, metadataBase, pathname)
+    ? resolveAbsoluteUrlWithPathname(
+        openGraph.url,
+        metadataBase,
+        metadataContext
+      )
     : null
 
   return resolved

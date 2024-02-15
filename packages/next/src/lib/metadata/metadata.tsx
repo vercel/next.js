@@ -39,6 +39,7 @@ export function createMetadataComponents({
   tree,
   pathname,
   searchParams,
+  trailingSlash,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
@@ -46,12 +47,14 @@ export function createMetadataComponents({
   tree: LoaderTree
   pathname: string
   searchParams: { [key: string]: any }
+  trailingSlash: boolean
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
     pathname,
+    trailingSlash,
   }
 
   let resolve: (value: Error | undefined) => void | undefined
