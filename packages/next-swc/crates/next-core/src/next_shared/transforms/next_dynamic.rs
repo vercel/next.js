@@ -61,7 +61,10 @@ impl CustomTransformer for NextJsDynamic {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let p = std::mem::replace(program, Program::Module(Module::dummy()));
         *program = p.fold_with(&mut next_dynamic(
-            self.mode.is_development(),
+            match self.mode {
+                NextMode::Development => true,
+                NextMode::Build => false,
+            },
             self.is_server_compiler,
             self.is_react_server_layer,
             false,

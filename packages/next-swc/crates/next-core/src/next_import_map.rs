@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{FileSystem, FileSystemPath},
+    turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
     turbopack::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -422,11 +422,30 @@ pub async fn get_next_edge_import_map(
 }
 
 pub fn get_next_client_resolved_map(
-    _context: Vc<FileSystemPath>,
-    _root: Vc<FileSystemPath>,
-    _mode: NextMode,
+    context: Vc<FileSystemPath>,
+    root: Vc<FileSystemPath>,
+    mode: NextMode,
 ) -> Vc<ResolvedMap> {
-    let glob_mappings = vec![];
+    let glob_mappings = if mode == NextMode::Development {
+        vec![]
+    } else {
+        vec![
+            // Temporary hack to replace the hot reloader until this is passable by props in
+            // next.js
+            (
+                context.root(),
+                Glob::new(
+                    "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
+                        .to_string(),
+                ),
+                ImportMapping::PrimaryAlternative(
+                    "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
+                    Some(root),
+                )
+                .into(),
+            ),
+        ]
+    };
     ResolvedMap {
         by_glob: glob_mappings,
     }

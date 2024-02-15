@@ -7,7 +7,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
@@ -25,6 +25,7 @@ use crate::{
         get_metadata_route_name, Components, GlobalMetadata, LoaderTree, Metadata, MetadataItem,
         MetadataWithAltItem,
     },
+    mode::NextMode,
     next_app::{
         metadata::{get_content_type, image::dynamic_image_metadata_source},
         AppPage,
@@ -38,6 +39,7 @@ pub struct LoaderTreeBuilder {
     imports: Vec<String>,
     loader_tree_code: String,
     context: Vc<ModuleAssetContext>,
+    mode: NextMode,
     server_component_transition: Vc<Box<dyn Transition>>,
     pages: Vec<Vc<FileSystemPath>>,
 }
@@ -71,6 +73,7 @@ impl LoaderTreeBuilder {
     fn new(
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        mode: NextMode,
     ) -> Self {
         LoaderTreeBuilder {
             inner_assets: IndexMap::new(),
@@ -79,6 +82,7 @@ impl LoaderTreeBuilder {
             loader_tree_code: String::new(),
             context,
             server_component_transition,
+            mode,
             pages: Vec::new(),
         }
     }
@@ -112,20 +116,42 @@ impl LoaderTreeBuilder {
                 .process(source, self.context, reference_ty)
                 .module();
 
-            let chunks_identifier = magic_identifier::mangle(&format!("chunks of {name} #{i}"));
-            writeln!(
-                self.loader_tree_code,
-                "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + '.js'],",
-                name = StringifyJs(name)
-            )?;
-            self.imports.push(formatdoc!(
-                r#"
+            match self.mode {
+                NextMode::Development => {
+                    let chunks_identifier =
+                        magic_identifier::mangle(&format!("chunks of {name} #{i}"));
+                    writeln!(
+                        self.loader_tree_code,
+                        "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + \
+                         '.js'],",
+                        name = StringifyJs(name)
+                    )?;
+                    self.imports.push(formatdoc!(
+                        r#"
                             import {}, {{ chunks as {} }} from "COMPONENT_{}";
                         "#,
-                identifier,
-                chunks_identifier,
-                i
-            ));
+                        identifier,
+                        chunks_identifier,
+                        i
+                    ));
+                }
+                NextMode::Build => {
+                    writeln!(
+                        self.loader_tree_code,
+                        "  {name}: [() => {identifier}, {path}],",
+                        name = StringifyJs(name),
+                        path = StringifyJs(&module.ident().path().to_string().await?)
+                    )?;
+
+                    self.imports.push(formatdoc!(
+                        r#"
+                        import {} from "COMPONENT_{}";
+                        "#,
+                        identifier,
+                        i
+                    ));
+                }
+            }
 
             self.inner_assets.insert(format!("COMPONENT_{i}"), module);
         }
@@ -435,8 +461,9 @@ impl LoaderTreeModule {
         loader_tree: Vc<LoaderTree>,
         context: Vc<ModuleAssetContext>,
         server_component_transition: Vc<Box<dyn Transition>>,
+        mode: NextMode,
     ) -> Result<Self> {
-        LoaderTreeBuilder::new(context, server_component_transition)
+        LoaderTreeBuilder::new(context, server_component_transition, mode)
             .build(loader_tree)
             .await
     }
