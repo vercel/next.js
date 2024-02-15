@@ -70,22 +70,6 @@ function ensureDynamicExports(module, exports) {
         module[REEXPORTED_OBJECTS].push(object);
     }
 }
-/**
- * Access one entry from a mapping from name to functor.
- */ function moduleLookup(map, name, returnPromise = false) {
-    if (hasOwnProperty.call(map, name)) {
-        return map[name]();
-    }
-    const e = new Error(`Cannot find module '${name}'`);
-    e.code = "MODULE_NOT_FOUND";
-    if (returnPromise) {
-        return Promise.resolve().then(()=>{
-            throw e;
-        });
-    } else {
-        throw e;
-    }
-}
 function exportValue(module, value) {
     module.exports = value;
 }
@@ -512,7 +496,6 @@ function instantiateModule(id, source) {
             i: esmImport.bind(null, module1),
             s: esmExport.bind(null, module1, module1.exports),
             j: dynamicExport.bind(null, module1, module1.exports),
-            p: moduleLookup,
             v: exportValue.bind(null, module1),
             n: exportNamespace.bind(null, module1),
             m: module1,
@@ -525,7 +508,7 @@ function instantiateModule(id, source) {
             w: loadWebAssembly,
             u: loadWebAssemblyModule,
             g: globalThis,
-            P: resolveAbsolutePath,
+            p: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
             __dirname: module1.id.replace(/(^|\/)[\/]+$/, "")

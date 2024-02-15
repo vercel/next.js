@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::VecDeque, sync::Arc};
+use std::{collections::VecDeque, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
@@ -443,10 +443,6 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             )
             .await?;
 
-            let PatternMapping::Single(pm) = &*pm else {
-                continue;
-            };
-
             let prop = KeyValueProp {
                 key: PropName::Str(key.as_str().into()),
                 value: match *self.chunking_context.environment().node_externals().await? {
@@ -454,12 +450,12 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
                         "{ external: $external, id: () => $id }",
                         external: Expr = (!pm.is_internal_import()).into(),
                         id: Expr =
-                            pm.create_id(Cow::Owned(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into())))),
+                            pm.apply(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()))),
                     ),
                     false => quote_expr!(
                         "{ id: () => $id }",
                         id: Expr =
-                            pm.create_id(Cow::Owned(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into())))),
+                            pm.apply(Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()))),
                     ),
                 },
             };
