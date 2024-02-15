@@ -8,7 +8,6 @@
     "check": "tsc --noEmit"
   },
   "dependencies": {
-    "@next/react-refresh-utils": "^13.0.6",
     "@vercel/turbopack-ecmascript-runtime": "*"
   },
   "devDependencies": {
