@@ -48,9 +48,6 @@ import {
   type FontManifests,
   type LoadableManifests,
   writeManifests,
-  loadBuildManifest,
-  loadPagesManifest,
-  loadFontManifest,
   type CurrentEntrypoints,
   type CurrentIssues,
   processIssues,
@@ -67,6 +64,7 @@ import {
   type SendHmr,
   type StartBuilding,
   type ChangeSubscriptions,
+  handlePagesErrorRoute,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -86,6 +84,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string
 ): Promise<NextJsHotReloaderInterface> {
+  const buildId = 'development'
   const { nextConfig, dir } = opts
 
   const { loadBindings } =
@@ -389,6 +388,7 @@ export async function createHotReloaderTurbopack(
             await propagateServerField(opts, key, value)
           },
           distDir,
+          buildId,
           globalEntrypoints,
           currentEntrypoints,
           changeSubscriptions,
@@ -424,7 +424,7 @@ export async function createHotReloaderTurbopack(
 
   // Write empty manifests
   await mkdir(join(distDir, 'server'), { recursive: true })
-  await mkdir(join(distDir, 'static/development'), { recursive: true })
+  await mkdir(join(distDir, 'static', buildId), { recursive: true })
   await writeFile(
     join(distDir, 'package.json'),
     JSON.stringify(
@@ -439,6 +439,7 @@ export async function createHotReloaderTurbopack(
   await writeManifests({
     rewrites: opts.fsChecker.rewrites,
     distDir,
+    buildId,
     buildManifests,
     appBuildManifests,
     pagesManifests,
@@ -649,53 +650,23 @@ export async function createHotReloaderTurbopack(
       if (page === '/_error') {
         let finishBuilding = startBuilding(page, requestUrl, false)
         try {
-          if (globalEntrypoints.app) {
-            const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
-            handleRequireCacheClearing('_app', writtenEndpoint)
-            processIssues(currentIssues, '_app', writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_app')
-          await loadPagesManifest(distDir, pagesManifests, '_app')
-          await loadFontManifest(distDir, fontManifests, '_app')
-
-          if (globalEntrypoints.document) {
-            const writtenEndpoint =
-              await globalEntrypoints.document.writeToDisk()
-            handleRequireCacheClearing('_document', writtenEndpoint)
-            changeSubscription(
-              '_document',
-              'server',
-              false,
-              globalEntrypoints.document,
-              () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              }
-            )
-            processIssues(currentIssues, '_document', writtenEndpoint)
-          }
-          await loadPagesManifest(distDir, pagesManifests, '_document')
-
-          if (globalEntrypoints.error) {
-            const writtenEndpoint = await globalEntrypoints.error.writeToDisk()
-            handleRequireCacheClearing('_error', writtenEndpoint)
-            processIssues(currentIssues, page, writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_error')
-          await loadPagesManifest(distDir, pagesManifests, '_error')
-          await loadFontManifest(distDir, fontManifests, '_error')
-
-          await writeManifests({
+          await handlePagesErrorRoute({
             rewrites: opts.fsChecker.rewrites,
+            globalEntrypoints,
+            currentIssues,
             distDir,
+            buildId,
             buildManifests,
-            appBuildManifests,
             pagesManifests,
+            fontManifests,
+            appBuildManifests,
             appPathsManifests,
             middlewareManifests,
             actionManifests,
-            fontManifests,
             loadableManifests,
             currentEntrypoints,
+            handleRequireCacheClearing,
+            changeSubscription,
           })
         } finally {
           finishBuilding()
@@ -735,6 +706,7 @@ export async function createHotReloaderTurbopack(
         await handleRouteType({
           rewrites: opts.fsChecker.rewrites,
           distDir,
+          buildId,
           globalEntrypoints,
           currentIssues,
           buildManifests,

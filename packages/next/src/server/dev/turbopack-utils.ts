@@ -26,6 +26,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
 } from '../../shared/lib/constants'
 import { writeFileAtomic } from '../../lib/fs/write-atomic'
 import { deleteCache } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -289,7 +290,7 @@ export async function loadMiddlewareManifest(
   )
 }
 
-export async function loadBuildManifest(
+async function loadBuildManifest(
   distDir: string,
   buildManifests: BuildManifests,
   pageName: string,
@@ -312,7 +313,7 @@ async function loadAppBuildManifest(
   )
 }
 
-export async function loadPagesManifest(
+async function loadPagesManifest(
   distDir: string,
   pagesManifests: PagesManifests,
   pageName: string
@@ -351,7 +352,7 @@ async function loadActionManifest(
   )
 }
 
-export async function loadFontManifest(
+async function loadFontManifest(
   distDir: string,
   fontManifests: FontManifests,
   pageName: string,
@@ -382,6 +383,7 @@ async function loadLoadableManifest(
 
 async function writeBuildManifest(
   distDir: string,
+  buildId: string,
   buildManifests: BuildManifests,
   currentEntrypoints: CurrentEntrypoints,
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -437,11 +439,11 @@ async function writeBuildManifest(
     content
   )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
   await writeFileAtomic(
-    join(distDir, 'static', 'development', '_buildManifest.js'),
+    join(distDir, 'static', buildId, '_buildManifest.js'),
     buildManifestJs
   )
   await writeFileAtomic(
-    join(distDir, 'static', 'development', '_ssgManifest.js'),
+    join(distDir, 'static', buildId, '_ssgManifest.js'),
     srcEmptySsgManifest
   )
 }
@@ -543,7 +545,7 @@ async function writeActionManifest(
   )
 }
 
-async function writeFontManifest(
+async function writeNextFontManifest(
   distDir: string,
   fontManifests: FontManifests
 ): Promise<void> {
@@ -563,6 +565,19 @@ async function writeFontManifest(
     fontManifestJsPath,
     `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
   )
+}
+
+/**
+ * Turbopack doesn't support this functionality, so it writes an empty manifest.
+ */
+async function writeAutomaticFontOptimizationManifest(distDir: string) {
+  const manifestPath = join(
+    distDir,
+    'server',
+    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+  )
+
+  await writeFileAtomic(manifestPath, JSON.stringify([]))
 }
 
 async function writeLoadableManifest(
@@ -591,6 +606,7 @@ async function writeLoadableManifest(
 export async function writeManifests({
   rewrites,
   distDir,
+  buildId,
   buildManifests,
   appBuildManifests,
   pagesManifests,
@@ -603,6 +619,7 @@ export async function writeManifests({
 }: {
   rewrites: SetupOpts['fsChecker']['rewrites']
   distDir: string
+  buildId: string
   buildManifests: BuildManifests
   appBuildManifests: AppBuildManifests
   pagesManifests: PagesManifests
@@ -615,6 +632,7 @@ export async function writeManifests({
 }): Promise<void> {
   await writeBuildManifest(
     distDir,
+    buildId,
     buildManifests,
     currentEntrypoints,
     rewrites
@@ -624,9 +642,10 @@ export async function writeManifests({
   await writeAppPathsManifest(distDir, appPathsManifests)
   await writeMiddlewareManifest(distDir, middlewareManifests)
   await writeActionManifest(distDir, actionManifests)
-  await writeFontManifest(distDir, fontManifests)
+  await writeNextFontManifest(distDir, fontManifests)
   await writeLoadableManifest(distDir, loadableManifests)
   await writeFallbackBuildManifest(distDir, buildManifests)
+  await writeAutomaticFontOptimizationManifest(distDir)
 }
 
 class ModuleBuildError extends Error {}
@@ -816,6 +835,7 @@ export type ReadyIds = Set<string>
 export async function handleRouteType({
   rewrites,
   distDir,
+  buildId,
   globalEntrypoints,
   currentIssues,
   buildManifests,
@@ -835,6 +855,7 @@ export async function handleRouteType({
 }: {
   rewrites: SetupOpts['fsChecker']['rewrites']
   distDir: string
+  buildId: string
   globalEntrypoints: GlobalEntrypoints
   currentIssues: CurrentIssues
   buildManifests: BuildManifests
@@ -893,6 +914,7 @@ export async function handleRouteType({
         await writeManifests({
           rewrites,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,
@@ -962,6 +984,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1016,6 +1039,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1052,6 +1076,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1079,6 +1104,7 @@ export async function handleEntrypoints({
   serverFields,
   propagateServerField,
   distDir,
+  buildId,
   globalEntrypoints,
   currentEntrypoints,
   changeSubscriptions,
@@ -1106,6 +1132,7 @@ export async function handleEntrypoints({
     | ((field: PropagateToWorkersField, args: any) => Promise<void>)
     | undefined
   distDir: string
+  buildId: string
   globalEntrypoints: GlobalEntrypoints
   currentEntrypoints: CurrentEntrypoints
   changeSubscriptions: ChangeSubscriptions | undefined
@@ -1207,6 +1234,7 @@ export async function handleEntrypoints({
     await writeManifests({
       rewrites: rewrites,
       distDir,
+      buildId,
       buildManifests,
       appBuildManifests,
       pagesManifests,
@@ -1274,6 +1302,7 @@ export async function handleEntrypoints({
         await writeManifests({
           rewrites: rewrites,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,
@@ -1305,4 +1334,89 @@ export async function handleEntrypoints({
     )
     await propagateServerField('middleware', serverFields.middleware)
   }
+}
+
+export async function handlePagesErrorRoute({
+  rewrites,
+  globalEntrypoints,
+  currentIssues,
+  distDir,
+  buildId,
+  buildManifests,
+  pagesManifests,
+  fontManifests,
+  appBuildManifests,
+  appPathsManifests,
+  middlewareManifests,
+  actionManifests,
+  loadableManifests,
+  currentEntrypoints,
+  handleRequireCacheClearing,
+  changeSubscription,
+}: {
+  rewrites: SetupOpts['fsChecker']['rewrites']
+  globalEntrypoints: GlobalEntrypoints
+  currentIssues: CurrentIssues
+  distDir: string
+  buildId: string
+  buildManifests: BuildManifests
+  pagesManifests: PagesManifests
+  fontManifests: FontManifests
+  appBuildManifests: AppBuildManifests
+  appPathsManifests: AppPathsManifests
+  middlewareManifests: MiddlewareManifests
+  actionManifests: ActionManifests
+  loadableManifests: LoadableManifests
+  currentEntrypoints: CurrentEntrypoints
+  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
+  changeSubscription: ChangeSubscription | undefined
+}) {
+  if (globalEntrypoints.app) {
+    const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
+    handleRequireCacheClearing?.('_app', writtenEndpoint)
+    processIssues(currentIssues, '_app', writtenEndpoint)
+  }
+  await loadBuildManifest(distDir, buildManifests, '_app')
+  await loadPagesManifest(distDir, pagesManifests, '_app')
+  await loadFontManifest(distDir, fontManifests, '_app')
+
+  if (globalEntrypoints.document) {
+    const writtenEndpoint = await globalEntrypoints.document.writeToDisk()
+    handleRequireCacheClearing?.('_document', writtenEndpoint)
+    changeSubscription?.(
+      '_document',
+      'server',
+      false,
+      globalEntrypoints.document,
+      () => {
+        return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+      }
+    )
+    processIssues(currentIssues, '_document', writtenEndpoint)
+  }
+  await loadPagesManifest(distDir, pagesManifests, '_document')
+
+  if (globalEntrypoints.error) {
+    const writtenEndpoint = await globalEntrypoints.error.writeToDisk()
+    handleRequireCacheClearing?.('_error', writtenEndpoint)
+    processIssues(currentIssues, '/_error', writtenEndpoint)
+  }
+  await loadBuildManifest(distDir, buildManifests, '_error')
+  await loadPagesManifest(distDir, pagesManifests, '_error')
+  await loadFontManifest(distDir, fontManifests, '_error')
+
+  await writeManifests({
+    rewrites,
+    distDir,
+    buildId,
+    buildManifests,
+    appBuildManifests,
+    pagesManifests,
+    appPathsManifests,
+    middlewareManifests,
+    actionManifests,
+    fontManifests,
+    loadableManifests,
+    currentEntrypoints,
+  })
 }

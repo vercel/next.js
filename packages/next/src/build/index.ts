@@ -50,7 +50,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -182,9 +182,9 @@ import {
   type LoadableManifests,
   handleRouteType,
   writeManifests,
+  handlePagesErrorRoute,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
-import type { FontManifest } from '../server/font-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1300,7 +1300,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1326,10 +1329,18 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
+        // This is caused by Turbopack not having the production build option yet.
+        // @ts-expect-error
+        process.env.NODE_ENV = 'development'
+        const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const project = await bindings.turbo.createProject({
           projectPath: dir,
@@ -1354,7 +1365,7 @@ export default async function build(
         })
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-        await fs.mkdir(path.join(distDir, 'static/development'), {
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
           recursive: true,
         })
         await fs.writeFile(
@@ -1402,6 +1413,7 @@ export default async function build(
             serverFields: undefined,
             propagateServerField: undefined,
             distDir,
+            buildId,
             globalEntrypoints,
             currentEntrypoints,
             changeSubscriptions: undefined,
@@ -1428,6 +1440,7 @@ export default async function build(
               handleRouteType({
                 rewrites: emptyRewritesObjToBeImplemented,
                 distDir,
+                buildId,
                 globalEntrypoints,
                 currentIssues,
                 buildManifests,
@@ -1447,12 +1460,34 @@ export default async function build(
               })
             )
           }
+
+          promises.push(
+            handlePagesErrorRoute({
+              rewrites: emptyRewritesObjToBeImplemented,
+              globalEntrypoints,
+              currentIssues,
+              distDir,
+              buildId,
+              buildManifests,
+              pagesManifests,
+              fontManifests,
+              appBuildManifests,
+              appPathsManifests,
+              middlewareManifests,
+              actionManifests,
+              loadableManifests,
+              currentEntrypoints,
+              handleRequireCacheClearing: undefined,
+              changeSubscription: undefined,
+            })
+          )
           await Promise.all(promises)
           break
         }
         await writeManifests({
           rewrites: emptyRewritesObjToBeImplemented,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,
@@ -1463,23 +1498,10 @@ export default async function build(
           loadableManifests,
           currentEntrypoints,
         })
-
-        // Temporary
-        await writeBuildId(distDir, buildId)
-        const prerenderManifest: Readonly<PrerenderManifest> = {
-          version: 4,
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: previewProps,
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
         }
-        await writePrerenderManifest(distDir, prerenderManifest)
-        await writeManifest<FontManifest>(
-          path.join(distDir, 'server', FONT_MANIFEST),
-          []
-        )
-        // End temporary
-        throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1578,7 +1600,7 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
@@ -1586,7 +1608,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )
