@@ -75,15 +75,12 @@ export async function createSelfSignedCertificate(
   
   try {
     // Try to find the executable path using 'which' command
-    binaryPath = execSync(`which ${executableName}`, { encoding: 'utf-8' }).trim()
+    binaryPath = execSync(`${process.platform === 'win32' ? 'where' : 'which'} ${executableName}`, { encoding: 'utf-8' }).trim()
 
     // Check if the executable file exists and is executable
     fs.accessSync(executablePath, fs.constants.X_OK)
 
     binaryPath = executableName
-    Log.info(
-      `If the globally executable "${executableName}" is found, just use it.`
-    )
   } catch (err) {}
   
   try {
