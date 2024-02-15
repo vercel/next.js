@@ -182,6 +182,7 @@ import {
   type LoadableManifests,
   handleRouteType,
   writeManifests,
+  handlePagesErrorRoute,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import type { FontManifest } from '../server/font-utils'
@@ -1329,10 +1330,14 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const project = await bindings.turbo.createProject({
           projectPath: dir,
@@ -1450,6 +1455,26 @@ export default async function build(
               })
             )
           }
+
+          promises.push(
+            handlePagesErrorRoute({
+              rewrites: emptyRewritesObjToBeImplemented,
+              globalEntrypoints,
+              currentIssues,
+              distDir,
+              buildManifests,
+              pagesManifests,
+              fontManifests,
+              appBuildManifests,
+              appPathsManifests,
+              middlewareManifests,
+              actionManifests,
+              loadableManifests,
+              currentEntrypoints,
+              handleRequireCacheClearing: undefined,
+              changeSubscription: undefined,
+            })
+          )
           await Promise.all(promises)
           break
         }
@@ -1468,17 +1493,21 @@ export default async function build(
         })
 
         // Temporary
-        await writeBuildId(distDir, buildId)
-        const prerenderManifest: Readonly<PrerenderManifest> = {
-          version: 4,
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: previewProps,
-        }
-        await writePrerenderManifest(distDir, prerenderManifest)
+        // await writeBuildId(distDir, buildId)
+        // const prerenderManifest: Readonly<PrerenderManifest> = {
+        //   version: 4,
+        //   routes: {},
+        //   dynamicRoutes: {},
+        //   notFoundRoutes: [],
+        //   preview: previewProps,
+        // }
+        // await writePrerenderManifest(distDir, prerenderManifest)
         // End temporary
-        throw new Error("next build doesn't support turbopack yet")
+        // throw new Error("next build doesn't support turbopack yet")
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
+        }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1577,7 +1606,7 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
@@ -1585,7 +1614,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )

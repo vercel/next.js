@@ -48,9 +48,6 @@ import {
   type FontManifests,
   type LoadableManifests,
   writeManifests,
-  loadBuildManifest,
-  loadPagesManifest,
-  loadFontManifest,
   type CurrentEntrypoints,
   type CurrentIssues,
   processIssues,
@@ -67,6 +64,7 @@ import {
   type SendHmr,
   type StartBuilding,
   type ChangeSubscriptions,
+  handlePagesErrorRoute,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -649,53 +647,22 @@ export async function createHotReloaderTurbopack(
       if (page === '/_error') {
         let finishBuilding = startBuilding(page, requestUrl, false)
         try {
-          if (globalEntrypoints.app) {
-            const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
-            handleRequireCacheClearing('_app', writtenEndpoint)
-            processIssues(currentIssues, '_app', writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_app')
-          await loadPagesManifest(distDir, pagesManifests, '_app')
-          await loadFontManifest(distDir, fontManifests, '_app')
-
-          if (globalEntrypoints.document) {
-            const writtenEndpoint =
-              await globalEntrypoints.document.writeToDisk()
-            handleRequireCacheClearing('_document', writtenEndpoint)
-            changeSubscription(
-              '_document',
-              'server',
-              false,
-              globalEntrypoints.document,
-              () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-              }
-            )
-            processIssues(currentIssues, '_document', writtenEndpoint)
-          }
-          await loadPagesManifest(distDir, pagesManifests, '_document')
-
-          if (globalEntrypoints.error) {
-            const writtenEndpoint = await globalEntrypoints.error.writeToDisk()
-            handleRequireCacheClearing('_error', writtenEndpoint)
-            processIssues(currentIssues, page, writtenEndpoint)
-          }
-          await loadBuildManifest(distDir, buildManifests, '_error')
-          await loadPagesManifest(distDir, pagesManifests, '_error')
-          await loadFontManifest(distDir, fontManifests, '_error')
-
-          await writeManifests({
+          await handlePagesErrorRoute({
             rewrites: opts.fsChecker.rewrites,
+            globalEntrypoints,
+            currentIssues,
             distDir,
             buildManifests,
-            appBuildManifests,
             pagesManifests,
+            fontManifests,
+            appBuildManifests,
             appPathsManifests,
             middlewareManifests,
             actionManifests,
-            fontManifests,
             loadableManifests,
             currentEntrypoints,
+            handleRequireCacheClearing,
+            changeSubscription,
           })
         } finally {
           finishBuilding()

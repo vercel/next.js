@@ -290,7 +290,7 @@ export async function loadMiddlewareManifest(
   )
 }
 
-export async function loadBuildManifest(
+async function loadBuildManifest(
   distDir: string,
   buildManifests: BuildManifests,
   pageName: string,
@@ -313,7 +313,7 @@ async function loadAppBuildManifest(
   )
 }
 
-export async function loadPagesManifest(
+async function loadPagesManifest(
   distDir: string,
   pagesManifests: PagesManifests,
   pageName: string
@@ -352,7 +352,7 @@ async function loadActionManifest(
   )
 }
 
-export async function loadFontManifest(
+async function loadFontManifest(
   distDir: string,
   fontManifests: FontManifests,
   pageName: string,
@@ -573,7 +573,7 @@ async function writeAutomaticFontOptimizationManifest(distDir: string) {
   const manifestPath = join(
     distDir,
     'server',
-    `${AUTOMATIC_FONT_OPTIMIZATION_MANIFEST}.json`
+    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
   )
 
   await writeFileAtomic(manifestPath, JSON.stringify([]))
@@ -1320,4 +1320,86 @@ export async function handleEntrypoints({
     )
     await propagateServerField('middleware', serverFields.middleware)
   }
+}
+
+export async function handlePagesErrorRoute({
+  rewrites,
+  globalEntrypoints,
+  currentIssues,
+  distDir,
+  buildManifests,
+  pagesManifests,
+  fontManifests,
+  appBuildManifests,
+  appPathsManifests,
+  middlewareManifests,
+  actionManifests,
+  loadableManifests,
+  currentEntrypoints,
+  handleRequireCacheClearing,
+  changeSubscription,
+}: {
+  rewrites: SetupOpts['fsChecker']['rewrites']
+  globalEntrypoints: GlobalEntrypoints
+  currentIssues: CurrentIssues
+  distDir: string
+  buildManifests: BuildManifests
+  pagesManifests: PagesManifests
+  fontManifests: FontManifests
+  appBuildManifests: AppBuildManifests
+  appPathsManifests: AppPathsManifests
+  middlewareManifests: MiddlewareManifests
+  actionManifests: ActionManifests
+  loadableManifests: LoadableManifests
+  currentEntrypoints: CurrentEntrypoints
+  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
+  changeSubscription: ChangeSubscription | undefined
+}) {
+  if (globalEntrypoints.app) {
+    const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
+    handleRequireCacheClearing?.('_app', writtenEndpoint)
+    processIssues(currentIssues, '_app', writtenEndpoint)
+  }
+  await loadBuildManifest(distDir, buildManifests, '_app')
+  await loadPagesManifest(distDir, pagesManifests, '_app')
+  await loadFontManifest(distDir, fontManifests, '_app')
+
+  if (globalEntrypoints.document) {
+    const writtenEndpoint = await globalEntrypoints.document.writeToDisk()
+    handleRequireCacheClearing?.('_document', writtenEndpoint)
+    changeSubscription?.(
+      '_document',
+      'server',
+      false,
+      globalEntrypoints.document,
+      () => {
+        return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+      }
+    )
+    processIssues(currentIssues, '_document', writtenEndpoint)
+  }
+  await loadPagesManifest(distDir, pagesManifests, '_document')
+
+  if (globalEntrypoints.error) {
+    const writtenEndpoint = await globalEntrypoints.error.writeToDisk()
+    handleRequireCacheClearing?.('_error', writtenEndpoint)
+    processIssues(currentIssues, '/_error', writtenEndpoint)
+  }
+  await loadBuildManifest(distDir, buildManifests, '_error')
+  await loadPagesManifest(distDir, pagesManifests, '_error')
+  await loadFontManifest(distDir, fontManifests, '_error')
+
+  await writeManifests({
+    rewrites,
+    distDir,
+    buildManifests,
+    appBuildManifests,
+    pagesManifests,
+    appPathsManifests,
+    middlewareManifests,
+    actionManifests,
+    fontManifests,
+    loadableManifests,
+    currentEntrypoints,
+  })
 }
