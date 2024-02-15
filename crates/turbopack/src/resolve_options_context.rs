@@ -47,6 +47,8 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     pub custom_conditions: Vec<String>,
     #[serde(default)]
+    pub custom_extensions: Option<Vec<String>>,
+    #[serde(default)]
     /// An additional import map to use when resolving modules.
     ///
     /// If set, this import map will be applied to `ResolveOption::import_map`.

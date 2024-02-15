@@ -171,7 +171,9 @@ async fn base_resolve_options(
         conditions
     };
 
-    let extensions = if let Some(environment) = emulating {
+    let extensions = if let Some(custom_extension) = &opt.custom_extensions {
+        custom_extension.clone()
+    } else if let Some(environment) = emulating {
         environment.resolve_extensions().await?.clone_value()
     } else {
         let mut ext = Vec::new();
