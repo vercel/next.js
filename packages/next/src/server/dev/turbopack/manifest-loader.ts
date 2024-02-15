@@ -568,49 +568,42 @@ async function writeLoadableManifest(
   )
 }
 
-export async function writeManifests({
-  rewrites,
-  distDir,
-  buildId,
-  buildManifests,
-  appBuildManifests,
-  pagesManifests,
-  appPathsManifests,
-  middlewareManifests,
-  actionManifests,
-  fontManifests,
-  loadableManifests,
-  currentEntrypoints,
-}: {
-  rewrites: SetupOpts['fsChecker']['rewrites']
-  distDir: string
-  buildId: string
-  buildManifests: BuildManifests
-  appBuildManifests: AppBuildManifests
-  pagesManifests: PagesManifests
-  appPathsManifests: AppPathsManifests
-  middlewareManifests: MiddlewareManifests
-  actionManifests: ActionManifests
-  fontManifests: FontManifests
-  loadableManifests: LoadableManifests
-  currentEntrypoints: CurrentEntrypoints
-}): Promise<void> {
-  await writeBuildManifest(
+export class ManifestLoader {
+  buildManifests: BuildManifests = new Map()
+  appBuildManifests: AppBuildManifests = new Map()
+  pagesManifests: PagesManifests = new Map()
+  appPathsManifests: AppPathsManifests = new Map()
+  middlewareManifests: MiddlewareManifests = new Map()
+  actionManifests: ActionManifests = new Map()
+  fontManifests: FontManifests = new Map()
+  loadableManifests: LoadableManifests = new Map()
+
+  async writeManifests({
     distDir,
     buildId,
-    buildManifests,
+    rewrites,
     currentEntrypoints,
-    rewrites
-  )
-  await writeAppBuildManifest(distDir, appBuildManifests)
-  await writePagesManifest(distDir, pagesManifests)
-  await writeAppPathsManifest(distDir, appPathsManifests)
-  await writeMiddlewareManifest(distDir, middlewareManifests)
-  await writeActionManifest(distDir, actionManifests)
-  await writeNextFontManifest(distDir, fontManifests)
-  await writeLoadableManifest(distDir, loadableManifests)
-  await writeFallbackBuildManifest(distDir, buildManifests)
-  await writeAutomaticFontOptimizationManifest(distDir)
+  }: {
+    distDir: string
+    buildId: string
+    rewrites: SetupOpts['fsChecker']['rewrites']
+    currentEntrypoints: CurrentEntrypoints
+  }) {
+    await writeBuildManifest(
+      distDir,
+      buildId,
+      this.buildManifests,
+      currentEntrypoints,
+      rewrites
+    )
+    await writeAppBuildManifest(distDir, this.appBuildManifests)
+    await writePagesManifest(distDir, this.pagesManifests)
+    await writeAppPathsManifest(distDir, this.appPathsManifests)
+    await writeMiddlewareManifest(distDir, this.middlewareManifests)
+    await writeActionManifest(distDir, this.actionManifests)
+    await writeNextFontManifest(distDir, this.fontManifests)
+    await writeLoadableManifest(distDir, this.loadableManifests)
+    await writeFallbackBuildManifest(distDir, this.buildManifests)
+    await writeAutomaticFontOptimizationManifest(distDir)
+  }
 }
-
-export default function () {}
