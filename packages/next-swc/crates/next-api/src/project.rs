@@ -244,9 +244,9 @@ impl ProjectContainer {
                                  versions, last 1 Edge versions"
                 .to_string(),
             mode: if dev {
-                NextMode::Development
+                NextMode::Development.cell()
             } else {
-                NextMode::Build
+                NextMode::Build.cell()
             },
             versioned_content_map: this.versioned_content_map,
         }
@@ -317,7 +317,7 @@ pub struct Project {
 
     browserslist_query: String,
 
-    mode: NextMode,
+    mode: Vc<NextMode>,
 
     versioned_content_map: Vc<VersionedContentMap>,
 }
@@ -351,11 +351,10 @@ impl ProjectDefineEnv {
 impl Project {
     #[turbo_tasks::function]
     async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
-        let this = self.await?;
         let app_dir = find_app_dir(self.project_path()).await?;
 
         Ok(Vc::cell(if let Some(app_dir) = &*app_dir {
-            Some(AppProject::new(self, *app_dir, this.mode))
+            Some(AppProject::new(self, *app_dir))
         } else {
             None
         }))
@@ -451,6 +450,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
+        Ok(self.await?.mode)
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
         Ok(self.await?.js_config)
     }
@@ -508,13 +512,12 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-        let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
-            this.mode,
+            self.next_mode(),
         ))
     }
 
@@ -719,13 +722,13 @@ impl Project {
                 self.project_path(),
                 self.execution_context(),
                 Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
                 Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
             ),
@@ -752,13 +755,13 @@ impl Project {
                 self.project_path(),
                 self.execution_context(),
                 Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
             ),
             get_server_resolve_options_context(
                 self.project_path(),
                 Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
             ),

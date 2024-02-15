@@ -78,7 +78,7 @@ impl InstrumentationEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware),
-            NextMode::Development,
+            NextMode::Development.cell(),
         )
         .resolve_entries(self.context)
         .await?
@@ -136,7 +136,7 @@ impl InstrumentationEndpoint {
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation),
-                    NextMode::Development,
+                    self.project.next_mode(),
                 )
                 .resolve_entries(self.context),
                 Value::new(AvailabilityInfo::Root),

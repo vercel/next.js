@@ -101,7 +101,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -140,7 +140,7 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![mode.await?.node_env().to_string(), "node".to_string()];
 
     match ty {
         ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
@@ -302,7 +302,7 @@ pub async fn get_server_module_options_context(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut base_next_server_rules =
@@ -721,7 +721,7 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
     _ty: Value<ServerContextType>,
-    _mode: NextMode,
+    _mode: Vc<NextMode>,
 ) -> Vc<RuntimeEntries> {
     let runtime_entries = vec![];
     Vc::cell(runtime_entries)
