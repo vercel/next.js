@@ -1,6 +1,9 @@
 import { Command, Help } from 'commander'
 import { bold } from '../lib/picocolors'
 
+// Copy-pasted from Commander's Help class -> formatHelp().
+// TL;DR, we're overriding the built-in help to add a few niceties.
+// Link: https://github.com/tj/commander.js/blob/master/lib/help.js
 const formatCliHelpOutput = (cmd: Command, helper: Help) => {
   const termWidth = helper.padWidth(cmd, helper)
   const helpWidth = helper.helpWidth || 80
@@ -8,8 +11,14 @@ const formatCliHelpOutput = (cmd: Command, helper: Help) => {
   const itemSeparatorWidth = 2 // between term and description
 
   function formatItem(term: string, description: string) {
+    let value = term
+
     if (description) {
-      const fullText = `${term.padEnd(
+      if (term === 'directory') {
+        value = `[${term}]`
+      }
+
+      const fullText = `${value.padEnd(
         termWidth + itemSeparatorWidth
       )}${description}`
 
