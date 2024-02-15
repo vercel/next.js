@@ -49,7 +49,7 @@ In addition to supporting native [Request](https://developer.mozilla.org/docs/We
 
 ### Caching
 
-Route Handlers are cached by default (unless they use a [dynamic function](#dynamic-functions)) when using the `GET` method with the `Response` object.
+Route Handlers are cached by default when using the `GET` method with the `Response` object.
 
 ```ts filename="app/items/route.ts" switcher
 export async function GET() {

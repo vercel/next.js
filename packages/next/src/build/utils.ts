@@ -732,7 +732,7 @@ export async function printTreeView(
         usedSymbols.has('◎') && [
           '◎',
           '(Static)',
-          "Route Handler without dynamic API usage. Won't re-run at runtime.\n             Read more: https://nextjs.org/docs/app/building-your-application/routing/route-handlers#caching",
+          "Route Handler without dynamic API usage. Won't re-run at runtime.\n             Read more: https://nextjs.org/docs/app/building-your-application/routing/route-handlers#opting-out-of-caching",
         ],
         usedSymbols.has('●') && [
           '●',
