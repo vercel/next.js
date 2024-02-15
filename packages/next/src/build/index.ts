@@ -1336,6 +1336,7 @@ export default async function build(
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        process.env.NODE_ENV = 'development'
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const project = await bindings.turbo.createProject({
@@ -1361,7 +1362,7 @@ export default async function build(
         })
 
         await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-        await fs.mkdir(path.join(distDir, 'static/development'), {
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
           recursive: true,
         })
         await fs.writeFile(
@@ -1409,6 +1410,7 @@ export default async function build(
             serverFields: undefined,
             propagateServerField: undefined,
             distDir,
+            buildId,
             globalEntrypoints,
             currentEntrypoints,
             changeSubscriptions: undefined,
@@ -1435,6 +1437,7 @@ export default async function build(
               handleRouteType({
                 rewrites: emptyRewritesObjToBeImplemented,
                 distDir,
+                buildId,
                 globalEntrypoints,
                 currentIssues,
                 buildManifests,
@@ -1461,6 +1464,7 @@ export default async function build(
               globalEntrypoints,
               currentIssues,
               distDir,
+              buildId,
               buildManifests,
               pagesManifests,
               fontManifests,
@@ -1480,6 +1484,7 @@ export default async function build(
         await writeManifests({
           rewrites: emptyRewritesObjToBeImplemented,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,

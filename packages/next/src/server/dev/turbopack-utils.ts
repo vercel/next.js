@@ -383,6 +383,7 @@ async function loadLoadableManifest(
 
 async function writeBuildManifest(
   distDir: string,
+  buildId: string,
   buildManifests: BuildManifests,
   currentEntrypoints: CurrentEntrypoints,
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -438,11 +439,11 @@ async function writeBuildManifest(
     content
   )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
   await writeFileAtomic(
-    join(distDir, 'static', 'development', '_buildManifest.js'),
+    join(distDir, 'static', buildId, '_buildManifest.js'),
     buildManifestJs
   )
   await writeFileAtomic(
-    join(distDir, 'static', 'development', '_ssgManifest.js'),
+    join(distDir, 'static', buildId, '_ssgManifest.js'),
     srcEmptySsgManifest
   )
 }
@@ -605,6 +606,7 @@ async function writeLoadableManifest(
 export async function writeManifests({
   rewrites,
   distDir,
+  buildId,
   buildManifests,
   appBuildManifests,
   pagesManifests,
@@ -617,6 +619,7 @@ export async function writeManifests({
 }: {
   rewrites: SetupOpts['fsChecker']['rewrites']
   distDir: string
+  buildId: string
   buildManifests: BuildManifests
   appBuildManifests: AppBuildManifests
   pagesManifests: PagesManifests
@@ -629,6 +632,7 @@ export async function writeManifests({
 }): Promise<void> {
   await writeBuildManifest(
     distDir,
+    buildId,
     buildManifests,
     currentEntrypoints,
     rewrites
@@ -831,6 +835,7 @@ export type ReadyIds = Set<string>
 export async function handleRouteType({
   rewrites,
   distDir,
+  buildId,
   globalEntrypoints,
   currentIssues,
   buildManifests,
@@ -850,6 +855,7 @@ export async function handleRouteType({
 }: {
   rewrites: SetupOpts['fsChecker']['rewrites']
   distDir: string
+  buildId: string
   globalEntrypoints: GlobalEntrypoints
   currentIssues: CurrentIssues
   buildManifests: BuildManifests
@@ -908,6 +914,7 @@ export async function handleRouteType({
         await writeManifests({
           rewrites,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,
@@ -977,6 +984,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1031,6 +1039,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1067,6 +1076,7 @@ export async function handleRouteType({
       await writeManifests({
         rewrites,
         distDir,
+        buildId,
         buildManifests,
         appBuildManifests,
         pagesManifests,
@@ -1094,6 +1104,7 @@ export async function handleEntrypoints({
   serverFields,
   propagateServerField,
   distDir,
+  buildId,
   globalEntrypoints,
   currentEntrypoints,
   changeSubscriptions,
@@ -1121,6 +1132,7 @@ export async function handleEntrypoints({
     | ((field: PropagateToWorkersField, args: any) => Promise<void>)
     | undefined
   distDir: string
+  buildId: string
   globalEntrypoints: GlobalEntrypoints
   currentEntrypoints: CurrentEntrypoints
   changeSubscriptions: ChangeSubscriptions | undefined
@@ -1222,6 +1234,7 @@ export async function handleEntrypoints({
     await writeManifests({
       rewrites: rewrites,
       distDir,
+      buildId,
       buildManifests,
       appBuildManifests,
       pagesManifests,
@@ -1289,6 +1302,7 @@ export async function handleEntrypoints({
         await writeManifests({
           rewrites: rewrites,
           distDir,
+          buildId,
           buildManifests,
           appBuildManifests,
           pagesManifests,
@@ -1327,6 +1341,7 @@ export async function handlePagesErrorRoute({
   globalEntrypoints,
   currentIssues,
   distDir,
+  buildId,
   buildManifests,
   pagesManifests,
   fontManifests,
@@ -1343,6 +1358,7 @@ export async function handlePagesErrorRoute({
   globalEntrypoints: GlobalEntrypoints
   currentIssues: CurrentIssues
   distDir: string
+  buildId: string
   buildManifests: BuildManifests
   pagesManifests: PagesManifests
   fontManifests: FontManifests
@@ -1392,6 +1408,7 @@ export async function handlePagesErrorRoute({
   await writeManifests({
     rewrites,
     distDir,
+    buildId,
     buildManifests,
     appBuildManifests,
     pagesManifests,

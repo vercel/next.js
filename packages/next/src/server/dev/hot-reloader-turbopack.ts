@@ -84,6 +84,7 @@ export async function createHotReloaderTurbopack(
   serverFields: ServerFields,
   distDir: string
 ): Promise<NextJsHotReloaderInterface> {
+  const buildId = 'development'
   const { nextConfig, dir } = opts
 
   const { loadBindings } =
@@ -387,6 +388,7 @@ export async function createHotReloaderTurbopack(
             await propagateServerField(opts, key, value)
           },
           distDir,
+          buildId,
           globalEntrypoints,
           currentEntrypoints,
           changeSubscriptions,
@@ -422,7 +424,7 @@ export async function createHotReloaderTurbopack(
 
   // Write empty manifests
   await mkdir(join(distDir, 'server'), { recursive: true })
-  await mkdir(join(distDir, 'static/development'), { recursive: true })
+  await mkdir(join(distDir, 'static', buildId), { recursive: true })
   await writeFile(
     join(distDir, 'package.json'),
     JSON.stringify(
@@ -437,6 +439,7 @@ export async function createHotReloaderTurbopack(
   await writeManifests({
     rewrites: opts.fsChecker.rewrites,
     distDir,
+    buildId,
     buildManifests,
     appBuildManifests,
     pagesManifests,
@@ -652,6 +655,7 @@ export async function createHotReloaderTurbopack(
             globalEntrypoints,
             currentIssues,
             distDir,
+            buildId,
             buildManifests,
             pagesManifests,
             fontManifests,
@@ -702,6 +706,7 @@ export async function createHotReloaderTurbopack(
         await handleRouteType({
           rewrites: opts.fsChecker.rewrites,
           distDir,
+          buildId,
           globalEntrypoints,
           currentIssues,
           buildManifests,
