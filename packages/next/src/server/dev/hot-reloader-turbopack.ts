@@ -39,15 +39,6 @@ import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
 import {
   getTurbopackJsConfig,
-  type BuildManifests,
-  type AppBuildManifests,
-  type PagesManifests,
-  type AppPathsManifests,
-  type MiddlewareManifests,
-  type ActionManifests,
-  type FontManifests,
-  type LoadableManifests,
-  writeManifests,
   type CurrentEntrypoints,
   type CurrentIssues,
   processIssues,
@@ -71,6 +62,17 @@ import {
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
+import {
+  type ActionManifests,
+  type AppBuildManifests,
+  type AppPathsManifests,
+  type BuildManifests,
+  type FontManifests,
+  type LoadableManifests,
+  type MiddlewareManifests,
+  type PagesManifests,
+  writeManifests,
+} from './turbopack/manifest-loader'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
