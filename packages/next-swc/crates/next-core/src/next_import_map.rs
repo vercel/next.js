@@ -54,6 +54,7 @@ pub async fn get_next_client_import_map(
         project_path,
         execution_context,
         next_config,
+        false,
     )
     .await?;
 
@@ -248,6 +249,7 @@ pub async fn get_next_server_import_map(
         project_path,
         execution_context,
         next_config,
+        false,
     )
     .await?;
 
@@ -373,6 +375,7 @@ pub async fn get_next_edge_import_map(
         project_path,
         execution_context,
         next_config,
+        true,
     )
     .await?;
 
@@ -493,21 +496,6 @@ async fn insert_next_server_special_aliases(
         // @opentelemetry/api
         external_if_node(project_path, "next/dist/compiled/@opentelemetry/api"),
     );
-
-    let image_config = next_config.image_config().await?;
-    if let Some(loader_file) = image_config.loader_file.as_deref() {
-        import_map.insert_exact_alias(
-            "next/dist/shared/lib/image-loader",
-            request_to_import_mapping(project_path, loader_file),
-        );
-
-        if runtime == NextRuntime::Edge {
-            import_map.insert_exact_alias(
-                "next/dist/esm/shared/lib/image-loader",
-                request_to_import_mapping(project_path, loader_file),
-            );
-        }
-    }
 
     match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
@@ -714,6 +702,7 @@ async fn insert_next_shared_aliases(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     next_config: Vc<NextConfig>,
+    is_runtime_edge: bool,
 ) -> Result<()> {
     let package_root = next_js_fs().root();
 
@@ -836,6 +825,21 @@ async fn insert_next_shared_aliases(
         "@vercel/turbopack-node/",
         turbopack_binding::turbopack::node::embed_js::embed_fs().root(),
     );
+
+    let image_config = next_config.image_config().await?;
+    if let Some(loader_file) = image_config.loader_file.as_deref() {
+        import_map.insert_exact_alias(
+            "next/dist/shared/lib/image-loader",
+            request_to_import_mapping(project_path, loader_file),
+        );
+
+        if is_runtime_edge {
+            import_map.insert_exact_alias(
+                "next/dist/esm/shared/lib/image-loader",
+                request_to_import_mapping(project_path, loader_file),
+            );
+        }
+    }
 
     Ok(())
 }
