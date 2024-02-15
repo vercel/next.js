@@ -84,7 +84,6 @@ import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
