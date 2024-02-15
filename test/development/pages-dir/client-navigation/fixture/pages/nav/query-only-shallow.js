@@ -5,32 +5,33 @@ import { useEffect, useRef, useState } from 'react'
 export default function Page() {
   const router = useRouter()
 
-  const [counter, setCounter] = useState(0)
-  const errorRef = useRef(null)
-  const handleRouteChangeError = (err) => {
-    errorRef.current = err
-  }
+  const [routeState, setRouteResult] = useState({
+    completed: 0,
+    errors: 0,
+  })
   useEffect(() => {
-    router.events.on('routeChangeError', handleRouteChangeError)
+    const increaseErrorCount = () =>
+      setRouteResult((state) => ({ ...state, errors: state.errors + 1 }))
+    const increaseRouteComplete = () =>
+      setRouteResult((state) => ({ ...state, completed: state.completed + 1 }))
+    router.events.on('routeChangeError', increaseErrorCount)
+    router.events.on('routeChangeComplete', increaseRouteComplete)
 
     return () => {
-      router.events.off('routeChangeError', handleRouteChangeError)
+      router.events.off('routeChangeError', increaseErrorCount)
+      router.events.off('routeChangeComplete', increaseRouteComplete)
     }
   })
 
   return (
     <>
-      <div id="counter">{counter}</div>
-      <div id="error">
-        {errorRef.current ? JSON.stringify(errorRef.current) : ''}
-      </div>
+      <div id="routeState">{JSON.stringify(routeState)}</div>
       <Link href="?prop=foo" id="link" shallow={true}>
         Click me
       </Link>
       <button
         id="router-replace"
         onClick={() => {
-          setCounter(counter + 1)
           router.replace('?prop=baz', undefined, { shallow: true })
         }}
       >

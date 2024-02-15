@@ -1122,8 +1122,10 @@ createNextDescribe(
           // the error occurs on every replace() after the first one
           await browser.elementByCss('#router-replace').click()
 
-          await check(() => browser.waitForElementByCss('#counter').text(), '2')
-          await check(() => browser.waitForElementByCss('#error').text(), '')
+          await check(
+            () => browser.waitForElementByCss('#routeState').text(),
+            '{"completed":2,"errors":0}'
+          )
         } finally {
           await browser.close()
         }
