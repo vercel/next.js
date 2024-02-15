@@ -2,7 +2,6 @@ import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
-  GlobalLayoutRouterContext,
   LayoutRouterContext,
   type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
@@ -152,36 +151,6 @@ interface Params {
   [key: string]: string | string[]
 }
 
-// this function performs a depth-first search of the tree to find the selected
-// params
-function getSelectedParams(
-  tree: FlightRouterState,
-  params: Params = {}
-): Params {
-  const parallelRoutes = tree[1]
-
-  for (const parallelRoute of Object.values(parallelRoutes)) {
-    const segment = parallelRoute[0]
-    const isDynamicParameter = Array.isArray(segment)
-    const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
-    }
-
-    params = getSelectedParams(parallelRoute, params)
-  }
-
-  return params
-}
-
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
  * that lets you read a route's dynamic params filled in by the current URL.
@@ -201,18 +170,8 @@ function getSelectedParams(
  */
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
-  const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
-  const pathParams = useContext(PathParamsContext)
 
-  return useMemo(() => {
-    // When it's under app router
-    if (globalLayoutRouter?.tree) {
-      return getSelectedParams(globalLayoutRouter.tree) as T
-    }
-
-    // When it's under client side pages router
-    return pathParams as T
-  }, [globalLayoutRouter?.tree, pathParams])
+  return useContext(PathParamsContext) as T
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */

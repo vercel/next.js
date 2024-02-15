@@ -3,15 +3,15 @@ use std::path::PathBuf;
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
-use swc_core::{
-    common::{util::take::Take, FileName},
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
 use turbo_tasks::Vc;
 use turbopack_binding::{
+    swc::core::{
+        common::{util::take::Take, FileName},
+        ecma::{
+            ast::{Module, Program},
+            visit::FoldWith,
+        },
+    },
     turbo::tasks_fs::FileSystemPath,
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},

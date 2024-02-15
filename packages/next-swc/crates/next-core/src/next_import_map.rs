@@ -657,6 +657,9 @@ async fn rsc_aliases(
                 "react-server-dom-webpack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
                 "react-server-dom-turbopack/server.edge" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-edge"),
                 "react-server-dom-turbopack/server.node" => format!("next/dist/server/future/route-modules/app-page/vendored/rsc/react-server-dom-turbopack-server-node"),
+
+                // Needed to make `react-dom/server` work.
+                "next/dist/compiled/react" => format!("next/dist/compiled/react/index.js"),
             })
         }
     }
@@ -799,10 +802,10 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_exact_alias(
-        "private-next-rsc-action-proxy",
+        "private-next-rsc-server-reference",
         request_to_import_mapping(
             project_path,
-            "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+            "next/dist/build/webpack/loaders/next-flight-loader/server-reference",
         ),
     );
     import_map.insert_exact_alias(
