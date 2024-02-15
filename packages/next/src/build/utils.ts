@@ -497,7 +497,7 @@ export async function printTreeView(
         }
       } else if (pageInfo?.isStatic) {
         symbol = '○'
-        if (pageInfo.isRouteHandler) symbol += '*'
+        if (pageInfo.isRouteHandler) symbol = '◎'
       } else if (pageInfo?.isSSG) {
         symbol = '●'
       } else {
@@ -727,39 +727,39 @@ export async function printTreeView(
         usedSymbols.has('○') && [
           '○',
           '(Static)',
-          'prerendered as static content',
+          'Prerendered as static content',
         ],
-        usedSymbols.has('○*') && [
-          '○*',
+        usedSymbols.has('◎') && [
+          '◎',
           '(Static)',
-          "Route Handler without dynamic API usage. Won't re-run at runtime.\n              Read more: https://nextjs.org/docs/app/building-your-application/routing/route-handlers#caching",
+          "Route Handler without dynamic API usage. Won't re-run at runtime.\n             Read more: https://nextjs.org/docs/app/building-your-application/routing/route-handlers#caching",
         ],
         usedSymbols.has('●') && [
           '●',
           '(SSG)',
-          `prerendered as static HTML (uses ${cyan('getStaticProps')})`,
+          `Prerendered as static HTML (uses ${cyan('getStaticProps')})`,
         ],
         usedSymbols.has('ISR') && [
           '',
           '(ISR)',
-          `incremental static regeneration (uses revalidate in ${cyan(
+          `Incremental Static Regeneration (uses revalidate in ${cyan(
             'getStaticProps'
           )})`,
         ],
         usedSymbols.has('◐') && [
           '◐',
           '(Partial Prerender)',
-          'prerendered as static HTML with dynamic server-streamed content',
+          'Prerendered as static HTML with dynamic server-streamed content',
         ],
         usedSymbols.has('λ') && [
           'λ',
           '(Dynamic)',
-          `server-rendered on demand using Node.js`,
+          `Server-rendered on demand using Node.js`,
         ],
         usedSymbols.has('ℇ') && [
           'ℇ',
           '(Edge Runtime)',
-          `server-rendered on demand using the Edge Runtime`,
+          `Server-rendered on demand using the Edge Runtime`,
         ],
       ].filter((x) => x) as [string, string, string][],
       {
