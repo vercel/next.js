@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
-        ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
+        ast::{CallExpr, Callee, Expr, ExprOrSpread},
         utils::private_ident,
     },
     quote, quote_expr,
@@ -83,12 +83,11 @@ impl ValueToString for AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
-#[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
+#[derive(
+    ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Copy, Clone,
+)]
 pub enum AmdDefineDependencyElement {
-    Request {
-        request: Vc<Request>,
-        request_str: String,
-    },
+    Request(Vc<Request>),
     Exports,
     Module,
     Require,
@@ -148,25 +147,24 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
             .iter()
             .map(|element| async move {
                 Ok(match element {
-                    AmdDefineDependencyElement::Request {
-                        request,
-                        request_str,
-                    } => ResolvedElement::PatternMapping {
-                        pattern_mapping: PatternMapping::resolve_request(
-                            *request,
-                            self.origin,
-                            Vc::upcast(chunking_context),
-                            cjs_resolve(
-                                self.origin,
+                    AmdDefineDependencyElement::Request(request) => {
+                        ResolvedElement::PatternMapping(
+                            PatternMapping::resolve_request(
                                 *request,
-                                Some(self.issue_source),
-                                try_to_severity(self.in_try),
-                            ),
-                            Value::new(ChunkItem),
+                                self.origin,
+                                Vc::upcast(chunking_context),
+                                cjs_resolve(
+                                    self.origin,
+                                    *request,
+                                    Some(self.issue_source),
+                                    try_to_severity(self.in_try),
+                                ),
+                                Value::new(ChunkItem),
+                            )
+                            .await?,
+                            request.await?.request(),
                         )
-                        .await?,
-                        request_str: request_str.to_string(),
-                    },
+                    }
                     AmdDefineDependencyElement::Exports => {
                         ResolvedElement::Expr(quote!("exports" as Expr))
                     }
@@ -195,10 +193,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
 }
 
 enum ResolvedElement {
-    PatternMapping {
-        pattern_mapping: ReadRef<PatternMapping>,
-        request_str: String,
-    },
+    PatternMapping(ReadRef<PatternMapping>, Option<String>),
     Expr(Expr),
 }
 
@@ -224,14 +219,23 @@ fn transform_amd_factory(
     let deps = resolved_elements
         .iter()
         .map(|element| match element {
-            ResolvedElement::PatternMapping {
-                pattern_mapping: pm,
-                request_str: request,
-            } => {
-                let key_expr = Expr::Lit(Lit::Str(request.as_str().into()));
-                pm.create_require(key_expr)
-            }
-            ResolvedElement::Expr(expr) => expr.clone(),
+            ResolvedElement::PatternMapping(pm, req) => match &**pm {
+                PatternMapping::Invalid => quote_expr!("undefined"),
+                pm => {
+                    let arg = if let Some(req) = req {
+                        pm.apply(req.as_str().into())
+                    } else {
+                        pm.create()
+                    };
+
+                    if pm.is_internal_import() {
+                        quote_expr!("__turbopack_require__($arg)", arg: Expr = arg)
+                    } else {
+                        quote_expr!("__turbopack_external_require__($arg)", arg: Expr = arg)
+                    }
+                }
+            },
+            ResolvedElement::Expr(expr) => Box::new(expr.clone()),
         })
         .map(ExprOrSpread::from)
         .collect();

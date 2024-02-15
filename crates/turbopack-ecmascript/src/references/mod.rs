@@ -2055,10 +2055,7 @@ fn analyze_amd_define_with_deps(
                         issue_source(source, span),
                         in_try,
                     );
-                    requests.push(AmdDefineDependencyElement::Request {
-                        request,
-                        request_str: dep.to_string(),
-                    });
+                    requests.push(AmdDefineDependencyElement::Request(request));
                     analysis.add_reference(reference);
                 }
             }
