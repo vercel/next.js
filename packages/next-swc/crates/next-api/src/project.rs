@@ -362,8 +362,7 @@ impl Project {
 
     #[turbo_tasks::function]
     async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        let this = self.await?;
-        Ok(PagesProject::new(self, this.mode))
+        Ok(PagesProject::new(self))
     }
 
     #[turbo_tasks::function]

@@ -5,7 +5,6 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
-    mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
@@ -82,14 +81,13 @@ use crate::{
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: Vc<Project>,
-    mode: Vc<NextMode>,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub async fn new(project: Vc<Project>, mode: Vc<NextMode>) -> Result<Vc<Self>> {
-        Ok(PagesProject { project, mode }.cell())
+    pub async fn new(project: Vc<Project>) -> Result<Vc<Self>> {
+        Ok(PagesProject { project }.cell())
     }
 
     #[turbo_tasks::function]
