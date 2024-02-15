@@ -94,7 +94,7 @@ impl SubpathValue {
         conditions: &BTreeMap<String, ConditionValue>,
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut HashMap<&'a str, ConditionValue>,
-        target: &mut Vec<&'a str>,
+        target: &mut Vec<(&'a str, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {
             SubpathValue::Alternatives(list) => {
@@ -150,7 +150,17 @@ impl SubpathValue {
                 false
             }
             SubpathValue::Result(r) => {
-                target.push(r);
+                target.push((
+                    r,
+                    condition_overrides
+                        .iter()
+                        .filter_map(|(k, v)| match v {
+                            ConditionValue::Set => Some((*k, true)),
+                            ConditionValue::Unset => Some((*k, false)),
+                            ConditionValue::Unknown => None,
+                        })
+                        .collect(),
+                ));
                 true
             }
             SubpathValue::Excluded => true,

@@ -1,6 +1,7 @@
 use anyhow::Result;
 use swc_core::{
-    ecma::ast::{Callee, ExprOrSpread},
+    common::{util::take::Take, DUMMY_SP},
+    ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_tasks::{Value, ValueToString, Vc};
@@ -120,100 +121,39 @@ impl CodeGenerateable for EsmAsyncAssetReference {
         let path = &self.path.await?;
         let import_externals = self.import_externals;
 
-        let visitor = match &*pm {
-            PatternMapping::Invalid => {
-                create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    let old_args = std::mem::take(&mut call_expr.args);
-                    let message = match old_args.first() {
-                        Some(ExprOrSpread { spread: None, expr }) => {
-                            quote_expr!(
-                                "'could not resolve \"' + $arg + '\" into a module'",
-                                arg: Expr = *expr.clone(),
-                            )
-                        }
-                        // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
-                        Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
-                            quote_expr!("'spread operator is illegal in import() expressions.'")
-                        }
-                        _ => {
-                            quote_expr!("'import() expressions require at least 1 argument'")
-                        }
-                    };
-                    let error = quote_expr!(
-                        "new Error($message)",
-                        message: Expr = *message
-                    );
-                    call_expr.callee = Callee::Expr(quote_expr!("Promise.reject"));
-                    call_expr.args = vec![
-                        ExprOrSpread { spread: None, expr: error, },
-                    ];
-                })
-            }
-            PatternMapping::SingleLoader(_) => {
-                create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    let old_args = std::mem::take(&mut call_expr.args);
-                    let expr = match old_args.into_iter().next() {
-                        Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                        _ => pm.create(),
-                    };
-                    call_expr.callee = Callee::Expr(quote_expr!(
-                        "__turbopack_require__($arg)",
-                        arg: Expr = expr
-                    ));
-                    call_expr.args = vec![
-                        ExprOrSpread { spread: None, expr: quote_expr!("__turbopack_import__") },
-                    ];
-                })
-            }
-            PatternMapping::OriginalReferenceTypeExternal(_)
-            | PatternMapping::OriginalReferenceExternal => {
-                create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    let old_args = std::mem::take(&mut call_expr.args);
-                    let expr = match old_args.into_iter().next() {
-                        Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                        _ => pm.create(),
-                    };
-                    if import_externals {
-                        call_expr.callee = Callee::Expr(quote_expr!("__turbopack_external_import__"));
-                        call_expr.args = vec![
-                            ExprOrSpread { spread: None, expr: Box::new(expr) },
-                        ];
-                    } else {
-                        call_expr.callee = Callee::Expr(quote_expr!("Promise.resolve().then"));
-                        call_expr.args = vec![
-                            ExprOrSpread { spread: None, expr: quote_expr!(
-                                "() => __turbopack_external_require__($arg, true)",
-                                arg: Expr = expr
-                            ) },
-                        ];
+        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            let old_expr = expr.take();
+            let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
+                match args.into_iter().next() {
+                    Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                        *expr = pm.create_import(*key_expr, import_externals);
+                        return;
                     }
-                })
-            }
-            _ => {
-                create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                    let old_args = std::mem::take(&mut call_expr.args);
-                    let expr = match old_args.into_iter().next() {
-                        Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                        _ => pm.create(),
-                    };
-                    if pm.is_internal_import() {
-                        call_expr.callee = Callee::Expr(quote_expr!(
-                            "Promise.resolve().then",
-                        ));
-                        call_expr.args = vec![
-                            ExprOrSpread { spread: None, expr: quote_expr!(
-                                "() => __turbopack_require__($arg)",
-                                arg: Expr = expr
-                            ) },
-                        ];
-                    } else {
-                        call_expr.args = vec![
-                            ExprOrSpread { spread: None, expr: Box::new(expr) }
-                        ]
+                    // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
+                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
+                        "spread operator is illegal in import() expressions."
                     }
-                })
-            }
-        };
+                    _ => {
+                        "import() expressions require at least 1 argument"
+                    }
+                }
+            } else {
+                "visitor must be executed on a CallExpr"
+            };
+            let error = quote_expr!(
+                "() => { throw new Error($message); }",
+                message: Expr = Expr::Lit(Lit::Str(message.into()))
+            );
+            *expr = Expr::Call(CallExpr {
+                callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
+                args: vec![ExprOrSpread {
+                    spread: None,
+                    expr: error,
+                }],
+                span: DUMMY_SP,
+                type_args: None,
+            });
+        });
 
         Ok(CodeGeneration {
             visitors: vec![visitor],
