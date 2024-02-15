@@ -176,6 +176,9 @@ async function loaderTransform(
           this.eliminatedPackages.add(pkg)
         }
       }
+      if (filename.includes('/actions.js')) {
+        console.log(filename, output.code)
+      }
       return [output.code, output.map ? JSON.parse(output.map) : undefined]
     })
   )
