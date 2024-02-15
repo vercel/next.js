@@ -138,6 +138,20 @@ jobs:
       stepName: 'rust-check'
     secrets: inherit
 
+  rust-doc-check:
+    name: rustdoc check
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      skipInstallBuild: 'yes'
+      skipNativeBuild: 'yes'
+      afterBuild: cargo binstall mdbook-mermaid --no-confirm && ./scripts/deploy-turbopack-docs.sh
+      stepName: 'rust-doc-check'
+    secrets: inherit
+
   test-turbopack-dev:
     name: test turbopack dev
     needs: ['changes', 'build-next']

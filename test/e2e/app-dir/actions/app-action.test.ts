@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request, Response, Route } from 'playwright-chromium'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 

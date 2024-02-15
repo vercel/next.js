@@ -19,7 +19,6 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -41,9 +40,7 @@ import type {
   Redirect,
   Rewrite,
   RouteHas,
-  RouteType,
 } from '../lib/load-custom-routes'
-import { getRedirectStatus, modifyRouteRegex } from '../lib/redirect-status'
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
@@ -53,7 +50,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -130,9 +127,11 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import {
+  loadBindings,
   lockfilePatchPromise,
   teardownTraceSubscriber,
   teardownHeapProfiler,
+  createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -143,7 +142,7 @@ import {
   NEXT_ROUTER_PREFETCH_HEADER,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  RSC_VARY_HEADER,
+  NEXT_ROUTER_STATE_TREE,
   NEXT_DID_POSTPONE_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
@@ -167,6 +166,25 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import {
+  getTurbopackJsConfig,
+  handleEntrypoints,
+  type GlobalEntrypoints,
+  type CurrentEntrypoints,
+  type CurrentIssues,
+  type BuildManifests,
+  type AppBuildManifests,
+  type PagesManifests,
+  type AppPathsManifests,
+  type MiddlewareManifests,
+  type ActionManifests,
+  type FontManifests,
+  type LoadableManifests,
+  handleRouteType,
+  writeManifests,
+  handlePagesErrorRoute,
+} from '../server/dev/turbopack-utils'
+import { buildCustomRoute } from '../lib/build-custom-route'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -263,59 +281,13 @@ export type RoutesManifest = {
   rsc: {
     header: typeof RSC_HEADER
     didPostponeHeader: typeof NEXT_DID_POSTPONE_HEADER
-    varyHeader: typeof RSC_VARY_HEADER
+    varyHeader: string
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
-}
-
-export function buildCustomRoute(
-  type: 'header',
-  route: Header
-): ManifestHeaderRoute
-export function buildCustomRoute(
-  type: 'rewrite',
-  route: Rewrite
-): ManifestRewriteRoute
-export function buildCustomRoute(
-  type: 'redirect',
-  route: Redirect,
-  restrictedRedirectPaths: string[]
-): ManifestRedirectRoute
-export function buildCustomRoute(
-  type: RouteType,
-  route: Redirect | Rewrite | Header,
-  restrictedRedirectPaths?: string[]
-): ManifestHeaderRoute | ManifestRewriteRoute | ManifestRedirectRoute {
-  const compiled = pathToRegexp(route.source, [], {
-    strict: true,
-    sensitive: false,
-    delimiter: '/', // default is `/#?`, but Next does not pass query info
-  })
-
-  let source = compiled.source
-  if (!route.internal) {
-    source = modifyRouteRegex(
-      source,
-      type === 'redirect' ? restrictedRedirectPaths : undefined
-    )
-  }
-
-  const regex = normalizeRouteRegex(source)
-
-  if (type !== 'redirect') {
-    return { ...route, regex }
-  }
-
-  return {
-    ...route,
-    statusCode: getRedirectStatus(route as Redirect),
-    permanent: undefined,
-    regex,
-  }
 }
 
 function pageToRoute(page: string) {
@@ -448,7 +420,7 @@ async function writeImagesManifest(
     protocol: p.protocol,
     hostname: makeRe(p.hostname).source,
     port: p.port,
-    pathname: makeRe(p.pathname ?? '**').source,
+    pathname: makeRe(p.pathname ?? '**', { dot: true }).source,
   }))
 
   await writeManifest(path.join(distDir, IMAGES_MANIFEST), {
@@ -768,7 +740,13 @@ export default async function build(
         .traceAsyncFn(() => loadCustomRoutes(config))
 
       const { headers, rewrites, redirects } = customRoutes
-      NextBuildContext.rewrites = rewrites
+      const combinedRewrites: Rewrite[] = [
+        ...rewrites.beforeFiles,
+        ...rewrites.afterFiles,
+        ...rewrites.fallback,
+      ]
+      const hasRewrites = combinedRewrites.length > 0
+
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
@@ -1032,6 +1010,8 @@ export default async function build(
         ...generateInterceptionRoutesRewrites(appPaths, config.basePath)
       )
 
+      NextBuildContext.rewrites = rewrites
+
       const totalAppPagesCount = appPaths.length
 
       const pageKeys = {
@@ -1148,7 +1128,9 @@ export default async function build(
             i18n: config.i18n || undefined,
             rsc: {
               header: RSC_HEADER,
-              varyHeader: RSC_VARY_HEADER,
+              // This vary header is used as a default. It is technically re-assigned in `base-server`,
+              // and may include an additional Vary option for `Next-URL`.
+              varyHeader: `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`,
               prefetchHeader: NEXT_ROUTER_PREFETCH_HEADER,
               didPostponeHeader: NEXT_DID_POSTPONE_HEADER,
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
@@ -1176,12 +1158,6 @@ export default async function build(
           ),
         }
       }
-
-      const combinedRewrites: Rewrite[] = [
-        ...rewrites.beforeFiles,
-        ...rewrites.afterFiles,
-        ...rewrites.fallback,
-      ]
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
@@ -1324,7 +1300,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1350,8 +1329,179 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
-        throw new Error("next build doesn't support turbopack yet")
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
+        if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
+          throw new Error("next build doesn't support turbopack yet")
+        }
+        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
+        // This is caused by Turbopack not having the production build option yet.
+        // @ts-expect-error
+        process.env.NODE_ENV = 'development'
+        const startTime = process.hrtime()
+        const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const project = await bindings.turbo.createProject({
+          projectPath: dir,
+          rootPath: config.experimental.outputFileTracingRoot || dir,
+          nextConfig: config,
+          jsConfig: await getTurbopackJsConfig(dir, config),
+          watch: false,
+          env: process.env as Record<string, string>,
+          defineEnv: createDefineEnv({
+            isTurbopack: true,
+            allowedRevalidateHeaderKeys: undefined,
+            clientRouterFilters: undefined,
+            config,
+            // When passing `false` you get `react.jsxDEV is not a function`
+            dev: true,
+            distDir,
+            fetchCacheKeyPrefix: undefined,
+            hasRewrites,
+            middlewareMatchers: undefined,
+            previewModeId: undefined,
+          }),
+        })
+
+        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
+          recursive: true,
+        })
+        await fs.writeFile(
+          path.join(distDir, 'package.json'),
+          JSON.stringify(
+            {
+              type: 'commonjs',
+            },
+            null,
+            2
+          )
+        )
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const entrypointsSubscription = project.entrypointsSubscribe()
+        const globalEntrypoints: GlobalEntrypoints = {
+          app: undefined,
+          document: undefined,
+          error: undefined,
+        }
+        const currentEntrypoints: CurrentEntrypoints = new Map()
+        const currentIssues: CurrentIssues = new Map()
+
+        const buildManifests: BuildManifests = new Map()
+        const appBuildManifests: AppBuildManifests = new Map()
+        const pagesManifests: PagesManifests = new Map()
+        const appPathsManifests: AppPathsManifests = new Map()
+        const middlewareManifests: MiddlewareManifests = new Map()
+        const actionManifests: ActionManifests = new Map()
+        const fontManifests: FontManifests = new Map()
+        const loadableManifests: LoadableManifests = new Map()
+
+        // TODO: implement this
+        const emptyRewritesObjToBeImplemented = {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        }
+
+        for await (const entrypoints of entrypointsSubscription) {
+          await handleEntrypoints({
+            rewrites: emptyRewritesObjToBeImplemented,
+            nextConfig: config,
+            entrypoints,
+            serverFields: undefined,
+            propagateServerField: undefined,
+            distDir,
+            buildId,
+            globalEntrypoints,
+            currentEntrypoints,
+            changeSubscriptions: undefined,
+            changeSubscription: undefined,
+            clearChangeSubscription: undefined,
+            sendHmr: undefined,
+            startBuilding: undefined,
+            handleRequireCacheClearing: undefined,
+            prevMiddleware: undefined,
+            currentIssues,
+            buildManifests,
+            appBuildManifests,
+            pagesManifests,
+            appPathsManifests,
+            middlewareManifests,
+            actionManifests,
+            fontManifests,
+            loadableManifests,
+          })
+
+          const promises = []
+          for (const [page, route] of currentEntrypoints) {
+            promises.push(
+              handleRouteType({
+                rewrites: emptyRewritesObjToBeImplemented,
+                distDir,
+                buildId,
+                globalEntrypoints,
+                currentIssues,
+                buildManifests,
+                appBuildManifests,
+                pagesManifests,
+                appPathsManifests,
+                middlewareManifests,
+                actionManifests,
+                fontManifests,
+                loadableManifests,
+                currentEntrypoints,
+                handleRequireCacheClearing: undefined,
+                changeSubscription: undefined,
+                readyIds: undefined,
+                page,
+                route,
+              })
+            )
+          }
+
+          promises.push(
+            handlePagesErrorRoute({
+              rewrites: emptyRewritesObjToBeImplemented,
+              globalEntrypoints,
+              currentIssues,
+              distDir,
+              buildId,
+              buildManifests,
+              pagesManifests,
+              fontManifests,
+              appBuildManifests,
+              appPathsManifests,
+              middlewareManifests,
+              actionManifests,
+              loadableManifests,
+              currentEntrypoints,
+              handleRequireCacheClearing: undefined,
+              changeSubscription: undefined,
+            })
+          )
+          await Promise.all(promises)
+          break
+        }
+        await writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          distDir,
+          buildId,
+          buildManifests,
+          appBuildManifests,
+          pagesManifests,
+          appPathsManifests,
+          middlewareManifests,
+          actionManifests,
+          fontManifests,
+          loadableManifests,
+          currentEntrypoints,
+        })
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
+        }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1450,7 +1600,7 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
@@ -1458,7 +1608,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )

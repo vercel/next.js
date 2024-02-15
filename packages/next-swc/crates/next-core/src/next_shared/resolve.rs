@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
 use lazy_static::lazy_static;
-use turbo_tasks::{TaskInput, Value, Vc};
+use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_binding::{
     turbo::tasks_fs::FileSystemPath,
@@ -44,8 +44,6 @@ lazy_static! {
         ),
         ("@next", vec!["/font/google", "/font/local"])
     ]);
-    static ref CLIENT_ONLY_IMPORTS: HashSet<&'static str> = ["client-only", "next/dist/compiled/server-only/error"].into();
-    static ref SERVER_ONLY_IMPORTS: HashSet<&'static str> = ["server-only", "next/dist/compiled/server-only/index"].into();
 }
 
 #[turbo_tasks::value]
@@ -111,23 +109,16 @@ impl ResolvePlugin for UnsupportedModulesResolvePlugin {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Copy, Clone, TaskInput, Ord, PartialOrd, Hash)]
-pub(crate) enum InvalidImportType {
-    ClientOnly,
-    ServerOnly,
-}
-
-#[turbo_tasks::value(shared)]
 pub struct InvalidImportModuleIssue {
     pub file_path: Vc<FileSystemPath>,
-    pub import_type: InvalidImportType,
+    pub messages: Vec<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Warning.into()
+        IssueSeverity::Error.into()
     }
 
     #[turbo_tasks::function]
@@ -147,36 +138,50 @@ impl Issue for InvalidImportModuleIssue {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let message = match self.import_type {
-            InvalidImportType::ClientOnly => {
-                "'client-only' cannot be imported from a Server Component module. It should only \
-                 be used from a Client Component."
-            }
-            InvalidImportType::ServerOnly => {
-                "'server-only' cannot be imported from a Client Component module. It should only \
-                 be used from a Server Component."
-            }
-        };
+        let raw_context = &*self.file_path.await?;
+
+        let mut messages = self.messages.clone();
+        messages.push("\n".to_string());
+
+        //[TODO]: how do we get the import trace?
+        messages.push(format!(
+            "The error was caused by importing '{}'",
+            raw_context.path
+        ));
 
         Ok(Vc::cell(Some(
-            StyledString::Text(message.to_string()).cell(),
+            StyledString::Line(
+                messages
+                    .iter()
+                    .map(|v| StyledString::Text(v.into()))
+                    .collect::<Vec<StyledString>>(),
+            )
+            .cell(),
         )))
     }
 }
 
-/// A resolve plugin detects import to the `client-only`/`server-only`, then
-/// emits an error according to the context.
+/// A resolver plugin emits an error when specific context imports
+/// specified import requests. It doesn't detect if the import is correctly
+/// alised or not unlike webpack-config does; Instead it should be correctly
+/// configured when each context sets up its resolve options.
 #[turbo_tasks::value]
 pub(crate) struct InvalidImportResolvePlugin {
     root: Vc<FileSystemPath>,
-    import_type: InvalidImportType,
+    invalid_import: String,
+    message: Vec<String>,
 }
 
 #[turbo_tasks::value_impl]
 impl InvalidImportResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>, import_type: InvalidImportType) -> Vc<Self> {
-        InvalidImportResolvePlugin { root, import_type }.cell()
+    pub fn new(root: Vc<FileSystemPath>, invalid_import: String, message: Vec<String>) -> Vc<Self> {
+        InvalidImportResolvePlugin {
+            root,
+            invalid_import,
+            message,
+        }
+        .cell()
     }
 }
 
@@ -191,46 +196,58 @@ impl ResolvePlugin for InvalidImportResolvePlugin {
     async fn after_resolve(
         &self,
         _fs_path: Vc<FileSystemPath>,
-        file_path: Vc<FileSystemPath>,
+        context: Vc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
-        let imports = if self.import_type == InvalidImportType::ClientOnly {
-            &*CLIENT_ONLY_IMPORTS
-        } else {
-            &*SERVER_ONLY_IMPORTS
-        };
-
-        if let Request::Module {
-            module,
-            path,
-            query: _,
-        } = &*request.await?
-        {
-            if imports.contains(module.as_str()) {
-                UnsupportedModuleIssue {
-                    file_path,
-                    package: module.into(),
-                    package_path: None,
+        if let Request::Module { module, .. } = &*request.await? {
+            if module.as_str() == self.invalid_import.as_str() {
+                InvalidImportModuleIssue {
+                    file_path: context,
+                    messages: self.message.clone(),
                 }
                 .cell()
                 .emit();
-            }
-
-            if let Pattern::Constant(path) = path {
-                if imports.contains(path.as_str()) {
-                    InvalidImportModuleIssue {
-                        file_path,
-                        import_type: self.import_type,
-                    }
-                    .cell()
-                    .emit();
-                }
             }
         }
 
         Ok(ResolveResultOption::none())
     }
+}
+
+/// Returns a resolve plugin if context have imports to `client-only`.
+/// Only the contexts that alises `client-only` to
+/// `next/dist/compiled/client-only/error` should use this.
+pub(crate) fn get_invalid_client_only_resolve_plugin(
+    root: Vc<FileSystemPath>,
+) -> Vc<InvalidImportResolvePlugin> {
+    InvalidImportResolvePlugin::new(
+        root,
+        "client-only".to_string(),
+        vec![
+            "'client-only' cannot be imported from a Server Component module. It should only be \
+             used from a Client Component."
+                .to_string(),
+        ],
+    )
+}
+
+/// Returns a resolve plugin if context have imports to `server-only`.
+/// Only the contexts that alises `server-only` to
+/// `next/dist/compiled/server-only/index` should use this.
+#[allow(unused)]
+pub(crate) fn get_invalid_server_only_resolve_plugin(
+    root: Vc<FileSystemPath>,
+) -> Vc<InvalidImportResolvePlugin> {
+    InvalidImportResolvePlugin::new(
+        root,
+        "server-only".to_string(),
+        vec![
+            "'server-only' cannot be imported from a Client Component module. It should only be \
+             used from a Server Component."
+                .to_string(),
+        ],
+    )
 }
 
 #[turbo_tasks::value]

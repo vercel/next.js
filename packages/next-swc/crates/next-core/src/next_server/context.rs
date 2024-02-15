@@ -13,9 +13,7 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{
-                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
-            },
+            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
             free_var_references,
             resolve::{parse::Request, pattern::Pattern},
         },
@@ -52,8 +50,9 @@ use crate::{
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
+            UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -114,6 +113,7 @@ pub async fn get_server_resolve_options_context(
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
+    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
@@ -165,7 +165,7 @@ pub async fn get_server_resolve_options_context(
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let plugins = match ty {
+    let mut plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -204,6 +204,34 @@ pub async fn get_server_resolve_options_context(
             ]
         }
     };
+
+    // Inject resolve plugin to assert incorrect import to client|server-only for
+    // the corresponding context. Refer https://github.com/vercel/next.js/blob/ad15817f0368ba154bed6d85320335d4b67b7348/packages/next/src/build/webpack-config.ts#L1205-L1235
+    // how it is applied in the webpack config.
+    // Unlike webpack which alias client-only -> runtime code -> build-time error
+    // code, we use resolve plugin to detect original import directly. This
+    // means each resolve plugin must be injected only for the context where the
+    // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
+    match ty {
+        ServerContextType::Pages { .. } => {
+            //noop
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Instrumentation => {
+            plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+        }
+        ServerContextType::AppSSR { .. } => {
+            //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
+            // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
+        }
+        ServerContextType::Middleware => {
+            //noop
+        }
+    }
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(root_dir),
         enable_node_externals: true,
@@ -260,11 +288,10 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env)),
     )))
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))

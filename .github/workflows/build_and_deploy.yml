@@ -473,6 +473,44 @@ jobs:
           VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
           DEPLOY_ENVIRONMENT: production
 
+  deployTurbopackDocs:
+    name: Deploy Turbopack docs
+    runs-on: ubuntu-latest
+    needs: [build]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+      - name: Install Rust
+        uses: ./.github/actions/setup-rust
+      - name: Setup mdBook
+        uses: peaceiris/actions-mdbook@v1
+        with:
+          mdbook-version: 'latest'
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@v1.6.3
+
+      - uses: Swatinem/rust-cache@v2
+
+      - run: |
+          cargo binstall mdbook-mermaid --no-confirm
+
+      - name: Deploy preview docs
+        if: ${{ needs.build.outputs.isRelease != 'true' }}
+        run: ./scripts/deploy-turbopack-docs.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: preview
+      - name: Deploy production docs
+        if: ${{ github.ref_name == 'canary' || needs.build.outputs.isRelease == 'true' }}
+        run: ./scripts/deploy-turbopack-docs.sh
+        env:
+          VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+          DEPLOY_ENVIRONMENT: production
+
   releaseStats:
     name: Release Stats
     runs-on:

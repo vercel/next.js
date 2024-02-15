@@ -28,16 +28,17 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
-let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
   getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**

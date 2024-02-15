@@ -990,9 +990,8 @@ function runTests(mode) {
     })
 
     it('should warn when priority prop is missing on LCP image', async () => {
-      let browser
+      let browser = await webdriver(appPort, '/priority-missing-warning')
       try {
-        browser = await webdriver(appPort, '/priority-missing-warning')
         // Wait for image to load:
         await check(async () => {
           const result = await browser.eval(
@@ -1009,12 +1008,10 @@ function runTests(mode) {
           .join('\n')
         expect(await hasRedbox(browser)).toBe(false)
         expect(warnings).toMatch(
-          /Image with src (.*)wide.png(.*) was detected as the Largest Contentful Paint/gm
+          /Image with src (.*)test(.*) was detected as the Largest Contentful Paint/gm
         )
       } finally {
-        if (browser) {
-          await browser.close()
-        }
+        await browser.close()
       }
     })
 
@@ -1317,6 +1314,9 @@ function runTests(mode) {
         )
         expect(warnings).toContain(
           'Image with src "/wide.png" has "fill" but is missing "sizes" prop. Please add it to improve page performance. Read more:'
+        )
+        expect(warnings).toContain(
+          'Image with src "/test.png" has "fill" prop and "sizes" prop of "100vw", but image is not rendered at full viewport width. Please adjust "sizes" to improve page performance. Read more:'
         )
       })
       it('should not log warnings when image unmounts', async () => {
