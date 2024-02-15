@@ -90,6 +90,9 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
+
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -117,6 +120,9 @@ pub struct PartialProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: Option<bool>,
+
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -181,6 +187,8 @@ impl ProjectContainer {
             new_options.watch = watch;
         }
 
+        // TODO: Handle mode switch, should prevent mode being switched.
+
         self.options_state.set(new_options);
 
         Default::default()
@@ -190,7 +198,7 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch, dev) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
@@ -204,6 +212,7 @@ impl ProjectContainer {
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
+            let dev = options.dev;
             (
                 env,
                 define_env,
@@ -212,6 +221,7 @@ impl ProjectContainer {
                 root_path,
                 project_path,
                 watch,
+                dev,
             )
         };
 
@@ -233,7 +243,11 @@ impl ProjectContainer {
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .to_string(),
-            mode: NextMode::Development,
+            mode: if dev {
+                NextMode::Development.cell()
+            } else {
+                NextMode::Build.cell()
+            },
             versioned_content_map: this.versioned_content_map,
         }
         .cell())
@@ -303,7 +317,7 @@ pub struct Project {
 
     browserslist_query: String,
 
-    mode: NextMode,
+    mode: Vc<NextMode>,
 
     versioned_content_map: Vc<VersionedContentMap>,
 }
@@ -337,20 +351,16 @@ impl ProjectDefineEnv {
 impl Project {
     #[turbo_tasks::function]
     async fn app_project(self: Vc<Self>) -> Result<Vc<OptionAppProject>> {
-        let this = self.await?;
         let app_dir = find_app_dir(self.project_path()).await?;
 
-        Ok(Vc::cell(if let Some(app_dir) = &*app_dir {
-            Some(AppProject::new(self, *app_dir, this.mode))
-        } else {
-            None
-        }))
+        Ok(Vc::cell(
+            app_dir.map(|app_dir| AppProject::new(self, app_dir)),
+        ))
     }
 
     #[turbo_tasks::function]
     async fn pages_project(self: Vc<Self>) -> Result<Vc<PagesProject>> {
-        let this = self.await?;
-        Ok(PagesProject::new(self, this.mode))
+        Ok(PagesProject::new(self))
     }
 
     #[turbo_tasks::function]
@@ -359,6 +369,7 @@ impl Project {
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.to_string(),
             this.root_path.to_string(),
+            vec![],
         );
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -375,7 +386,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
+        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone(), vec![]);
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
     }
@@ -436,6 +447,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn next_mode(self: Vc<Self>) -> Result<Vc<NextMode>> {
+        Ok(self.await?.mode)
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn js_config(self: Vc<Self>) -> Result<Vc<JsConfig>> {
         Ok(self.await?.js_config)
     }
@@ -493,13 +509,12 @@ impl Project {
     pub(super) async fn client_chunking_context(
         self: Vc<Self>,
     ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
-        let this = self.await?;
         Ok(get_client_chunking_context(
             self.project_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
-            this.mode,
+            self.next_mode(),
         ))
     }
 
@@ -704,13 +719,13 @@ impl Project {
                 self.project_path(),
                 self.execution_context(),
                 Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
             ),
             get_edge_resolve_options_context(
                 self.project_path(),
                 Value::new(ServerContextType::Middleware),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
             ),
@@ -737,13 +752,13 @@ impl Project {
                 self.project_path(),
                 self.execution_context(),
                 Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
             ),
             get_server_resolve_options_context(
                 self.project_path(),
                 Value::new(ServerContextType::Instrumentation),
-                NextMode::Development,
+                self.next_mode(),
                 self.next_config(),
                 self.execution_context(),
             ),
