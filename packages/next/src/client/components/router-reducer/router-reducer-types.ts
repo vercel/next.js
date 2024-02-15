@@ -41,7 +41,6 @@ export interface Mutable {
 
 export interface ServerActionMutable extends Mutable {
   inFlightServerAction?: Promise<any> | null
-  actionResultResolved?: boolean
 }
 
 /**
@@ -199,10 +198,19 @@ export type FocusAndScrollRef = {
 
 export type PrefetchCacheEntry = {
   treeAtTimeOfPrefetch: FlightRouterState
-  data: Promise<FetchServerResponseResult> | null
+  data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
   lastUsedTime: number | null
+  key: string
+  status: PrefetchCacheEntryStatus
+}
+
+export enum PrefetchCacheEntryStatus {
+  fresh = 'fresh',
+  reusable = 'reusable',
+  expired = 'expired',
+  stale = 'stale',
 }
 
 /**

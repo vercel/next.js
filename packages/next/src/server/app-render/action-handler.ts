@@ -152,20 +152,39 @@ async function addRevalidationHeader(
 async function createRedirectRenderResult(
   req: IncomingMessage,
   res: ServerResponse,
+  originalHost: Host,
   redirectUrl: string,
   basePath: string,
   staticGenerationStore: StaticGenerationStore
 ) {
   res.setHeader('x-action-redirect', redirectUrl)
-  // if we're redirecting to a relative path, we'll try to stream the response
-  if (redirectUrl.startsWith('/')) {
+
+  // If we're redirecting to another route of this Next.js application, we'll
+  // try to stream the response from the other worker path. When that works,
+  // we can save an extra roundtrip and avoid a full page reload.
+  // When the redirect URL starts with a `/`, or to the same host as application,
+  // we treat it as an app-relative redirect.
+  const parsedRedirectUrl = new URL(redirectUrl, 'http://n')
+  const isAppRelativeRedirect =
+    redirectUrl.startsWith('/') ||
+    (originalHost && originalHost.value === parsedRedirectUrl.host)
+
+  if (isAppRelativeRedirect) {
+    if (!originalHost) {
+      throw new Error(
+        'Invariant: Missing `host` header from a forwarded Server Actions request.'
+      )
+    }
+
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const host = req.headers['host']
+    const host = originalHost.value
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
+    const fetchUrl = new URL(
+      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`
+    )
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
@@ -634,6 +653,7 @@ To configure the body size limit for Server Actions, see: https://nextjs.org/doc
           result: await createRedirectRenderResult(
             req,
             res,
+            host,
             redirectUrl,
             ctx.renderOpts.basePath,
             staticGenerationStore

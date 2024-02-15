@@ -7,7 +7,7 @@ import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -1467,7 +1467,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
     this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
-    return outputPath && getInvalidator(outputPath)?.invalidate()
+    if (outputPath) {
+      getInvalidator(outputPath)?.invalidate()
+    }
   }
 
   public async stop(): Promise<void> {

@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, path::MAIN_SEPARATOR};
+use std::path::MAIN_SEPARATOR;
 
 use anyhow::Result;
 use indexmap::{map::Entry, IndexMap};
@@ -39,11 +39,11 @@ use turbopack_binding::{
             compile_time_info::CompileTimeInfo,
             context::AssetContext,
             diagnostics::DiagnosticExt,
-            environment::ServerAddr,
             file_source::FileSource,
             output::{OutputAsset, OutputAssets},
             resolve::{find_context_file, FindContextFileResult},
             source::Source,
+            source_map::OptionSourceMap,
             version::{Update, Version, VersionState, VersionedContent},
             PROJECT_FILESYSTEM_NAME,
         },
@@ -90,9 +90,6 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
-
-    /// The address of the dev server.
-    pub server_addr: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -120,9 +117,6 @@ pub struct PartialProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: Option<bool>,
-
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -186,9 +180,6 @@ impl ProjectContainer {
         if let Some(watch) = options.watch {
             new_options.watch = watch;
         }
-        if let Some(server_addr) = options.server_addr {
-            new_options.server_addr = server_addr;
-        }
 
         self.options_state.set(new_options);
 
@@ -199,7 +190,7 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch, server_addr) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
@@ -213,7 +204,6 @@ impl ProjectContainer {
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
-            let server_addr = options.server_addr.parse()?;
             (
                 env,
                 define_env,
@@ -222,7 +212,6 @@ impl ProjectContainer {
                 root_path,
                 project_path,
                 watch,
-                server_addr,
             )
         };
 
@@ -236,7 +225,6 @@ impl ProjectContainer {
             root_path,
             project_path,
             watch,
-            server_addr,
             next_config,
             js_config,
             dist_dir,
@@ -271,6 +259,18 @@ impl ProjectContainer {
         let this = self.await?;
         Ok(this.versioned_content_map.get(file_path))
     }
+
+    #[turbo_tasks::function]
+    pub async fn get_source_map(
+        self: Vc<Self>,
+        file_path: Vc<FileSystemPath>,
+        section: Option<String>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        let this = self.await?;
+        Ok(this
+            .versioned_content_map
+            .get_source_map(file_path, section))
+    }
 }
 
 #[turbo_tasks::value]
@@ -287,10 +287,6 @@ pub struct Project {
 
     /// Whether to watch the filesystem for file changes.
     watch: bool,
-
-    /// The address of the dev server.
-    #[turbo_tasks(trace_ignore)]
-    server_addr: SocketAddr,
 
     /// Next config.
     next_config: Vc<NextConfig>,
@@ -382,11 +378,6 @@ impl Project {
         let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
-    }
-
-    #[turbo_tasks::function]
-    fn server_addr(&self) -> Vc<ServerAddr> {
-        ServerAddr::new(self.server_addr).cell()
     }
 
     #[turbo_tasks::function]
@@ -485,7 +476,6 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             self.env(),
-            self.server_addr(),
             this.define_env.nodejs(),
         ))
     }
@@ -495,7 +485,6 @@ impl Project {
         let this = self.await?;
         Ok(get_edge_compile_time_info(
             self.project_path(),
-            self.server_addr(),
             this.define_env.edge(),
         ))
     }
@@ -536,8 +525,7 @@ impl Project {
         )
     }
 
-    /// Emit a telemetry event corresponding to webpack configuration telemetry
-    /// (https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
+    /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
@@ -593,16 +581,16 @@ impl Project {
         let compiler_options = config.compiler.as_ref();
         let swc_relay_enabled = compiler_options.and_then(|c| c.relay.as_ref()).is_some();
         let styled_components_enabled = compiler_options
-            .map(|c| c.styled_components.is_some())
+            .and_then(|c| c.styled_components.as_ref().map(|sc| sc.is_enabled()))
             .unwrap_or_default();
         let react_remove_properties_enabled = compiler_options
             .and_then(|c| c.react_remove_properties)
             .unwrap_or_default();
         let remove_console_enabled = compiler_options
-            .map(|c| c.remove_console.is_some())
+            .and_then(|c| c.remove_console.as_ref().map(|rc| rc.is_enabled()))
             .unwrap_or_default();
         let emotion_enabled = compiler_options
-            .map(|c| c.emotion.is_some())
+            .and_then(|c| c.emotion.as_ref().map(|e| e.is_enabled()))
             .unwrap_or_default();
 
         emit_event("swcRelay", swc_relay_enabled);
@@ -787,16 +775,19 @@ impl Project {
         async move {
             let all_output_assets = all_assets_from_entries_operation(output_assets);
 
+            let client_relative_path = self.client_relative_path();
+            let node_root = self.node_root();
+
             self.await?
                 .versioned_content_map
-                .insert_output_assets(all_output_assets)
+                .insert_output_assets(all_output_assets, client_relative_path, node_root)
                 .await?;
 
             Ok(emit_assets(
                 *all_output_assets.await?,
                 self.node_root(),
-                self.client_relative_path(),
-                self.node_root(),
+                client_relative_path,
+                node_root,
             ))
         }
         .instrument(span)
@@ -812,18 +803,6 @@ impl Project {
             .await?
             .versioned_content_map
             .get(self.client_relative_path().join(identifier)))
-    }
-
-    #[turbo_tasks::function]
-    async fn hmr_content_and_write(
-        self: Vc<Self>,
-        identifier: String,
-    ) -> Result<Vc<Box<dyn VersionedContent>>> {
-        Ok(self.await?.versioned_content_map.get_and_write(
-            self.client_relative_path().join(identifier),
-            self.client_relative_path(),
-            self.node_root(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -862,7 +841,7 @@ impl Project {
         from: Vc<VersionState>,
     ) -> Result<Vc<Update>> {
         let from = from.get();
-        Ok(self.hmr_content_and_write(identifier).update(from))
+        Ok(self.hmr_content(identifier).update(from))
     }
 
     /// Gets a list of all HMR identifiers that can be subscribed to. This is

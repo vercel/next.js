@@ -55,6 +55,7 @@ import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { validateRevalidate } from '../server/lib/patch-fetch'
+import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 
 function divideSegments(number: number, segments: number): number[] {
   const result = []
@@ -515,7 +516,7 @@ export async function exportAppImpl(
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
-    ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
+    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.
@@ -720,12 +721,22 @@ export async function exportAppImpl(
     byPath: new Map(),
     byPage: new Map(),
     ssgNotFoundPaths: new Set(),
+    turborepoAccessTraceResults: new Map(),
   }
 
   for (const { result, path } of results) {
     if (!result) continue
 
     const { page } = exportPathMap[path]
+
+    if (result.turborepoAccessTraceResult) {
+      collector.turborepoAccessTraceResults?.set(
+        path,
+        TurborepoAccessTraceResult.fromSerialized(
+          result.turborepoAccessTraceResult
+        )
+      )
+    }
 
     // Capture any render errors.
     if ('error' in result) {

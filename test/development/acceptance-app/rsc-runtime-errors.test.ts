@@ -17,16 +17,14 @@ createNextDescribe(
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
     packageJson: {
       scripts: {
-        setup: 'cp -r ./node_modules_bak/* ./node_modules',
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
   },
   ({ next }) => {
     it('should show runtime errors if invalid client API from node_modules is executed', async () => {
@@ -137,9 +135,13 @@ createNextDescribe(
       await retry(async () => {
         expect(await hasRedbox(browser)).toBe(true)
       })
-      await expect(await getVersionCheckerText(browser)).toContain(
-        `Next.js is up to date${process.env.TURBOPACK ? ' (turbo)' : ''}`
-      )
+      const versionText = await getVersionCheckerText(browser)
+      await expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
+      if (process.env.TURBOPACK) {
+        await expect(versionText).toContain('(turbo)')
+      } else {
+        await expect(versionText).not.toContain('(turbo)')
+      }
     })
   }
 )

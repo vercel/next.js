@@ -114,8 +114,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 9) {
-                return `not enough traces, expected 9, but got ${traces.length}`
+              if (traces.length < 10) {
+                return `not enough traces, expected 10, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -228,6 +228,19 @@ createNextDescribe(
                   },
                   {
                     "attributes": {
+                      "next.span_name": "start response",
+                      "next.span_type": "NextNodeServer.startResponse",
+                    },
+                    "kind": 0,
+                    "name": "start response",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
                       "next.page": "/app/[param]/layout",
                       "next.span_name": "generateMetadata /app/[param]/layout",
                       "next.span_type": "ResolveMetadata.generateMetadata",
@@ -267,8 +280,8 @@ createNextDescribe(
               const numberOfRootTraces =
                 env.span.rootParentId === undefined ? 1 : 0
               const traces = await getSanitizedTraces(numberOfRootTraces)
-              if (traces.length < 3) {
-                return `not enough traces, expected 3, but got ${traces.length}`
+              if (traces.length < 4) {
+                return `not enough traces, expected 4, but got ${traces.length}`
               }
               expect(traces).toMatchInlineSnapshot(`
                 [
@@ -316,6 +329,19 @@ createNextDescribe(
                     },
                     "kind": 0,
                     "name": "resolve page components",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "${env.span.traceId}",
+                  },
+                  {
+                    "attributes": {
+                      "next.span_name": "start response",
+                      "next.span_type": "NextNodeServer.startResponse",
+                    },
+                    "kind": 0,
+                    "name": "start response",
                     "parentId": "[parent-id]",
                     "status": {
                       "code": 0,
@@ -638,8 +664,8 @@ createNextDescribe(
 
           await check(async () => {
             const traces = await getSanitizedTraces(1)
-            if (traces.length < 5) {
-              return `not enough traces, expected 5, but got ${traces.length}`
+            if (traces.length < 6) {
+              return `not enough traces, expected 6, but got ${traces.length}`
             }
             expect(traces).toMatchInlineSnapshot(`
                 [
@@ -724,6 +750,19 @@ createNextDescribe(
                     },
                     "kind": 0,
                     "name": "resolve segment modules",
+                    "parentId": "[parent-id]",
+                    "status": {
+                      "code": 0,
+                    },
+                    "traceId": "[trace-id]",
+                  },
+                  {
+                    "attributes": {
+                      "next.span_name": "start response",
+                      "next.span_type": "NextNodeServer.startResponse",
+                    },
+                    "kind": 0,
+                    "name": "start response",
                     "parentId": "[parent-id]",
                     "status": {
                       "code": 0,

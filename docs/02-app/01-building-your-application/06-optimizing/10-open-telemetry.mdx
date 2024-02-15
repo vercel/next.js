@@ -94,7 +94,7 @@ npm install @opentelemetry/sdk-node @opentelemetry/resources @opentelemetry/sema
 ```
 
 Now you can initialize `NodeSDK` in your `instrumentation.ts`.
-OpenTelemetry APIs are not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. We recommend creating a new file `instrumentation.node.ts` which you conditionally import only when using node:
+Unlike `@vercel/otel`, `NodeSDK` is not compatible with edge runtime, so you need to make sure that you are importing them only when `process.env.NEXT_RUNTIME === 'nodejs'`. We recommend creating a new file `instrumentation.node.ts` which you conditionally import only when using node:
 
 ```ts filename="instrumentation.ts" switcher
 export async function register() {
@@ -144,7 +144,7 @@ const sdk = new NodeSDK({
 sdk.start()
 ```
 
-Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend some features that are not exposed by the `@vercel/otel`.
+Doing this is equivalent to using `@vercel/otel`, but it's possible to modify and extend some features that are not exposed by the `@vercel/otel`. If edge runtime support is necessary, you will have to use `@vercel/otel`.
 
 ## Testing your instrumentation
 
@@ -357,3 +357,9 @@ Attributes:
 - `next.span_name`
 - `next.span_type`
 - `next.segment`
+
+### `start response`
+
+- `next.span_type`: `NextNodeServer.startResponse`.
+
+This zero-length span represents the time when the first byte has been sent in the response.

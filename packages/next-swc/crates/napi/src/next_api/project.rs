@@ -33,7 +33,7 @@ use turbopack_binding::{
             diagnostics::PlainDiagnostic,
             error::PrettyPrintError,
             issue::PlainIssue,
-            source_map::{GenerateSourceMap, Token},
+            source_map::Token,
             version::{PartialUpdate, TotalUpdate, Update, VersionState},
         },
         ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier},
@@ -90,9 +90,6 @@ pub struct NapiProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: NapiDefineEnv,
-
-    /// The address of the dev server.
-    pub server_addr: String,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -124,9 +121,6 @@ pub struct NapiPartialProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: Option<NapiDefineEnv>,
-
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
 }
 
 #[napi(object)]
@@ -157,7 +151,6 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
-            server_addr: val.server_addr,
         }
     }
 }
@@ -174,7 +167,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
-            server_addr: val.server_addr,
         }
     }
 }
@@ -789,10 +781,13 @@ pub fn project_update_info_subscribe(
 #[derive(Debug)]
 #[napi(object)]
 pub struct StackFrame {
-    pub column: Option<u32>,
-    pub file: String,
     pub is_server: bool,
-    pub line: u32,
+    pub is_internal: Option<bool>,
+    pub file: String,
+    // 1-indexed, unlike source map tokens
+    pub line: Option<u32>,
+    // 1-indexed, unlike source map tokens
+    pub column: Option<u32>,
     pub method_name: Option<String>,
 }
 
@@ -804,12 +799,16 @@ pub async fn project_trace_source(
     let turbo_tasks = project.turbo_tasks.clone();
     let traced_frame = turbo_tasks
         .run_once(async move {
-            let file = match Url::parse(&frame.file) {
+            let (file, module) = match Url::parse(&frame.file) {
                 Ok(url) => match url.scheme() {
-                    "file" => urlencoding::decode(url.path())?.to_string(),
+                    "file" => {
+                        let path = urlencoding::decode(url.path())?.to_string();
+                        let module = url.query_pairs().find(|(k, _)| k == "id");
+                        (path, module.map(|(_, m)| m.into_owned()))
+                    }
                     _ => bail!("Unknown url scheme"),
                 },
-                Err(_) => frame.file.to_string(),
+                Err(_) => (frame.file.to_string(), None),
             };
 
             let Some(chunk_base) = file.strip_prefix(
@@ -823,54 +822,76 @@ pub async fn project_trace_source(
                 return Ok(None);
             };
 
-            let path = if frame.is_server {
-                project
-                    .container
-                    .project()
-                    .node_root()
-                    .join(chunk_base.to_owned())
-            } else {
-                project
-                    .container
-                    .project()
-                    .client_relative_path()
-                    .join(chunk_base.to_owned())
-            };
+            let server_path = project
+                .container
+                .project()
+                .node_root()
+                .join(chunk_base.to_owned());
 
-            let Some(versioned) = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(
-                project.container.get_versioned_content(path),
-            )
-            .await?
-            else {
-                bail!("Could not GenerateSourceMap")
-            };
+            let client_path = project
+                .container
+                .project()
+                .client_relative_path()
+                .join(chunk_base.to_owned());
 
-            let map = versioned
-                .generate_source_map()
-                .await?
-                .context("Chunk is missing a sourcemap")?;
+            let mut map_result = project
+                .container
+                .get_source_map(server_path, module.clone())
+                .await;
+            if map_result.is_err() {
+                // If the chunk doesn't exist as a server chunk, try a client chunk.
+                // TODO: Properly tag all server chunks and use the `isServer` query param.
+                // Currently, this is inaccurate as it does not cover RSC server
+                // chunks.
+                map_result = project.container.get_source_map(client_path, module).await;
+            }
+            let map = map_result?.context("chunk/module is missing a sourcemap")?;
 
-            let token = map
-                .lookup_token(frame.line as usize, frame.column.unwrap_or(0) as usize)
-                .await?
-                .clone_value()
-                .context("Unable to trace token from sourcemap")?;
-
-            let Token::Original(token) = token else {
+            let Some(line) = frame.line else {
                 return Ok(None);
             };
 
-            let Some(source_file) = token.original_file.strip_prefix("/turbopack/[project]/")
-            else {
-                bail!("Original file outside project")
+            let token = map
+                .lookup_token(
+                    (line as usize).saturating_sub(1),
+                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                )
+                .await?;
+
+            let (original_file, line, column, name) = match &*token {
+                Token::Original(token) => (
+                    &token.original_file,
+                    // JS stack frames are 1-indexed, source map tokens are 0-indexed
+                    Some(token.original_line as u32 + 1),
+                    Some(token.original_column as u32 + 1),
+                    token.name.clone(),
+                ),
+                Token::Synthetic(token) => {
+                    let Some(file) = &token.guessed_original_file else {
+                        return Ok(None);
+                    };
+                    (file, None, None, None)
+                }
             };
+
+            let Some(source_file) = original_file.strip_prefix("/turbopack/") else {
+                bail!("Original file ({}) outside project", original_file)
+            };
+
+            let (source_file, is_internal) =
+                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                    (source_file, false)
+                } else {
+                    (source_file, true)
+                };
 
             Ok(Some(StackFrame {
                 file: source_file.to_string(),
-                method_name: token.name,
-                line: token.original_line as u32,
-                column: Some(token.original_column as u32),
+                method_name: name,
+                line,
+                column,
                 is_server: frame.is_server,
+                is_internal: Some(is_internal),
             }))
         })
         .await

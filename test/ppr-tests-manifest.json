@@ -44,8 +44,7 @@
         "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
         "app dir - navigation redirect status code should respond with 307 status code in client component",
         "app dir - navigation redirect status code should respond with 307 status code in server component",
-        "app dir - navigation bots should block rendering for bots and return 404 status",
-        "app dir - navigation navigation between pages and app should not continously initiate a mpa navigation to the same URL when router state changes"
+        "app dir - navigation bots should block rendering for bots and return 404 status"
       ]
     },
     "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
