@@ -269,7 +269,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   })
 
   // Module trace is only available with webpack 5
-  test.only('conversion to class component (1)', async () => {
+  test('conversion to class component (1)', async () => {
     const { session, cleanup } = await sandbox(next)
 
     await session.write(
