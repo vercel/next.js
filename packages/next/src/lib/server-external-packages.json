@@ -50,5 +50,6 @@
   "typescript",
   "vscode-oniguruma",
   "webpack",
-  "websocket"
+  "websocket",
+  "zeromq"
 ]
