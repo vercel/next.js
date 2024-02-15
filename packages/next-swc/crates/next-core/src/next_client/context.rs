@@ -366,7 +366,7 @@ pub async fn get_client_runtime_entries(
     let resolve_options_context =
         get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
 
-    if (matches!(mode, NextMode::Development)) {
+    if matches!(mode, NextMode::Development) {
         let enable_react_refresh =
             assert_can_resolve_react_refresh(project_root, resolve_options_context)
                 .await?
