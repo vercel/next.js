@@ -579,10 +579,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return false
     }
 
-    // If we're here, this is a data request, as it didn't return and it matched
-    // either a RSC or a prefetch RSC request.
-    parsedUrl.query.__nextDataReq = '1'
-
     if (req.url) {
       const parsed = parseUrl(req.url)
       parsed.pathname = parsedUrl.pathname
