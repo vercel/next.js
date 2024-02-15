@@ -26,6 +26,7 @@ import {
   MIDDLEWARE_BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
 } from '../../shared/lib/constants'
 import { writeFileAtomic } from '../../lib/fs/write-atomic'
 import { deleteCache } from '../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
@@ -543,7 +544,7 @@ async function writeActionManifest(
   )
 }
 
-async function writeFontManifest(
+async function writeNextFontManifest(
   distDir: string,
   fontManifests: FontManifests
 ): Promise<void> {
@@ -563,6 +564,19 @@ async function writeFontManifest(
     fontManifestJsPath,
     `self.__NEXT_FONT_MANIFEST=${JSON.stringify(json)}`
   )
+}
+
+/**
+ * Turbopack doesn't support this functionality, so it writes an empty manifest.
+ */
+async function writeAutomaticFontOptimizationManifest(distDir: string) {
+  const manifestPath = join(
+    distDir,
+    'server',
+    `${AUTOMATIC_FONT_OPTIMIZATION_MANIFEST}.json`
+  )
+
+  await writeFileAtomic(manifestPath, JSON.stringify([]))
 }
 
 async function writeLoadableManifest(
@@ -624,9 +638,10 @@ export async function writeManifests({
   await writeAppPathsManifest(distDir, appPathsManifests)
   await writeMiddlewareManifest(distDir, middlewareManifests)
   await writeActionManifest(distDir, actionManifests)
-  await writeFontManifest(distDir, fontManifests)
+  await writeNextFontManifest(distDir, fontManifests)
   await writeLoadableManifest(distDir, loadableManifests)
   await writeFallbackBuildManifest(distDir, buildManifests)
+  await writeAutomaticFontOptimizationManifest(distDir)
 }
 
 class ModuleBuildError extends Error {}

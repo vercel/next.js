@@ -50,7 +50,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -1300,7 +1300,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1475,7 +1478,7 @@ export default async function build(
         }
         await writePrerenderManifest(distDir, prerenderManifest)
         await writeManifest<FontManifest>(
-          path.join(distDir, 'server', FONT_MANIFEST),
+          path.join(distDir, 'server', AUTOMATIC_FONT_OPTIMIZATION_MANIFEST),
           []
         )
         // End temporary
