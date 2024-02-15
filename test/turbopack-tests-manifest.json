@@ -13677,13 +13677,13 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/loader-config-edge-runtime/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Loader Config with Edge Runtime dev mode should add \"src\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime dev mode should add \"src\" to img2 based on the loader prop",
       "Image Loader Config with Edge Runtime dev mode should add \"srcset\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime dev mode should add \"srcset\" to img2 based on the loader prop"
     ],
+    "failed": [],
     "pending": [
       "Image Loader Config with Edge Runtime production mode should add \"src\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime production mode should add \"src\" to img2 based on the loader prop",
