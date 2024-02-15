@@ -27,11 +27,7 @@ use crate::register;
 
 #[turbo_tasks::function]
 async fn project_fs(project_dir: String, watching: bool) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(
-        PROJECT_FILESYSTEM_NAME.to_string(),
-        project_dir.to_string(),
-        vec![],
-    );
+    let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.to_string(), project_dir.to_string());
     if watching {
         disk_fs.await?.start_watching_with_invalidation_reason()?;
     }
