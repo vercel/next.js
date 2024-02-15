@@ -1,7 +1,8 @@
 use anyhow::Result;
 use swc_core::{
-    common::DUMMY_SP,
-    ecma::ast::{Callee, Expr, ExprOrSpread, Ident, ObjectLit},
+    common::{util::take::Take, DUMMY_SP},
+    ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
+    quote,
 };
 use turbo_tasks::{Value, ValueToString, Vc};
 use turbopack_core::{
@@ -16,7 +17,7 @@ use crate::{
     chunk::EcmascriptChunkingContext,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::{util::throw_module_not_found_expr, AstPath},
+    references::AstPath,
     resolve::{cjs_resolve, try_to_severity},
 };
 
@@ -154,45 +155,29 @@ impl CodeGenerateable for CjsRequireAssetReference {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
-        match &*pm {
-            PatternMapping::Invalid => {
-                let request_string = self.request.to_string().await?;
-                visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                    // In Node.js, a require call that cannot be resolved will throw an error.
-                    *expr = throw_module_not_found_expr(&request_string);
-                }));
-            }
-            PatternMapping::Ignored => {
-                visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                    // Ignored modules behave as if they have no code nor exports.
-                    *expr = Expr::Object(ObjectLit {
-                        span: DUMMY_SP,
-                        props: vec![],
-                    });
-                }));
-            }
-            _ => {
-                visitors.push(
-                    create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
-                        call_expr.callee = Callee::Expr(
-                            Box::new(Expr::Ident(Ident::new(
-                                if pm.is_internal_import() {
-                                    "__turbopack_require__"
-                                } else {
-                                    "__turbopack_external_require__"
-                                }.into(), DUMMY_SP
-                            )))
-                        );
-                        let old_args = std::mem::take(&mut call_expr.args);
-                        let expr = match old_args.into_iter().next() {
-                            Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                            _ => pm.create(),
-                        };
-                        call_expr.args.push(ExprOrSpread { spread: None, expr: Box::new(expr) });
-                    }),
-                );
-            }
-        }
+        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            let old_expr = expr.take();
+            let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
+                match args.into_iter().next() {
+                    Some(ExprOrSpread { spread: None, expr: key_expr }) => {
+                        *expr = pm.create_require(*key_expr);
+                        return;
+                    }
+                    Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
+                        "spread operator is not analyse-able in require() expressions."
+                    }
+                    _ => {
+                        "require() expressions require at least 1 argument"
+                    }
+                }
+            } else {
+                "visitor must be executed on a CallExpr"
+            };
+            *expr = quote!(
+                "(() => { throw new Error($message); })()" as Expr,
+                message: Expr = Expr::Lit(Lit::Str(message.into()))
+            );
+        }));
 
         Ok(CodeGeneration { visitors }.into())
     }
@@ -278,27 +263,33 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         let mut visitors = Vec::new();
 
         let path = &self.path.await?;
-        if let PatternMapping::Invalid = &*pm {
-            let request_string = self.request.to_string().await?;
-            visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                // In Node.js, a require.resolve call that cannot be resolved will throw an error.
-                *expr = throw_module_not_found_expr(&request_string);
-            }));
-        } else {
-            // Inline the result of the `require.resolve` call as a string literal.
-            visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
-                if let Expr::Call(call_expr) = expr {
-                    let args = std::mem::take(&mut call_expr.args);
-                    *expr = match args.into_iter().next() {
-                        Some(ExprOrSpread { expr, spread: None }) => pm.apply(*expr),
-                        _ => pm.create(),
-                    };
-                }
-                // CjsRequireResolveAssetReference will only be used for Expr::Call.
-                // Due to eventual consistency the path might match something else,
-                // but we can ignore that as it will be recomputed anyway.
-            }));
-        }
+        // Inline the result of the `require.resolve` call as a literal.
+        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+            if let Expr::Call(call_expr) = expr {
+                let args = std::mem::take(&mut call_expr.args);
+                *expr = match args.into_iter().next() {
+                    Some(ExprOrSpread { expr, spread: None }) => pm.create_require(*expr),
+                    other => {
+                        let message = match other {
+                            // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
+                            Some(ExprOrSpread { spread: Some(_), expr: _ }) => {
+                                "spread operator is not analyse-able in require() expressions."
+                            }
+                            _ => {
+                                "require() expressions require at least 1 argument"
+                            }
+                        };
+                        quote!(
+                            "(() => { throw new Error($message); })()" as Expr,
+                            message: Expr = Expr::Lit(Lit::Str(message.into()))
+                        )
+                    },
+                };
+            }
+            // CjsRequireResolveAssetReference will only be used for Expr::Call.
+            // Due to eventual consistency the path might match something else,
+            // but we can ignore that as it will be recomputed anyway.
+        }));
 
         Ok(CodeGeneration { visitors }.into())
     }

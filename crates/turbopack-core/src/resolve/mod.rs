@@ -677,6 +677,18 @@ impl ResolveResult {
             affecting_sources: self.affecting_sources.clone(),
         }
     }
+
+    pub fn add_conditions<'a>(&mut self, conditions: impl IntoIterator<Item = (&'a str, bool)>) {
+        let mut primary = self.primary.drain(..).collect::<Vec<_>>();
+        for (k, v) in conditions {
+            for (key, _) in primary.iter_mut() {
+                key.conditions.insert(k.to_string(), v);
+            }
+        }
+        for (k, v) in primary {
+            self.primary.insert(k, v);
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -1512,8 +1524,11 @@ async fn resolve_internal_inline(
                                 .await?,
                             );
                         }
-                        PatternMatch::Directory(_, path) => {
-                            results.push(resolve_into_folder(*path, options, *query));
+                        PatternMatch::Directory(matched_pattern, path) => {
+                            results.push(
+                                resolve_into_folder(*path, options, *query)
+                                    .with_request(matched_pattern.clone()),
+                            );
                         }
                     }
                 }
@@ -1795,33 +1810,16 @@ async fn resolve_relative_request(
     .await?;
 
     for m in matches.iter() {
-        match m {
-            PatternMatch::File(matched_pattern, path) => {
-                let mut matches_without_extension = false;
-                for ext in options_value.extensions.iter() {
-                    let Some(matched_pattern) = matched_pattern.strip_suffix(ext) else {
-                        continue;
-                    };
-                    if path_pattern.is_match(matched_pattern) {
-                        results.push(
-                            resolved(
-                                RequestKey::new(matched_pattern.to_string()),
-                                *path,
-                                lookup_path,
-                                request,
-                                options_value,
-                                options,
-                                query,
-                            )
-                            .await?,
-                        );
-                        matches_without_extension = true;
-                    }
-                }
-                if !matches_without_extension || path_pattern.is_match(matched_pattern) {
+        if let PatternMatch::File(matched_pattern, path) = m {
+            let mut matches_without_extension = false;
+            for ext in options_value.extensions.iter() {
+                let Some(matched_pattern) = matched_pattern.strip_suffix(ext) else {
+                    continue;
+                };
+                if path_pattern.is_match(matched_pattern) {
                     results.push(
                         resolved(
-                            RequestKey::new(matched_pattern.clone()),
+                            RequestKey::new(matched_pattern.to_string()),
                             *path,
                             lookup_path,
                             request,
@@ -1831,11 +1829,31 @@ async fn resolve_relative_request(
                         )
                         .await?,
                     );
+                    matches_without_extension = true;
                 }
             }
-            PatternMatch::Directory(_, path) => {
-                results.push(resolve_into_folder(*path, options, query));
+            if !matches_without_extension || path_pattern.is_match(matched_pattern) {
+                results.push(
+                    resolved(
+                        RequestKey::new(matched_pattern.clone()),
+                        *path,
+                        lookup_path,
+                        request,
+                        options_value,
+                        options,
+                        query,
+                    )
+                    .await?,
+                );
             }
+        }
+    }
+    // Directory matches must be resolved AFTER file matches
+    for m in matches.iter() {
+        if let PatternMatch::Directory(matched_pattern, path) = m {
+            results.push(
+                resolve_into_folder(*path, options, query).with_request(matched_pattern.clone()),
+            );
         }
     }
 
@@ -2266,16 +2284,18 @@ async fn handle_exports_imports_field(
         }
     }
 
-    {
-        let mut duplicates_set = HashSet::new();
-        results.retain(|item| duplicates_set.insert(*item));
-    }
-
     let mut resolved_results = Vec::new();
-    for path in results {
-        if let Some(path) = normalize_path(path) {
-            let request = Request::parse(Value::new(format!("./{}", path).into()));
-            resolved_results.push(resolve_internal_boxed(package_path, request, options).await?);
+    for (result_path, conditions) in results {
+        if let Some(result_path) = normalize_path(result_path) {
+            let request = Request::parse(Value::new(format!("./{}", result_path).into()));
+            let resolve_result = resolve_internal_boxed(package_path, request, options).await?;
+            if conditions.is_empty() {
+                resolved_results.push(resolve_result.with_request(path.to_string()));
+            } else {
+                let mut resolve_result = resolve_result.await?.with_request_ref(path.to_string());
+                resolve_result.add_conditions(conditions);
+                resolved_results.push(resolve_result.cell());
+            }
         }
     }
 
