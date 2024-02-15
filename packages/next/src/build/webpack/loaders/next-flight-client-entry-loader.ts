@@ -9,7 +9,7 @@ export type ClientComponentImports = Record<string, Set<string>>
 export type CssImports = Record<string, string[]>
 
 export type NextFlightClientEntryLoaderOptions = {
-  modules: string[]
+  modules: string[] | string
   /** This is transmitted as a string to `getOptions` */
   server: boolean | 'true' | 'false'
 }
@@ -19,21 +19,20 @@ export default function transformSource(this: any) {
     this.getOptions()
   const isServer = server === 'true'
 
-  // if (!Array.isArray(modules)) {
-  //   modules = modules ? [modules] : []
-  // }
+  if (!Array.isArray(modules)) {
+    modules = modules ? [modules] : []
+  }
 
   const mods = modules || []
   const importsCode = mods
     // Filter out CSS files in the SSR compilation
     .filter((request) => (isServer ? !regexCSS.test(request) : true))
-    .map((request, index) => {
+    .map((request) => {
       const importPath = JSON.stringify(
         request.startsWith(BARREL_OPTIMIZATION_PREFIX)
           ? request.replace(':', '!=!')
           : request
       )
-      // return !isServer ? `import * as _mod${index} from ${importPath}` :
       return `import(/* webpackMode: "eager" */ ${importPath})`
     })
     .join(';\n')

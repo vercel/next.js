@@ -270,6 +270,59 @@ export class FlightClientEntryPlugin {
     const addActionEntryList: Array<ReturnType<typeof this.injectActionEntry>> =
       []
     const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
+    const createdActions = new Set<string>()
+
+    // For collecting Client Entries and CSS imports. This needs to be after
+    // optimizeDependencies to ensure we can skip unused exports.
+    // compilation.hooks.afterOptimizeDependencies.tap(PLUGIN_NAME, () => {
+    //   const allUnused: Record<string, string[]> = {}
+
+    //   forEachEntryModule(compilation, ({ entryModule }) => {
+    //     for (const connection of compilation.moduleGraph.getOutgoingConnections(
+    //       entryModule
+    //     )) {
+    //       // Entry can be any user defined entry files such as layout, page, error, loading, etc.
+    //       const entryRequest = (
+    //         connection.dependency as unknown as webpack.NormalModule
+    //       ).request
+
+    //       const { unusedExports } =
+    //         this.collectComponentInfoFromServerEntryDependency({
+    //           entryRequest,
+    //           compilation,
+    //           resolvedModule: connection.resolvedModule,
+    //         })
+
+    //       Object.assign(allUnused, unusedExports)
+    //     }
+    //   })
+
+    //   console.log(allUnused)
+
+    //   for (const [, ssrEntryDependencies] of Object.entries(
+    //     createdSSRDependenciesForEntry
+    //   )) {
+    //     for (const entryDependency of ssrEntryDependencies) {
+    //       const ssrEntryModule =
+    //         compilation.moduleGraph.getResolvedModule(entryDependency)
+
+    //       if (ssrEntryModule) {
+    //         for (const connection of compilation.moduleGraph.getOutgoingConnections(
+    //           ssrEntryModule
+    //         )) {
+    //           const mod = connection.resolvedModule
+    //           console.log(mod.identifier)
+
+    //           Array.from(
+    //             compilation.moduleGraph.getOutgoingConnections(mod)
+    //           ).forEach((connection: any) => {
+    //             console.log(connection)
+    //           })
+    //         }
+    //       }
+    //     }
+    //   }
+    // })
 
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
@@ -384,7 +437,6 @@ export class FlightClientEntryPlugin {
       }
     })
 
-    const createdActions = new Set<string>()
     for (const [name, actionEntryImports] of Object.entries(
       actionMapsPerEntry
     )) {
@@ -593,6 +645,7 @@ export class FlightClientEntryPlugin {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
     actionImports: [string, string[]][]
+    unusedExports?: Record<string, string[]>
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visited = new Set()
@@ -601,6 +654,7 @@ export class FlightClientEntryPlugin {
     const clientComponentImports: ClientComponentImports = {}
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
+    const unusedExports: Record<string, string[]> = {}
 
     const filterClientComponents = (mod: webpack.NormalModule): void => {
       if (!mod) return
@@ -654,16 +708,27 @@ export class FlightClientEntryPlugin {
         if (!clientComponentImports[modRequest]) {
           clientComponentImports[modRequest] = new Set()
         }
-        if (modRequest.includes('app/component')) {
-          const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-          const usedExports = exportsInfo.getUsedExports(webpackRuntime)
-          // const exportInfoArray = Array.from(exportsInfo.exports)
-          const isUsed = compilation.moduleGraph
-            .getExportsInfo(mod)
-            .isModuleUsed(webpackRuntime)
-          console.log(modRequest, 'layer (', mod.layer, ')')
-          console.log('usedExports', usedExports, 'isUsed', isUsed)
+
+        const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
+        const allExports = exportsInfo.getProvidedExports()
+        const usedExports = exportsInfo.getUsedExports(webpackRuntime)
+        const unused = []
+        if (
+          usedExports &&
+          typeof usedExports === 'object' &&
+          Array.isArray(allExports)
+        ) {
+          for (const exportName of allExports) {
+            if (!usedExports.has(exportName)) {
+              unused.push(exportName)
+            }
+          }
         }
+
+        if (unused.length) {
+          unusedExports[modRequest] = unused
+        }
+
         return
       }
 
@@ -685,6 +750,7 @@ export class FlightClientEntryPlugin {
           }
         : {},
       actionImports,
+      unusedExports,
     }
   }
 
@@ -709,12 +775,12 @@ export class FlightClientEntryPlugin {
   ] {
     let shouldInvalidate = false
 
-    const loaderOptions: NextFlightClientEntryLoaderOptions = {
+    const loaderOptions = {
       modules: Object.keys(clientImports).sort((a, b) =>
         regexCSS.test(b) ? 1 : a.localeCompare(b)
       ),
       server: false,
-    }
+    } satisfies NextFlightClientEntryLoaderOptions
 
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to

@@ -1,2 +1,2 @@
 export { Imported } from './imported'
-export { Unused } from './unused'
+export { Unused2 } from './unused'

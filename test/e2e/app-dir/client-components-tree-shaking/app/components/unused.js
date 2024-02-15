@@ -1,5 +1,5 @@
 'use client'
 
-export function Unused() {
-  return <div>unused</div>
+export function Unused2() {
+  return <div>unused2</div>
 }
