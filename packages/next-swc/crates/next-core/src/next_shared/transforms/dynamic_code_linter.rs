@@ -1,10 +1,13 @@
 use async_trait::async_trait;
-use next_custom_transforms::transforms::dynamic_code_linter::DynamicCodeLinter;
 use turbo_tasks::{Result, Vc};
 use turbopack_binding::{
     swc::core::{
-        common::SyntaxContext,
-        ecma::{ast::Program, utils::ExprCtx, visit::VisitWith},
+        common::{errors::HANDLER, SyntaxContext},
+        ecma::{
+            ast::*,
+            utils::{ExprCtx, ExprExt},
+            visit::{noop_visit_type, Visit, VisitWith},
+        },
     },
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
@@ -43,5 +46,28 @@ impl CustomTransformer for DynamicCodeLinterTransform {
         program.visit_with(&mut linter);
 
         Ok(())
+    }
+}
+
+struct DynamicCodeLinter {
+    expr_ctx: ExprCtx,
+}
+
+const MESSAGE: &str = "Dynamic Code Evaluation (e. g. 'eval', 'new Function', \
+                       'WebAssembly.compile') not allowed in Edge Runtime";
+
+impl Visit for DynamicCodeLinter {
+    noop_visit_type!();
+
+    fn visit_call_expr(&mut self, n: &CallExpr) {
+        n.visit_children_with(self);
+
+        if let Callee::Expr(expr) = &n.callee {
+            if expr.is_global_ref_to(&self.expr_ctx, "eval") {
+                HANDLER.with(|handler| {
+                    handler.struct_span_err(n.span, MESSAGE).emit();
+                });
+            }
+        }
     }
 }

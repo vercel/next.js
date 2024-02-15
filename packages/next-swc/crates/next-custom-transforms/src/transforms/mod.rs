@@ -3,7 +3,6 @@ pub mod cjs_finder;
 pub mod cjs_optimizer;
 pub mod disallow_re_export_all_in_page;
 pub mod dynamic;
-pub mod dynamic_code_linter;
 pub mod fonts;
 pub mod import_analyzer;
 pub mod next_ssg;
