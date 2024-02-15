@@ -1119,6 +1119,7 @@ createNextDescribe(
         const browser = await webdriver(next.appPort, '/nav/query-only-shallow')
         try {
           await browser.elementByCss('#router-replace').click()
+          // the error occurs on every replace() after the first one
           await browser.elementByCss('#router-replace').click()
 
           await check(() => browser.waitForElementByCss('#counter').text(), '2')
