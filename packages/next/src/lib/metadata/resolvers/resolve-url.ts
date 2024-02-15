@@ -1,5 +1,6 @@
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
+import type { MetadataContext } from '../types/resolvers'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -83,12 +84,23 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: URL | null,
-  pathname: string
-) {
+  { trailingSlash, pathname }: MetadataContext
+): string {
   url = resolveRelativeUrl(url, pathname)
 
+  // Get canonicalUrl without trailing slash
+  let canonicalUrl = ''
   const result = metadataBase ? resolveUrl(url, metadataBase) : url
-  return result.toString()
+  if (typeof result === 'string') {
+    canonicalUrl = result
+  } else {
+    canonicalUrl = result.pathname === '/' ? result.origin : result.href
+  }
+
+  // Add trailing slash if it's enabled
+  return trailingSlash && !canonicalUrl.endsWith('/')
+    ? `${canonicalUrl}/`
+    : canonicalUrl
 }
 
 export {

@@ -140,17 +140,18 @@ pub enum ClientContextType {
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map =
         get_next_client_import_map(project_path, ty, next_config, execution_context);
     let next_client_fallback_import_map = get_next_client_fallback_import_map(ty);
-    let next_client_resolved_map = get_next_client_resolved_map(project_path, project_path, mode);
+    let next_client_resolved_map =
+        get_next_client_resolved_map(project_path, project_path, *mode.await?);
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec![mode.node_env().to_string()],
+        custom_conditions: vec![mode.await?.node_env().to_string()],
         custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -183,7 +184,7 @@ pub async fn get_client_module_options_context(
     execution_context: Vc<ExecutionContext>,
     env: Vc<Environment>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let resolve_options_context =
@@ -330,7 +331,7 @@ pub async fn get_client_chunking_context(
     client_root: Vc<FileSystemPath>,
     asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkingContext>>> {
     let mut builder = DevChunkingContext::builder(
         project_path,
@@ -343,7 +344,7 @@ pub async fn get_client_chunking_context(
     .chunk_base_path(asset_prefix)
     .asset_base_path(asset_prefix);
 
-    if matches!(mode, NextMode::Development) {
+    if matches!(*mode.await?, NextMode::Development) {
         builder = builder.hot_module_replacement();
     }
 
@@ -359,7 +360,7 @@ pub fn get_client_assets_path(client_root: Vc<FileSystemPath>) -> Vc<FileSystemP
 pub async fn get_client_runtime_entries(
     project_root: Vc<FileSystemPath>,
     ty: Value<ClientContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<RuntimeEntries>> {
@@ -367,7 +368,7 @@ pub async fn get_client_runtime_entries(
     let resolve_options_context =
         get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
 
-    if matches!(mode, NextMode::Development) {
+    if matches!(*mode.await?, NextMode::Development) {
         let enable_react_refresh =
             assert_can_resolve_react_refresh(project_root, resolve_options_context)
                 .await?
