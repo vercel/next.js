@@ -84,6 +84,7 @@ import { interopDefault } from '../lib/interop-default'
 import type { PageExtensions } from './page-extensions-type'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -345,6 +346,7 @@ export interface PageInfo {
   isStatic: boolean
   isSSG: boolean
   isPPR: boolean
+  isRouteHandler: boolean
   ssgPageRoutes: string[] | null
   initialRevalidateSeconds: number | false
   pageDuration: number | undefined
@@ -495,6 +497,7 @@ export async function printTreeView(
         }
       } else if (pageInfo?.isStatic) {
         symbol = '○'
+        if (pageInfo.isRouteHandler) symbol += '*'
       } else if (pageInfo?.isSSG) {
         symbol = '●'
       } else {
@@ -725,6 +728,11 @@ export async function printTreeView(
           '○',
           '(Static)',
           'prerendered as static content',
+        ],
+        usedSymbols.has('○*') && [
+          '○*',
+          '(Static)',
+          "Route Handler without dynamic API usage. Won't re-run at runtime.\n              Read more: https://nextjs.org/docs/app/building-your-application/routing/route-handlers#caching",
         ],
         usedSymbols.has('●') && [
           '●',

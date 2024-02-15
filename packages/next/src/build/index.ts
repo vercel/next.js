@@ -1886,6 +1886,7 @@ export default async function build(
                 let isPPR = false
                 let isSSG = false
                 let isStatic = false
+                let isRouteHandler = false
                 let isServerComponent = false
                 let isHybridAmp = false
                 let ssgPageRoutes: string[] | null = null
@@ -2004,6 +2005,7 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        isRouteHandler = isAppRouteRoute(originalAppPath)
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2226,6 +2228,7 @@ export default async function build(
                   size,
                   totalSize,
                   isStatic,
+                  isRouteHandler,
                   isSSG,
                   isPPR,
                   isHybridAmp,
