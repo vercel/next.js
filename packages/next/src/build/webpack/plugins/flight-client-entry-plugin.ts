@@ -887,18 +887,15 @@ export class FlightClientEntryPlugin {
   }
 
   addEntry(
-    compilation: webpack.Compilation,
+    compilation: any,
     context: string,
     dependency: webpack.Dependency,
     options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      const entry = compilation.entries.get(options.name!)!
+      const entry = compilation.entries.get(options.name)
       entry.includeDependencies.push(dependency)
-      compilation.hooks.addEntry.call(
-        entry as unknown as webpack.Dependency,
-        options
-      )
+      compilation.hooks.addEntry.call(entry, options)
       compilation.addModuleTree(
         {
           context,

@@ -21,7 +21,7 @@ function nextFlightActionEntryLoader(this: any) {
 const actions = {
 ${individualActions
   .map(([id, path, name]) => {
-    return `'${id}': () => import( ${JSON.stringify(
+    return `'${id}': () => import(/* webpackMode: "eager" */ ${JSON.stringify(
       path
     )}).then(mod => mod[${JSON.stringify(name)}]),`
   })
