@@ -272,58 +272,6 @@ export class FlightClientEntryPlugin {
     const actionMapsPerEntry: Record<string, Map<string, string[]>> = {}
     const createdActions = new Set<string>()
 
-    // For collecting Client Entries and CSS imports. This needs to be after
-    // optimizeDependencies to ensure we can skip unused exports.
-    // compilation.hooks.afterOptimizeDependencies.tap(PLUGIN_NAME, () => {
-    //   const allUnused: Record<string, string[]> = {}
-
-    //   forEachEntryModule(compilation, ({ entryModule }) => {
-    //     for (const connection of compilation.moduleGraph.getOutgoingConnections(
-    //       entryModule
-    //     )) {
-    //       // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-    //       const entryRequest = (
-    //         connection.dependency as unknown as webpack.NormalModule
-    //       ).request
-
-    //       const { unusedExports } =
-    //         this.collectComponentInfoFromServerEntryDependency({
-    //           entryRequest,
-    //           compilation,
-    //           resolvedModule: connection.resolvedModule,
-    //         })
-
-    //       Object.assign(allUnused, unusedExports)
-    //     }
-    //   })
-
-    //   console.log(allUnused)
-
-    //   for (const [, ssrEntryDependencies] of Object.entries(
-    //     createdSSRDependenciesForEntry
-    //   )) {
-    //     for (const entryDependency of ssrEntryDependencies) {
-    //       const ssrEntryModule =
-    //         compilation.moduleGraph.getResolvedModule(entryDependency)
-
-    //       if (ssrEntryModule) {
-    //         for (const connection of compilation.moduleGraph.getOutgoingConnections(
-    //           ssrEntryModule
-    //         )) {
-    //           const mod = connection.resolvedModule
-    //           console.log(mod.identifier)
-
-    //           Array.from(
-    //             compilation.moduleGraph.getOutgoingConnections(mod)
-    //           ).forEach((connection: any) => {
-    //             console.log(connection)
-    //           })
-    //         }
-    //       }
-    //     }
-    //   }
-    // })
-
     // For each SC server compilation entry, we need to create its corresponding
     // client component entry.
     forEachEntryModule(compilation, ({ name, entryModule }) => {
@@ -645,7 +593,6 @@ export class FlightClientEntryPlugin {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
     actionImports: [string, string[]][]
-    unusedExports?: Record<string, string[]>
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visited = new Set()
@@ -654,9 +601,11 @@ export class FlightClientEntryPlugin {
     const clientComponentImports: ClientComponentImports = {}
     const actionImports: [string, string[]][] = []
     const CSSImports = new Set<string>()
-    const unusedExports: Record<string, string[]> = {}
 
-    const filterClientComponents = (mod: webpack.NormalModule): void => {
+    const filterClientComponents = (
+      mod: webpack.NormalModule,
+      names: string[]
+    ): void => {
       if (!mod) return
 
       const isCSS = isCSSMod(mod)
@@ -680,7 +629,15 @@ export class FlightClientEntryPlugin {
         modRequest = mod.matchResource + ':' + modRequest
       }
 
-      if (!modRequest || visited.has(modRequest)) return
+      if (!modRequest) return
+      if (visited.has(modRequest)) {
+        if (clientComponentImports[modRequest]) {
+          for (const name of names) {
+            clientComponentImports[modRequest].add(name)
+          }
+        }
+        return
+      }
       visited.add(modRequest)
 
       const actions = getActions(mod)
@@ -708,39 +665,30 @@ export class FlightClientEntryPlugin {
         if (!clientComponentImports[modRequest]) {
           clientComponentImports[modRequest] = new Set()
         }
-
-        const exportsInfo = compilation.moduleGraph.getExportsInfo(mod)
-        const allExports = exportsInfo.getProvidedExports()
-        const usedExports = exportsInfo.getUsedExports(webpackRuntime)
-        const unused = []
-        if (
-          usedExports &&
-          typeof usedExports === 'object' &&
-          Array.isArray(allExports)
-        ) {
-          for (const exportName of allExports) {
-            if (!usedExports.has(exportName)) {
-              unused.push(exportName)
-            }
-          }
+        for (const name of names) {
+          clientComponentImports[modRequest].add(name)
         }
-
-        if (unused.length) {
-          unusedExports[modRequest] = unused
-        }
-
         return
       }
 
       Array.from(compilation.moduleGraph.getOutgoingConnections(mod)).forEach(
         (connection: any) => {
-          filterClientComponents(connection.resolvedModule)
+          const newNames = []
+          if (connection.dependency.ids) {
+            newNames.push(
+              ...(connection.dependency.ids?.length
+                ? connection.dependency.ids
+                : ['*'])
+            )
+          }
+
+          filterClientComponents(connection.resolvedModule, newNames)
         }
       )
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(resolvedModule)
+    filterClientComponents(resolvedModule, ['*'])
 
     return {
       clientComponentImports,
@@ -750,7 +698,6 @@ export class FlightClientEntryPlugin {
           }
         : {},
       actionImports,
-      unusedExports,
     }
   }
 
@@ -776,29 +723,33 @@ export class FlightClientEntryPlugin {
     let shouldInvalidate = false
 
     const loaderOptions = {
-      modules: Object.keys(clientImports).sort((a, b) =>
-        regexCSS.test(b) ? 1 : a.localeCompare(b)
-      ),
+      modules: Object.keys(clientImports)
+        .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
+        .map((path) => [path, ...clientImports[path]]),
       server: false,
-    } satisfies NextFlightClientEntryLoaderOptions
+    }
 
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: this.isEdgeServer
-        ? loaderOptions.modules.map((importPath) =>
-            importPath.replace(
-              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-              '/next/dist/'.replace(/\//g, path.sep)
-            )
+        ? loaderOptions.modules.map(([importPath, ...names]) =>
+            JSON.stringify([
+              importPath.replace(
+                /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+                '/next/dist/'.replace(/\//g, path.sep)
+              ),
+              ...names,
+            ])
           )
-        : loaderOptions.modules,
+        : loaderOptions.modules.map((x) => JSON.stringify(x)),
       server: false,
     })}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
       ...loaderOptions,
+      modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
 

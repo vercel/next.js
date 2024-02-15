@@ -25,15 +25,22 @@ export default function transformSource(this: any) {
 
   const mods = modules || []
   const importsCode = mods
+    .map((x) => JSON.parse(x))
     // Filter out CSS files in the SSR compilation
-    .filter((request) => (isServer ? !regexCSS.test(request) : true))
-    .map((request) => {
+    .filter(([request]) => (isServer ? !regexCSS.test(request) : true))
+    .map(([request, ...names]) => {
       const importPath = JSON.stringify(
         request.startsWith(BARREL_OPTIMIZATION_PREFIX)
           ? request.replace(':', '!=!')
           : request
       )
-      return `import(/* webpackMode: "eager" */ ${importPath})`
+      if (names.includes('*')) {
+        return `import(/* webpackMode: "eager" */ ${importPath})`
+      } else {
+        return `import(/* webpackMode: "eager" */ /* webpackExports: ${JSON.stringify(
+          names
+        )} */ ${importPath})`
+      }
     })
     .join(';\n')
 
