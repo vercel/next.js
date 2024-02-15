@@ -156,9 +156,10 @@ createNextDescribe(
       it('renders the error correctly and recovers', async () => {
         const browser = await next.browser('/')
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toContain(
-          `throw new Error('booooom!')`
-        )
+        const source = await getRedboxSource(browser)
+        expect(source).toContain(''`throw new Error('booooom!')`)
+        expect(source).toContain('middleware.js')
+        expect(source).not.toContain('//middleware.js')
         await next.patchFile('middleware.js', `export default function () {}`)
         await hasRedbox(browser)
       })
