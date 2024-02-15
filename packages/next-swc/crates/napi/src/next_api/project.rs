@@ -90,6 +90,9 @@ pub struct NapiProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: NapiDefineEnv,
+
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -121,6 +124,9 @@ pub struct NapiPartialProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: Option<NapiDefineEnv>,
+
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[napi(object)]
@@ -151,6 +157,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
+            dev: val.dev,
         }
     }
 }
@@ -167,6 +174,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
+            dev: val.dev,
         }
     }
 }

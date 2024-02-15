@@ -1342,12 +1342,14 @@ export default async function build(
         process.env.NODE_ENV = 'development'
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const dev = true
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
           nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
+          dev,
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
@@ -1355,7 +1357,7 @@ export default async function build(
             clientRouterFilters: undefined,
             config,
             // When passing `false` you get `react.jsxDEV is not a function`
-            dev: true,
+            dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
             hasRewrites,
