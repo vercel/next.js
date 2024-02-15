@@ -7,7 +7,7 @@ use anyhow::Result;
 use async_recursion::async_recursion;
 use indexmap::IndexMap;
 use indoc::formatdoc;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_binding::turbopack::{
     core::{
@@ -112,18 +112,18 @@ impl LoaderTreeBuilder {
                 .process(source, self.context, reference_ty)
                 .module();
 
-            let chunks_identifier = magic_identifier::mangle(&format!("chunks of {name} #{i}"));
             writeln!(
                 self.loader_tree_code,
-                "  {name}: [() => {identifier}, JSON.stringify({chunks_identifier}) + '.js'],",
-                name = StringifyJs(name)
+                "  {name}: [() => {identifier}, {path}],",
+                name = StringifyJs(name),
+                path = StringifyJs(&module.ident().path().to_string().await?)
             )?;
+
             self.imports.push(formatdoc!(
                 r#"
-                            import {}, {{ chunks as {} }} from "COMPONENT_{}";
-                        "#,
+                    import {} from "COMPONENT_{}";
+                    "#,
                 identifier,
-                chunks_identifier,
                 i
             ));
 
