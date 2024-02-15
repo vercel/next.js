@@ -300,11 +300,41 @@ impl AppPath {
         self.0.is_empty()
     }
 
+    pub fn is_catchall(&self) -> bool {
+        // can only be the last segment.
+        matches!(
+            self.last(),
+            Some(PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_))
+        )
+    }
+
     pub fn contains(&self, other: &AppPath) -> bool {
+        // TODO: handle OptionalCatchAll properly.
         for (i, segment) in other.0.iter().enumerate() {
-            if self.0.get(i) != Some(segment) {
+            let Some(self_segment) = self.0.get(i) else {
+                // other is longer than self
                 return false;
+            };
+
+            if self_segment == segment {
+                continue;
             }
+
+            if matches!(
+                segment,
+                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
+            ) {
+                return true;
+            }
+
+            if matches!(
+                self_segment,
+                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
+            ) {
+                return true;
+            }
+
+            return false;
         }
 
         true

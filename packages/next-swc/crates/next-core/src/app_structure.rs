@@ -464,6 +464,10 @@ fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
 }
 
+fn is_catchall_route(name: &str) -> bool {
+    name.starts_with("[...") && name.ends_with(']')
+}
+
 fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
@@ -723,7 +727,7 @@ async fn directory_tree_to_loader_tree(
         tree.segment = "children".to_string();
     }
 
-    if let Some(page) = (app_path == for_app_path)
+    if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
         .then_some(components.page)
         .flatten()
     {
@@ -762,6 +766,7 @@ async fn directory_tree_to_loader_tree(
 
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
+        let is_catchall = is_catchall_route(subdir_name);
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
@@ -798,22 +803,34 @@ async fn directory_tree_to_loader_tree(
                 continue;
             }
 
-            if !tree.parallel_routes.contains_key("children") {
-                tree.parallel_routes.insert("children".to_string(), subtree);
-            } else {
-                // TODO: improve error message to have the full paths
-                DirectoryTreeIssue {
-                    app_dir,
-                    message: StyledString::Text(format!(
+            if let Some(current_tree) = tree.parallel_routes.get("children") {
+                if is_catchall {
+                    // there's probably already a more specific page in the
+                    // slot.
+                } else if is_catchall_route(&current_tree.await?.segment) {
+                    tree.parallel_routes.insert("children".to_string(), subtree);
+                } else {
+                    println!(
                         "You cannot have two parallel pages that resolve to the same path. Route \
                          {} has multiple matches in {}",
                         for_app_path, app_page
-                    ))
-                    .cell(),
-                    severity: IssueSeverity::Error.cell(),
+                    );
+                    // TODO: improve error message to have the full paths
+                    DirectoryTreeIssue {
+                        app_dir,
+                        message: StyledString::Text(format!(
+                            "You cannot have two parallel pages that resolve to the same path. \
+                             Route {} has multiple matches in {}",
+                            for_app_path, app_page
+                        ))
+                        .cell(),
+                        severity: IssueSeverity::Error.cell(),
+                    }
+                    .cell()
+                    .emit();
                 }
-                .cell()
-                .emit();
+            } else {
+                tree.parallel_routes.insert("children".to_string(), subtree);
             }
         } else if let Some(key) = parallel_route_key {
             bail!(
