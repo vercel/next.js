@@ -185,7 +185,6 @@ import {
   handlePagesErrorRoute,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
-import type { FontManifest } from '../server/font-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
