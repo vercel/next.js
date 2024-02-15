@@ -1336,6 +1336,8 @@ export default async function build(
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
+        // This is caused by Turbopack not having the production build option yet.
         // @ts-expect-error
         process.env.NODE_ENV = 'development'
         const startTime = process.hrtime()
@@ -1496,19 +1498,6 @@ export default async function build(
           loadableManifests,
           currentEntrypoints,
         })
-
-        // Temporary
-        // await writeBuildId(distDir, buildId)
-        // const prerenderManifest: Readonly<PrerenderManifest> = {
-        //   version: 4,
-        //   routes: {},
-        //   dynamicRoutes: {},
-        //   notFoundRoutes: [],
-        //   preview: previewProps,
-        // }
-        // await writePrerenderManifest(distDir, prerenderManifest)
-        // End temporary
-        // throw new Error("next build doesn't support turbopack yet")
         return {
           duration: process.hrtime(startTime)[0],
           buildTraceContext: undefined,
