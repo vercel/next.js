@@ -1477,10 +1477,6 @@ export default async function build(
           preview: previewProps,
         }
         await writePrerenderManifest(distDir, prerenderManifest)
-        await writeManifest<FontManifest>(
-          path.join(distDir, 'server', AUTOMATIC_FONT_OPTIMIZATION_MANIFEST),
-          []
-        )
         // End temporary
         throw new Error("next build doesn't support turbopack yet")
       }
