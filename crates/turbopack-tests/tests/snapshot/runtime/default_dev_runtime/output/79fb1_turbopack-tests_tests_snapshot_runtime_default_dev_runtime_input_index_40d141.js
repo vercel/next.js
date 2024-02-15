@@ -621,7 +621,7 @@ function instantiateModule(id, source) {
             // re-execute the importing modules, and force those components to
             // re-render. Similarly, if you convert a class component to a
             // function, we want to invalidate the boundary.
-            if (helpers.shouldInvalidateReactRefreshBoundary(prevExports, currentExports)) {
+            if (helpers.shouldInvalidateReactRefreshBoundary(helpers.getRefreshBoundarySignature(prevExports), helpers.getRefreshBoundarySignature(currentExports))) {
                 module.hot.invalidate();
             } else {
                 helpers.scheduleUpdate();

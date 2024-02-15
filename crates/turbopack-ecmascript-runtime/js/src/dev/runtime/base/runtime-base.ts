@@ -466,8 +466,8 @@ function registerExportsAndSetupBoundaryForReactRefresh(
       // function, we want to invalidate the boundary.
       if (
         helpers.shouldInvalidateReactRefreshBoundary(
-          prevExports,
-          currentExports
+          helpers.getRefreshBoundarySignature(prevExports),
+          helpers.getRefreshBoundarySignature(currentExports)
         )
       ) {
         module.hot.invalidate();
