@@ -6,6 +6,7 @@ createNextDescribe(
   {
     files: {
       'app/page.tsx': `export default function Page() { return null }`,
+      'app/foo/route.ts': `export function GET() { return Response.json("foo") }`,
       'app/layout.tsx': `export default function Layout({ children }) {
         return (
           <html><body>{children}</body></html>
@@ -44,7 +45,10 @@ createNextDescribe(
       expect(output).toContain('└ other shared chunks (total)')
 
       // output type
-      expect(output).toContain('○  (Static)  prerendered as static content')
+      expect(output).toContain('○  (Static)  Prerendered as static content')
+      expect(output).toContain(
+        '◎  (Static)  Route Handler without dynamic API usage'
+      )
     })
   }
 )
