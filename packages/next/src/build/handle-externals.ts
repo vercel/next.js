@@ -144,6 +144,9 @@ export async function resolveExternal(
     }
     break
   }
+  if (request.includes('dual-pkg-optout')) {
+    console.log('res', res, 'isEsm', isEsm)
+  }
   return { res, isEsm }
 }
 
@@ -291,6 +294,15 @@ export function makeExternalHandler({
     }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
+    if (request.includes('esm-package')) {
+      console.log(
+        'isLocal',
+        isLocal,
+        request,
+        optOutBundlingPackages.includes(request)
+      )
+    }
+
     const resolveResult = await resolveExternal(
       dir,
       config.experimental.esmExternals,
