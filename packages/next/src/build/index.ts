@@ -1336,6 +1336,7 @@ export default async function build(
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        // @ts-expect-error
         process.env.NODE_ENV = 'development'
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
