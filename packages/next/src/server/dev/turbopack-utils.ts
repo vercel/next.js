@@ -6,7 +6,7 @@ import type {
 } from '../lib/router-utils/setup-dev-bundler'
 import type {
   Endpoint,
-  Entrypoints,
+  Entrypoints as RawEntrypoints,
   Issue,
   Route,
   StyledString,
@@ -24,25 +24,8 @@ import {
 } from './hot-reloader-types'
 import * as Log from '../../build/output/log'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
-import {
-  type ActionManifests,
-  type AppBuildManifests,
-  type AppPathsManifests,
-  type BuildManifests,
-  type FontManifests,
-  type LoadableManifests,
-  loadActionManifest,
-  loadAppBuildManifest,
-  loadAppPathManifest,
-  loadBuildManifest,
-  loadFontManifest,
-  loadLoadableManifest,
-  loadMiddlewareManifest,
-  loadPagesManifest,
-  type MiddlewareManifests,
-  type PagesManifests,
-  writeManifests,
-} from './turbopack/manifest-loader'
+import type { TurbopackManifestLoader } from './turbopack/manifest-loader'
+import type { Entrypoints } from './turbopack/types'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -51,12 +34,6 @@ export async function getTurbopackJsConfig(
   const { jsConfig } = await loadJsConfig(dir, nextConfig)
   return jsConfig ?? { compilerOptions: {} }
 }
-
-export type CurrentEntrypoints = Map<string, Route>
-export type ChangeSubscriptions = Map<
-  string,
-  Promise<AsyncIterableIterator<TurbopackResult>>
->
 
 class ModuleBuildError extends Error {}
 
@@ -205,18 +182,17 @@ export function msToNs(ms: number): bigint {
   return BigInt(Math.floor(ms)) * BigInt(MILLISECONDS_IN_NANOSECOND)
 }
 
-export interface GlobalEntrypoints {
-  app: Endpoint | undefined
-  document: Endpoint | undefined
-  error: Endpoint | undefined
-}
+export type ChangeSubscriptions = Map<
+  string,
+  Promise<AsyncIterableIterator<TurbopackResult>>
+>
 
-export type HandleRequireCacheClearing = (
+export type HandleWrittenEndpoint = (
   id: string,
   result: TurbopackResult<WrittenEndpoint>
 ) => void
 
-export type ChangeSubscription = (
+export type StartChangeSubscription = (
   page: string,
   type: 'client' | 'server',
   includeIssues: boolean,
@@ -227,7 +203,7 @@ export type ChangeSubscription = (
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
 ) => Promise<void>
 
-export type ClearChangeSubscription = (
+export type StopChangeSubscription = (
   page: string,
   type: 'server' | 'client'
 ) => Promise<void>
@@ -242,103 +218,78 @@ export type StartBuilding = (
 
 export type ReadyIds = Set<string>
 
+// hooks only used by the dev server.
+type HandleRouteTypeHooks = {
+  handleWrittenEndpoint: HandleWrittenEndpoint
+  subscribeToChanges: StartChangeSubscription
+}
+
 export async function handleRouteType({
-  rewrites,
-  distDir,
-  buildId,
-  globalEntrypoints,
-  currentIssues,
-  buildManifests,
-  appBuildManifests,
-  pagesManifests,
-  appPathsManifests,
-  middlewareManifests,
-  actionManifests,
-  fontManifests,
-  loadableManifests,
-  currentEntrypoints,
-  handleRequireCacheClearing,
-  changeSubscription,
-  readyIds,
   page,
   route,
+
+  currentIssues,
+  entrypoints,
+  manifestLoader,
+  readyIds,
+  rewrites,
+
+  hooks,
 }: {
-  rewrites: SetupOpts['fsChecker']['rewrites']
-  distDir: string
-  buildId: string
-  globalEntrypoints: GlobalEntrypoints
-  currentIssues: CurrentIssues
-  buildManifests: BuildManifests
-  appBuildManifests: AppBuildManifests
-  pagesManifests: PagesManifests
-  appPathsManifests: AppPathsManifests
-  middlewareManifests: MiddlewareManifests
-  actionManifests: ActionManifests
-  fontManifests: FontManifests
-  loadableManifests: LoadableManifests
-  currentEntrypoints: CurrentEntrypoints
-  handleRequireCacheClearing: HandleRequireCacheClearing | undefined // Dev
-  changeSubscription: ChangeSubscription | undefined // Dev
-  readyIds: ReadyIds | undefined // Dev
   page: string
   route: Route
+
+  currentIssues: CurrentIssues
+  entrypoints: Entrypoints
+  manifestLoader: TurbopackManifestLoader
+  rewrites: SetupOpts['fsChecker']['rewrites']
+
+  readyIds?: ReadyIds // dev
+
+  hooks?: HandleRouteTypeHooks // dev
 }) {
   switch (route.type) {
     case 'page': {
       try {
-        if (globalEntrypoints.app) {
-          const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
-          handleRequireCacheClearing?.('_app', writtenEndpoint)
+        if (entrypoints.global.app) {
+          const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+          hooks?.handleWrittenEndpoint('_app', writtenEndpoint)
           processIssues(currentIssues, '_app', writtenEndpoint)
         }
-        await loadBuildManifest(distDir, buildManifests, '_app')
-        await loadPagesManifest(distDir, pagesManifests, '_app')
+        await manifestLoader.loadBuildManifest('_app')
+        await manifestLoader.loadPagesManifest('_app')
 
-        if (globalEntrypoints.document) {
-          const writtenEndpoint = await globalEntrypoints.document.writeToDisk()
-          handleRequireCacheClearing?.('_document', writtenEndpoint)
+        if (entrypoints.global.document) {
+          const writtenEndpoint =
+            await entrypoints.global.document.writeToDisk()
+          hooks?.handleWrittenEndpoint('_document', writtenEndpoint)
           processIssues(currentIssues, '_document', writtenEndpoint)
         }
-        await loadPagesManifest(distDir, pagesManifests, '_document')
+        await manifestLoader.loadPagesManifest('_document')
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-        handleRequireCacheClearing?.(page, writtenEndpoint)
+        hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
         const type = writtenEndpoint?.type
 
-        await loadBuildManifest(distDir, buildManifests, page)
-        await loadPagesManifest(distDir, pagesManifests, page)
+        await manifestLoader.loadBuildManifest(page)
+        await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
-          await loadMiddlewareManifest(
-            distDir,
-            middlewareManifests,
-            page,
-            'pages'
-          )
+          await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
-          middlewareManifests.delete(page)
+          manifestLoader.deleteMiddlewareManifest(page)
         }
-        await loadFontManifest(distDir, fontManifests, page, 'pages')
-        await loadLoadableManifest(distDir, loadableManifests, page, 'pages')
+        await manifestLoader.loadFontManifest(page, 'pages')
+        await manifestLoader.loadLoadableManifest(page, 'pages')
 
-        await writeManifests({
+        await manifestLoader.writeManifests({
           rewrites,
-          distDir,
-          buildId,
-          buildManifests,
-          appBuildManifests,
-          pagesManifests,
-          appPathsManifests,
-          middlewareManifests,
-          actionManifests,
-          fontManifests,
-          loadableManifests,
-          currentEntrypoints,
+          routes: entrypoints.routes,
         })
 
         processIssues(currentIssues, page, writtenEndpoint)
       } finally {
-        changeSubscription?.(
+        hooks?.subscribeToChanges(
           page,
           'server',
           false,
@@ -352,17 +303,23 @@ export async function handleRouteType({
             }
           }
         )
-        changeSubscription?.(page, 'client', false, route.htmlEndpoint, () => {
-          return {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+        hooks?.subscribeToChanges(
+          page,
+          'client',
+          false,
+          route.htmlEndpoint,
+          () => {
+            return {
+              event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+            }
           }
-        })
-        if (globalEntrypoints.document) {
-          changeSubscription?.(
+        )
+        if (entrypoints.global.document) {
+          hooks?.subscribeToChanges(
             '_document',
             'server',
             false,
-            globalEntrypoints.document,
+            entrypoints.global.document,
             () => {
               return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
             }
@@ -374,36 +331,21 @@ export async function handleRouteType({
     }
     case 'page-api': {
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      handleRequireCacheClearing?.(page, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
       const type = writtenEndpoint?.type
 
-      await loadPagesManifest(distDir, pagesManifests, page)
+      await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
-        await loadMiddlewareManifest(
-          distDir,
-          middlewareManifests,
-          page,
-          'pages'
-        )
+        await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
-        middlewareManifests.delete(page)
+        manifestLoader.deleteMiddlewareManifest(page)
       }
-      await loadLoadableManifest(distDir, loadableManifests, page, 'pages')
+      await manifestLoader.loadLoadableManifest(page, 'pages')
 
-      await writeManifests({
+      await manifestLoader.writeManifests({
         rewrites,
-        distDir,
-        buildId,
-        buildManifests,
-        appBuildManifests,
-        pagesManifests,
-        appPathsManifests,
-        middlewareManifests,
-        actionManifests,
-        fontManifests,
-        loadableManifests,
-        currentEntrypoints,
+        routes: entrypoints.routes,
       })
 
       processIssues(currentIssues, page, writtenEndpoint)
@@ -412,9 +354,9 @@ export async function handleRouteType({
     }
     case 'app-page': {
       const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-      handleRequireCacheClearing?.(page, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
-      changeSubscription?.(
+      hooks?.subscribeToChanges(
         page,
         'server',
         true,
@@ -436,29 +378,19 @@ export async function handleRouteType({
       const type = writtenEndpoint?.type
 
       if (type === 'edge') {
-        await loadMiddlewareManifest(distDir, middlewareManifests, page, 'app')
+        await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
-        middlewareManifests.delete(page)
+        manifestLoader.deleteMiddlewareManifest(page)
       }
 
-      await loadAppBuildManifest(distDir, appBuildManifests, page)
-      await loadBuildManifest(distDir, buildManifests, page, 'app')
-      await loadAppPathManifest(distDir, appPathsManifests, page, 'app')
-      await loadActionManifest(distDir, actionManifests, page)
-      await loadFontManifest(distDir, fontManifests, page, 'app')
-      await writeManifests({
+      await manifestLoader.loadAppBuildManifest(page)
+      await manifestLoader.loadBuildManifest(page, 'app')
+      await manifestLoader.loadAppPathsManifest(page, 'app')
+      await manifestLoader.loadActionManifest(page)
+      await manifestLoader.loadFontManifest(page, 'app')
+      await manifestLoader.writeManifests({
         rewrites,
-        distDir,
-        buildId,
-        buildManifests,
-        appBuildManifests,
-        pagesManifests,
-        appPathsManifests,
-        middlewareManifests,
-        actionManifests,
-        fontManifests,
-        loadableManifests,
-        currentEntrypoints,
+        routes: entrypoints.routes,
       })
 
       processIssues(currentIssues, page, writtenEndpoint, true)
@@ -467,35 +399,20 @@ export async function handleRouteType({
     }
     case 'app-route': {
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      handleRequireCacheClearing?.(page, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
 
       const type = writtenEndpoint?.type
 
-      await loadAppPathManifest(distDir, appPathsManifests, page, 'app-route')
+      await manifestLoader.loadAppPathsManifest(page, 'app-route')
       if (type === 'edge') {
-        await loadMiddlewareManifest(
-          distDir,
-          middlewareManifests,
-          page,
-          'app-route'
-        )
+        await manifestLoader.loadMiddlewareManifest(page, 'app-route')
       } else {
-        middlewareManifests.delete(page)
+        manifestLoader.deleteMiddlewareManifest(page)
       }
 
-      await writeManifests({
+      await manifestLoader.writeManifests({
         rewrites,
-        distDir,
-        buildId,
-        buildManifests,
-        appBuildManifests,
-        pagesManifests,
-        appPathsManifests,
-        middlewareManifests,
-        actionManifests,
-        fontManifests,
-        loadableManifests,
-        currentEntrypoints,
+        routes: entrypoints.routes,
       })
       processIssues(currentIssues, page, writtenEndpoint, true)
 
@@ -507,66 +424,55 @@ export async function handleRouteType({
   }
 }
 
-export async function handleEntrypoints({
-  rewrites,
-  nextConfig,
-  entrypoints,
-  serverFields,
-  propagateServerField,
-  distDir,
-  buildId,
-  globalEntrypoints,
-  currentEntrypoints,
-  changeSubscriptions,
-  changeSubscription,
-  clearChangeSubscription,
-  sendHmr,
-  startBuilding,
-  handleRequireCacheClearing,
-  prevMiddleware,
-  currentIssues,
-  buildManifests,
-  appBuildManifests,
-  pagesManifests,
-  appPathsManifests,
-  middlewareManifests,
-  actionManifests,
-  fontManifests,
-  loadableManifests,
-}: {
-  rewrites: SetupOpts['fsChecker']['rewrites']
-  nextConfig: NextConfigComplete
-  entrypoints: TurbopackResult<Entrypoints>
-  serverFields: ServerFields | undefined
-  propagateServerField:
-    | ((field: PropagateToWorkersField, args: any) => Promise<void>)
-    | undefined
-  distDir: string
-  buildId: string
-  globalEntrypoints: GlobalEntrypoints
-  currentEntrypoints: CurrentEntrypoints
-  changeSubscriptions: ChangeSubscriptions | undefined
-  changeSubscription: ChangeSubscription | undefined
-  clearChangeSubscription: ClearChangeSubscription | undefined
-  sendHmr: SendHmr | undefined
-  startBuilding: StartBuilding | undefined
-  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
-  prevMiddleware: boolean | undefined
-  currentIssues: CurrentIssues
-  buildManifests: BuildManifests
-  appBuildManifests: AppBuildManifests
-  pagesManifests: PagesManifests
-  appPathsManifests: AppPathsManifests
-  middlewareManifests: MiddlewareManifests
-  actionManifests: ActionManifests
-  fontManifests: FontManifests
-  loadableManifests: LoadableManifests
-}) {
-  globalEntrypoints.app = entrypoints.pagesAppEndpoint
-  globalEntrypoints.document = entrypoints.pagesDocumentEndpoint
-  globalEntrypoints.error = entrypoints.pagesErrorEndpoint
+// hooks only used by the dev server.
+type HandleEntrypointsHooks = {
+  handleWrittenEndpoint: HandleWrittenEndpoint
+  propagateServerField: (
+    field: PropagateToWorkersField,
+    args: any
+  ) => Promise<void>
+  sendHmr: SendHmr
+  startBuilding: StartBuilding
+  subscribeToChanges: StartChangeSubscription
+  unsubscribeFromChanges: StopChangeSubscription
+}
 
-  currentEntrypoints.clear()
+export async function handleEntrypoints({
+  entrypoints,
+
+  currentEntrypoints,
+
+  currentIssues,
+  manifestLoader,
+  nextConfig,
+  rewrites,
+
+  changeSubscriptions,
+  serverFields,
+
+  hooks,
+}: {
+  entrypoints: TurbopackResult<RawEntrypoints>
+
+  currentEntrypoints: Entrypoints
+
+  currentIssues: CurrentIssues
+  manifestLoader: TurbopackManifestLoader
+  nextConfig: NextConfigComplete
+  rewrites: SetupOpts['fsChecker']['rewrites']
+
+  changeSubscriptions?: ChangeSubscriptions // dev
+  serverFields?: ServerFields // dev
+
+  hooks?: HandleEntrypointsHooks //dev
+}) {
+  currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
+  currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
+  currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
+
+  currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+
+  currentEntrypoints.routes.clear()
 
   for (const [pathname, route] of entrypoints.routes) {
     switch (route.type) {
@@ -574,7 +480,7 @@ export async function handleEntrypoints({
       case 'page-api':
       case 'app-page':
       case 'app-route': {
-        currentEntrypoints.set(pathname, route)
+        currentEntrypoints.routes.set(pathname, route)
         break
       }
       default:
@@ -590,7 +496,7 @@ export async function handleEntrypoints({
         continue
       }
 
-      if (!currentEntrypoints.has(pathname)) {
+      if (!currentEntrypoints.routes.has(pathname)) {
         const subscription = await subscriptionPromise
         subscription.return?.()
         changeSubscriptions.delete(pathname)
@@ -599,21 +505,24 @@ export async function handleEntrypoints({
   }
 
   const { middleware, instrumentation } = entrypoints
+
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is
   // unnecessary during the first serve)
-  if (prevMiddleware === true && !middleware) {
+  if (currentEntrypoints.global.middleware && !middleware) {
     // Went from middleware to no middleware
-    await clearChangeSubscription?.('middleware', 'server')
-    sendHmr?.('middleware', {
+    await hooks?.unsubscribeFromChanges('middleware', 'server')
+    hooks?.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
-  } else if (prevMiddleware === false && middleware) {
+  } else if (!currentEntrypoints.global.middleware && middleware) {
     // Went from no middleware to middleware
-    sendHmr?.('middleware', {
+    hooks?.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
+
+  currentEntrypoints.global.middleware = entrypoints.middleware
 
   if (nextConfig.experimental.instrumentationHook && instrumentation) {
     const processInstrumentation = async (
@@ -622,7 +531,7 @@ export async function handleEntrypoints({
       prop: 'nodeJs' | 'edge'
     ) => {
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      handleRequireCacheClearing?.(displayName, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(displayName, writtenEndpoint)
       processIssues(currentIssues, name, writtenEndpoint)
     }
     await processInstrumentation(
@@ -635,198 +544,148 @@ export async function handleEntrypoints({
       'instrumentation.edge',
       'edge'
     )
-    await loadMiddlewareManifest(
-      distDir,
-      middlewareManifests,
+    await manifestLoader.loadMiddlewareManifest(
       'instrumentation',
       'instrumentation'
     )
-    await writeManifests({
+    await manifestLoader.writeManifests({
       rewrites: rewrites,
-      distDir,
-      buildId,
-      buildManifests,
-      appBuildManifests,
-      pagesManifests,
-      appPathsManifests,
-      middlewareManifests,
-      actionManifests,
-      fontManifests,
-      loadableManifests,
-      currentEntrypoints,
+      routes: currentEntrypoints.routes,
     })
 
-    if (serverFields && propagateServerField) {
+    if (serverFields && hooks?.propagateServerField) {
       serverFields.actualInstrumentationHookFile = '/instrumentation'
-      await propagateServerField(
+      await hooks.propagateServerField(
         'actualInstrumentationHookFile',
         serverFields.actualInstrumentationHookFile
       )
     }
   } else {
-    if (serverFields && propagateServerField) {
+    if (serverFields && hooks?.propagateServerField) {
       serverFields.actualInstrumentationHookFile = undefined
-      await propagateServerField(
+      await hooks.propagateServerField(
         'actualInstrumentationHookFile',
         serverFields.actualInstrumentationHookFile
       )
     }
   }
+
   if (middleware) {
     const processMiddleware = async () => {
       const writtenEndpoint = await middleware.endpoint.writeToDisk()
-      handleRequireCacheClearing?.('middleware', writtenEndpoint)
+      hooks?.handleWrittenEndpoint('middleware', writtenEndpoint)
       processIssues(currentIssues, 'middleware', writtenEndpoint)
-      await loadMiddlewareManifest(
-        distDir,
-        middlewareManifests,
-        'middleware',
-        'middleware'
-      )
+      await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (serverFields) {
         serverFields.middleware = {
           match: null as any,
           page: '/',
           matchers:
-            middlewareManifests.get('middleware')?.middleware['/'].matchers,
+            manifestLoader.getMiddlewareManifest('middleware')?.middleware['/']
+              .matchers,
         }
       }
     }
     await processMiddleware()
 
-    changeSubscription?.(
+    hooks?.subscribeToChanges(
       'middleware',
       'server',
       false,
       middleware.endpoint,
       async () => {
-        const finishBuilding = startBuilding?.('middleware', undefined, true)
+        const finishBuilding = hooks.startBuilding(
+          'middleware',
+          undefined,
+          true
+        )
         await processMiddleware()
-        if (serverFields && propagateServerField) {
-          await propagateServerField(
+        if (serverFields && hooks.propagateServerField) {
+          await hooks.propagateServerField(
             'actualMiddlewareFile',
             serverFields.actualMiddlewareFile
           )
-          await propagateServerField('middleware', serverFields.middleware)
+          await hooks.propagateServerField(
+            'middleware',
+            serverFields.middleware
+          )
         }
-        await writeManifests({
+        await manifestLoader.writeManifests({
           rewrites: rewrites,
-          distDir,
-          buildId,
-          buildManifests,
-          appBuildManifests,
-          pagesManifests,
-          appPathsManifests,
-          middlewareManifests,
-          actionManifests,
-          fontManifests,
-          loadableManifests,
-          currentEntrypoints,
+          routes: currentEntrypoints.routes,
         })
 
         finishBuilding?.()
         return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
       }
     )
-    prevMiddleware = true
   } else {
-    middlewareManifests.delete('middleware')
+    manifestLoader.deleteMiddlewareManifest('middleware')
     if (serverFields) {
       serverFields.actualMiddlewareFile = undefined
       serverFields.middleware = undefined
-      prevMiddleware = false
     }
   }
-  if (serverFields && propagateServerField) {
-    await propagateServerField(
+  if (serverFields && hooks?.propagateServerField) {
+    await hooks.propagateServerField(
       'actualMiddlewareFile',
       serverFields.actualMiddlewareFile
     )
-    await propagateServerField('middleware', serverFields.middleware)
+    await hooks.propagateServerField('middleware', serverFields.middleware)
   }
 }
 
 export async function handlePagesErrorRoute({
-  rewrites,
-  globalEntrypoints,
   currentIssues,
-  distDir,
-  buildId,
-  buildManifests,
-  pagesManifests,
-  fontManifests,
-  appBuildManifests,
-  appPathsManifests,
-  middlewareManifests,
-  actionManifests,
-  loadableManifests,
-  currentEntrypoints,
-  handleRequireCacheClearing,
-  changeSubscription,
+  entrypoints,
+  manifestLoader,
+  rewrites,
+
+  hooks,
 }: {
-  rewrites: SetupOpts['fsChecker']['rewrites']
-  globalEntrypoints: GlobalEntrypoints
   currentIssues: CurrentIssues
-  distDir: string
-  buildId: string
-  buildManifests: BuildManifests
-  pagesManifests: PagesManifests
-  fontManifests: FontManifests
-  appBuildManifests: AppBuildManifests
-  appPathsManifests: AppPathsManifests
-  middlewareManifests: MiddlewareManifests
-  actionManifests: ActionManifests
-  loadableManifests: LoadableManifests
-  currentEntrypoints: CurrentEntrypoints
-  handleRequireCacheClearing: HandleRequireCacheClearing | undefined
-  changeSubscription: ChangeSubscription | undefined
+  entrypoints: Entrypoints
+  manifestLoader: TurbopackManifestLoader
+  rewrites: SetupOpts['fsChecker']['rewrites']
+
+  hooks?: HandleRouteTypeHooks // dev
 }) {
-  if (globalEntrypoints.app) {
-    const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
-    handleRequireCacheClearing?.('_app', writtenEndpoint)
+  if (entrypoints.global.app) {
+    const writtenEndpoint = await entrypoints.global.app.writeToDisk()
+    hooks?.handleWrittenEndpoint('_app', writtenEndpoint)
     processIssues(currentIssues, '_app', writtenEndpoint)
   }
-  await loadBuildManifest(distDir, buildManifests, '_app')
-  await loadPagesManifest(distDir, pagesManifests, '_app')
-  await loadFontManifest(distDir, fontManifests, '_app')
+  await manifestLoader.loadBuildManifest('_app')
+  await manifestLoader.loadPagesManifest('_app')
+  await manifestLoader.loadFontManifest('_app')
 
-  if (globalEntrypoints.document) {
-    const writtenEndpoint = await globalEntrypoints.document.writeToDisk()
-    handleRequireCacheClearing?.('_document', writtenEndpoint)
-    changeSubscription?.(
+  if (entrypoints.global.document) {
+    const writtenEndpoint = await entrypoints.global.document.writeToDisk()
+    hooks?.handleWrittenEndpoint('_document', writtenEndpoint)
+    hooks?.subscribeToChanges(
       '_document',
       'server',
       false,
-      globalEntrypoints.document,
+      entrypoints.global.document,
       () => {
         return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
       }
     )
     processIssues(currentIssues, '_document', writtenEndpoint)
   }
-  await loadPagesManifest(distDir, pagesManifests, '_document')
+  await manifestLoader.loadPagesManifest('_document')
 
-  if (globalEntrypoints.error) {
-    const writtenEndpoint = await globalEntrypoints.error.writeToDisk()
-    handleRequireCacheClearing?.('_error', writtenEndpoint)
+  if (entrypoints.global.error) {
+    const writtenEndpoint = await entrypoints.global.error.writeToDisk()
+    hooks?.handleWrittenEndpoint('_error', writtenEndpoint)
     processIssues(currentIssues, '/_error', writtenEndpoint)
   }
-  await loadBuildManifest(distDir, buildManifests, '_error')
-  await loadPagesManifest(distDir, pagesManifests, '_error')
-  await loadFontManifest(distDir, fontManifests, '_error')
+  await manifestLoader.loadBuildManifest('_error')
+  await manifestLoader.loadPagesManifest('_error')
+  await manifestLoader.loadFontManifest('_error')
 
-  await writeManifests({
+  await manifestLoader.writeManifests({
     rewrites,
-    distDir,
-    buildId,
-    buildManifests,
-    appBuildManifests,
-    pagesManifests,
-    appPathsManifests,
-    middlewareManifests,
-    actionManifests,
-    fontManifests,
-    loadableManifests,
-    currentEntrypoints,
+    routes: entrypoints.routes,
   })
 }
