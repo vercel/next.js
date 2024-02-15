@@ -47,7 +47,6 @@ import {
   type ActionManifests,
   type FontManifests,
   type LoadableManifests,
-  loadMiddlewareManifest,
   writeManifests,
   loadBuildManifest,
   loadPagesManifest,
@@ -63,6 +62,11 @@ import {
   type ReadyIds,
   type ChangeSubscription,
   handleRouteType,
+  handleEntrypoints,
+  type ClearChangeSubscription,
+  type SendHmr,
+  type StartBuilding,
+  type ChangeSubscriptions,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -131,28 +135,35 @@ export async function createHotReloaderTurbopack(
     }),
   })
   const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntrypoints: CurrentEntrypoints = new Map()
-  const changeSubscriptions: Map<
-    string,
-    Promise<AsyncIterator<any>>
-  > = new Map()
-  let prevMiddleware: boolean | undefined = undefined
-
   const globalEntrypoints: GlobalEntrypoints = {
     app: undefined,
     document: undefined,
     error: undefined,
   }
+
+  const currentEntrypoints: CurrentEntrypoints = new Map()
+  const currentIssues: CurrentIssues = new Map()
+
+  const buildManifests: BuildManifests = new Map()
+  const appBuildManifests: AppBuildManifests = new Map()
+  const pagesManifests: PagesManifests = new Map()
+  const appPathsManifests: AppPathsManifests = new Map()
+  const middlewareManifests: MiddlewareManifests = new Map()
+  const actionManifests: ActionManifests = new Map()
+  const fontManifests: FontManifests = new Map()
+  const loadableManifests: LoadableManifests = new Map()
+
+  // Dev specific
+  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
+  const turbopackUpdates: TurbopackUpdate[] = []
+  const changeSubscriptions: ChangeSubscriptions = new Map()
+  const serverPathState = new Map<string, string>()
+  const readyIds: ReadyIds = new Set()
   let currentEntriesHandlingResolve: ((value?: unknown) => void) | undefined
   let currentEntriesHandling = new Promise(
     (resolve) => (currentEntriesHandlingResolve = resolve)
   )
-  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
-  const turbopackUpdates: TurbopackUpdate[] = []
-
-  const currentIssues: CurrentIssues = new Map()
-  const serverPathState = new Map<string, string>()
-
+  let prevMiddleware: boolean | undefined = undefined
   const handleRequireCacheClearing: HandleRequireCacheClearing = (
     id,
     result
@@ -205,15 +216,9 @@ export async function createHotReloaderTurbopack(
 
     return
   }
-
   const buildingIds = new Set()
-  const readyIds: ReadyIds = new Set()
 
-  function startBuilding(
-    id: string,
-    requestUrl: string | undefined,
-    forceRebuild: boolean = false
-  ) {
+  const startBuilding: StartBuilding = (id, requestUrl, forceRebuild) => {
     if (!forceRebuild && readyIds.has(id)) {
       return () => {}
     }
@@ -268,7 +273,7 @@ export async function createHotReloaderTurbopack(
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  function sendHmr(id: string, payload: HMR_ACTION_TYPES) {
+  const sendHmr: SendHmr = (id, payload) => {
     hmrPayloads.set(`${id}`, payload)
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
@@ -279,15 +284,6 @@ export async function createHotReloaderTurbopack(
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
-
-  const buildManifests: BuildManifests = new Map()
-  const appBuildManifests: AppBuildManifests = new Map()
-  const pagesManifests: PagesManifests = new Map()
-  const appPathsManifests: AppPathsManifests = new Map()
-  const middlewareManifests: MiddlewareManifests = new Map()
-  const actionManifests: ActionManifests = new Map()
-  const fontManifests: FontManifests = new Map()
-  const loadableManifests: LoadableManifests = new Map()
 
   const clientToHmrSubscription: Map<
     ws,
@@ -319,10 +315,10 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  async function clearChangeSubscription(
-    page: string,
-    type: 'server' | 'client'
-  ) {
+  const clearChangeSubscription: ClearChangeSubscription = async (
+    page,
+    type
+  ) => {
     const key = `${page} (${type})`
     const subscription = await changeSubscriptions.get(key)
     if (subscription) {
@@ -383,186 +379,35 @@ export async function createHotReloaderTurbopack(
             (resolve) => (currentEntriesHandlingResolve = resolve)
           )
         }
-        globalEntrypoints.app = entrypoints.pagesAppEndpoint
-        globalEntrypoints.document = entrypoints.pagesDocumentEndpoint
-        globalEntrypoints.error = entrypoints.pagesErrorEndpoint
 
-        currentEntrypoints.clear()
-
-        for (const [pathname, route] of entrypoints.routes) {
-          switch (route.type) {
-            case 'page':
-            case 'page-api':
-            case 'app-page':
-            case 'app-route': {
-              currentEntrypoints.set(pathname, route)
-              break
-            }
-            default:
-              Log.info(`skipping ${pathname} (${route.type})`)
-              break
-          }
-        }
-
-        for (const [pathname, subscriptionPromise] of changeSubscriptions) {
-          if (pathname === '') {
-            // middleware is handled below
-            continue
-          }
-
-          if (!currentEntrypoints.has(pathname)) {
-            const subscription = await subscriptionPromise
-            subscription.return?.()
-            changeSubscriptions.delete(pathname)
-          }
-        }
-
-        const { middleware, instrumentation } = entrypoints
-        // We check for explicit true/false, since it's initialized to
-        // undefined during the first loop (middlewareChanges event is
-        // unnecessary during the first serve)
-        if (prevMiddleware === true && !middleware) {
-          // Went from middleware to no middleware
-          await clearChangeSubscription('middleware', 'server')
-          sendHmr('middleware', {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-          })
-        } else if (prevMiddleware === false && middleware) {
-          // Went from no middleware to middleware
-          sendHmr('middleware', {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-          })
-        }
-        if (
-          opts.nextConfig.experimental.instrumentationHook &&
-          instrumentation
-        ) {
-          const processInstrumentation = async (
-            displayName: string,
-            name: string,
-            prop: 'nodeJs' | 'edge'
-          ) => {
-            const writtenEndpoint = await instrumentation[prop].writeToDisk()
-            handleRequireCacheClearing(displayName, writtenEndpoint)
-            processIssues(currentIssues, name, writtenEndpoint)
-          }
-          await processInstrumentation(
-            'instrumentation (node.js)',
-            'instrumentation.nodeJs',
-            'nodeJs'
-          )
-          await processInstrumentation(
-            'instrumentation (edge)',
-            'instrumentation.edge',
-            'edge'
-          )
-          await loadMiddlewareManifest(
-            distDir,
-            middlewareManifests,
-            'instrumentation',
-            'instrumentation'
-          )
-          await writeManifests({
-            rewrites: opts.fsChecker.rewrites,
-            distDir,
-            buildManifests,
-            appBuildManifests,
-            pagesManifests,
-            appPathsManifests,
-            middlewareManifests,
-            actionManifests,
-            fontManifests,
-            loadableManifests,
-            currentEntrypoints,
-          })
-
-          serverFields.actualInstrumentationHookFile = '/instrumentation'
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
-        } else {
-          serverFields.actualInstrumentationHookFile = undefined
-          await propagateServerField(
-            opts,
-            'actualInstrumentationHookFile',
-            serverFields.actualInstrumentationHookFile
-          )
-        }
-        if (middleware) {
-          const processMiddleware = async () => {
-            const writtenEndpoint = await middleware.endpoint.writeToDisk()
-            handleRequireCacheClearing('middleware', writtenEndpoint)
-            processIssues(currentIssues, 'middleware', writtenEndpoint)
-            await loadMiddlewareManifest(
-              distDir,
-              middlewareManifests,
-              'middleware',
-              'middleware'
-            )
-            serverFields.middleware = {
-              match: null as any,
-              page: '/',
-              matchers:
-                middlewareManifests.get('middleware')?.middleware['/'].matchers,
-            }
-          }
-          await processMiddleware()
-
-          changeSubscription(
-            'middleware',
-            'server',
-            false,
-            middleware.endpoint,
-            async () => {
-              const finishBuilding = startBuilding(
-                'middleware',
-                undefined,
-                true
-              )
-              await processMiddleware()
-              await propagateServerField(
-                opts,
-                'actualMiddlewareFile',
-                serverFields.actualMiddlewareFile
-              )
-              await propagateServerField(
-                opts,
-                'middleware',
-                serverFields.middleware
-              )
-              await writeManifests({
-                rewrites: opts.fsChecker.rewrites,
-                distDir,
-                buildManifests,
-                appBuildManifests,
-                pagesManifests,
-                appPathsManifests,
-                middlewareManifests,
-                actionManifests,
-                fontManifests,
-                loadableManifests,
-                currentEntrypoints,
-              })
-
-              finishBuilding()
-              return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
-            }
-          )
-          prevMiddleware = true
-        } else {
-          middlewareManifests.delete('middleware')
-          serverFields.actualMiddlewareFile = undefined
-          serverFields.middleware = undefined
-          prevMiddleware = false
-        }
-        await propagateServerField(
-          opts,
-          'actualMiddlewareFile',
-          serverFields.actualMiddlewareFile
-        )
-        await propagateServerField(opts, 'middleware', serverFields.middleware)
+        await handleEntrypoints({
+          rewrites: opts.fsChecker.rewrites,
+          nextConfig: opts.nextConfig,
+          entrypoints,
+          serverFields,
+          propagateServerField: async (key, value) => {
+            await propagateServerField(opts, key, value)
+          },
+          distDir,
+          globalEntrypoints,
+          currentEntrypoints,
+          changeSubscriptions,
+          changeSubscription,
+          clearChangeSubscription,
+          sendHmr,
+          startBuilding,
+          handleRequireCacheClearing,
+          prevMiddleware,
+          currentIssues,
+          buildManifests,
+          appBuildManifests,
+          pagesManifests,
+          appPathsManifests,
+          middlewareManifests,
+          actionManifests,
+          fontManifests,
+          loadableManifests,
+        })
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
@@ -802,7 +647,7 @@ export async function createHotReloaderTurbopack(
       const page = definition?.pathname ?? inputPage
 
       if (page === '/_error') {
-        let finishBuilding = startBuilding(page, requestUrl)
+        let finishBuilding = startBuilding(page, requestUrl, false)
         try {
           if (globalEntrypoints.app) {
             const writtenEndpoint = await globalEntrypoints.app.writeToDisk()
@@ -885,7 +730,7 @@ export async function createHotReloaderTurbopack(
         throw new Error(`mis-matched route type: isApp && page for ${page}`)
       }
 
-      const finishBuilding = startBuilding(page, requestUrl)
+      const finishBuilding = startBuilding(page, requestUrl, false)
       try {
         await handleRouteType({
           rewrites: opts.fsChecker.rewrites,

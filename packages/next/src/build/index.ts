@@ -166,8 +166,25 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { getTurbopackJsConfig } from '../server/dev/turbopack-utils'
+import {
+  getTurbopackJsConfig,
+  handleEntrypoints,
+  type GlobalEntrypoints,
+  type CurrentEntrypoints,
+  type CurrentIssues,
+  type BuildManifests,
+  type AppBuildManifests,
+  type PagesManifests,
+  type AppPathsManifests,
+  type MiddlewareManifests,
+  type ActionManifests,
+  type FontManifests,
+  type LoadableManifests,
+  handleRouteType,
+  writeManifests,
+} from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import type { FontManifest } from '../server/font-utils'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1317,7 +1334,7 @@ export default async function build(
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config.nextConfig,
+          nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
           env: process.env as Record<string, string>,
@@ -1326,7 +1343,8 @@ export default async function build(
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
-            dev: false,
+            // When passing `false` you get `react.jsxDEV is not a function`
+            dev: true,
             distDir,
             fetchCacheKeyPrefix: undefined,
             hasRewrites,
@@ -1335,10 +1353,132 @@ export default async function build(
           }),
         })
 
+        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+        await fs.mkdir(path.join(distDir, 'static/development'), {
+          recursive: true,
+        })
+        await fs.writeFile(
+          path.join(distDir, 'package.json'),
+          JSON.stringify(
+            {
+              type: 'commonjs',
+            },
+            null,
+            2
+          )
+        )
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
-        // for await (const entrypoints of entrypointsSubscription) {
-        // }
+        const globalEntrypoints: GlobalEntrypoints = {
+          app: undefined,
+          document: undefined,
+          error: undefined,
+        }
+        const currentEntrypoints: CurrentEntrypoints = new Map()
+        const currentIssues: CurrentIssues = new Map()
+
+        const buildManifests: BuildManifests = new Map()
+        const appBuildManifests: AppBuildManifests = new Map()
+        const pagesManifests: PagesManifests = new Map()
+        const appPathsManifests: AppPathsManifests = new Map()
+        const middlewareManifests: MiddlewareManifests = new Map()
+        const actionManifests: ActionManifests = new Map()
+        const fontManifests: FontManifests = new Map()
+        const loadableManifests: LoadableManifests = new Map()
+
+        // TODO: implement this
+        const emptyRewritesObjToBeImplemented = {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        }
+
+        for await (const entrypoints of entrypointsSubscription) {
+          await handleEntrypoints({
+            rewrites: emptyRewritesObjToBeImplemented,
+            nextConfig: config,
+            entrypoints,
+            serverFields: undefined,
+            propagateServerField: undefined,
+            distDir,
+            globalEntrypoints,
+            currentEntrypoints,
+            changeSubscriptions: undefined,
+            changeSubscription: undefined,
+            clearChangeSubscription: undefined,
+            sendHmr: undefined,
+            startBuilding: undefined,
+            handleRequireCacheClearing: undefined,
+            prevMiddleware: undefined,
+            currentIssues,
+            buildManifests,
+            appBuildManifests,
+            pagesManifests,
+            appPathsManifests,
+            middlewareManifests,
+            actionManifests,
+            fontManifests,
+            loadableManifests,
+          })
+
+          const promises = []
+          for (const [page, route] of currentEntrypoints) {
+            promises.push(
+              handleRouteType({
+                rewrites: emptyRewritesObjToBeImplemented,
+                distDir,
+                globalEntrypoints,
+                currentIssues,
+                buildManifests,
+                appBuildManifests,
+                pagesManifests,
+                appPathsManifests,
+                middlewareManifests,
+                actionManifests,
+                fontManifests,
+                loadableManifests,
+                currentEntrypoints,
+                handleRequireCacheClearing: undefined,
+                changeSubscription: undefined,
+                readyIds: undefined,
+                page,
+                route,
+              })
+            )
+          }
+          await Promise.all(promises)
+          break
+        }
+        await writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          distDir,
+          buildManifests,
+          appBuildManifests,
+          pagesManifests,
+          appPathsManifests,
+          middlewareManifests,
+          actionManifests,
+          fontManifests,
+          loadableManifests,
+          currentEntrypoints,
+        })
+
+        // Temporary
+        await writeBuildId(distDir, buildId)
+        const prerenderManifest: Readonly<PrerenderManifest> = {
+          version: 4,
+          routes: {},
+          dynamicRoutes: {},
+          notFoundRoutes: [],
+          preview: previewProps,
+        }
+        await writePrerenderManifest(distDir, prerenderManifest)
+        await writeManifest<FontManifest>(
+          path.join(distDir, 'server', FONT_MANIFEST),
+          []
+        )
+        // End temporary
         throw new Error("next build doesn't support turbopack yet")
       }
       let buildTraceContext: undefined | BuildTraceContext
