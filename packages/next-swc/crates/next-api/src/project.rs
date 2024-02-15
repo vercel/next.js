@@ -90,6 +90,9 @@ pub struct ProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: bool,
+
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -117,6 +120,9 @@ pub struct PartialProjectOptions {
 
     /// Whether to watch the filesystem for file changes.
     pub watch: Option<bool>,
+
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, TraceRawVcs)]
@@ -181,6 +187,8 @@ impl ProjectContainer {
             new_options.watch = watch;
         }
 
+        // TODO: Handle mode switch, should prevent mode being switched.
+
         self.options_state.set(new_options);
 
         Default::default()
@@ -190,7 +198,7 @@ impl ProjectContainer {
     pub async fn project(self: Vc<Self>) -> Result<Vc<Project>> {
         let this = self.await?;
 
-        let (env, define_env, next_config, js_config, root_path, project_path, watch) = {
+        let (env, define_env, next_config, js_config, root_path, project_path, watch, dev) = {
             let options = this.options_state.get();
             let env: Vc<EnvMap> = Vc::cell(options.env.iter().cloned().collect());
             let define_env: Vc<ProjectDefineEnv> = ProjectDefineEnv {
@@ -204,6 +212,7 @@ impl ProjectContainer {
             let root_path = options.root_path.clone();
             let project_path = options.project_path.clone();
             let watch = options.watch;
+            let dev = options.dev;
             (
                 env,
                 define_env,
@@ -212,6 +221,7 @@ impl ProjectContainer {
                 root_path,
                 project_path,
                 watch,
+                dev,
             )
         };
 
@@ -233,7 +243,11 @@ impl ProjectContainer {
             browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
                                  versions, last 1 Edge versions"
                 .to_string(),
-            mode: NextMode::Development,
+            mode: if dev {
+                NextMode::Development
+            } else {
+                NextMode::Build
+            },
             versioned_content_map: this.versioned_content_map,
         }
         .cell())

@@ -410,6 +410,11 @@ export interface ProjectOptions {
    * Whether to watch the filesystem for file changes.
    */
   watch: boolean
+
+  /**
+   * The mode in which Next.js is running.
+   */
+  dev: boolean
 }
 
 type RustifiedEnv = { name: string; value: string }[]
