@@ -1,7 +1,6 @@
 use anyhow::{bail, Result};
 use next_core::{
     all_assets_from_entries,
-    mode::NextMode,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
     next_server::{get_server_chunking_context, get_server_runtime_entries, ServerContextType},
@@ -78,7 +77,7 @@ impl InstrumentationEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware),
-            NextMode::Development,
+            self.project.next_mode(),
         )
         .resolve_entries(self.context)
         .await?
@@ -136,7 +135,7 @@ impl InstrumentationEndpoint {
                 module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation),
-                    NextMode::Development,
+                    self.project.next_mode(),
                 )
                 .resolve_entries(self.context),
                 Value::new(AvailabilityInfo::Root),
