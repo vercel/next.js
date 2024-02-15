@@ -213,8 +213,7 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
       latest: tags.latest,
       canary: tags.canary,
     })
-  } catch (e) {
-    console.error('parse version e', e)
+  } catch {
     return { installed, staleness: 'unknown' }
   }
 }
