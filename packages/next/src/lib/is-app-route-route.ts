@@ -1,3 +1,3 @@
-export function isAppRouteRoute(route: string): boolean {
+export function isRouteHandler(route: string): boolean {
   return route.endsWith('/route')
 }

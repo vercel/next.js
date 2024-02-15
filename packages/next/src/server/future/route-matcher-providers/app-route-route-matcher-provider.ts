@@ -1,4 +1,4 @@
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isRouteHandler } from '../../../lib/is-app-route-route'
 import { APP_PATHS_MANIFEST } from '../../../shared/lib/constants'
 import { RouteKind } from '../route-kind'
 import { AppRouteRouteMatcher } from '../route-matchers/app-route-route-matcher'
@@ -22,7 +22,7 @@ export class AppRouteRouteMatcherProvider extends ManifestRouteMatcherProvider<A
     manifest: Manifest
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     // This matcher only matches app routes.
-    const pages = Object.keys(manifest).filter((page) => isAppRouteRoute(page))
+    const pages = Object.keys(manifest).filter((page) => isRouteHandler(page))
 
     // Format the routes.
     const matchers: Array<AppRouteRouteMatcher> = []

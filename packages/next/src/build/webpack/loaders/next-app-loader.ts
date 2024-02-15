@@ -14,7 +14,7 @@ import {
   createStaticMetadataFromRoute,
 } from './metadata/discover'
 import { promises as fs } from 'fs'
-import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isRouteHandler } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { NextConfig } from '../../../server/config-shared'
 import { AppPathnameNormalizer } from '../../../server/future/normalizers/built/app/app-pathname-normalizer'
@@ -669,7 +669,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     return result
   }
 
-  if (isAppRouteRoute(name)) {
+  if (isRouteHandler(name)) {
     return createAppRouteCode({
       // TODO: investigate if the local `page` is the same as the loaderOptions.page
       page: loaderOptions.page,

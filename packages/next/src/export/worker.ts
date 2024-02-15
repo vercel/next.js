@@ -25,7 +25,7 @@ import { addRequestMeta } from '../server/request-meta'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 
 import { createRequestResponseMocks } from '../server/lib/mock-request'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isRouteHandler } from '../lib/is-app-route-route'
 import { hasNextSupport } from '../telemetry/ci-info'
 import { exportAppRoute } from './routes/app-route'
 import { exportAppPage } from './routes/app-page'
@@ -240,7 +240,7 @@ async function exportPageImpl(
         : undefined
 
     // Handle App Routes.
-    if (isAppDir && isAppRouteRoute(page)) {
+    if (isAppDir && isRouteHandler(page)) {
       return await exportAppRoute(
         req,
         res,

@@ -3,7 +3,7 @@ import type { Normalizer } from '../../normalizers/normalizer'
 import { AppRouteRouteMatcher } from '../../route-matchers/app-route-route-matcher'
 import { RouteKind } from '../../route-kind'
 import { FileCacheRouteMatcherProvider } from './file-cache-route-matcher-provider'
-import { isAppRouteRoute } from '../../../../lib/is-app-route-route'
+import { isRouteHandler } from '../../../../lib/is-app-route-route'
 import { DevAppNormalizers } from '../../normalizers/built/app'
 
 export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppRouteRouteMatcher> {
@@ -31,7 +31,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       const page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
-      if (!isAppRouteRoute(page)) continue
+      if (!isRouteHandler(page)) continue
 
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue

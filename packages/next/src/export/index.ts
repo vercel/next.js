@@ -49,7 +49,7 @@ import { getPagePath } from '../server/require'
 import type { Span } from '../trace'
 import type { FontConfig } from '../server/font-utils'
 import type { MiddlewareManifest } from '../build/webpack/plugins/middleware-plugin'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isRouteHandler } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -803,7 +803,7 @@ export async function exportAppImpl(
         const appPageName = mapAppRouteToPage.get(srcRoute || '')
         const pageName = appPageName || srcRoute || route
         const isAppPath = Boolean(appPageName)
-        const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
+        const isAppRouteHandler = appPageName && isRouteHandler(appPageName)
 
         // returning notFound: true from getStaticProps will not
         // output html/json files during the build

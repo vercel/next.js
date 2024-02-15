@@ -50,7 +50,7 @@ import type { ServerRuntime } from '../../types'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
-import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isRouteHandler } from '../lib/is-app-route-route'
 import { normalizeMetadataRoute } from '../lib/metadata/get-metadata-route'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import {
@@ -342,7 +342,7 @@ export function getEdgeServerEntry(opts: {
 }) {
   if (
     opts.pagesType === 'app' &&
-    isAppRouteRoute(opts.page) &&
+    isRouteHandler(opts.page) &&
     opts.appDirLoader
   ) {
     const loaderParams: EdgeAppRouteLoaderQuery = {

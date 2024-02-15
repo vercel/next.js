@@ -1,5 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import { isAppRouteRoute } from '../../lib/is-app-route-route'
+import { isRouteHandler } from '../../lib/is-app-route-route'
 
 export function traverseModules(
   compilation: webpack.Compilation,
@@ -43,7 +43,7 @@ export function forEachEntryModule(
     if (
       name.startsWith('pages/') ||
       // Skip for route.js entries
-      (name.startsWith('app/') && isAppRouteRoute(name))
+      (name.startsWith('app/') && isRouteHandler(name))
     ) {
       continue
     }
