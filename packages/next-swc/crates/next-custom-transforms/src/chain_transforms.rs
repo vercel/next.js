@@ -4,7 +4,7 @@ use either::Either;
 use fxhash::FxHashSet;
 use preset_env_base::query::targets_to_versions;
 use serde::Deserialize;
-use swc_core::ecma::visit::as_folder;
+use swc_core::ecma::{utils::ExprCtx, visit::as_folder};
 use turbopack_binding::swc::{
     core::{
         common::{
@@ -23,6 +23,7 @@ use turbopack_binding::swc::{
 use crate::transforms::{
     cjs_finder::contains_cjs,
     dynamic::{next_dynamic, NextDynamicMode},
+    dynamic_code_linter::DynamicCodeLinter,
     fonts::next_font_loaders,
     react_server_components,
 };
@@ -173,7 +174,18 @@ where
         Either::Right(noop())
     };
 
+    let expr_ctx = ExprCtx {
+        unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+        is_unresolved_ref_safe: false,
+    };
+
+    let pass = Optional::new(
+        as_folder(DynamicCodeLinter { expr_ctx }),
+        opts.is_development,
+    );
+
     chain!(
+        pass,
         crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(opts.is_page_file),
         match &opts.server_components {
             Some(config) if config.truthy() =>
