@@ -26,4 +26,20 @@ impl NextMode {
             NextMode::Build => false,
         }
     }
+
+    /// Returns true if the mode is development
+    pub fn is_development(&self) -> bool {
+        match self {
+            NextMode::Development => true,
+            NextMode::Build => false,
+        }
+    }
+
+    /// Returns true if the mode is production
+    pub fn is_build(&self) -> bool {
+        match self {
+            NextMode::Development => false,
+            NextMode::Build => true,
+        }
+    }
 }
