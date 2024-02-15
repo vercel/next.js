@@ -11,7 +11,7 @@ pub async fn directory_from_relative_path(
     name: String,
     path: String,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new(name, path);
+    let disk_fs = DiskFileSystem::new(name, path, vec![]);
     disk_fs.await?.start_watching()?;
 
     Ok(Vc::upcast(disk_fs))

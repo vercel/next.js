@@ -71,7 +71,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         let input = bench_input.input.clone();
         async move {
             let task = tt.spawn_once_task(async move {
-                let input_fs = DiskFileSystem::new("tests".to_string(), tests_root.clone());
+                let input_fs = DiskFileSystem::new("tests".to_string(), tests_root.clone(), vec![]);
                 let input = input_fs.root().join(input.clone());
 
                 let input_dir = input.parent().parent();
