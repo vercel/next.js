@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
@@ -480,7 +480,7 @@ pub struct ExperimentalConfig {
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    esm_externals: Option<serde_json::Value>,
+    esm_externals: Option<EsmExternals>,
     extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
     /// If set to `false`, webpack won't fall back to polyfill Node.js modules
@@ -544,6 +544,19 @@ pub enum ServerActionsOrLegacyBool {
     /// The legacy way to disable server actions. This is no longer used, server
     /// actions is always enabled.
     LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(rename_all = "kebab-case")]
+pub enum EsmExternalsValue {
+    Loose,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum EsmExternals {
+    Loose(EsmExternalsValue),
+    Bool(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -755,6 +768,15 @@ impl NextConfig {
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
         Ok(alias_map.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn import_externals(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.await?.experimental.esm_externals {
+            Some(EsmExternals::Bool(b)) => b,
+            Some(EsmExternals::Loose(_)) => bail!("esmExternals = \"loose\" is not supported"),
+            None => true,
+        }))
     }
 
     #[turbo_tasks::function]

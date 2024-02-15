@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use serde::{Deserialize, Serialize};
+use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
@@ -10,7 +11,8 @@ use turbopack_binding::{
             package_json,
             parse::Request,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            resolve, FindContextFileResult, ResolveResult, ResolveResultItem, ResolveResultOption,
+            resolve, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
+            ResolveResultOption,
         },
         source::Source,
     },
@@ -88,8 +90,11 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
         let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|document|link|image|legacy\\/image|constants|dynamic|script|navigation|headers|router)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference$)");
 
-        if never_external_regex.is_match(&request_value.request().unwrap_or_default()) {
-            return Ok(ResolveResultOption::none());
+        let request_str = request_value.request();
+        if let Some(request_str) = &request_str {
+            if never_external_regex.is_match(request_str) {
+                return Ok(ResolveResultOption::none());
+            }
         }
 
         let raw_fs_path = &*fs_path.await?;
@@ -99,8 +104,18 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             ExternalPredicate::AllExcept(exceptions) => {
                 let exception_glob = packages_glob(*exceptions).await?;
 
-                if let Some(exception_glob) = *exception_glob {
-                    if exception_glob.await?.execute(&raw_fs_path.path) {
+                if let Some(PackagesGlobs {
+                    path_glob,
+                    request_glob,
+                }) = *exception_glob
+                {
+                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
+                    let request_match = if let Some(request_str) = &request_str {
+                        request_glob.await?.execute(&request_str)
+                    } else {
+                        false
+                    };
+                    if path_match || request_match {
                         return Ok(ResolveResultOption::none());
                     }
                 }
@@ -108,8 +123,19 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             ExternalPredicate::Only(externals) => {
                 let external_glob = packages_glob(*externals).await?;
 
-                if let Some(external_glob) = *external_glob {
-                    if !external_glob.await?.execute(&raw_fs_path.path) {
+                if let Some(PackagesGlobs {
+                    path_glob,
+                    request_glob,
+                }) = *external_glob
+                {
+                    let path_match = path_glob.await?.execute(&raw_fs_path.path);
+                    let request_match = if let Some(request_str) = &request_str {
+                        request_glob.await?.execute(&request_str)
+                    } else {
+                        false
+                    };
+
+                    if !path_match && !request_match {
                         return Ok(ResolveResultOption::none());
                     }
                 } else {
@@ -122,6 +148,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
             && ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
                 .includes(&reference_type);
 
+        #[derive(Debug, Copy, Clone)]
         enum FileType {
             CommonJs,
             EcmaScriptModule,
@@ -187,12 +214,28 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // unsupported file type, bundle it
                 Ok(ResolveResultOption::none())
             }
-            (FileType::CommonJs, _) | (FileType::EcmaScriptModule, true) => {
+            (FileType::CommonJs, _) => {
                 if let Some(request) = request.await?.request() {
                     // mark as external
                     Ok(ResolveResultOption::some(
-                        ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+                        ResolveResult::primary(ResolveResultItem::External(
                             request,
+                            ExternalType::CommonJs,
+                        ))
+                        .cell(),
+                    ))
+                } else {
+                    // unsupported request, bundle it
+                    Ok(ResolveResultOption::none())
+                }
+            }
+            (FileType::EcmaScriptModule, true) => {
+                if let Some(request) = request.await?.request() {
+                    // mark as external
+                    Ok(ResolveResultOption::some(
+                        ResolveResult::primary(ResolveResultItem::External(
+                            request,
+                            ExternalType::EcmaScriptModule,
                         ))
                         .cell(),
                     ))
@@ -210,19 +253,30 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
     }
 }
 
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug)]
+pub struct PackagesGlobs {
+    path_glob: Vc<Glob>,
+    request_glob: Vc<Glob>,
+}
+
 // TODO move that to turbo
 #[turbo_tasks::value(transparent)]
-pub struct OptionGlob(Option<Vc<Glob>>);
+pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
-async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionGlob>> {
+async fn packages_glob(packages: Vc<Vec<String>>) -> Result<Vc<OptionPackagesGlobs>> {
     let packages = packages.await?;
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    Ok(Vc::cell(Some(
-        Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")))
-            .resolve()
-            .await?,
-    )))
+    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")));
+    let request_glob = Glob::new(format!(
+        "{{{},{}/**}}",
+        packages.join(","),
+        packages.join("/**,")
+    ));
+    Ok(Vc::cell(Some(PackagesGlobs {
+        path_glob: path_glob.resolve().await?,
+        request_glob: request_glob.resolve().await?,
+    })))
 }
