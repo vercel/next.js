@@ -1,5 +1,6 @@
 import path from '../../../shared/lib/isomorphic/path'
 import * as Log from '../../../build/output/log'
+import type { MetadataContext } from '../types/resolvers'
 
 function isStringOrURL(icon: any): icon is string | URL {
   return typeof icon === 'string' || icon instanceof URL
@@ -83,15 +84,8 @@ function resolveRelativeUrl(url: string | URL, pathname: string): string | URL {
 function resolveAbsoluteUrlWithPathname(
   url: string | URL,
   metadataBase: URL | null,
-  pathname: string,
-  trailingSlash: boolean
+  { trailingSlash, pathname }: MetadataContext
 ): string {
-  console.trace(
-    'trailingSlash',
-    trailingSlash,
-    'process.env.__NEXT_TRAILING_SLASH',
-    process.env.__NEXT_TRAILING_SLASH
-  )
   url = resolveRelativeUrl(url, pathname)
 
   // Get canonicalUrl without trailing slash

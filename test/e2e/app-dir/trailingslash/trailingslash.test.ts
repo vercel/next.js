@@ -29,7 +29,7 @@ createNextDescribe(
         'http://trailingslash.com/'
       )
 
-      const $a = await next.render$('/')
+      const $a = await next.render$('/a')
       expect($a(`link[rel="canonical"]`).attr('href')).toBe(
         'http://trailingslash.com/a/'
       )
