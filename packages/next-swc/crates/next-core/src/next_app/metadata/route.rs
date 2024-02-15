@@ -94,7 +94,7 @@ async fn static_route_source(
 
     let cache_control = if stem == "favicon" {
         CACHE_HEADER_REVALIDATE
-    } else if mode.is_build() {
+    } else if mode == NextMode::Build {
         CACHE_HEADER_LONG_CACHE
     } else {
         CACHE_HEADER_NONE
@@ -195,7 +195,9 @@ async fn dynamic_site_map_route_source(
 
     let mut static_generation_code = "";
 
-    if mode.is_build() && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string())) {
+    if mode == NextMode::Build
+        && page.contains(&PageSegment::Dynamic("[__metadata_id__]".to_string()))
+    {
         static_generation_code = indoc! {
             r#"
                 export async function generateStaticParams() {
