@@ -6,7 +6,6 @@ window.next.version += '-turbo'
 ;(self as any).__webpack_hash__ = ''
 
 appBootstrap(() => {
-  require('./app-turbopack')
   const { hydrate } = require('./app-index')
   hydrate()
 })

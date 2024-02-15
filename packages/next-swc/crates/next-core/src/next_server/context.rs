@@ -15,7 +15,6 @@ use turbopack_binding::{
             },
             environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
             free_var_references,
-            resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
@@ -44,7 +43,7 @@ use crate::{
     embed_js::next_js_fs,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
-    next_client::{RuntimeEntries, RuntimeEntry},
+    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
@@ -721,25 +720,10 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
 
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    ty: Value<ServerContextType>,
-    mode: NextMode,
+    _ty: Value<ServerContextType>,
+    _mode: NextMode,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![];
-
-    if matches!(mode, NextMode::Build) {
-        if let ServerContextType::AppRSC { .. } = ty.into_value() {
-            runtime_entries.push(
-                RuntimeEntry::Request(
-                    Request::parse(Value::new(Pattern::Constant(
-                        "./build/server/app-bootstrap.ts".to_string(),
-                    ))),
-                    next_js_fs().root().join("_".to_string()),
-                )
-                .cell(),
-            );
-        }
-    }
-
+    let runtime_entries = vec![];
     Vc::cell(runtime_entries)
 }
 
