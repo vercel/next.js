@@ -9395,9 +9395,7 @@
   "test/integration/edge-runtime-configurable-guards/test/index.test.js": {
     "passed": [
       "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime"
-    ],
-    "failed": [
+      "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
       "Edge runtime configurable guards Edge API using lib with allowed, used dynamic code still warns in dev at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
       "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
@@ -9407,6 +9405,7 @@
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
       "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
     ],
+    "failed": [],
     "pending": [
       "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
       "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
@@ -9427,9 +9426,7 @@
       "Edge route usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation dev mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Middleware usage of dynamic code evaluation dev mode does not show warning when no code uses eval",
-      "Page using eval in dev mode does issue dynamic code evaluation warnings"
-    ],
-    "failed": [
+      "Page using eval in dev mode does issue dynamic code evaluation warnings",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.compile",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Edge route usage of dynamic code evaluation dev mode shows a warning when running code with eval",
@@ -9437,6 +9434,7 @@
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
       "Middleware usage of dynamic code evaluation dev mode shows a warning when running code with eval"
     ],
+    "failed": [],
     "pending": [
       "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
       "Middleware usage of dynamic code evaluation production mode should have middleware warning during build"
