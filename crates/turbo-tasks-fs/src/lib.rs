@@ -189,6 +189,11 @@ pub struct DiskFileSystem {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     watcher: Arc<DiskWatcher>,
+    /// Array of paths that should not notify invalidations.
+    /// `notify` currently doesn't support unwatching subpaths from the root,
+    /// so underlying we still watches filesystem event but only skips to
+    /// invalidate.
+    ignored_subpaths: Vec<PathBuf>,
 }
 
 impl DiskFileSystem {
@@ -357,6 +362,8 @@ impl DiskFileSystem {
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         let disk_watcher = self.watcher.clone();
 
+        let ignored_paths = self.ignored_subpaths.clone();
+
         spawn_thread(move || {
             let mut batched_invalidate_path = HashSet::new();
             let mut batched_invalidate_path_dir = HashSet::new();
@@ -373,6 +380,16 @@ impl DiskFileSystem {
                     match event {
                         Ok(Ok(events)) => {
                             events.iter().for_each(|DebouncedEvent { event: notify_debouncer_full::notify::Event {kind, paths, ..}, .. }| {
+                                let paths: Vec<PathBuf> = paths.iter().filter(|p| {
+                                    !ignored_paths.iter().any(|ignored| {
+                                        p.starts_with(ignored)
+                                    })
+                                }).cloned().collect();
+
+                                if paths.is_empty() {
+                                    return;
+                                }
+
                                 // [NOTE] there is attrs in the `Event` struct, which contains few more metadata like process_id who triggered the event,
                                 // or the source we may able to utilize later.
                                 match kind {
@@ -628,8 +645,21 @@ pub fn path_to_key(path: impl AsRef<Path>) -> String {
 
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
+    /// Create a new instance of `DiskFileSystem`.
+    /// # Arguments
+    ///
+    /// * `name` - Name of the filesystem.
+    /// * `root` - Path to the given filesystem's root.
+    /// * `ignored_subpaths` - A list of subpaths that should not trigger
+    ///   invalidation. This should be a full path, since it is possible that
+    ///   root & project dir is different and requires to ignore specific
+    ///   subpaths from each.
     #[turbo_tasks::function]
-    pub async fn new(name: String, root: String) -> Result<Vc<Self>> {
+    pub async fn new(
+        name: String,
+        root: String,
+        ignored_subpaths: Vec<String>,
+    ) -> Result<Vc<Self>> {
         mark_stateful();
         // create the directory for the filesystem on disk, if it doesn't exist
         fs::create_dir_all(&root).await?;
@@ -642,6 +672,7 @@ impl DiskFileSystem {
             invalidator_map: Arc::new(InvalidatorMap::new()),
             dir_invalidator_map: Arc::new(InvalidatorMap::new()),
             watcher: Default::default(),
+            ignored_subpaths: ignored_subpaths.iter().map(PathBuf::from).collect(),
         };
 
         Ok(Self::cell(instance))
