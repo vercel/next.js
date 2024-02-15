@@ -148,7 +148,7 @@ import {
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
-import { isRouteHandler } from '../lib/is-app-route-route'
+import { isRouteHandler as isRouteHandlerFn } from '../lib/is-app-route-route'
 import { createClientRouterFilter } from '../lib/create-client-router-filter'
 import { createValidFileMatcher } from '../server/lib/find-page-file'
 import { startTypeChecking } from './type-check'
@@ -2005,7 +2005,7 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
-                        isRouteHandler = isRouteHandler(originalAppPath)
+                        isRouteHandler = isRouteHandlerFn(originalAppPath)
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2099,7 +2099,7 @@ export default async function build(
                           // an app page.
                           if (
                             !isStatic &&
-                            !isRouteHandler(originalAppPath) &&
+                            !isRouteHandlerFn(originalAppPath) &&
                             !isDynamicRoute(originalAppPath) &&
                             !isPPR &&
                             !isInterceptionRoute
@@ -2642,7 +2642,7 @@ export default async function build(
               })
             }
 
-            const isRouteHandler = isRouteHandler(originalAppPath)
+            const isRouteHandler = isRouteHandlerFn(originalAppPath)
 
             // When this is an app page and PPR is enabled, the route supports
             // partial pre-rendering.
