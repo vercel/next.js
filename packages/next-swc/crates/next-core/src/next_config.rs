@@ -20,7 +20,7 @@ use turbopack_binding::{
             resolve::{
                 find_context_file,
                 options::{ImportMap, ImportMapping},
-                FindContextFileResult, ResolveAliasMap,
+                ExternalType, FindContextFileResult, ResolveAliasMap,
             },
             source::Source,
         },
@@ -900,14 +900,30 @@ async fn load_next_config_and_custom_routes_internal(
     } = *execution_context.await?;
     let mut import_map = ImportMap::default();
 
-    import_map.insert_exact_alias("next", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
-    import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_exact_alias(
+        "next",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
+    import_map.insert_wildcard_alias(
+        "next/",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
+    import_map.insert_exact_alias(
+        "styled-jsx",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+        ImportMapping::External(
+            Some("styled-jsx/style.js".to_string()),
+            ExternalType::CommonJs,
+        )
+        .cell(),
     );
-    import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
+    import_map.insert_wildcard_alias(
+        "styled-jsx/",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
 
     let context = node_evaluate_asset_context(
         execution_context,
