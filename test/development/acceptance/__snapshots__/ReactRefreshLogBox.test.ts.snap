@@ -72,6 +72,8 @@ exports[`ReactRefreshLogBox default should strip whitespace correctly with newli
 
 exports[`ReactRefreshLogBox turbo boundaries 1`] = `null`;
 
+exports[`ReactRefreshLogBox turbo conversion to class component (1) 1`] = `null`;
+
 exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
 
 exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;

@@ -927,16 +927,14 @@
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
+      "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
-    "failed": [
-      "ReactRefreshLogBox app turbo conversion to class component (1)",
-      "ReactRefreshLogBox app turbo css syntax errors"
-    ],
+    "failed": ["ReactRefreshLogBox app turbo css syntax errors"],
     "pending": [
       "ReactRefreshLogBox app default Call stack count is correct for client error",
       "ReactRefreshLogBox app default Call stack count is correct for server error",
@@ -1279,6 +1277,7 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
+      "ReactRefreshLogBox turbo conversion to class component (1)",
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
@@ -1298,7 +1297,7 @@
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
-    "flakey": ["ReactRefreshLogBox turbo conversion to class component (1)"],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBoxMisc.test.ts": {
