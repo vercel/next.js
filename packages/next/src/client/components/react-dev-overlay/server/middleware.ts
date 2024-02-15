@@ -216,7 +216,7 @@ export async function createOriginalStackFrame({
       ? path.relative(rootDirectory, filePath)
       : sourcePosition.source,
     lineNumber: sourcePosition.line,
-    column: (sourcePosition.column ?? 0) + 1,
+    column: sourcePosition.column ?? 1,
     methodName:
       sourcePosition.name ||
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
