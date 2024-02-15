@@ -363,66 +363,34 @@ pub async fn get_client_runtime_entries(
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<RuntimeEntries>> {
     let mut runtime_entries = vec![];
+    let resolve_options_context =
+        get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
 
-    match mode {
-        NextMode::Development => {
-            let resolve_options_context = get_client_resolve_options_context(
-                project_root,
-                ty,
-                mode,
-                next_config,
-                execution_context,
-            );
-            let enable_react_refresh =
-                assert_can_resolve_react_refresh(project_root, resolve_options_context)
-                    .await?
-                    .as_request();
+    if (matches!(mode, NextMode::Development)) {
+        let enable_react_refresh =
+            assert_can_resolve_react_refresh(project_root, resolve_options_context)
+                .await?
+                .as_request();
 
-            // It's important that React Refresh come before the regular bootstrap file,
-            // because the bootstrap contains JSX which requires Refresh's global
-            // functions to be available.
-            if let Some(request) = enable_react_refresh {
-                runtime_entries
-                    .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
-            };
+        // It's important that React Refresh come before the regular bootstrap file,
+        // because the bootstrap contains JSX which requires Refresh's global
+        // functions to be available.
+        if let Some(request) = enable_react_refresh {
+            runtime_entries
+                .push(RuntimeEntry::Request(request, project_root.join("_".to_string())).cell())
+        };
+    }
 
-            if matches!(*ty, ClientContextType::App { .. },) {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "next/dist/client/app-next-dev-turbopack.js".to_string(),
-                        ))),
-                        project_root.join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-        }
-        NextMode::Build => match *ty {
-            ClientContextType::App { .. } => {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/client/app-bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-            ClientContextType::Pages { .. } => {
-                runtime_entries.push(
-                    RuntimeEntry::Request(
-                        Request::parse(Value::new(Pattern::Constant(
-                            "./build/client/bootstrap.ts".to_string(),
-                        ))),
-                        next_js_fs().root().join("_".to_string()),
-                    )
-                    .cell(),
-                );
-            }
-            _ => {}
-        },
+    if matches!(*ty, ClientContextType::App { .. },) {
+        runtime_entries.push(
+            RuntimeEntry::Request(
+                Request::parse(Value::new(Pattern::Constant(
+                    "next/dist/client/app-next-turbopack.js".to_string(),
+                ))),
+                project_root.join("_".to_string()),
+            )
+            .cell(),
+        );
     }
 
     Ok(Vc::cell(runtime_entries))
