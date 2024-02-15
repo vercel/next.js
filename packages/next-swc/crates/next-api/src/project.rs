@@ -359,6 +359,7 @@ impl Project {
         let disk_fs = DiskFileSystem::new(
             PROJECT_FILESYSTEM_NAME.to_string(),
             this.root_path.to_string(),
+            vec![],
         );
         if this.watch {
             disk_fs.await?.start_watching_with_invalidation_reason()?;
@@ -375,7 +376,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
         let this = self.await?;
-        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone());
+        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone(), vec![]);
         disk_fs.await?.start_watching_with_invalidation_reason()?;
         Ok(Vc::upcast(disk_fs))
     }
