@@ -751,7 +751,6 @@ impl From<UpdateInfo> for NapiUpdateInfo {
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     aggregation_ms: u32,
-    ///
     func: JsFunction,
 ) -> napi::Result<()> {
     let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
