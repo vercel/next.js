@@ -22,7 +22,7 @@ export function Video() {
       <track
         src="/path/to/captions.vtt"
         kind="subtitles"
-        srclang="en"
+        srcLang="en"
         label="English"
       />
       Your browser does not support the video tag.
@@ -229,7 +229,7 @@ async function VideoComponent({ fileName }) {
       <track
         src={captionsUrl}
         kind="subtitles"
-        srclang="en"
+        srcLang="en"
         label="English">
       Your browser does not support the video tag.
     </video>
