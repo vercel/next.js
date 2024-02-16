@@ -102,8 +102,9 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   const edgeFunction: (args: {
     request: RequestData
-  }) => Promise<FetchEventResult> =
-    runtime.context._ENTRIES[`middleware_${params.name}`].default
+  }) => Promise<FetchEventResult> = (
+    await runtime.context._ENTRIES[`middleware_${params.name}`]
+  ).default
 
   const cloned = !['HEAD', 'GET'].includes(params.request.method)
     ? params.request.body?.cloneBodyStream()
