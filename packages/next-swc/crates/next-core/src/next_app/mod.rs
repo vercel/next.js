@@ -208,6 +208,13 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
+    pub fn is_catchall(&self) -> bool {
+        matches!(
+            self.0.last(),
+            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+        )
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }

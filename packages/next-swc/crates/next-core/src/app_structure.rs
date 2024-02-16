@@ -23,7 +23,7 @@ use crate::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
             GlobalMetadataFileMatch, MetadataFileMatch,
         },
-        AppPage, AppPath, PageSegment, PageType,
+        AppPage, AppPath, PageType,
     },
     next_config::NextConfig,
     next_import_map::get_next_package,
@@ -438,12 +438,7 @@ impl LoaderTree {
     /// route.
     #[turbo_tasks::function]
     pub async fn has_only_catchall(&self) -> Result<Vc<bool>> {
-        if self.segment == "__PAGE__"
-            && !matches!(
-                self.page.0.last(),
-                Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
-            )
-        {
+        if self.segment == "__PAGE__" && !self.page.is_catchall() {
             return Ok(Vc::cell(false));
         }
 
