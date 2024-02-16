@@ -25,8 +25,13 @@ const externalPattern = new RegExp(
 
 const nodeModulesRegex = /node_modules[/\\].*\.[mc]?js$/
 
-function startsWithAny(str: string, prefixes: string[]): boolean {
-  return prefixes.some((prefix) => str.startsWith(prefix))
+function containsImportInPackages(
+  request: string,
+  packages: string[]
+): boolean {
+  return packages.some(
+    (pkg) => request === pkg || request.startsWith(pkg + '/')
+  )
 }
 
 export function isResourceInPackages(
@@ -78,7 +83,7 @@ export async function resolveExternal(
     // For package that marked as externals that should be not bundled,
     // we don't resolve them as ESM since it could be resolved as async module,
     // such as `import(external package)` in the bundle, valued as a `Promise`.
-    !startsWithAny(request, optOutBundlingPackages)
+    !containsImportInPackages(request, optOutBundlingPackages)
       ? [true, false]
       : [false]
 
@@ -279,7 +284,7 @@ export function makeExternalHandler({
         : request
 
       // Check if it's opt out bundling package first
-      if (startsWithAny(fullRequest, optOutBundlingPackages)) {
+      if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
         return fullRequest
       }
       return resolveNextExternal(fullRequest)
