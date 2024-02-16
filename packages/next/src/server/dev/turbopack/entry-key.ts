@@ -7,32 +7,25 @@
 export type EntryKeyType = 'app' | 'pages' | 'root' | 'assets'
 export type EntryKeySide = 'client' | 'server'
 
-export type EntryKey = `${EntryKeyType}@${EntryKeySide}@${string}`
+// custom type to make sure you can't accidentally use a "generic" string
+export type EntryKey =
+  `{"type":"${EntryKeyType}","side":"${EntryKeyType}","page":"${string}"}`
 
 /**
  * Get a key that's unique across all entrypoints.
  */
-export function getEntryKey<
-  Type extends EntryKeyType,
-  Side extends EntryKeySide,
-  Page extends string
->(type: Type, side: Side, page: Page): `${Type}@${Side}@${Page}` {
-  return `${type}@${side}@${page}` satisfies EntryKey
+export function getEntryKey(
+  type: EntryKeyType,
+  side: EntryKeySide,
+  page: string
+): EntryKey {
+  return JSON.stringify({ type, side, page }) as EntryKey
 }
 
-export function splitEntryKey<
-  Type extends EntryKeyType = EntryKeyType,
-  Side extends EntryKeySide = EntryKeySide,
-  Page extends string = string
->(key: `${Type}@${Side}@${Page}`): [Type, Side, Page] {
-  // export function splitEntryKey(
-  //   key: EntryKey
-  // ): [EntryKeyType, EntryKeySide, string] {
-  const split = key.split('@')
-
-  if (split.length !== 3) {
-    throw new Error(`invalid entry key: ${key}`)
-  }
-
-  return [split[0] as Type, split[1] as Side, split[2] as Page]
+export function splitEntryKey(key: EntryKey): {
+  type: EntryKeyType
+  side: EntryKeySide
+  page: string
+} {
+  return JSON.parse(key)
 }

@@ -301,7 +301,7 @@ export async function createHotReloaderTurbopack(
       change: TurbopackResult
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
-    const [, side] = splitEntryKey(key)
+    const { side } = splitEntryKey(key)
 
     if (!endpoint || changeSubscriptions.has(key)) return
 

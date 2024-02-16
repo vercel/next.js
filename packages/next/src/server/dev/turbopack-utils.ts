@@ -497,7 +497,7 @@ export async function handleEntrypoints({
 
   if (changeSubscriptions) {
     for (const [key, subscriptionPromise] of changeSubscriptions) {
-      const [type, , page] = splitEntryKey(key)
+      const { type, page } = splitEntryKey(key)
 
       // middleware is handled below
       if (
@@ -512,7 +512,7 @@ export async function handleEntrypoints({
   }
 
   for (const [key] of currentIssues) {
-    const [type, , page] = splitEntryKey(key)
+    const { type, page } = splitEntryKey(key)
 
     if (
       (type === 'app' && !currentEntrypoints.page.has(page)) ||
