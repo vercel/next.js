@@ -31,20 +31,18 @@ const appExternals = [
 
 function makeAppAliases(reactChannel = '') {
   return {
-    react$: `next/dist/compiled/react${reactChannel}`,
-    'react/': `next/dist/compiled/react${reactChannel}/`,
+    react: `next/dist/compiled/react${reactChannel}`,
+    'react-dom': `next/dist/compiled/react-dom${reactChannel}`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react-dom/server-rendering-stub': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react-dom/': `next/dist/compiled/react-dom${reactChannel}/`,
 
     // special alias only available in react-dom
-    'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    'react-dom/static': `next/dist/compiled/react-dom-experimental/static`,
+    'react-dom/static.edge': `next/dist/compiled/react-dom-experimental/static.edge`,
+    'react-dom/static.browser': `next/dist/compiled/react-dom-experimental/static.browser`,
     // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    'react-dom/server.edge': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
     // In Next.js runtime only use react-dom/server.edge
-    'react-dom/server.browser$': 'react-dom/server.edge',
+    'react-dom/server.browser': 'react-dom/server.edge',
     // react-server-dom-(webpack|turbopack) alias
     'react-server-dom-turbopack': `next/dist/compiled/react-server-dom-turbopack${reactChannel}`,
     'react-server-dom-webpack': `next/dist/compiled/react-server-dom-webpack${reactChannel}`,
