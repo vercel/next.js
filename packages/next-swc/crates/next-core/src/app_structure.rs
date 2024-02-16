@@ -23,7 +23,7 @@ use crate::{
             match_global_metadata_file, match_local_metadata_file, normalize_metadata_route,
             GlobalMetadataFileMatch, MetadataFileMatch,
         },
-        AppPage, AppPath, PageType,
+        AppPage, AppPath, PageSegment, PageType,
     },
     next_config::NextConfig,
     next_import_map::get_next_package,
@@ -433,6 +433,28 @@ impl LoaderTree {
 
         Ok(Vc::cell(false))
     }
+
+    /// Returns whether or not the only match in this tree is for a catch-all
+    /// route.
+    #[turbo_tasks::function]
+    pub async fn has_only_catchall(&self) -> Result<Vc<bool>> {
+        if self.segment == "__PAGE__"
+            && !matches!(
+                self.page.0.last(),
+                Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+            )
+        {
+            return Ok(Vc::cell(false));
+        }
+
+        for (_, tree) in &self.parallel_routes {
+            if !*tree.has_only_catchall().await? {
+                return Ok(Vc::cell(false));
+            }
+        }
+
+        Ok(Vc::cell(true))
+    }
 }
 
 #[derive(
@@ -462,10 +484,6 @@ fn is_parallel_route(name: &str) -> bool {
 
 fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
-}
-
-fn is_catchall_route(name: &str) -> bool {
-    name.starts_with("[...") && name.ends_with(']')
 }
 
 fn match_parallel_route(name: &str) -> Option<&str> {
@@ -766,7 +784,6 @@ async fn directory_tree_to_loader_tree(
 
     for (subdir_name, subdirectory) in &directory_tree.subdirectories {
         let parallel_route_key = match_parallel_route(subdir_name);
-        let is_catchall = is_catchall_route(subdir_name);
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
@@ -804,17 +821,12 @@ async fn directory_tree_to_loader_tree(
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if is_catchall {
+                if *subtree.has_only_catchall().await? {
                     // there's probably already a more specific page in the
                     // slot.
-                } else if is_catchall_route(&current_tree.await?.segment) {
+                } else if *current_tree.has_only_catchall().await? {
                     tree.parallel_routes.insert("children".to_string(), subtree);
                 } else {
-                    println!(
-                        "You cannot have two parallel pages that resolve to the same path. Route \
-                         {} has multiple matches in {}",
-                        for_app_path, app_page
-                    );
                     // TODO: improve error message to have the full paths
                     DirectoryTreeIssue {
                         app_dir,

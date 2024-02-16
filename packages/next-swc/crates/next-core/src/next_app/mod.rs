@@ -327,13 +327,6 @@ impl AppPath {
                 return true;
             }
 
-            if matches!(
-                self_segment,
-                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
-            ) {
-                return true;
-            }
-
             return false;
         }
 
