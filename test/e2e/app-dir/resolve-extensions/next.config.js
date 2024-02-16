@@ -1,4 +1,4 @@
-const extensions = ['png', 'tsx', 'ts', 'jsx', 'js', 'json']
+const extensions = ['', '.png', '.tsx', '.ts', '.jsx', '.js', '.json']
 
 /**
  * @type {import('next').NextConfig}
@@ -6,11 +6,11 @@ const extensions = ['png', 'tsx', 'ts', 'jsx', 'js', 'json']
 const nextConfig = {
   experimental: {
     turbo: {
-      resolveExtensions: extensions,
+      resolveExtensions: [...extensions],
     },
   },
   webpack(config) {
-    config.resolve.extensions = extensions.map((ext) => `.${ext}`)
+    config.resolve.extensions = [...extensions]
     return config
   },
 }
