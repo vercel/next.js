@@ -7,7 +7,7 @@ use turbopack_core::resolve::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
-    AliasMap, AliasPattern, FindContextFileResult,
+    AliasMap, AliasPattern, ExternalType, FindContextFileResult,
 };
 use turbopack_ecmascript::typescript::resolve::{
     apply_tsconfig_resolve_options, tsconfig, tsconfig_resolve_options,
@@ -94,11 +94,11 @@ async fn base_resolve_options(
         for req in NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(None).into(),
+                ImportMapping::External(None, ExternalType::CommonJs).into(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None).into(),
+                ImportMapping::External(None, ExternalType::CommonJs).into(),
             );
         }
     }
@@ -106,11 +106,11 @@ async fn base_resolve_options(
         for req in EDGE_NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(Some(format!("node:{req}"))).into(),
+                ImportMapping::External(Some(format!("node:{req}")), ExternalType::CommonJs).into(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None).into(),
+                ImportMapping::External(None, ExternalType::CommonJs).into(),
             );
         }
     }

@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
@@ -12,7 +12,9 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
-    resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
+    resolve::{
+        origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
+    },
 };
 
 use super::base::ReferencedAsset;
@@ -181,7 +183,10 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                    ReferencedAsset::External(
+                        request,
+                        ExternalType::OriginalReference | ExternalType::Url,
+                    ) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -197,6 +202,13 @@ impl CodeGenerateable for UrlAssetReference {
                                 );
                             }
                         }));
+                    }
+                    ReferencedAsset::External(request, ty) => {
+                        bail!(
+                            "Unsupported external type {:?} for URL reference with request: {:?}",
+                            ty,
+                            request
+                        )
                     }
                     ReferencedAsset::None => {}
                 }
@@ -263,7 +275,10 @@ impl CodeGenerateable for UrlAssetReference {
                             }
                         }));
                     }
-                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                    ReferencedAsset::External(
+                        request,
+                        ExternalType::OriginalReference | ExternalType::Url,
+                    ) => {
                         let request = request.to_string();
                         visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -278,6 +293,13 @@ impl CodeGenerateable for UrlAssetReference {
                                 }
                             }
                         }));
+                    }
+                    ReferencedAsset::External(request, ty) => {
+                        bail!(
+                            "Unsupported external type {:?} for URL reference with request: {:?}",
+                            ty,
+                            request
+                        )
                     }
                     ReferencedAsset::None => {}
                 }

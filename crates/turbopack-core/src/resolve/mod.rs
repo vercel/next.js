@@ -65,8 +65,7 @@ use crate::{error::PrettyPrintError, issue::IssueSeverity};
 pub enum ModuleResolveResultItem {
     Module(Vc<Box<dyn Module>>),
     OutputAsset(Vc<Box<dyn OutputAsset>>),
-    OriginalReferenceExternal,
-    OriginalReferenceTypeExternal(String),
+    External(String, ExternalType),
     Ignore,
     Empty,
     Custom(u8),
@@ -363,11 +362,30 @@ impl ModuleResolveResultOption {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+pub enum ExternalType {
+    OriginalReference,
+    Url,
+    CommonJs,
+    EcmaScriptModule,
+}
+
+impl Display for ExternalType {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExternalType::OriginalReference => write!(f, "original reference"),
+            ExternalType::CommonJs => write!(f, "commonjs"),
+            ExternalType::EcmaScriptModule => write!(f, "esm"),
+            ExternalType::Url => write!(f, "url"),
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ResolveResultItem {
     Source(Vc<Box<dyn Source>>),
-    OriginalReferenceTypeExternal(String),
+    External(String, ExternalType),
     Ignore,
     Empty,
     Custom(u8),
@@ -442,9 +460,10 @@ impl ValueToString for ResolveResult {
                 ResolveResultItem::Source(a) => {
                     result.push_str(&a.ident().to_string().await?);
                 }
-                ResolveResultItem::OriginalReferenceTypeExternal(s) => {
+                ResolveResultItem::External(s, ty) => {
                     result.push_str("external ");
                     result.push_str(s);
+                    write!(result, " ({})", ty)?;
                 }
                 ResolveResultItem::Ignore => {
                     result.push_str("ignore");
@@ -633,8 +652,8 @@ impl ResolveResult {
                             request,
                             match item {
                                 ResolveResultItem::Source(source) => asset_fn(source).await?,
-                                ResolveResultItem::OriginalReferenceTypeExternal(s) => {
-                                    ModuleResolveResultItem::OriginalReferenceTypeExternal(s)
+                                ResolveResultItem::External(s, ty) => {
+                                    ModuleResolveResultItem::External(s, ty)
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
@@ -1641,7 +1660,7 @@ async fn resolve_internal_inline(
                 let uri = format!("{}{}", protocol, remainder);
                 ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
-                    ResolveResultItem::OriginalReferenceTypeExternal(uri),
+                    ResolveResultItem::External(uri, ExternalType::Url),
                 )
                 .into()
             }
