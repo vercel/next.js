@@ -2451,6 +2451,7 @@
       "app dir - css css support client pages should support global css inside client pages",
       "app dir - css css support css ordering should have inner layers take precedence over outer layers",
       "app dir - css css support multiple entries should deduplicate styles on the module level",
+      "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support page extensions should include css imported in MDX pages",
       "app dir - css css support server layouts should support css modules inside server layouts",
       "app dir - css css support server pages should not contain pages css in app dir page",
@@ -2478,7 +2479,6 @@
     ],
     "failed": [
       "app dir - css css support chunks should bundle css resources into chunks",
-      "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support should not preload styles twice during HMR"
     ],
     "pending": [
