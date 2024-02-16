@@ -4,10 +4,12 @@ import { Command, Option } from 'commander'
 
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
+import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { myParseInt } from '../server/lib/utils'
 import { nextBuild } from '../cli/next-build'
 import { nextExport } from '../cli/next-export'
 import { nextInfo } from '../cli/next-info'
+import { nextLint } from '../cli/next-lint'
 import { nextStart } from '../cli/next-start'
 import { nextTelemetry } from '../cli/next-telemetry'
 
@@ -27,7 +29,10 @@ program
   .description(
     'The Next.js CLI allows you to start, build, and export your application.'
   )
-  .configureHelp({ subcommandTerm: (cmd) => cmd.name() + ' ' + cmd.usage() })
+  .configureHelp({
+    formatHelp: (cmd, helper) => formatCliHelpOutput(cmd, helper),
+    subcommandTerm: (cmd) => `${cmd.name()} ${cmd.usage()}`,
+  })
   .helpCommand(false)
   .helpOption('-h, --help', 'Displays this message.')
   .version(
@@ -43,7 +48,7 @@ program
   )
   .argument(
     '[directory]',
-    `A directory on which to start the application. ${italic(
+    `A directory on which to build the application. ${italic(
       'If no directory is provided, the current directory will be used.'
     )}`
   )
@@ -54,7 +59,7 @@ program
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
   .addOption(
-    new Option('--build-mode <mode>')
+    new Option('--build-mode [mode]')
       .choices(['experimental-compile', 'experimental-generate'])
       .default('default')
       .hideHelp()
@@ -77,6 +82,85 @@ program
   .action((options) => nextInfo(options))
 
 program
+  .command('lint')
+  .description(
+    'Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint is not already configured in your application.'
+  )
+  .argument(
+    '[directory]',
+    `A base directory on which to lint the application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option(
+    '-d, --dir, <dirs...>',
+    'Include directory, or directories, to run ESLint.'
+  )
+  .option('--file, <files...>', 'Include file, or files, to run ESLint.')
+  .addOption(
+    new Option(
+      '--ext, [exts...]',
+      'Specify JavaScript file extensions.'
+    ).default(['.js', '.mjs', '.cjs', '.jsx', '.ts', '.mts', '.cts', '.tsx'])
+  )
+  .option(
+    '-c, --config, <config>',
+    'Uses this configuration file, overriding all other configuration options.'
+  )
+  .option(
+    '--resolve-plugins-relative-to, <rprt>',
+    'Specify a directory where plugins should be resolved from.'
+  )
+  .option(
+    '--strict',
+    'Creates a `.eslintrc.json` file using the Next.js strict configuration.'
+  )
+  .option(
+    '--rulesdir, <rulesdir...>',
+    'Uses additional rules from this directory(s).'
+  )
+  .option('--fix', 'Automatically fix linting issues.')
+  .option(
+    '--fix-type <fixType>',
+    'Specify the types of fixes to apply (e.g., problem, suggestion, layout).'
+  )
+  .option('--ignore-path <path>', 'Specify a file to ignore.')
+  .option('--no-ignore', 'Disables the `--ignore-path` option.')
+  .option('--quiet', 'Reports errors only.')
+  .addOption(
+    new Option(
+      '--max-warnings [maxWarnings]',
+      'Specify the number of warnings before triggering a non-zero exit code.'
+    )
+      .argParser(myParseInt)
+      .default(-1)
+  )
+  .option('--output-file, <outputFile>', 'Specify a file to write report to.')
+  .option('--format, <format>', 'Uses a specific output format.')
+  .option(
+    '--no-inline-config',
+    'Prevents comments from changing config or rules.'
+  )
+  .option(
+    '--report-unused-disable-directives',
+    'Adds reported errors for unused eslint-disable directives.'
+  )
+  .option('--no-cache', 'Disables caching.')
+  .option('--cache-location, <cacheLocation>', 'Specify a location for cache.')
+  .addOption(
+    new Option(
+      '--cache-strategy, [cacheStrategy]',
+      'Specify a strategy to use for decting changed files in the cache.'
+    ).default('metadata')
+  )
+  .option(
+    '--error-on-unmatched-pattern',
+    'Reports errors when any file patterns are unmatched.'
+  )
+  .action((directory, options) => nextLint(options, directory))
+  .usage('[directory] [options]')
+
+program
   .command('start')
   .description(
     'Starts Next.js in production mode. The application should be compiled with `next build` first.'
@@ -89,7 +173,7 @@ program
   )
   .addOption(
     new Option(
-      '-p, --port <port>',
+      '-p, --port [port]',
       'Specify a port number on which to start the application.'
     )
       .argParser(myParseInt)
