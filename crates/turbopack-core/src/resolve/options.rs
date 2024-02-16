@@ -9,7 +9,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use super::{
     alias_map::{AliasMap, AliasTemplate},
-    AliasPattern, ResolveResult, ResolveResultItem,
+    AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
 use crate::resolve::{parse::Request, plugin::ResolvePlugin};
 
@@ -92,7 +92,7 @@ pub enum ResolveInPackage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ImportMapping {
-    External(Option<String>),
+    External(Option<String>, ExternalType),
     /// An already resolved result that will be returned directly.
     Direct(Vc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
@@ -131,11 +131,11 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name) => {
+                ImportMapping::External(name, ty) => {
                     if let Some(name) = name {
-                        ImportMapping::External(Some(name.clone().replace('*', capture)))
+                        ImportMapping::External(Some(name.clone().replace('*', capture)), *ty)
                     } else {
-                        ImportMapping::External(None)
+                        ImportMapping::External(None, *ty)
                     }
                 }
                 ImportMapping::PrimaryAlternative(name, context) => {
@@ -271,11 +271,11 @@ async fn import_mapping_to_result(
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ImportMapping::External(name) => ImportMapResult::Result(
+        ImportMapping::External(name, ty) => ImportMapResult::Result(
             ResolveResult::primary(if let Some(name) = name {
-                ResolveResultItem::OriginalReferenceTypeExternal(name.to_string())
+                ResolveResultItem::External(name.to_string(), *ty)
             } else if let Some(request) = request.await?.request() {
-                ResolveResultItem::OriginalReferenceTypeExternal(request)
+                ResolveResultItem::External(request, *ty)
             } else {
                 bail!("Cannot resolve external reference without request")
             })

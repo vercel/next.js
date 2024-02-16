@@ -7,7 +7,10 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{trace::TraceRawVcs, TryFlatJoinIterExt, TryJoinIterExt, Vc};
-use turbopack_core::chunk::{AsyncModuleInfo, ChunkableModule};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkableModule},
+    resolve::ExternalType,
+};
 
 use super::esm::base::ReferencedAsset;
 use crate::{
@@ -93,7 +96,10 @@ impl AsyncModule {
             .map(|r| async {
                 let referenced_asset = r.get_referenced_asset().await?;
                 Ok(match &*referenced_asset {
-                    ReferencedAsset::OriginalReferenceTypeExternal(_) => {
+                    ReferencedAsset::External(
+                        _,
+                        ExternalType::OriginalReference | ExternalType::EcmaScriptModule,
+                    ) => {
                         if self.import_externals {
                             referenced_asset.get_ident().await?
                         } else {
@@ -114,6 +120,7 @@ impl AsyncModule {
                             None
                         }
                     }
+                    ReferencedAsset::External(..) => None,
                     ReferencedAsset::None => None,
                 })
             })
@@ -138,7 +145,10 @@ impl AsyncModule {
                         let referenced_asset = r.get_referenced_asset().await?;
                         Ok(matches!(
                             &*referenced_asset,
-                            ReferencedAsset::OriginalReferenceTypeExternal(_)
+                            ReferencedAsset::External(
+                                _,
+                                ExternalType::OriginalReference | ExternalType::EcmaScriptModule
+                            )
                         ))
                     })
                     .try_join()

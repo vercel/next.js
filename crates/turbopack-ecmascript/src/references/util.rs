@@ -14,6 +14,17 @@ pub fn throw_module_not_found_expr(request: &str) -> Expr {
     )
 }
 
+/// Creates a IIFE expression that throws a "Cannot find module" error for the
+/// given request string
+pub fn throw_module_not_found_error_expr(request: &str, message: &str) -> Expr {
+    let message = format!("Cannot find module '{request}': {message}");
+    quote!(
+        "(() => { const e = new Error($message); e.code = 'MODULE_NOT_FOUND'; throw e; })()"
+            as Expr,
+        message: Expr = message.into()
+    )
+}
+
 #[turbo_tasks::function]
 pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<String>> {
     Ok(Vc::cell(

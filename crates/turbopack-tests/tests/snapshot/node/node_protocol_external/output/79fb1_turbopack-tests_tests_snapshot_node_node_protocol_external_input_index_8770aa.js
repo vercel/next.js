@@ -4,7 +4,7 @@
 "use strict";
 
 __turbopack_esm__({});
-var __TURBOPACK__external__node$3a$fs__ = __turbopack_external_require__("node:fs", true);
+var __TURBOPACK__url__external__node$3a$fs__ = __turbopack_external_require__("node:fs", true);
 "__TURBOPACK__ecmascript__hoisting__location__";
 ;
 

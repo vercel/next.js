@@ -18,7 +18,7 @@ use turbopack_core::{
     resolve::{
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
-        ModulePart, ModuleResolveResult, ModuleResolveResultItem,
+        ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
     },
 };
 
@@ -34,7 +34,7 @@ use crate::{
 #[turbo_tasks::value]
 pub enum ReferencedAsset {
     Some(Vc<Box<dyn EcmascriptChunkPlaceable>>),
-    OriginalReferenceTypeExternal(String),
+    External(String, ExternalType),
     None,
 }
 
@@ -42,9 +42,9 @@ impl ReferencedAsset {
     pub async fn get_ident(&self) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => Some(Self::get_ident_from_placeable(asset).await?),
-            ReferencedAsset::OriginalReferenceTypeExternal(request) => {
-                Some(magic_identifier::mangle(&format!("external {}", request)))
-            }
+            ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
+                "{ty} external {request}"
+            ))),
             ReferencedAsset::None => None,
         })
     }
@@ -67,10 +67,8 @@ impl ReferencedAsset {
         // TODO handle multiple keyed results
         for (_key, result) in resolve_result.await?.primary.iter() {
             match result {
-                ModuleResolveResultItem::OriginalReferenceTypeExternal(request) => {
-                    return Ok(
-                        ReferencedAsset::OriginalReferenceTypeExternal(request.clone()).cell(),
-                    );
+                ModuleResolveResultItem::External(request, ty) => {
+                    return Ok(ReferencedAsset::External(request.clone(), *ty).cell());
                 }
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
@@ -241,10 +239,13 @@ impl CodeGenerateable for EsmAssetReference {
                             insert_hoisted_stmt(program, stmt);
                         }));
                     }
-                    ReferencedAsset::OriginalReferenceTypeExternal(request) => {
+                    ReferencedAsset::External(
+                        request,
+                        ExternalType::OriginalReference | ExternalType::EcmaScriptModule,
+                    ) => {
                         if !*chunking_context
                             .environment()
-                            .supports_commonjs_externals()
+                            .supports_esm_externals()
                             .await?
                         {
                             bail!(
@@ -255,7 +256,6 @@ impl CodeGenerateable for EsmAssetReference {
                         }
                         let request = request.clone();
                         visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
-                            // TODO Technically this should insert a ESM external, but we don't support that yet
                             let stmt = if import_externals {
                                 quote!(
                                     "var $name = __turbopack_external_import__($id);" as Stmt,
@@ -271,6 +271,39 @@ impl CodeGenerateable for EsmAssetReference {
                             };
                             insert_hoisted_stmt(program, stmt);
                         }));
+                    }
+                    ReferencedAsset::External(
+                        request,
+                        ExternalType::CommonJs | ExternalType::Url,
+                    ) => {
+                        if !*chunking_context
+                            .environment()
+                            .supports_commonjs_externals()
+                            .await?
+                        {
+                            bail!(
+                                "the chunking context does not support external modules (request: \
+                                 {})",
+                                request
+                            );
+                        }
+                        let request = request.clone();
+                        visitors.push(create_visitor!(visit_mut_program(program: &mut Program) {
+                            let stmt = quote!(
+                                "var $name = __turbopack_external_require__($id, true);" as Stmt,
+                                name = Ident::new(ident.clone().into(), DUMMY_SP),
+                                id: Expr = Expr::Lit(request.clone().into())
+                            );
+                            insert_hoisted_stmt(program, stmt);
+                        }));
+                    }
+                    #[allow(unreachable_patterns)]
+                    ReferencedAsset::External(request, ty) => {
+                        bail!(
+                            "Unsupported external type {:?} for ESM reference with request: {:?}",
+                            ty,
+                            request
+                        )
                     }
                     ReferencedAsset::None => {}
                 }
