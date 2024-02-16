@@ -39,6 +39,7 @@ import { isNotFoundError } from '../../client/components/not-found'
 export function createMetadataComponents({
   tree,
   pathname,
+  trailingSlash,
   query,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
@@ -47,6 +48,7 @@ export function createMetadataComponents({
 }: {
   tree: LoaderTree
   pathname: string
+  trailingSlash: boolean
   query: ParsedUrlQuery
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
@@ -57,6 +59,7 @@ export function createMetadataComponents({
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
     pathname,
+    trailingSlash,
   }
 
   let resolve: (value: Error | undefined) => void | undefined

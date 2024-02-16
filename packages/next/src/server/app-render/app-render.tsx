@@ -101,6 +101,7 @@ import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
 } from './dynamic-rendering'
+import { GLOBAL_NOT_FOUND_SEGMENT_KEY } from '../../shared/lib/segment'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -286,6 +287,7 @@ async function generateFlight(
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       pathname: urlPathname,
+      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
@@ -405,10 +407,21 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     query
   )
 
+  // If the page we're rendering is being treated as the global not-found page, we want to special-case
+  // the segment key so it doesn't collide with a page matching the same path.
+  // This is necessary because when rendering the global not-found, it will always be the root segment.
+  // If the not-found page prefetched a link to the root page, it would have the same data path
+  // (e.g., ['', { children: ['__PAGE__', {}] }]). Without this disambiguation, the router would interpret
+  // these pages as being able to share the same cache nodes, which is not the case as they render different things.
+  if (asNotFound) {
+    initialTree[0] = GLOBAL_NOT_FOUND_SEGMENT_KEY
+  }
+
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
@@ -495,6 +508,7 @@ async function ReactServerError({
   const [MetadataTree] = createMetadataComponents({
     tree,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     errorType,
     query,
     getDynamicParamFromSegment,

@@ -15,7 +15,6 @@ use turbopack_binding::{
             },
             environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
             free_var_references,
-            resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
@@ -44,7 +43,7 @@ use crate::{
     embed_js::next_js_fs,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
-    next_client::{RuntimeEntries, RuntimeEntry},
+    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
@@ -102,7 +101,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -141,7 +140,7 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![mode.await?.node_env().to_string(), "node".to_string()];
 
     match ty {
         ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
@@ -303,7 +302,7 @@ pub async fn get_server_module_options_context(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut base_next_server_rules =
@@ -721,25 +720,10 @@ pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
 
 #[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    ty: Value<ServerContextType>,
-    mode: NextMode,
+    _ty: Value<ServerContextType>,
+    _mode: Vc<NextMode>,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![];
-
-    if matches!(mode, NextMode::Build) {
-        if let ServerContextType::AppRSC { .. } = ty.into_value() {
-            runtime_entries.push(
-                RuntimeEntry::Request(
-                    Request::parse(Value::new(Pattern::Constant(
-                        "./build/server/app-bootstrap.ts".to_string(),
-                    ))),
-                    next_js_fs().root().join("_".to_string()),
-                )
-                .cell(),
-            );
-        }
-    }
-
+    let runtime_entries = vec![];
     Vc::cell(runtime_entries)
 }
 
