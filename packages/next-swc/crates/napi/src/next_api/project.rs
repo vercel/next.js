@@ -91,8 +91,8 @@ pub struct NapiProjectOptions {
     /// time.
     pub define_env: NapiDefineEnv,
 
-    /// The address of the dev server.
-    pub server_addr: String,
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -125,8 +125,8 @@ pub struct NapiPartialProjectOptions {
     /// time.
     pub define_env: Option<NapiDefineEnv>,
 
-    /// The address of the dev server.
-    pub server_addr: Option<String>,
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[napi(object)]
@@ -157,7 +157,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
-            server_addr: val.server_addr,
+            dev: val.dev,
         }
     }
 }
@@ -174,7 +174,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
-            server_addr: val.server_addr,
+            dev: val.dev,
         }
     }
 }

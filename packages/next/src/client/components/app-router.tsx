@@ -46,6 +46,7 @@ import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
+  PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import {
   useReducerWithReduxDevtools,
@@ -64,6 +65,8 @@ import { createInfinitePromise } from './infinite-promise'
 import { NEXT_RSC_UNION_QUERY } from './app-router-headers'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import type { Params } from '../../shared/lib/router/utils/route-matcher'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -96,6 +99,36 @@ export function urlToUrlWithoutFlightMarker(url: string): URL {
     }
   }
   return urlWithoutFlightParameters
+}
+
+// this function performs a depth-first search of the tree to find the selected
+// params
+function getSelectedParams(
+  currentTree: FlightRouterState,
+  params: Params = {}
+): Params {
+  const parallelRoutes = currentTree[1]
+
+  for (const parallelRoute of Object.values(parallelRoutes)) {
+    const segment = parallelRoute[0]
+    const isDynamicParameter = Array.isArray(segment)
+    const segmentValue = isDynamicParameter ? segment[1] : segment
+    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
+
+    // Ensure catchAll and optional catchall are turned into an array
+    const isCatchAll =
+      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+
+    if (isCatchAll) {
+      params[segment[0]] = segment[1].split('/')
+    } else if (isDynamicParameter) {
+      params[segment[0]] = segment[1]
+    }
+
+    params = getSelectedParams(parallelRoute, params)
+  }
+
+  return params
 }
 
 type AppRouterProps = Omit<
@@ -264,6 +297,7 @@ function Router({
   initialTree,
   initialCanonicalUrl,
   initialSeedData,
+  couldBeIntercepted,
   assetPrefix,
   missingSlots,
 }: AppRouterProps) {
@@ -275,11 +309,18 @@ function Router({
         initialCanonicalUrl,
         initialTree,
         initialParallelRoutes,
-        isServer,
         location: !isServer ? window.location : null,
         initialHead,
+        couldBeIntercepted,
       }),
-    [buildId, initialSeedData, initialCanonicalUrl, initialTree, initialHead]
+    [
+      buildId,
+      initialSeedData,
+      initialCanonicalUrl,
+      initialTree,
+      initialHead,
+      couldBeIntercepted,
+    ]
   )
   const [reducerState, dispatch, sync] =
     useReducerWithReduxDevtools(initialState)
@@ -470,19 +511,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const urlToRestore = new URL(url ?? href, href)
-      if (!window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
-        // we cannot safely recover from a missing tree -- we need trigger an MPA navigation
-        // to restore the router history to the correct state.
-        window.location.href = urlToRestore.pathname
-        return
-      }
+      const tree: FlightRouterState | undefined =
+        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
-          url: urlToRestore,
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          url: new URL(url ?? href, href),
+          tree,
         })
       })
     }
@@ -501,6 +537,7 @@ function Router({
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
       }
+
       data = copyNextJsInternalHistoryState(data)
 
       if (url) {
@@ -577,6 +614,11 @@ function Router({
     return findHeadInCache(cache, tree[1])
   }, [cache, tree])
 
+  // Add memoized pathParams for useParams.
+  const pathParams = useMemo(() => {
+    return getSelectedParams(tree)
+  }, [tree])
+
   let head
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
@@ -611,8 +653,8 @@ function Router({
         </DevRootNotFoundBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/hot-reloader-client').default =
-      require('./react-dev-overlay/hot-reloader-client').default
+    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
+      require('./react-dev-overlay/app/hot-reloader-client').default
 
     content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
   }
@@ -623,33 +665,35 @@ function Router({
         appRouterState={useUnwrapState(reducerState)}
         sync={sync}
       />
-      <PathnameContext.Provider value={pathname}>
-        <SearchParamsContext.Provider value={searchParams}>
-          <GlobalLayoutRouterContext.Provider
-            value={{
-              buildId,
-              changeByServerResponse,
-              tree,
-              focusAndScrollRef,
-              nextUrl,
-            }}
-          >
-            <AppRouterContext.Provider value={appRouter}>
-              <LayoutRouterContext.Provider
-                value={{
-                  childNodes: cache.parallelRoutes,
-                  tree,
-                  // Root node always has `url`
-                  // Provided in AppTreeContext to ensure it can be overwritten in layout-router
-                  url: canonicalUrl,
-                }}
-              >
-                {content}
-              </LayoutRouterContext.Provider>
-            </AppRouterContext.Provider>
-          </GlobalLayoutRouterContext.Provider>
-        </SearchParamsContext.Provider>
-      </PathnameContext.Provider>
+      <PathParamsContext.Provider value={pathParams}>
+        <PathnameContext.Provider value={pathname}>
+          <SearchParamsContext.Provider value={searchParams}>
+            <GlobalLayoutRouterContext.Provider
+              value={{
+                buildId,
+                changeByServerResponse,
+                tree,
+                focusAndScrollRef,
+                nextUrl,
+              }}
+            >
+              <AppRouterContext.Provider value={appRouter}>
+                <LayoutRouterContext.Provider
+                  value={{
+                    childNodes: cache.parallelRoutes,
+                    tree,
+                    // Root node always has `url`
+                    // Provided in AppTreeContext to ensure it can be overwritten in layout-router
+                    url: canonicalUrl,
+                  }}
+                >
+                  {content}
+                </LayoutRouterContext.Provider>
+              </AppRouterContext.Provider>
+            </GlobalLayoutRouterContext.Provider>
+          </SearchParamsContext.Provider>
+        </PathnameContext.Provider>
+      </PathParamsContext.Provider>
     </>
   )
 }

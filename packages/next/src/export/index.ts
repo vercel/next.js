@@ -475,6 +475,7 @@ export async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    trailingSlash: nextConfig.trailingSlash,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
@@ -516,7 +517,7 @@ export async function exportAppImpl(
   const { serverRuntimeConfig, publicRuntimeConfig } = nextConfig
 
   if (Object.keys(publicRuntimeConfig).length > 0) {
-    ;(renderOpts as any).runtimeConfig = publicRuntimeConfig
+    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.

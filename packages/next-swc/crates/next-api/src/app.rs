@@ -9,7 +9,6 @@ use next_core::{
         MetadataItem,
     },
     get_edge_resolve_options_context,
-    mode::NextMode,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
@@ -75,7 +74,6 @@ use crate::{
 pub struct AppProject {
     project: Vc<Project>,
     app_dir: Vc<FileSystemPath>,
-    mode: NextMode,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -108,13 +106,8 @@ const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-referenc
 #[turbo_tasks::value_impl]
 impl AppProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>, app_dir: Vc<FileSystemPath>, mode: NextMode) -> Vc<Self> {
-        AppProject {
-            project,
-            app_dir,
-            mode,
-        }
-        .cell()
+    pub fn new(project: Vc<Project>, app_dir: Vc<FileSystemPath>) -> Vc<Self> {
+        AppProject { project, app_dir }.cell()
     }
 
     #[turbo_tasks::function]
@@ -128,35 +121,28 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn mode(&self) -> Vc<NextMode> {
-        self.mode.cell()
-    }
-
-    #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
         get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
     }
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -179,23 +165,21 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -203,11 +187,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -283,23 +266,21 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -307,11 +288,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -339,10 +319,9 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
@@ -368,11 +347,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         )
@@ -513,7 +491,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             self.app_project.project().project_path(),
             self.page.clone(),
-            *self.app_project.mode().await?,
+            *self.app_project.project().next_mode().await?,
             metadata,
         ))
     }

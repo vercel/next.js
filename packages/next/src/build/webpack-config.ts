@@ -103,7 +103,7 @@ if (parseInt(React.version) < 18) {
   throw new Error('Next.js requires react >= 18.2.0 to be installed.')
 }
 
-const babelIncludeRegexes: RegExp[] = [
+export const babelIncludeRegexes: RegExp[] = [
   /next[\\/]dist[\\/](esm[\\/])?shared[\\/]lib/,
   /next[\\/]dist[\\/](esm[\\/])?client/,
   /next[\\/]dist[\\/](esm[\\/])?pages/,
@@ -372,7 +372,7 @@ export default async function getBaseWebpackConfig(
 
   const babelConfigFile = getBabelConfigFile(dir)
 
-  if (hasCustomExportOutput(config)) {
+  if (!dev && hasCustomExportOutput(config)) {
     config.distDir = '.next'
   }
   const distDir = path.join(dir, config.distDir)
@@ -453,6 +453,7 @@ export default async function getBaseWebpackConfig(
         hasReactRefresh: dev && isClient,
         nextConfig: config,
         jsConfig,
+        transpilePackages: config.transpilePackages,
         supportedBrowsers,
         swcCacheDir: path.join(dir, config?.distDir ?? '.next', 'cache', 'swc'),
         ...extraOptions,

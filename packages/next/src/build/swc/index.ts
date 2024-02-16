@@ -412,9 +412,9 @@ export interface ProjectOptions {
   watch: boolean
 
   /**
-   * The address of the dev server.
+   * The mode in which Next.js is running.
    */
-  serverAddr: string
+  dev: boolean
 }
 
 type RustifiedEnv = { name: string; value: string }[]

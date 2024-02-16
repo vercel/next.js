@@ -927,16 +927,14 @@
       "ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app turbo Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app turbo boundaries",
+      "ReactRefreshLogBox app turbo conversion to class component (1)",
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
-    "failed": [
-      "ReactRefreshLogBox app turbo conversion to class component (1)",
-      "ReactRefreshLogBox app turbo css syntax errors"
-    ],
+    "failed": ["ReactRefreshLogBox app turbo css syntax errors"],
     "pending": [
       "ReactRefreshLogBox app default Call stack count is correct for client error",
       "ReactRefreshLogBox app default Call stack count is correct for server error",
@@ -1162,11 +1160,10 @@
       "Error overlay - RSC build errors should throw an error when error file is a server component",
       "Error overlay - RSC build errors should throw an error when getServerSideProps is used",
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
-      "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
-    ],
-    "failed": [
+      "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components",
       "Error overlay - RSC build errors should throw an error when error file is a server component with empty error file"
     ],
+    "failed": [],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
@@ -1280,6 +1277,7 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
+      "ReactRefreshLogBox turbo conversion to class component (1)",
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
@@ -1299,7 +1297,7 @@
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
-    "flakey": ["ReactRefreshLogBox turbo conversion to class component (1)"],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBoxMisc.test.ts": {
@@ -2475,10 +2473,10 @@
       "app dir - css sass support server layouts should support global sass/scss inside server layouts",
       "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
       "app dir - css sass support server pages should support global sass/scss inside server pages",
-      "app dir - css sass support server pages should support sass/scss modules inside server pages"
+      "app dir - css sass support server pages should support sass/scss modules inside server pages",
+      "app dir - css HMR should not create duplicate link tags during HMR"
     ],
     "failed": [
-      "app dir - css HMR should not create duplicate link tags during HMR",
       "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support should not preload styles twice during HMR"
@@ -2568,7 +2566,8 @@
     ],
     "failed": [
       "app dir - external dependency server actions should compile server actions from node_modules in client components",
-      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components"
+      "app dir - external dependency should be able to opt-out 3rd party packages being bundled in server components",
+      "app dir - external dependency should not apply swc optimizer transform for external packages in browser layer"
     ],
     "pending": [],
     "flakey": [],
@@ -13677,13 +13676,13 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/loader-config-edge-runtime/test/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Image Loader Config with Edge Runtime dev mode should add \"src\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime dev mode should add \"src\" to img2 based on the loader prop",
       "Image Loader Config with Edge Runtime dev mode should add \"srcset\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime dev mode should add \"srcset\" to img2 based on the loader prop"
     ],
+    "failed": [],
     "pending": [
       "Image Loader Config with Edge Runtime production mode should add \"src\" to img1 based on the loader config",
       "Image Loader Config with Edge Runtime production mode should add \"src\" to img2 based on the loader prop",
