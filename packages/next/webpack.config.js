@@ -34,7 +34,7 @@ function makeAppAliases(reactChannel = '') {
     react$: `next/dist/compiled/react${reactChannel}`,
     'react/': `next/dist/compiled/react${reactChannel}/`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    // 'react-dom/server-rendering-stub': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
+    'react-dom/server-rendering-stub': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react-dom/': `next/dist/compiled/react-dom${reactChannel}/`,
 
     // special alias only available in react-dom
