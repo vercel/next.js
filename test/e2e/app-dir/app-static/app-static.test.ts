@@ -538,6 +538,8 @@ createNextDescribe(
             "dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js",
             "dynamic-no-gen-params/[slug]/page.js",
             "dynamic-no-gen-params/[slug]/page_client-reference-manifest.js",
+            "dynamic-param-edge/[slug]/page.js",
+            "dynamic-param-edge/[slug]/page_client-reference-manifest.js",
             "fetch-no-cache/page.js",
             "fetch-no-cache/page_client-reference-manifest.js",
             "flight/[slug]/[slug2]/page.js",
