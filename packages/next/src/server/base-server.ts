@@ -579,6 +579,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return false
     }
 
+    // If we're here, this is a data request, as it didn't return and it matched
+    // either a RSC or a prefetch RSC request.
+    parsedUrl.query.__nextDataReq = '1'
+
     if (req.url) {
       const parsed = parseUrl(req.url)
       parsed.pathname = parsedUrl.pathname
@@ -2808,7 +2812,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
-      if (isDataReq) {
+      if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
           if (cachedData.pageData) {
