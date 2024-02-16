@@ -3,7 +3,7 @@ export const variants = {
     return {
       x: direction > 0 ? 1000 : -1000,
       opacity: 0,
-    }
+    };
   },
   center: {
     x: 0,
@@ -13,6 +13,6 @@ export const variants = {
     return {
       x: direction < 0 ? 1000 : -1000,
       opacity: 0,
-    }
+    };
   },
-}
+};

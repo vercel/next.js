@@ -7,11 +7,11 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "13.5.4",
+    "next": "latest",
     "react": "^18",
     "react-dom": "^18",
-    "supertokens-auth-react": "^0.35.5",
-    "supertokens-node": "^16.3.0"
+    "supertokens-auth-react": "latest",
+    "supertokens-node": "latest"
   },
   "devDependencies": {
     "@types/cookie": "^0.5.2",

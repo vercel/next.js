@@ -30,12 +30,12 @@ pub struct ClientReference {
 }
 
 impl ClientReference {
-    pub fn server_component(&self) -> Option<&Vc<NextServerComponentModule>> {
-        self.server_component.as_ref()
+    pub fn server_component(&self) -> Option<Vc<NextServerComponentModule>> {
+        self.server_component
     }
 
-    pub fn ty(&self) -> &ClientReferenceType {
-        &self.ty
+    pub fn ty(&self) -> ClientReferenceType {
+        self.ty
     }
 }
 
@@ -47,8 +47,11 @@ pub enum ClientReferenceType {
     CssClientReference(Vc<CssClientReferenceModule>),
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ClientReferences(Vec<ClientReference>);
+#[turbo_tasks::value]
+pub struct ClientReferenceGraphResult {
+    pub client_references: Vec<ClientReference>,
+    pub server_component_entries: Vec<Vc<NextServerComponentModule>>,
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct ClientReferenceTypes(IndexSet<ClientReferenceType>);
@@ -101,12 +104,13 @@ impl ClientReferenceGraph {
 
         for node in this.graph.reverse_topological() {
             match &node.ty {
-                VisitClientReferenceNodeType::Internal(_asset, _) => {
+                VisitClientReferenceNodeType::Internal(..)
+                | VisitClientReferenceNodeType::ServerComponentEntry(..) => {
                     // No-op. These nodes are only useful during graph
                     // traversal.
                 }
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
-                    client_reference_types.insert(*client_reference.ty());
+                    client_reference_types.insert(client_reference.ty());
                 }
             }
         }
@@ -115,9 +119,13 @@ impl ClientReferenceGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn entry(self: Vc<Self>, entry: Vc<Box<dyn Module>>) -> Result<Vc<ClientReferences>> {
+    pub async fn entry(
+        self: Vc<Self>,
+        entry: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<ClientReferenceGraphResult>> {
         let this = self.await?;
-        let mut entry_client_references = vec![];
+        let mut client_references = vec![];
+        let mut server_component_entries = vec![];
 
         for node in this
             .graph
@@ -132,12 +140,19 @@ impl ClientReferenceGraph {
                     // traversal.
                 }
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
-                    entry_client_references.push(*client_reference);
+                    client_references.push(*client_reference);
+                }
+                VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
+                    server_component_entries.push(*server_component);
                 }
             }
         }
 
-        Ok(Vc::cell(entry_client_references))
+        Ok(ClientReferenceGraphResult {
+            client_references,
+            server_component_entries,
+        }
+        .cell())
     }
 }
 
@@ -156,6 +171,7 @@ struct VisitClientReferenceNode {
 )]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference, ReadRef<String>),
+    ServerComponentEntry(Vc<NextServerComponentModule>, ReadRef<String>),
     Internal(Vc<Box<dyn Module>>, ReadRef<String>),
 }
 
@@ -168,84 +184,85 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
         match edge.ty {
             VisitClientReferenceNodeType::ClientReference(..) => VisitControlFlow::Skip(edge),
             VisitClientReferenceNodeType::Internal(..) => VisitControlFlow::Continue(edge),
+            VisitClientReferenceNodeType::ServerComponentEntry(..) => {
+                VisitControlFlow::Continue(edge)
+            }
         }
     }
 
     fn edges(&mut self, node: &VisitClientReferenceNode) -> Self::EdgesFuture {
         let node = node.clone();
         async move {
-            match node.ty {
+            let module = match node.ty {
                 // This should never occur since we always skip visiting these
                 // nodes' edges.
-                VisitClientReferenceNodeType::ClientReference(..) => Ok(vec![]),
-                VisitClientReferenceNodeType::Internal(module, _) => {
-                    let referenced_modules = primary_referenced_modules(module).await?;
+                VisitClientReferenceNodeType::ClientReference(..) => return Ok(vec![]),
+                VisitClientReferenceNodeType::Internal(module, _) => module,
+                VisitClientReferenceNodeType::ServerComponentEntry(module, _) => Vc::upcast(module),
+            };
 
-                    let referenced_modules = referenced_modules.iter().map(|module| async move {
-                        let module = module.resolve().await?;
-                        if let Some(client_reference_module) =
-                            Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(module)
-                                .await?
-                        {
-                            return Ok(VisitClientReferenceNode {
+            let referenced_modules = primary_referenced_modules(module).await?;
+
+            let referenced_modules = referenced_modules.iter().map(|module| async move {
+                let module = module.resolve().await?;
+                if let Some(client_reference_module) =
+                    Vc::try_resolve_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+                {
+                    return Ok(VisitClientReferenceNode {
+                        server_component: node.server_component,
+                        ty: VisitClientReferenceNodeType::ClientReference(
+                            ClientReference {
                                 server_component: node.server_component,
-                                ty: VisitClientReferenceNodeType::ClientReference(
-                                    ClientReference {
-                                        server_component: node.server_component,
-                                        ty: ClientReferenceType::EcmascriptClientReference(
-                                            client_reference_module,
-                                        ),
-                                    },
-                                    client_reference_module.ident().to_string().await?,
+                                ty: ClientReferenceType::EcmascriptClientReference(
+                                    client_reference_module,
                                 ),
-                            });
-                        }
-
-                        if let Some(css_client_reference_asset) =
-                            Vc::try_resolve_downcast_type::<CssClientReferenceModule>(module)
-                                .await?
-                        {
-                            return Ok(VisitClientReferenceNode {
-                                server_component: node.server_component,
-                                ty: VisitClientReferenceNodeType::ClientReference(
-                                    ClientReference {
-                                        server_component: node.server_component,
-                                        ty: ClientReferenceType::CssClientReference(
-                                            css_client_reference_asset,
-                                        ),
-                                    },
-                                    css_client_reference_asset.ident().to_string().await?,
-                                ),
-                            });
-                        }
-
-                        if let Some(server_component_asset) =
-                            Vc::try_resolve_downcast_type::<NextServerComponentModule>(module)
-                                .await?
-                        {
-                            return Ok(VisitClientReferenceNode {
-                                server_component: Some(server_component_asset),
-                                ty: VisitClientReferenceNodeType::Internal(
-                                    module,
-                                    module.ident().to_string().await?,
-                                ),
-                            });
-                        }
-
-                        Ok(VisitClientReferenceNode {
-                            server_component: node.server_component,
-                            ty: VisitClientReferenceNodeType::Internal(
-                                module,
-                                module.ident().to_string().await?,
-                            ),
-                        })
+                            },
+                            client_reference_module.ident().to_string().await?,
+                        ),
                     });
-
-                    let assets = referenced_modules.try_join().await?;
-
-                    Ok(assets)
                 }
-            }
+
+                if let Some(css_client_reference_asset) =
+                    Vc::try_resolve_downcast_type::<CssClientReferenceModule>(module).await?
+                {
+                    return Ok(VisitClientReferenceNode {
+                        server_component: node.server_component,
+                        ty: VisitClientReferenceNodeType::ClientReference(
+                            ClientReference {
+                                server_component: node.server_component,
+                                ty: ClientReferenceType::CssClientReference(
+                                    css_client_reference_asset,
+                                ),
+                            },
+                            css_client_reference_asset.ident().to_string().await?,
+                        ),
+                    });
+                }
+
+                if let Some(server_component_asset) =
+                    Vc::try_resolve_downcast_type::<NextServerComponentModule>(module).await?
+                {
+                    return Ok(VisitClientReferenceNode {
+                        server_component: Some(server_component_asset),
+                        ty: VisitClientReferenceNodeType::ServerComponentEntry(
+                            server_component_asset,
+                            server_component_asset.ident().to_string().await?,
+                        ),
+                    });
+                }
+
+                Ok(VisitClientReferenceNode {
+                    server_component: node.server_component,
+                    ty: VisitClientReferenceNodeType::Internal(
+                        module,
+                        module.ident().to_string().await?,
+                    ),
+                })
+            });
+
+            let assets = referenced_modules.try_join().await?;
+
+            Ok(assets)
         }
     }
 
@@ -256,6 +273,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
             }
             VisitClientReferenceNodeType::Internal(_, name) => {
                 tracing::info_span!("module", name = **name)
+            }
+            VisitClientReferenceNodeType::ServerComponentEntry(_, name) => {
+                tracing::info_span!("layout segment", name = **name)
             }
         }
     }

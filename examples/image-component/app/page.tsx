@@ -1,31 +1,31 @@
-import styles from '../styles.module.css'
-import Image from 'next/image'
-import Link from 'next/link'
-import ViewSource from '../components/view-source'
-import vercel from '../public/vercel.png'
-import type { PropsWithChildren } from 'react'
+import styles from "../styles.module.css";
+import Image from "next/image";
+import Link from "next/link";
+import ViewSource from "../components/view-source";
+import vercel from "../public/vercel.png";
+import type { PropsWithChildren } from "react";
 
 const Code = (props: PropsWithChildren<{}>) => (
   <code className={styles.inlineCode} {...props} />
-)
+);
 
 const Index = () => (
   <div className={styles.container}>
-    <ViewSource pathname="pages/index.tsx" />
+    <ViewSource pathname="app/page.tsx" />
     <div className={styles.card}>
       <h1>Image Component with Next.js</h1>
       <p>
-        This page demonstrates the usage of the{' '}
+        This page demonstrates the usage of the{" "}
         <a href="https://nextjs.org/docs/api-reference/next/image">
           next/image
-        </a>{' '}
+        </a>{" "}
         component with live examples.
       </p>
       <p>
-        This component is designed to{' '}
+        This component is designed to{" "}
         <a href="https://nextjs.org/docs/basic-features/image-optimization">
           automatically optimize
-        </a>{' '}
+        </a>{" "}
         images on-demand as the browser requests them.
       </p>
       <hr className={styles.hr} />
@@ -60,7 +60,7 @@ const Index = () => (
       <hr className={styles.hr} />
       <h2 id="internal">Internal Image</h2>
       <p>
-        The following is an example of a reference to an internal image from the{' '}
+        The following is an example of a reference to an internal image from the{" "}
         <Code>public</Code> directory.
       </p>
       <p>
@@ -73,14 +73,14 @@ const Index = () => (
         width={1000}
         height={1000}
         style={{
-          maxWidth: '100%',
-          height: 'auto',
+          maxWidth: "100%",
+          height: "auto",
         }}
       />
       <hr className={styles.hr} />
       <h2 id="external">External Image</h2>
       <p>
-        The following is an example of a reference to an external image at{' '}
+        The following is an example of a reference to an external image at{" "}
         <Code>assets.vercel.com</Code>.
       </p>
       <p>
@@ -93,8 +93,8 @@ const Index = () => (
         width={1200}
         height={400}
         style={{
-          maxWidth: '100%',
-          height: 'auto',
+          maxWidth: "100%",
+          height: "auto",
         }}
       />
       <hr className={styles.hr} />
@@ -103,14 +103,14 @@ const Index = () => (
         You can optionally configure a cloud provider, device sizes, and more!
       </p>
       <p>
-        Checkout the{' '}
+        Checkout the{" "}
         <a href="https://nextjs.org/docs/basic-features/image-optimization">
           Image Optimization documentation
-        </a>{' '}
+        </a>{" "}
         to learn more.
       </p>
     </div>
   </div>
-)
+);
 
-export default Index
+export default Index;

@@ -18,7 +18,7 @@ async-trait = { workspace = true }
 base64 = "0.21.0"
 const_format = "0.2.30"
 lazy-regex = "3.0.1"
-next-swc = { workspace = true }
+next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -33,9 +33,11 @@ futures = { workspace = true }
 lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+rustc-hash = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
+  "__swc_core_next_core",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",
@@ -58,18 +60,9 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_node",
   "__turbopack_trace_utils",
 ] }
+
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-next-transform-strip-page-exports = { workspace = true }
-next-transform-font = { workspace = true }
-next-transform-dynamic = { workspace = true }
-next-transform-react-server-components = { workspace = true }
-
-swc_core = { workspace = true, features = [
-  "ecma_ast",
-  "ecma_transforms",
-  "common",
-] }
 
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }

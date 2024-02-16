@@ -1,113 +1,113 @@
-import React from 'react'
-import styles from '../styles/Home.module.css'
-import { sendOTP } from '../lib/otpUtils'
-import { useRouter } from 'next/router'
+import React from "react";
+import styles from "../styles/Home.module.css";
+import { sendOTP } from "../lib/otpUtils";
+import { useRouter } from "next/router";
 
 // Handles auto-tabbing to next passcode digit input.
 // Logic inspired from https://stackoverflow.com/questions/15595652/focus-next-input-once-reaching-maxlength-value.
 const autoTab = (target: HTMLInputElement, key?: string) => {
   if (target.value.length >= target.maxLength) {
-    let next = target
+    let next = target;
     while ((next = next.nextElementSibling as HTMLInputElement)) {
-      if (next == null) break
-      if (next.tagName.toLowerCase() === 'input') {
-        next?.focus()
-        break
+      if (next == null) break;
+      if (next.tagName.toLowerCase() === "input") {
+        next?.focus();
+        break;
       }
     }
   }
   // Move to previous field if empty (user pressed backspace)
   else if (target.value.length === 0) {
-    let previous = target
+    let previous = target;
     while ((previous = previous.previousElementSibling as HTMLInputElement)) {
-      if (previous == null) break
-      if (previous.tagName.toLowerCase() === 'input') {
-        previous.focus()
-        break
+      if (previous == null) break;
+      if (previous.tagName.toLowerCase() === "input") {
+        previous.focus();
+        break;
       }
     }
   }
-}
+};
 
 type Props = {
-  methodId: string
-  phoneNumber: string
-}
+  methodId: string;
+  phoneNumber: string;
+};
 
 const VerifyOTPForm = (props: Props) => {
-  const { methodId, phoneNumber } = props
-  const [isDisabled, setIsDisabled] = React.useState(true)
-  const [currentMethodId, setCurrentMethodId] = React.useState(methodId)
-  const [isError, setIsError] = React.useState(false)
-  const router = useRouter()
+  const { methodId, phoneNumber } = props;
+  const [isDisabled, setIsDisabled] = React.useState(true);
+  const [currentMethodId, setCurrentMethodId] = React.useState(methodId);
+  const [isError, setIsError] = React.useState(false);
+  const router = useRouter();
 
-  const strippedNumber = phoneNumber.replace(/\D/g, '')
+  const strippedNumber = phoneNumber.replace(/\D/g, "");
   const parsedPhoneNumber = `(${strippedNumber.slice(
     0,
-    3
-  )}) ${strippedNumber.slice(3, 6)}-${strippedNumber.slice(6, 10)}`
+    3,
+  )}) ${strippedNumber.slice(3, 6)}-${strippedNumber.slice(6, 10)}`;
 
   const isValidPasscode = () => {
-    const regex = /^[0-9]$/g
-    const inputs = document.getElementsByClassName(styles.passcodeInput)
+    const regex = /^[0-9]$/g;
+    const inputs = document.getElementsByClassName(styles.passcodeInput);
     for (let i = 0; i < inputs.length; i++) {
       if (!(inputs[i] as HTMLInputElement).value.match(regex)) {
-        return false
+        return false;
       }
     }
-    return true
-  }
+    return true;
+  };
 
   const onPasscodeDigitChange = () => {
     if (isValidPasscode()) {
-      setIsDisabled(false)
-      setIsError(false)
+      setIsDisabled(false);
+      setIsError(false);
     } else {
-      setIsDisabled(true)
+      setIsDisabled(true);
     }
-  }
+  };
 
   const resetPasscode = () => {
-    const inputs = document.getElementsByClassName(styles.passcodeInput)
+    const inputs = document.getElementsByClassName(styles.passcodeInput);
     for (let i = 0; i < inputs.length; i++) {
-      ;(inputs[i] as HTMLInputElement).value = ''
+      (inputs[i] as HTMLInputElement).value = "";
     }
-    document.getElementById('digit-0')?.focus()
-    setIsDisabled(true)
-  }
+    document.getElementById("digit-0")?.focus();
+    setIsDisabled(true);
+  };
 
   const resendCode = async () => {
-    const methodId = await sendOTP(phoneNumber)
-    setCurrentMethodId(methodId)
-    resetPasscode()
-    setIsError(false)
-  }
+    const methodId = await sendOTP(phoneNumber);
+    setCurrentMethodId(methodId);
+    resetPasscode();
+    setIsError(false);
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (isValidPasscode()) {
-      let otpInput = ''
-      const inputs = document.getElementsByClassName(styles.passcodeInput)
+      let otpInput = "";
+      const inputs = document.getElementsByClassName(styles.passcodeInput);
       for (let i = 0; i < inputs.length; i++) {
-        otpInput += (inputs[i] as HTMLInputElement).value
+        otpInput += (inputs[i] as HTMLInputElement).value;
       }
 
-      const resp = await fetch('/api/authenticate_otp', {
-        method: 'POST',
+      const resp = await fetch("/api/authenticate_otp", {
+        method: "POST",
         body: JSON.stringify({ otpInput, methodId: currentMethodId }),
-      })
+      });
 
       if (resp.status === 200) {
-        router.push('/profile')
+        router.push("/profile");
       } else {
-        setIsError(true)
-        resetPasscode()
+        setIsError(true);
+        resetPasscode();
       }
     }
-  }
+  };
 
   const renderPasscodeInputs = () => {
-    const inputs = []
+    const inputs = [];
     for (let i = 0; i < 6; i += 1) {
       inputs.push(
         <input
@@ -121,23 +121,23 @@ const VerifyOTPForm = (props: Props) => {
           placeholder="0"
           size={1}
           type="text"
-        />
-      )
+        />,
+      );
     }
-    return inputs
-  }
+    return inputs;
+  };
 
   return (
     <div>
       <h2>Enter passcode</h2>
       <p className={styles.smsInstructions}>
-        A 6-digit passcode was sent to you at{' '}
+        A 6-digit passcode was sent to you at{" "}
         <strong>{parsedPhoneNumber}</strong>.
       </p>
       <form onSubmit={onSubmit}>
         <div className={styles.passcodeContainer}>
           <p className={styles.errorText}>
-            {isError ? 'Invalid code. Please try again.' : ''}
+            {isError ? "Invalid code. Please try again." : ""}
           </p>
           <div className={styles.passcodeInputContainer}>
             {renderPasscodeInputs()}
@@ -162,7 +162,7 @@ const VerifyOTPForm = (props: Props) => {
         />
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default VerifyOTPForm
+export default VerifyOTPForm;

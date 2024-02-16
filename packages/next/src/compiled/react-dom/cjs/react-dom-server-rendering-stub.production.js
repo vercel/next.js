@@ -12,7 +12,7 @@
 
 var React = require("next/dist/compiled/react");
 
-var ReactVersion = '18.3.0-canary-f1039be4a-20240107';
+var ReactVersion = '18.3.0-canary-ba5e6a832-20240208';
 
 const Internals = {
   usingClientEntryPoint: false,
@@ -26,10 +26,14 @@ const Internals = {
 // template literal strings. The messages will be replaced with error codes
 // during build.
 function formatProdErrorMessage(code) {
-  let url = 'https://reactjs.org/docs/error-decoder.html?invariant=' + code;
+  let url = 'https://react.dev/errors/' + code;
 
-  for (let i = 1; i < arguments.length; i++) {
-    url += '&args[]=' + encodeURIComponent(arguments[i]);
+  if (arguments.length > 1) {
+    url += '?args[]=' + encodeURIComponent(arguments[1]);
+
+    for (let i = 2; i < arguments.length; i++) {
+      url += '&args[]=' + encodeURIComponent(arguments[i]);
+    }
   }
 
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';

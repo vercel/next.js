@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node server.js",
-    "build": "yarn next build apps/first && yarn next build apps/second",
+    "build": "yarn next build apps/host && yarn next build apps/guest",
     "start": "NODE_ENV=production node server.js"
   },
   "dependencies": {

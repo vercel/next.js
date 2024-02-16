@@ -15,7 +15,7 @@ use turbopack_binding::{
         build::BuildChunkingContext,
         core::{
             chunk::{
-                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
+                availability_info::AvailabilityInfo, ChunkableModule, ChunkingContextExt,
                 EvaluatableAssets,
             },
             issue::IssueSeverity,
@@ -84,7 +84,7 @@ pub(crate) async fn collect_chunk_group(
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.chunk_group(chunk_item, availability_info)
+        chunking_context.chunk_group_assets(chunk_item, availability_info)
     })
     .await
 }
@@ -95,33 +95,38 @@ pub(crate) async fn collect_evaluated_chunk_group(
     evaluatable_assets: Vc<EvaluatableAssets>,
 ) -> Result<Vc<DynamicImportedChunks>> {
     collect_chunk_group_inner(dynamic_import_entries, |chunk_item| {
-        chunking_context.evaluated_chunk_group(chunk_item.ident(), evaluatable_assets)
+        chunking_context.evaluated_chunk_group_assets(
+            chunk_item.ident(),
+            evaluatable_assets,
+            Value::new(AvailabilityInfo::Root),
+        )
     })
     .await
 }
 
 /// Returns a mapping of the dynamic imports for each module, if the import is
-/// wrapped in `next/dynamic`'s `dynamic()`. Refer https://nextjs.org/docs/pages/building-your-application/optimizing/lazy-loading#with-named-exports for the usecases.
+/// wrapped in `next/dynamic`'s `dynamic()`. Refer [documentation](https://nextjs.org/docs/pages/building-your-application/optimizing/lazy-loading#with-named-exports) for the usecases.
 ///
 /// If an import is specified as dynamic, next.js does few things:
-/// - Runs a next_dynamic transform to the source file (https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L22)
-///   - This transform will inject `loadableGenerated` property, which contains the list of the import ids in the form of `${origin} -> ${imported}`.
-///     (https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/tests/fixture/wrapped-import/output-webpack-dev.js#L5)
+/// - Runs a next_dynamic [transform to the source file](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/src/lib.rs#L22)
+///   - This transform will [inject `loadableGenerated` property](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next-swc/crates/next-transform-dynamic/tests/fixture/wrapped-import/output-webpack-dev.js#L5),
+///     which contains the list of the import ids in the form of `${origin} ->
+///     ${imported}`.
 /// - Emits `react-loadable-manifest.json` which contains the mapping of the
 ///   import ids to the chunk ids.
-///   - Webpack: (https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next/src/build/webpack/plugins/react-loadable-plugin.ts)
-///   - Turbopack: ( https://github.com/vercel/next.js/pull/56389/files#diff-3cac9d9bfe73e0619e6407f21f6fe652da0719d0ec9074ff813ad3e416d0eb1a
-///     / https://github.com/vercel/next.js/pull/56389/files#diff-791951bbe1fa09bcbad9be9173412d0848168f7d658758f11b6e8888a021552c
-///     / https://github.com/vercel/next.js/pull/56389/files#diff-c33f6895801329243dd3f627c69da259bcab95c2c9d12993152842591931ff01R557
-///     )
+///   - Webpack: [implementation](https://github.com/vercel/next.js/blob/ae1b89984d26b2af3658001fa19a19e1e77c312d/packages/next/src/build/webpack/plugins/react-loadable-plugin.ts)
+///   - Turbopack: [implementation 1](https://github.com/vercel/next.js/pull/56389/files#diff-3cac9d9bfe73e0619e6407f21f6fe652da0719d0ec9074ff813ad3e416d0eb1a),
+///     [implementation 2](https://github.com/vercel/next.js/pull/56389/files#diff-791951bbe1fa09bcbad9be9173412d0848168f7d658758f11b6e8888a021552c),
+///     [implementation 3](https://github.com/vercel/next.js/pull/56389/files#diff-c33f6895801329243dd3f627c69da259bcab95c2c9d12993152842591931ff01R557)
 /// - When running an application,
 ///    - Server reads generated `react-loadable-manifest.json`, sets dynamicImportIds with the mapping of the import ids, and dynamicImports to the actual corresponding chunks.
-///      (https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/load-components.ts#L119 /
-///       https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1417C7-L1420)
-///    - Server embeds those into __NEXT_DATA__ and sent to the client. (https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1453)
-///    - When client boots up, pass it to the client preload (https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/client/index.tsx#L943)
-///    - Loadable runtime injects preload fn to wait until all the dynamic components are being loaded, this ensures hydration mismatch won't occur
-///      (https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
+///         [implementation 1](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/load-components.ts#L119),
+///         [implementation 2](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1417C7-L1420)
+///    - Server embeds those into __NEXT_DATA__ and [send to the client.](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1453)
+///    - When client boots up, pass it to the [client preload](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/client/index.tsx#L943)
+///    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
+///      to wait until all the dynamic components are being loaded, this ensures
+///      hydration mismatch won't occur
 pub(crate) async fn collect_next_dynamic_imports(
     entry: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<IndexMap<Vc<Box<dyn Module>>, DynamicImportedModules>> {

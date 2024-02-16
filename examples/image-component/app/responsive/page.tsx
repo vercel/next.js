@@ -1,10 +1,10 @@
-import Image from 'next/image'
-import ViewSource from '../../components/view-source'
-import mountains from '../../public/mountains.jpg'
+import Image from "next/image";
+import ViewSource from "../../components/view-source";
+import mountains from "../../public/mountains.jpg";
 
 const Responsive = () => (
   <div>
-    <ViewSource pathname="pages/responsive.tsx" />
+    <ViewSource pathname="app/responsive/page.tsx" />
     <h1>Image Component With Layout Responsive</h1>
     <Image
       alt="Mountains"
@@ -13,11 +13,11 @@ const Responsive = () => (
       height={475}
       sizes="100vw"
       style={{
-        width: '100%',
-        height: 'auto',
+        width: "100%",
+        height: "auto",
       }}
     />
   </div>
-)
+);
 
-export default Responsive
+export default Responsive;

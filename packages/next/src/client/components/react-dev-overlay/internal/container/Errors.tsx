@@ -1,12 +1,12 @@
-import * as React from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import type {
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import {
   Dialog,
   DialogBody,
@@ -18,12 +18,12 @@ import { Overlay } from '../components/Overlay'
 import { Toast } from '../components/Toast'
 import { getErrorByType } from '../helpers/getErrorByType'
 import type { ReadyRuntimeError } from '../helpers/getErrorByType'
-import { getErrorSource } from '../helpers/nodeStackFrames'
 import { noop as css } from '../helpers/noop-template'
 import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
 import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 
 export type SupportedErrorEvent = {
@@ -31,6 +31,7 @@ export type SupportedErrorEvent = {
   event: UnhandledErrorAction | UnhandledRejectionAction
 }
 export type ErrorsProps = {
+  isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
   versionInfo?: VersionInfo
@@ -56,16 +57,17 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   return ''
 }
 
-export const Errors: React.FC<ErrorsProps> = function Errors({
+export function Errors({
+  isAppDir,
   errors,
   initialDisplayState,
   versionInfo,
-}) {
-  const [lookups, setLookups] = React.useState(
+}: ErrorsProps) {
+  const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
   )
 
-  const [readyErrors, nextError] = React.useMemo<
+  const [readyErrors, nextError] = useMemo<
     [ReadyErrorEvent[], SupportedErrorEvent | null]
   >(() => {
     let ready: ReadyErrorEvent[] = []
@@ -95,17 +97,17 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     return [ready, next]
   }, [errors, lookups])
 
-  const isLoading = React.useMemo<boolean>(() => {
+  const isLoading = useMemo<boolean>(() => {
     return readyErrors.length < 1 && Boolean(errors.length)
   }, [errors.length, readyErrors.length])
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (nextError == null) {
       return
     }
     let mounted = true
 
-    getErrorByType(nextError).then(
+    getErrorByType(nextError, isAppDir).then(
       (resolved) => {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
@@ -122,33 +124,31 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     return () => {
       mounted = false
     }
-  }, [nextError])
+  }, [nextError, isAppDir])
 
   const [displayState, setDisplayState] =
-    React.useState<DisplayState>(initialDisplayState)
-  const [activeIdx, setActiveIndex] = React.useState<number>(0)
-  const previous = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setActiveIndex((v) => Math.max(0, v - 1))
-  }, [])
-  const next = React.useCallback(
-    (e?: MouseEvent | TouchEvent) => {
-      e?.preventDefault()
+    useState<DisplayState>(initialDisplayState)
+  const [activeIdx, setActiveIndex] = useState<number>(0)
+  const previous = useCallback(
+    () => setActiveIndex((v) => Math.max(0, v - 1)),
+    []
+  )
+  const next = useCallback(
+    () =>
       setActiveIndex((v) =>
         Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      )
-    },
+      ),
     [readyErrors.length]
   )
 
-  const activeError = React.useMemo<ReadyErrorEvent | null>(
+  const activeError = useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
     [activeIdx, readyErrors]
   )
 
   // Reset component state when there are no errors to be displayed.
   // This should never happen, but lets handle it.
-  React.useEffect(() => {
+  useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
       setDisplayState('hidden')
@@ -156,21 +156,9 @@ export const Errors: React.FC<ErrorsProps> = function Errors({
     }
   }, [errors.length])
 
-  const minimize = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('minimized')
-  }, [])
-  const hide = React.useCallback((e?: MouseEvent | TouchEvent) => {
-    e?.preventDefault()
-    setDisplayState('hidden')
-  }, [])
-  const fullscreen = React.useCallback(
-    (e?: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
-      e?.preventDefault()
-      setDisplayState('fullscreen')
-    },
-    []
-  )
+  const minimize = useCallback(() => setDisplayState('minimized'), [])
+  const hide = useCallback(() => setDisplayState('hidden'), [])
+  const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
 
   // This component shouldn't be rendered with no errors, but if it is, let's
   // handle it gracefully by rendering nothing.

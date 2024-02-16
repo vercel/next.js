@@ -7,7 +7,12 @@ export default async function Page() {
   )
   const data = await resp.json()
 
-  return <p id="content">{data.content}</p>
+  return (
+    <>
+      <p id="content">{data.content}</p>
+      <p id="now">{data.now}</p>
+    </>
+  )
 }
 
 export const dynamic = 'force-dynamic'

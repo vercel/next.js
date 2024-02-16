@@ -2,41 +2,40 @@
 
 ## Running tests
 
-Before you start to run tests, you need to build project first:
+Before you start to run tests, you need to [build the project first](./building.md):
 
 ```bash
 pnpm build
 ```
 
-And for more detail about building, you can check out [building.md](./building.md)
-
-We recommend running the tests in headless mode (with the browser windows hidden) and with a specific directory pattern and/or test name (`-t`) which ensures only a small part of the test suite is run locally:
+We recommend running the tests in a specific directory pattern.
 
 For example, running one test in the production test suite:
 
-Running one test in the `test/integration/production` test suite:
+Running tests in the `test/e2e/app-dir/app` test suite in production mode (`next build` and `next start`):
 
 ```sh
-pnpm testheadless test/integration/production/ -t "should allow etag header support"
+pnpm test-start test/e2e/app-dir/app/
 ```
 
-Running all tests in the `test/integration/production` test suite:
+Running tests in the `test/e2e/app-dir/app` test suite in development mode (`next dev`):
 
 ```sh
-pnpm testheadless test/integration/production/
+pnpm test-dev test/e2e/app-dir/app/
 ```
 
-When you want to debug a particular test you can replace `pnpm testheadless` with `pnpm testonly` to opt out of the headless browser.
-When the test runs it will open the browser that is in the background by default, allowing you to inspect what is on the screen.
+When the test runs it will open the browser that is in the background by default, you won't see the browser window.
+
+When you want to debug a particular test you can replace `pnpm test-start` with `pnpm testonly-start` to see the browser window open.
 
 ```sh
-pnpm testonly test/integration/production/ -t "should allow etag header support"
+pnpm testonly-start test/e2e/app-dir/app/
 ```
 
 **End-to-end (e2e)** tests are run in complete isolation from the repository.
-When you run an e2e test, a local version of next will be created inside your system's temp folder (eg. /tmp),
-which is then linked to the app, also created inside a temp folder. A server is started on a random port, against which the tests will run.
-After all tests have finished, the server is destroyed and all remaining files are deleted from the temp folder.
+When you run an `test/e2e`, `test/production`, or `test/development` tests, a local version of Next.js will be created inside your system's temp folder (eg. /tmp),
+which is then linked to an isolated version of the application. A server is started on a random port, against which the tests will run.
+After all tests have finished, the server is destroyed and all remaining files are deleted from the temp folder. All of this logic is handle by `createNextDescribe` automatically.
 
 ## Writing tests for Next.js
 
@@ -52,7 +51,7 @@ You can set up a new test using `pnpm new-test` which will start from a template
 - integration: Historical location of tests. Runs misc checks and modes. Ideally, we don't add new test suites here anymore as these tests are not isolated from the monorepo.
 - unit: Very fast tests that should run without a browser or run `next` and should be testing a specific utility.
 
-For the e2e, development, and production tests the `createNext` utility should be used and an example is available [here](../../test/e2e/example.txt). This creates an isolated Next.js install to ensure nothing in the monorepo is relied on accidentally causing incorrect tests.
+For the e2e, development, and production tests the `createNextDescribe` utility should be used. An example is available [here](../../test/e2e/example.txt). This creates an isolated Next.js install to ensure nothing in the monorepo is relied on accidentally causing incorrect tests. `pnpm next-test` automatically uses `createNextDescribe`
 
 All new test suites should be written in TypeScript either `.ts` (or `.tsx` for unit tests). This will help ensure we catch smaller issues in tests that could cause flakey or incorrect tests.
 
@@ -79,3 +78,20 @@ When tests are run in CI and a test failure occurs we attempt to capture traces 
 ### Profiling tests
 
 Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.
+
+### Recording the browser using Replay.io
+
+Using [Replay.io](https://www.replay.io/) you can record amd time-travel debug the browser.
+
+1. Clear all local replays using `pnpm replay rm-all`
+1. Run the test locally using the `RECORD_REPLAY=1` environment variables. I.e. `RECORD_REPLAY=1 pnpm test-dev test/e2e/app-dir/app/index.test.ts`
+1. Upload all the replays to your workspace using your the API key: `RECORD_REPLAY_API_KEY=addkeyhere pnpm replay upload-all`
+1. Check the uploaded replays in your workspace, while uploading it provides the URLs.
+
+### Testing Turbopack
+
+To run the test suite using Turbopack you can use the `TURBOPACK=1` environment variable:
+
+```sh
+TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
+```

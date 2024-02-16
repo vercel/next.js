@@ -1,7 +1,7 @@
-import { NhostAuthProvider } from '@nhost/react-auth'
-import { NhostApolloProvider } from '@nhost/react-apollo'
+import { NhostAuthProvider } from "@nhost/react-auth";
+import { NhostApolloProvider } from "@nhost/react-apollo";
 
-import { nhost } from '../utils/nhost'
+import { nhost } from "../utils/nhost";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -13,7 +13,7 @@ function MyApp({ Component, pageProps }) {
         <Component {...pageProps} />
       </NhostApolloProvider>
     </NhostAuthProvider>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

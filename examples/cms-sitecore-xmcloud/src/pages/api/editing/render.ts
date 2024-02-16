@@ -1,4 +1,4 @@
-import { EditingRenderMiddleware } from '@sitecore-jss/sitecore-jss-nextjs/editing'
+import { EditingRenderMiddleware } from "@sitecore-jss/sitecore-jss-nextjs/editing";
 
 /**
  * This Next.js API route is used to handle POST requests from Sitecore editors.
@@ -19,13 +19,13 @@ import { EditingRenderMiddleware } from '@sitecore-jss/sitecore-jss-nextjs/editi
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '2mb',
+      sizeLimit: "2mb",
     },
     responseLimit: false,
   },
-}
+};
 
 // Wire up the EditingRenderMiddleware handler
-const handler = new EditingRenderMiddleware().getHandler()
+const handler = new EditingRenderMiddleware().getHandler();
 
-export default handler
+export default handler;

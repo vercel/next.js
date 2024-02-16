@@ -111,6 +111,7 @@ export interface RenderOptsPartial {
   dev?: boolean
   buildId: string
   basePath: string
+  trailingSlash: boolean
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime
@@ -142,7 +143,7 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  experimental: { ppr: boolean }
+  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
   postponed?: string
 }
 

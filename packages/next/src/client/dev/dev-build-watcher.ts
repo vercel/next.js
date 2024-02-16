@@ -95,7 +95,6 @@ export default function initializeBuildWatcher(
         break
       case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
       case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
-      case HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING:
         hide()
         break
     }

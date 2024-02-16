@@ -1,4 +1,4 @@
-import NextImage, { unstable_getImgProps } from 'next/image.js'
+import NextImage, { getImageProps } from 'next/image.js'
 import Link from 'next/link.js'
 import Script from 'next/script.js'
 
@@ -8,7 +8,7 @@ export function Components() {
   return (
     <>
       <NextImage className="img" src={src} />
-      <p className="unstable_getImgProps">{typeof unstable_getImgProps}</p>
+      <p className="typeof-getImageProps">{typeof getImageProps}</p>
       <Link className="link" href="/client">
         link
       </Link>

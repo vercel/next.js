@@ -2,8 +2,9 @@ import Counter from './counter'
 import Form from './form'
 import ClientForm from './client-form'
 
-import dec, { inc, slowInc } from './actions'
+import dec, { slowInc } from './actions'
 import { log } from './actions-2'
+import { inc } from './actions-3'
 
 export default function Page() {
   const two = { value: 2 }

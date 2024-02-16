@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   next-app:
@@ -12,7 +12,7 @@ services:
       ENV_VARIABLE: ${ENV_VARIABLE}
       NEXT_PUBLIC_ENV_VARIABLE: ${NEXT_PUBLIC_ENV_VARIABLE}
 
-    # Set envrionment variables based on the .env file
+    # Set environment variables based on the .env file
     env_file:
       - .env
     volumes:
