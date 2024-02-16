@@ -104,7 +104,7 @@ To embed videos from external platforms, you can use Next.js to fetch the video 
 The first step is to create a [Server Component](https://nextjs.org/docs/app/building-your-application/rendering/server-components) that generates the appropriate iframe for embedding the video. This component will fetch the source URL for the video and render the iframe.
 
 ```jsx filename="app/ui/video-component.jsx"
-export const async function VideoComponent (){
+export default async function VideoComponent() {
   const src = await getVideoSrc()
 
   return <iframe src={src} frameborder="0" allowfullscreen />
