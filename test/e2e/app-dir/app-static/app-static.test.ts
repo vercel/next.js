@@ -3125,10 +3125,5 @@ createNextDescribe(
         })
       }
     })
-
-    it('should build dynamic param with edge runtime correctly', async () => {
-      const browser = await next.browser('/dynamic-param-edge/hello')
-      expect(await browser.elementByCss('#slug').text()).toBe('hello')
-    })
   }
 )

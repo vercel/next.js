@@ -1552,9 +1552,8 @@ export async function isPageStatic({
           useCache: true,
           distDir,
         })
-        const mod = (
-          await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
-        ).ComponentMod
+        const mod =
+          runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
 
         isClientComponent = isClientReference(mod)
         componentsResult = {
