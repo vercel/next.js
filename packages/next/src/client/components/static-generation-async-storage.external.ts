@@ -58,10 +58,9 @@ export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
 
 export function getExpectedStaticGenerationStore(callingExpression: string) {
   const store = staticGenerationAsyncStorage.getStore()
-  if (!store) {
-    throw new Error(
-      `Invariant: \`${callingExpression}\` expects to have staticGenerationAsyncStorage, none available.`
-    )
-  }
-  return store
+  if (store) return store
+  throw new Error(
+    `\`${callingExpression}()\` was called outside a request/render scope.
+Read more: https://nextjs.org/docs/messages/next-headers-wrong-context`
+  )
 }
