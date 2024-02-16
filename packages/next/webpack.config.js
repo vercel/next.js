@@ -32,13 +32,12 @@ const appExternals = [
 function makeAppAliases(reactChannel = '') {
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
-    'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
-    'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
+    'react/': `next/dist/compiled/react${reactChannel}/`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
-    'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
-    'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
-    'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
+    // 'react-dom/server-rendering-stub': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
+    'react-dom/': `next/dist/compiled/react-dom${reactChannel}/`,
+
+    // special alias only available in react-dom
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
@@ -46,15 +45,9 @@ function makeAppAliases(reactChannel = '') {
     'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
     // In Next.js runtime only use react-dom/server.edge
     'react-dom/server.browser$': 'react-dom/server.edge',
-    // react-server-dom-webpack alias
-    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
-    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
-    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
-    'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
-    'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
+    // react-server-dom-(webpack|turbopack) alias
+    'react-server-dom-turbopack': `next/dist/compiled/react-server-dom-turbopack${reactChannel}`,
+    'react-server-dom-webpack': `next/dist/compiled/react-server-dom-webpack${reactChannel}`,
   }
 }
 
