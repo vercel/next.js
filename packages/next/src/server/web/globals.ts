@@ -4,7 +4,7 @@ async function registerInstrumentation() {
   if (
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
+    (await _ENTRIES.middleware_instrumentation).register
   ) {
     try {
       await _ENTRIES.middleware_instrumentation.register()
