@@ -132,7 +132,7 @@ impl<C: Comments> ServerActions<C> {
                     self.config.enabled,
                 );
 
-                if is_action_fn && !self.config.is_react_server_layer {
+                if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -459,7 +459,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
+            // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_ident(&mut self.action_cnt);
@@ -541,7 +542,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
@@ -1024,6 +1025,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if self.has_action {
             let mut actions = self.export_actions.clone();
+
+            // All exported values are considered as actions if the file is an action file.
             if self.in_action_file {
                 actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };

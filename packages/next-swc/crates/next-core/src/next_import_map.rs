@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
-    turbo::tasks_fs::{glob::Glob, FileSystem, FileSystemPath},
+    turbo::tasks_fs::{FileSystem, FileSystemPath},
     turbopack::{
         core::{
             reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -422,30 +422,11 @@ pub async fn get_next_edge_import_map(
 }
 
 pub fn get_next_client_resolved_map(
-    context: Vc<FileSystemPath>,
-    root: Vc<FileSystemPath>,
-    mode: NextMode,
+    _context: Vc<FileSystemPath>,
+    _root: Vc<FileSystemPath>,
+    _mode: NextMode,
 ) -> Vc<ResolvedMap> {
-    let glob_mappings = if mode == NextMode::Development {
-        vec![]
-    } else {
-        vec![
-            // Temporary hack to replace the hot reloader until this is passable by props in
-            // next.js
-            (
-                context.root(),
-                Glob::new(
-                    "**/next/dist/client/components/react-dev-overlay/hot-reloader-client.js"
-                        .to_string(),
-                ),
-                ImportMapping::PrimaryAlternative(
-                    "@vercel/turbopack-next/dev/hot-reloader.tsx".to_string(),
-                    Some(root),
-                )
-                .into(),
-            ),
-        ]
-    };
+    let glob_mappings = vec![];
     ResolvedMap {
         by_glob: glob_mappings,
     }
@@ -908,12 +889,12 @@ fn export_value_to_import_mapping(
         None
     } else {
         Some(if result.len() == 1 {
-            ImportMapping::PrimaryAlternative(result[0].to_string(), Some(project_path)).cell()
+            ImportMapping::PrimaryAlternative(result[0].0.to_string(), Some(project_path)).cell()
         } else {
             ImportMapping::Alternatives(
                 result
                     .iter()
-                    .map(|m| {
+                    .map(|(m, _)| {
                         ImportMapping::PrimaryAlternative(m.to_string(), Some(project_path)).cell()
                     })
                     .collect(),

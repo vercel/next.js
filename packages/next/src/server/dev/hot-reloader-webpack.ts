@@ -191,6 +191,14 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+const networkErrors = [
+  'EADDRINFO',
+  'ENOTFOUND',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'EAI_AGAIN',
+]
+
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -206,15 +214,11 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
 
     if (!res.ok) return { installed, staleness: 'unknown' }
 
-    const tags = await res.json()
+    const { latest, canary } = await res.json()
 
-    return parseVersionInfo({
-      installed,
-      latest: tags.latest,
-      canary: tags.canary,
-    })
-  } catch (e) {
-    console.error('parse version e', e)
+    return parseVersionInfo({ installed, latest, canary })
+  } catch (e: any) {
+    if (!networkErrors.includes(e?.code)) console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
