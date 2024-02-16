@@ -143,5 +143,26 @@ createNextDescribe(
         await expect(versionText).not.toContain('(turbo)')
       }
     })
+
+    it('should not show the bundle layer info in the file trace', async () => {
+      await next.patchFile(
+        'app/server/page.js',
+        outdent`
+        export default function Page() {
+          throw new Error('test')
+        }
+        `
+      )
+      const browser = await next.browser('/server')
+
+      await retry(async () => {
+        expect(await hasRedbox(browser)).toBe(true)
+      })
+      const source = await getRedboxSource(browser)
+      expect(source).toContain('app/server/page.js')
+      expect(source).not.toContain('//app/server/page.js')
+      // Does not contain webpack traces in file path
+      expect(source).not.toMatch(/webpack(-internal:)?\/\//)
+    })
   }
 )
