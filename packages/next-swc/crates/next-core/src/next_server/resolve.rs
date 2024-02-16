@@ -111,7 +111,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 {
                     let path_match = path_glob.await?.execute(&raw_fs_path.path);
                     let request_match = if let Some(request_str) = &request_str {
-                        request_glob.await?.execute(&request_str)
+                        request_glob.await?.execute(request_str)
                     } else {
                         false
                     };
@@ -130,7 +130,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 {
                     let path_match = path_glob.await?.execute(&raw_fs_path.path);
                     let request_match = if let Some(request_str) = &request_str {
-                        request_glob.await?.execute(&request_str)
+                        request_glob.await?.execute(request_str)
                     } else {
                         false
                     };
