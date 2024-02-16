@@ -7,7 +7,7 @@ import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../future/route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
+import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -191,6 +191,14 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
+const networkErrors = [
+  'EADDRINFO',
+  'ENOTFOUND',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+  'EAI_AGAIN',
+]
+
 export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
   let installed = '0.0.0'
 
@@ -206,15 +214,11 @@ export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
 
     if (!res.ok) return { installed, staleness: 'unknown' }
 
-    const tags = await res.json()
+    const { latest, canary } = await res.json()
 
-    return parseVersionInfo({
-      installed,
-      latest: tags.latest,
-      canary: tags.canary,
-    })
-  } catch (e) {
-    console.error('parse version e', e)
+    return parseVersionInfo({ installed, latest, canary })
+  } catch (e: any) {
+    if (!networkErrors.includes(e?.code)) console.error(e)
     return { installed, staleness: 'unknown' }
   }
 }
@@ -1467,7 +1471,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
     this.reloadAfterInvalidation = reloadAfterInvalidation
     const outputPath = this.multiCompiler?.outputPath
-    return outputPath && getInvalidator(outputPath)?.invalidate()
+    if (outputPath) {
+      getInvalidator(outputPath)?.invalidate()
+    }
   }
 
   public async stop(): Promise<void> {

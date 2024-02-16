@@ -176,6 +176,11 @@ export interface Binding {
 export async function loadBindings(
   useWasmBinary: boolean = false
 ): Promise<Binding> {
+  // Increase Rust stack size as some npm packages being compiled need more than the default.
+  if (!process.env.RUST_MIN_STACK) {
+    process.env.RUST_MIN_STACK = '8388608'
+  }
+
   if (pendingBindings) {
     return pendingBindings
   }
@@ -407,9 +412,9 @@ export interface ProjectOptions {
   watch: boolean
 
   /**
-   * The address of the dev server.
+   * The mode in which Next.js is running.
    */
-  serverAddr: string
+  dev: boolean
 }
 
 type RustifiedEnv = { name: string; value: string }[]
@@ -507,8 +512,18 @@ export interface Issue {
       content?: string
     }
     range?: {
-      start: { line: number; column: number }
-      end: { line: number; column: number }
+      start: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
+      end: {
+        // 0-indexed
+        line: number
+        // 0-indexed
+        column: number
+      }
     }
   }
   documentationLink: string
@@ -1301,7 +1316,7 @@ function loadNative(importPath?: string) {
       isWasm: false,
       transform(src: string, options: any) {
         const isModule =
-          typeof src !== undefined &&
+          typeof src !== 'undefined' &&
           typeof src !== 'string' &&
           !Buffer.isBuffer(src)
         options = options || {}
@@ -1318,7 +1333,7 @@ function loadNative(importPath?: string) {
       },
 
       transformSync(src: string, options: any) {
-        if (typeof src === undefined) {
+        if (typeof src === 'undefined') {
           throw new Error(
             "transformSync doesn't implement reading the file from filesystem"
           )

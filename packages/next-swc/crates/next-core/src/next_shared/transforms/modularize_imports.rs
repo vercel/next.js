@@ -4,16 +4,18 @@ use anyhow::Result;
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
 use turbo_tasks::{trace::TraceRawVcs, Vc};
 use turbopack_binding::{
-    swc::custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    swc::{
+        core::{
+            common::util::take::Take,
+            ecma::{
+                ast::{Module, Program},
+                visit::FoldWith,
+            },
+        },
+        custom_transform::modularize_imports::{self, modularize_imports, PackageConfig},
+    },
     turbopack::{
         ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
         turbopack::module_options::{ModuleRule, ModuleRuleEffect},
@@ -51,9 +53,10 @@ pub fn get_next_modularize_imports_rule(
     ) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::AddEcmascriptTransforms(Vc::cell(vec![
-            transformer,
-        ]))],
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
+            prepend: Vc::cell(vec![]),
+            append: Vc::cell(vec![transformer]),
+        }],
     )
 }
 
