@@ -111,6 +111,7 @@ export interface RenderOptsPartial {
   dev?: boolean
   buildId: string
   basePath: string
+  trailingSlash: boolean
   clientReferenceManifest?: ClientReferenceManifest
   supportsDynamicHTML: boolean
   runtime?: ServerRuntime

@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright-chromium'
+import type { Request } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
@@ -35,7 +35,7 @@ createNextDescribe(
         }> = []
 
         const browser = await next.browser('/search-params?name=名')
-        browser.on('request', async (req: Request) => {
+        async function requestHandler(req: Request) {
           const res = await req.response()
           if (!res) return
 
@@ -44,7 +44,8 @@ createNextDescribe(
             ok: res.ok(),
             headers: res.headers(),
           })
-        })
+        }
+        browser.on('request', requestHandler)
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
 
@@ -57,6 +58,9 @@ createNextDescribe(
             }),
           })
         )
+
+        browser.off('request', requestHandler)
+        await browser.close()
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
@@ -71,69 +75,71 @@ createNextDescribe(
       })
 
       describe('useParams identity between renders', () => {
-        async function runTests(page: string, waitForNEffects: number) {
-          const browser = await next.browser(page)
+        it.each([
+          {
+            router: 'app',
+            pathname: '/search-params/foo',
+            // App Router doesn't re-render on initial load (the params are baked
+            // server side). In development, effects will render twice.
+            waitForNEffects: isNextDev ? 2 : 1,
+          },
+          {
+            router: 'pages',
+            pathname: '/search-params-pages/foo',
+            // Pages Router re-renders on initial load and after hydration, the
+            // params when initially loaded are null.
+            waitForNEffects: 2,
+          },
+        ])(
+          'should be stable in $router',
+          async ({ pathname, waitForNEffects }) => {
+            const browser = await next.browser(pathname)
 
-          // Expect to see the params changed message at least twice.
-          let lastLogIndex = await retry(async () => {
-            const logs: Array<{ message: string }> = await browser.log()
+            // Expect to see the params changed message at least twice.
+            let lastLogIndex = await retry(async () => {
+              const logs: Array<{ message: string }> = await browser.log()
 
-            expect(
-              logs.filter(({ message }) => message === 'params changed')
-            ).toHaveLength(waitForNEffects)
+              expect(
+                logs.filter(({ message }) => message === 'params changed')
+              ).toHaveLength(waitForNEffects)
 
-            return logs.length
-          })
-
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-          await browser.elementById('rerender-button').click()
-
-          await retry(async () => {
-            const rerender = await browser.elementById('rerender-button').text()
-
-            expect(rerender).toBe('Re-Render 3')
-          })
-
-          let logs: Array<{ message: string }> = await browser.log()
-          expect(logs.slice(lastLogIndex)).not.toContainEqual(
-            expect.objectContaining({
-              message: 'params changed',
+              return logs.length
             })
-          )
 
-          lastLogIndex = logs.length
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
+            await browser.elementById('rerender-button').click()
 
-          await browser.elementById('change-params-button').click()
+            await retry(async () => {
+              const rerender = await browser
+                .elementById('rerender-button')
+                .text()
 
-          await retry(async () => {
-            logs = await browser.log()
+              expect(rerender).toBe('Re-Render 3')
+            })
 
-            expect(logs.slice(lastLogIndex)).toContainEqual(
+            let logs: Array<{ message: string }> = await browser.log()
+            expect(logs.slice(lastLogIndex)).not.toContainEqual(
               expect.objectContaining({
                 message: 'params changed',
               })
             )
-          })
-        }
 
-        it('should be stable in app', async () => {
-          await runTests(
-            '/search-params/foo',
-            // App Router doesn't re-render on initial load (the params are baked
-            // server side). In development, effects will render twice.
-            isNextDev ? 2 : 1
-          )
-        })
+            lastLogIndex = logs.length
 
-        it('should be stable in pages', async () => {
-          await runTests(
-            '/search-params-pages/foo',
-            // Pages Router re-renders on initial load and after hydration, the
-            // params when initially loaded are null.
-            2
-          )
-        })
+            await browser.elementById('change-params-button').click()
+
+            await retry(async () => {
+              logs = await browser.log()
+
+              expect(logs.slice(lastLogIndex)).toContainEqual(
+                expect.objectContaining({
+                  message: 'params changed',
+                })
+              )
+            })
+          }
+        )
       })
     })
 

@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
+import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -24,17 +24,14 @@ createNextDescribe(
     },
     packageJson: {
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {
@@ -153,6 +150,19 @@ createNextDescribe(
       ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
     })
 
+    it('should not apply swc optimizer transform for external packages in browser layer', async () => {
+      const browser = await next.browser('/browser')
+      expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#worker-state').text()).toBe(
+          'worker.js:browser-module/other'
+        )
+      })
+    })
+
     describe('react in external esm packages', () => {
       it('should use the same react in client app', async () => {
         const html = await next.render('/esm/client')
@@ -205,6 +215,11 @@ createNextDescribe(
         const v1 = html.match(/App React Version: ([^<]+)</)[1]
         const v2 = html.match(/External React Version: ([^<]+)</)[1]
         expect(v1).toBe(v2)
+      })
+
+      it('should support namespace import with ESM packages', async () => {
+        const $ = await next.render$('/esm/react-namespace-import')
+        expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
       })
     })
 

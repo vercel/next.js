@@ -202,7 +202,7 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
-      serverAddr: `127.0.0.1:3000`,
+      dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,

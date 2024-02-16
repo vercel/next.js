@@ -1031,6 +1031,30 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
+export async function expandCallStack(
+  browser: BrowserInterface
+): Promise<void> {
+  // Open full Call Stack
+  await browser
+    .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+    .click()
+}
+
+export async function getRedboxCallStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
+
+  const callStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n').trim()
+}
+
 export async function getVersionCheckerText(
   browser: BrowserInterface
 ): Promise<string> {
