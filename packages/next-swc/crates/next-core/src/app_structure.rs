@@ -486,6 +486,10 @@ fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
 }
 
+fn is_catchall_route(name: &str) -> bool {
+    name.starts_with("[...") && name.ends_with(']')
+}
+
 fn match_parallel_route(name: &str) -> Option<&str> {
     name.strip_prefix('@')
 }
@@ -787,6 +791,7 @@ async fn directory_tree_to_loader_tree(
 
         let mut child_app_page = app_page.clone();
         let mut illegal_path_error = None;
+        let is_current_directory_catchall = is_catchall_route(subdir_name);
 
         // When constructing the app_page fails (e. g. due to limitations of the order),
         // we only want to emit the error when there are actual pages below that
@@ -821,7 +826,7 @@ async fn directory_tree_to_loader_tree(
             }
 
             if let Some(current_tree) = tree.parallel_routes.get("children") {
-                if *subtree.has_only_catchall().await? {
+                if is_current_directory_catchall && *subtree.has_only_catchall().await? {
                     // there's probably already a more specific page in the
                     // slot.
                 } else if *current_tree.has_only_catchall().await? {
