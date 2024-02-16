@@ -7,6 +7,7 @@ import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { myParseInt } from '../server/lib/utils'
 import { nextBuild } from '../cli/next-build'
+import { nextDev } from '../cli/next-dev'
 import { nextExport } from '../cli/next-export'
 import { nextInfo } from '../cli/next-info'
 import { nextLint } from '../cli/next-lint'
@@ -65,6 +66,52 @@ program
       .hideHelp()
   )
   .action((directory, options) => nextBuild(options, directory))
+  .usage('[directory] [options]')
+
+program
+  .command('dev')
+  .description(
+    'Starts Next.js in development mode with hot-code reloading, error reporting, and more.'
+  )
+  .argument(
+    '[directory]',
+    `A directory on which to build the application. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .option('--turbo', 'Starts development mode using Turbopack (beta).')
+  .addOption(
+    new Option(
+      '-p, --port [port]',
+      'Specify a port number on which to start the application.'
+    )
+      .argParser(myParseInt)
+      .default(3000)
+      .env('PORT')
+  )
+  .option(
+    '-H, --hostname <hostname>',
+    'Specify a hostname on which to start the application (default: 0.0.0.0).'
+  )
+  .option(
+    '--experimental-https',
+    'Starts the server with HTTPS and generates a self-signed certificate.'
+  )
+  .option('--experimental-https-key, <path>', 'Path to a HTTPS key file.')
+  .option(
+    '--experimental-https-cert, <path>',
+    'Path to a HTTPS certificate file.'
+  )
+  .option(
+    '--experimental-https-ca, <path>',
+    'Path to a HTTPS certificate authority file.'
+  )
+  .option(
+    '--experimental-upload-trace, <traceUrl>',
+    'Reports a subset of the debugging trace to a remote HTTP url. Includes sensitive data. Disabled by default and URL must be provided.'
+  )
+  .addOption(new Option('--experimental-test-proxy').hideHelp())
+  .action((directory, options) => nextDev(options, directory))
   .usage('[directory] [options]')
 
 program.command('export', { hidden: true }).action(nextExport).helpOption(false)
