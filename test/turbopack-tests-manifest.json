@@ -6394,7 +6394,7 @@
     "runtimeError": false
   },
   "test/e2e/test-utils-tests/basic/basic.test.ts": {
-    "passed": ["createNextDescribe should work"],
+    "passed": ["nextTestSetup should work"],
     "failed": [],
     "pending": [],
     "flakey": [],
