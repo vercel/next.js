@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command, Option } from 'commander'
+import { Command, InvalidArgumentError, Option } from 'commander'
 
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
@@ -23,7 +23,28 @@ if (
   process.exit(1)
 }
 
-const program = new Command()
+// Start performance profiling after Node.js version is checked
+performance.mark('next-start')
+
+class MyRootCommand extends Command {
+  createCommand(name) {
+    const cmd = new Command(name)
+
+    cmd.addOption(new Option('--inspect').hideHelp())
+    cmd.hook('preAction', (thisCommand) => {
+      if (thisCommand.getOptionValue('inspect') === true) {
+        console.error(
+          `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${thisCommand.name()}`
+        )
+        process.exit(1)
+      }
+    })
+
+    return cmd
+  }
+}
+
+const program = new MyRootCommand()
 
 program
   .name('next')
@@ -69,7 +90,7 @@ program
   .usage('[directory] [options]')
 
 program
-  .command('dev')
+  .command('dev', { isDefault: true })
   .description(
     'Starts Next.js in development mode with hot-code reloading, error reporting, and more.'
   )
@@ -82,7 +103,7 @@ program
   .option('--turbo', 'Starts development mode using Turbopack (beta).')
   .addOption(
     new Option(
-      '-p, --port [port]',
+      '-p, --port <port>',
       'Specify a port number on which to start the application.'
     )
       .argParser(myParseInt)
@@ -220,7 +241,7 @@ program
   )
   .addOption(
     new Option(
-      '-p, --port [port]',
+      '-p, --port <port>',
       'Specify a port number on which to start the application.'
     )
       .argParser(myParseInt)
