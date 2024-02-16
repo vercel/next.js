@@ -2,8 +2,6 @@
 title: next/headers methods were called outside request/render scope
 ---
 
-## ``
-
 #### Why This Error Occurred
 
 Either `headers()` or `cookies()` were invokned at place where no request information was available (eg.: Global scope, outside the React lifecycle).
