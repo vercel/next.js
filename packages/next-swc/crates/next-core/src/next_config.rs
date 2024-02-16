@@ -411,7 +411,7 @@ pub struct ExperimentalTurboConfig {
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
-    pub resolve_extension: Option<Vec<String>>,
+    pub resolve_extensions: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -768,7 +768,7 @@ impl NextConfig {
             .experimental
             .turbo
             .as_ref()
-            .and_then(|t| t.resolve_extension.as_ref())
+            .and_then(|t| t.resolve_extensions.as_ref())
         else {
             return Ok(Vc::cell(None));
         };

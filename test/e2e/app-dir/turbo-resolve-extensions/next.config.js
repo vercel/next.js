@@ -4,8 +4,10 @@ const extensions = ['png', 'tsx', 'ts', 'jsx', 'js', 'json']
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  turbo: {
-    resolveExtensions: extensions,
+  experimental: {
+    turbo: {
+      resolveExtensions: extensions,
+    },
   },
   webpack(config) {
     config.resolve.extensions = extensions.map((ext) => `.${ext}`)
