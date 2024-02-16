@@ -1,0 +1,44 @@
+---
+title: `next/headers` methods were called outside request/render scope
+---
+
+## ``
+
+#### Why This Error Occurred
+
+Either `headers()` or `cookies()` were invokned at place where no request information was available (eg.: Global scope, outside the React lifecycle).
+
+Note that `headers()` and `cookies()` could be called deep inside other modules/functions (eg.: third-party libraries) that are not immediately visible.
+
+#### Possible Ways to Fix It
+
+Make sure that all `headers()` and `cookies()` calls happen in a request/render scope.
+
+Example:
+
+```diff
+// app/page.ts
+import { cookies } from 'next/headers'
+
+- const cookieStore  = cookies()
+export default function Page() {
++ const cookieStore = cookies()
+  return ...
+}
+```
+
+```diff
+// app/foo/route.ts
+import { headers } from 'next/headers'
+
+- const headersList = headers()
+export async function GET() {
++ const headersList = headers()
+  return ...
+}
+```
+
+### Useful Links
+
+- [`headers()` function](https://nextjs.org/docs/app/api-reference/functions/headers)
+- [`cookies()` function](https://nextjs.org/docs/app/api-reference/functions/cookies)
