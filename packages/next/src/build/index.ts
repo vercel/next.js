@@ -1623,8 +1623,6 @@ export default async function build(
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
-          console.log({ compilerDuration })
-
           buildTraceContext = rest.buildTraceContext
 
           telemetry.record(
