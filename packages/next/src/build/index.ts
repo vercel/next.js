@@ -183,6 +183,7 @@ import {
   handleRouteType,
   writeManifests,
   handlePagesErrorRoute,
+  formatIssue,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 
@@ -1498,6 +1499,24 @@ export default async function build(
           loadableManifests,
           currentEntrypoints,
         })
+
+        const errors = []
+        for (const pageIssues of currentIssues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push({
+              message: formatIssue(issue),
+            })
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} issues:\n${errors
+              .map((e) => e.message)
+              .join('\n')}`
+          )
+        }
+
         return {
           duration: process.hrtime(startTime)[0],
           buildTraceContext: undefined,
