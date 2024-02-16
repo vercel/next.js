@@ -237,7 +237,6 @@ pub async fn get_server_resolve_options_context(
         enable_node_native_modules: true,
         module: true,
         custom_conditions,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_server_import_map),
         plugins,
         ..Default::default()
@@ -247,6 +246,7 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),

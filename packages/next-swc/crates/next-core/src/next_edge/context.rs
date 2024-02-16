@@ -124,7 +124,6 @@ pub async fn get_edge_resolve_options_context(
         enable_node_modules: Some(project_path.root().resolve().await?),
         enable_edge_node_externals: true,
         custom_conditions,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         import_map: Some(next_edge_import_map),
         module: true,
         browser: true,
@@ -141,6 +140,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
