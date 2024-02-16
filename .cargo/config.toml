@@ -7,15 +7,9 @@ rustdocflags = []
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
-rustflags = [
-  "-C", "target-feature=+crt-static",
-  "-C", "link-args=-Wl,-zstack-size=4194304",
-]
+rustflags = ["-C", "target-feature=+crt-static"]
 [target.i686-pc-windows-msvc]
-rustflags = [
-  "-C", "target-feature=+crt-static",
-  "-C", "link-args=-Wl,-zstack-size=4194304",
-]
+rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
@@ -26,7 +20,6 @@ rustflags = [
   "--cfg",
   "tokio_unstable",
   "-Zshare-generics=y",
-  "-C", "link-args=-Wl,-zstack-size=4194304",
   "-Csymbol-mangling-version=v0",
   "-Ctarget-feature=-crt-static",
   "-Clink-arg=-lgcc",
@@ -34,11 +27,6 @@ rustflags = [
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
-
-[target.'any(not(target.wasm32-unknown-unknown), not(wasm32-wasi-preview1-threads))']
-rustflags = [
-  "-C", "link-args=-Wl,-zstack-size=4194304",
-]
 
 [target.'cfg(all())']
 rustflags = [

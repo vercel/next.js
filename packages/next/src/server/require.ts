@@ -1,6 +1,6 @@
 import path from 'path'
 import {
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   PAGES_MANIFEST,
   SERVER_DIRECTORY,
   APP_PATHS_MANIFEST,
@@ -134,7 +134,7 @@ export function requirePage(
 export function requireFontManifest(distDir: string) {
   const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
   const fontManifest = loadManifest(
-    path.join(serverBuildPath, FONT_MANIFEST)
+    path.join(serverBuildPath, AUTOMATIC_FONT_OPTIMIZATION_MANIFEST)
   ) as FontManifest
   return fontManifest
 }

@@ -137,6 +137,17 @@ exports[`ReactRefreshLogBox app turbo boundaries 1`] = `
     |                                                   ^"
 `;
 
+exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `
+"Child.js (4:11) @ ClickCount.render
+
+  2 | export default class ClickCount extends Component {
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
+  6 | }"
+`;
+
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
 
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
