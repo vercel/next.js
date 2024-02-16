@@ -1,13 +1,13 @@
 declare const _ENTRIES: any
 
 async function registerInstrumentation() {
-  if (
+  const register =
     '_ENTRIES' in globalThis &&
     _ENTRIES.middleware_instrumentation &&
-    _ENTRIES.middleware_instrumentation.register
-  ) {
+    (await _ENTRIES.middleware_instrumentation).register
+  if (register) {
     try {
-      await _ENTRIES.middleware_instrumentation.register()
+      await register()
     } catch (err: any) {
       err.message = `An error occurred while loading instrumentation hook: ${err.message}`
       throw err

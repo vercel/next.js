@@ -343,7 +343,7 @@ pub async fn get_client_chunking_context(
     .chunk_base_path(asset_prefix)
     .asset_base_path(asset_prefix);
 
-    if matches!(*mode.await?, NextMode::Development) {
+    if mode.await?.is_development() {
         builder = builder.hot_module_replacement();
     }
 
@@ -367,7 +367,7 @@ pub async fn get_client_runtime_entries(
     let resolve_options_context =
         get_client_resolve_options_context(project_root, ty, mode, next_config, execution_context);
 
-    if matches!(*mode.await?, NextMode::Development) {
+    if mode.await?.is_development() {
         let enable_react_refresh =
             assert_can_resolve_react_refresh(project_root, resolve_options_context)
                 .await?
