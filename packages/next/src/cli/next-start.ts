@@ -27,21 +27,6 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
     printAndExit(getReservedPortExplanation(port), 1)
   }
 
-  if (typeof keepAliveTimeout !== 'undefined') {
-    if (
-      Number.isNaN(keepAliveTimeout) ||
-      !Number.isFinite(keepAliveTimeout) ||
-      keepAliveTimeout < 0
-    ) {
-      printAndExit(
-        `Invalid --keepAliveTimeout, expected a non negative number but received "${keepAliveTimeout}"`,
-        1
-      )
-    }
-
-    keepAliveTimeout = Math.ceil(keepAliveTimeout)
-  }
-
   await startServer({
     dir,
     isDev: false,
