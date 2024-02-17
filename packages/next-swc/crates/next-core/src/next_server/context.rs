@@ -156,8 +156,7 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        *next_config.import_externals().await?,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
@@ -442,6 +441,7 @@ pub async fn get_server_module_options_context(
                 esm_url_rewrite_behavior: url_rewrite_behavior,
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -503,6 +503,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -578,6 +579,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -621,6 +623,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -668,6 +671,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -707,16 +711,6 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
-}
-
-#[turbo_tasks::function]
-pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
-    ModuleOptionsContext {
-        enable_typescript_transform: Some(Default::default()),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-        ..Default::default()
-    }
-    .cell()
 }
 
 #[turbo_tasks::function]
