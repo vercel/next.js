@@ -139,6 +139,36 @@ createNextDescribe(
       }, 'success')
     })
 
+    it('should calculate `_rsc` query based on `Next-Url`', async () => {
+      const browser = await next.browser('/404', browserConfigWithFixedTime)
+      let requests: string[] = []
+
+      browser.on('request', (req) => {
+        const url = new URL(req.url())
+        if (url.toString().includes(`/static-page?${NEXT_RSC_UNION_QUERY}=`)) {
+          requests.push(`${url.pathname}${url.search}`)
+        }
+      })
+
+      await browser.eval('location.href = "/"')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
+
+      // Unable to clear router cache so mpa navigation
+      await browser.eval('location.href = "/dashboard"')
+      await browser.eval(
+        `window.nd.router.prefetch("/static-page", {kind: "auto"})`
+      )
+
+      await check(() => {
+        return requests.length === 2 ? 'success' : JSON.stringify(requests)
+      }, 'success')
+      expect(requests[0]).toMatch('/static-page?_rsc=')
+      expect(requests[1]).toMatch('/static-page?_rsc=')
+      expect(requests[0]).toBe(requests[1])
+    })
+
     it('should not prefetch for a bot user agent', async () => {
       const browser = await next.browser('/404')
       let requests: string[] = []
