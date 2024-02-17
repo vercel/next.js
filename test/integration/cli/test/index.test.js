@@ -768,7 +768,7 @@ describe('CLI Usage', () => {
       expect(help.code).toBe(1)
     })
 
-    test.only('run export command', async () => {
+    test('run export command', async () => {
       const help = await runNextCommand(['export'], {
         stdout: true,
         stderr: true,
