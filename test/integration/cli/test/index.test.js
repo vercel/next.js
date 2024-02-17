@@ -82,27 +82,26 @@ const testExitSignal = async (
 describe('CLI Usage', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
     describe('start', () => {
-      'should exit when SIGINT is signalled',
-        async () => {
-          require('console').log('before build')
-          await fs.remove(join(dirBasic, '.next'))
-          await nextBuild(dirBasic, undefined, {
-            onStdout(msg) {
-              console.log(msg)
-            },
-            onStderr(msg) {
-              console.log(msg)
-            },
-          })
-          require('console').log('build finished')
+      test('should exit when SIGINT is signalled', async () => {
+        require('console').log('before build')
+        await fs.remove(join(dirBasic, '.next'))
+        await nextBuild(dirBasic, undefined, {
+          onStdout(msg) {
+            console.log(msg)
+          },
+          onStderr(msg) {
+            console.log(msg)
+          },
+        })
+        require('console').log('build finished')
 
-          const port = await findPort()
-          await testExitSignal(
-            'SIGINT',
-            ['start', dirBasic, '-p', port],
-            /- Local:/
-          )
-        }
+        const port = await findPort()
+        await testExitSignal(
+          'SIGINT',
+          ['start', dirBasic, '-p', port],
+          /- Local:/
+        )
+      })
       test('should exit when SIGTERM is signalled', async () => {
         await fs.remove(join(dirBasic, '.next'))
         await nextBuild(dirBasic, undefined, {
