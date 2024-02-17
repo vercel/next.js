@@ -39,6 +39,8 @@ export function getRedirectError(
  * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
  *
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
+ *
+ * @note `redirect()` throws an Error instance with `NEXT_REDIRECT` as the error message. Make sure to not catch this error in your code.
  */
 export function redirect(
   /** The URL to redirect to */
@@ -68,6 +70,8 @@ export function redirect(
  * - In a Route Handler or Server Action, it will serve a 308/303 to the caller.
  *
  * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
+ *
+ * @note `permanentRedirect()` throws an Error instance with `NEXT_REDIRECT` as the error message. Make sure to not catch this error in your code.
  */
 export function permanentRedirect(
   /** The URL to redirect to */

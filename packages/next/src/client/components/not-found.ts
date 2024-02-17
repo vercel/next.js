@@ -15,6 +15,8 @@ type NotFoundError = Error & { digest: typeof NOT_FOUND_ERROR_CODE }
  * - In a Route Handler or Server Action, it will serve a 404 to the caller.
  *
  * Read more: [Next.js Docs: `notFound`](https://nextjs.org/docs/app/api-reference/functions/not-found)
+ *
+ * @note `notFound()` throws an Error instance with `NEXT_NOT_FOUND` as the error message. Make sure to not catch this error in your code.
  */
 export function notFound(): never {
   // eslint-disable-next-line no-throw-literal
