@@ -32,7 +32,7 @@ export function myParseInt(value: string) {
   // parseInt takes a string and a radix
   const parsedValue = parseInt(value, 10)
 
-  if (isNaN(parsedValue) || isFinite(parsedValue) || parsedValue < 0) {
+  if (isNaN(parsedValue) || !isFinite(parsedValue) || parsedValue < 0) {
     throw new InvalidArgumentError(`'${value}' is not a non-negative number.`)
   }
   return parsedValue
