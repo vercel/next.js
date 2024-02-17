@@ -493,7 +493,7 @@ export function patchFetch({
               body: (init as any)._ogBody || init.body,
             }
             for (const field of requestInputFields) {
-              // @ts-expect-error custom fields
+              // @ts-expect-error custom fields, hopefully gone soon.
               init[field] = initialInit[field]
             }
           }
