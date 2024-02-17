@@ -506,6 +506,7 @@ export async function exportAppImpl(
       : {}),
     strictNextHead: !!nextConfig.experimental.strictNextHead,
     deploymentId: nextConfig.experimental.deploymentId,
+    swrDelta: nextConfig.swrDelta,
     experimental: {
       ppr: nextConfig.experimental.ppr === true,
       missingSuspenseWithCSRBailout:

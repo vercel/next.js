@@ -119,6 +119,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
+    swrDelta: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({

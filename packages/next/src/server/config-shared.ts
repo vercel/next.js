@@ -10,6 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
+import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -529,6 +530,11 @@ export interface NextConfig extends Record<string, any> {
   cacheMaxMemorySize?: number
 
   /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta | undefined
+
+  /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
    * To disable this behavior and prevent routing based set this to `true`.
    *
@@ -780,6 +786,7 @@ export const defaultConfig: NextConfig = {
   cacheHandler: undefined,
   // default to 50MB limit
   cacheMaxMemorySize: 50 * 1024 * 1024,
+  swrDelta: undefined,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,

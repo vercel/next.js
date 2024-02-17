@@ -23,7 +23,7 @@ import type { PagesAPIRouteModule } from './future/route-modules/pages-api/modul
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -425,6 +425,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
+      swrDelta: SwrDelta | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -435,6 +436,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
+      swrDelta: this.nextConfig.swrDelta,
     })
   }
 
