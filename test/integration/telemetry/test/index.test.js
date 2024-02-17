@@ -90,7 +90,7 @@ describe('Telemetry CLI', () => {
   it('can disable telemetry with env NEXT_TELEMETRY_DISABLED', async () => {
     // next config is not reset between tests
     await runNextCommand(['telemetry', 'enable'])
-    const { stdout } = await runNextCommand(['telemetry', 'status'], {
+    const { stdout } = await runNextCommand(['telemetry'], {
       stdout: true,
       env: {
         NEXT_TELEMETRY_DISABLED: '1',

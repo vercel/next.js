@@ -11,13 +11,13 @@ type NextTelemetryOptions = {
 const telemetry = new Telemetry({ distDir: process.cwd() })
 let isEnabled = telemetry.isEnabled
 
-const nextTelemetry = (options: NextTelemetryOptions) => {
-  if (options.enable) {
+const nextTelemetry = (options: NextTelemetryOptions, toggle: string) => {
+  if (options.enable || toggle === 'enable') {
     telemetry.setEnabled(true)
     isEnabled = true
 
     console.log(cyan('Success!'))
-  } else if (options.disable) {
+  } else if (options.disable || toggle === 'disable') {
     const path = telemetry.setEnabled(false)
 
     if (isEnabled) {

@@ -2,7 +2,7 @@
 
 import '../server/require-hook'
 
-import { Command, Option } from 'commander'
+import { Argument, Command, Option } from 'commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
@@ -308,6 +308,7 @@ program
       'completely anonymous'
     )} telemetry collection.`
   )
+  .addArgument(new Argument('[toggle]').choices(['enable', 'disable']))
   .addHelpText('after', `\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
   .addOption(
     new Option('--enable', `Enables Next.js' telemetry collection.`).conflicts(
@@ -315,8 +316,9 @@ program
     )
   )
   .option('--disable', `Disables Next.js' telemetry collection.`)
-  .action((options) => {
-    nextTelemetry(options)
+  .action((toggle, options) => {
+    nextTelemetry(options, toggle)
   })
+  .usage('[toggle] [options]')
 
 program.parse(process.argv)
