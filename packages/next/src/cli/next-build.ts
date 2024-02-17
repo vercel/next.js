@@ -20,6 +20,9 @@ type NextBuildOptions = {
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+  process.on('SIGTERM', () => process.exit(0))
+  process.on('SIGINT', () => process.exit(0))
+
   const {
     debug,
     profile,

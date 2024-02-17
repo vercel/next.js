@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 
-import { Command, InvalidArgumentError, Option } from 'commander'
+import '../server/require-hook'
 
+import { Command, Option } from 'commander'
+
+import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
 import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
+import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
 import { nextBuild } from '../cli/next-build'
 import { nextDev } from '../cli/next-dev'
@@ -26,15 +30,48 @@ if (
 // Start performance profiling after Node.js version is checked
 performance.mark('next-start')
 
+for (const dependency of ['react', 'react-dom']) {
+  try {
+    // When 'npm link' is used it checks the clone location. Not the project.
+    require.resolve(dependency)
+  } catch (err) {
+    console.warn(
+      `The module '${dependency}' was not found. Next.js requires that you include it in 'dependencies' of your 'package.json'. To add it, run 'npm install ${dependency}'`
+    )
+  }
+}
+
 class MyRootCommand extends Command {
-  createCommand(name) {
+  createCommand(name: string) {
     const cmd = new Command(name)
 
     cmd.addOption(new Option('--inspect').hideHelp())
+
     cmd.hook('preAction', (thisCommand) => {
+      const cmdName = thisCommand.name()
+      const defaultEnv = cmdName === 'dev' ? 'development' : 'production'
+      const standardEnv = ['production', 'development', 'test']
+
+      if (process.env.NODE_ENV) {
+        const isNotStandard = !standardEnv.includes(process.env.NODE_ENV)
+        const shouldWarnCommands =
+          process.env.NODE_ENV === 'development'
+            ? ['start', 'build']
+            : process.env.NODE_ENV === 'production'
+            ? ['dev']
+            : []
+
+        if (isNotStandard || shouldWarnCommands.includes(cmdName)) {
+          warn(NON_STANDARD_NODE_ENV)
+        }
+      }
+
+      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+
       if (thisCommand.getOptionValue('inspect') === true) {
         console.error(
-          `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${thisCommand.name()}`
+          `\`--inspect\` flag is deprecated. Use env variable NODE_OPTIONS instead: NODE_OPTIONS='--inspect' next ${cmdName}`
         )
         process.exit(1)
       }
@@ -86,7 +123,9 @@ program
       .default('default')
       .hideHelp()
   )
-  .action((directory, options) => nextBuild(options, directory))
+  .action((directory, options) => {
+    nextBuild(options, directory)
+  })
   .usage('[directory] [options]')
 
 program
