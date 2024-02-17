@@ -140,9 +140,7 @@ createNextDescribe(
               expect(cacheControl).toEqual('no-store, must-revalidate')
             } else if (dynamic === false || dynamic === 'force-static') {
               expect(cacheControl).toEqual(
-                `s-maxage=${
-                  revalidate || '31536000'
-                }, stale-while-revalidate=31536000`
+                `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
               )
             } else {
               expect(cacheControl).toEqual(
@@ -340,9 +338,7 @@ createNextDescribe(
               expect(cache).toEqual('public, max-age=0, must-revalidate')
             } else {
               expect(cache).toEqual(
-                `s-maxage=${
-                  revalidate || '31536000'
-                }, stale-while-revalidate=31536000`
+                `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
               )
             }
 
