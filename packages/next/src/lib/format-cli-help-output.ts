@@ -1,4 +1,4 @@
-import { Command, Help } from 'commander'
+import type { Command, Help } from 'commander'
 import { bold } from '../lib/picocolors'
 
 // Copy-pasted from Commander's Help class -> formatHelp().
@@ -75,10 +75,10 @@ const formatCliHelpOutput = (cmd: Command, helper: Help) => {
   }
 
   // Commands
-  const commandList = helper.visibleCommands(cmd).map((cmd) => {
+  const commandList = helper.visibleCommands(cmd).map((subCmd) => {
     return formatItem(
-      helper.subcommandTerm(cmd),
-      helper.subcommandDescription(cmd)
+      helper.subcommandTerm(subCmd),
+      helper.subcommandDescription(subCmd)
     )
   })
 
