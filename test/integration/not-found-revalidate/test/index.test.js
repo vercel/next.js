@@ -101,7 +101,7 @@ const runTests = () => {
 
     const props = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props.found).toBe(true)
@@ -114,7 +114,7 @@ const runTests = () => {
 
     const props2 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props2.found).toBe(true)
@@ -127,7 +127,7 @@ const runTests = () => {
 
     const props3 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props3.found).toBe(true)
@@ -157,7 +157,7 @@ const runTests = () => {
 
     const props = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props.found).toBe(true)
@@ -170,7 +170,7 @@ const runTests = () => {
 
     const props2 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props2.found).toBe(true)
@@ -183,7 +183,7 @@ const runTests = () => {
 
     const props3 = JSON.parse($('#props').text())
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
     expect(res.status).toBe(200)
     expect(props3.found).toBe(true)

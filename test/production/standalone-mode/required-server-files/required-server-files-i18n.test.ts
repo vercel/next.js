@@ -172,7 +172,7 @@ describe('required server files i18n', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
 
     await waitFor(2000)
@@ -183,7 +183,7 @@ describe('required server files i18n', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
   })
 
@@ -195,7 +195,7 @@ describe('required server files i18n', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
@@ -207,7 +207,7 @@ describe('required server files i18n', () => {
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31536000'
+      's-maxage=1, stale-while-revalidate'
     )
   })
 
