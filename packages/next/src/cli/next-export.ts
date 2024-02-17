@@ -1,12 +1,14 @@
 import { cyan } from '../lib/picocolors'
-import * as Log from '../build/output/log'
+import { error } from '../build/output/log'
 
 const nextExport = () => {
-  Log.error(`
-    \`next export\` has been removed in favor of "output: export" in next.config.js.\nLearn more: ${cyan(
+  error(`
+    \`next export\` has been removed in favor of 'output: export' in next.config.js.\nLearn more: ${cyan(
       'https://nextjs.org/docs/advanced-features/static-html-export'
     )}
   `)
+
+  process.exit(1)
 }
 
 export { nextExport }

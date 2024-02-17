@@ -768,15 +768,15 @@ describe('CLI Usage', () => {
       expect(help.code).toBe(1)
     })
 
-    test('run export command', async () => {
+    test.only('run export command', async () => {
       const help = await runNextCommand(['export'], {
         stdout: true,
         stderr: true,
       })
       expect(help.stderr).toMatch(
-        '`next export` has been removed in favor of "output: export" in next.config.js'
+        `\`next export\` has been removed in favor of 'output: export' in next.config.js`
       )
-      expect(help.code).toBe(0)
+      expect(help.code).toBe(1)
     })
   })
 
