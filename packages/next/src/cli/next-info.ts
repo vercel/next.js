@@ -71,6 +71,10 @@ async function getNextConfig() {
   }
 }
 
+/**
+ * Returns the version of the specified binary, by supplying `--version` argument.
+ * N/A if it fails to run the binary.
+ */
 function getBinaryVersion(binaryName: string) {
   try {
     return childProcess
@@ -82,6 +86,9 @@ function getBinaryVersion(binaryName: string) {
   }
 }
 
+/**
+ * Collect basic next.js installation information and print it to stdout.
+ */
 async function printInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
@@ -139,8 +146,20 @@ Relevant Packages:
   typescript: ${getPackageVersion('typescript')}
 Next.js Config:
   output: ${nextConfig.output}`)
+
+  if (versionInfo?.staleness.startsWith('stale')) {
+    warn(`${title}
+   Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+   Read more - https://nextjs.org/docs/messages/opening-an-issue`)
+  }
 }
 
+/**
+ * Using system-installed tools per each platform, trying to read shared dependencies of next-swc.
+ * This is mainly for debugging DLOPEN failure.
+ *
+ * We don't / can't install these tools by ourselves, will skip the check if we can't find them.
+ */
 async function runSharedDependencyCheck(
   tools: Array<{ bin: string; checkArgs: Array<string>; args: Array<string> }>,
   skipMessage: string
@@ -213,6 +232,9 @@ async function runSharedDependencyCheck(
   }
 }
 
+/**
+ * Collect additional diagnostics information.
+ */
 async function printVerboseInfo() {
   const fs = require('fs')
   const currentPlatform = os.platform()
@@ -551,6 +573,11 @@ async function printVerboseInfo() {
   }
 }
 
+/**
+ * Runs few scripts to collect system information to help with debugging next.js installation issues.
+ * There are 2 modes, by default it collects basic next.js installation with runtime information. If
+ * `--verbose` mode is enabled it'll try to collect, verify more data for next-swc installation and others.
+ */
 const nextInfo = async (options: NextInfoOptions) => {
   if (options.verbose) {
     await printVerboseInfo()
