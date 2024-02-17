@@ -84,24 +84,31 @@ createNextDescribe(
       let requests: string[] = []
 
       browser.on('request', (req) => {
-        const url = new URL(req.url())
-        if (url.toString().includes(`/static-page?${NEXT_RSC_UNION_QUERY}=`)) {
-          requests.push(`${url.pathname}${url.search}`)
-        }
+        requests.push(new URL(req.url()).pathname)
       })
-
       await browser.eval('location.href = "/"')
+
       await browser.eval(
         'window.nd.router.prefetch("/static-page", {kind: "auto"})'
       )
+
+      await check(() => {
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
+
       await browser
         .elementByCss('#to-static-page')
         .click()
         .waitForElementByCss('#static-page')
 
-      await check(() => {
-        return requests.length === 2 ? 'success' : JSON.stringify(requests)
-      }, 'success')
+      expect(
+        requests.filter((request) => request === '/static-page').length
+      ).toBe(1)
     })
 
     it('should not fetch again when a static page was prefetched when navigating to it twice', async () => {
@@ -109,20 +116,27 @@ createNextDescribe(
       let requests: string[] = []
 
       browser.on('request', (req) => {
-        const url = new URL(req.url())
-        if (url.toString().includes(`/static-page?${NEXT_RSC_UNION_QUERY}=`)) {
-          requests.push(`${url.pathname}${url.search}`)
-        }
+        requests.push(new URL(req.url()).pathname)
       })
-
       await browser.eval('location.href = "/"')
+
       await browser.eval(
         `window.nd.router.prefetch("/static-page", {kind: "auto"})`
       )
+      await check(() => {
+        return requests.some(
+          (req) =>
+            req.includes('static-page') && !req.includes(NEXT_RSC_UNION_QUERY)
+        )
+          ? 'success'
+          : JSON.stringify(requests)
+      }, 'success')
+
       await browser
         .elementByCss('#to-static-page')
         .click()
         .waitForElementByCss('#static-page')
+
       await browser
         .elementByCss('#to-home')
         // Go back to home page
@@ -134,39 +148,49 @@ createNextDescribe(
         // Wait for the static page to load again
         .waitForElementByCss('#static-page')
 
-      await check(() => {
-        return requests.length === 2 ? 'success' : JSON.stringify(requests)
-      }, 'success')
+      expect(
+        requests.filter(
+          (request) =>
+            request === '/static-page' || request.includes(NEXT_RSC_UNION_QUERY)
+        ).length
+      ).toBe(1)
     })
 
     it('should calculate `_rsc` query based on `Next-Url`', async () => {
       const browser = await next.browser('/404', browserConfigWithFixedTime)
-      let requests: string[] = []
+      let staticPageRequests: string[] = []
 
       browser.on('request', (req) => {
         const url = new URL(req.url())
         if (url.toString().includes(`/static-page?${NEXT_RSC_UNION_QUERY}=`)) {
-          requests.push(`${url.pathname}${url.search}`)
+          staticPageRequests.push(`${url.pathname}${url.search}`)
         }
       })
-
       await browser.eval('location.href = "/"')
       await browser.eval(
         `window.nd.router.prefetch("/static-page", {kind: "auto"})`
       )
+      await check(() => {
+        return staticPageRequests.length === 1
+          ? 'success'
+          : JSON.stringify(staticPageRequests)
+      }, 'success')
 
       // Unable to clear router cache so mpa navigation
       await browser.eval('location.href = "/dashboard"')
       await browser.eval(
         `window.nd.router.prefetch("/static-page", {kind: "auto"})`
       )
-
       await check(() => {
-        return requests.length === 2 ? 'success' : JSON.stringify(requests)
+        return staticPageRequests.length === 2
+          ? 'success'
+          : JSON.stringify(staticPageRequests)
       }, 'success')
-      expect(requests[0]).toMatch('/static-page?_rsc=')
-      expect(requests[1]).toMatch('/static-page?_rsc=')
-      expect(requests[0]).toBe(requests[1])
+
+      expect(staticPageRequests[0]).toMatch('/static-page?_rsc=')
+      expect(staticPageRequests[1]).toMatch('/static-page?_rsc=')
+      // `_rsc` does not match because it depends on the `Next-Url`
+      expect(staticPageRequests[0]).not.toBe(staticPageRequests[1])
     })
 
     it('should not prefetch for a bot user agent', async () => {
