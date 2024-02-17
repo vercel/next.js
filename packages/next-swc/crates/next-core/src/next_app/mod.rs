@@ -209,8 +209,15 @@ impl AppPage {
     }
 
     pub fn is_catchall(&self) -> bool {
+        let segment = if self.is_complete() {
+            // The `PageType` is the last segment for completed pages.
+            self.0.iter().nth_back(1)
+        } else {
+            self.0.last()
+        };
+
         matches!(
-            self.0.last(),
+            segment,
             Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
         )
     }
