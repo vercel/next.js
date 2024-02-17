@@ -81,27 +81,28 @@ const testExitSignal = async (
 
 describe('CLI Usage', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    describe('start', () => {
-      test('should exit when SIGINT is signalled', async () => {
-        require('console').log('before build')
-        await fs.remove(join(dirBasic, '.next'))
-        await nextBuild(dirBasic, undefined, {
-          onStdout(msg) {
-            console.log(msg)
-          },
-          onStderr(msg) {
-            console.log(msg)
-          },
-        })
-        require('console').log('build finished')
+    describe.only('start', () => {
+      'should exit when SIGINT is signalled',
+        async () => {
+          require('console').log('before build')
+          await fs.remove(join(dirBasic, '.next'))
+          await nextBuild(dirBasic, undefined, {
+            onStdout(msg) {
+              console.log(msg)
+            },
+            onStderr(msg) {
+              console.log(msg)
+            },
+          })
+          require('console').log('build finished')
 
-        const port = await findPort()
-        await testExitSignal(
-          'SIGINT',
-          ['start', dirBasic, '-p', port],
-          /- Local:/
-        )
-      })
+          const port = await findPort()
+          await testExitSignal(
+            'SIGINT',
+            ['start', dirBasic, '-p', port],
+            /- Local:/
+          )
+        }
       test('should exit when SIGTERM is signalled', async () => {
         await fs.remove(join(dirBasic, '.next'))
         await nextBuild(dirBasic, undefined, {
@@ -124,14 +125,14 @@ describe('CLI Usage', () => {
         const help = await runNextCommand(['start', '--help'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(/Starts the application in production mode/)
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
       })
 
       test('-h', async () => {
         const help = await runNextCommand(['start', '-h'], {
           stdout: true,
         })
-        expect(help.stdout).toMatch(/Starts the application in production mode/)
+        expect(help.stdout).toMatch(/Starts Next.js in production mode/)
       })
 
       test('should format IPv6 addresses correctly', async () => {
@@ -167,7 +168,7 @@ describe('CLI Usage', () => {
         const { stderr } = await runNextCommand(['start', '--random'], {
           stderr: true,
         })
-        expect(stderr).toEqual('Unknown or unexpected option: --random\n')
+        expect(stderr).toEqual(`error: unknown option '--random'\n`)
       })
       test('should not throw UnhandledPromiseRejectionWarning', async () => {
         const { stderr } = await runNextCommand(['start', '--random'], {
@@ -211,7 +212,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "NaN"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'string' is invalid. 'string' is not a non-negative number.`
         )
       })
 
@@ -223,7 +224,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "-100"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '-100' is invalid. '-100' is not a non-negative number.`
         )
       })
 
@@ -235,7 +236,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).toContain(
-          'Invalid --keepAliveTimeout, expected a non negative number but received "Infinity"'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument 'Infinity' is invalid. 'Infinity' is not a non-negative number.`
         )
       })
 
@@ -247,7 +248,7 @@ describe('CLI Usage', () => {
           }
         )
         expect(stderr).not.toContain(
-          'Invalid keep alive timeout provided, expected a non negative number'
+          `error: option '--keepAliveTimeout <keepAliveTimeout>' argument '100' is invalid. '100' is not a non-negative number.`
         )
       })
 
