@@ -715,11 +715,15 @@ export default async function getBaseWebpackConfig(
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
+  const nextFrameworkPaths: string[] = []
   const topLevelFrameworkPaths: string[] = []
   const visitedFrameworkPackages = new Set<string>()
-
   // Adds package-paths of dependencies recursively
-  const addPackagePath = (packageName: string, relativeToPath: string) => {
+  const addPackagePath = (
+    packageName: string,
+    relativeToPath: string,
+    paths: string[]
+  ) => {
     try {
       if (visitedFrameworkPackages.has(packageName)) {
         return
@@ -738,11 +742,11 @@ export default async function getBaseWebpackConfig(
       const directory = path.join(packageJsonPath, '../')
 
       // Returning from the function in case the directory has already been added and traversed
-      if (topLevelFrameworkPaths.includes(directory)) return
-      topLevelFrameworkPaths.push(directory)
+      if (paths.includes(directory)) return
+      paths.push(directory)
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
-        addPackagePath(name, directory)
+        addPackagePath(name, directory, paths)
       }
     } catch (_) {
       // don't error on failing to resolve framework packages
@@ -759,8 +763,9 @@ export default async function getBaseWebpackConfig(
         ]
       : []),
   ]) {
-    addPackagePath(packageName, dir)
+    addPackagePath(packageName, dir, topLevelFrameworkPaths)
   }
+  addPackagePath('next', dir, nextFrameworkPaths)
 
   const crossOrigin = config.crossOrigin
 
@@ -913,8 +918,83 @@ export default async function getBaseWebpackConfig(
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
-        if (dev) {
-          if (isNodeServer) {
+        const frameworkCacheGroup = {
+          chunks: 'all' as const,
+          name: 'framework',
+          test(module: any) {
+            const resource = module.nameForCondition?.()
+            return resource
+              ? topLevelFrameworkPaths.some((pkgPath) =>
+                  resource.startsWith(pkgPath)
+                )
+              : false
+          },
+          priority: 40,
+          // Don't let webpack eliminate this chunk (prevents this chunk from
+          // becoming a part of the commons chunk)
+          enforce: true,
+        }
+
+        const nextRuntimeCacheGroup = {
+          chunks: 'all' as const,
+          name: 'next-runtime',
+          test(module: any) {
+            const resource = module.nameForCondition?.()
+            return resource
+              ? nextFrameworkPaths.some((pkgPath) =>
+                  resource.startsWith(pkgPath)
+                )
+              : false
+          },
+          priority: 30,
+          enforce: true,
+        }
+
+        const libCacheGroup = {
+          test(module: {
+            size: Function
+            nameForCondition: Function
+          }): boolean {
+            return (
+              module.size() > 160000 &&
+              /node_modules[/\\]/.test(module.nameForCondition() || '')
+            )
+          },
+          name(module: {
+            layer: string | null | undefined
+            type: string
+            libIdent?: Function
+            updateHash: (hash: crypto.Hash) => void
+          }): string {
+            const hash = crypto.createHash('sha1')
+            if (isModuleCSS(module)) {
+              module.updateHash(hash)
+            } else {
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
+              }
+              hash.update(module.libIdent({ context: dir }))
+            }
+
+            // Ensures the name of the chunk is not the same between two modules in different layers
+            // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
+            // as they're never used on the same page.
+            if (module.layer) {
+              hash.update(module.layer)
+            }
+
+            return hash.digest('hex').substring(0, 8)
+          },
+          priority: 30,
+          minChunks: 1,
+          reuseExistingChunk: true,
+        }
+
+        // server chunking
+        if (isNodeServer || isEdgeServer) {
+          if (dev) {
             /*
               In development, we want to split code that comes from `node_modules` into their own chunks.
               This is because in development, we often need to reload the user bundle due to changes in the code.
@@ -960,83 +1040,18 @@ export default async function getBaseWebpackConfig(
             }
           }
 
-          return false
-        }
-
-        if (isNodeServer) {
           return {
-            filename: '[name].js',
-            chunks: 'all',
+            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            cacheGroups: {
+              nextRuntime: nextRuntimeCacheGroup,
+              framework: frameworkCacheGroup,
+              lib: libCacheGroup,
+            },
             minChunks: 2,
           }
         }
 
-        if (isEdgeServer) {
-          return {
-            filename: 'edge-chunks/[name].js',
-            minChunks: 2,
-          }
-        }
-
-        const frameworkCacheGroup = {
-          chunks: 'all' as const,
-          name: 'framework',
-          // Ensures the framework chunk is not created for App Router.
-          layer: isWebpackDefaultLayer,
-          test(module: any) {
-            const resource = module.nameForCondition?.()
-            return resource
-              ? topLevelFrameworkPaths.some((pkgPath) =>
-                  resource.startsWith(pkgPath)
-                )
-              : false
-          },
-          priority: 40,
-          // Don't let webpack eliminate this chunk (prevents this chunk from
-          // becoming a part of the commons chunk)
-          enforce: true,
-        }
-        const libCacheGroup = {
-          test(module: {
-            size: Function
-            nameForCondition: Function
-          }): boolean {
-            return (
-              module.size() > 160000 &&
-              /node_modules[/\\]/.test(module.nameForCondition() || '')
-            )
-          },
-          name(module: {
-            layer: string | null | undefined
-            type: string
-            libIdent?: Function
-            updateHash: (hash: crypto.Hash) => void
-          }): string {
-            const hash = crypto.createHash('sha1')
-            if (isModuleCSS(module)) {
-              module.updateHash(hash)
-            } else {
-              if (!module.libIdent) {
-                throw new Error(
-                  `Encountered unknown module type: ${module.type}. Please open an issue.`
-                )
-              }
-              hash.update(module.libIdent({ context: dir }))
-            }
-
-            // Ensures the name of the chunk is not the same between two modules in different layers
-            // E.g. if you import 'button-library' in App Router and Pages Router we don't want these to be bundled in the same chunk
-            // as they're never used on the same page.
-            if (module.layer) {
-              hash.update(module.layer)
-            }
-
-            return hash.digest('hex').substring(0, 8)
-          },
-          priority: 30,
-          minChunks: 1,
-          reuseExistingChunk: true,
-        }
+        // client chunking
         const cssCacheGroup = {
           test: /\.(css|sass|scss)$/i,
           chunks: 'all' as const,
