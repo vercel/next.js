@@ -183,6 +183,7 @@ import {
   handleRouteType,
   writeManifests,
   handlePagesErrorRoute,
+  formatIssue,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 
@@ -1338,16 +1339,16 @@ export default async function build(
         }
         // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
         // This is caused by Turbopack not having the production build option yet.
-        // @ts-expect-error
-        process.env.NODE_ENV = 'development'
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const dev = false
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
           nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
+          dev,
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
@@ -1355,7 +1356,7 @@ export default async function build(
             clientRouterFilters: undefined,
             config,
             // When passing `false` you get `react.jsxDEV is not a function`
-            dev: true,
+            dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
             hasRewrites,
@@ -1498,6 +1499,24 @@ export default async function build(
           loadableManifests,
           currentEntrypoints,
         })
+
+        const errors = []
+        for (const pageIssues of currentIssues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push({
+              message: formatIssue(issue),
+            })
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} issues:\n${errors
+              .map((e) => e.message)
+              .join('\n')}`
+          )
+        }
+
         return {
           duration: process.hrtime(startTime)[0],
           buildTraceContext: undefined,

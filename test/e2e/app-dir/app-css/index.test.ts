@@ -457,11 +457,22 @@ createNextDescribe(
           it('should only include the same style once in the flight data', async () => {
             const initialHtml = await next.render('/css/css-duplicate-2/server')
 
-            // Even if it's deduped by Float, it should still only be included once in the payload.
-            // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
-            expect(
-              initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
-            ).toBe(3)
+            if (process.env.TURBOPACK) {
+              expect(
+                initialHtml.match(/app_css_css-duplicate-2_[\w]+\.css/g).length
+              ).toBe(5)
+            } else {
+              // Even if it's deduped by Float, it should still only be included once in the payload.
+              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
+
+              expect(
+                initialHtml.match(/css-duplicate-2\/layout\.css\?v=/g).length
+              ).toBe(3)
+              // Links in data-precedence does not have `?v=` query
+              expect(
+                initialHtml.match(/css-duplicate-2\/layout\.css/g).length
+              ).toBe(5)
+            }
           })
 
           it.skip('should only load chunks for the css module that is used by the specific entrypoint', async () => {

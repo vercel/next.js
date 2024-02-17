@@ -90,6 +90,9 @@ pub struct NapiProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: NapiDefineEnv,
+
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -121,6 +124,9 @@ pub struct NapiPartialProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: Option<NapiDefineEnv>,
+
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[napi(object)]
@@ -151,6 +157,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
+            dev: val.dev,
         }
     }
 }
@@ -167,6 +174,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
+            dev: val.dev,
         }
     }
 }
@@ -729,6 +737,16 @@ impl From<UpdateInfo> for NapiUpdateInfo {
     }
 }
 
+/// Subscribes to lifecycle events of the compilation.
+/// Emits an [UpdateMessage::Start] event when any computation starts.
+/// Emits an [UpdateMessage::End] event when there was no computation for the
+/// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
+/// information about the computations that happened since the
+/// [UpdateMessage::Start] event. It contains the duration of the computation
+/// (excluding the idle time that was spend waiting for `aggregation_ms`), and
+/// the number of tasks that were executed.
+///
+/// The signature of the `func` is `(update_message: UpdateMessage) => void`.
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

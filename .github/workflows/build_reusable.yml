@@ -108,15 +108,6 @@ jobs:
         with:
           components: rustfmt, clippy
 
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-        with:
-          mdbook-version: 'latest'
-
-      - name: Install cargo-binstall
-        uses: cargo-bins/cargo-binstall@v1.6.3
-
       - name: 'Install mold linker'
         if: ${{ inputs.mold == 'yes' }}
         run: |
