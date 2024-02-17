@@ -50,7 +50,7 @@ import {
   CLIENT_STATIC_FILES_PATH,
   EXPORT_DETAIL,
   EXPORT_MARKER,
-  FONT_MANIFEST,
+  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   IMAGES_MANIFEST,
   PAGES_MANIFEST,
   PHASE_PRODUCTION_BUILD,
@@ -166,7 +166,25 @@ import { hasCustomExportOutput } from '../export/utils'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import { isInterceptionRouteAppPath } from '../server/future/helpers/interception-routes'
-import { getTurbopackJsConfig } from '../server/dev/turbopack-utils'
+import {
+  getTurbopackJsConfig,
+  handleEntrypoints,
+  type GlobalEntrypoints,
+  type CurrentEntrypoints,
+  type CurrentIssues,
+  type BuildManifests,
+  type AppBuildManifests,
+  type PagesManifests,
+  type AppPathsManifests,
+  type MiddlewareManifests,
+  type ActionManifests,
+  type FontManifests,
+  type LoadableManifests,
+  handleRouteType,
+  writeManifests,
+  handlePagesErrorRoute,
+  formatIssue,
+} from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 
 interface ExperimentalBypassForInfo {
@@ -1283,7 +1301,10 @@ export default async function build(
                 : []),
               REACT_LOADABLE_MANIFEST,
               config.optimizeFonts
-                ? path.join(SERVER_DIRECTORY, FONT_MANIFEST)
+                ? path.join(
+                    SERVER_DIRECTORY,
+                    AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+                  )
                 : null,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
@@ -1309,24 +1330,33 @@ export default async function build(
           return serverFilesManifest
         })
 
-      async function turbopackBuild(): Promise<never> {
+      async function turbopackBuild(): Promise<{
+        duration: number
+        buildTraceContext: undefined
+      }> {
         if (!process.env.TURBOPACK || !process.env.TURBOPACK_BUILD) {
           throw new Error("next build doesn't support turbopack yet")
         }
+        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
+        // This is caused by Turbopack not having the production build option yet.
+        const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
+        const dev = false
         const project = await bindings.turbo.createProject({
           projectPath: dir,
           rootPath: config.experimental.outputFileTracingRoot || dir,
-          nextConfig: config.nextConfig,
+          nextConfig: config,
           jsConfig: await getTurbopackJsConfig(dir, config),
           watch: false,
+          dev,
           env: process.env as Record<string, string>,
           defineEnv: createDefineEnv({
             isTurbopack: true,
             allowedRevalidateHeaderKeys: undefined,
             clientRouterFilters: undefined,
             config,
-            dev: false,
+            // When passing `false` you get `react.jsxDEV is not a function`
+            dev,
             distDir,
             fetchCacheKeyPrefix: undefined,
             hasRewrites,
@@ -1335,11 +1365,162 @@ export default async function build(
           }),
         })
 
+        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
+        await fs.mkdir(path.join(distDir, 'static', buildId), {
+          recursive: true,
+        })
+        await fs.writeFile(
+          path.join(distDir, 'package.json'),
+          JSON.stringify(
+            {
+              type: 'commonjs',
+            },
+            null,
+            2
+          )
+        )
+
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
-        // for await (const entrypoints of entrypointsSubscription) {
-        // }
-        throw new Error("next build doesn't support turbopack yet")
+        const globalEntrypoints: GlobalEntrypoints = {
+          app: undefined,
+          document: undefined,
+          error: undefined,
+        }
+        const currentEntrypoints: CurrentEntrypoints = new Map()
+        const currentIssues: CurrentIssues = new Map()
+
+        const buildManifests: BuildManifests = new Map()
+        const appBuildManifests: AppBuildManifests = new Map()
+        const pagesManifests: PagesManifests = new Map()
+        const appPathsManifests: AppPathsManifests = new Map()
+        const middlewareManifests: MiddlewareManifests = new Map()
+        const actionManifests: ActionManifests = new Map()
+        const fontManifests: FontManifests = new Map()
+        const loadableManifests: LoadableManifests = new Map()
+
+        // TODO: implement this
+        const emptyRewritesObjToBeImplemented = {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        }
+
+        for await (const entrypoints of entrypointsSubscription) {
+          await handleEntrypoints({
+            rewrites: emptyRewritesObjToBeImplemented,
+            nextConfig: config,
+            entrypoints,
+            serverFields: undefined,
+            propagateServerField: undefined,
+            distDir,
+            buildId,
+            globalEntrypoints,
+            currentEntrypoints,
+            changeSubscriptions: undefined,
+            changeSubscription: undefined,
+            clearChangeSubscription: undefined,
+            sendHmr: undefined,
+            startBuilding: undefined,
+            handleRequireCacheClearing: undefined,
+            prevMiddleware: undefined,
+            currentIssues,
+            buildManifests,
+            appBuildManifests,
+            pagesManifests,
+            appPathsManifests,
+            middlewareManifests,
+            actionManifests,
+            fontManifests,
+            loadableManifests,
+          })
+
+          const promises = []
+          for (const [page, route] of currentEntrypoints) {
+            promises.push(
+              handleRouteType({
+                rewrites: emptyRewritesObjToBeImplemented,
+                distDir,
+                buildId,
+                globalEntrypoints,
+                currentIssues,
+                buildManifests,
+                appBuildManifests,
+                pagesManifests,
+                appPathsManifests,
+                middlewareManifests,
+                actionManifests,
+                fontManifests,
+                loadableManifests,
+                currentEntrypoints,
+                handleRequireCacheClearing: undefined,
+                changeSubscription: undefined,
+                readyIds: undefined,
+                page,
+                route,
+              })
+            )
+          }
+
+          promises.push(
+            handlePagesErrorRoute({
+              rewrites: emptyRewritesObjToBeImplemented,
+              globalEntrypoints,
+              currentIssues,
+              distDir,
+              buildId,
+              buildManifests,
+              pagesManifests,
+              fontManifests,
+              appBuildManifests,
+              appPathsManifests,
+              middlewareManifests,
+              actionManifests,
+              loadableManifests,
+              currentEntrypoints,
+              handleRequireCacheClearing: undefined,
+              changeSubscription: undefined,
+            })
+          )
+          await Promise.all(promises)
+          break
+        }
+        await writeManifests({
+          rewrites: emptyRewritesObjToBeImplemented,
+          distDir,
+          buildId,
+          buildManifests,
+          appBuildManifests,
+          pagesManifests,
+          appPathsManifests,
+          middlewareManifests,
+          actionManifests,
+          fontManifests,
+          loadableManifests,
+          currentEntrypoints,
+        })
+
+        const errors = []
+        for (const pageIssues of currentIssues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push({
+              message: formatIssue(issue),
+            })
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} issues:\n${errors
+              .map((e) => e.message)
+              .join('\n')}`
+          )
+        }
+
+        return {
+          duration: process.hrtime(startTime)[0],
+          buildTraceContext: undefined,
+        }
       }
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1438,7 +1619,7 @@ export default async function build(
             })
           )
         } else {
-          const { duration: webpackBuildDuration, ...rest } = turboNextBuild
+          const { duration: compilerDuration, ...rest } = turboNextBuild
             ? await turbopackBuild()
             : await webpackBuild(useBuildWorker, null)
 
@@ -1446,7 +1627,7 @@ export default async function build(
 
           telemetry.record(
             eventBuildCompleted(pagesPaths, {
-              durationInSeconds: webpackBuildDuration,
+              durationInSeconds: compilerDuration,
               totalAppPagesCount,
             })
           )

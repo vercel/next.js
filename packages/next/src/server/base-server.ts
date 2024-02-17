@@ -473,6 +473,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     this.renderOpts = {
       supportsDynamicHTML: true,
+      trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
