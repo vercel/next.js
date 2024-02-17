@@ -22,6 +22,6 @@ export function getExpectedRequestStore(callingExpression: string) {
   const store = requestAsyncStorage.getStore()
   if (store) return store
   throw new Error(
-    `\`${callingExpression}()\` was called outside a request/render scope. Read more: https://nextjs.org/docs/messages/next-headers-wrong-context`
+    `\`${callingExpression}\` was called outside a request/render scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
 }

@@ -7,7 +7,7 @@ import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { actionAsyncStorage } from './action-async-storage.external'
 import { DraftMode } from './draft-mode'
 import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { getExpectedStaticGenerationStore } from './static-generation-async-storage.external'
 import { getExpectedRequestStore } from './request-async-storage.external'
 
 /**
@@ -20,8 +20,9 @@ import { getExpectedRequestStore } from './request-async-storage.external'
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers() {
-  const callingExpression = 'headers'
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const callingExpression = 'headers()'
+  const staticGenerationStore =
+    getExpectedStaticGenerationStore(callingExpression)
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
@@ -33,13 +34,13 @@ export function headers() {
     }
   }
 
-  const requestStore = getExpectedRequestStore(callingExpression)
-  return requestStore.headers
+  return getExpectedRequestStore(callingExpression).headers
 }
 
 export function cookies() {
-  const callingExpression = 'cookies'
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+  const callingExpression = 'cookies()'
+  const staticGenerationStore =
+    getExpectedStaticGenerationStore(callingExpression)
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
@@ -54,10 +55,7 @@ export function cookies() {
   const requestStore = getExpectedRequestStore(callingExpression)
 
   const asyncActionStore = actionAsyncStorage.getStore()
-  if (
-    asyncActionStore &&
-    (asyncActionStore.isAction || asyncActionStore.isAppRoute)
-  ) {
+  if (asyncActionStore?.isAction || asyncActionStore?.isAppRoute) {
     // We can't conditionally return different types here based on the context.
     // To avoid confusion, we always return the readonly type here.
     return requestStore.mutableCookies as unknown as ReadonlyRequestCookies
@@ -67,7 +65,7 @@ export function cookies() {
 }
 
 export function draftMode() {
-  const callingExpression = 'draftMode'
+  const callingExpression = 'draftMode()'
   const requestStore = getExpectedRequestStore(callingExpression)
 
   return new DraftMode(requestStore.draftMode)
