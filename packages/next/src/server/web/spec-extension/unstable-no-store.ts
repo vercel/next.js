@@ -18,10 +18,10 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
+  const store = getExpectedStaticGenerationStore(callingExpression, false)
   // This generally implies we are being called in Pages Router. We should probably not support
   // unstable_noStore in contexts outside of `react-server` condition but since we historically
   // have not errored here previously, we maintain that behavior for now.
-  const store = getExpectedStaticGenerationStore(callingExpression, false)
   if (!store) return
   else if (store.forceStatic) return
   store.isUnstableNoStore = true
