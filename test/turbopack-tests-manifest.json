@@ -3357,11 +3357,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/edge-runtime-node-compatibility/edge-runtime-node-compatibility.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge runtime node compatibility [app] supports node:buffer",
       "edge runtime node compatibility [pages/api] supports node:buffer"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
