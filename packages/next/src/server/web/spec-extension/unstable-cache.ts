@@ -1,7 +1,4 @@
-import type {
-  StaticGenerationStore,
-  StaticGenerationAsyncStorage,
-} from '../../../client/components/static-generation-async-storage.external'
+import type { StaticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
 import { staticGenerationAsyncStorage as _staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
