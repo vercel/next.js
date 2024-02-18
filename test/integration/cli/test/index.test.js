@@ -360,7 +360,7 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(
-        /The Next.js CLI allows you to start, build, and export/
+        /The Next.js CLI allows you to develop, build, and start/
       )
     })
 
@@ -369,7 +369,7 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(
-        /The Next.js CLI allows you to start, build, and export/
+        /The Next.js CLI allows you to develop, build, and start/
       )
     })
 
