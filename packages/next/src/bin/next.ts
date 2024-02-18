@@ -10,13 +10,6 @@ import { bold, cyan, italic } from '../lib/picocolors'
 import { formatCliHelpOutput } from '../lib/format-cli-help-output'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import { myParseInt } from '../server/lib/utils'
-import { nextBuild } from '../cli/next-build'
-import { nextDev } from '../cli/next-dev'
-import { nextExport } from '../cli/next-export'
-import { nextInfo } from '../cli/next-info'
-import { nextLint } from '../cli/next-lint'
-import { nextStart } from '../cli/next-start'
-import { nextTelemetry } from '../cli/next-telemetry'
 
 if (
   semver.lt(process.versions.node, process.env.__NEXT_REQUIRED_NODE_VERSION!)
@@ -111,7 +104,7 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
-  .option('--debug', 'Enables a more verbose build output.')
+  .option('-d, --debug', 'Enables a more verbose build output.')
   .option('--profile', 'Enables production profiling for React.')
   .option('--no-lint', 'Disables linting.')
   .option('--no-mangling', 'Disables mangling.')
@@ -126,7 +119,9 @@ program
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
-    nextBuild(options, directory).then(process.exit(0))
+    import('../cli/next-build').then((mod) =>
+      mod.nextBuild(options, directory).then(() => process.exit(0))
+    )
   )
   .usage('[directory] [options]')
 
@@ -173,10 +168,15 @@ program
     'Reports a subset of the debugging trace to a remote HTTP url. Includes sensitive data. Disabled by default and URL must be provided.'
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
-  .action((directory, options) => nextDev(options, directory))
+  .action((directory, options) =>
+    import('../cli/next-dev').then((mod) => mod.nextDev(options, directory))
+  )
   .usage('[directory] [options]')
 
-program.command('export', { hidden: true }).action(nextExport).helpOption(false)
+program
+  .command('export', { hidden: true })
+  .action(import('../cli/next-export').then(nextExport))
+  .helpOption(false)
 
 program
   .command('info')
@@ -188,7 +188,9 @@ program
     `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
   )
   .option('--verbose', 'Collects additional information for debugging.')
-  .action((options) => nextInfo(options))
+  .action((options) =>
+    import('../cli/next-info').then((mod) => mod.nextInfo(options))
+  )
 
 program
   .command('lint')
@@ -266,7 +268,9 @@ program
     '--error-on-unmatched-pattern',
     'Reports errors when any file patterns are unmatched.'
   )
-  .action((directory, options) => nextLint(options, directory))
+  .action((directory, options) =>
+    import('../cli/next-lint').then((mod) => mod.nextLint(options, directory))
+  )
   .usage('[directory] [options]')
 
 program
@@ -300,7 +304,9 @@ program
     ).argParser(myParseInt)
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
-  .action((directory, options) => nextStart(options, directory))
+  .action((directory, options) =>
+    import('../cli/next-start').then((mod) => mod.nextStart(options, directory))
+  )
   .usage('[directory] [options]')
 
 program
@@ -319,7 +325,9 @@ program
   )
   .option('--disable', `Disables Next.js' telemetry collection.`)
   .action((toggle, options) => {
-    nextTelemetry(options, toggle)
+    import('../cli/next-telemetry').then((mod) =>
+      mod.nextTelemetry(options, toggle)
+    )
   })
   .usage('[toggle] [options]')
 
