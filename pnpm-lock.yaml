@@ -401,12 +401,12 @@ importers:
       pixrem:
         specifier: 5.0.0
         version: 5.0.0
+      playwright:
+        specifier: 1.41.2
+        version: 1.41.2
       playwright-chromium:
-        specifier: 1.35.1
-        version: 1.35.1
-      playwright-core:
-        specifier: 1.35.1
-        version: 1.35.1
+        specifier: 1.41.2
+        version: 1.41.2
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -938,9 +938,6 @@ importers:
       '@next/polyfill-nomodule':
         specifier: 14.1.1-canary.60
         version: link:../next-polyfill-nomodule
-      '@next/react-dev-overlay':
-        specifier: 14.1.1-canary.46
-        version: link:../react-dev-overlay
       '@next/react-refresh-utils':
         specifier: 14.1.1-canary.60
         version: link:../react-refresh-utils
@@ -1540,18 +1537,6 @@ importers:
         version: 6.0.3
 
   packages/next-swc/crates/next-core/js: {}
-
-  packages/react-dev-overlay:
-    dependencies:
-      react:
-        specifier: ^17.0.2
-        version: 17.0.2
-      react-dom:
-        specifier: ^17.0.2
-        version: 17.0.2(react@17.0.2)
-      webpack:
-        specifier: 5.90.0
-        version: 5.90.0(@swc/core@1.3.85)
 
   packages/react-refresh-utils:
     devDependencies:
@@ -19441,13 +19426,13 @@ packages:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
     dev: true
 
-  /playwright-chromium@1.35.1:
-    resolution: {integrity: sha512-bPuWIk/DYWtrg10ajcc9cZLo5s9XQrs6JF6wwiieqZ73rCG3PLVEm0RX8fCUzziuEAhYsoL09UNuKSKv7pKz9A==}
+  /playwright-chromium@1.41.2:
+    resolution: {integrity: sha512-1XoW4aGGRbS2BJLldtLcv2QW3deMv8myE5iCtfGRPq99BWqmBLJvJTgY/SyfBCoklwQvl91zUWYWHjCAuvKGkw==}
     engines: {node: '>=16'}
     hasBin: true
     requiresBuild: true
     dependencies:
-      playwright-core: 1.35.1
+      playwright-core: 1.41.2
     dev: true
 
   /playwright-core@1.19.2:
@@ -19481,6 +19466,22 @@ packages:
     resolution: {integrity: sha512-pNXb6CQ7OqmGDRspEjlxE49w+4YtR6a3X6mT1hZXeJHWmsEz7SunmvZeiG/+y1yyMZdHnnn73WKYdtV1er0Xyg==}
     engines: {node: '>=16'}
     hasBin: true
+    dev: true
+
+  /playwright-core@1.41.2:
+    resolution: {integrity: sha512-VaTvwCA4Y8kxEe+kfm2+uUUw5Lubf38RxF7FpBxLPmGe5sdNkSg5e3ChEigaGrX7qdqT3pt2m/98LiyvU2x6CA==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dev: true
+
+  /playwright@1.41.2:
+    resolution: {integrity: sha512-v0bOa6H2GJChDL8pAeLa/LZC4feoAMbSQm1/jF/ySsWWoaNItvrMP7GEkvEEFyCTUYKMxjQKaTSg5up7nR6/8A==}
+    engines: {node: '>=16'}
+    hasBin: true
+    dependencies:
+      playwright-core: 1.41.2
+    optionalDependencies:
+      fsevents: 2.3.2
     dev: true
 
   /please-upgrade-node@3.2.0:
@@ -21159,17 +21160,6 @@ packages:
       scheduler: 0.0.0-experimental-ba5e6a832-20240208
     dev: true
 
-  /react-dom@17.0.2(react@17.0.2):
-    resolution: {integrity: sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==}
-    peerDependencies:
-      react: 17.0.2
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-      react: 17.0.2
-      scheduler: 0.20.2
-    dev: false
-
   /react-dom@17.0.2(react@18.2.0):
     resolution: {integrity: sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==}
     peerDependencies:
@@ -21320,6 +21310,7 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
+    dev: true
 
   /react@18.2.0:
     resolution: {integrity: sha512-/3IjMdb2L9QbBdWiW5e3P2/npwMBaU9mHCSCUzNln0ZCYbcfTsGbTJrU/kGemdH2IWmB2ioZ+zkxtmq6g09fGQ==}
@@ -22340,6 +22331,7 @@ packages:
     dependencies:
       loose-envify: 1.4.0
       object-assign: 4.1.1
+    dev: true
 
   /scheduler@0.23.0:
     resolution: {integrity: sha512-CtuThmgHNg7zIZWAXi3AsyIzA3n4xx7aNyjwC2VJldO2LMVDhFK+63xGqq6CsJH4rTAt6/M+N4GhZiDYPx9eUw==}
