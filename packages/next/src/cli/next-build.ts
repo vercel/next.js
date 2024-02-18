@@ -63,7 +63,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   return build(
     dir,
     profile,
-    Boolean(debug || process.env.NEXT_DEBUG_BUILD),
+    debug || Boolean(process.env.NEXT_DEBUG_BUILD),
     lint,
     !mangling,
     experimentalAppOnly,
