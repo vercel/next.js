@@ -823,9 +823,6 @@ importers:
       caniuse-lite:
         specifier: 1.0.30001579
         version: 1.0.30001579
-      commander:
-        specifier: 12.0.0
-        version: 12.0.0
       graceful-fs:
         specifier: ^4.2.11
         version: 4.2.11
@@ -1127,6 +1124,9 @@ importers:
       client-only:
         specifier: 0.0.1
         version: 0.0.1
+      commander:
+        specifier: 12.0.0
+        version: 12.0.0
       comment-json:
         specifier: 3.0.3
         version: 3.0.3
@@ -9613,7 +9613,7 @@ packages:
   /commander@12.0.0:
     resolution: {integrity: sha512-MwVNWlYjDTtOjX5PiD7o5pK0UrFU/OYgcJfjjK4RaHZETNtjJqrZa9Y9ds88+A+f+d5lv+561eZ+yCKoS3gbAA==}
     engines: {node: '>=18'}
-    dev: false
+    dev: true
 
   /commander@2.20.0:
     resolution: {integrity: sha512-7j2y+40w61zy6YC2iRNpUe/NwhNyoXrYpHMrSunaMG64nRnaf96zO/KMQR4OyN/UnE5KLyEBnKHd4aG3rskjpQ==}
