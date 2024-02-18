@@ -1,4 +1,4 @@
-import { InvalidArgumentError } from 'commander'
+import { InvalidArgumentError } from 'next/dist/compiled/commander'
 
 export function printAndExit(message: string, code = 1) {
   if (code === 0) {

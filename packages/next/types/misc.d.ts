@@ -47,6 +47,12 @@ declare module 'next/dist/compiled/node-fetch' {
   export default fetch
 }
 
+declare module 'next/dist/compiled/commander' {
+  import commander from 'commander'
+  export * from 'commander'
+  export default commander
+}
+
 declare module 'next/dist/compiled/node-html-parser' {
   export * from 'node-html-parser'
 }

@@ -1159,6 +1159,13 @@ export async function ncc_cli_select(task, opts) {
     .ncc({ packageName: 'cli-select', externals })
     .target('src/compiled/cli-select')
 }
+externals['commmander'] = 'next/dist/compiled/commander'
+export async function ncc_commander(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('commander')))
+    .ncc({ packageName: 'commander', externals })
+    .target('src/compiled/commander')
+}
 externals['comment-json'] = 'next/dist/compiled/comment-json'
 export async function ncc_comment_json(task, opts) {
   await task
@@ -2178,6 +2185,7 @@ export async function ncc(task, opts) {
         'ncc_image_size',
         'ncc_get_orientation',
         'ncc_hapi_accept',
+        'ncc_commander',
         'ncc_node_fetch',
         'ncc_node_anser',
         'ncc_node_stacktrace_parser',

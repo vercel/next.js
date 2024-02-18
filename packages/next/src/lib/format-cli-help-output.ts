@@ -1,4 +1,4 @@
-import type { Command, Help } from 'commander'
+import type { Command, Help } from 'next/dist/compiled/commander'
 import { bold } from '../lib/picocolors'
 
 // Copy-pasted from Commander's Help class -> formatHelp().
