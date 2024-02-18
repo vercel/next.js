@@ -1008,14 +1008,6 @@ export async function ncc_amp_optimizer(task, opts) {
     .target('dist/compiled/@ampproject/toolbox-optimizer')
 }
 // eslint-disable-next-line camelcase
-externals['arg'] = 'next/dist/compiled/arg'
-export async function ncc_arg(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('arg')))
-    .ncc({ packageName: 'arg' })
-    .target('src/compiled/arg')
-}
-// eslint-disable-next-line camelcase
 externals['async-retry'] = 'next/dist/compiled/async-retry'
 export async function ncc_async_retry(task, opts) {
   await task
@@ -2195,7 +2187,6 @@ export async function ncc(task, opts) {
         'ncc_node_shell_quote',
         'ncc_acorn',
         'ncc_amphtml_validator',
-        'ncc_arg',
         'ncc_async_retry',
         'ncc_async_sema',
         'ncc_postcss_plugin_stub_for_cssnano_simple',
