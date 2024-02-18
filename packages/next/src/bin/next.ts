@@ -207,7 +207,7 @@ program
     '-d, --dir, <dirs...>',
     'Include directory, or directories, to run ESLint.'
   )
-  .option('--file, <files...>', 'Include file, or files, to run ESLint.')
+  .option('-f, --file, <files...>', 'Include file, or files, to run ESLint.')
   .addOption(
     new Option(
       '--ext, [exts...]',
