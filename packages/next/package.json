@@ -96,7 +96,6 @@
     "@swc/helpers": "0.5.5",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
-    "commander": "12.0.0",
     "graceful-fs": "^4.2.11",
     "postcss": "8.4.31",
     "styled-jsx": "5.1.1"
@@ -211,6 +210,7 @@
     "ci-info": "watson/ci-info#f43f6a1cefff47fb361c88cf4b943fdbcaafe540",
     "cli-select": "1.1.2",
     "client-only": "0.0.1",
+    "commander": "12.0.0",
     "comment-json": "3.0.3",
     "compression": "1.7.4",
     "conf": "5.0.0",
