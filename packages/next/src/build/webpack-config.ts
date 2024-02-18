@@ -921,6 +921,8 @@ export default async function getBaseWebpackConfig(
         const frameworkCacheGroup = {
           chunks: 'all' as const,
           name: 'framework',
+          // Ensures the framework chunk is not created for App Router.
+          layer: isWebpackDefaultLayer,
           test(module: any) {
             const resource = module.nameForCondition?.()
             return resource
@@ -993,53 +995,52 @@ export default async function getBaseWebpackConfig(
         }
 
         // server chunking
-        if (isNodeServer || isEdgeServer) {
-          if (dev) {
-            /*
+        if (isNodeServer && dev) {
+          /*
               In development, we want to split code that comes from `node_modules` into their own chunks.
               This is because in development, we often need to reload the user bundle due to changes in the code.
               To work around this, we put all the vendor code into separate chunks so that we don't need to reload them.
               This is safe because the vendor code doesn't change between reloads.
             */
-            const extractRootNodeModule = (modulePath: string) => {
-              // This regex is used to extract the root node module name to be used as the chunk group name.
-              // example: ../../node_modules/.pnpm/next@10/foo/node_modules/bar -> next@10
-              const regex =
-                /node_modules(?:\/|\\)\.?(?:pnpm(?:\/|\\))?([^/\\]+)/
-              const match = modulePath.match(regex)
-              return match ? match[1] : null
-            }
-            return {
-              cacheGroups: {
-                // this chunk configuration gives us a separate chunk for each top level module in node_modules
-                // or a hashed chunk if we can't extract the module name.
-                vendor: {
-                  chunks: 'all',
-                  reuseExistingChunk: true,
-                  test: /[\\/]node_modules[\\/]/,
-                  minSize: 0,
-                  minChunks: 1,
-                  maxAsyncRequests: 300,
-                  maxInitialRequests: 300,
-                  name: (module: webpack.Module) => {
-                    const moduleId = module.nameForCondition()!
-                    const rootModule = extractRootNodeModule(moduleId)
-                    if (rootModule) {
-                      return `vendor-chunks/${rootModule}`
-                    } else {
-                      const hash = crypto.createHash('sha1').update(moduleId)
-                      hash.update(moduleId)
-                      return `vendor-chunks/${hash.digest('hex')}`
-                    }
-                  },
-                },
-                // disable the default chunk groups
-                default: false,
-                defaultVendors: false,
-              },
-            }
+          const extractRootNodeModule = (modulePath: string) => {
+            // This regex is used to extract the root node module name to be used as the chunk group name.
+            // example: ../../node_modules/.pnpm/next@10/foo/node_modules/bar -> next@10
+            const regex = /node_modules(?:\/|\\)\.?(?:pnpm(?:\/|\\))?([^/\\]+)/
+            const match = modulePath.match(regex)
+            return match ? match[1] : null
           }
+          return {
+            cacheGroups: {
+              // this chunk configuration gives us a separate chunk for each top level module in node_modules
+              // or a hashed chunk if we can't extract the module name.
+              vendor: {
+                chunks: 'all',
+                reuseExistingChunk: true,
+                test: /[\\/]node_modules[\\/]/,
+                minSize: 0,
+                minChunks: 1,
+                maxAsyncRequests: 300,
+                maxInitialRequests: 300,
+                name: (module: webpack.Module) => {
+                  const moduleId = module.nameForCondition()!
+                  const rootModule = extractRootNodeModule(moduleId)
+                  if (rootModule) {
+                    return `vendor-chunks/${rootModule}`
+                  } else {
+                    const hash = crypto.createHash('sha1').update(moduleId)
+                    hash.update(moduleId)
+                    return `vendor-chunks/${hash.digest('hex')}`
+                  }
+                },
+              },
+              // disable the default chunk groups
+              default: false,
+              defaultVendors: false,
+            },
+          }
+        }
 
+        if (isNodeServer || isEdgeServer) {
           return {
             filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
             cacheGroups: {
