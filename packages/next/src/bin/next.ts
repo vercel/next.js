@@ -2,7 +2,7 @@
 
 import '../server/require-hook'
 
-import { Argument, Command, Option } from 'commander'
+import { Argument, Command, Option } from 'next/dist/compiled/commander'
 
 import { warn } from '../build/output/log'
 import semver from 'next/dist/compiled/semver'
@@ -123,9 +123,8 @@ program
       .default('default')
       .hideHelp()
   )
-  .action((directory, options) => {
-    nextBuild(options, directory)
-  })
+  .action((directory, options) => nextBuild(options, directory))
+  .hook('postAction', () => process.exit(0))
   .usage('[directory] [options]')
 
 program

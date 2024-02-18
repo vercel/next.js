@@ -4,7 +4,7 @@ import '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
-import * as Log from '../build/output/log'
+import { warn } from '../build/output/log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -34,17 +34,17 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
   } = options
 
   if (!lint) {
-    Log.warn('Linting is disabled.')
+    warn('Linting is disabled.')
   }
 
   if (!mangling) {
-    Log.warn(
+    warn(
       'Mangling is disabled. Note: This may affect performance and should only be used for debugging purposes.'
     )
   }
 
   if (profile) {
-    Log.warn(
+    warn(
       `Profiling is enabled. ${italic('Note: This may affect performance.')}`
     )
   }
