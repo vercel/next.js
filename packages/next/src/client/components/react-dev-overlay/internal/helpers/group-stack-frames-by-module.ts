@@ -1,29 +1,17 @@
 import type { OriginalStackFrame } from './stack-frame'
 
 export type StackFramesGroup = {
-  framework?: 'next' | 'react'
+  moduleGroup?: OriginalStackFrame['sourceModule']
   stackFrames: OriginalStackFrame[]
 }
 
-/**
- * Get the origin framework of the stack frame by package name.
- */
-function getFramework(
-  sourcePackage: string | undefined
-): StackFramesGroup['framework'] {
-  if (!sourcePackage) return undefined
-
-  if (
-    /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)$/.test(
-      sourcePackage
-    )
-  ) {
-    return 'react'
-  } else if (sourcePackage === 'next') {
-    return 'next'
-  }
-
-  return undefined
+/** TODO: Move this to react-dev-overlay/server/middleware.ts */
+function getModuleGroup(file: string | null): StackFramesGroup['moduleGroup'] {
+  if (!file) return
+  // Should we maybe want to group Node.js errors too?
+  // if (file.startsWith('node:internal/')) return 'node'
+  else if (file.startsWith('webpack://next/dist/compiled/react')) return 'react'
+  else if (file.startsWith('webpack://next/')) return 'next'
 }
 
 /**
@@ -47,7 +35,7 @@ function getFramework(
  * > react
  *
  */
-export function groupStackFramesByFramework(
+export function groupStackFramesByModule(
   stackFrames: OriginalStackFrame[]
 ): StackFramesGroup[] {
   const stackFramesGroupedByFramework: StackFramesGroup[] = []
@@ -55,13 +43,15 @@ export function groupStackFramesByFramework(
   for (const stackFrame of stackFrames) {
     const currentGroup =
       stackFramesGroupedByFramework[stackFramesGroupedByFramework.length - 1]
-    const framework = getFramework(stackFrame.sourcePackage)
+    // TODO: should come from react-dev-overlay/server/middleware.ts
+    // const framework = stackFrame.sourcePackage
+    const moduleGroup = getModuleGroup(stackFrame.sourceStackFrame.file)
 
-    if (currentGroup && currentGroup.framework === framework) {
+    if (currentGroup && currentGroup.moduleGroup === moduleGroup) {
       currentGroup.stackFrames.push(stackFrame)
     } else {
       stackFramesGroupedByFramework.push({
-        framework: framework,
+        moduleGroup,
         stackFrames: [stackFrame],
       })
     }

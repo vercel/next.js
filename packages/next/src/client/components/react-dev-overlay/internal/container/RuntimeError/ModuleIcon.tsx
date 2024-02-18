@@ -1,10 +1,10 @@
 import React from 'react'
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-module'
 
-export function FrameworkIcon({
+export function ModuleIcon({
   framework,
 }: {
-  framework: NonNullable<StackFramesGroup['framework']>
+  framework: NonNullable<StackFramesGroup['moduleGroup']>
 }) {
   if (framework === 'react') {
     return (

@@ -1,13 +1,13 @@
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
+import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-module'
 import { CallStackFrame } from './CallStackFrame'
-import { FrameworkIcon } from './FrameworkIcon'
+import { ModuleIcon } from './ModuleIcon'
 
 function FrameworkGroup({
   framework,
   stackFrames,
   all,
 }: {
-  framework: NonNullable<StackFramesGroup['framework']>
+  framework: NonNullable<StackFramesGroup['moduleGroup']>
   stackFrames: StackFramesGroup['stackFrames']
   all: boolean
 }) {
@@ -31,7 +31,7 @@ function FrameworkGroup({
           >
             <path d="M9 18l6-6-6-6" />
           </svg>
-          <FrameworkIcon framework={framework} />
+          <ModuleIcon framework={framework} />
           {framework === 'react' ? 'React' : 'Next.js'}
         </summary>
 
@@ -54,11 +54,11 @@ export function GroupedStackFrames({
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
         // Collapse React and Next.js frames
-        if (stackFramesGroup.framework) {
+        if (stackFramesGroup.moduleGroup) {
           return (
             <FrameworkGroup
               key={`call-stack-framework-group-${groupIndex}-${all}`}
-              framework={stackFramesGroup.framework}
+              framework={stackFramesGroup.moduleGroup}
               stackFrames={stackFramesGroup.stackFrames}
               all={all}
             />

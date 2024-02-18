@@ -3,7 +3,7 @@ import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import type { OriginalStackFrame } from '../../helpers/stack-frame'
-import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
+import { groupStackFramesByModule } from '../../helpers/group-stack-frames-by-module'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
 import { ComponentStackFrameRow } from './ComponentStackFrameRow'
@@ -43,7 +43,14 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
+    () =>
+      error.frames
+        .slice(firstFirstPartyFrameIndex + 1)
+        .filter(
+          (f) =>
+            f.sourceStackFrame.file !== '<anonymous>' &&
+            !f.sourceStackFrame.file?.startsWith('node:internal')
+        ),
     [error.frames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
@@ -64,7 +71,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ])
 
   const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(visibleCallStackFrames),
+    () => groupStackFramesByModule(visibleCallStackFrames),
     [visibleCallStackFrames]
   )
 
