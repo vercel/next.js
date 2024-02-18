@@ -55,15 +55,3 @@ export type StaticGenerationAsyncStorage =
 
 export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
   createAsyncLocalStorage()
-
-export function getExpectedStaticGenerationStore(
-  callingExpression: string,
-  shouldThrowIfMissing = true
-) {
-  const store = staticGenerationAsyncStorage.getStore()
-  if (store) return store
-  if (!shouldThrowIfMissing) return
-  throw new Error(
-    `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
-  )
-}

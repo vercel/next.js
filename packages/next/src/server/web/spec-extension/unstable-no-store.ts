@@ -1,4 +1,4 @@
-import { getExpectedStaticGenerationStore } from '../../../client/components/static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from '../../../client/components/static-generation-async-storage.external'
 import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
 
 /**
@@ -18,12 +18,16 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  */
 export function unstable_noStore() {
   const callingExpression = 'unstable_noStore()'
-  const store = getExpectedStaticGenerationStore(callingExpression, false)
-  // This generally implies we are being called in Pages Router. We should probably not support
-  // unstable_noStore in contexts outside of `react-server` condition but since we historically
-  // have not errored here previously, we maintain that behavior for now.
-  if (!store) return
-  else if (store.forceStatic) return
-  store.isUnstableNoStore = true
-  markCurrentScopeAsDynamic(store, callingExpression)
+  const store = staticGenerationAsyncStorage.getStore()
+  if (!store) {
+    // This generally implies we are being called in Pages router. We should probably not support
+    // unstable_noStore in contexts outside of `react-server` condition but since we historically
+    // have not errored here previously, we maintain that behavior for now.
+    return
+  } else if (store.forceStatic) {
+    return
+  } else {
+    store.isUnstableNoStore = true
+    markCurrentScopeAsDynamic(store, callingExpression)
+  }
 }

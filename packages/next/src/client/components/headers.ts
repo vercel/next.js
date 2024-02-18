@@ -7,7 +7,7 @@ import { RequestCookies } from '../../server/web/spec-extension/cookies'
 import { actionAsyncStorage } from './action-async-storage.external'
 import { DraftMode } from './draft-mode'
 import { trackDynamicDataAccessed } from '../../server/app-render/dynamic-rendering'
-import { getExpectedStaticGenerationStore } from './static-generation-async-storage.external'
+import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
 import { getExpectedRequestStore } from './request-async-storage.external'
 
 /**
@@ -21,8 +21,7 @@ import { getExpectedRequestStore } from './request-async-storage.external'
  */
 export function headers() {
   const callingExpression = 'headers'
-  const staticGenerationStore =
-    getExpectedStaticGenerationStore(callingExpression)
+  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
@@ -39,8 +38,7 @@ export function headers() {
 
 export function cookies() {
   const callingExpression = 'cookies'
-  const staticGenerationStore =
-    getExpectedStaticGenerationStore(callingExpression)
+  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
 
   if (staticGenerationStore) {
     if (staticGenerationStore.forceStatic) {
