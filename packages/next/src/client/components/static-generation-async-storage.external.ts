@@ -64,6 +64,6 @@ export function getExpectedStaticGenerationStore(
   if (store) return store
   if (!shouldThrowIfMissing) return
   throw new Error(
-    `\`${callingExpression}\` was called outside a request/render scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+    `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
 }
