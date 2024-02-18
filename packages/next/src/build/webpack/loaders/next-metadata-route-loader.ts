@@ -207,8 +207,11 @@ export async function GET(_, ctx) {
           throw new Error('id property is required for every item returned from generateSitemaps')
         }
       }
-
-      return item.id.toString() === targetId
+      let itemID = item.id.toString()
+      if(process.env.NODE_ENV === 'production') {
+        itemID += '.xml'
+      }
+      return itemID === targetId
     })?.id
     if (id == null) {
       return new NextResponse('Not Found', {
