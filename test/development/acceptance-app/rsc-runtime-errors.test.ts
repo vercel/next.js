@@ -74,7 +74,7 @@ createNextDescribe(
       const errorDescription = await getRedboxDescription(browser)
 
       expect(errorDescription).toContain(
-        'Error: `cookies()` was called outside a request/render scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
+        'Error: `cookies()` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
       )
     })
 
