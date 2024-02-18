@@ -366,14 +366,14 @@ describe('Telemetry CLI', () => {
 
       expect(event1).toMatch(/"staticPropsPageCount": 2/)
       expect(event1).toMatch(/"serverPropsPageCount": 2/)
-      expect(event1).toMatch(/"ssrPageCount": 2/)
-      expect(event1).toMatch(/"staticPageCount": 5/)
+      expect(event1).toMatch(/"ssrPageCount": 3/)
+      expect(event1).toMatch(/"staticPageCount": 4/)
       expect(event1).toMatch(/"totalPageCount": 11/)
       expect(event1).toMatch(/"totalAppPagesCount": 0/)
       expect(event1).toMatch(/"staticAppPagesCount": 0/)
       expect(event1).toMatch(/"serverAppPagesCount": 0/)
       expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
-      expect(event1).toMatch(/"edgeRuntimePagesCount": 0/)
+      expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
     })
   })
 
