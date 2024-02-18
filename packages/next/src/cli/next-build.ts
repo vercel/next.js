@@ -56,10 +56,6 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  if (debug) {
-    process.env.NEXT_DEBUG_BUILD = '1'
-  }
-
   if (experimentalTurbo) {
     process.env.TURBOPACK = '1'
   }
@@ -67,7 +63,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
   return build(
     dir,
     profile,
-    debug,
+    Boolean(debug || process.env.NEXT_DEBUG_BUILD),
     lint,
     !mangling,
     experimentalAppOnly,
