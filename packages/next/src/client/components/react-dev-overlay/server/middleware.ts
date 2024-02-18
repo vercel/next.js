@@ -240,11 +240,7 @@ export async function createOriginalStackFrame({
         ) as string)
       : null
 
-  return {
-    originalStackFrame: originalFrame,
-    originalCodeFrame,
-    sourceModule: sourceModule,
-  }
+  return { originalStackFrame: originalFrame, originalCodeFrame, sourceModule }
 }
 
 export async function getSourceById(
