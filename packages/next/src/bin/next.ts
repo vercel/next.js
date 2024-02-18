@@ -123,10 +123,11 @@ program
       .default('default')
       .hideHelp()
   )
-  .action((directory, options) => nextBuild(options, directory))
-  // ensure process exits after build completes so open handles/connections
-  // don't cause process to hang
-  .hook('postAction', () => process.exit(0))
+  .action((directory, options) =>
+    // ensure process exits after build completes so open handles/connections
+    // don't cause process to hang
+    nextBuild(options, directory).then(process.exit(0))
+  )
   .usage('[directory] [options]')
 
 program
