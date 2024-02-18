@@ -1525,12 +1525,8 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // If there's has a custom webpack config and disable the build worker.
-      // Otherwise respect the option if it's set.
-      const useBuildWorker =
-        config.experimental.webpackBuildWorker ||
-        (config.experimental.webpackBuildWorker === undefined &&
-          !config.webpack)
+      // webpack build worker is always enabled unless manually disabled
+      const useBuildWorker = config.experimental.webpackBuildWorker !== false
       const runServerAndEdgeInParallel =
         config.experimental.parallelServerCompiles
       const collectServerBuildTracesInParallel =
