@@ -40,7 +40,7 @@ MAKE SURE MONGODB ATLAS CONNECTION ACCEPTS ALL ADDRESSES BY SETTING TO 0.0.0.0 I
 
 ## Example Production
 
-my [repo](https://github.com/lynxx007/game-glare)
+example [repo](https://github.com/lynxx007/game-glare)
 Deployed on [Vercel](https://game-glare.vercel.app/)
 
 
