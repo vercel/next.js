@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
-import type { Response } from 'playwright-chromium'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app-dir action progressive enhancement',
@@ -14,7 +14,7 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+  ({ next }) => {
     it('should support formData and redirect without JS', async () => {
       let responseCode
       const browser = await next.browser('/server', {

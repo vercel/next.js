@@ -3,6 +3,8 @@ import type { StaticGenerationStore } from '../../client/components/static-gener
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 
+import { createPrerenderState } from '../../server/app-render/dynamic-rendering'
+
 export type StaticGenerationContext = {
   urlPathname: string
   postpone?: (reason: string) => never
@@ -65,9 +67,7 @@ export const StaticGenerationAsyncStorageWrapper: AsyncStorageWrapper<
 
     const prerenderState: StaticGenerationStore['prerenderState'] =
       isStaticGeneration && renderOpts.experimental.ppr
-        ? {
-            hasDynamic: false,
-          }
+        ? createPrerenderState()
         : null
 
     const store: StaticGenerationStore = {
