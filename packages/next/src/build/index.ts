@@ -1500,10 +1500,14 @@ export default async function build(
           currentEntrypoints,
         })
 
-        const errors = []
-        for (const pageIssues of currentIssues.values()) {
+        const errors: {
+          page: string
+          message: string
+        }[] = []
+        for (const [page, pageIssues] of currentIssues) {
           for (const issue of pageIssues.values()) {
             errors.push({
+              page,
               message: formatIssue(issue),
             })
           }
@@ -1512,7 +1516,9 @@ export default async function build(
         if (errors.length > 0) {
           throw new Error(
             `Turbopack build failed with ${errors.length} issues:\n${errors
-              .map((e) => e.message)
+              .map((e) => {
+                return 'Page: ' + e.page + '\n' + e.message
+              })
               .join('\n')}`
           )
         }
