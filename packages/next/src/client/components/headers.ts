@@ -20,7 +20,7 @@ import { getExpectedRequestStore } from './request-async-storage.external'
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers() {
-  const callingExpression = 'headers()'
+  const callingExpression = 'headers'
   const staticGenerationStore =
     getExpectedStaticGenerationStore(callingExpression)
 
@@ -38,7 +38,7 @@ export function headers() {
 }
 
 export function cookies() {
-  const callingExpression = 'cookies()'
+  const callingExpression = 'cookies'
   const staticGenerationStore =
     getExpectedStaticGenerationStore(callingExpression)
 
@@ -65,7 +65,7 @@ export function cookies() {
 }
 
 export function draftMode() {
-  const callingExpression = 'draftMode()'
+  const callingExpression = 'draftMode'
   const requestStore = getExpectedRequestStore(callingExpression)
 
   return new DraftMode(requestStore.draftMode)
