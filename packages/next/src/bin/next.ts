@@ -79,7 +79,7 @@ const program = new MyRootCommand()
 program
   .name('next')
   .description(
-    'The Next.js CLI allows you to start, build, and export your application.'
+    'The Next.js CLI allows you to develop, build, and start your application, and more.'
   )
   .configureHelp({
     formatHelp: (cmd, helper) => formatCliHelpOutput(cmd, helper),
@@ -119,7 +119,7 @@ program
   .action((directory, options) =>
     // ensure process exits after build completes so open handles/connections
     // don't cause process to hang
-    import('../cli/next-build').then((mod) =>
+    import('../cli/next-build.js').then((mod) =>
       mod.nextBuild(options, directory).then(() => process.exit(0))
     )
   )
@@ -165,17 +165,17 @@ program
   )
   .option(
     '--experimental-upload-trace, <traceUrl>',
-    'Reports a subset of the debugging trace to a remote HTTP url. Includes sensitive data. Disabled by default and URL must be provided.'
+    'Reports a subset of the debugging trace to a remote HTTP URL. Includes sensitive data.'
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
   .action((directory, options) =>
-    import('../cli/next-dev').then((mod) => mod.nextDev(options, directory))
+    import('../cli/next-dev.js').then((mod) => mod.nextDev(options, directory))
   )
   .usage('[directory] [options]')
 
 program
   .command('export', { hidden: true })
-  .action(import('../cli/next-export').then(nextExport))
+  .action(() => import('../cli/next-export.js').then((mod) => mod.nextExport()))
   .helpOption(false)
 
 program
@@ -189,7 +189,7 @@ program
   )
   .option('--verbose', 'Collects additional information for debugging.')
   .action((options) =>
-    import('../cli/next-info').then((mod) => mod.nextInfo(options))
+    import('../cli/next-info.js').then((mod) => mod.nextInfo(options))
   )
 
 program
@@ -246,8 +246,11 @@ program
       .argParser(myParseInt)
       .default(-1)
   )
-  .option('--output-file, <outputFile>', 'Specify a file to write report to.')
-  .option('--format, <format>', 'Uses a specific output format.')
+  .option(
+    '-o, --output-file, <outputFile>',
+    'Specify a file to write report to.'
+  )
+  .option('-f, --format, <format>', 'Uses a specific output format.')
   .option(
     '--no-inline-config',
     'Prevents comments from changing config or rules.'
@@ -269,7 +272,9 @@ program
     'Reports errors when any file patterns are unmatched.'
   )
   .action((directory, options) =>
-    import('../cli/next-lint').then((mod) => mod.nextLint(options, directory))
+    import('../cli/next-lint.js').then((mod) =>
+      mod.nextLint(options, directory)
+    )
   )
   .usage('[directory] [options]')
 
@@ -305,7 +310,9 @@ program
   )
   .addOption(new Option('--experimental-test-proxy').hideHelp())
   .action((directory, options) =>
-    import('../cli/next-start').then((mod) => mod.nextStart(options, directory))
+    import('../cli/next-start.js').then((mod) =>
+      mod.nextStart(options, directory)
+    )
   )
   .usage('[directory] [options]')
 
@@ -324,11 +331,11 @@ program
     )
   )
   .option('--disable', `Disables Next.js' telemetry collection.`)
-  .action((toggle, options) => {
-    import('../cli/next-telemetry').then((mod) =>
+  .action((toggle, options) =>
+    import('../cli/next-telemetry.js').then((mod) =>
       mod.nextTelemetry(options, toggle)
     )
-  })
-  .usage('[toggle] [options]')
+  )
+  .usage('[options]')
 
 program.parse(process.argv)
