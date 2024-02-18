@@ -19,7 +19,7 @@ type NextBuildOptions = {
   buildMode: 'default' | 'experimental-compile' | 'experimental-generate'
 }
 
-const nextBuild = async (options: NextBuildOptions, directory?: string) => {
+const nextBuild = (options: NextBuildOptions, directory?: string) => {
   process.on('SIGTERM', () => process.exit(0))
   process.on('SIGINT', () => process.exit(0))
 
@@ -64,7 +64,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     process.env.TURBOPACK = '1'
   }
 
-  return await build(
+  return build(
     dir,
     profile,
     debug,
