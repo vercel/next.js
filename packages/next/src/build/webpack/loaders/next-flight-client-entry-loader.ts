@@ -36,9 +36,9 @@ export default function transformSource(
   }
 
   const code = modules
-    .map((x) => JSON.parse(x))
+    .map((x) => JSON.parse(x) as FlightClientEntryModuleItem)
     // Filter out CSS files in the SSR compilation
-    .filter(({ importPath }) => (isServer ? !regexCSS.test(importPath) : true))
+    .filter(({ request }) => (isServer ? !regexCSS.test(request) : true))
     .map(({ request, ids }: FlightClientEntryModuleItem) => {
       const importPath = JSON.stringify(
         request.startsWith(BARREL_OPTIMIZATION_PREFIX)
