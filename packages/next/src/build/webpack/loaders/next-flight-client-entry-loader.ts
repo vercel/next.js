@@ -6,6 +6,9 @@ import {
 import { getModuleBuildInfo } from './get-module-build-info'
 import { regexCSS } from './utils'
 
+/**
+ * { [client import path]: [exported names] }
+ */
 export type ClientComponentImports = Record<string, Set<string>>
 export type CssImports = Record<string, string[]>
 

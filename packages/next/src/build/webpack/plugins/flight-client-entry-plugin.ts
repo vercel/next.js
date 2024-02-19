@@ -1,7 +1,6 @@
 import type {
   CssImports,
   ClientComponentImports,
-  NextFlightClientEntryLoaderOptions,
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -727,7 +726,10 @@ export class FlightClientEntryPlugin {
     const loaderOptions = {
       modules: Object.keys(clientImports)
         .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
-        .map((path) => [path, ...clientImports[path]]),
+        .map((clientImportPath) => [
+          clientImportPath,
+          ...clientImports[clientImportPath],
+        ]),
       server: false,
     }
 
