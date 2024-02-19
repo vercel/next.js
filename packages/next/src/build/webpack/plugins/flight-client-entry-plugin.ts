@@ -632,8 +632,10 @@ export class FlightClientEntryPlugin {
 
       if (!modRequest) return
       if (visited.has(modRequest)) {
-        for (const name of exportIdentifiers) {
-          clientComponentImports[modRequest].add(name)
+        if (clientComponentImports[modRequest]) {
+          for (const name of exportIdentifiers) {
+            clientComponentImports[modRequest].add(name)
+          }
         }
         return
       }
@@ -674,7 +676,7 @@ export class FlightClientEntryPlugin {
       Array.from(compilation.moduleGraph.getOutgoingConnections(mod)).forEach(
         (connection: any) => {
           const newNames: string[] = []
-          if (connection.dependency.ids?.length) {
+          if (connection.dependency?.ids?.length) {
             newNames.push(...connection.dependency.ids)
           }
           if (!newNames.length) {
