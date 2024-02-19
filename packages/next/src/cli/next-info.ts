@@ -137,12 +137,14 @@ async function printDefaultInfo() {
     )
   }
 
+  const cpuCores = os.cpus().length
   console.log(`
 Operating System:
   Platform: ${os.platform()}
   Arch: ${os.arch()}
   Version: ${os.version()}
   Available memory (MB): ${Math.ceil(os.totalmem() / 1024 / 1024)}
+  Available CPU cores: ${cpuCores > 0 ? cpuCores : 'N/A'}
 Binaries:
   Node: ${process.versions.node}
   npm: ${getBinaryVersion('npm')}
