@@ -145,7 +145,6 @@ export function processIssues(
 
     // We show errors in node_modules to the console, but don't throw for them
     if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-    console.log({ added: 'TYPE', filePath: issue.filePath })
 
     newIssues.set(key, issue)
     relevantIssues.add(formatted)
