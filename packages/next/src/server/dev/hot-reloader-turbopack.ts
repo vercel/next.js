@@ -687,10 +687,10 @@ export async function createHotReloaderTurbopack(
       const finishBuilding = startBuilding(pathname, requestUrl, false)
       try {
         await handleRouteType({
+          dev: true,
           page,
           pathname,
           route,
-
           currentIssues,
           entrypoints: currentEntrypoints,
           manifestLoader,
