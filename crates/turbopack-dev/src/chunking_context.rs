@@ -15,6 +15,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
+    async_chunk::module::AsyncLoaderModule,
     chunk::{EcmascriptChunk, EcmascriptChunkingContext},
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
@@ -61,6 +62,11 @@ impl DevChunkingContextBuilder {
         self
     }
 
+    pub fn manifest_chunks(mut self, manifest_chunks: bool) -> Self {
+        self.chunking_context.manifest_chunks = manifest_chunks;
+        self
+    }
+
     pub fn build(self) -> Vc<DevChunkingContext> {
         DevChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -101,6 +107,8 @@ pub struct DevChunkingContext {
     environment: Vc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
+    /// Whether to use manifest chunks for lazy compilation
+    manifest_chunks: bool,
 }
 
 impl DevChunkingContext {
@@ -126,6 +134,7 @@ impl DevChunkingContext {
                 enable_hot_module_replacement: false,
                 environment,
                 runtime_type: Default::default(),
+                manifest_chunks: false,
             },
         }
     }
@@ -421,24 +430,34 @@ impl ChunkingContext for DevChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn async_loader_chunk_item(
+    async fn async_loader_chunk_item(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<Box<dyn ChunkItem>> {
-        let manifest_asset = ManifestAsyncModule::new(module, Vc::upcast(self), availability_info);
-        Vc::upcast(ManifestLoaderChunkItem::new(
-            manifest_asset,
-            Vc::upcast(self),
-        ))
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        Ok(if self.await?.manifest_chunks {
+            let manifest_asset =
+                ManifestAsyncModule::new(module, Vc::upcast(self), availability_info);
+            Vc::upcast(ManifestLoaderChunkItem::new(
+                manifest_asset,
+                Vc::upcast(self),
+            ))
+        } else {
+            let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
+            Vc::upcast(module.as_chunk_item(Vc::upcast(self)))
+        })
     }
 
     #[turbo_tasks::function]
-    fn async_loader_chunk_item_id(
+    async fn async_loader_chunk_item_id(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
-    ) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(ManifestLoaderChunkItem::asset_ident_for(module))
+    ) -> Result<Vc<ModuleId>> {
+        Ok(if self.await?.manifest_chunks {
+            self.chunk_item_id_from_ident(ManifestLoaderChunkItem::asset_ident_for(module))
+        } else {
+            self.chunk_item_id_from_ident(AsyncLoaderModule::asset_ident_for(module))
+        })
     }
 }
 
