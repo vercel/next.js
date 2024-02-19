@@ -43,14 +43,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
     [all, allLeadingFrames]
   )
   const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () =>
-      error.frames
-        .slice(firstFirstPartyFrameIndex + 1)
-        .filter(
-          (f) =>
-            f.sourceStackFrame.file !== '<anonymous>' &&
-            !f.sourceStackFrame.file?.startsWith('node:internal')
-        ),
+    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
     [error.frames, firstFirstPartyFrameIndex]
   )
   const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
