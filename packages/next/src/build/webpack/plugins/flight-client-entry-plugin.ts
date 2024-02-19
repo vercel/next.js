@@ -403,7 +403,7 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    compilation.hooks.finishModules.tapAsync(PLUGIN_NAME, async () => {
+    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, async () => {
       const addedClientActionEntryList: Promise<any>[] = []
       const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
@@ -469,6 +469,7 @@ export class FlightClientEntryPlugin {
       }
 
       await Promise.all(addedClientActionEntryList)
+      return
     })
 
     // Invalidate in development to trigger recompilation
@@ -678,7 +679,6 @@ export class FlightClientEntryPlugin {
           if (connection.dependency?.ids?.length) {
             dependencyIds.push(...connection.dependency.ids)
           }
-
           filterClientComponents(connection.resolvedModule, dependencyIds)
         }
       )
@@ -722,10 +722,10 @@ export class FlightClientEntryPlugin {
     const loaderOptions = {
       modules: Object.keys(clientImports)
         .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
-        .map((clientImportPath) => [
-          clientImportPath,
-          ...clientImports[clientImportPath],
-        ]),
+        .map((clientImportPath) => ({
+          importPath: clientImportPath,
+          identifiers: [...clientImports[clientImportPath]],
+        })),
       server: false,
     }
 
@@ -734,20 +734,19 @@ export class FlightClientEntryPlugin {
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: (this.isEdgeServer
-        ? loaderOptions.modules.map(([importPath, ...importedIdentifiers]) => [
-            importPath.replace(
+        ? loaderOptions.modules.map(({ importPath, identifiers }) => ({
+            importPath: importPath.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             ),
-            ...importedIdentifiers,
-          ])
+            identifiers,
+          }))
         : loaderOptions.modules
       ).map((x) => JSON.stringify(x)),
       server: false,
     })}!`
 
     const clientSSRLoader = `next-flight-client-entry-loader?${stringify({
-      ...loaderOptions,
       modules: loaderOptions.modules.map((x) => JSON.stringify(x)),
       server: true,
     })}!`
