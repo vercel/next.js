@@ -6,7 +6,7 @@ export type StackFramesGroup = {
 }
 
 const reactModulesRe =
-  /node_modules\/(\.pnpm\/)?(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)/
+  /node_modules[\\/](react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)/
 /** TODO: Move this to react-dev-overlay/server/middleware.ts and find the module via `findCallStackFrameModule`.*/
 function getModuleGroup(file: string | null): StackFramesGroup['moduleGroup'] {
   if (!file) return
