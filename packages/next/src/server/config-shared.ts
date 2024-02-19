@@ -178,6 +178,10 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -530,11 +534,6 @@ export interface NextConfig extends Record<string, any> {
   cacheMaxMemorySize?: number
 
   /**
-   * period (in seconds) where the server allow to serve stale cache
-   */
-  swrDelta?: SwrDelta | undefined
-
-  /**
    * By default, `Next` will serve each file in the `pages` folder under a pathname matching the filename.
    * To disable this behavior and prevent routing based set this to `true`.
    *
@@ -786,7 +785,6 @@ export const defaultConfig: NextConfig = {
   cacheHandler: undefined,
   // default to 50MB limit
   cacheMaxMemorySize: 50 * 1024 * 1024,
-  swrDelta: undefined,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
   generateBuildId: () => null,
@@ -840,6 +838,7 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
+    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,

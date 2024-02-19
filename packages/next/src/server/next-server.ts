@@ -436,7 +436,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
-      swrDelta: this.nextConfig.swrDelta,
+      swrDelta: options.swrDelta,
     })
   }
 

@@ -119,7 +119,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),
     cacheMaxMemorySize: z.number().optional(),
-    swrDelta: z.number().optional(),
     cleanDistDir: z.boolean().optional(),
     compiler: z
       .strictObject({
@@ -268,6 +267,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
+        swrDelta: z.number().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),

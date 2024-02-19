@@ -512,13 +512,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      swrDelta: this.nextConfig.swrDelta,
       experimental: {
         ppr:
           this.enabledDirectories.app &&
           this.nextConfig.experimental.ppr === true,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       },
     }
 
@@ -1561,7 +1561,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         generateEtags,
         poweredByHeader,
         revalidate,
-        swrDelta: this.nextConfig.swrDelta,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -2720,7 +2720,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            swrDelta: this.nextConfig.experimental.swrDelta,
           })
         )
       }
@@ -2742,7 +2742,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           'Cache-Control',
           formatRevalidate({
             revalidate: cacheEntry.revalidate,
-            swrDelta: this.nextConfig.swrDelta,
+            swrDelta: this.nextConfig.experimental.swrDelta,
           })
         )
       }
