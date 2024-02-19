@@ -183,6 +183,7 @@ import {
   handleRouteType,
   writeManifests,
   handlePagesErrorRoute,
+  formatIssue,
 } from '../server/dev/turbopack-utils'
 import { buildCustomRoute } from '../lib/build-custom-route'
 
@@ -1498,6 +1499,24 @@ export default async function build(
           loadableManifests,
           currentEntrypoints,
         })
+
+        const errors = []
+        for (const pageIssues of currentIssues.values()) {
+          for (const issue of pageIssues.values()) {
+            errors.push({
+              message: formatIssue(issue),
+            })
+          }
+        }
+
+        if (errors.length > 0) {
+          throw new Error(
+            `Turbopack build failed with ${errors.length} issues:\n${errors
+              .map((e) => e.message)
+              .join('\n')}`
+          )
+        }
+
         return {
           duration: process.hrtime(startTime)[0],
           buildTraceContext: undefined,
@@ -1506,12 +1525,8 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // If there's has a custom webpack config and disable the build worker.
-      // Otherwise respect the option if it's set.
-      const useBuildWorker =
-        config.experimental.webpackBuildWorker ||
-        (config.experimental.webpackBuildWorker === undefined &&
-          !config.webpack)
+      // webpack build worker is always enabled unless manually disabled
+      const useBuildWorker = config.experimental.webpackBuildWorker !== false
       const runServerAndEdgeInParallel =
         config.experimental.parallelServerCompiles
       const collectServerBuildTracesInParallel =

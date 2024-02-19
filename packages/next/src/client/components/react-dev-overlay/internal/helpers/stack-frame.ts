@@ -126,10 +126,18 @@ export function getOriginalStackFrames(
   )
 }
 
+/**
+ * Format the webpack internal id to original file path
+ * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
+ * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
+ * webpack://./src/hello.tsx => ./src/hello.tsx
+ * webpack:///./src/hello.tsx => ./src/hello.tsx
+ *
+ */
 function formatFrameSourceFile(file: string) {
   return file
-    .replace(/^webpack-internal:\/\/\/(\.)?/, '')
-    .replace(/^webpack:\/\/\/(\.)?/, '')
+    .replace(/^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/, '')
+    .replace(/^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/, '')
 }
 
 export function getFrameSource(frame: StackFrame): string {
