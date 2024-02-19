@@ -58,6 +58,7 @@ async function getStaticAssetRouteCode(
       ? cacheHeader.none
       : cacheHeader.longCache
   const code = `\
+/* static asset route */
 import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
@@ -82,6 +83,7 @@ export const dynamic = 'force-static'
 
 function getDynamicTextRouteCode(resourcePath: string) {
   return `\
+/* dynamic asset route */
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
@@ -108,6 +110,7 @@ export async function GET() {
 // <metadata-image>/[id]/route.js
 function getDynamicImageRouteCode(resourcePath: string) {
   return `\
+/* dynamic image route */
 import { NextResponse } from 'next/server'
 import * as userland from ${JSON.stringify(resourcePath)}
 
@@ -159,6 +162,7 @@ async function getDynamicSiteMapRouteCode(
     page.includes('[__metadata_id__]')
   ) {
     staticGenerationCode = `\
+/* dynamic sitemap route */ 
 export async function generateStaticParams() {
   const sitemaps = generateSitemaps ? await generateSitemaps() : []
   const params = []
@@ -238,6 +242,7 @@ ${staticGenerationCode}
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
     const { resourcePath } = this
+
     const { page, isDynamic } = this.getOptions()
     const { name: fileBaseName } = getFilenameAndExtension(resourcePath)
 
@@ -251,6 +256,12 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
         code = getDynamicImageRouteCode(resourcePath)
       }
     } else {
+      console.log(
+        'getStaticAssetRouteCode page',
+        page,
+        'this.resourcePath',
+        this.resourcePath
+      )
       code = await getStaticAssetRouteCode(resourcePath, fileBaseName)
     }
 
