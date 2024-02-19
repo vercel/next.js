@@ -2475,10 +2475,10 @@
       "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages",
-      "app dir - css HMR should not create duplicate link tags during HMR"
+      "app dir - css HMR should not create duplicate link tags during HMR",
+      "app dir - css css support chunks should bundle css resources into chunks"
     ],
     "failed": [
-      "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support should not preload styles twice during HMR"
     ],
     "pending": [
