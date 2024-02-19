@@ -315,13 +315,13 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                return unable_to_externalize(
+                unable_to_externalize(
                     "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.",
-                );
+                )
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
-                return unable_to_externalize("The package.json can't be found or parsed.");
+                unable_to_externalize("The package.json can't be found or parsed.")
             }
             (FileType::CommonJs, _) => {
                 if let Some(request) = request.await?.request() {
