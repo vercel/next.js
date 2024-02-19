@@ -54,7 +54,11 @@ import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import { formatRevalidate, type Revalidate } from './lib/revalidate'
+import {
+  formatRevalidate,
+  type Revalidate,
+  type SwrDelta,
+} from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { isBot } from '../shared/lib/router/utils/is-bot'
@@ -325,6 +329,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
+      swrDelta?: SwrDelta
     }
   ): Promise<void>
 
@@ -513,6 +518,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           this.nextConfig.experimental.ppr === true,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       },
     }
 
@@ -1555,6 +1561,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         generateEtags,
         poweredByHeader,
         revalidate,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -2709,7 +2716,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (!cachedData) {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
       if (isDataReq) {
         res.statusCode = 404
@@ -2725,7 +2738,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     } else if (cachedData.kind === 'REDIRECT') {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
 
       if (isDataReq) {
