@@ -63,6 +63,7 @@ import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
