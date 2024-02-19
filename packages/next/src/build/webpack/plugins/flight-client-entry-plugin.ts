@@ -501,7 +501,7 @@ export class FlightClientEntryPlugin {
     compilation,
     dependencies,
   }: {
-    compilation: any
+    compilation: webpack.Compilation
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
     // action file path -> action names
@@ -543,11 +543,13 @@ export class FlightClientEntryPlugin {
           collectedActions.set(modRequest, actions)
         }
 
-        compilation.moduleGraph
-          .getOutgoingConnections(mod)
-          .forEach((connection: any) => {
-            collectActionsInDep(connection.resolvedModule)
-          })
+        ;[...compilation.moduleGraph.getOutgoingConnections(mod)].forEach(
+          (connection) => {
+            collectActionsInDep(
+              connection.resolvedModule as webpack.NormalModule
+            )
+          }
+        )
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
@@ -559,12 +561,12 @@ export class FlightClientEntryPlugin {
 
     for (const entryDependency of dependencies) {
       const ssrEntryModule =
-        compilation.moduleGraph.getResolvedModule(entryDependency)
+        compilation.moduleGraph.getResolvedModule(entryDependency)!
       for (const connection of compilation.moduleGraph.getOutgoingConnections(
         ssrEntryModule
       )) {
-        const dependency = connection.dependency
-        const request = dependency.request
+        const dependency = connection.dependency!
+        const request = (dependency as unknown as webpack.NormalModule).request
 
         // It is possible that the same entry is added multiple times in the
         // connection graph. We can just skip these to speed up the process.

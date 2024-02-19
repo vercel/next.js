@@ -1,3 +1,4 @@
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import {
   BARREL_OPTIMIZATION_PREFIX,
   RSC_MODULE_TYPES,
@@ -14,9 +15,10 @@ export type NextFlightClientEntryLoaderOptions = {
   server: boolean | 'true' | 'false'
 }
 
-export default function transformSource(this: any) {
-  let { modules, server }: NextFlightClientEntryLoaderOptions =
-    this.getOptions()
+export default function transformSource(
+  this: webpack.LoaderContext<NextFlightClientEntryLoaderOptions>
+) {
+  let { modules, server } = this.getOptions()
   const isServer = server === 'true'
 
   if (!Array.isArray(modules)) {
@@ -24,7 +26,7 @@ export default function transformSource(this: any) {
   }
 
   const mods = modules || []
-  const importsCode = mods
+  const code = mods
     .map((x) => JSON.parse(x))
     // Filter out CSS files in the SSR compilation
     .filter(([request]) => (isServer ? !regexCSS.test(request) : true))
@@ -44,20 +46,11 @@ export default function transformSource(this: any) {
     })
     .join(';\n')
 
-  const buildInfo = getModuleBuildInfo(this._module)
+  const buildInfo = getModuleBuildInfo(this._module!)
 
   buildInfo.rsc = {
     type: RSC_MODULE_TYPES.client,
   }
 
-  const code = `
-  // function callMod(m) { m }
-
-  ${importsCode}
-
-  // ${mods.map((_, index) => `callMod(_mod${index})`).join(';\n')}
-  `
-
-  // console.log(code)
   return code
 }
