@@ -206,6 +206,7 @@ function getBaseSWCOptions({
             // TODO: remove this option
             enabled: true,
             isReactServerLayer,
+            directive: 'use server',
           }
         : undefined,
     // For app router we prefer to bundle ESM,
