@@ -145,6 +145,9 @@ export function processIssues(
 
     // We show errors in node_modules to the console, but don't throw for them
     if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
+    console.log({ added: 'TYPE', filePath: issue.filePath })
+
+    newIssues.set(key, issue)
     relevantIssues.add(formatted)
   }
 
@@ -224,18 +227,18 @@ type HandleRouteTypeHooks = {
 }
 
 export async function handleRouteType({
+  dev,
   page,
   pathname,
   route,
-
   currentIssues,
   entrypoints,
   manifestLoader,
   readyIds,
   rewrites,
-
   hooks,
 }: {
+  dev: boolean
   page: string
   pathname: string
   route: PageRoute | AppRoute
@@ -386,7 +389,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, key, writtenEndpoint, true)
+      processIssues(currentIssues, key, writtenEndpoint, dev)
 
       break
     }
