@@ -1390,7 +1390,7 @@ fn remove_server_directive_index_in_module(
                     }
                 } else {
                     // Detect typo of the directive.
-                    if detect_similar_strings(&value, directive) {
+                    if detect_similar_strings(value, directive) {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
@@ -1417,7 +1417,7 @@ fn remove_server_directive_index_in_module(
                 ..
             })) => {
                 // Match `("use server")` or similar.
-                if value == directive || detect_similar_strings(&value, directive) {
+                if value == directive || detect_similar_strings(value, directive) {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
@@ -1505,7 +1505,7 @@ fn remove_server_directive_index_in_fn(
                 }
             } else {
                 // Detect typo of the directive
-                if detect_similar_strings(&value, directive) {
+                if detect_similar_strings(value, directive) {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
