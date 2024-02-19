@@ -142,6 +142,7 @@ Operating System:
   Platform: ${os.platform()}
   Arch: ${os.arch()}
   Version: ${os.version()}
+  Available memory (MB): ${Math.ceil(os.totalmem() / 1024 / 1024)}
 Binaries:
   Node: ${process.versions.node}
   npm: ${getBinaryVersion('npm')}
