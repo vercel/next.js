@@ -8,7 +8,6 @@ import type {
   Endpoint,
   Entrypoints as RawEntrypoints,
   Issue,
-  Route,
   StyledString,
   TurbopackResult,
   WrittenEndpoint,
@@ -25,7 +24,12 @@ import {
 import * as Log from '../../build/output/log'
 import type { PropagateToWorkersField } from '../lib/router-utils/types'
 import type { TurbopackManifestLoader } from './turbopack/manifest-loader'
-import type { Entrypoints } from './turbopack/types'
+import type { AppRoute, Entrypoints, PageRoute } from './turbopack/types'
+import {
+  type EntryKey,
+  getEntryKey,
+  splitEntryKey,
+} from './turbopack/entry-key'
 
 export async function getTurbopackJsConfig(
   dir: string,
@@ -37,7 +41,7 @@ export async function getTurbopackJsConfig(
 
 class ModuleBuildError extends Error {}
 
-function issueKey(issue: Issue): string {
+function getIssueKey(issue: Issue): string {
   return [
     issue.severity,
     issue.filePath,
@@ -120,24 +124,24 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type CurrentIssues = Map<string, Map<string, Issue>>
+export type CurrentIssues = Map<EntryKey, Map<string, Issue>>
 
 export function processIssues(
   currentIssues: CurrentIssues,
-  name: string,
+  key: EntryKey,
   result: TurbopackResult,
   throwIssue = false
 ) {
   const newIssues = new Map<string, Issue>()
-  currentIssues.set(name, newIssues)
+  currentIssues.set(key, newIssues)
 
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
     if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
-    const key = issueKey(issue)
+    const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
-    newIssues.set(key, issue)
+    newIssues.set(issueKey, issue)
 
     // We show errors in node_modules to the console, but don't throw for them
     if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
@@ -183,30 +187,25 @@ export function msToNs(ms: number): bigint {
 }
 
 export type ChangeSubscriptions = Map<
-  string,
+  EntryKey,
   Promise<AsyncIterableIterator<TurbopackResult>>
 >
 
 export type HandleWrittenEndpoint = (
-  id: string,
+  key: EntryKey,
   result: TurbopackResult<WrittenEndpoint>
 ) => void
 
 export type StartChangeSubscription = (
-  page: string,
-  type: 'client' | 'server',
+  key: EntryKey,
   includeIssues: boolean,
   endpoint: Endpoint | undefined,
   makePayload: (
-    page: string,
     change: TurbopackResult
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
 ) => Promise<void>
 
-export type StopChangeSubscription = (
-  page: string,
-  type: 'server' | 'client'
-) => Promise<void>
+export type StopChangeSubscription = (key: EntryKey) => Promise<void>
 
 export type SendHmr = (id: string, payload: HMR_ACTION_TYPES) => void
 
@@ -226,6 +225,7 @@ type HandleRouteTypeHooks = {
 
 export async function handleRouteType({
   page,
+  pathname,
   route,
 
   currentIssues,
@@ -237,7 +237,8 @@ export async function handleRouteType({
   hooks,
 }: {
   page: string
-  route: Route
+  pathname: string
+  route: PageRoute | AppRoute
 
   currentIssues: CurrentIssues
   entrypoints: Entrypoints
@@ -250,25 +251,32 @@ export async function handleRouteType({
 }) {
   switch (route.type) {
     case 'page': {
+      const clientKey = getEntryKey('pages', 'client', page)
+      const serverKey = getEntryKey('pages', 'server', page)
+
       try {
         if (entrypoints.global.app) {
+          const key = getEntryKey('pages', 'server', '_app')
+
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
-          hooks?.handleWrittenEndpoint('_app', writtenEndpoint)
-          processIssues(currentIssues, '_app', writtenEndpoint)
+          hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+          processIssues(currentIssues, key, writtenEndpoint)
         }
         await manifestLoader.loadBuildManifest('_app')
         await manifestLoader.loadPagesManifest('_app')
 
         if (entrypoints.global.document) {
+          const key = getEntryKey('pages', 'server', '_document')
+
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
-          hooks?.handleWrittenEndpoint('_document', writtenEndpoint)
-          processIssues(currentIssues, '_document', writtenEndpoint)
+          hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+          processIssues(currentIssues, key, writtenEndpoint)
         }
         await manifestLoader.loadPagesManifest('_document')
 
         const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-        hooks?.handleWrittenEndpoint(page, writtenEndpoint)
+        hooks?.handleWrittenEndpoint(serverKey, writtenEndpoint)
 
         const type = writtenEndpoint?.type
 
@@ -277,47 +285,34 @@ export async function handleRouteType({
         if (type === 'edge') {
           await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
-          manifestLoader.deleteMiddlewareManifest(page)
+          manifestLoader.deleteMiddlewareManifest(serverKey)
         }
         await manifestLoader.loadFontManifest(page, 'pages')
         await manifestLoader.loadLoadableManifest(page, 'pages')
 
         await manifestLoader.writeManifests({
           rewrites,
-          routes: entrypoints.routes,
+          pageEntrypoints: entrypoints.page,
         })
 
-        processIssues(currentIssues, page, writtenEndpoint)
+        processIssues(currentIssues, serverKey, writtenEndpoint)
       } finally {
-        hooks?.subscribeToChanges(
-          page,
-          'server',
-          false,
-          route.dataEndpoint,
-          (pageName) => {
-            // Report the next compilation again
-            readyIds?.delete(page)
-            return {
-              event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-              pages: [pageName],
-            }
+        hooks?.subscribeToChanges(serverKey, false, route.dataEndpoint, () => {
+          // Report the next compilation again
+          readyIds?.delete(pathname)
+          return {
+            event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+            pages: [page],
           }
-        )
-        hooks?.subscribeToChanges(
-          page,
-          'client',
-          false,
-          route.htmlEndpoint,
-          () => {
-            return {
-              event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
-            }
+        })
+        hooks?.subscribeToChanges(clientKey, false, route.htmlEndpoint, () => {
+          return {
+            event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
           }
-        )
+        })
         if (entrypoints.global.document) {
           hooks?.subscribeToChanges(
-            '_document',
-            'server',
+            getEntryKey('pages', 'server', '_document'),
             false,
             entrypoints.global.document,
             () => {
@@ -330,8 +325,10 @@ export async function handleRouteType({
       break
     }
     case 'page-api': {
+      const key = getEntryKey('pages', 'server', page)
+
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
       const type = writtenEndpoint?.type
 
@@ -339,82 +336,80 @@ export async function handleRouteType({
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
-        manifestLoader.deleteMiddlewareManifest(page)
+        manifestLoader.deleteMiddlewareManifest(key)
       }
       await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, page, writtenEndpoint)
+      processIssues(currentIssues, key, writtenEndpoint)
 
       break
     }
     case 'app-page': {
-      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
+      const key = getEntryKey('app', 'server', page)
 
-      hooks?.subscribeToChanges(
-        page,
-        'server',
-        true,
-        route.rscEndpoint,
-        (_page, change) => {
-          if (change.issues.some((issue) => issue.severity === 'error')) {
-            // Ignore any updates that has errors
-            // There will be another update without errors eventually
-            return
-          }
-          // Report the next compilation again
-          readyIds?.delete(page)
-          return {
-            action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-          }
+      const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+
+      hooks?.subscribeToChanges(key, true, route.rscEndpoint, (change) => {
+        if (change.issues.some((issue) => issue.severity === 'error')) {
+          // Ignore any updates that has errors
+          // There will be another update without errors eventually
+          return
         }
-      )
+        // Report the next compilation again
+        readyIds?.delete(pathname)
+        return {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        }
+      })
 
       const type = writtenEndpoint?.type
 
       if (type === 'edge') {
         await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
-        manifestLoader.deleteMiddlewareManifest(page)
+        manifestLoader.deleteMiddlewareManifest(key)
       }
 
       await manifestLoader.loadAppBuildManifest(page)
       await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page, 'app')
+      await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
       await manifestLoader.loadFontManifest(page, 'app')
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, page, writtenEndpoint, true)
+      processIssues(currentIssues, key, writtenEndpoint, true)
 
       break
     }
     case 'app-route': {
+      const key = getEntryKey('app', 'server', page)
+
       const writtenEndpoint = await route.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint(page, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
       const type = writtenEndpoint?.type
 
-      await manifestLoader.loadAppPathsManifest(page, 'app-route')
+      await manifestLoader.loadAppPathsManifest(page)
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app-route')
+        await manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
-        manifestLoader.deleteMiddlewareManifest(page)
+        manifestLoader.deleteMiddlewareManifest(key)
       }
 
       await manifestLoader.writeManifests({
         rewrites,
-        routes: entrypoints.routes,
+        pageEntrypoints: entrypoints.page,
       })
-      processIssues(currentIssues, page, writtenEndpoint, true)
+      processIssues(currentIssues, key, writtenEndpoint, true)
 
       break
     }
@@ -472,15 +467,26 @@ export async function handleEntrypoints({
 
   currentEntrypoints.global.instrumentation = entrypoints.instrumentation
 
-  currentEntrypoints.routes.clear()
+  currentEntrypoints.page.clear()
+  currentEntrypoints.app.clear()
 
   for (const [pathname, route] of entrypoints.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
-      case 'app-page':
+        currentEntrypoints.page.set(pathname, route)
+        break
+      case 'app-page': {
+        route.pages.forEach((page) => {
+          currentEntrypoints.app.set(page.originalName, {
+            type: 'app-page',
+            ...page,
+          })
+        })
+        break
+      }
       case 'app-route': {
-        currentEntrypoints.routes.set(pathname, route)
+        currentEntrypoints.app.set(route.originalName, route)
         break
       }
       default:
@@ -490,17 +496,29 @@ export async function handleEntrypoints({
   }
 
   if (changeSubscriptions) {
-    for (const [pathname, subscriptionPromise] of changeSubscriptions) {
-      if (pathname === '') {
-        // middleware is handled below
-        continue
-      }
+    for (const [key, subscriptionPromise] of changeSubscriptions) {
+      const { type, page } = splitEntryKey(key)
 
-      if (!currentEntrypoints.routes.has(pathname)) {
+      // middleware is handled below
+      if (
+        (type === 'app' && !currentEntrypoints.page.has(page)) ||
+        (type === 'pages' && !currentEntrypoints.app.has(page))
+      ) {
         const subscription = await subscriptionPromise
-        subscription.return?.()
-        changeSubscriptions.delete(pathname)
+        await subscription.return?.()
+        changeSubscriptions.delete(key)
       }
+    }
+  }
+
+  for (const [key] of currentIssues) {
+    const { type, page } = splitEntryKey(key)
+
+    if (
+      (type === 'app' && !currentEntrypoints.page.has(page)) ||
+      (type === 'pages' && !currentEntrypoints.app.has(page))
+    ) {
+      currentIssues.delete(key)
     }
   }
 
@@ -510,8 +528,10 @@ export async function handleEntrypoints({
   // undefined during the first loop (middlewareChanges event is
   // unnecessary during the first serve)
   if (currentEntrypoints.global.middleware && !middleware) {
+    const key = getEntryKey('root', 'server', 'middleware')
     // Went from middleware to no middleware
-    await hooks?.unsubscribeFromChanges('middleware', 'server')
+    await hooks?.unsubscribeFromChanges(key)
+    currentIssues.delete(key)
     hooks?.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
@@ -526,31 +546,24 @@ export async function handleEntrypoints({
 
   if (nextConfig.experimental.instrumentationHook && instrumentation) {
     const processInstrumentation = async (
-      displayName: string,
       name: string,
       prop: 'nodeJs' | 'edge'
     ) => {
+      const key = getEntryKey('root', 'server', name)
+
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      hooks?.handleWrittenEndpoint(displayName, writtenEndpoint)
-      processIssues(currentIssues, name, writtenEndpoint)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentIssues, key, writtenEndpoint)
     }
-    await processInstrumentation(
-      'instrumentation (node.js)',
-      'instrumentation.nodeJs',
-      'nodeJs'
-    )
-    await processInstrumentation(
-      'instrumentation (edge)',
-      'instrumentation.edge',
-      'edge'
-    )
+    await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
+    await processInstrumentation('instrumentation.edge', 'edge')
     await manifestLoader.loadMiddlewareManifest(
       'instrumentation',
       'instrumentation'
     )
     await manifestLoader.writeManifests({
       rewrites: rewrites,
-      routes: currentEntrypoints.routes,
+      pageEntrypoints: currentEntrypoints.page,
     })
 
     if (serverFields && hooks?.propagateServerField) {
@@ -571,56 +584,46 @@ export async function handleEntrypoints({
   }
 
   if (middleware) {
+    const key = getEntryKey('root', 'server', 'middleware')
+
     const processMiddleware = async () => {
       const writtenEndpoint = await middleware.endpoint.writeToDisk()
-      hooks?.handleWrittenEndpoint('middleware', writtenEndpoint)
-      processIssues(currentIssues, 'middleware', writtenEndpoint)
+      hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+      processIssues(currentIssues, key, writtenEndpoint)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (serverFields) {
         serverFields.middleware = {
           match: null as any,
           page: '/',
           matchers:
-            manifestLoader.getMiddlewareManifest('middleware')?.middleware['/']
-              .matchers,
+            manifestLoader.getMiddlewareManifest(key)?.middleware['/'].matchers,
         }
       }
     }
     await processMiddleware()
 
-    hooks?.subscribeToChanges(
-      'middleware',
-      'server',
-      false,
-      middleware.endpoint,
-      async () => {
-        const finishBuilding = hooks.startBuilding(
-          'middleware',
-          undefined,
-          true
+    hooks?.subscribeToChanges(key, false, middleware.endpoint, async () => {
+      const finishBuilding = hooks.startBuilding('middleware', undefined, true)
+      await processMiddleware()
+      if (serverFields && hooks.propagateServerField) {
+        await hooks.propagateServerField(
+          'actualMiddlewareFile',
+          serverFields.actualMiddlewareFile
         )
-        await processMiddleware()
-        if (serverFields && hooks.propagateServerField) {
-          await hooks.propagateServerField(
-            'actualMiddlewareFile',
-            serverFields.actualMiddlewareFile
-          )
-          await hooks.propagateServerField(
-            'middleware',
-            serverFields.middleware
-          )
-        }
-        await manifestLoader.writeManifests({
-          rewrites: rewrites,
-          routes: currentEntrypoints.routes,
-        })
-
-        finishBuilding?.()
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+        await hooks.propagateServerField('middleware', serverFields.middleware)
       }
-    )
+      await manifestLoader.writeManifests({
+        rewrites: rewrites,
+        pageEntrypoints: currentEntrypoints.page,
+      })
+
+      finishBuilding?.()
+      return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+    })
   } else {
-    manifestLoader.deleteMiddlewareManifest('middleware')
+    manifestLoader.deleteMiddlewareManifest(
+      getEntryKey('root', 'server', 'middleware')
+    )
     if (serverFields) {
       serverFields.actualMiddlewareFile = undefined
       serverFields.middleware = undefined
@@ -651,34 +654,34 @@ export async function handlePagesErrorRoute({
   hooks?: HandleRouteTypeHooks // dev
 }) {
   if (entrypoints.global.app) {
+    const key = getEntryKey('pages', 'server', '_app')
+
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
-    hooks?.handleWrittenEndpoint('_app', writtenEndpoint)
-    processIssues(currentIssues, '_app', writtenEndpoint)
+    hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    processIssues(currentIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
   await manifestLoader.loadFontManifest('_app')
 
   if (entrypoints.global.document) {
+    const key = getEntryKey('pages', 'server', '_document')
+
     const writtenEndpoint = await entrypoints.global.document.writeToDisk()
-    hooks?.handleWrittenEndpoint('_document', writtenEndpoint)
-    hooks?.subscribeToChanges(
-      '_document',
-      'server',
-      false,
-      entrypoints.global.document,
-      () => {
-        return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
-      }
-    )
-    processIssues(currentIssues, '_document', writtenEndpoint)
+    hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
+      return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+    })
+    processIssues(currentIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadPagesManifest('_document')
 
   if (entrypoints.global.error) {
+    const key = getEntryKey('pages', 'server', '_error')
+
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
-    hooks?.handleWrittenEndpoint('_error', writtenEndpoint)
-    processIssues(currentIssues, '/_error', writtenEndpoint)
+    hooks?.handleWrittenEndpoint(key, writtenEndpoint)
+    processIssues(currentIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
@@ -686,6 +689,6 @@ export async function handlePagesErrorRoute({
 
   await manifestLoader.writeManifests({
     rewrites,
-    routes: entrypoints.routes,
+    pageEntrypoints: entrypoints.page,
   })
 }

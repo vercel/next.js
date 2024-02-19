@@ -7,6 +7,7 @@ pub mod include_modules_module;
 pub mod metadata;
 
 use std::{
+    cmp::Ordering,
     fmt::{Display, Formatter, Write},
     ops::Deref,
 };
@@ -24,7 +25,19 @@ pub use crate::next_app::{
 };
 
 /// See [AppPage].
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PageSegment {
     /// e.g. `/dashboard`
     Static(String),
@@ -116,7 +129,19 @@ impl Display for PageSegment {
     }
 }
 
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PageType {
     Page,
     Route,
@@ -250,10 +275,37 @@ impl Deref for AppPage {
     }
 }
 
+impl Ord for AppPage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // next.js does some weird stuff when looking up routes, so we have to emit the
+        // correct path (shortest segments, but alphabetically the last).
+        // https://github.com/vercel/next.js/blob/194311d8c96144d68e65cd9abb26924d25978da7/packages/next/src/server/base-server.ts#L3003
+        self.len().cmp(&other.len()).then(other.0.cmp(&self.0))
+    }
+}
+
+impl PartialOrd for AppPage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Path segments for a router path (not including parallel routes and groups).
 ///
 /// Also see [AppPath].
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PathSegment {
     /// e.g. `/dashboard`
     Static(String),
@@ -368,6 +420,21 @@ impl Display for AppPath {
         }
 
         Ok(())
+    }
+}
+
+impl Ord for AppPath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // next.js does some weird stuff when looking up routes, so we have to emit the
+        // correct path (shortest segments, but alphabetically the last).
+        // https://github.com/vercel/next.js/blob/194311d8c96144d68e65cd9abb26924d25978da7/packages/next/src/server/base-server.ts#L3003
+        self.len().cmp(&other.len()).then(other.0.cmp(&self.0))
+    }
+}
+
+impl PartialOrd for AppPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
