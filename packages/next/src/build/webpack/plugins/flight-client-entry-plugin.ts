@@ -605,7 +605,7 @@ export class FlightClientEntryPlugin {
 
     const filterClientComponents = (
       mod: webpack.NormalModule,
-      names: string[]
+      exportIdentifiers: string[]
     ): void => {
       if (!mod) return
 
@@ -632,10 +632,8 @@ export class FlightClientEntryPlugin {
 
       if (!modRequest) return
       if (visited.has(modRequest)) {
-        if (clientComponentImports[modRequest]) {
-          for (const name of names) {
-            clientComponentImports[modRequest].add(name)
-          }
+        for (const name of exportIdentifiers) {
+          clientComponentImports[modRequest].add(name)
         }
         return
       }
@@ -649,6 +647,7 @@ export class FlightClientEntryPlugin {
       const webpackRuntime = this.isEdgeServer
         ? EDGE_RUNTIME_WEBPACK
         : DEFAULT_RUNTIME_WEBPACK
+
       if (isCSS) {
         const sideEffectFree =
           mod.factoryMeta && (mod.factoryMeta as any).sideEffectFree
@@ -666,7 +665,7 @@ export class FlightClientEntryPlugin {
         if (!clientComponentImports[modRequest]) {
           clientComponentImports[modRequest] = new Set()
         }
-        for (const name of names) {
+        for (const name of exportIdentifiers) {
           clientComponentImports[modRequest].add(name)
         }
         return
@@ -674,13 +673,12 @@ export class FlightClientEntryPlugin {
 
       Array.from(compilation.moduleGraph.getOutgoingConnections(mod)).forEach(
         (connection: any) => {
-          const newNames = []
-          if (connection.dependency.ids) {
-            newNames.push(
-              ...(connection.dependency.ids?.length
-                ? connection.dependency.ids
-                : ['*'])
-            )
+          const newNames: string[] = []
+          if (connection.dependency.ids?.length) {
+            newNames.push(...connection.dependency.ids)
+          }
+          if (!newNames.length) {
+            newNames.push('*')
           }
 
           filterClientComponents(connection.resolvedModule, newNames)
