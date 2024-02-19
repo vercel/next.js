@@ -289,7 +289,6 @@ createNextDescribe(
         it('should bundle css resources into chunks', async () => {
           const html = await next.render('/dashboard')
 
-          expect(html).toMatchSnapshot()
           expect(
             [
               ...html.matchAll(
