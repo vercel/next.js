@@ -342,6 +342,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ])
               )
               .optional(),
+            resolveExtensions: z.array(z.string()).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
