@@ -13,11 +13,8 @@ use turbopack_binding::{
             compile_time_info::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReferences,
             },
-            environment::{
-                Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions, ServerAddr,
-            },
+            environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, RuntimeVersions},
             free_var_references,
-            resolve::{parse::Request, pattern::Pattern},
         },
         ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode},
         ecmascript_plugin::transform::directives::client::ClientDirectiveTransformer,
@@ -46,14 +43,15 @@ use crate::{
     embed_js::next_js_fs,
     mode::NextMode,
     next_build::{get_external_next_compiled_package_mapping, get_postcss_package_mapping},
-    next_client::{RuntimeEntries, RuntimeEntry},
+    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_import_map::{get_next_server_import_map, mdx_import_source_file},
     next_server::resolve::ExternalPredicate,
     next_shared::{
         resolve::{
-            ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, UnsupportedModulesResolvePlugin,
+            get_invalid_client_only_resolve_plugin, ModuleFeatureReportResolvePlugin,
+            NextExternalResolvePlugin, NextNodeSharedRuntimeResolvePlugin,
+            UnsupportedModulesResolvePlugin,
         },
         transforms::{
             emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -103,7 +101,7 @@ pub enum ServerContextType {
 pub async fn get_server_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -114,6 +112,7 @@ pub async fn get_server_resolve_options_context(
     let root_dir = project_path.root().resolve().await?;
     let module_feature_report_resolve_plugin = ModuleFeatureReportResolvePlugin::new(project_path);
     let unsupported_modules_resolve_plugin = UnsupportedModulesResolvePlugin::new(project_path);
+    let invalid_client_only_resolve_plugin = get_invalid_client_only_resolve_plugin(project_path);
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<String> = load_next_js_templateon(
@@ -141,7 +140,7 @@ pub async fn get_server_resolve_options_context(
     );
     let ty = ty.into_value();
 
-    let mut custom_conditions = vec![mode.node_env().to_string(), "node".to_string()];
+    let mut custom_conditions = vec![mode.await?.node_env().to_string(), "node".to_string()];
 
     match ty {
         ServerContextType::AppRSC { .. } => custom_conditions.push("react-server".to_string()),
@@ -157,15 +156,14 @@ pub async fn get_server_resolve_options_context(
         project_path,
         project_path.root(),
         ExternalPredicate::AllExcept(next_config.transpile_packages()).cell(),
-        // TODO(sokra) esmExternals support
-        false,
+        *next_config.import_externals().await?,
     );
 
     let next_external_plugin = NextExternalResolvePlugin::new(project_path);
     let next_node_shared_runtime_plugin =
         NextNodeSharedRuntimeResolvePlugin::new(project_path, Value::new(ty));
 
-    let plugins = match ty {
+    let mut plugins = match ty {
         ServerContextType::Pages { .. }
         | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
@@ -204,6 +202,34 @@ pub async fn get_server_resolve_options_context(
             ]
         }
     };
+
+    // Inject resolve plugin to assert incorrect import to client|server-only for
+    // the corresponding context. Refer https://github.com/vercel/next.js/blob/ad15817f0368ba154bed6d85320335d4b67b7348/packages/next/src/build/webpack-config.ts#L1205-L1235
+    // how it is applied in the webpack config.
+    // Unlike webpack which alias client-only -> runtime code -> build-time error
+    // code, we use resolve plugin to detect original import directly. This
+    // means each resolve plugin must be injected only for the context where the
+    // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
+    match ty {
+        ServerContextType::Pages { .. } => {
+            //noop
+        }
+        ServerContextType::PagesData { .. }
+        | ServerContextType::PagesApi { .. }
+        | ServerContextType::AppRSC { .. }
+        | ServerContextType::AppRoute { .. }
+        | ServerContextType::Instrumentation => {
+            plugins.push(Vc::upcast(invalid_client_only_resolve_plugin));
+        }
+        ServerContextType::AppSSR { .. } => {
+            //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
+            // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
+        }
+        ServerContextType::Middleware => {
+            //noop
+        }
+    }
+
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(root_dir),
         enable_node_externals: true,
@@ -219,6 +245,7 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().cell(),
@@ -260,11 +287,10 @@ async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarRefer
 #[turbo_tasks::function]
 pub async fn get_server_compile_time_info(
     process_env: Vc<Box<dyn ProcessEnv>>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env, server_addr)),
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::current(process_env)),
     )))
     .defines(next_server_defines(define_env))
     .free_var_references(next_server_free_vars(define_env))
@@ -276,7 +302,7 @@ pub async fn get_server_module_options_context(
     project_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let mut base_next_server_rules =
@@ -415,6 +441,7 @@ pub async fn get_server_module_options_context(
                 esm_url_rewrite_behavior: url_rewrite_behavior,
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -476,6 +503,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -551,6 +579,7 @@ pub async fn get_server_module_options_context(
                 execution_context: Some(execution_context),
                 use_lightningcss,
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
 
@@ -594,6 +623,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -641,6 +671,7 @@ pub async fn get_server_module_options_context(
             let module_options_context = ModuleOptionsContext {
                 execution_context: Some(execution_context),
                 tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                import_externals: *next_config.import_externals().await?,
                 ..Default::default()
             };
             let foreign_code_module_options_context = ModuleOptionsContext {
@@ -683,36 +714,11 @@ pub async fn get_server_module_options_context(
 }
 
 #[turbo_tasks::function]
-pub fn get_build_module_options_context() -> Vc<ModuleOptionsContext> {
-    ModuleOptionsContext {
-        enable_typescript_transform: Some(Default::default()),
-        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-        ..Default::default()
-    }
-    .cell()
-}
-
-#[turbo_tasks::function]
 pub fn get_server_runtime_entries(
-    ty: Value<ServerContextType>,
-    mode: NextMode,
+    _ty: Value<ServerContextType>,
+    _mode: Vc<NextMode>,
 ) -> Vc<RuntimeEntries> {
-    let mut runtime_entries = vec![];
-
-    if matches!(mode, NextMode::Build) {
-        if let ServerContextType::AppRSC { .. } = ty.into_value() {
-            runtime_entries.push(
-                RuntimeEntry::Request(
-                    Request::parse(Value::new(Pattern::Constant(
-                        "./build/server/app-bootstrap.ts".to_string(),
-                    ))),
-                    next_js_fs().root().join("_".to_string()),
-                )
-                .cell(),
-            );
-        }
-    }
-
+    let runtime_entries = vec![];
     Vc::cell(runtime_entries)
 }
 

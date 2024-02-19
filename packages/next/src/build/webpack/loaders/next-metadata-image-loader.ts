@@ -160,7 +160,8 @@ async function nextMetadataImageLoader(
   }
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
-    content
+    content,
+    extension as 'avif' | 'webp' | 'png' | 'jpeg'
   ).catch((err) => err)
 
   if (imageSize instanceof Error) {

@@ -443,6 +443,10 @@ const UserBlockingPriority = Scheduler.unstable_UserBlockingPriority;
 const NormalPriority$1 = Scheduler.unstable_NormalPriority;
 const LowPriority = Scheduler.unstable_LowPriority;
 const IdlePriority = Scheduler.unstable_IdlePriority; // this doesn't actually exist on the scheduler, but it *does*
+// on scheduler/unstable_mock, which we'll need for internal testing
+
+const log$1 = Scheduler.log;
+const unstable_setDisableYieldValue = Scheduler.unstable_setDisableYieldValue;
 
 let rendererID = null;
 let injectedHook = null;
@@ -512,6 +516,23 @@ function onCommitUnmount(fiber) {
     }
   }
 }
+function setIsStrictModeForDevtools(newIsStrictMode) {
+  {
+    if (typeof log$1 === 'function') {
+      // We're in a test because Scheduler.log only exists
+      // in SchedulerMock. To reduce the noise in strict mode tests,
+      // suppress warnings and disable scheduler yielding during the double render
+      unstable_setDisableYieldValue(newIsStrictMode);
+    }
+
+    if (injectedHook && typeof injectedHook.setStrictMode === 'function') {
+      try {
+        injectedHook.setStrictMode(rendererID, newIsStrictMode);
+      } catch (err) {
+      }
+    }
+  }
+} // Profiler API hooks
 
 function injectProfilingHooks(profilingHooks) {
 }
@@ -1744,7 +1765,7 @@ function setValueForNamespacedAttribute(node, namespace, name, value) {
 }
 
 let prefix;
-function describeBuiltInComponentFrame(name, source, ownerFn) {
+function describeBuiltInComponentFrame(name, ownerFn) {
   {
     if (prefix === undefined) {
       // Extract the VM specific prefix used by each line.
@@ -1972,12 +1993,12 @@ function describeNativeComponentFrame(fn, construct) {
   return syntheticFrame;
 }
 
-function describeClassComponentFrame(ctor, source, ownerFn) {
+function describeClassComponentFrame(ctor, ownerFn) {
   {
     return describeNativeComponentFrame(ctor, true);
   }
 }
-function describeFunctionComponentFrame(fn, source, ownerFn) {
+function describeFunctionComponentFrame(fn, ownerFn) {
   {
     return describeNativeComponentFrame(fn, false);
   }
@@ -7354,6 +7375,12 @@ function mountReducer(reducer, initialArg, init) {
 
   if (init !== undefined) {
     initialState = init(initialArg);
+
+    if (shouldDoubleInvokeUserFnsInHooksDEV) {
+      setIsStrictModeForDevtools(true);
+      init(initialArg);
+      setIsStrictModeForDevtools(false);
+    }
   } else {
     initialState = initialArg;
   }
@@ -7840,8 +7867,16 @@ function mountStateImpl(initialState) {
   const hook = mountWorkInProgressHook();
 
   if (typeof initialState === 'function') {
-    // $FlowFixMe[incompatible-use]: Flow doesn't like mixed types
-    initialState = initialState();
+    const initialStateInitializer = initialState; // $FlowFixMe[incompatible-use]: Flow doesn't like mixed types
+
+    initialState = initialStateInitializer();
+
+    if (shouldDoubleInvokeUserFnsInHooksDEV) {
+      setIsStrictModeForDevtools(true); // $FlowFixMe[incompatible-use]: Flow doesn't like mixed types
+
+      initialStateInitializer();
+      setIsStrictModeForDevtools(false);
+    }
   }
 
   hook.memoizedState = hook.baseState = initialState;
@@ -8328,12 +8363,14 @@ function updateCallback(callback, deps) {
 function mountMemo(nextCreate, deps) {
   const hook = mountWorkInProgressHook();
   const nextDeps = deps === undefined ? null : deps;
+  const nextValue = nextCreate();
 
   if (shouldDoubleInvokeUserFnsInHooksDEV) {
+    setIsStrictModeForDevtools(true);
     nextCreate();
+    setIsStrictModeForDevtools(false);
   }
 
-  const nextValue = nextCreate();
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
 }
@@ -8351,11 +8388,14 @@ function updateMemo(nextCreate, deps) {
     }
   }
 
+  const nextValue = nextCreate();
+
   if (shouldDoubleInvokeUserFnsInHooksDEV) {
+    setIsStrictModeForDevtools(true);
     nextCreate();
+    setIsStrictModeForDevtools(false);
   }
 
-  const nextValue = nextCreate();
   hook.memoizedState = [nextValue, nextDeps];
   return nextValue;
 }
@@ -9976,7 +10016,7 @@ function updateMemoComponent(current, workInProgress, Component, nextProps, rend
       return updateSimpleMemoComponent(current, workInProgress, resolvedType, nextProps, renderLanes);
     }
 
-    const child = createFiberFromTypeAndProps(Component.type, null, nextProps, null, workInProgress, workInProgress.mode, renderLanes);
+    const child = createFiberFromTypeAndProps(Component.type, null, nextProps, workInProgress, workInProgress.mode, renderLanes);
     child.ref = workInProgress.ref;
     child.return = workInProgress;
     workInProgress.child = child;
@@ -19136,7 +19176,7 @@ function createHostRootFiber(tag, isStrictMode, concurrentUpdatesByDefaultOverri
   return createFiber(HostRoot, null, null, mode);
 }
 function createFiberFromTypeAndProps(type, // React$ElementType
-key, pendingProps, source, owner, mode, lanes) {
+key, pendingProps, owner, mode, lanes) {
   let fiberTag = IndeterminateComponent; // The resolved type is set if we know what the final type will be. I.e. it's not lazy.
 
   let resolvedType = type;
@@ -19245,13 +19285,12 @@ key, pendingProps, source, owner, mode, lanes) {
   return fiber;
 }
 function createFiberFromElement(element, mode, lanes) {
-  let source = null;
   let owner = null;
 
   const type = element.type;
   const key = element.key;
   const pendingProps = element.props;
-  const fiber = createFiberFromTypeAndProps(type, key, pendingProps, source, owner, mode, lanes);
+  const fiber = createFiberFromTypeAndProps(type, key, pendingProps, owner, mode, lanes);
 
   return fiber;
 }
@@ -19409,7 +19448,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-canary-ba5e6a832-20240208';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

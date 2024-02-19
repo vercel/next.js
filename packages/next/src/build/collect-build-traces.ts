@@ -302,7 +302,6 @@ export async function collectBuildTraces({
         '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
-        'next/dist/compiled/@next/react-dev-overlay/dist/**/*',
         'next/dist/compiled/semver/semver/**/*.js',
 
         ...(ciEnvironment.hasNextSupport
@@ -310,6 +309,7 @@ export async function collectBuildTraces({
               // only ignore image-optimizer code when
               // this is being handled outside of next-server
               '**/next/dist/server/image-optimizer.js',
+              '**/next/dist/server/lib/squoosh/**/*.wasm',
             ]
           : []),
 
