@@ -736,14 +736,14 @@ export class FlightClientEntryPlugin {
     // For the client entry, we always use the CJS build of Next.js. If the
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
-    const clientLoader = `next-flight-client-entry-loader?${stringify({
+    const clientBrowserLoader = `next-flight-client-entry-loader?${stringify({
       modules: (this.isEdgeServer
         ? loaderOptions.modules.map(({ request, ids }) => ({
             request: request.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             ),
-            identifiers: ids,
+            ids,
           }))
         : loaderOptions.modules
       ).map((x) => JSON.stringify(x)),
@@ -771,7 +771,7 @@ export class FlightClientEntryPlugin {
           parentEntries: new Set([entryName]),
           absoluteEntryFilePath: absolutePagePath,
           bundlePath,
-          request: clientLoader,
+          request: clientBrowserLoader,
           dispose: false,
           lastActiveTime: Date.now(),
         }
@@ -779,8 +779,8 @@ export class FlightClientEntryPlugin {
       } else {
         const entryData = entries[pageKey]
         // New version of the client loader
-        if (entryData.request !== clientLoader) {
-          entryData.request = clientLoader
+        if (entryData.request !== clientBrowserLoader) {
+          entryData.request = clientBrowserLoader
           shouldInvalidate = true
         }
         if (entryData.type === EntryTypes.CHILD_ENTRY) {
@@ -790,7 +790,7 @@ export class FlightClientEntryPlugin {
         entryData.lastActiveTime = Date.now()
       }
     } else {
-      pluginState.injectedClientEntries[bundlePath] = clientLoader
+      pluginState.injectedClientEntries[bundlePath] = clientBrowserLoader
     }
 
     // Inject the entry to the server compiler (__ssr__).
