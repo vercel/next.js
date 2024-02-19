@@ -20,7 +20,6 @@
 
 /packages/next/src/bin                           @samcx @ijjk
 /packages/next/src/cli                           @samcx @ijjk
-packages/next/src/lib/format-cli-help-output.ts  @samcx
 
 # Image Component (@styfle)
 
