@@ -1437,6 +1437,7 @@ export default async function build(
           promises.push(
             handleRouteType({
               page,
+              dev: false,
               pathname: normalizeAppPath(page),
               route,
               currentIssues,
