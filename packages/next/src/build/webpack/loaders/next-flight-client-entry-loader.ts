@@ -18,6 +18,13 @@ export type NextFlightClientEntryLoaderOptions = {
   server: boolean | 'true' | 'false'
 }
 
+export type FlightClientEntryModuleItem = {
+  // module path
+  request: string
+  // imported identifiers
+  ids: string[]
+}
+
 export default function transformSource(
   this: webpack.LoaderContext<NextFlightClientEntryLoaderOptions>
 ) {
@@ -32,18 +39,21 @@ export default function transformSource(
     .map((x) => JSON.parse(x))
     // Filter out CSS files in the SSR compilation
     .filter(({ importPath }) => (isServer ? !regexCSS.test(importPath) : true))
-    .map(({ importPath, identifiers }) => {
-      const decodedImportPath = JSON.stringify(
-        importPath.startsWith(BARREL_OPTIMIZATION_PREFIX)
-          ? importPath.replace(':', '!=!')
-          : importPath
+    .map(({ request, ids }: FlightClientEntryModuleItem) => {
+      const importPath = JSON.stringify(
+        request.startsWith(BARREL_OPTIMIZATION_PREFIX)
+          ? request.replace(':', '!=!')
+          : request
       )
-      if (identifiers.includes('*')) {
-        return `import(/* webpackMode: "eager" */ ${decodedImportPath})`
+
+      // When we cannot determine the export names, we use eager mode to include the whole module.
+      // Otherwise, we use eager mode with webpackExports to only include the necessary exports.
+      if (ids.length === 0) {
+        return `import(/* webpackMode: "eager" */ ${importPath})`
       } else {
         return `import(/* webpackMode: "eager" */ /* webpackExports: ${JSON.stringify(
-          identifiers
-        )} */ ${decodedImportPath})`
+          ids
+        )} */ ${importPath})`
       }
     })
     .join(';\n')

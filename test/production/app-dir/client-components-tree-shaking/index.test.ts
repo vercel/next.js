@@ -25,7 +25,6 @@ createNextDescribe(
         .map((chunkDirent) =>
           fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
         )
-      console.log('chunkContents', chunkContents)
       expect(
         chunkContents.some((content) =>
           content.includes('client-comp-imported')

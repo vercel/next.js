@@ -1,6 +1,7 @@
 import type {
   CssImports,
   ClientComponentImports,
+  FlightClientEntryModuleItem,
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
@@ -685,7 +686,7 @@ export class FlightClientEntryPlugin {
     }
 
     // Traverse the module graph to find all client components.
-    filterClientComponents(resolvedModule, ['*'])
+    filterClientComponents(resolvedModule, [])
 
     return {
       clientComponentImports,
@@ -719,12 +720,15 @@ export class FlightClientEntryPlugin {
   ] {
     let shouldInvalidate = false
 
-    const loaderOptions = {
+    const loaderOptions: {
+      modules: FlightClientEntryModuleItem[]
+      server: boolean
+    } = {
       modules: Object.keys(clientImports)
         .sort((a, b) => (regexCSS.test(b) ? 1 : a.localeCompare(b)))
         .map((clientImportPath) => ({
-          importPath: clientImportPath,
-          identifiers: [...clientImports[clientImportPath]],
+          request: clientImportPath,
+          ids: [...clientImports[clientImportPath]],
         })),
       server: false,
     }
@@ -734,12 +738,12 @@ export class FlightClientEntryPlugin {
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
       modules: (this.isEdgeServer
-        ? loaderOptions.modules.map(({ importPath, identifiers }) => ({
-            importPath: importPath.replace(
+        ? loaderOptions.modules.map(({ request, ids }) => ({
+            request: request.replace(
               /[\\/]next[\\/]dist[\\/]esm[\\/]/,
               '/next/dist/'.replace(/\//g, path.sep)
             ),
-            identifiers,
+            identifiers: ids,
           }))
         : loaderOptions.modules
       ).map((x) => JSON.stringify(x)),
