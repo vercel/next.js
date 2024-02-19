@@ -226,7 +226,9 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders styled jsx external', async () => {
@@ -234,7 +236,9 @@ export default function (next: NextInstance, render, fetch, ctx) {
       const styleId = $('#blue-box').attr('class')
       const style = $('style')
 
-      expect(style.text().includes(`p.${styleId}{color:blue`)).toBeTruthy()
+      expect(style.text()).toMatch(
+        new RegExp(`p.${styleId}{color:(?:blue|#00f)`)
+      )
     })
 
     test('renders properties populated asynchronously', async () => {

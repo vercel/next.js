@@ -1,8 +1,4 @@
 /** @type {import("next").NextConfig} */
-const config = {
-  experimental: {
-    missingSuspenseWithCSRBailout: true,
-  },
-}
+const config = {}
 
 module.exports = config

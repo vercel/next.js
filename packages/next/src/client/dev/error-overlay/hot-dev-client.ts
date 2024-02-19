@@ -34,12 +34,16 @@ import {
   onBuildOk,
   onBeforeRefresh,
   onRefresh,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
+} from '../../components/react-dev-overlay/pages/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
-import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type {
+  HMR_ACTION_TYPES,
+  TurbopackMsgToBrowser,
+} from '../../../server/dev/hot-reloader-types'
+import { extractModulesFromTurbopackMessage } from '../../../server/dev/extract-modules-from-turbopack-message'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -61,6 +65,7 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let hadRuntimeError = false
 let customHmrEventHandler: any
+let turbopackMessageListeners: ((msg: TurbopackMsgToBrowser) => void)[] = []
 let MODE: 'webpack' | 'turbopack' = 'webpack'
 export default function connect(mode: 'webpack' | 'turbopack') {
   MODE = mode
@@ -87,6 +92,12 @@ export default function connect(mode: 'webpack' | 'turbopack') {
     onUnrecoverableError() {
       hadRuntimeError = true
     },
+    addTurbopackMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+      turbopackMessageListeners.push(cb)
+    },
+    sendTurbopackMessage(msg: string) {
+      sendMessage(msg)
+    },
   }
 }
 
@@ -105,7 +116,7 @@ function clearOutdatedErrors() {
 }
 
 // Successful compilation.
-function handleSuccess(updatedModules?: ReadonlyArray<string>) {
+function handleSuccess() {
   clearOutdatedErrors()
 
   if (MODE === 'webpack') {
@@ -120,7 +131,6 @@ function handleSuccess(updatedModules?: ReadonlyArray<string>) {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
-    onFastRefresh(updatedModules)
     onBuildOk()
   }
 }
@@ -195,7 +205,7 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: any = undefined
+let startLatency: number | undefined = undefined
 
 function onBeforeFastRefresh(updatedModules: string[]) {
   if (updatedModules.length > 0) {
@@ -207,12 +217,16 @@ function onBeforeFastRefresh(updatedModules: string[]) {
 
 function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
   onBuildOk()
-  if (updatedModules.length > 0) {
-    // Only complete a pending state if we applied updates
-    // (cf. onBeforeFastRefresh)
-    onRefresh()
+  if (updatedModules.length === 0) {
+    return
   }
 
+  onRefresh()
+
+  reportHmrLatency()
+}
+
+function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
   if (startLatency) {
     const endLatency = Date.now()
     const latency = endLatency - startLatency
@@ -248,6 +262,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     return
   }
 
+  // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
@@ -291,7 +306,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
           clientId: window.__nextDevClientId,
         })
       )
-      return handleSuccess(obj.updatedModules)
+      return handleSuccess()
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       window.location.reload()
@@ -306,6 +321,27 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         handleErrors([error])
       }
       return
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+      for (const listener of turbopackMessageListeners) {
+        listener({
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        })
+      }
+      break
+    }
+    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
+      onBeforeFastRefresh(updatedModules)
+      for (const listener of turbopackMessageListeners) {
+        listener({
+          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: obj.data,
+        })
+      }
+      onRefresh()
+      reportHmrLatency(updatedModules)
+      break
     }
     default: {
       if (customHmrEventHandler) {

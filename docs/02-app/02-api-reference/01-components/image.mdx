@@ -733,7 +733,7 @@ Try it out:
 
 - [Demo the `fill` prop](https://image-component.nextjs.gallery/fill)
 
-## Theme Detection
+## Theme Detection CSS
 
 If you want to display a different image for light and dark mode, you can create a new component that wraps two `<Image>` components and reveals the correct one based on a CSS media query.
 
@@ -801,44 +801,53 @@ For more advanced use cases, you can call `getImageProps()` to get the props tha
 
 This also avoid calling React `useState()` so it can lead to better performance, but it cannot be used with the [`placeholder`](#placeholder) prop because the placeholder will never be removed.
 
-### Picture
+### Theme Detection Picture
 
-The example below uses the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
+If you want to display a different image for light and dark mode, you can use the [`<picture>`](https://developer.mozilla.org/docs/Web/HTML/Element/picture) element to display a different image based on the user's [preferred color scheme](https://developer.mozilla.org/en-US/docs/Web/CSS/@media/prefers-color-scheme).
 
 ```jsx filename="app/page.js"
 import { getImageProps } from 'next/image'
 
 export default function Page() {
   const common = { alt: 'Theme Example', width: 800, height: 400 }
-  const { props: { srcSet: dark } } = getImageProps({ ...common, src: '/dark.png' })
-  const { props: { srcSet: light, ...rest } } = getImageProps({ ...common, src: '/light.png' })
+  const {
+    props: { srcSet: dark },
+  } = getImageProps({ ...common, src: '/dark.png' })
+  const {
+    props: { srcSet: light, ...rest },
+  } = getImageProps({ ...common, src: '/light.png' })
 
   return (
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcSet={dark} />
-    <source media="(prefers-color-scheme: light)" srcSet={light} />
-    <img {...rest} />
-  </picture>
-)
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcSet={dark} />
+      <source media="(prefers-color-scheme: light)" srcSet={light} />
+      <img {...rest} />
+    </picture>
+  )
+}
 ```
 
 ### Art Direction
 
-Similarly, you can implement [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction) with different `src` images.
+If you want to display a different image for mobile and desktop, sometimes called [Art Direction](https://developer.mozilla.org/en-US/docs/Learn/HTML/Multimedia_and_embedding/Responsive_images#art_direction), you can provide different `src`, `width`, `height`, and `quality` props to `getImageProps()`.
 
 ```jsx filename="app/page.js"
 import { getImageProps } from 'next/image'
 
 export default function Home() {
   const common = { alt: 'Art Direction Example', sizes: '100vw' }
-  const { props: desktop } = getImageProps({
+  const {
+    props: { srcSet: desktop },
+  } = getImageProps({
     ...common,
     width: 1440,
     height: 875,
     quality: 80,
     src: '/desktop.jpg',
   })
-  const { props: mobile } = getImageProps({
+  const {
+    props: { srcSet: mobile, ...rest },
+  } = getImageProps({
     ...common,
     width: 750,
     height: 1334,
@@ -848,9 +857,9 @@ export default function Home() {
 
   return (
     <picture>
-      <source media="(min-width: 1000px)" {...desktop} />
-      <source media="(min-width: 500px)" {...mobile} />
-      <img {...mobile} style={{ width: '100%', height: 'auto' }} />
+      <source media="(min-width: 1000px)" srcSet={desktop} />
+      <source media="(min-width: 500px)" srcSet={mobile} />
+      <img {...rest} style={{ width: '100%', height: 'auto' }} />
     </picture>
   )
 }

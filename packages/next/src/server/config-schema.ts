@@ -114,7 +114,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         canonicalBase: z.string().optional(),
       })
       .optional(),
-    analyticsId: z.string().optional(),
+    analyticsId: z.string().optional(), // TODO: remove in the next major version
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
     cacheHandler: z.string().min(1).optional(),
@@ -193,16 +193,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             cssProp: z.boolean().optional(),
           }),
         ]),
+        styledJsx: z.union([
+          z.boolean().optional(),
+          z.object({
+            useLightningcss: z.boolean().optional(),
+          }),
+        ]),
       })
       .optional(),
     compress: z.boolean().optional(),
     configOrigin: z.string().optional(),
     crossOrigin: z
-      .union([
-        z.literal(false),
-        z.literal('anonymous'),
-        z.literal('use-credentials'),
-      ])
+      .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     devIndicators: z
       .object({
@@ -270,6 +272,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         gzipSize: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
+        linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         nextScriptWorkers: z.boolean().optional(),

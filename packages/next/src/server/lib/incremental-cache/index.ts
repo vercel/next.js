@@ -60,6 +60,8 @@ export class CacheHandler {
   ): Promise<void> {}
 
   public async revalidateTag(_tag: string): Promise<void> {}
+
+  public resetRequestCache(): void {}
 }
 
 export class IncrementalCache implements IncrementalCacheType {
@@ -211,6 +213,10 @@ export class IncrementalCache implements IncrementalCacheType {
 
   _getPathname(pathname: string, fetchCache?: boolean) {
     return fetchCache ? pathname : normalizePagePath(pathname)
+  }
+
+  resetRequestCache() {
+    this.cacheHandler?.resetRequestCache?.()
   }
 
   async unlock(cacheKey: string) {

@@ -267,6 +267,11 @@ async function updatePassingTests() {
           status = 'flakey'
         }
 
+        // treat test-level todo as same as pending
+        if (status === 'todo') {
+          status = 'pending'
+        }
+
         const statusArray = fileResults[status]
         if (!statusArray) {
           throw new Error(`unexpected status "${status}"`)

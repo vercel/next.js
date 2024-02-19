@@ -16,6 +16,7 @@ use super::{ClientReferenceManifest, ManifestNode, ManifestNodeEntry, ModuleId};
 use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
+    next_config::NextConfig,
     util::NextRuntime,
 };
 
@@ -29,17 +30,23 @@ impl ClientReferenceManifest {
         client_references: Vc<ClientReferenceGraphResult>,
         client_references_chunks: Vc<ClientReferencesChunks>,
         client_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        ssr_chunking_context: Vc<Box<dyn EcmascriptChunkingContext>>,
-        asset_prefix: Vc<Option<String>>,
+        ssr_chunking_context: Option<Vc<Box<dyn EcmascriptChunkingContext>>>,
+        next_config: Vc<NextConfig>,
         runtime: NextRuntime,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let mut entry_manifest: ClientReferenceManifest = Default::default();
-        entry_manifest.module_loading.prefix = asset_prefix
+        entry_manifest.module_loading.prefix = next_config
+            .computed_asset_prefix()
             .await?
             .as_ref()
             .map(|p| p.to_owned())
             .unwrap_or_default();
-        entry_manifest.module_loading.cross_origin = None;
+
+        entry_manifest.module_loading.cross_origin = next_config
+            .await?
+            .cross_origin
+            .as_ref()
+            .map(|p| p.to_owned());
         let client_references_chunks = client_references_chunks.await?;
         let client_relative_path = client_relative_path.await?;
         let node_root_ref = node_root.await?;
@@ -98,60 +105,62 @@ impl ClientReferenceManifest {
                     },
                 );
 
-                let ssr_module_id = ecmascript_client_reference
-                    .ssr_module
-                    .as_chunk_item(Vc::upcast(ssr_chunking_context))
-                    .id()
-                    .await?;
-
-                let ssr_chunks_paths = if runtime == NextRuntime::Edge {
-                    // the chunks get added to the middleware-manifest.json instead
-                    // of this file because the
-                    // edge runtime doesn't support dynamically
-                    // loading chunks.
-                    Vec::new()
-                } else if let Some(ssr_chunks) = client_references_chunks
-                    .client_component_ssr_chunks
-                    .get(&app_client_reference_ty)
-                {
-                    let ssr_chunks = ssr_chunks.await?;
-
-                    let ssr_chunks_paths = ssr_chunks
-                        .iter()
-                        .map(|chunk| chunk.ident().path())
-                        .try_join()
+                if let Some(ssr_chunking_context) = ssr_chunking_context {
+                    let ssr_module_id = ecmascript_client_reference
+                        .ssr_module
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
+                        .id()
                         .await?;
 
-                    ssr_chunks_paths
-                        .iter()
-                        .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                } else {
-                    Vec::new()
-                };
-                let mut ssr_manifest_node = ManifestNode::default();
-                ssr_manifest_node.module_exports.insert(
-                    "*".to_string(),
-                    ManifestNodeEntry {
-                        name: "*".to_string(),
-                        id: (&*ssr_module_id).into(),
-                        chunks: ssr_chunks_paths,
-                        // TODO(WEB-434)
-                        r#async: false,
-                    },
-                );
+                    let ssr_chunks_paths = if runtime == NextRuntime::Edge {
+                        // the chunks get added to the middleware-manifest.json instead
+                        // of this file because the
+                        // edge runtime doesn't support dynamically
+                        // loading chunks.
+                        Vec::new()
+                    } else if let Some(ssr_chunks) = client_references_chunks
+                        .client_component_ssr_chunks
+                        .get(&app_client_reference_ty)
+                    {
+                        let ssr_chunks = ssr_chunks.await?;
 
-                match runtime {
-                    NextRuntime::NodeJs => {
-                        entry_manifest
-                            .ssr_module_mapping
-                            .insert((&*client_module_id).into(), ssr_manifest_node);
-                    }
-                    NextRuntime::Edge => {
-                        entry_manifest
-                            .edge_ssr_module_mapping
-                            .insert((&*client_module_id).into(), ssr_manifest_node);
+                        let ssr_chunks_paths = ssr_chunks
+                            .iter()
+                            .map(|chunk| chunk.ident().path())
+                            .try_join()
+                            .await?;
+
+                        ssr_chunks_paths
+                            .iter()
+                            .filter_map(|chunk_path| node_root_ref.get_path_to(chunk_path))
+                            .map(ToString::to_string)
+                            .collect::<Vec<_>>()
+                    } else {
+                        Vec::new()
+                    };
+                    let mut ssr_manifest_node = ManifestNode::default();
+                    ssr_manifest_node.module_exports.insert(
+                        "*".to_string(),
+                        ManifestNodeEntry {
+                            name: "*".to_string(),
+                            id: (&*ssr_module_id).into(),
+                            chunks: ssr_chunks_paths,
+                            // TODO(WEB-434)
+                            r#async: false,
+                        },
+                    );
+
+                    match runtime {
+                        NextRuntime::NodeJs => {
+                            entry_manifest
+                                .ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node);
+                        }
+                        NextRuntime::Edge => {
+                            entry_manifest
+                                .edge_ssr_module_mapping
+                                .insert((&*client_module_id).into(), ssr_manifest_node);
+                        }
                     }
                 }
             }

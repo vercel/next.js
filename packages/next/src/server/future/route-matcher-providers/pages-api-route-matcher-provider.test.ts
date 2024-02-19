@@ -9,7 +9,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
     const loader: ManifestLoader = { load: jest.fn(() => ({})) }
     const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
     expect(await provider.matchers()).toEqual([])
-    expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+    expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
   })
 
   describe('manifest matching', () => {
@@ -60,7 +60,7 @@ describe('PagesAPIRouteMatcherProvider', () => {
         const provider = new PagesAPIRouteMatcherProvider('<root>', loader)
         const matchers = await provider.matchers()
 
-        expect(loader.load).toBeCalledWith(PAGES_MANIFEST)
+        expect(loader.load).toHaveBeenCalledWith(PAGES_MANIFEST)
         expect(matchers).toHaveLength(1)
         expect(matchers[0].definition).toEqual(route)
       }

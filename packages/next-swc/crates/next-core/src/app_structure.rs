@@ -697,7 +697,13 @@ async fn directory_tree_to_loader_tree(
 
     components.metadata.base_page = Some(app_page.clone());
 
-    if app_page.is_root() && components.not_found.is_none() {
+    // the root directory in the app dir.
+    let is_root_directory = app_page.is_root();
+    // an alternative root layout (in a route group which affects the page, but not
+    // the path).
+    let is_root_layout = app_path.is_root() && components.layout.is_some();
+
+    if (is_root_directory || is_root_layout) && components.not_found.is_none() {
         components.not_found = Some(
             get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string()),
         );
@@ -985,66 +991,58 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 *meta,
             );
         }
+
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
-        if let Some(_not_found) = components.not_found {
-            let dev_not_found_tree = LoaderTree {
-                    page: app_page.clone(),
-                    segment: directory_name.clone(),
-                    parallel_routes: indexmap! {
-                        "children".to_string() => LoaderTree {
-                            page: app_page.clone(),
-                            segment: "__DEFAULT__".to_string(),
-                            parallel_routes: IndexMap::new(),
-                            components: Components {
-                                default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
-                                ..Default::default()
-                            }
-                            .cell(),
-                    global_metadata,
-                        }
-                        .cell(),
-                    },
-                    components: components.without_leafs().cell(),
-                    global_metadata,
-                }
-                .cell();
-
-            {
-                let app_page = app_page.clone_push_str("not-found")?;
-                add_app_page(app_dir, &mut result, app_page, dev_not_found_tree).await?;
-            }
-            {
-                let app_page = app_page.clone_push_str("_not-found")?;
-                add_app_page(app_dir, &mut result, app_page, dev_not_found_tree).await?;
-            }
+        let not_found_tree = if components.not_found.is_some() {
+            LoaderTree {
+                page: app_page.clone(),
+                segment: directory_name.clone(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        page: app_page.clone(),
+                        segment: "__DEFAULT__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            default: Some(get_next_package(app_dir).join("dist/client/components/parallel-route-default.js".to_string())),
+                            ..Default::default()
+                        }.cell(),
+                        global_metadata,
+                    }.cell(),
+                },
+                components: components.without_leafs().cell(),
+                global_metadata,
+            }.cell()
         } else {
             // Create default not-found page for production if there's no customized
             // not-found
-            let prod_not_found_tree = LoaderTree {
-                    page: app_page.clone(),
-                    segment: directory_name.to_string(),
-                    parallel_routes: indexmap! {
-                        "children".to_string() => LoaderTree {
-                            page: app_page.clone(),
-                            segment: "__PAGE__".to_string(),
-                            parallel_routes: IndexMap::new(),
-                            components: Components {
-                                page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
-                                ..Default::default()
-                            }
-                            .cell(),
-                    global_metadata,
-                        }
-                        .cell(),
-                    },
-                    components: components.without_leafs().cell(),
-                    global_metadata,
-                }
-                .cell();
+            LoaderTree {
+                page: app_page.clone(),
+                segment: directory_name.to_string(),
+                parallel_routes: indexmap! {
+                    "children".to_string() => LoaderTree {
+                        page: app_page.clone(),
+                        segment: "__PAGE__".to_string(),
+                        parallel_routes: IndexMap::new(),
+                        components: Components {
+                            page: Some(get_next_package(app_dir).join("dist/client/components/not-found-error.js".to_string())),
+                            ..Default::default()
+                        }.cell(),
+                        global_metadata,
+                    }.cell(),
+                },
+                components: components.without_leafs().cell(),
+                global_metadata,
+            }.cell()
+        };
 
+        {
+            let app_page = app_page.clone_push_str("not-found")?;
+            add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
+        }
+        {
             let app_page = app_page.clone_push_str("_not-found")?;
-            add_app_page(app_dir, &mut result, app_page, prod_not_found_tree).await?;
+            add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
         }
     }
 
@@ -1112,8 +1110,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     Ok(Vc::cell(result))
 }
 
-/// ref: https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119
-/// if path contains %5F, replace it with _.
+/// If path contains %5F, replace it with _. [reference](https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119)
 fn get_underscore_normalized_path(path: &str) -> String {
     path.replace("%5F", "_")
 }

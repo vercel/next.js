@@ -159,6 +159,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -178,6 +179,15 @@ export interface ExperimentalConfig {
   optimisticClientCache?: boolean
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
+  /**
+   * @deprecated use config.cacheHandler instead
+   */
+  incrementalCacheHandlerPath?: string
+  /**
+   * @deprecated use config.cacheMaxMemorySize instead
+   *
+   */
+  isrMemoryCacheSize?: number
   disablePostcssPresetEnv?: boolean
   swcMinify?: boolean
   cpus?: number
@@ -378,7 +388,8 @@ export interface ExperimentalConfig {
    *
    * When this flag is set to `true`, Next.js will break the build instead of warning, to force the developer to add a suspense boundary above the method call.
    *
-   * @default false
+   * @note This flag will be removed in Next.js 15.
+   * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
 }
@@ -394,8 +405,11 @@ export type ExportPathMap = {
 }
 
 /**
- * Next configuration object
- * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Next.js can be configured through a `next.config.js` file in the root of your project directory.
+ *
+ * This can change the behavior, enable experimental features, and configure other advanced options.
+ *
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -542,7 +556,8 @@ export interface NextConfig extends Record<string, any> {
    * Vercel provides zero-configuration insights for Next.js projects hosted on Vercel.
    *
    * @default ''
-   * @see [Next.js Speed Insights](https://nextjs.org/analytics)
+   * @deprecated will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid
+   * @see [how to fix deprecated analyticsId](https://nextjs.org/docs/messages/deprecated-analyticsid)
    */
   analyticsId?: string
 
@@ -665,7 +680,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
-  crossOrigin?: false | 'anonymous' | 'use-credentials'
+  crossOrigin?: 'anonymous' | 'use-credentials'
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
@@ -699,6 +714,12 @@ export interface NextConfig extends Record<string, any> {
         }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
+
+    styledJsx?:
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**
@@ -766,7 +787,7 @@ export const defaultConfig: NextConfig = {
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,
   compress: true,
-  analyticsId: process.env.VERCEL_ANALYTICS_ID || '',
+  analyticsId: process.env.VERCEL_ANALYTICS_ID || '', // TODO: remove in the next major version
   images: imageConfigDefault,
   devIndicators: {
     buildActivity: true,
@@ -801,6 +822,7 @@ export const defaultConfig: NextConfig = {
   experimental: {
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
@@ -857,7 +879,8 @@ export const defaultConfig: NextConfig = {
         ? true
         : false,
     webpackBuildWorker: undefined,
-    missingSuspenseWithCSRBailout: false,
+    missingSuspenseWithCSRBailout: true,
+    optimizeServerReact: false,
   },
 }
 

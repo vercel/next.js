@@ -19,7 +19,7 @@ use turbopack_binding::swc::core::{
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the
 /// corresponding `loadableGenerated` property.
 ///
-/// [NOTE] We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
+/// **NOTE** We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
 /// with current loadable manifest, which causes hydration errors.
 pub fn next_dynamic(
     is_development: bool,
@@ -517,6 +517,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::DevelopmentId {
@@ -543,6 +544,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildTransition {
@@ -572,6 +574,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
                 TurbopackImport::BuildId {
@@ -598,6 +601,7 @@ impl NextDynamicPatcher {
                         src: Box::new(specifier.into()),
                         type_only: false,
                         with: None,
+                        phase: Default::default(),
                     })));
                 }
             }
