@@ -112,6 +112,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
