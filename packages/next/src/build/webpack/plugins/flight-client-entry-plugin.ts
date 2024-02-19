@@ -403,7 +403,7 @@ export class FlightClientEntryPlugin {
       )
     }
 
-    compilation.hooks.finishModules.tapPromise(PLUGIN_NAME, async () => {
+    compilation.hooks.finishModules.tapAsync(PLUGIN_NAME, async () => {
       const addedClientActionEntryList: Promise<any>[] = []
       const actionMapsPerClientEntry: Record<string, Map<string, string[]>> = {}
 
@@ -469,7 +469,6 @@ export class FlightClientEntryPlugin {
       }
 
       await Promise.all(addedClientActionEntryList)
-      return
     })
 
     // Invalidate in development to trigger recompilation
@@ -605,7 +604,7 @@ export class FlightClientEntryPlugin {
 
     const filterClientComponents = (
       mod: webpack.NormalModule,
-      exportIdentifiers: string[]
+      importedIdentifiers: string[]
     ): void => {
       if (!mod) return
 
@@ -633,7 +632,7 @@ export class FlightClientEntryPlugin {
       if (!modRequest) return
       if (visited.has(modRequest)) {
         if (clientComponentImports[modRequest]) {
-          for (const name of exportIdentifiers) {
+          for (const name of importedIdentifiers) {
             clientComponentImports[modRequest].add(name)
           }
         }
@@ -667,7 +666,7 @@ export class FlightClientEntryPlugin {
         if (!clientComponentImports[modRequest]) {
           clientComponentImports[modRequest] = new Set()
         }
-        for (const name of exportIdentifiers) {
+        for (const name of importedIdentifiers) {
           clientComponentImports[modRequest].add(name)
         }
         return
@@ -675,15 +674,12 @@ export class FlightClientEntryPlugin {
 
       Array.from(compilation.moduleGraph.getOutgoingConnections(mod)).forEach(
         (connection: any) => {
-          const newNames: string[] = []
+          const dependencyIds: string[] = []
           if (connection.dependency?.ids?.length) {
-            newNames.push(...connection.dependency.ids)
-          }
-          if (!newNames.length) {
-            newNames.push('*')
+            dependencyIds.push(...connection.dependency.ids)
           }
 
-          filterClientComponents(connection.resolvedModule, newNames)
+          filterClientComponents(connection.resolvedModule, dependencyIds)
         }
       )
     }
@@ -737,17 +733,16 @@ export class FlightClientEntryPlugin {
     // server is using the ESM build (when using the Edge runtime), we need to
     // replace them.
     const clientLoader = `next-flight-client-entry-loader?${stringify({
-      modules: this.isEdgeServer
-        ? loaderOptions.modules.map(([importPath, ...names]) =>
-            JSON.stringify([
-              importPath.replace(
-                /[\\/]next[\\/]dist[\\/]esm[\\/]/,
-                '/next/dist/'.replace(/\//g, path.sep)
-              ),
-              ...names,
-            ])
-          )
-        : loaderOptions.modules.map((x) => JSON.stringify(x)),
+      modules: (this.isEdgeServer
+        ? loaderOptions.modules.map(([importPath, ...importedIdentifiers]) => [
+            importPath.replace(
+              /[\\/]next[\\/]dist[\\/]esm[\\/]/,
+              '/next/dist/'.replace(/\//g, path.sep)
+            ),
+            ...importedIdentifiers,
+          ])
+        : loaderOptions.modules
+      ).map((x) => JSON.stringify(x)),
       server: false,
     })}!`
 
