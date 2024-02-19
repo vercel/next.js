@@ -208,6 +208,20 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
+    pub fn is_catchall(&self) -> bool {
+        let segment = if self.is_complete() {
+            // The `PageType` is the last segment for completed pages.
+            self.0.iter().nth_back(1)
+        } else {
+            self.0.last()
+        };
+
+        matches!(
+            segment,
+            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+        )
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
@@ -300,11 +314,34 @@ impl AppPath {
         self.0.is_empty()
     }
 
+    pub fn is_catchall(&self) -> bool {
+        // can only be the last segment.
+        matches!(
+            self.last(),
+            Some(PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_))
+        )
+    }
+
     pub fn contains(&self, other: &AppPath) -> bool {
+        // TODO: handle OptionalCatchAll properly.
         for (i, segment) in other.0.iter().enumerate() {
-            if self.0.get(i) != Some(segment) {
+            let Some(self_segment) = self.0.get(i) else {
+                // other is longer than self
                 return false;
+            };
+
+            if self_segment == segment {
+                continue;
             }
+
+            if matches!(
+                segment,
+                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
+            ) {
+                return true;
+            }
+
+            return false;
         }
 
         true
