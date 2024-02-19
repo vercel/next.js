@@ -2475,10 +2475,10 @@
       "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages",
-      "app dir - css HMR should not create duplicate link tags during HMR"
+      "app dir - css HMR should not create duplicate link tags during HMR",
+      "app dir - css css support chunks should bundle css resources into chunks"
     ],
     "failed": [
-      "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support should not preload styles twice during HMR"
     ],
     "pending": [
@@ -4077,21 +4077,20 @@
       "parallel-routes-and-interception route intercepting should support intercepting with beforeFiles rewrites",
       "parallel-routes-and-interception route intercepting with dynamic catch-all routes should render intercepted route",
       "parallel-routes-and-interception route intercepting with dynamic optional catch-all routes should render intercepted route",
-      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route"
-    ],
-    "failed": [
+      "parallel-routes-and-interception route intercepting with dynamic routes should render intercepted route",
       "parallel-routes-and-interception parallel routes should apply the catch-all route to the parallel route if no matching route is found",
       "parallel-routes-and-interception parallel routes should match the catch-all routes of the more specific path, if there is more than one catch-all route"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-catchall-children-slot/parallel-routes-catchall-children-slot.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "parallel-routes-catchall-children-slot should match the @children slot for a page before attempting to match the catchall"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4135,12 +4134,11 @@
   "test/e2e/app-dir/parallel-routes-catchall/parallel-routes-catchall.test.ts": {
     "passed": [
       "parallel-routes-catchall should match both the catch-all page & slot",
-      "parallel-routes-catchall should match correctly when defining an explicit page & slot"
-    ],
-    "failed": [
+      "parallel-routes-catchall should match correctly when defining an explicit page & slot",
       "parallel-routes-catchall should match correctly when defining an explicit page but no slot",
       "parallel-routes-catchall should match correctly when defining an explicit slot but no page"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6394,7 +6392,7 @@
     "runtimeError": false
   },
   "test/e2e/test-utils-tests/basic/basic.test.ts": {
-    "passed": ["createNextDescribe should work"],
+    "passed": ["nextTestSetup should work"],
     "failed": [],
     "pending": [],
     "flakey": [],

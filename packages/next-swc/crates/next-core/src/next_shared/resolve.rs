@@ -18,7 +18,7 @@ use turbopack_binding::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResult, ResolveResultItem, ResolveResultOption,
+            ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
 };
@@ -289,8 +289,9 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+            ResolveResult::primary(ResolveResultItem::External(
                 modified_path.to_string(),
+                ExternalType::CommonJs,
             ))
             .into(),
         )))
