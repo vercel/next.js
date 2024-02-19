@@ -2831,6 +2831,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
+      // we don't go through this block when preview mode is true
+      // as preview mode is a dynamic request (bypasses cache) and doesn't data 
+      // generate both HTML and payloads in the same request so continue to just
+      // return the generated payload
       if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
