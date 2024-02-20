@@ -61,7 +61,7 @@ For the e2e, development, and production tests the `nextTestSetup` utility shoul
 An example is available [here](../../test/e2e/example.txt).
 This creates an isolated Next.js installation
 to ensure nothing in the monorepo is relied on accidentally causing incorrect tests.
-`pnpm next-test` automatically uses `nextTestSetup`
+`pnpm new-test` automatically uses `nextTestSetup`
 
 All new test suites should be written in TypeScript either `.ts` (or `.tsx` for unit tests).
 This will help ensure we catch smaller issues in tests that could cause flaky or incorrect tests.
