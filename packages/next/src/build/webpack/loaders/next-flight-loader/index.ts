@@ -104,9 +104,10 @@ export { __esModule, $$typeof };
 export default createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {
-          esmSource += `
+          esmSource += `\
 const e${cnt} = createProxy(String.raw\`${resourceKey}#${ref}\`);
-export { e${cnt++} as ${ref} };`
+export { e${cnt++} as ${ref} };
+`
         }
       }
 
