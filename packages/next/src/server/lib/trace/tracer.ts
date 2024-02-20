@@ -144,6 +144,7 @@ type NextAttributeNames =
   | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
+  | 'next.clientComponentLoadCount'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
