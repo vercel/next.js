@@ -51,7 +51,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { addImplicitTags } from '../lib/patch-fetch'
-import { AppRenderSpan } from '../lib/trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -615,14 +615,71 @@ async function renderToHTMLOrFlightImpl(
     enableTainting,
   } = renderOpts
 
+  // Combined load times for loading client components
+  let clientComponentLoadStart = 0
+  let clientComponentLoadTimes = 0
+  let clientComponentLoadCount = 0
+
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
     // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
+    globalThis.__next_require__ = (...args: any[]) => {
+      if (clientComponentLoadStart === 0) {
+        clientComponentLoadStart = Date.now()
+      }
+
+      const startTime = Date.now()
+      try {
+        clientComponentLoadCount += 1
+        return ComponentMod.__next_app__.require(...args)
+      } finally {
+        clientComponentLoadTimes += Date.now() - startTime
+      }
+    }
 
     // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
+    globalThis.__next_chunk_load__ = (...args: any[]) => {
+      const startTime = Date.now()
+      try {
+        clientComponentLoadCount += 1
+        return ComponentMod.__next_app__.loadChunk(...args)
+      } finally {
+        clientComponentLoadTimes += Date.now() - startTime
+      }
+    }
+  }
+
+  if (typeof req.on === 'function') {
+    req.on('end', () => {
+      const type = NextNodeServerSpan.clientComponentLoading
+      const startTime = clientComponentLoadStart
+      const endTime = clientComponentLoadStart + clientComponentLoadTimes
+      getTracer()
+        .startSpan(type, {
+          startTime,
+          attributes: {
+            'next.clientComponentLoadCount': clientComponentLoadCount,
+          },
+        })
+        .end(endTime)
+
+      if (
+        typeof performance !== 'undefined' &&
+        process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+      ) {
+        const { timeOrigin } = performance
+        performance.measure(
+          `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+            type.split('.').pop() || ''
+          ).replace(/[A-Z]/g, (match: string) => '-' + match.toLowerCase())}`,
+          {
+            start: startTime - timeOrigin,
+            end: endTime - timeOrigin,
+          }
+        )
+      }
+    })
   }
 
   const metadata: AppPageRenderResultMetadata = {}
