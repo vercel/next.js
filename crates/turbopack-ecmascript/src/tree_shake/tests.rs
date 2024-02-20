@@ -283,7 +283,7 @@ fn print<N: swc_core::ecma::codegen::Node>(cm: &Arc<SourceMap>, nodes: &[&N]) ->
 fn render_graph(item_ids: &[ItemId], g: &mut DepGraph) -> String {
     let mut mermaid = String::from("graph TD\n");
 
-    for (_, id) in item_ids.iter().enumerate() {
+    for id in item_ids.iter() {
         let i = g.g.node(id);
 
         writeln!(mermaid, "    Item{};", i + 1).unwrap();
