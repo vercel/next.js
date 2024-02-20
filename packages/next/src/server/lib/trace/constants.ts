@@ -136,6 +136,13 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.startResponse,
 ]
 
+// These Spans are allowed to be always logged
+// when the otel log prefix env is set
+export const LogSpanAllowList = [
+  NextNodeServerSpan.findPageComponents,
+  NextNodeServerSpan.createComponentTree,
+]
+
 export {
   BaseServerSpan,
   LoadComponentsSpan,

@@ -788,6 +788,8 @@ Operating System:
   Platform: .*
   Arch: .*
   Version: .*
+  Available memory \\(MB\\): .*
+  Available CPU cores: .*
 Binaries:
   Node: .*
   npm: .*
