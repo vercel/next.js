@@ -51,7 +51,7 @@ export default function transformSource(
       if (ids.length === 0) {
         return `import(/* webpackMode: "eager" */ ${importPath});\n`
       } else {
-        return `import(/* webpackMode: "eager" */ /* webpackExports: ${JSON.stringify(
+        return `import(/* webpackMode: "eager", webpackExports: ${JSON.stringify(
           ids
         )} */ ${importPath});\n`
       }
