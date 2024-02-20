@@ -4,42 +4,39 @@ import { remove } from 'fs-extra'
 import {
   findPort,
   killApp,
-  launchApp,
   nextBuild,
   nextStart,
+  launchApp,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '..', 'scss-fixtures')
+describe('Ordering with styled-jsx', () => {
+  describe('dev mode', () => {
+    const appDir = __dirname
 
-describe('Ordering with styled-jsx (dev)', () => {
-  const appDir = join(fixturesDir, 'with-styled-jsx')
+    let appPort
+    let app
+    beforeAll(async () => {
+      await remove(join(appDir, '.next'))
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+    })
 
-  let appPort
-  let app
-  beforeAll(async () => {
-    await remove(join(appDir, '.next'))
-    appPort = await findPort()
-    app = await launchApp(appDir, appPort)
+    it('should have the correct color (css ordering)', async () => {
+      const browser = await webdriver(appPort, '/')
+
+      const currentColor = await browser.eval(
+        `window.getComputedStyle(document.querySelector('.my-text')).color`
+      )
+      expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
+    })
   })
-  afterAll(async () => {
-    await killApp(app)
-  })
-
-  it('should have the correct color (css ordering)', async () => {
-    const browser = await webdriver(appPort, '/')
-
-    const currentColor = await browser.eval(
-      `window.getComputedStyle(document.querySelector('.my-text')).color`
-    )
-    expect(currentColor).toMatchInlineSnapshot(`"rgb(0, 128, 0)"`)
-  })
-})
-
-describe('Ordering with styled-jsx (prod)', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    const appDir = join(fixturesDir, 'with-styled-jsx')
+    const appDir = __dirname
 
     let appPort
     let app
