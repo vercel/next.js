@@ -4029,13 +4029,12 @@
   },
   "test/e2e/app-dir/parallel-route-not-found/parallel-route-not-found.test.ts": {
     "passed": [
+      "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
+      "parallel-route-not-found should handle multiple missing parallel routes",
       "parallel-route-not-found should not log any warnings for a regular not found page",
       "parallel-route-not-found should render the page & slots if all parallel routes are found"
     ],
-    "failed": [
-      "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
-      "parallel-route-not-found should handle multiple missing parallel routes"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
