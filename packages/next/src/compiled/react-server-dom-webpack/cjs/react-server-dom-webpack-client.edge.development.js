@@ -1247,13 +1247,18 @@ var CYCLIC = 'cyclic';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
-var ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
+var ERRORED = 'rejected'; // Dev-only
+// $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
   this.value = value;
   this.reason = reason;
   this._response = response;
+
+  {
+    this._debugInfo = null;
+  }
 } // We subclass Promise.prototype so that we get other methods like .catch
 
 
@@ -1553,17 +1558,12 @@ function createElement(type, key, props) {
       writable: true,
       value: true // This element has already been validated on the server.
 
-    });
-    Object.defineProperty(element, '_self', {
+    }); // debugInfo contains Server Component debug information.
+
+    Object.defineProperty(element, '_debugInfo', {
       configurable: false,
       enumerable: false,
-      writable: false,
-      value: null
-    });
-    Object.defineProperty(element, '_source', {
-      configurable: false,
-      enumerable: false,
-      writable: false,
+      writable: true,
       value: null
     });
   }
@@ -1577,6 +1577,13 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
+  {
+    // Ensure we have a live array to track future debug info.
+    var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
+    lazyType._debugInfo = chunkDebugInfo;
+  }
+
   return lazyType;
 }
 
@@ -1814,7 +1821,29 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (_chunk2.status) {
             case INITIALIZED:
-              return _chunk2.value;
+              var chunkValue = _chunk2.value;
+
+              if (_chunk2._debugInfo) {
+                // If we have a direct reference to an object that was rendered by a synchronous
+                // server component, it might have some debug info about how it was rendered.
+                // We forward this to the underlying object. This might be a React Element or
+                // an Array fragment.
+                // If this was a string / number return value we lose the debug info. We choose
+                // that tradeoff to allow sync server components to return plain values and not
+                // use them as React Nodes necessarily. We could otherwise wrap them in a Lazy.
+                if (typeof chunkValue === 'object' && chunkValue !== null && (Array.isArray(chunkValue) || chunkValue.$$typeof === REACT_ELEMENT_TYPE) && !chunkValue._debugInfo) {
+                  // We should maybe use a unique symbol for arrays but this is a React owned array.
+                  // $FlowFixMe[prop-missing]: This should be added to elements.
+                  Object.defineProperty(chunkValue, '_debugInfo', {
+                    configurable: false,
+                    enumerable: false,
+                    writable: true,
+                    value: _chunk2._debugInfo
+                  });
+                }
+              }
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1954,6 +1983,13 @@ function resolveHint(response, code, model) {
   dispatchHint(code, hintModel);
 }
 
+function resolveDebugInfo(response, id, debugInfo) {
+
+  var chunk = getChunk(response, id);
+  var chunkDebugInfo = chunk._debugInfo || (chunk._debugInfo = []);
+  chunkDebugInfo.push(debugInfo);
+}
+
 function processFullRow(response, id, tag, buffer, chunk) {
 
   var stringDecoder = response._stringDecoder;
@@ -2002,6 +2038,17 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+      {
+        {
+          var debugInfo = JSON.parse(row);
+          resolveDebugInfo(response, id, debugInfo);
+          return;
+        }
       }
 
     case 80

@@ -67,6 +67,6 @@ export const styles = css`
   }
 
   .nextjs-container-build-error-body small {
-    color: #757575;
+    color: var(--color-font);
   }
 `

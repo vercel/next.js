@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use indexmap::IndexMap;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
@@ -20,7 +20,7 @@ use turbopack_binding::{
             resolve::{
                 find_context_file,
                 options::{ImportMap, ImportMapping},
-                FindContextFileResult, ResolveAliasMap,
+                ExternalType, FindContextFileResult, ResolveAliasMap,
             },
             source::Source,
         },
@@ -443,10 +443,10 @@ pub struct ExperimentalConfig {
     pub fetch_cache_key_prefix: Option<String>,
     pub isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
+    /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
     mdx_rs: Option<bool>,
     /// A list of packages that should be treated as external in the RSC server
-    /// build. @see https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages
+    /// build. @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/server_components_external_packages)
     pub server_components_external_packages: Option<Vec<String>>,
     pub strict_next_head: Option<bool>,
     pub swc_plugins: Option<Vec<(String, serde_json::Value)>>,
@@ -461,8 +461,7 @@ pub struct ExperimentalConfig {
     pub optimistic_client_cache: Option<bool>,
     pub middleware_prefetch: Option<MiddlewarePrefetchType>,
     /// optimizeCss can be boolean or critters' option object
-    /// Use Record<string, unknown> as critters doesn't export its Option type
-    /// https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+    /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
     pub optimize_css: Option<serde_json::Value>,
     pub next_script_workers: Option<bool>,
     pub web_vitals_attribution: Option<Vec<String>>,
@@ -481,7 +480,7 @@ pub struct ExperimentalConfig {
     cra_compat: Option<bool>,
     disable_optimized_loading: Option<bool>,
     disable_postcss_preset_env: Option<bool>,
-    esm_externals: Option<serde_json::Value>,
+    esm_externals: Option<EsmExternals>,
     extension_alias: Option<serde_json::Value>,
     external_dir: Option<bool>,
     /// If set to `false`, webpack won't fall back to polyfill Node.js modules
@@ -519,7 +518,7 @@ pub struct ExperimentalConfig {
     trust_host_header: Option<bool>,
     /// Generate Route types and enable type checking for Link and Router.push,
     /// etc. This option requires `appDir` to be enabled first.
-    /// @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+    /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
     typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
     /// This option is to enable running the Webpack build in a worker thread
@@ -545,6 +544,19 @@ pub enum ServerActionsOrLegacyBool {
     /// The legacy way to disable server actions. This is no longer used, server
     /// actions is always enabled.
     LegacyBool(bool),
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(rename_all = "kebab-case")]
+pub enum EsmExternalsValue {
+    Loose,
+}
+
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
+#[serde(untagged)]
+pub enum EsmExternals {
+    Loose(EsmExternalsValue),
+    Bool(bool),
 }
 
 #[derive(Clone, Debug, PartialEq, Deserialize, Serialize, TraceRawVcs)]
@@ -759,6 +771,15 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub async fn import_externals(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self.await?.experimental.esm_externals {
+            Some(EsmExternals::Bool(b)) => b,
+            Some(EsmExternals::Loose(_)) => bail!("esmExternals = \"loose\" is not supported"),
+            None => true,
+        }))
+    }
+
+    #[turbo_tasks::function]
     pub async fn mdx_rs(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(self.await?.experimental.mdx_rs.unwrap_or(false)))
     }
@@ -879,14 +900,30 @@ async fn load_next_config_and_custom_routes_internal(
     } = *execution_context.await?;
     let mut import_map = ImportMap::default();
 
-    import_map.insert_exact_alias("next", ImportMapping::External(None).into());
-    import_map.insert_wildcard_alias("next/", ImportMapping::External(None).into());
-    import_map.insert_exact_alias("styled-jsx", ImportMapping::External(None).into());
+    import_map.insert_exact_alias(
+        "next",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
+    import_map.insert_wildcard_alias(
+        "next/",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
+    import_map.insert_exact_alias(
+        "styled-jsx",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(Some("styled-jsx/style.js".to_string())).cell(),
+        ImportMapping::External(
+            Some("styled-jsx/style.js".to_string()),
+            ExternalType::CommonJs,
+        )
+        .cell(),
     );
-    import_map.insert_wildcard_alias("styled-jsx/", ImportMapping::External(None).into());
+    import_map.insert_wildcard_alias(
+        "styled-jsx/",
+        ImportMapping::External(None, ExternalType::CommonJs).into(),
+    );
 
     let context = node_evaluate_asset_context(
         execution_context,

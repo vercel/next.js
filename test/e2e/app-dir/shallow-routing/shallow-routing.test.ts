@@ -447,6 +447,48 @@ createNextDescribe(
             'Page A'
           )
         })
+
+        it('should support hash navigations while continuing to work for pushState/replaceState APIs', async () => {
+          const browser = await next.browser('/a')
+          expect(
+            await browser
+              .elementByCss('#to-pushstate-string-url')
+              .click()
+              .waitForElementByCss('#pushstate-string-url')
+              .text()
+          ).toBe('PushState String Url')
+
+          await browser.elementByCss('#hash-navigation').click()
+
+          // Check current url contains the hash
+          expect(await browser.url()).toBe(
+            `${next.url}/pushstate-string-url#content`
+          )
+
+          await browser.elementByCss('#push-string-url').click()
+
+          // Check useSearchParams value is the new searchparam
+          await check(() => browser.elementByCss('#my-data').text(), 'foo')
+
+          // Check current url is the new searchparams
+          expect(await browser.url()).toBe(
+            `${next.url}/pushstate-string-url?query=foo`
+          )
+
+          // Same cycle a second time
+          await browser.elementByCss('#push-string-url').click()
+
+          // Check useSearchParams value is the new searchparam
+          await check(
+            () => browser.elementByCss('#my-data').text(),
+            'foo-added'
+          )
+
+          // Check current url is the new searchparams
+          expect(await browser.url()).toBe(
+            `${next.url}/pushstate-string-url?query=foo-added`
+          )
+        })
       })
     })
   }

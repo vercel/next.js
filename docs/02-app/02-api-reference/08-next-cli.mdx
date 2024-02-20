@@ -139,27 +139,7 @@ To configure the timeout values for the production Next.js server, pass `--keepA
 npx next start --keepAliveTimeout 70000
 ```
 
-## Lint
-
-`next lint` runs ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. It also
-provides a guided setup to install any required dependencies if ESLint is not already configured in
-your application.
-
-If you have other directories that you would like to lint, you can specify them using the `--dir`
-flag:
-
-```bash filename="Terminal"
-next lint --dir utils
-```
-
-## Telemetry
-
-Next.js collects **completely anonymous** telemetry data about general usage.
-Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
-
-To learn more about Telemetry, [please read this document](https://nextjs.org/telemetry/).
-
-## Next Info
+## Info
 
 `next info` prints relevant details about the current system which can be used to report Next.js bugs.
 This information includes Operating System platform/arch/version, Binaries (Node.js, npm, Yarn, pnpm) and npm package versions (`next`, `react`, `react-dom`).
@@ -193,3 +173,23 @@ Relevant packages:
 This information should then be pasted into GitHub Issues.
 
 In order to diagnose installation issues, you can run `next info --verbose` to print additional information about system and the installation of next-related packages.
+
+## Lint
+
+`next lint` runs ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. It also
+provides a guided setup to install any required dependencies if ESLint is not already configured in
+your application.
+
+If you have other directories that you would like to lint, you can specify them using the `--dir`
+flag:
+
+```bash filename="Terminal"
+next lint --dir utils
+```
+
+## Telemetry
+
+Next.js collects **completely anonymous** telemetry data about general usage.
+Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
+
+To learn more about Telemetry, [please read this document](https://nextjs.org/telemetry/).
