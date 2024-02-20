@@ -249,7 +249,7 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: originalFrame,
     originalCodeFrame,
-    sourcePackage: sourcePackage,
+    sourcePackage,
   }
 }
 

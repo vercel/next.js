@@ -2,23 +2,6 @@ import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-frame
 import { CallStackFrame } from './CallStackFrame'
 import { FrameworkIcon } from './FrameworkIcon'
 
-const chevronIcon = (
-  <svg
-    data-nextjs-call-stack-chevron-icon
-    fill="none"
-    height="20"
-    width="20"
-    shapeRendering="geometricPrecision"
-    stroke="currentColor"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    strokeWidth="2"
-    viewBox="0 0 24 24"
-  >
-    <path d="M9 18l6-6-6-6" />
-  </svg>
-)
-
 function FrameworkGroup({
   framework,
   stackFrames,
@@ -32,7 +15,20 @@ function FrameworkGroup({
     <details data-nextjs-collapsed-call-stack-details>
       {/* Match CallStackFrame tabIndex */}
       <summary tabIndex={10}>
-        {chevronIcon}
+        <svg
+          data-nextjs-call-stack-chevron-icon
+          fill="none"
+          height="20"
+          width="20"
+          shapeRendering="geometricPrecision"
+          stroke="currentColor"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
         <FrameworkIcon framework={framework} />
         {framework === 'react' ? 'React' : 'Next.js'}
       </summary>
@@ -43,11 +39,13 @@ function FrameworkGroup({
   )
 }
 
-export function GroupedStackFrames(props: {
+export function GroupedStackFrames({
+  groupedStackFrames,
+  all,
+}: {
   groupedStackFrames: StackFramesGroup[]
   all: boolean
 }) {
-  const { groupedStackFrames, all } = props
   return (
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
