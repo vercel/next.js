@@ -43,7 +43,6 @@ export const base = curry(function base(
       config.devtool = false
     }
   }
-  config.devtool = false
 
   if (!config.module) {
     config.module = { rules: [] }

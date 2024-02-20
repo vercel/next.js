@@ -1,9 +1,10 @@
 'use server'
 
-// import * as dualPkgOptout from 'dual-pkg-optout'
+import * as mod from 'dual-pkg-optout'
 import { value as dualPkgOptoutValue } from 'dual-pkg-optout'
-// const { value: dualPkgOptoutValue } = require('dual-pkg-optout')
 
+// console.log('dualPkgOptout:mod', mod)
 export async function getDualOptoutValue() {
+  // console.log('getDualOptoutValue', mod)
   return dualPkgOptoutValue
 }

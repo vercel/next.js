@@ -1947,7 +1947,6 @@ export default async function getBaseWebpackConfig(
   }
 
   webpack5Config.experiments = {
-    // topLevelAwait: true,
     layers: true,
     cacheUnaffected: true,
     buildHttp: Array.isArray(config.experimental.urlImports)

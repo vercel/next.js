@@ -216,8 +216,8 @@ export function makeExternalHandler({
         return `commonjs ${request}`
       }
 
-      if (reactPackagesRegex.test(request) && !isAppLayer) {
-        return `commonjs ${request}`
+      if (reactPackagesRegex.test(request)) {
+        return isAppLayer ? undefined : `commonjs ${request}`
       }
 
       const notExternalModules =
@@ -289,14 +289,6 @@ export function makeExternalHandler({
     }
 
     // TODO-APP: Let's avoid this resolve call as much as possible, and eventually get rid of it.
-    // if (request.includes('esm-package')) {
-    //   console.log(
-    //     'isLocal',
-    //     isLocal,
-    //     request,
-    //     optOutBundlingPackages.includes(request)
-    //   )
-    // }
 
     const resolveResult = await resolveExternal(
       dir,

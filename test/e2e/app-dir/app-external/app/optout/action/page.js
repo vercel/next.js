@@ -2,9 +2,7 @@
 
 import { useState } from 'react'
 import { getDualOptoutValue } from './actions'
-import * as dualPkgOptout from 'dual-pkg-optout'
 
-console.log('client component', dualPkgOptout)
 export default function Page() {
   const [optoutDisplayValue, setOptoutDisplayValue] = useState('')
   return (
@@ -13,7 +11,7 @@ export default function Page() {
       <button
         onClick={async () => {
           const text = await getDualOptoutValue()
-          console.log('text', text, await dualPkgOptout)
+          // console.log('text', text)
           setOptoutDisplayValue(text)
         }}
       >
