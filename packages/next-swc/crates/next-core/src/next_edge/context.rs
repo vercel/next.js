@@ -1,5 +1,5 @@
 use anyhow::Result;
-use indexmap::IndexMap;
+use indexmap::{indexmap, IndexMap};
 use turbo_tasks::{Value, Vc};
 use turbopack_binding::{
     turbo::{tasks_env::EnvMap, tasks_fs::FileSystemPath},
@@ -60,6 +60,37 @@ async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
     define_env: Vc<EnvMap>,
 ) -> Result<Vc<FreeVarReferences>> {
+    let node_api_error = FreeVarReference::Error("A Node.js API is used which is not supported in the Edge Runtime. Learn more: https://nextjs.org/docs/api-reference/edge-runtime".to_string());
+
+    let unsupported_runtime_apis = match mode {
+        NextMode::Build => {
+            Ok(indexmap! {
+                // Mirrors warnForUnsupportedApi in middleware-plugin.ts
+                "clearImmediate" => node_api_error.clone(),
+                "setImmediate" => node_api_error.clone(),
+                "BroadcastChannel" => node_api_error.clone(),
+                "ByteLengthQueuingStrategy" => node_api_error.clone(),
+                "CompressionStream" => node_api_error.clone(),
+                "CountQueuingStrategy" => node_api_error.clone(),
+                "DecompressionStream" => node_api_error.clone(),
+                "DomException" => node_api_error.clone(),
+                "MessageChannel" => node_api_error.clone(),
+                "MessageEvent" => node_api_error.clone(),
+                "MessagePort" => node_api_error.clone(),
+                "ReadableByteStreamController" => node_api_error.clone(),
+                "ReadableStreamBYOBRequest" => node_api_error.clone(),
+                "ReadableStreamDefaultController" => node_api_error.clone(),
+                "TransformStreamDefaultController" => node_api_error.clone(),
+                "WritableStreamDefaultController" => node_api_error.clone(),
+                // TODO: Implement warnForUnsupportedProcessApi from
+                // middleware-plugin.ts That function implements
+                // a check for `process.something` where `something` could be
+                // anything in the process object except for `process.env` as that is
+                // excluded.
+            })
+        }
+        NextMode::Development => Ok(()),
+    };
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
@@ -72,8 +103,9 @@ async fn next_edge_free_vars(
             lookup_path: Some(project_path),
             export: Some("default".to_string()),
         },
-    )
-    .cell())
+        ..unsupported_runtime_apis
+    ))
+    .cell()
 }
 
 #[turbo_tasks::function]
