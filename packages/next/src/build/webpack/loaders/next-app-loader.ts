@@ -237,7 +237,7 @@ async function createTreeCodeFromPath(
 
   async function createSubtreePropsFromSegmentPath(
     segments: string[],
-    collectedAsyncImports: string[]
+    nestedCollectedAsyncImports: string[]
   ): Promise<{
     treeCode: string
   }> {
@@ -286,7 +286,7 @@ async function createTreeCodeFromPath(
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) {
           pages.push(resolvedPagePath)
-          collectedAsyncImports.push(resolvedPagePath)
+          nestedCollectedAsyncImports.push(resolvedPagePath)
         }
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
@@ -329,7 +329,7 @@ async function createTreeCodeFromPath(
       const { treeCode: pageSubtreeCode } =
         await createSubtreePropsFromSegmentPath(
           subSegmentPath,
-          collectedAsyncImports
+          nestedCollectedAsyncImports
         )
 
       const parallelSegmentPath = subSegmentPath.join('/')
@@ -408,7 +408,7 @@ async function createTreeCodeFromPath(
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
           defaultNotFoundPath
-        collectedAsyncImports.push(notFoundPath)
+        nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
           children: ['${PAGE_SEGMENT_KEY}', {}, {
             page: [
@@ -424,7 +424,7 @@ async function createTreeCodeFromPath(
       const componentsCode = `{
         ${definedFilePaths
           .map(([file, filePath]) => {
-            if (filePath) collectedAsyncImports.push(filePath)
+            if (filePath) nestedCollectedAsyncImports.push(filePath)
             return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
               filePath
             )}), ${JSON.stringify(filePath)}],`
@@ -467,7 +467,7 @@ async function createTreeCodeFromPath(
           defaultPath = normalizedDefault ?? PARALLEL_ROUTE_DEFAULT_PATH
         }
 
-        collectedAsyncImports.push(defaultPath)
+        nestedCollectedAsyncImports.push(defaultPath)
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '${DEFAULT_SEGMENT_KEY}',
           {},
