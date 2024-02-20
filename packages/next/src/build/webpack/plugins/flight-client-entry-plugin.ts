@@ -553,7 +553,10 @@ export class FlightClientEntryPlugin {
       }
 
       // Don't traverse the module graph anymore once hitting the action layer.
-      if (!entryRequest.includes('next-flight-action-entry-loader')) {
+      if (
+        entryRequest &&
+        !entryRequest.includes('next-flight-action-entry-loader')
+      ) {
         // Traverse the module graph to find all client components.
         collectActionsInDep(resolvedModule)
       }
