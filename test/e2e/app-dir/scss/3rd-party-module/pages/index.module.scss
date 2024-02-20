@@ -4,14 +4,13 @@
 
 .foo :global(.bar),
 .foo :global(.baz) {
-  height: 100%;
-  overflow: hidden;
+  background-color: blue;
 }
 
 .foo :global(.lol) {
-  width: 80%;
+  background-color: red;
 }
 
 .foo > :global(.lel) {
-  width: 80%;
+  background-color: green;
 }
