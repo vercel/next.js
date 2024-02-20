@@ -419,6 +419,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
         })
 
         if (originalStackFrameResponse === null) {
+          if (sourcePackage) {
+            res.statusCode = 200
+            res.setHeader('Content-Type', 'application/json')
+            res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+            return res.end()
+          }
           res.statusCode = 204
           res.write('No Content')
           return res.end()
