@@ -113,17 +113,25 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
+const reactVendoredRe =
+  /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)(-builtin)?$/
+const reactNodeModulesRe =
+  /node_modules[\\/](react|scheduler|react-is|react-dom)[\\/]/
+
 function findCallStackFramePackage(
   id: string,
   compilation?: webpack.Compilation
 ): OriginalStackFrameResponse['sourcePackage'] {
   if (!compilation) return undefined
-  const moduleName: string | undefined = // @ts-expect-error
-    getModuleById(id, compilation)?.resourceResolveData?.descriptionFileData
-      ?.name
-  if (!moduleName) return undefined
-  if (moduleName === 'next') return 'next'
-  if (moduleName.startsWith('react')) return 'react'
+  // @ts-expect-error
+  const moduleName = getModuleById(id, compilation)?.resourceResolveData
+    ?.descriptionFileData?.name
+  if (moduleName) {
+    if (reactVendoredRe.test(moduleName)) return 'react'
+    else if (moduleName === 'next') return 'next'
+  }
+  if (/([\\/].next[\\/]|next[\\/]dist)/.test(id)) return 'next'
+  else if (reactNodeModulesRe.test(id)) return 'react'
 }
 
 export async function createOriginalStackFrame({
@@ -374,6 +382,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       }
 
       if (source == null) {
+        if (sourcePackage) {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+          return res.end()
+        }
         res.statusCode = 204
         res.write('No Content')
         return res.end()
