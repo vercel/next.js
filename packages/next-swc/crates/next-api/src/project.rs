@@ -383,13 +383,13 @@ impl Project {
         Ok(Vc::upcast(virtual_fs))
     }
 
-    #[turbo_tasks::function]
-    pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
-        let this = self.await?;
-        let disk_fs = DiskFileSystem::new("node".to_string(), this.project_path.clone(), vec![]);
-        disk_fs.await?.start_watching_with_invalidation_reason()?;
-        Ok(Vc::upcast(disk_fs))
-    }
+    // #[turbo_tasks::function]
+    // pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+    //     let this = self.await?;
+    //     let disk_fs = DiskFileSystem::new("node".to_string(),
+    // this.project_path.clone(), vec![]);     disk_fs.await?.
+    // start_watching_with_invalidation_reason()?;     Ok(Vc::upcast(disk_fs))
+    // }
 
     #[turbo_tasks::function]
     pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
@@ -399,7 +399,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.node_fs().root().join(this.dist_dir.to_string()))
+        Ok(self.project_path().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
@@ -629,7 +629,12 @@ impl Project {
 
         if let Some(app_project) = &*app_project.await? {
             let app_routes = app_project.routes();
-            routes.extend(app_routes.await?.iter().map(|(k, v)| (k.clone(), *v)));
+            routes.extend(
+                app_routes
+                    .await?
+                    .iter()
+                    .map(|(k, v)| (k.clone(), v.clone())),
+            );
         }
 
         for (pathname, page_route) in pages_project.routes().await?.iter() {
@@ -638,7 +643,7 @@ impl Project {
                     *entry.get_mut() = Route::Conflict;
                 }
                 Entry::Vacant(entry) => {
-                    entry.insert(*page_route);
+                    entry.insert(page_route.clone());
                 }
             }
         }

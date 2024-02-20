@@ -1,7 +1,5 @@
 use anyhow::Result;
-use next_core::{
-    all_assets_from_entries, next_manifests::NextFontManifest, util::get_asset_prefix_from_pathname,
-};
+use next_core::{all_assets_from_entries, next_manifests::NextFontManifest};
 use turbo_tasks::{ValueToString, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{File, FileSystemPath},
@@ -18,9 +16,8 @@ pub(crate) async fn create_font_manifest(
     client_root: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     dir: Vc<FileSystemPath>,
-    ty: &'static str,
-    pathname: &str,
     original_name: &str,
+    manifest_path_prefix: &str,
     client_assets: Vc<OutputAssets>,
     app_dir: bool,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
@@ -33,11 +30,9 @@ pub(crate) async fn create_font_manifest(
     let font_paths =
         get_font_paths_from_root(&client_root_value, &all_client_output_assets).await?;
 
-    let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
-
     let path = if app_dir {
         node_root.join(format!(
-            "server/app{manifest_path_prefix}/{ty}/next-font-manifest.json",
+            "server/app{manifest_path_prefix}/next-font-manifest.json",
         ))
     } else {
         node_root.join(format!(
