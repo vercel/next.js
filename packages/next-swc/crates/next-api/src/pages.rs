@@ -987,9 +987,8 @@ impl PageEndpoint {
             this.pages_project.project().client_root(),
             this.pages_project.project().node_root(),
             this.pages_project.pages_dir(),
-            "",
-            &pathname,
             &original_name,
+            &get_asset_prefix_from_pathname(&pathname),
             client_assets,
             false,
         )
