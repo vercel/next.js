@@ -6,7 +6,7 @@
 
 To develop locally:
 
-1. Install [Rust and Cargo](https://doc.rust-lang.org/cargo/getting-started/installation)
+1. Install Rust and Cargo via [rustup](https://rustup.rs).
 1. Install the [GitHub CLI](https://github.com/cli/cli#installation).
 1. Clone the Next.js repository (download only recent commits for faster clone):
    ```

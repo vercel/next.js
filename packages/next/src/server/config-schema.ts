@@ -193,16 +193,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             cssProp: z.boolean().optional(),
           }),
         ]),
+        styledJsx: z.union([
+          z.boolean().optional(),
+          z.object({
+            useLightningcss: z.boolean().optional(),
+          }),
+        ]),
       })
       .optional(),
     compress: z.boolean().optional(),
     configOrigin: z.string().optional(),
     crossOrigin: z
-      .union([
-        z.literal(false),
-        z.literal('anonymous'),
-        z.literal('use-credentials'),
-      ])
+      .union([z.literal('anonymous'), z.literal('use-credentials')])
       .optional(),
     devIndicators: z
       .object({
@@ -265,11 +267,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
+        swrDelta: z.number().optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
+        linkNoTouchStart: z.boolean().optional(),
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         nextScriptWorkers: z.boolean().optional(),
@@ -338,6 +342,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 ])
               )
               .optional(),
+            resolveExtensions: z.array(z.string()).optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),

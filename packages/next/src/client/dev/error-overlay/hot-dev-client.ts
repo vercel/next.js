@@ -34,7 +34,7 @@ import {
   onBuildOk,
   onBeforeRefresh,
   onRefresh,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/client'
+} from '../../components/react-dev-overlay/pages/client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from './format-webpack-messages'

@@ -73,7 +73,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin',
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -249,6 +249,7 @@ export async function ncc_node_fetch(task, opts) {
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
+externals['next/dist/compiled/anser'] = 'next/dist/compiled/anser'
 export async function ncc_node_anser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('anser')))
@@ -257,6 +258,8 @@ export async function ncc_node_anser(task, opts) {
 }
 
 externals['stacktrace-parser'] = 'next/dist/compiled/stacktrace-parser'
+externals['next/dist/compiled/stacktrace-parser'] =
+  'next/dist/compiled/stacktrace-parser'
 export async function ncc_node_stacktrace_parser(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('stacktrace-parser')))
@@ -265,6 +268,8 @@ export async function ncc_node_stacktrace_parser(task, opts) {
 }
 
 externals['data-uri-to-buffer'] = 'next/dist/compiled/data-uri-to-buffer'
+externals['next/dist/compiled/data-uri-to-buffer'] =
+  'next/dist/compiled/data-uri-to-buffer'
 export async function ncc_node_data_uri_to_buffer(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('data-uri-to-buffer')))
@@ -273,6 +278,7 @@ export async function ncc_node_data_uri_to_buffer(task, opts) {
 }
 
 externals['css.escape'] = 'next/dist/compiled/css.escape'
+externals['next/dist/compiled/css.escape'] = 'next/dist/compiled/css.escape'
 export async function ncc_node_cssescape(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('css.escape')))
@@ -281,6 +287,7 @@ export async function ncc_node_cssescape(task, opts) {
 }
 
 externals['shell-quote'] = 'next/dist/compiled/shell-quote'
+externals['next/dist/compiled/shell-quote'] = 'next/dist/compiled/shell-quote'
 export async function ncc_node_shell_quote(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('shell-quote')))
@@ -289,6 +296,7 @@ export async function ncc_node_shell_quote(task, opts) {
 }
 
 externals['platform'] = 'next/dist/compiled/platform'
+externals['next/dist/compiled/platform'] = 'next/dist/compiled/platform'
 export async function ncc_node_platform(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('platform')))
@@ -461,83 +469,6 @@ export async function ncc_edge_runtime(task, opts) {
     (
       await fs.readFile(outputFile, 'utf8')
     ).replace(/eval\("require"\)/g, 'require')
-  )
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_next__react_dev_overlay(task, opts) {
-  const overlayExternals = {
-    ...externals,
-    react: 'react',
-    'react-dom': 'react-dom',
-  }
-  // dev-overlay needs a newer source-map version
-  delete overlayExternals['source-map']
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware-turbopack')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/client')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  const clientFile = join(
-    __dirname,
-    'dist/compiled/@next/react-dev-overlay/dist/client.js'
-  )
-  const content = await fs.readFile(clientFile, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs
-  await fs.writeFile(
-    clientFile,
-    content.replace(
-      new RegExp(
-        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
-          /[|\\{}()[\]^$+*?.-]/g,
-          '\\$&'
-        ),
-        'g'
-      ),
-      ''
-    )
   )
 }
 
@@ -1133,6 +1064,8 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
+externals['next/dist/compiled/babel/code-frame'] =
+  'next/dist/compiled/babel/code-frame'
 
 Object.assign(externals, babelCorePackages)
 
@@ -1917,6 +1850,22 @@ export async function ncc_source_map(task, opts) {
     .target('src/compiled/source-map')
 }
 // eslint-disable-next-line camelcase
+// NB: Used by other dependencies, but Vercel version is a duplicate
+// version so can be inlined anyway (although may change in future)
+externals['source-map08'] = 'next/dist/compiled/source-map08'
+externals['next/dist/compiled/source-map08'] = 'next/dist/compiled/source-map08'
+export async function ncc_source_map08(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('source-map08')))
+    .ncc({
+      packageName: 'source-map08',
+      packageJsonName: 'source-map08',
+      externals,
+      minify: false,
+    })
+    .target('src/compiled/source-map08')
+}
+// eslint-disable-next-line camelcase
 externals['string-hash'] = 'next/dist/compiled/string-hash'
 export async function ncc_string_hash(task, opts) {
   await task
@@ -1926,6 +1875,7 @@ export async function ncc_string_hash(task, opts) {
 }
 // eslint-disable-next-line camelcase
 externals['strip-ansi'] = 'next/dist/compiled/strip-ansi'
+externals['next/dist/compiled/strip-ansi'] = 'next/dist/compiled/strip-ansi'
 export async function ncc_strip_ansi(task, opts) {
   await task
     .source(relative(__dirname, require.resolve('strip-ansi')))
@@ -2309,6 +2259,7 @@ export async function ncc(task, opts) {
         'ncc_semver',
         'ncc_send',
         'ncc_source_map',
+        'ncc_source_map08',
         'ncc_string_hash',
         'ncc_strip_ansi',
         'ncc_superstruct',
@@ -2398,7 +2349,6 @@ export async function compile(task, opts) {
 
   await task.serial([
     'ncc_react_refresh_utils',
-    'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'capsize_metrics',
   ])
@@ -2666,11 +2616,6 @@ export default async function (task) {
   await task.watch(
     'src/shared',
     ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],
-    opts
-  )
-  await task.watch(
-    '../react-dev-overlay/dist',
-    'ncc_next__react_dev_overlay',
     opts
   )
 }

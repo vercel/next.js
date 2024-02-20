@@ -26,6 +26,8 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
+lazy_static = { workspace = true }
+lightningcss = {workspace = true}
 
 turbopack-binding = { workspace = true, features = [
   "__swc_core",
@@ -38,8 +40,9 @@ turbopack-binding = { workspace = true, features = [
 ] }
 # To allow quote! macro works
 swc_core = { workspace = true, features = ["ecma_quote"]}
-react_remove_properties = "0.19.0"
-remove_console = "0.20.0"
+react_remove_properties = "0.24.5"
+remove_console = "0.25.5"
+preset_env_base = "0.4.11"
 
 [dev-dependencies]
 turbopack-binding = { workspace = true, features = [

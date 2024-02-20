@@ -1,4 +1,5 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { OriginalStackFrameResponse } from '../../server/middleware'
 
 export type OriginalStackFrame =
   | {
@@ -32,16 +33,17 @@ export type OriginalStackFrame =
       sourcePackage?: string
     }
 
-export function getOriginalStackFrame(
+function getOriginalStackFrame(
   source: StackFrame,
   type: 'server' | 'edge-server' | null,
+  isAppDir: boolean,
   errorMessage: string
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
     const params = new URLSearchParams()
     params.append('isServer', String(type === 'server'))
     params.append('isEdgeServer', String(type === 'edge-server'))
-    params.append('isAppDirectory', 'true')
+    params.append('isAppDirectory', String(isAppDir))
     params.append('errorMessage', errorMessage)
     for (const key in source) {
       params.append(key, ((source as any)[key] ?? '').toString())
@@ -65,7 +67,7 @@ export function getOriginalStackFrame(
       return Promise.reject(new Error(await res.text()))
     }
 
-    const body: /* OriginalStackFrameResponse */ any = await res.json()
+    const body: OriginalStackFrameResponse = await res.json()
     return {
       error: false,
       reason: null,
@@ -73,7 +75,8 @@ export function getOriginalStackFrame(
       expanded: !Boolean(
         /* collapsed */
         (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules')) ??
+          body.originalStackFrame?.file?.includes('node_modules') ||
+          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
           true
       ),
       sourceStackFrame: source,
@@ -113,17 +116,28 @@ export function getOriginalStackFrame(
 export function getOriginalStackFrames(
   frames: StackFrame[],
   type: 'server' | 'edge-server' | null,
+  isAppDir: boolean,
   errorMessage: string
 ) {
   return Promise.all(
-    frames.map((frame) => getOriginalStackFrame(frame, type, errorMessage))
+    frames.map((frame) =>
+      getOriginalStackFrame(frame, type, isAppDir, errorMessage)
+    )
   )
 }
 
+/**
+ * Format the webpack internal id to original file path
+ * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
+ * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
+ * webpack://./src/hello.tsx => ./src/hello.tsx
+ * webpack:///./src/hello.tsx => ./src/hello.tsx
+ *
+ */
 function formatFrameSourceFile(file: string) {
   return file
-    .replace(/^webpack-internal:(\/)+(\.)?/, '')
-    .replace(/^webpack:(\/)+(\.)?/, '')
+    .replace(/^webpack-internal:\/\/\/(\.)?(\((\w+)\))?/, '')
+    .replace(/^(webpack:\/\/\/(\.)?|webpack:\/\/(_N_E\/)?)(\((\w+)\))?/, '')
 }
 
 export function getFrameSource(frame: StackFrame): string {

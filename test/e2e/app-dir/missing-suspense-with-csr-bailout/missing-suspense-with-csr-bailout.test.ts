@@ -19,30 +19,35 @@ createNextDescribe(
     describe('useSearchParams', () => {
       const message = `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
+      it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
+        const { exitCode } = await next.build()
+        expect(exitCode).toBe(1)
+        expect(next.cliOutput).toContain(message)
+        // Can show the trace where the searchParams hook is used
+        expect(next.cliOutput).toMatch(/at.*server[\\/]app[\\/]page.js/)
+      })
+
       it('should pass build if useSearchParams is wrapped in a suspense boundary', async () => {
+        await next.renameFile('app/layout.js', 'app/layout-no-suspense.js')
+        await next.renameFile('app/layout-suspense.js', 'app/layout.js')
+
         await expect(next.build()).resolves.toEqual({
           exitCode: 0,
           cliOutput: expect.not.stringContaining(message),
         })
-      })
 
-      it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
         await next.renameFile('app/layout.js', 'app/layout-suspense.js')
         await next.renameFile('app/layout-no-suspense.js', 'app/layout.js')
-
-        await expect(next.build()).resolves.toEqual({
-          exitCode: 1,
-          cliOutput: expect.stringContaining(message),
-        })
-
-        await next.renameFile('app/layout.js', 'app/layout-no-suspense.js')
-        await next.renameFile('app/layout-suspense.js', 'app/layout.js')
       })
     })
 
     describe('next/dynamic', () => {
       beforeEach(async () => {
+        await next.renameFile('app/page.js', 'app/_page.js')
         await next.start()
+      })
+      afterEach(async () => {
+        await next.renameFile('app/_page.js', 'app/page.js')
       })
 
       it('does not emit errors related to bailing out of client side rendering', async () => {
@@ -52,8 +57,6 @@ createNextDescribe(
 
         try {
           await browser.waitForElementByCss('#dynamic')
-
-          // await new Promise((resolve) => setTimeout(resolve, 1000))
 
           expect(await browser.log()).not.toContainEqual(
             expect.objectContaining({

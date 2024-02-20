@@ -23,7 +23,7 @@ import type { PagesAPIRouteModule } from './future/route-modules/pages-api/modul
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -90,8 +90,6 @@ import { getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { invokeRequest } from './lib/server-ipc/invoke-request'
-import { filterReqHeaders, ipcForbiddenHeaders } from './lib/server-ipc/utils'
 import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -103,6 +101,7 @@ import { lazyRenderPagesPage } from './future/route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 
 export * from './base-server'
 
@@ -171,6 +170,10 @@ export default class NextNodeServer extends BaseServer {
     page: string
     re: RegExp
   }[]
+  private routerServerHandler?: (
+    req: IncomingMessage,
+    res: ServerResponse
+  ) => void
 
   constructor(options: Options) {
     // Initialize super class
@@ -369,6 +372,17 @@ export default class NextNodeServer extends BaseServer {
     ) as PagesManifest
   }
 
+  protected getinterceptionRoutePatterns(): RegExp[] {
+    if (!this.enabledDirectories.app) return []
+
+    const routesManifest = this.getRoutesManifest()
+    return (
+      routesManifest?.rewrites.beforeFiles
+        .filter(isInterceptionRouteRewrite)
+        .map((rewrite) => new RegExp(rewrite.regex)) ?? []
+    )
+  }
+
   protected async hasPage(pathname: string): Promise<boolean> {
     return !!getMaybePagePath(
       pathname,
@@ -411,6 +425,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
+      swrDelta: SwrDelta | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -421,6 +436,7 @@ export default class NextNodeServer extends BaseServer {
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
+      swrDelta: options.swrDelta,
     })
   }
 
@@ -544,53 +560,41 @@ export default class NextNodeServer extends BaseServer {
         'invariant: imageOptimizer should not be called in minimal mode'
       )
     } else {
-      const { imageOptimizer } =
+      const { imageOptimizer, fetchExternalImage, fetchInternalImage } =
         require('./image-optimizer') as typeof import('./image-optimizer')
 
+      const handleInternalReq = async (
+        newReq: IncomingMessage,
+        newRes: ServerResponse
+      ) => {
+        if (newReq.url === req.url) {
+          throw new Error(`Invariant attempted to optimize _next/image itself`)
+        }
+
+        if (!this.routerServerHandler) {
+          throw new Error(`Invariant missing routerServerHandler`)
+        }
+
+        await this.routerServerHandler(newReq, newRes)
+        return
+      }
+
+      const { isAbsolute, href } = paramsResult
+
+      const imageUpstream = isAbsolute
+        ? await fetchExternalImage(href)
+        : await fetchInternalImage(
+            href,
+            req.originalRequest,
+            res.originalResponse,
+            handleInternalReq
+          )
+
       return imageOptimizer(
-        req.originalRequest,
-        res.originalResponse,
+        imageUpstream,
         paramsResult,
         this.nextConfig,
-        this.renderOpts.dev,
-        async (newReq, newRes) => {
-          if (newReq.url === req.url) {
-            throw new Error(
-              `Invariant attempted to optimize _next/image itself`
-            )
-          }
-
-          const protocol = this.serverOptions.experimentalHttpsServer
-            ? 'https'
-            : 'http'
-
-          const invokeRes = await invokeRequest(
-            `${protocol}://${this.fetchHostname || 'localhost'}:${this.port}${
-              newReq.url || ''
-            }`,
-            {
-              method: newReq.method || 'GET',
-              headers: newReq.headers,
-              signal: signalFromNodeResponse(res.originalResponse),
-            }
-          )
-          const filteredResHeaders = filterReqHeaders(
-            toNodeOutgoingHttpHeaders(invokeRes.headers),
-            ipcForbiddenHeaders
-          )
-
-          for (const key of Object.keys(filteredResHeaders)) {
-            newRes.setHeader(key, filteredResHeaders[key] || '')
-          }
-          newRes.statusCode = invokeRes.status || 200
-
-          if (invokeRes.body) {
-            await pipeToNodeResponse(invokeRes.body, newRes)
-          } else {
-            res.send()
-          }
-          return
-        }
+        this.renderOpts.dev
       )
     }
   }
@@ -1783,7 +1787,9 @@ export default class NextNodeServer extends BaseServer {
     isUpgradeReq?: boolean
   ) {
     // Injected in base-server.ts
-    const protocol = req.headers['x-forwarded-proto'] as 'https' | 'http'
+    const protocol = req.headers['x-forwarded-proto']?.includes('https')
+      ? 'https'
+      : 'http'
 
     // When there are hostname and port we build an absolute URL
     const initUrl =

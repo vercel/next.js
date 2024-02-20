@@ -1,3 +1,4 @@
+import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 
@@ -38,20 +39,27 @@ import { isNotFoundError } from '../../client/components/not-found'
 export function createMetadataComponents({
   tree,
   pathname,
-  searchParams,
+  trailingSlash,
+  query,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
+  createDynamicallyTrackedSearchParams,
 }: {
   tree: LoaderTree
   pathname: string
-  searchParams: { [key: string]: any }
+  trailingSlash: boolean
+  query: ParsedUrlQuery
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
   errorType?: 'not-found' | 'redirect'
+  createDynamicallyTrackedSearchParams: (
+    searchParams: ParsedUrlQuery
+  ) => ParsedUrlQuery
 }): [React.ComponentType, React.ComponentType] {
   const metadataContext = {
     pathname,
+    trailingSlash,
   }
 
   let resolve: (value: Error | undefined) => void | undefined
@@ -68,6 +76,7 @@ export function createMetadataComponents({
     let error: any
     const errorMetadataItem: [null, null, null] = [null, null, null]
     const errorConvention = errorType === 'redirect' ? undefined : errorType
+    const searchParams = createDynamicallyTrackedSearchParams(query)
 
     const [resolvedError, resolvedMetadata, resolvedViewport] =
       await resolveMetadata({

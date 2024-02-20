@@ -9,7 +9,7 @@ use turbopack_binding::{
                 CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, FreeVarReference,
                 FreeVarReferences,
             },
-            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, ServerAddr},
+            environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment},
             free_var_references,
         },
         dev::DevChunkingContext,
@@ -79,11 +79,10 @@ async fn next_edge_free_vars(
 #[turbo_tasks::function]
 pub fn get_edge_compile_time_info(
     project_path: Vc<FileSystemPath>,
-    server_addr: Vc<ServerAddr>,
     define_env: Vc<EnvMap>,
 ) -> Vc<CompileTimeInfo> {
     CompileTimeInfo::builder(Environment::new(Value::new(
-        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment { server_addr }.into()),
+        ExecutionEnvironment::EdgeWorker(EdgeWorkerEnvironment {}.into()),
     )))
     .defines(next_edge_defines(define_env))
     .free_var_references(next_edge_free_vars(project_path, define_env))
@@ -94,7 +93,7 @@ pub fn get_edge_compile_time_info(
 pub async fn get_edge_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -105,7 +104,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.node_env().to_string(),
+        mode.await?.node_env().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -141,6 +140,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),
@@ -154,6 +154,8 @@ pub async fn get_edge_resolve_options_context(
 pub fn get_edge_chunking_context(
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
+    client_root: Vc<FileSystemPath>,
+    asset_prefix: Vc<Option<String>>,
     environment: Vc<Environment>,
 ) -> Vc<Box<dyn EcmascriptChunkingContext>> {
     let output_root = node_root.join("server/edge".to_string());
@@ -161,10 +163,12 @@ pub fn get_edge_chunking_context(
         DevChunkingContext::builder(
             project_path,
             output_root,
+            client_root,
             output_root.join("chunks".to_string()),
-            output_root.join("assets".to_string()),
+            client_root.join("static/media".to_string()),
             environment,
         )
+        .asset_base_path(asset_prefix)
         .reference_chunk_source_maps(should_debug("edge"))
         .build(),
     )

@@ -10,6 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
+import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -112,6 +113,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -159,6 +167,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
   useDeploymentIdServerActions?: boolean
@@ -176,6 +185,10 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -404,8 +417,11 @@ export type ExportPathMap = {
 }
 
 /**
- * Next configuration object
- * @see [configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Next.js can be configured through a `next.config.js` file in the root of your project directory.
+ *
+ * This can change the behavior, enable experimental features, and configure other advanced options.
+ *
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -676,7 +692,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [`crossorigin` attribute documentation](https://developer.mozilla.org/docs/Web/HTML/Attributes/crossorigin)
    */
-  crossOrigin?: false | 'anonymous' | 'use-credentials'
+  crossOrigin?: 'anonymous' | 'use-credentials'
 
   /**
    * Use [SWC compiler](https://swc.rs) to minify the generated JavaScript
@@ -710,6 +726,12 @@ export interface NextConfig extends Record<string, any> {
         }
     styledComponents?: boolean | StyledComponentsConfig
     emotion?: boolean | EmotionConfig
+
+    styledJsx?:
+      | boolean
+      | {
+          useLightningcss?: boolean
+        }
   }
 
   /**
@@ -812,6 +834,7 @@ export const defaultConfig: NextConfig = {
   experimental: {
     serverMinification: true,
     serverSourceMaps: false,
+    linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     useDeploymentId: false,
     deploymentId: undefined,
@@ -822,6 +845,7 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
+    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,
@@ -869,6 +893,7 @@ export const defaultConfig: NextConfig = {
         : false,
     webpackBuildWorker: undefined,
     missingSuspenseWithCSRBailout: true,
+    optimizeServerReact: false,
   },
 }
 
