@@ -53,22 +53,6 @@ class Span implements ISpan {
       endTime: endTime ?? Date.now(),
     }
 
-    if (
-      process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
-      LogSpanAllowList.includes(this.name || ('' as any))
-    ) {
-      const { timeOrigin } = performance
-      performance.measure(
-        `${process.env.NEXT_OTEL_LOG_PREFIX}:next-${(
-          this.name.split('.').pop() || ''
-        ).replace(/[A-Z]/g, (match: string) => '-' + match.toLowerCase())}`,
-        {
-          start: this.startTime - timeOrigin,
-          end: this.state.endTime - timeOrigin,
-        }
-      )
-    }
-
     this.onSpanEnd(this)
   }
 }

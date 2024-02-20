@@ -275,9 +275,31 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
+          const startTime = Date.now()
+
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)
+            if (
+              typeof performance !== 'undefined' &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
+              LogSpanAllowList.includes(type || ('' as any))
+            ) {
+              const { timeOrigin } = performance
+              performance.measure(
+                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime - timeOrigin,
+                  end: Date.now() - timeOrigin,
+                }
+              )
+            }
           }
+
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
