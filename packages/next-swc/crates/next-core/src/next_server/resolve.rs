@@ -222,10 +222,10 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         let Some(result) = *node_resolved.first_source().await? else {
             // this can't resolve with node.js from the project directory, so bundle it
             return unable_to_externalize(
-                "The request could not be resolved by Node.js from the project directory.\nPackages \
-                 that should be external need to be installed in the project directory, so they \
-                 can be resolved from the output files.\nTry to install the package into the \
-                 project directory.",
+                "The request could not be resolved by Node.js from the project \
+                 directory.\nPackages that should be external need to be installed in the project \
+                 directory, so they can be resolved from the output files.\nTry to install the \
+                 package into the project directory.",
             );
         };
         let node_resolved_from_original_location = resolve(
