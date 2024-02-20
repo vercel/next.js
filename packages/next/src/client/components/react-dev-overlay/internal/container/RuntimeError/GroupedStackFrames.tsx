@@ -44,7 +44,7 @@ export function GroupedStackFrames({
   groupedStackFrames: StackFramesGroup[]
   show: boolean
 }) {
-  if (show) return
+  if (!show) return
   return (
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
