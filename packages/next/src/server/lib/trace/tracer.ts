@@ -1,5 +1,5 @@
 import type { SpanTypes } from './constants'
-import { NextVanillaSpanAllowlist } from './constants'
+import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -229,6 +229,18 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
+    const spanName = options.spanName ?? type
+
+    if (process.env.NEXT_OTEL_LOG_PREFIX && LogSpanAllowList.includes(type)) {
+      performance.measure(
+        `${process.env.NEXT_OTEL_LOG_PREFIX}:next-${spanName.replace(
+          /[A-Z]/g,
+          (match: string) => '-' + match.toLowerCase()
+        )}`,
+        {}
+      )
+    }
+
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -236,8 +248,6 @@ class NextTracerImpl implements NextTracer {
     ) {
       return fn()
     }
-
-    const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
