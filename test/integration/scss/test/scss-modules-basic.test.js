@@ -15,7 +15,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../../scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('Basic SCSS Module Support', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
