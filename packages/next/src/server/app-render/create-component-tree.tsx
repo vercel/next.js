@@ -217,11 +217,7 @@ async function createComponentTreeInternal({
       }
     } else {
       staticGenerationStore.dynamicShouldError = false
-      if (dynamic === 'force-static') {
-        staticGenerationStore.forceStatic = true
-      } else {
-        staticGenerationStore.forceStatic = false
-      }
+      staticGenerationStore.forceStatic = dynamic === 'force-static'
     }
   }
 
@@ -427,7 +423,9 @@ async function createComponentTreeInternal({
             // When we detect the default fallback (which triggers a 404), we collect the missing slots
             // to provide more helpful debug information during development mode.
             const parsedTree = parseLoaderTree(parallelRoute)
-            if (parsedTree.layoutOrPagePath === PARALLEL_ROUTE_DEFAULT_PATH) {
+            if (
+              parsedTree.layoutOrPagePath?.endsWith(PARALLEL_ROUTE_DEFAULT_PATH)
+            ) {
               missingSlots.add(parallelRouteKey)
             }
           }
