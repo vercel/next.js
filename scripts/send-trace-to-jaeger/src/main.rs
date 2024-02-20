@@ -68,7 +68,7 @@ fn main() {
     let first_arg = args().nth(1).expect("Please provide a file name");
 
     if let Ok(lines) = read_lines(first_arg) {
-        for json_to_parse in lines.flatten() {
+        for json_to_parse in lines.map_while(Result::ok) {
             let v = match serde_json::from_str::<Vec<Value>>(&json_to_parse) {
                 Ok(v) => v
                     .into_iter()

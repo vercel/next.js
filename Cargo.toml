@@ -22,6 +22,10 @@ debug-assertions = false
 [profile.dev.build-override]
 opt-level = 3
 
+[patch.crates-io]
+# temporary patch until https://github.com/servo/pathfinder/pull/548 gets released.
+pathfinder_simd = { git = "https://github.com/servo/pathfinder.git", rev = "e4fcda0d5259d0acf902aee6de7d2501f2bd6629" }
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "packages/next-swc/crates/next-api" }
@@ -135,4 +139,3 @@ url = "2.2.2"
 urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 dhat = { version = "0.3.2" }
-
