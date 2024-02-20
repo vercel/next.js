@@ -11,7 +11,7 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('Ordering with styled-jsx (dev)', () => {
   const appDir = join(fixturesDir, 'with-styled-jsx')
