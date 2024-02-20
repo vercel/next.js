@@ -168,6 +168,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().cell(),
