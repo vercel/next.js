@@ -397,7 +397,12 @@ export async function printTreeView(
 ) {
   const getPrettySize = (_size: number): string => {
     const size = prettyBytes(_size)
-    return white(bold(size))
+    // green for 0-130kb
+    if (_size < 130 * 1000) return green(bold(size))
+    // yellow for 130-170kb
+    if (_size < 170 * 1000) return yellow(bold(size))
+    // red for >= 170kb
+    return red(bold(size))
   }
 
   const MIN_DURATION = 300
