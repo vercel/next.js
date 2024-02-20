@@ -48,7 +48,7 @@ export default function transformSource(
 
       // When we cannot determine the export names, we use eager mode to include the whole module.
       // Otherwise, we use eager mode with webpackExports to only include the necessary exports.
-      if (ids.length === 0) {
+      if (ids.length === 0 || ids.includes('default')) {
         return `import(/* webpackMode: "eager" */ ${importPath})`
       } else {
         return `import(/* webpackMode: "eager" */ /* webpackExports: ${JSON.stringify(
