@@ -9,13 +9,14 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
-    it('should only include imported components in browser bundle with direct imports', async () => {
+    it('should only include imported relative components in browser bundle with direct imports', async () => {
       const clientChunksDir = join(
         next.testDir,
         '.next',
         'static',
         'chunks',
-        'app'
+        'app',
+        'relative-dep'
       )
       const staticChunksDirents = fs.readdirSync(clientChunksDir, {
         withFileTypes: true,
@@ -36,6 +37,36 @@ createNextDescribe(
       expect(
         chunkContents.every((content) =>
           content.includes('client-comp-default')
+        )
+      ).toBe(false)
+    })
+
+    it('should only include imported components 3rd party package in browser bundle with direct imports', async () => {
+      const clientChunksDir = join(
+        next.testDir,
+        '.next',
+        'static',
+        'chunks',
+        'app',
+        'third-party-dep'
+      )
+      const staticChunksDirents = fs.readdirSync(clientChunksDir, {
+        withFileTypes: true,
+      })
+      const chunkContents = staticChunksDirents
+        .filter((dirent) => dirent.isFile())
+        .map((chunkDirent) =>
+          fs.readFileSync(join(chunkDirent.path, chunkDirent.name), 'utf8')
+        )
+      expect(
+        chunkContents.some((content) => content.includes('client-dep-bar:esm'))
+      ).toBe(true)
+      expect(
+        chunkContents.every((content) => content.includes('client-dep-foo:esm'))
+      ).toBe(false)
+      expect(
+        chunkContents.every((content) =>
+          content.includes('client-dep-default:esm')
         )
       ).toBe(false)
     })
