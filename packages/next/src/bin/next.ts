@@ -269,7 +269,7 @@ program
   .addOption(
     new Option(
       '--cache-strategy, [cacheStrategy]',
-      'Specify a strategy to use for decting changed files in the cache.'
+      'Specify a strategy to use for detecting changed files in the cache.'
     ).default('metadata')
   )
   .option(
