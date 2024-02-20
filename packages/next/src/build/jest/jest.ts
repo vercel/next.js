@@ -8,6 +8,7 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
+import { getBabelConfigFile } from '../get-babel-config-file'
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -71,6 +72,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let isEsmProject = false
       let pagesDir: string | undefined
       let serverComponents: boolean | undefined
+      let useSWC = true
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
@@ -86,6 +88,9 @@ export default function nextJest(options: { dir?: string } = {}) {
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
         resolvedBaseUrl = result.resolvedBaseUrl
+
+        const babelConfigFile = getBabelConfigFile(resolvedDir)
+        useSWC = !babelConfigFile
       }
       // Ensure provided async config is supported
       const resolvedJestConfig =
@@ -156,10 +161,12 @@ export default function nextJest(options: { dir?: string } = {}) {
 
         transform: {
           // Use SWC to compile tests
-          '^.+\\.(js|jsx|ts|tsx|mjs)$': [
-            require.resolve('../swc/jest-transformer'),
-            jestTransformerConfig,
-          ],
+          ...(useSWC && {
+            '^.+\\.(js|jsx|ts|tsx|mjs)$': [
+              require.resolve('../swc/jest-transformer'),
+              jestTransformerConfig,
+            ],
+          }),
           // Allow for appending/overriding the default transforms
           ...(resolvedJestConfig.transform || {}),
         },
