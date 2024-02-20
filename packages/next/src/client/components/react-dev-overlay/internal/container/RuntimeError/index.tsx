@@ -3,7 +3,7 @@ import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import type { OriginalStackFrame } from '../../helpers/stack-frame'
-import { groupStackFramesByModule } from '../../helpers/group-stack-frames-by-module'
+import { groupStackFramesByPackage } from '../../helpers/group-stack-frames-by-module'
 import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
 import { ComponentStackFrameRow } from './ComponentStackFrameRow'
@@ -64,7 +64,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ])
 
   const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByModule(visibleCallStackFrames),
+    () => groupStackFramesByPackage(visibleCallStackFrames),
     [visibleCallStackFrames]
   )
 

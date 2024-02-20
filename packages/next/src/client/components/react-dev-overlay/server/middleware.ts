@@ -21,8 +21,8 @@ export type OverlayMiddlewareOptions = {
 export type OriginalStackFrameResponse = {
   originalStackFrame: StackFrame
   originalCodeFrame: string | null
-  /** Used to group frames by modules in the Error Overlay */
-  sourceModule?: 'react' | 'next'
+  /** Used to group frames by packages in the Error Overlay */
+  sourcePackage?: 'react' | 'next'
 }
 
 type Source = { map: () => any } | null
@@ -113,22 +113,24 @@ function findOriginalSourcePositionAndContentFromCompilation(
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
 }
 
-// REVIEW: This function has no effect currently. Should replace getModuleGroup in group-stack-frames-by-module.ts
-function findCallStackFrameModule(
+function findCallStackFramePackage(
   id: string,
   compilation?: webpack.Compilation
-): OriginalStackFrameResponse['sourceModule'] | undefined {
+): OriginalStackFrameResponse['sourcePackage'] {
   if (!compilation) return undefined
-  const module = compilation.findModule(id)
-  // @ts-expect-error
-  return module?.resourceResolveData?.descriptionFileData?.name
+  const moduleName: string | undefined = // @ts-expect-error
+    getModuleById(id, compilation)?.resourceResolveData?.descriptionFileData
+      ?.name
+  if (!moduleName) return undefined
+  if (moduleName === 'next') return 'next'
+  if (moduleName.startsWith('react')) return 'react'
 }
 
 export async function createOriginalStackFrame({
   line,
   column,
   source,
-  sourceModule,
+  sourcePackage,
   moduleId,
   modulePath,
   rootDirectory,
@@ -141,7 +143,7 @@ export async function createOriginalStackFrame({
   line: number
   column: number | null
   source: any
-  sourceModule?: OriginalStackFrameResponse['sourceModule']
+  sourcePackage?: OriginalStackFrameResponse['sourcePackage']
   moduleId?: string
   modulePath?: string
   rootDirectory: string
@@ -244,7 +246,11 @@ export async function createOriginalStackFrame({
         ) as string)
       : null
 
-  return { originalStackFrame: originalFrame, originalCodeFrame, sourceModule }
+  return {
+    originalStackFrame: originalFrame,
+    originalCodeFrame,
+    sourcePackage: sourcePackage,
+  }
 }
 
 export async function getSourceById(
@@ -330,35 +336,35 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       )
 
       let source: Source = null
-      let sourceModule: OriginalStackFrameResponse['sourceModule'] | undefined =
-        undefined
+      let sourcePackage:
+        | OriginalStackFrameResponse['sourcePackage']
+        | undefined = undefined
 
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
       const edgeCompilation = options.edgeServerStats()?.compilation
       const isFile = frame.file.startsWith('file:')
 
-      // REVIEW: Source always null
       try {
         if (isClientError || isAppDirectory) {
           // Try Client Compilation first
           // In `pages` we leverage `isClientError` to check
           // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
           source = await getSourceById(isFile, moduleId, clientCompilation)
-          sourceModule = findCallStackFrameModule(moduleId, clientCompilation)
+          sourcePackage = findCallStackFramePackage(moduleId, clientCompilation)
         }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
         // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
         if ((isServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, serverCompilation)
-          sourceModule = findCallStackFrameModule(moduleId, serverCompilation)
+          sourcePackage = findCallStackFramePackage(moduleId, serverCompilation)
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
         if ((isEdgeServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, edgeCompilation)
-          sourceModule = findCallStackFrameModule(moduleId, edgeCompilation)
+          sourcePackage = findCallStackFramePackage(moduleId, edgeCompilation)
         }
       } catch (err) {
         console.log('Failed to get source map:', err)
@@ -387,7 +393,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           line: frameLine,
           column: frameColumn,
           source,
-          sourceModule,
+          sourcePackage,
           frame,
           moduleId,
           modulePath,

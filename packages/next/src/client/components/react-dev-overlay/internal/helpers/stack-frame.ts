@@ -10,7 +10,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
-      sourceModule: OriginalStackFrameResponse['sourceModule']
+      sourcePackage: OriginalStackFrameResponse['sourcePackage']
     }
   | {
       error: false
@@ -20,7 +20,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: StackFrame
       originalCodeFrame: string | null
-      sourceModule: OriginalStackFrameResponse['sourceModule']
+      sourcePackage: OriginalStackFrameResponse['sourcePackage']
     }
   | {
       error: false
@@ -30,7 +30,7 @@ export type OriginalStackFrame =
       sourceStackFrame: StackFrame
       originalStackFrame: null
       originalCodeFrame: null
-      sourceModule: OriginalStackFrameResponse['sourceModule']
+      sourcePackage: OriginalStackFrameResponse['sourcePackage']
     }
 
 function getOriginalStackFrame(
@@ -82,7 +82,7 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
-      sourceModule: body.sourceModule,
+      sourcePackage: body.sourcePackage,
     }
   }
 
@@ -99,7 +99,7 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
-      sourceModule: undefined,
+      sourcePackage: undefined,
     })
   }
 
@@ -111,7 +111,7 @@ function getOriginalStackFrame(
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
-    sourceModule: undefined,
+    sourcePackage: undefined,
   }))
 }
 
