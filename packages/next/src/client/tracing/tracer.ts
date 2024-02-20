@@ -1,4 +1,3 @@
-import { LogSpanAllowList } from '../../server/lib/trace/constants'
 import mitt from '../../shared/lib/mitt'
 import type { MittEmitter } from '../../shared/lib/mitt'
 
