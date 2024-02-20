@@ -1,64 +1,62 @@
-import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-module'
+import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
-import { ModuleIcon } from './ModuleIcon'
+import { FrameworkIcon } from './FrameworkIcon'
+
+const chevronIcon = (
+  <svg
+    data-nextjs-call-stack-chevron-icon
+    fill="none"
+    height="20"
+    width="20"
+    shapeRendering="geometricPrecision"
+    stroke="currentColor"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    strokeWidth="2"
+    viewBox="0 0 24 24"
+  >
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+)
 
 function FrameworkGroup({
   framework,
   stackFrames,
   all,
 }: {
-  framework: NonNullable<StackFramesGroup['moduleGroup']>
+  framework: NonNullable<StackFramesGroup['framework']>
   stackFrames: StackFramesGroup['stackFrames']
   all: boolean
 }) {
   return (
-    <>
-      <details data-nextjs-collapsed-call-stack-details>
-        <summary
-          tabIndex={10} // Match CallStackFrame tabIndex
-        >
-          <svg
-            data-nextjs-call-stack-chevron-icon
-            fill="none"
-            height="20"
-            width="20"
-            shapeRendering="geometricPrecision"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-          >
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-          <ModuleIcon framework={framework} />
-          {framework === 'react' ? 'React' : 'Next.js'}
-        </summary>
-
-        {stackFrames.map((frame, index) => (
-          <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
-        ))}
-      </details>
-    </>
+    <details data-nextjs-collapsed-call-stack-details>
+      {/* Match CallStackFrame tabIndex */}
+      <summary tabIndex={10}>
+        {chevronIcon}
+        <FrameworkIcon framework={framework} />
+        {framework === 'react' ? 'React' : 'Next.js'}
+      </summary>
+      {stackFrames.map((frame, index) => (
+        <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
+      ))}
+    </details>
   )
 }
 
-export function GroupedStackFrames({
-  groupedStackFrames,
-  all,
-}: {
+export function GroupedStackFrames(props: {
   groupedStackFrames: StackFramesGroup[]
   all: boolean
 }) {
+  const { groupedStackFrames, all } = props
   return (
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
         // Collapse React and Next.js frames
-        if (stackFramesGroup.moduleGroup) {
+        if (stackFramesGroup.framework) {
           return (
             <FrameworkGroup
               key={`call-stack-framework-group-${groupIndex}-${all}`}
-              framework={stackFramesGroup.moduleGroup}
+              framework={stackFramesGroup.framework}
               stackFrames={stackFramesGroup.stackFrames}
               all={all}
             />

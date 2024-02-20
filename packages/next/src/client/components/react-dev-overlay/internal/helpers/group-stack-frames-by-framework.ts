@@ -1,7 +1,7 @@
 import type { OriginalStackFrame } from './stack-frame'
 
 export type StackFramesGroup = {
-  moduleGroup?: OriginalStackFrame['sourcePackage']
+  framework?: OriginalStackFrame['sourcePackage']
   stackFrames: OriginalStackFrame[]
 }
 
@@ -26,7 +26,7 @@ export type StackFramesGroup = {
  * > react
  *
  */
-export function groupStackFramesByPackage(
+export function groupStackFramesByFramework(
   stackFrames: OriginalStackFrame[]
 ): StackFramesGroup[] {
   const stackFramesGroupedByFramework: StackFramesGroup[] = []
@@ -34,13 +34,13 @@ export function groupStackFramesByPackage(
   for (const stackFrame of stackFrames) {
     const currentGroup =
       stackFramesGroupedByFramework[stackFramesGroupedByFramework.length - 1]
-    const moduleGroup = stackFrame.sourcePackage
+    const framework = stackFrame.sourcePackage
 
-    if (currentGroup && currentGroup.moduleGroup === moduleGroup) {
+    if (currentGroup && currentGroup.framework === framework) {
       currentGroup.stackFrames.push(stackFrame)
     } else {
       stackFramesGroupedByFramework.push({
-        moduleGroup,
+        framework: framework,
         stackFrames: [stackFrame],
       })
     }
