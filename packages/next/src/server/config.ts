@@ -1,5 +1,5 @@
 import { existsSync } from 'fs'
-import { unlink, writeFile } from 'fs/promises'
+import { unlink } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -983,7 +983,7 @@ export default async function loadConfig(
 
     let userConfigModule: any
     // For next.config.ts
-    let tempConfigPath: string | undefined
+    let nextConfigTsPath: string | undefined
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -996,22 +996,13 @@ export default async function loadConfig(
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
       } else if (isTypeScript) {
-        const code = await transpileConfig({
+        nextConfigTsPath = await transpileConfig({
           configPath: path as string,
           configFileName,
-          log: curLog,
+          cwd: dir,
         })
-        const isCJS = configFileName.endsWith('.cts')
 
-        tempConfigPath = join(
-          dir,
-          `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
-        )
-
-        // This tempConfig will be unlinked after imported
-        await writeFile(tempConfigPath, code, 'utf-8')
-
-        userConfigModule = await import(pathToFileURL(tempConfigPath).href)
+        userConfigModule = await import(pathToFileURL(nextConfigTsPath).href)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1034,7 +1025,7 @@ export default async function loadConfig(
       )
       throw err
     } finally {
-      if (tempConfigPath) await unlink(tempConfigPath)
+      if (nextConfigTsPath) await unlink(nextConfigTsPath)
     }
     const userConfig = await normalizeConfig(
       phase,
