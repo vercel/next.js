@@ -69,8 +69,11 @@ impl VersionedContentMap {
     ) -> Result<()> {
         let assets_operation = *assets_operation.await?;
         // Make sure all written client assets are up-to-date
-        let emit_operation =
-            emit_client_assets(assets_operation, client_relative_path, client_output_path);
+        let emit_operation = emit_client_assets(
+            assets_operation.resolve().await?,
+            client_relative_path,
+            client_output_path,
+        );
         let assets = assets_operation.await?;
         let entries: Vec<_> = assets
             .iter()
