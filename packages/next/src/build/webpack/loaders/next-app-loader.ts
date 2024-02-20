@@ -47,6 +47,7 @@ export type AppLoaderOptions = {
   isDev?: boolean
   basePath: string
   nextConfigOutput?: NextConfig['output']
+  nextConfigExperimentalUseEarlyImport?: boolean
   middlewareConfig: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
@@ -524,6 +525,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     middlewareConfig: middlewareConfigBase64,
+    nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
@@ -781,13 +783,14 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Evaluated the imported modules early in the generated code
   const earlyEvaluateCode =
-    process.env.NODE_ENV !== 'production'
-      ? ''
-      : collectedAsyncImports
+    nextConfigExperimentalUseEarlyImport &&
+    process.env.NODE_ENV === 'production'
+      ? collectedAsyncImports
           .map((modulePath) => {
             return `import ${JSON.stringify(modulePath)};`
           })
           .join('\n')
+      : ''
 
   return earlyEvaluateCode + code
 }
