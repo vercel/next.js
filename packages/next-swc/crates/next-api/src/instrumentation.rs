@@ -3,7 +3,7 @@ use next_core::{
     all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{get_server_chunking_context, get_server_runtime_entries, ServerContextType},
+    next_server::{get_server_runtime_entries, ServerContextType},
 };
 use tracing::Instrument;
 use turbo_tasks::{Completion, Value, Vc};
@@ -107,13 +107,7 @@ impl InstrumentationEndpoint {
 
     #[turbo_tasks::function]
     async fn node_chunk(&self) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let chunking_context = get_server_chunking_context(
-            self.project.project_path(),
-            self.project.node_root(),
-            self.project.client_relative_path(),
-            self.project.next_config().computed_asset_prefix(),
-            self.project.server_compile_time_info().environment(),
-        );
+        let chunking_context = self.project.server_chunking_context();
 
         let userland_module = self
             .context
