@@ -20,10 +20,6 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightRouterState,
-  FlightData,
-} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_FAST_REFRESH,
@@ -67,6 +63,7 @@ import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -211,17 +208,12 @@ function useChangeByServerResponse(
   dispatch: React.Dispatch<ReducerActions>
 ): RouterChangeByServerResponse {
   return useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
+    ({ previousTree, serverResponse }) => {
       startTransition(() => {
         dispatch({
           type: ACTION_SERVER_PATCH,
-          flightData,
           previousTree,
-          overrideCanonicalUrl,
+          serverResponse,
         })
       })
     },
