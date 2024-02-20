@@ -55,6 +55,8 @@ async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefin
     Ok(defines(&*define_env.await?).cell())
 }
 
+/// Define variables for the edge runtime can be accessibly globally.
+/// See [here](https://github.com/vercel/next.js/blob/160bb99b06e9c049f88e25806fd995f07f4cc7e1/packages/next/src/build/webpack-config.ts#L1715-L1718) how webpack configures it.
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
@@ -63,14 +65,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/compiled/buffer".to_string(),
+            request: "buffer".to_string(),
             lookup_path: Some(project_path),
             export: Some("Buffer".to_string()),
-        },
-        process = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/build/polyfills/process".to_string(),
-            lookup_path: Some(project_path),
-            export: Some("default".to_string()),
         },
     )
     .cell())
