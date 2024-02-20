@@ -20,10 +20,8 @@ export const requestAsyncStorage: RequestAsyncStorage =
 
 export function getExpectedRequestStore(callingExpression: string) {
   const store = requestAsyncStorage.getStore()
-  if (!store) {
-    throw new Error(
-      `Invariant: \`${callingExpression}\` expects to have requestAsyncStorage, none available.`
-    )
-  }
-  return store
+  if (store) return store
+  throw new Error(
+    `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+  )
 }

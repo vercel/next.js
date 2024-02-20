@@ -55,13 +55,3 @@ export type StaticGenerationAsyncStorage =
 
 export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
   createAsyncLocalStorage()
-
-export function getExpectedStaticGenerationStore(callingExpression: string) {
-  const store = staticGenerationAsyncStorage.getStore()
-  if (!store) {
-    throw new Error(
-      `Invariant: \`${callingExpression}\` expects to have staticGenerationAsyncStorage, none available.`
-    )
-  }
-  return store
-}
