@@ -1,11 +1,13 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::fonts::*;
-use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
 use turbo_tasks::Vc;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
-    turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+use turbopack_binding::{
+    swc::core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
+    turbopack::{
+        ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext},
+        turbopack::module_options::{ModuleRule, ModuleRuleEffect},
+    },
 };
 
 use super::module_rule_match_js_no_url;

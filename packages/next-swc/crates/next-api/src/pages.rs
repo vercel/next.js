@@ -5,7 +5,6 @@ use indexmap::IndexMap;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
-    mode::NextMode,
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
@@ -82,14 +81,13 @@ use crate::{
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: Vc<Project>,
-    mode: NextMode,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
-    pub async fn new(project: Vc<Project>, mode: NextMode) -> Result<Vc<Self>> {
-        Ok(PagesProject { project, mode }.cell())
+    pub async fn new(project: Vc<Project>) -> Result<Vc<Self>> {
+        Ok(PagesProject { project }.cell())
     }
 
     #[turbo_tasks::function]
@@ -280,7 +278,6 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
@@ -288,20 +285,19 @@ impl PagesProject {
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -330,8 +326,7 @@ impl PagesProject {
     }
 
     /// Returns a context specific to pages/api.
-    /// This mimics the current configuration in next-dev.
-    /// (https://github.com/vercel/next.js/blob/9b4b0847ed4a1025e73bec16a9ee11766e632e14/packages/next/src/build/webpack-config.ts#L1381-L1385)
+    /// This mimics the current configuration in [next-dev](https://github.com/vercel/next.js/blob/9b4b0847ed4a1025e73bec16a9ee11766e632e14/packages/next/src/build/webpack-config.ts#L1381-L1385)
     #[turbo_tasks::function]
     pub(super) fn api_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
         ModuleAssetContext::new(
@@ -389,49 +384,45 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn api_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesApi {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_data_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
@@ -440,7 +431,7 @@ impl PagesProject {
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -448,7 +439,6 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             // NOTE(alexkirsz) This could be `PagesData` for the data endpoint, but it doesn't
@@ -457,7 +447,7 @@ impl PagesProject {
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -465,13 +455,12 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
         let client_runtime_entries = get_client_runtime_entries(
             self.project().project_path(),
             Value::new(ClientContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         );
@@ -480,23 +469,21 @@ impl PagesProject {
 
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(ServerContextType::Pages {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(ServerContextType::PagesData {
                 pages_dir: self.pages_dir(),
             }),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
@@ -1000,9 +987,8 @@ impl PageEndpoint {
             this.pages_project.project().client_root(),
             this.pages_project.project().node_root(),
             this.pages_project.pages_dir(),
-            "",
-            &pathname,
             &original_name,
+            &get_asset_prefix_from_pathname(&pathname),
             client_assets,
             false,
         )

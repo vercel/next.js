@@ -17,16 +17,14 @@ createNextDescribe(
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
     packageJson: {
       scripts: {
-        setup: 'cp -r ./node_modules_bak/* ./node_modules',
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
   },
   ({ next }) => {
     it('should show runtime errors if invalid client API from node_modules is executed', async () => {
@@ -76,7 +74,7 @@ createNextDescribe(
       const errorDescription = await getRedboxDescription(browser)
 
       expect(errorDescription).toContain(
-        `Error: Invariant: \`cookies\` expects to have requestAsyncStorage, none available.`
+        'Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
       )
     })
 
@@ -144,6 +142,27 @@ createNextDescribe(
       } else {
         await expect(versionText).not.toContain('(turbo)')
       }
+    })
+
+    it('should not show the bundle layer info in the file trace', async () => {
+      await next.patchFile(
+        'app/server/page.js',
+        outdent`
+        export default function Page() {
+          throw new Error('test')
+        }
+        `
+      )
+      const browser = await next.browser('/server')
+
+      await retry(async () => {
+        expect(await hasRedbox(browser)).toBe(true)
+      })
+      const source = await getRedboxSource(browser)
+      expect(source).toContain('app/server/page.js')
+      expect(source).not.toContain('//app/server/page.js')
+      // Does not contain webpack traces in file path
+      expect(source).not.toMatch(/webpack(-internal:)?\/\//)
     })
   }
 )

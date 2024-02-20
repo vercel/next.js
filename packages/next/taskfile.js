@@ -73,7 +73,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin',
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -469,83 +469,6 @@ export async function ncc_edge_runtime(task, opts) {
     (
       await fs.readFile(outputFile, 'utf8')
     ).replace(/eval\("require"\)/g, 'require')
-  )
-}
-
-// eslint-disable-next-line camelcase
-export async function ncc_next__react_dev_overlay(task, opts) {
-  const overlayExternals = {
-    ...externals,
-    react: 'react',
-    'react-dom': 'react-dom',
-  }
-  // dev-overlay needs a newer source-map version
-  delete overlayExternals['source-map']
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/middleware-turbopack')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  await task
-    .source(
-      relative(
-        __dirname,
-        require.resolve('@next/react-dev-overlay/dist/client')
-      )
-    )
-    .ncc({
-      precompiled: false,
-      packageName: '@next/react-dev-overlay',
-      externals: overlayExternals,
-      target: 'es5',
-    })
-    .target('dist/compiled/@next/react-dev-overlay/dist')
-
-  const clientFile = join(
-    __dirname,
-    'dist/compiled/@next/react-dev-overlay/dist/client.js'
-  )
-  const content = await fs.readFile(clientFile, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs
-  await fs.writeFile(
-    clientFile,
-    content.replace(
-      new RegExp(
-        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=b;define((function(){return b}))}else '.replace(
-          /[|\\{}()[\]^$+*?.-]/g,
-          '\\$&'
-        ),
-        'g'
-      ),
-      ''
-    )
   )
 }
 
@@ -2426,7 +2349,6 @@ export async function compile(task, opts) {
 
   await task.serial([
     'ncc_react_refresh_utils',
-    'ncc_next__react_dev_overlay',
     'ncc_next_font',
     'capsize_metrics',
   ])
@@ -2694,11 +2616,6 @@ export default async function (task) {
   await task.watch(
     'src/shared',
     ['shared_re_exported', 'shared_re_exported_esm', 'shared', 'shared_esm'],
-    opts
-  )
-  await task.watch(
-    '../react-dev-overlay/dist',
-    'ncc_next__react_dev_overlay',
     opts
   )
 }

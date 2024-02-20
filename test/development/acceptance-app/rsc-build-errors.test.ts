@@ -5,7 +5,7 @@ import { sandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('Error overlay - RSC build errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-build-errors')),
     dependencies: {
       react: 'latest',
@@ -223,9 +223,23 @@ describe('Error overlay - RSC build errors', () => {
     await next.patchFile(file, uncomment)
 
     expect(await session.hasRedbox()).toBe(true)
-    expect(await session.getRedboxSource()).toInclude(
-      `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
-    )
+    if (isTurbopack) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+        Parsing ecmascript source code failed
+        > 1 | import 'client-only'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 |
+          3 | export default function ClientOnlyLib() {
+          4 |   return 'client-only-lib'
+
+        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\\n\\n"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.`
+      )
+    }
 
     await cleanup()
   })
