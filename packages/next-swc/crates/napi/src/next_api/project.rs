@@ -90,6 +90,9 @@ pub struct NapiProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: NapiDefineEnv,
+
+    /// The mode in which Next.js is running.
+    pub dev: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -121,6 +124,9 @@ pub struct NapiPartialProjectOptions {
     /// A map of environment variables which should get injected at compile
     /// time.
     pub define_env: Option<NapiDefineEnv>,
+
+    /// The mode in which Next.js is running.
+    pub dev: Option<bool>,
 }
 
 #[napi(object)]
@@ -151,6 +157,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
                 .map(|var| (var.name, var.value))
                 .collect(),
             define_env: val.define_env.into(),
+            dev: val.dev,
         }
     }
 }
@@ -167,6 +174,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
             define_env: val.define_env.map(|env| env.into()),
+            dev: val.dev,
         }
     }
 }
@@ -298,12 +306,26 @@ pub async fn project_update(
 
 #[napi(object)]
 #[derive(Default)]
-struct NapiRoute {
+struct AppPageNapiRoute {
     /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
+
+    pub html_endpoint: Option<External<ExternalEndpoint>>,
+    pub rsc_endpoint: Option<External<ExternalEndpoint>>,
+}
+
+#[napi(object)]
+#[derive(Default)]
+struct NapiRoute {
+    /// The router path
     pub pathname: String,
+    /// The relative path from project_path to the route file
+    pub original_name: Option<String>,
 
     /// The type of route, eg a Page or App
     pub r#type: &'static str,
+
+    pub pages: Option<Vec<AppPageNapiRoute>>,
 
     // Different representations of the endpoint
     pub endpoint: Option<External<ExternalEndpoint>>,
@@ -341,18 +363,27 @@ impl NapiRoute {
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage {
-                html_endpoint,
-                rsc_endpoint,
-            } => NapiRoute {
+            Route::AppPage(pages) => NapiRoute {
                 pathname,
                 r#type: "app-page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                rsc_endpoint: convert_endpoint(rsc_endpoint),
+                pages: Some(
+                    pages
+                        .into_iter()
+                        .map(|page_route| AppPageNapiRoute {
+                            original_name: Some(page_route.original_name),
+                            html_endpoint: convert_endpoint(page_route.html_endpoint),
+                            rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
+                        })
+                        .collect(),
+                ),
                 ..Default::default()
             },
-            Route::AppRoute { endpoint } => NapiRoute {
+            Route::AppRoute {
+                original_name,
+                endpoint,
+            } => NapiRoute {
                 pathname,
+                original_name: Some(original_name),
                 r#type: "app-route",
                 endpoint: convert_endpoint(endpoint),
                 ..Default::default()
@@ -473,8 +504,8 @@ pub fn project_entrypoints_subscribe(
                     routes: entrypoints
                         .routes
                         .iter()
-                        .map(|(pathname, &route)| {
-                            NapiRoute::from_route(pathname.clone(), route, &turbo_tasks)
+                        .map(|(pathname, route)| {
+                            NapiRoute::from_route(pathname.clone(), route.clone(), &turbo_tasks)
                         })
                         .collect::<Vec<_>>(),
                     middleware: entrypoints
@@ -729,6 +760,16 @@ impl From<UpdateInfo> for NapiUpdateInfo {
     }
 }
 
+/// Subscribes to lifecycle events of the compilation.
+/// Emits an [UpdateMessage::Start] event when any computation starts.
+/// Emits an [UpdateMessage::End] event when there was no computation for the
+/// specified time (`aggregation_ms`). The [UpdateMessage::End] event contains
+/// information about the computations that happened since the
+/// [UpdateMessage::Start] event. It contains the duration of the computation
+/// (excluding the idle time that was spend waiting for `aggregation_ms`), and
+/// the number of tasks that were executed.
+///
+/// The signature of the `func` is `(update_message: UpdateMessage) => void`.
 #[napi]
 pub fn project_update_info_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,

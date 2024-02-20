@@ -93,7 +93,7 @@ pub fn get_edge_compile_time_info(
 pub async fn get_edge_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -104,7 +104,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.node_env().to_string(),
+        mode.await?.node_env().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -140,6 +140,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),

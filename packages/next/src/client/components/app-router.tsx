@@ -511,19 +511,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const urlToRestore = new URL(url ?? href, href)
-      if (!window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
-        // we cannot safely recover from a missing tree -- we need trigger an MPA navigation
-        // to restore the router history to the correct state.
-        window.location.href = urlToRestore.pathname
-        return
-      }
+      const tree: FlightRouterState | undefined =
+        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
-          url: urlToRestore,
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          url: new URL(url ?? href, href),
+          tree,
         })
       })
     }
@@ -542,6 +537,7 @@ function Router({
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
       }
+
       data = copyNextJsInternalHistoryState(data)
 
       if (url) {
