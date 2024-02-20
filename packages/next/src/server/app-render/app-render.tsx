@@ -649,35 +649,38 @@ async function renderToHTMLOrFlightImpl(
       }
     }
   }
-  req.on('end', () => {
-    const type = NextNodeServerSpan.clientComponentLoading
-    const startTime = clientComponentLoadStart
-    const endTime = clientComponentLoadStart + clientComponentLoadTimes
-    getTracer()
-      .startSpan(type, {
-        startTime,
-        attributes: {
-          'next.clientComponentLoadCount': clientComponentLoadCount,
-        },
-      })
-      .end(endTime)
 
-    if (
-      typeof performance !== 'undefined' &&
-      process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-    ) {
-      const { timeOrigin } = performance
-      performance.measure(
-        `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
-          type.split('.').pop() || ''
-        ).replace(/[A-Z]/g, (match: string) => '-' + match.toLowerCase())}`,
-        {
-          start: startTime - timeOrigin,
-          end: endTime - timeOrigin,
-        }
-      )
-    }
-  })
+  if (typeof req.on === 'function') {
+    req.on('end', () => {
+      const type = NextNodeServerSpan.clientComponentLoading
+      const startTime = clientComponentLoadStart
+      const endTime = clientComponentLoadStart + clientComponentLoadTimes
+      getTracer()
+        .startSpan(type, {
+          startTime,
+          attributes: {
+            'next.clientComponentLoadCount': clientComponentLoadCount,
+          },
+        })
+        .end(endTime)
+
+      if (
+        typeof performance !== 'undefined' &&
+        process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+      ) {
+        const { timeOrigin } = performance
+        performance.measure(
+          `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+            type.split('.').pop() || ''
+          ).replace(/[A-Z]/g, (match: string) => '-' + match.toLowerCase())}`,
+          {
+            start: startTime - timeOrigin,
+            end: endTime - timeOrigin,
+          }
+        )
+      }
+    })
+  }
 
   const metadata: AppPageRenderResultMetadata = {}
 
