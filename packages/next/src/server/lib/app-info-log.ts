@@ -38,7 +38,7 @@ export function logStartInfo({
   if (envInfo?.length) Log.bootstrap(` - Environments: ${envInfo.join(', ')}`)
 
   if (expFeatureInfo?.length) {
-    Log.bootstrap(` - Experiments (use at your own risk):`)
+    Log.bootstrap(` - Experiments (use with caution):`)
     // only show maximum 3 flags
     for (const exp of expFeatureInfo.slice(0, maxExperimentalFeatures)) {
       Log.bootstrap(`   · ${exp}`)

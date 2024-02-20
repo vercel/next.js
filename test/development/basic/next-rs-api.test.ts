@@ -144,7 +144,7 @@ export function getServerSideProps() { return { props: { ...props, ...${JSON.str
 }
 
 function appPageCode(text) {
-  return `import Client from "./client.ts";
+  return `import Client from "./client.tsx";
 export default () => <div>${text}<Client /></div>;`
 }
 
@@ -164,16 +164,16 @@ describe('next.rs api', () => {
             'export default () => Response.json({ hello: "world" })',
           'pages/api/edge.js':
             'export default () => Response.json({ hello: "world" })\nexport const config = { runtime: "edge" }',
-          'app/layout.ts':
+          'app/layout.tsx':
             'export default function RootLayout({ children }: { children: any }) { return (<html><body>{children}</body></html>)}',
-          'app/loading.ts':
+          'app/loading.tsx':
             'export default function Loading() { return <>Loading</> }',
-          'app/app/page.ts': appPageCode('hello world'),
-          'app/app/client.ts':
+          'app/app/page.tsx': appPageCode('hello world'),
+          'app/app/client.tsx':
             '"use client";\nexport default () => <div>hello world</div>',
-          'app/app-edge/page.ts':
+          'app/app-edge/page.tsx':
             'export default () => <div>hello world</div>\nexport const runtime = "edge"',
-          'app/app-nodejs/page.ts':
+          'app/app-nodejs/page.tsx':
             'export default () => <div>hello world</div>',
           'app/route-nodejs/route.ts':
             'export function GET() { return Response.json({ hello: "world" }) }',
@@ -202,7 +202,7 @@ describe('next.rs api', () => {
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
       watch: true,
-      serverAddr: `127.0.0.1:3000`,
+      dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
         allowedRevalidateHeaderKeys: undefined,
@@ -360,7 +360,7 @@ describe('next.rs api', () => {
           break
         }
         case 'app-page': {
-          const result = await route.htmlEndpoint.writeToDisk()
+          const result = await route.pages[0].htmlEndpoint.writeToDisk()
           expect(result.type).toBe(runtime)
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
@@ -368,7 +368,7 @@ describe('next.rs api', () => {
             'diagnostics'
           )
 
-          const result2 = await route.rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -426,16 +426,16 @@ describe('next.rs api', () => {
       name: 'client-side change on a app page',
       path: '/app',
       type: 'app-page',
-      file: 'app/app/client.ts',
+      file: 'app/app/client.tsx',
       content: '"use client";\nexport default () => <div>hello world2</div>',
-      expectedUpdate: '/app/app/client.ts',
+      expectedUpdate: '/app/app/client.tsx',
       expectedServerSideChange: false,
     },
     {
       name: 'server-side change on a app page',
       path: '/app',
       type: 'app-page',
-      file: 'app/app/page.ts',
+      file: 'app/app/page.tsx',
       content: appPageCode('hello world2'),
       expectedUpdate: false,
       expectedServerSideChange: true,
@@ -477,10 +477,9 @@ describe('next.rs api', () => {
             break
           }
           case 'app-page': {
-            await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.rscEndpoint.serverChanged(
-              false
-            )
+            await route.pages[0].htmlEndpoint.writeToDisk()
+            serverSideSubscription =
+              await route.pages[0].rscEndpoint.serverChanged(false)
             break
           }
           default: {

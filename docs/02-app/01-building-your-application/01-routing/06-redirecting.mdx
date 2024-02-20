@@ -80,7 +80,7 @@ export async function createPost(id) {
 > **Good to know**:
 >
 > - `redirect` returns a 307 (Temporary Redirect) status code by default. When used in a Server Action, it returns a 303 (See Other), which is commonly used for redirecting to a success page as a result of a POST request.
-> - `redirect` internally throws an error so should be called outside of `try/catch` blocks.
+> - `redirect` internally throws an error so it should be called outside of `try/catch` blocks.
 > - `redirect` can be called in Client Components during the rendering process but not in event handlers. You can use the [`useRouter` hook](#userouter-hook) instead.
 > - `redirect` also accepts absolute URLs and can be used to redirect to external links.
 > - If you'd like to redirect before the render process, use [`next.config.js`](#redirects-in-nextconfigjs) or [Middleware](#nextresponseredirect-in-middleware).
@@ -139,7 +139,7 @@ See the [`permanentRedirect` API reference](/docs/app/api-reference/functions/pe
 
 </AppOnly>
 
-## `useRouter` hook
+## `useRouter()` hook
 
 <AppOnly>
 
@@ -216,7 +216,6 @@ export default function Page() {
 > **Good to know**:
 >
 > - If you don't need to programatically navigate a user, you should use a [`<Link>`](/docs/app/api-reference/components/link) component.
-> - `redirect` in the App Router also accepts absolute URLs and can be used to redirect to external links. For the Pages Router, you can use [window.location](https://developer.mozilla.org/en-US/docs/Web/API/Window/location).
 
 <AppOnly>
 

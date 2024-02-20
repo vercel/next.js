@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { PagesAPIRouteDefinition } from '../../route-definitions/pages-api-route-definition'
 import type { PageConfig } from '../../../../../types'
 import type { ParsedUrlQuery } from 'querystring'
-import type { __ApiPreviewProps } from '../../../api-utils'
+import { wrapApiHandler, type __ApiPreviewProps } from '../../../api-utils'
 import type { RouteModuleOptions } from '../route-module'
 
 import { RouteModule, type RouteModuleHandleContext } from '../route-module'
@@ -104,6 +104,8 @@ export class PagesAPIRouteModule extends RouteModule<
   PagesAPIRouteDefinition,
   PagesAPIUserlandModule
 > {
+  private apiResolverWrapped: typeof apiResolver
+
   constructor(options: PagesAPIRouteModuleOptions) {
     super(options)
 
@@ -112,6 +114,11 @@ export class PagesAPIRouteModule extends RouteModule<
         `Page ${options.definition.page} does not export a default function.`
       )
     }
+
+    this.apiResolverWrapped = wrapApiHandler(
+      options.definition.page,
+      apiResolver
+    )
   }
 
   /**
@@ -125,7 +132,8 @@ export class PagesAPIRouteModule extends RouteModule<
     res: ServerResponse,
     context: PagesAPIRouteHandlerContext
   ): Promise<void> {
-    await apiResolver(
+    const { apiResolverWrapped } = this
+    await apiResolverWrapped(
       req,
       res,
       context.query,

@@ -2,8 +2,8 @@ import { useContext, useMemo } from 'react'
 import type { FlightRouterState } from '../../server/app-render/types'
 import {
   AppRouterContext,
-  GlobalLayoutRouterContext,
   LayoutRouterContext,
+  type AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import {
   SearchParamsContext,
@@ -14,61 +14,53 @@ import { clientHookInServerComponentError } from './client-hook-in-server-compon
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
-const INTERNAL_URLSEARCHPARAMS_INSTANCE = Symbol(
-  'internal for urlsearchparams readonly'
-)
-
-function readonlyURLSearchParamsError() {
-  return new Error('ReadonlyURLSearchParams cannot be modified')
+/** @internal */
+class ReadonlyURLSearchParamsError extends Error {
+  constructor() {
+    super(
+      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams'
+    )
+  }
 }
 
-export class ReadonlyURLSearchParams {
-  [INTERNAL_URLSEARCHPARAMS_INSTANCE]: URLSearchParams
-
-  entries: URLSearchParams['entries']
-  forEach: URLSearchParams['forEach']
-  get: URLSearchParams['get']
-  getAll: URLSearchParams['getAll']
-  has: URLSearchParams['has']
-  keys: URLSearchParams['keys']
-  values: URLSearchParams['values']
-  toString: URLSearchParams['toString']
-  size: any | URLSearchParams['size']
-
-  constructor(urlSearchParams: URLSearchParams) {
-    this[INTERNAL_URLSEARCHPARAMS_INSTANCE] = urlSearchParams
-
-    this.entries = urlSearchParams.entries.bind(urlSearchParams)
-    this.forEach = urlSearchParams.forEach.bind(urlSearchParams)
-    this.get = urlSearchParams.get.bind(urlSearchParams)
-    this.getAll = urlSearchParams.getAll.bind(urlSearchParams)
-    this.has = urlSearchParams.has.bind(urlSearchParams)
-    this.keys = urlSearchParams.keys.bind(urlSearchParams)
-    this.values = urlSearchParams.values.bind(urlSearchParams)
-    this.toString = urlSearchParams.toString.bind(urlSearchParams)
-    this.size = urlSearchParams.size
-  }
-  [Symbol.iterator]() {
-    return this[INTERNAL_URLSEARCHPARAMS_INSTANCE][Symbol.iterator]()
-  }
-
+export class ReadonlyURLSearchParams extends URLSearchParams {
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   append() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   delete() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   set() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
+  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
   sort() {
-    throw readonlyURLSearchParamsError()
+    throw new ReadonlyURLSearchParamsError()
   }
 }
 
 /**
- * Get a read-only URLSearchParams object. For example searchParams.get('foo') would return 'bar' when ?foo=bar
- * Learn more about URLSearchParams here: https://developer.mozilla.org/docs/Web/API/URLSearchParams
+ * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+ * that lets you *read* the current URL's search parameters.
+ *
+ * Learn more about [`URLSearchParams` on MDN](https://developer.mozilla.org/docs/Web/API/URLSearchParams)
+ *
+ * @example
+ * ```ts
+ * "use client"
+ * import { useSearchParams } from 'next/navigation'
+ *
+ * export default function Page() {
+ *   const searchParams = useSearchParams()
+ *   searchParams.get('foo') // returns 'bar' when ?foo=bar
+ *   // ...
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `useSearchParams`](https://nextjs.org/docs/app/api-reference/functions/use-search-params)
  */
 export function useSearchParams(): ReadonlyURLSearchParams {
   clientHookInServerComponentError('useSearchParams')
@@ -99,7 +91,21 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 }
 
 /**
- * Get the current pathname. For example usePathname() on /dashboard?foo=bar would return "/dashboard"
+ * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+ * that lets you read the current URL's pathname.
+ *
+ * @example
+ * ```ts
+ * "use client"
+ * import { usePathname } from 'next/navigation'
+ *
+ * export default function Page() {
+ *  const pathname = usePathname() // returns "/dashboard" on /dashboard?foo=bar
+ *  // ...
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname)
  */
 export function usePathname(): string {
   clientHookInServerComponentError('usePathname')
@@ -114,9 +120,24 @@ export {
 } from '../../shared/lib/server-inserted-html.shared-runtime'
 
 /**
- * Get the router methods. For example router.push('/dashboard')
+ *
+ * This hook allows you to programmatically change routes inside [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components).
+ *
+ * @example
+ * ```ts
+ * "use client"
+ * import { useRouter } from 'next/navigation'
+ *
+ * export default function Page() {
+ *  const router = useRouter()
+ *  // ...
+ *  router.push('/dashboard') // Navigate to /dashboard
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `useRouter`](https://nextjs.org/docs/app/api-reference/functions/use-router)
  */
-export function useRouter(): import('../../shared/lib/app-router-context.shared-runtime').AppRouterInstance {
+export function useRouter(): AppRouterInstance {
   clientHookInServerComponentError('useRouter')
   const router = useContext(AppRouterContext)
   if (router === null) {
@@ -130,59 +151,30 @@ interface Params {
   [key: string]: string | string[]
 }
 
-// this function performs a depth-first search of the tree to find the selected
-// params
-function getSelectedParams(
-  tree: FlightRouterState,
-  params: Params = {}
-): Params {
-  const parallelRoutes = tree[1]
-
-  for (const parallelRoute of Object.values(parallelRoutes)) {
-    const segment = parallelRoute[0]
-    const isDynamicParameter = Array.isArray(segment)
-    const segmentValue = isDynamicParameter ? segment[1] : segment
-    if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
-
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
-    }
-
-    params = getSelectedParams(parallelRoute, params)
-  }
-
-  return params
-}
-
 /**
- * Get the current parameters. For example useParams() on /dashboard/[team]
- * where pathname is /dashboard/nextjs would return { team: 'nextjs' }
+ * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+ * that lets you read a route's dynamic params filled in by the current URL.
+ *
+ * @example
+ * ```ts
+ * "use client"
+ * import { useParams } from 'next/navigation'
+ *
+ * export default function Page() {
+ *   // on /dashboard/[team] where pathname is /dashboard/nextjs
+ *   const { team } = useParams() // team === "nextjs"
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `useParams`](https://nextjs.org/docs/app/api-reference/functions/use-params)
  */
 export function useParams<T extends Params = Params>(): T {
   clientHookInServerComponentError('useParams')
-  const globalLayoutRouter = useContext(GlobalLayoutRouterContext)
-  const pathParams = useContext(PathParamsContext)
 
-  return useMemo(() => {
-    // When it's under app router
-    if (globalLayoutRouter?.tree) {
-      return getSelectedParams(globalLayoutRouter.tree) as T
-    }
-
-    // When it's under client side pages router
-    return pathParams as T
-  }, [globalLayoutRouter?.tree, pathParams])
+  return useContext(PathParamsContext) as T
 }
 
-/**
- * Get the canonical parameters from the current level to the leaf node.
- */
+/** Get the canonical parameters from the current level to the leaf node. */
 function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
@@ -217,9 +209,30 @@ function getSelectedLayoutSegmentPath(
   )
 }
 
-// TODO-APP: Expand description when the docs are written for it.
 /**
- * Get the canonical segment path from the current level to the leaf node.
+ * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+ * that lets you read the active route segments **below** the Layout it is called from.
+ *
+ * @example
+ * ```ts
+ * 'use client'
+ *
+ * import { useSelectedLayoutSegments } from 'next/navigation'
+ *
+ * export default function ExampleClientComponent() {
+ *   const segments = useSelectedLayoutSegments()
+ *
+ *   return (
+ *     <ul>
+ *       {segments.map((segment, index) => (
+ *         <li key={index}>{segment}</li>
+ *       ))}
+ *     </ul>
+ *   )
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `useSelectedLayoutSegments`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segments)
  */
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
@@ -229,9 +242,23 @@ export function useSelectedLayoutSegments(
   return getSelectedLayoutSegmentPath(tree, parallelRouteKey)
 }
 
-// TODO-APP: Expand description when the docs are written for it.
 /**
- * Get the segment below the current level
+ * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
+ * that lets you read the active route segment **one level below** the Layout it is called from.
+ *
+ * @example
+ * ```ts
+ * 'use client'
+ * import { useSelectedLayoutSegment } from 'next/navigation'
+ *
+ * export default function ExampleClientComponent() {
+ *   const segment = useSelectedLayoutSegment()
+ *
+ *   return <p>Active segment: {segment}</p>
+ * }
+ * ```
+ *
+ * Read more: [Next.js Docs: `useSelectedLayoutSegment`](https://nextjs.org/docs/app/api-reference/functions/use-selected-layout-segment)
  */
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'

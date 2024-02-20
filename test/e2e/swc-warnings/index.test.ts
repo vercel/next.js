@@ -36,7 +36,8 @@ import { renderViaHTTP } from 'next-test-utils'
   }
 )
 
-describe('can force swc', () => {
+// Tests Babel, not needed for Turbopack
+;(process.env.TURBOPACK ? describe.skip : describe)('can force swc', () => {
   let next: NextInstance
 
   beforeAll(async () => {

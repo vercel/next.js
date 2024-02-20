@@ -132,7 +132,7 @@ impl<C: Comments> ServerActions<C> {
                     self.config.enabled,
                 );
 
-                if is_action_fn && !self.config.is_react_server_layer {
+                if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
@@ -459,7 +459,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
+            // It's an action function. If it doesn't have a name, give it one.
             match f.ident.as_mut() {
                 None => {
                     let action_name = gen_ident(&mut self.action_cnt);
@@ -541,7 +542,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             });
         }
 
-        if !self.in_action_file {
+        if !(self.in_action_file && self.in_export_decl) {
             // Collect all the identifiers defined inside the closure and used
             // in the action function. With deduplication.
             retain_names_from_declared_idents(&mut child_names, &current_declared_idents);
@@ -900,6 +901,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
             }
 
@@ -986,6 +988,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
                 new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                     span: DUMMY_SP,
@@ -1021,11 +1024,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         if self.has_action {
-            let actions = if self.in_action_file {
-                self.exported_idents.iter().map(|e| e.1.clone()).collect()
-            } else {
-                self.export_actions.clone()
+            let mut actions = self.export_actions.clone();
+
+            // All exported values are considered as actions if the file is an action file.
+            if self.in_action_file {
+                actions.extend(self.exported_idents.iter().map(|e| e.1.clone()));
             };
+
             let actions = actions
                 .into_iter()
                 .map(|name| (generate_action_id(&self.file_name, &name), name))
@@ -1042,23 +1047,24 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
             if self.config.is_react_server_layer {
                 // Inlined actions are only allowed on the server layer.
-                // import { createActionProxy } from 'private-next-rsc-action-proxy'
-                // createActionProxy("action_id")
+                // import { registerServerReference } from 'private-next-rsc-server-reference'
+                // registerServerReference("action_id")
                 new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                     span: DUMMY_SP,
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
-                        local: quote_ident!("createActionProxy"),
+                        local: quote_ident!("registerServerReference"),
                         imported: None,
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
                         span: DUMMY_SP,
-                        value: "private-next-rsc-action-proxy".into(),
+                        value: "private-next-rsc-server-reference".into(),
                         raw: None,
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Encryption and decryption only happens on the server layer.
@@ -1087,6 +1093,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     }),
                     type_only: false,
                     with: None,
+                    phase: Default::default(),
                 })));
 
                 // Make it the first item
@@ -1165,7 +1172,7 @@ fn attach_name_to_expr(ident: Ident, expr: Expr, extra_items: &mut Vec<ModuleIte
             span: DUMMY_SP,
             expr: Box::new(Expr::Assign(AssignExpr {
                 span: DUMMY_SP,
-                left: PatOrExpr::Pat(Box::new(Pat::Ident(ident.into()))),
+                left: ident.into(),
                 op: op!("="),
                 right: Box::new(expr),
             })),
@@ -1211,13 +1218,13 @@ fn annotate_ident_as_action(
     file_name: &str,
     export_name: String,
 ) -> Expr {
-    // Add the proxy wrapper call `createActionProxy($$id, $$bound, myAction,
+    // Add the proxy wrapper call `registerServerReference($$id, $$bound, myAction,
     // maybe_orig_action)`.
     let action_id = generate_action_id(file_name, &export_name);
 
     let proxy_expr = Expr::Call(CallExpr {
         span: DUMMY_SP,
-        callee: quote_ident!("createActionProxy").as_callee(),
+        callee: quote_ident!("registerServerReference").as_callee(),
         args: vec![
             // $$id
             ExprOrSpread {

@@ -5,6 +5,8 @@ import {
   createAbortController,
 } from './web/spec-extension/adapters/next-request'
 import { DetachedPromise } from '../lib/detached-promise'
+import { getTracer } from './lib/trace/tracer'
+import { NextNodeServerSpan } from './lib/trace/constants'
 
 export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
@@ -47,6 +49,13 @@ function createWriterFromResponse(
       if (!started) {
         started = true
         res.flushHeaders()
+        getTracer().trace(
+          NextNodeServerSpan.startResponse,
+          {
+            spanName: 'start response',
+          },
+          () => undefined
+        )
       }
 
       try {

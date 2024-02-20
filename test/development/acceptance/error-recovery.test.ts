@@ -107,28 +107,28 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox()).toBe(true)
     if (isTurbopack) {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "index.js (7:5) @ <unknown>
+        "index.js (7:11) @ <unknown>
 
-           5 | const increment = useCallback(() => {
-           6 |   setCount(c => c + 1)
-        >  7 |   throw new Error('oops')
-             |   ^
-           8 | }, [setCount])
-           9 | return (
-          10 |   <main>"
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |           ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-              "index.js (7:10) @ eval
+        "index.js (7:11) @ eval
 
-                 5 | const increment = useCallback(() => {
-                 6 |   setCount(c => c + 1)
-              >  7 |   throw new Error('oops')
-                   |        ^
-                 8 | }, [setCount])
-                 9 | return (
-                10 |   <main>"
-          `)
+           5 |   const increment = useCallback(() => {
+           6 |     setCount(c => c + 1)
+        >  7 |     throw new Error('oops')
+             |           ^
+           8 |   }, [setCount])
+           9 |   return (
+          10 |     <main>"
+      `)
     }
     await session.patch(
       'index.js',
@@ -436,51 +436,48 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     expect(await session.hasRedbox()).toBe(true)
     expect(next.normalizeTestDirContent(await session.getRedboxSource()))
       .toMatchInlineSnapshot(`
-        "./index.js
-        Error: 
-          x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
-         4 |   i++
-         5 |   throw Error('no ' + i)
-         6 | }, 1000)
-         7 | export default function FunctionNamed() {
-           :                                         ^
-           \`----
+      "./index.js
+      Error: 
+        x Expected '}', got '<eof>'
+         ,-[TEST_DIR/index.js:4:1]
+       4 |   i++
+       5 |   throw Error('no ' + i)
+       6 | }, 1000)
+       7 | export default function FunctionNamed() {
+         :                                         ^
+         \`----
 
-        Caused by:
-            Syntax Error
+      Caused by:
+          Syntax Error
 
-        Import trace for requested module:
-        ./index.js
-        ./pages/index.js"
-      `)
+      Import trace for requested module:
+      ./index.js
+      ./pages/index.js"
+    `)
 
     // Test that runtime error does not take over:
     await new Promise((resolve) => setTimeout(resolve, 2000))
     expect(await session.hasRedbox()).toBe(true)
-    expect(
-      next.normalizeTestDirContent(await session.getRedboxSource())
-    ).toMatchInlineSnapshot(
-      `
-        "./index.js
-        Error: 
-          x Expected '}', got '<eof>'
-           ,-[TEST_DIR/index.js:4:1]
-         4 |   i++
-         5 |   throw Error('no ' + i)
-         6 | }, 1000)
-         7 | export default function FunctionNamed() {
-           :                                         ^
-           \`----
+    expect(next.normalizeTestDirContent(await session.getRedboxSource()))
+      .toMatchInlineSnapshot(`
+      "./index.js
+      Error: 
+        x Expected '}', got '<eof>'
+         ,-[TEST_DIR/index.js:4:1]
+       4 |   i++
+       5 |   throw Error('no ' + i)
+       6 | }, 1000)
+       7 | export default function FunctionNamed() {
+         :                                         ^
+         \`----
 
-        Caused by:
-            Syntax Error
+      Caused by:
+          Syntax Error
 
-        Import trace for requested module:
-        ./index.js
-        ./pages/index.js"
-      `
-    )
+      Import trace for requested module:
+      ./index.js
+      ./pages/index.js"
+    `)
 
     await cleanup()
   })

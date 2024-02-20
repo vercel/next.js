@@ -60,6 +60,7 @@ enum NextNodeServerSpan {
   renderError = 'NextNodeServer.renderError',
   renderErrorToHTML = 'NextNodeServer.renderErrorToHTML',
   render404 = 'NextNodeServer.render404',
+  startResponse = 'NextNodeServer.startResponse',
 
   // nested inner span, does not require parent scope name
   route = 'route',
@@ -132,6 +133,14 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.createComponentTree,
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
+  NextNodeServerSpan.startResponse,
+]
+
+// These Spans are allowed to be always logged
+// when the otel log prefix env is set
+export const LogSpanAllowList = [
+  NextNodeServerSpan.findPageComponents,
+  NextNodeServerSpan.createComponentTree,
 ]
 
 export {
