@@ -20,10 +20,6 @@ import type {
   CacheNode,
   AppRouterInstance,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  FlightRouterState,
-  FlightData,
-} from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_FAST_REFRESH,
@@ -67,6 +63,7 @@ import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { FlightRouterState } from '../../server/app-render/types'
 const isServer = typeof window === 'undefined'
 
 // Ensure the initialParallelRoutes are not combined because of double-rendering in the browser with Strict Mode.
@@ -211,17 +208,12 @@ function useChangeByServerResponse(
   dispatch: React.Dispatch<ReducerActions>
 ): RouterChangeByServerResponse {
   return useCallback(
-    (
-      previousTree: FlightRouterState,
-      flightData: FlightData,
-      overrideCanonicalUrl: URL | undefined
-    ) => {
+    ({ previousTree, serverResponse }) => {
       startTransition(() => {
         dispatch({
           type: ACTION_SERVER_PATCH,
-          flightData,
           previousTree,
-          overrideCanonicalUrl,
+          serverResponse,
         })
       })
     },
@@ -511,19 +503,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const urlToRestore = new URL(url ?? href, href)
-      if (!window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE) {
-        // we cannot safely recover from a missing tree -- we need trigger an MPA navigation
-        // to restore the router history to the correct state.
-        window.location.href = urlToRestore.pathname
-        return
-      }
+      const tree: FlightRouterState | undefined =
+        window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatch({
           type: ACTION_RESTORE,
-          url: urlToRestore,
-          tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+          url: new URL(url ?? href, href),
+          tree,
         })
       })
     }
@@ -542,6 +529,7 @@ function Router({
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
       }
+
       data = copyNextJsInternalHistoryState(data)
 
       if (url) {

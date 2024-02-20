@@ -125,7 +125,7 @@ pub async fn get_decorators_transform_options(
 #[turbo_tasks::function]
 pub async fn get_jsx_transform_options(
     project_path: Vc<FileSystemPath>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     resolve_options_context: Option<Vc<ResolveOptionsContext>>,
     is_rsc_context: bool,
     next_config: Vc<NextConfig>,
@@ -152,7 +152,7 @@ pub async fn get_jsx_transform_options(
     // jsconfig, it forces overrides into automatic runtime instead.
     // [TODO]: we need to emit / validate config message like next.js devserver does
     let react_transform_options = JsxTransformOptions {
-        development: mode.is_react_development(),
+        development: mode.await?.is_react_development(),
         // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
         // This'll be ignored if ts|jsconfig explicitly specifies importSource
         import_source: if is_emotion_enabled && !is_rsc_context {

@@ -74,7 +74,7 @@ createNextDescribe(
       const errorDescription = await getRedboxDescription(browser)
 
       expect(errorDescription).toContain(
-        `Error: Invariant: \`cookies\` expects to have requestAsyncStorage, none available.`
+        'Error: `cookies` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
       )
     })
 
@@ -142,6 +142,27 @@ createNextDescribe(
       } else {
         await expect(versionText).not.toContain('(turbo)')
       }
+    })
+
+    it('should not show the bundle layer info in the file trace', async () => {
+      await next.patchFile(
+        'app/server/page.js',
+        outdent`
+        export default function Page() {
+          throw new Error('test')
+        }
+        `
+      )
+      const browser = await next.browser('/server')
+
+      await retry(async () => {
+        expect(await hasRedbox(browser)).toBe(true)
+      })
+      const source = await getRedboxSource(browser)
+      expect(source).toContain('app/server/page.js')
+      expect(source).not.toContain('//app/server/page.js')
+      // Does not contain webpack traces in file path
+      expect(source).not.toMatch(/webpack(-internal:)?\/\//)
     })
   }
 )

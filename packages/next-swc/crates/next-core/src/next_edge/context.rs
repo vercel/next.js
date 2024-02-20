@@ -55,6 +55,8 @@ async fn next_edge_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDefin
     Ok(defines(&*define_env.await?).cell())
 }
 
+/// Define variables for the edge runtime can be accessibly globally.
+/// See [here](https://github.com/vercel/next.js/blob/160bb99b06e9c049f88e25806fd995f07f4cc7e1/packages/next/src/build/webpack-config.ts#L1715-L1718) how webpack configures it.
 #[turbo_tasks::function]
 async fn next_edge_free_vars(
     project_path: Vc<FileSystemPath>,
@@ -63,14 +65,9 @@ async fn next_edge_free_vars(
     Ok(free_var_references!(
         ..defines(&*define_env.await?).into_iter(),
         Buffer = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/compiled/buffer".to_string(),
+            request: "buffer".to_string(),
             lookup_path: Some(project_path),
             export: Some("Buffer".to_string()),
-        },
-        process = FreeVarReference::EcmaScriptModule {
-            request: "next/dist/build/polyfills/process".to_string(),
-            lookup_path: Some(project_path),
-            export: Some("default".to_string()),
         },
     )
     .cell())
@@ -93,7 +90,7 @@ pub fn get_edge_compile_time_info(
 pub async fn get_edge_resolve_options_context(
     project_path: Vc<FileSystemPath>,
     ty: Value<ServerContextType>,
-    mode: NextMode,
+    mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
 ) -> Result<Vc<ResolveOptionsContext>> {
@@ -104,7 +101,7 @@ pub async fn get_edge_resolve_options_context(
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
     let mut custom_conditions = vec![
-        mode.node_env().to_string(),
+        mode.await?.node_env().to_string(),
         "edge-light".to_string(),
         "worker".to_string(),
     ];
@@ -140,6 +137,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
+        custom_extensions: next_config.resolve_extension().await?.clone_value(),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().cell(),

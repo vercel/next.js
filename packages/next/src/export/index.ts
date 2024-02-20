@@ -475,6 +475,7 @@ export async function exportAppImpl(
     distDir,
     dev: false,
     basePath: nextConfig.basePath,
+    trailingSlash: nextConfig.trailingSlash,
     canonicalBase: nextConfig.amp?.canonicalBase || '',
     ampSkipValidation: nextConfig.experimental.amp?.skipValidation || false,
     ampOptimizerConfig: nextConfig.experimental.amp?.optimizer || undefined,
@@ -510,6 +511,7 @@ export async function exportAppImpl(
       ppr: nextConfig.experimental.ppr === true,
       missingSuspenseWithCSRBailout:
         nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+      swrDelta: nextConfig.experimental.swrDelta,
     },
   }
 
