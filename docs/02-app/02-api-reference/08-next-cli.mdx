@@ -217,7 +217,7 @@ next build --no-mangling
 To get a list of the available options with `next start`, run the follow command inside your project directory:
 
 ```bash filename="Terminal"
-next start -h
+npx next start -h
 ```
 
 The output should look like this:
@@ -395,5 +395,26 @@ For more information on the other options, check out our [ESLint](/docs/app/buil
 
 Next.js collects **completely anonymous** telemetry data about general usage.
 Participation in this anonymous program is optional, and you may opt-out if you'd not like to share any information.
+
+To get a list of the available options with `next telemetry`, run the following command in your project directory:
+
+```bash filename="Terminal"
+npx start next telemetry -h
+```
+
+The output should look like this:
+
+```bash filename="Terminal"
+Usage: next telemetry [options]
+
+Allows you to enable or disable Next.js' completely anonymous telemetry collection.
+
+Options:
+  --enable    Eanbles Next.js' telemetry collection.
+  --disable   Disables Next.js' telemetry collection.
+  -h, --help  Displays this message.
+
+Learn more: https://nextjs.org/telemetry
+```
 
 To learn more about Telemetry, [please read this document](/telemetry/).
