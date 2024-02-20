@@ -18,7 +18,8 @@ export function serverPatchReducer(
   state: ReadonlyReducerState,
   action: ServerPatchAction
 ): ReducerState {
-  const { flightData, overrideCanonicalUrl } = action
+  const { serverResponse } = action
+  const [flightData, overrideCanonicalUrl] = serverResponse
 
   const mutable: Mutable = {}
 

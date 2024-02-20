@@ -57,7 +57,7 @@ export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
-export const FONT_MANIFEST = 'font-manifest.json'
+export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
 export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
 export const BUILD_ID_FILE = 'BUILD_ID'
@@ -97,6 +97,7 @@ export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS = 'polyfills'
 export const CLIENT_STATIC_FILES_RUNTIME_POLYFILLS_SYMBOL = Symbol(
   CLIENT_STATIC_FILES_RUNTIME_POLYFILLS
 )
+export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'

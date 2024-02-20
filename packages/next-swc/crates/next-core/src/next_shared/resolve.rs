@@ -18,7 +18,7 @@ use turbopack_binding::{
             parse::Request,
             pattern::Pattern,
             plugin::{ResolvePlugin, ResolvePluginCondition},
-            ResolveResult, ResolveResultItem, ResolveResultOption,
+            ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         },
     },
 };
@@ -225,8 +225,8 @@ pub(crate) fn get_invalid_client_only_resolve_plugin(
         root,
         "client-only".to_string(),
         vec![
-            "'client-only' cannot be imported from a Client Component module. It should only be \
-             used from a Server Component."
+            "'client-only' cannot be imported from a Server Component module. It should only be \
+             used from a Client Component."
                 .to_string(),
         ],
     )
@@ -289,8 +289,9 @@ impl ResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let modified_path = &path[starting_index..].replace("/esm/", "/");
         Ok(Vc::cell(Some(
-            ResolveResult::primary(ResolveResultItem::OriginalReferenceTypeExternal(
+            ResolveResult::primary(ResolveResultItem::External(
                 modified_path.to_string(),
+                ExternalType::CommonJs,
             ))
             .into(),
         )))

@@ -92,6 +92,7 @@ next-build = { workspace = true }
 next-core = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
+  "__swc_core_serde",
   "__feature_node_file_trace",
   "__feature_mdx_rs",
   "__turbo",
@@ -105,10 +106,9 @@ turbopack-binding = { workspace = true, features = [
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
 iana-time-zone = { version = "*", features = ["fallback"] }
-#[todo] turbopack-binding should expose serde serializable features
-swc_core = { workspace = true, features = ["ecma_ast_serde"] }
 turbopack-binding = { workspace = true, features = [
   "__swc_core_binding_napi",
+  "__swc_core_serde",
   "__feature_mdx_rs",
 ] }
 
