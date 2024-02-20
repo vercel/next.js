@@ -4,7 +4,7 @@ import { readdir, readFile, remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('SCSS Support loader handling', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
