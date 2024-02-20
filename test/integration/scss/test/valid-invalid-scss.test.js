@@ -4,7 +4,7 @@ import { remove } from 'fs-extra'
 import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('Invalid SCSS in _document', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
