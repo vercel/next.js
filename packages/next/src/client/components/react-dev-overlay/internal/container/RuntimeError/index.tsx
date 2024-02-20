@@ -198,7 +198,7 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin-bottom: var(--size-gap) 0;
+    margin-bottom: var(--size-gap);
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
