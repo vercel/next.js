@@ -79,7 +79,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           <h2>Source</h2>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
-            all={all}
+            show={all}
           />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
@@ -105,7 +105,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            all={all}
+            show={all}
           />
         </React.Fragment>
       ) : undefined}

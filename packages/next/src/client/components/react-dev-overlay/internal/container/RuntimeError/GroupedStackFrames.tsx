@@ -5,11 +5,9 @@ import { FrameworkIcon } from './FrameworkIcon'
 function FrameworkGroup({
   framework,
   stackFrames,
-  all,
 }: {
   framework: NonNullable<StackFramesGroup['framework']>
   stackFrames: StackFramesGroup['stackFrames']
-  all: boolean
 }) {
   return (
     <details data-nextjs-collapsed-call-stack-details>
@@ -33,7 +31,7 @@ function FrameworkGroup({
         {framework === 'react' ? 'React' : 'Next.js'}
       </summary>
       {stackFrames.map((frame, index) => (
-        <CallStackFrame key={`call-stack-${index}-${all}`} frame={frame} />
+        <CallStackFrame key={`call-stack-${index}`} frame={frame} />
       ))}
     </details>
   )
@@ -41,11 +39,12 @@ function FrameworkGroup({
 
 export function GroupedStackFrames({
   groupedStackFrames,
-  all,
+  show,
 }: {
   groupedStackFrames: StackFramesGroup[]
-  all: boolean
+  show: boolean
 }) {
+  if (show) return
   return (
     <>
       {groupedStackFrames.map((stackFramesGroup, groupIndex) => {
@@ -53,10 +52,9 @@ export function GroupedStackFrames({
         if (stackFramesGroup.framework) {
           return (
             <FrameworkGroup
-              key={`call-stack-framework-group-${groupIndex}-${all}`}
+              key={`call-stack-framework-group-${groupIndex}`}
               framework={stackFramesGroup.framework}
               stackFrames={stackFramesGroup.stackFrames}
-              all={all}
             />
           )
         }
@@ -65,7 +63,7 @@ export function GroupedStackFrames({
           // Don't group non React and Next.js frames
           stackFramesGroup.stackFrames.map((frame, frameIndex) => (
             <CallStackFrame
-              key={`call-stack-${groupIndex}-${frameIndex}-${all}`}
+              key={`call-stack-${groupIndex}-${frameIndex}`}
               frame={frame}
             />
           ))
