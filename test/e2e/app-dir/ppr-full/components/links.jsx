@@ -39,6 +39,10 @@ const links = [
   { href: '/edge/no-suspense/a', tag: 'edge, no suspense, pre-generated' },
   { href: '/edge/no-suspense/b', tag: 'edge, no suspense, on-demand' },
   { href: '/edge/no-suspense/c', tag: 'edge, no suspense, on-demand' },
+  { href: '/navigation/not-found', tag: 'not-found' },
+  { href: '/navigation/not-found/no-store', tag: 'not-found, dynamic' },
+  { href: '/navigation/redirect', tag: 'redirect' },
+  { href: '/navigation/redirect/no-store', tag: 'redirect, dynamic' },
   { href: '/pages', tag: 'pages' },
 ]
 

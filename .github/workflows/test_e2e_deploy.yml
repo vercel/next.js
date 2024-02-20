@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
 
     env:
@@ -16,7 +17,7 @@ jobs:
       VERCEL_TEST_TEAM: vtest314-next-e2e-tests
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
       NAPI_CLI_VERSION: 2.16.2
-      TURBO_VERSION: 1.10.9
+      TURBO_VERSION: 1.12.2
       NODE_LTS_VERSION: 20
       CARGO_PROFILE_RELEASE_LTO: 'true'
       TURBO_TEAM: 'vercel'
@@ -31,13 +32,13 @@ jobs:
 
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - run: corepack enable
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -55,7 +56,7 @@ jobs:
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: test-reports
           if-no-files-found: ignore

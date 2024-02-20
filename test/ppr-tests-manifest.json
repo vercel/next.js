@@ -20,12 +20,6 @@
         "headers-static-bailout it provides a helpful link in case static generation bailout is uncaught"
       ]
     },
-    "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts": {
-      "failed": [
-        "parallel-routes-and-interception route intercepting should render modal when paired with parallel routes",
-        "parallel-routes-and-interception route intercepting should support intercepting local dynamic sibling routes"
-      ]
-    },
     "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts": {
       "failed": [
         "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
@@ -50,8 +44,7 @@
         "app dir - navigation redirect status code should respond with 308 status code if permanent flag is set",
         "app dir - navigation redirect status code should respond with 307 status code in client component",
         "app dir - navigation redirect status code should respond with 307 status code in server component",
-        "app dir - navigation bots should block rendering for bots and return 404 status",
-        "app dir - navigation navigation between pages and app should not continously initiate a mpa navigation to the same URL when router state changes"
+        "app dir - navigation bots should block rendering for bots and return 404 status"
       ]
     },
     "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
@@ -81,7 +74,6 @@
       "test/e2e/app-dir/ppr/**/*",
       "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
-      "test/e2e/app-dir/interception-middleware-rewrite/interception-middleware-rewrite.test.ts",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts"
     ]
   }

@@ -136,7 +136,6 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking/about', 'https://localhost') as any,
     })
     const action: ServerPatchAction = {
@@ -227,7 +226,38 @@ describe('serverPatchReducer', () => {
           "segmentPaths": [],
         },
         "nextUrl": "/linking/somewhere-else",
-        "prefetchCache": Map {},
+        "prefetchCache": Map {
+          "/linking/about" => {
+            "data": Promise {},
+            "key": "/linking/about",
+            "kind": "auto",
+            "lastUsedTime": null,
+            "prefetchTime": 1690329600000,
+            "status": "fresh",
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "about",
+                      {
+                        "children": [
+                          "",
+                          {},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
+        },
         "pushRef": {
           "mpaNavigation": false,
           "pendingPush": false,
@@ -316,7 +346,6 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL(initialCanonicalUrl, 'https://localhost') as any,
     })
 
@@ -442,11 +471,43 @@ describe('serverPatchReducer', () => {
         },
         "nextUrl": "/linking/somewhere-else",
         "prefetchCache": Map {
+          "/linking" => {
+            "data": Promise {},
+            "key": "/linking",
+            "kind": "auto",
+            "lastUsedTime": null,
+            "prefetchTime": 1690329600000,
+            "status": "fresh",
+            "treeAtTimeOfPrefetch": [
+              "",
+              {
+                "children": [
+                  "linking",
+                  {
+                    "children": [
+                      "about",
+                      {
+                        "children": [
+                          "",
+                          {},
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+              undefined,
+              undefined,
+              true,
+            ],
+          },
           "/linking/about" => {
             "data": Promise {},
+            "key": "/linking/about",
             "kind": "temporary",
             "lastUsedTime": 1690329600000,
             "prefetchTime": 1690329600000,
+            "status": "fresh",
             "treeAtTimeOfPrefetch": [
               "",
               {
@@ -500,5 +561,62 @@ describe('serverPatchReducer', () => {
         ],
       }
     `)
+  })
+
+  it("should gracefully recover if the server patch doesn't match the current tree", async () => {
+    const initialTree = getInitialRouterStateTree()
+    const initialCanonicalUrl = '/linking'
+    const children = (
+      <html>
+        <head></head>
+        <body>Root layout</body>
+      </html>
+    )
+
+    const state = createInitialRouterState({
+      buildId,
+      initialTree,
+      initialHead: null,
+      initialCanonicalUrl,
+      initialSeedData: ['', {}, children],
+      initialParallelRoutes: new Map(),
+      location: new URL('/linking/about', 'https://localhost') as any,
+    })
+
+    const action: ServerPatchAction = {
+      type: ACTION_SERVER_PATCH,
+      // this flight data is intentionally completely unrelated to the existing tree
+      flightData: [
+        [
+          'children',
+          'tree-patch-failure',
+          'children',
+          'new-page',
+          ['new-page', { children: ['__PAGE__', {}] }],
+          null,
+          null,
+        ],
+      ],
+      previousTree: [
+        '',
+        {
+          children: [
+            'linking',
+            {
+              children: ['about', { children: ['', {}] }],
+            },
+          ],
+        },
+        undefined,
+        undefined,
+        true,
+      ],
+      overrideCanonicalUrl: undefined,
+    }
+
+    const newState = await serverPatchReducer(state, action)
+    expect(newState.pushRef.pendingPush).toBe(true)
+    expect(newState.pushRef.mpaNavigation).toBe(true)
+    expect(newState.canonicalUrl).toBe('/linking/about')
   })
 })

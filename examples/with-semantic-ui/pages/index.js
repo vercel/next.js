@@ -1,9 +1,9 @@
-import Image from 'next/image'
-import * as React from 'react'
-import { Button, Header, Modal, Icon } from 'semantic-ui-react'
+import Image from "next/image";
+import * as React from "react";
+import { Button, Header, Modal, Icon } from "semantic-ui-react";
 
 export default function Home() {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
   return (
     <div className="centered">
@@ -43,5 +43,5 @@ export default function Home() {
         </Modal.Actions>
       </Modal>
     </div>
-  )
+  );
 }

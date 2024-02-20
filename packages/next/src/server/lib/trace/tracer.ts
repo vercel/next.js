@@ -1,5 +1,5 @@
 import type { SpanTypes } from './constants'
-import { NextVanillaSpanAllowlist } from './constants'
+import { LogSpanAllowList, NextVanillaSpanAllowlist } from './constants'
 
 import type {
   ContextAPI,
@@ -141,6 +141,7 @@ interface NextTracer {
 type NextAttributeNames =
   | 'next.route'
   | 'next.page'
+  | 'next.segment'
   | 'next.span_name'
   | 'next.span_type'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
@@ -228,6 +229,18 @@ class NextTracerImpl implements NextTracer {
             options: { ...fnOrOptions },
           }
 
+    const spanName = options.spanName ?? type
+
+    if (process.env.NEXT_OTEL_LOG_PREFIX && LogSpanAllowList.includes(type)) {
+      performance.measure(
+        `${process.env.NEXT_OTEL_LOG_PREFIX}:next-${spanName.replace(
+          /[A-Z]/g,
+          (match: string) => '-' + match.toLowerCase()
+        )}`,
+        {}
+      )
+    }
+
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -235,8 +248,6 @@ class NextTracerImpl implements NextTracer {
     ) {
       return fn()
     }
-
-    const spanName = options.spanName ?? type
 
     // Trying to get active scoped span to assign parent. If option specifies parent span manually, will try to use it.
     let spanContext = this.getSpanContext(
@@ -264,9 +275,31 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
+          const startTime = Date.now()
+
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)
+            if (
+              typeof performance !== 'undefined' &&
+              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
+              LogSpanAllowList.includes(type || ('' as any))
+            ) {
+              const { timeOrigin } = performance
+              performance.measure(
+                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                  type.split('.').pop() || ''
+                ).replace(
+                  /[A-Z]/g,
+                  (match: string) => '-' + match.toLowerCase()
+                )}`,
+                {
+                  start: startTime - timeOrigin,
+                  end: Date.now() - timeOrigin,
+                }
+              )
+            }
           }
+
           if (isRootSpan) {
             rootSpanAttributesStore.set(
               spanId,
@@ -284,13 +317,19 @@ class NextTracerImpl implements NextTracer {
             }
 
             const result = fn(span)
-
             if (isPromise(result)) {
-              result
-                .then(
-                  () => span.end(),
-                  (err) => closeSpanWithError(span, err)
-                )
+              // If there's error make sure it throws
+              return result
+                .then((res) => {
+                  span.end()
+                  // Need to pass down the promise result,
+                  // it could be react stream response with error { error, stream }
+                  return res
+                })
+                .catch((err) => {
+                  closeSpanWithError(span, err)
+                  throw err
+                })
                 .finally(onCleanup)
             } else {
               span.end()

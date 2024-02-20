@@ -1,44 +1,44 @@
-import React from 'react'
-import { sendOTP } from '../lib/otpUtils'
-import styles from '../styles/Home.module.css'
+import React from "react";
+import { sendOTP } from "../lib/otpUtils";
+import styles from "../styles/Home.module.css";
 
 type Props = {
-  phoneNumber: string
-  setMethodId: (methodId: string) => void
-  setOTPSent: (submitted: boolean) => void
-  setPhoneNumber: (phoneNumber: string) => void
-}
+  phoneNumber: string;
+  setMethodId: (methodId: string) => void;
+  setOTPSent: (submitted: boolean) => void;
+  setPhoneNumber: (phoneNumber: string) => void;
+};
 
 const SendOTPForm = (props: Props): JSX.Element => {
-  const { phoneNumber, setMethodId, setOTPSent, setPhoneNumber } = props
-  const [isDisabled, setIsDisabled] = React.useState(true)
+  const { phoneNumber, setMethodId, setOTPSent, setPhoneNumber } = props;
+  const [isDisabled, setIsDisabled] = React.useState(true);
 
   const isValidNumber = (phoneNumberValue: string) => {
     // Regex validates phone numbers in (xxx)xxx-xxxx, xxx-xxx-xxxx, xxxxxxxxxx, and xxx.xxx.xxxx format
-    const regex = /^[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4}$/g
+    const regex = /^[(]?[0-9]{3}[)]?[-s.]?[0-9]{3}[-s.]?[0-9]{4}$/g;
     if (phoneNumberValue.match(regex)) {
-      return true
+      return true;
     }
-    return false
-  }
+    return false;
+  };
 
   const onPhoneNumberChange = (e: React.ChangeEvent<{ value: string }>) => {
-    setPhoneNumber(e.target.value)
+    setPhoneNumber(e.target.value);
     if (isValidNumber(e.target.value)) {
-      setIsDisabled(false)
+      setIsDisabled(false);
     } else {
-      setIsDisabled(true)
+      setIsDisabled(true);
     }
-  }
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (isValidNumber(phoneNumber)) {
-      const methodId = await sendOTP(phoneNumber)
-      setMethodId(methodId)
-      setOTPSent(true)
+      const methodId = await sendOTP(phoneNumber);
+      setMethodId(methodId);
+      setOTPSent(true);
     }
-  }
+  };
 
   return (
     <div>
@@ -77,7 +77,7 @@ const SendOTPForm = (props: Props): JSX.Element => {
         />
       </form>
     </div>
-  )
-}
+  );
+};
 
-export default SendOTPForm
+export default SendOTPForm;

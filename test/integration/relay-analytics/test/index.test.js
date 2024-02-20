@@ -8,14 +8,15 @@ const appDir = join(__dirname, '../')
 
 let appPort
 let server
-let stdout
+let stderr
 jest.setTimeout(1000 * 60 * 2)
 
 async function buildApp() {
   appPort = await findPort()
-  ;({ stdout } = await nextBuild(appDir, [], {
+  ;({ stderr } = await nextBuild(appDir, [], {
     env: { VERCEL_ANALYTICS_ID: 'test' },
     stdout: true,
+    stderr: true,
   }))
   server = await nextStart(appDir, appPort)
 }
@@ -107,7 +108,9 @@ function runTest() {
       expect(isNaN(parseFloat(beacon.value))).toBe(false)
     }
 
-    expect(stdout).toMatch('Next.js Speed Insights')
+    expect(stderr).toMatch(
+      '`config.analyticsId` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid'
+    )
     await browser.close()
   })
 

@@ -1,4 +1,3 @@
-import React from 'react'
 import type { StackFramesGroup } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
 import { FrameworkIcon } from './FrameworkIcon'

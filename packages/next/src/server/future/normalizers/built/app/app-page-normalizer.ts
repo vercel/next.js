@@ -1,3 +1,4 @@
+import { PAGE_TYPES } from '../../../../../lib/page-types'
 import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
 
 /**
@@ -6,6 +7,6 @@ import { AbsoluteFilenameNormalizer } from '../../absolute-filename-normalizer'
  */
 export class DevAppPageNormalizer extends AbsoluteFilenameNormalizer {
   constructor(appDir: string, extensions: ReadonlyArray<string>) {
-    super(appDir, extensions, 'app')
+    super(appDir, extensions, PAGE_TYPES.APP)
   }
 }

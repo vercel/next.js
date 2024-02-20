@@ -13,6 +13,7 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createEmptyCacheNode } from '../../app-router'
+import { handleSegmentMismatch } from '../handle-segment-mismatch'
 
 // A version of refresh reducer that keeps the cache around instead of wiping all of it.
 function fastRefreshReducerImpl(
@@ -71,7 +72,7 @@ function fastRefreshReducerImpl(
         )
 
         if (newTree === null) {
-          throw new Error('SEGMENT MISMATCH')
+          return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {

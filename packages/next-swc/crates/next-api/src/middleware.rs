@@ -2,7 +2,6 @@ use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
-    mode::NextMode,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{
         AssetBinding, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
@@ -17,7 +16,7 @@ use turbopack_binding::{
     turbopack::{
         core::{
             asset::AssetContent,
-            chunk::ChunkingContext,
+            chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
             context::AssetContext,
             module::Module,
             output::{OutputAsset, OutputAssets},
@@ -80,7 +79,7 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware),
-            NextMode::Development,
+            self.project.next_mode(),
         )
         .resolve_entries(self.context)
         .await?
@@ -99,8 +98,11 @@ impl MiddlewareEndpoint {
 
         let edge_chunking_context = self.project.edge_chunking_context();
 
-        let edge_files = edge_chunking_context
-            .evaluated_chunk_group(module.ident(), Vc::cell(evaluatable_assets));
+        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+            module.ident(),
+            Vc::cell(evaluatable_assets),
+            Value::new(AvailabilityInfo::Root),
+        );
 
         Ok(edge_files)
     }
@@ -222,9 +224,9 @@ pub(crate) async fn get_paths_from_root(
         .map({
             move |&file| async move {
                 let path = &*file.ident().path().await?;
-                let relative = root
-                    .get_path_to(path)
-                    .context("file path must be inside the root")?;
+                let Some(relative) = root.get_path_to(path) else {
+                    return Ok(None);
+                };
 
                 Ok(if filter(relative) {
                     Some(relative.to_string())
@@ -249,6 +251,20 @@ pub(crate) async fn get_wasm_paths_from_root(
     output_assets: &[Vc<Box<dyn OutputAsset>>],
 ) -> Result<Vec<String>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".wasm")).await
+}
+
+pub(crate) async fn get_font_paths_from_root(
+    root: &FileSystemPath,
+    output_assets: &[Vc<Box<dyn OutputAsset>>],
+) -> Result<Vec<String>> {
+    get_paths_from_root(root, output_assets, |path| {
+        path.ends_with(".woff")
+            || path.ends_with(".woff2")
+            || path.ends_with(".eot")
+            || path.ends_with(".ttf")
+            || path.ends_with(".otf")
+    })
+    .await
 }
 
 fn get_file_stem(path: &str) -> &str {

@@ -1,20 +1,20 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ReactRefreshLogBox default boundaries 1`] = `
-"FunctionDefault.js (1:50) @ FunctionDefault
+"FunctionDefault.js (1:51) @ FunctionDefault
 
 > 1 | export default function FunctionDefault() { throw new Error('no'); }
-    |                                                  ^"
+    |                                                   ^"
 `;
 
 exports[`ReactRefreshLogBox default conversion to class component (1) 1`] = `
-"Child.js (4:10) @ ClickCount.render
+"Child.js (4:11) @ ClickCount.render
 
   2 | export default class ClickCount extends Component {
-  3 | render() {
-> 4 |   throw new Error()
-    |        ^
-  5 | }
+  3 |   render() {
+> 4 |     throw new Error()
+    |           ^
+  5 |   }
   6 | }"
 `;
 
@@ -47,25 +47,82 @@ exports[`ReactRefreshLogBox default logbox: anchors links in error messages 11`]
 exports[`ReactRefreshLogBox default logbox: anchors links in error messages 12`] = `"http://example.com/"`;
 
 exports[`ReactRefreshLogBox default module init error not shown 1`] = `
-"index.js (3:6) @ eval
+"index.js (3:7) @ eval
 
   1 | // top offset for snapshot
   2 | import * as React from 'react';
 > 3 | throw new Error('no')
-    |    ^
+    |       ^
   4 | class ClassDefault extends React.Component {
-  5 | render() {
-  6 |   return <h1>Default Export</h1>;"
+  5 |   render() {
+  6 |     return <h1>Default Export</h1>;"
 `;
 
 exports[`ReactRefreshLogBox default should strip whitespace correctly with newline 1`] = `
-"index.js (8:26) @ onClick
+"index.js (8:27) @ onClick
 
    6 |
-   7 | <a onClick={() => {
->  8 |   throw new Error('idk')
-     |        ^
-   9 | }}>
-  10 |   click me
-  11 | </a>"
+   7 |                   <a onClick={() => {
+>  8 |                     throw new Error('idk')
+     |                           ^
+   9 |                   }}>
+  10 |                     click me
+  11 |                   </a>"
+`;
+
+exports[`ReactRefreshLogBox turbo boundaries 1`] = `null`;
+
+exports[`ReactRefreshLogBox turbo conversion to class component (1) 1`] = `null`;
+
+exports[`ReactRefreshLogBox turbo css syntax errors 1`] = `
+"./index.module.css:1:1
+Parsing css source code failed
+> 1 | button {}
+    | ^^^^^^
+
+Selector is not pure (pure selectors must contain at least one local class or id)"
+`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 2`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 3`] = `"Error: http://nextjs.org start"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 4`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 5`] = `"Error: middle http://nextjs.org end"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 6`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 8`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 9`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 11`] = `"http://nextjs.org/"`;
+
+exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 12`] = `"http://example.com/"`;
+
+exports[`ReactRefreshLogBox turbo module init error not shown 1`] = `
+"index.js (3:7) @ <unknown>
+
+  1 | // top offset for snapshot
+  2 | import * as React from 'react';
+> 3 | throw new Error('no')
+    |       ^
+  4 | class ClassDefault extends React.Component {
+  5 |   render() {
+  6 |     return <h1>Default Export</h1>;"
+`;
+
+exports[`ReactRefreshLogBox turbo should strip whitespace correctly with newline 1`] = `
+"index.js (8:27) @ onClick
+
+   6 |
+   7 |                   <a onClick={() => {
+>  8 |                     throw new Error('idk')
+     |                           ^
+   9 |                   }}>
+  10 |                     click me
+  11 |                   </a>"
 `;

@@ -1,40 +1,40 @@
-import { useEffect, useRef } from 'react'
-import Router from 'next/router'
-import { useUser } from '../lib/hooks'
+import { useEffect, useRef } from "react";
+import Router from "next/router";
+import { useUser } from "../lib/hooks";
 
 function ProfileEdit() {
-  const [user, { mutate }] = useUser()
-  const nameRef = useRef()
+  const [user, { mutate }] = useUser();
+  const nameRef = useRef();
 
   useEffect(() => {
-    if (!user) return
-    nameRef.current.value = user.name
-  }, [user])
+    if (!user) return;
+    nameRef.current.value = user.name;
+  }, [user]);
 
   async function handleEditProfile(e) {
-    e.preventDefault()
+    e.preventDefault();
 
     const body = {
       name: nameRef.current.value,
-    }
+    };
     const res = await fetch(`/api/user`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    })
-    const updatedUser = await res.json()
+    });
+    const updatedUser = await res.json();
 
-    mutate(updatedUser)
+    mutate(updatedUser);
   }
 
   async function handleDeleteProfile() {
     const res = await fetch(`/api/user`, {
-      method: 'DELETE',
-    })
+      method: "DELETE",
+    });
 
     if (res.status === 204) {
-      mutate({ user: null })
-      Router.replace('/')
+      mutate({ user: null });
+      Router.replace("/");
     }
   }
 
@@ -64,16 +64,16 @@ function ProfileEdit() {
         }
       `}</style>
     </>
-  )
+  );
 }
 
 export default function ProfilePage() {
-  const [user, { loading }] = useUser()
+  const [user, { loading }] = useUser();
 
   useEffect(() => {
     // redirect user to login if not authenticated
-    if (!loading && !user) Router.replace('/login')
-  }, [user, loading])
+    if (!loading && !user) Router.replace("/login");
+  }, [user, loading]);
 
   return (
     <>
@@ -94,5 +94,5 @@ export default function ProfilePage() {
         }
       `}</style>
     </>
-  )
+  );
 }

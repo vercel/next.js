@@ -1,4 +1,3 @@
-/* global location */
 import '../build/polyfills/polyfill-module'
 // @ts-ignore react-dom/client exists when using React 18
 import ReactDOMClient from 'react-dom/client'
@@ -36,11 +35,6 @@ window.addEventListener('error', (ev: WindowEventMap['error']): void => {
 /// <reference types="react-dom/experimental" />
 
 const appElement: HTMLElement | Document | null = document
-
-const getCacheKey = () => {
-  const { pathname, search } = location
-  return pathname + search
-}
 
 const encoder = new TextEncoder()
 
@@ -118,36 +112,18 @@ const nextServerDataLoadingGlobal = ((self as any).__next_f =
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
-function createResponseCache() {
-  return new Map<string, any>()
-}
-const rscCache = createResponseCache()
+const readable = new ReadableStream({
+  start(controller) {
+    nextServerDataRegisterWriter(controller)
+  },
+})
 
-function useInitialServerResponse(cacheKey: string): Promise<JSX.Element> {
-  const response = rscCache.get(cacheKey)
-  if (response) return response
+const initialServerResponse = createFromReadableStream(readable, {
+  callServer,
+})
 
-  const readable = new ReadableStream({
-    start(controller) {
-      nextServerDataRegisterWriter(controller)
-    },
-  })
-
-  const newResponse = createFromReadableStream(readable, {
-    callServer,
-  })
-
-  rscCache.set(cacheKey, newResponse)
-  return newResponse
-}
-
-function ServerRoot({ cacheKey }: { cacheKey: string }): JSX.Element {
-  React.useEffect(() => {
-    rscCache.delete(cacheKey)
-  })
-  const response = useInitialServerResponse(cacheKey)
-  const root = use(response)
-  return root
+function ServerRoot(): React.ReactNode {
+  return use(initialServerResponse)
 }
 
 const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
@@ -155,6 +131,7 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   : React.Fragment
 
 function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
+  // TODO: remove in the next major version
   if (process.env.__NEXT_ANALYTICS_ID) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -176,17 +153,13 @@ function Root({ children }: React.PropsWithChildren<{}>): React.ReactElement {
   return children as React.ReactElement
 }
 
-function RSCComponent(props: any): JSX.Element {
-  return <ServerRoot {...props} cacheKey={getCacheKey()} />
-}
-
 export function hydrate() {
   if (process.env.NODE_ENV !== 'production') {
     const rootLayoutMissingTagsError = (self as any)
       .__next_root_layout_missing_tags_error
-    const HotReload: typeof import('./components/react-dev-overlay/hot-reloader-client').default =
-      require('./components/react-dev-overlay/hot-reloader-client')
-        .default as typeof import('./components/react-dev-overlay/hot-reloader-client').default
+    const HotReload: typeof import('./components/react-dev-overlay/app/hot-reloader-client').default =
+      require('./components/react-dev-overlay/app/hot-reloader-client')
+        .default as typeof import('./components/react-dev-overlay/app/hot-reloader-client').default
 
     // Don't try to hydrate if root layout is missing required tags, render error instead
     if (rootLayoutMissingTagsError) {
@@ -237,7 +210,7 @@ export function hydrate() {
       >
         <ActionQueueContext.Provider value={actionQueue}>
           <Root>
-            <RSCComponent />
+            <ServerRoot />
           </Root>
         </ActionQueueContext.Provider>
       </HeadManagerContext.Provider>
@@ -263,12 +236,12 @@ export function hydrate() {
     if (process.env.NODE_ENV !== 'production') {
       // if an error is thrown while rendering an RSC stream, this will catch it in dev
       // and show the error overlay
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default =
-        require('./components/react-dev-overlay/internal/ReactDevOverlay')
-          .default as typeof import('./components/react-dev-overlay/internal/ReactDevOverlay').default
+      const ReactDevOverlay: typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default =
+        require('./components/react-dev-overlay/app/ReactDevOverlay')
+          .default as typeof import('./components/react-dev-overlay/app/ReactDevOverlay').default
 
-      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE =
-        require('./components/react-dev-overlay/internal/error-overlay-reducer').INITIAL_OVERLAY_STATE
+      const INITIAL_OVERLAY_STATE: typeof import('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE =
+        require('./components/react-dev-overlay/app/error-overlay-reducer').INITIAL_OVERLAY_STATE
 
       const getSocketUrl: typeof import('./components/react-dev-overlay/internal/helpers/get-socket-url').getSocketUrl =
         require('./components/react-dev-overlay/internal/helpers/get-socket-url')

@@ -1,4 +1,4 @@
-import styles from './post-body.module.css'
+import styles from "./post-body.module.css";
 
 export default function PostBody({ content }) {
   return (
@@ -8,5 +8,5 @@ export default function PostBody({ content }) {
         dangerouslySetInnerHTML={{ __html: content }}
       />
     </div>
-  )
+  );
 }

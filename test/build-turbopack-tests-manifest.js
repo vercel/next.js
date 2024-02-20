@@ -32,9 +32,6 @@ const SKIPPED_TEST_SUITES = {
     'ReactRefreshRequire app propagates hot update to all inverse dependencies',
     'ReactRefreshRequire app re-runs accepted modules',
   ],
-  'test/development/acceptance/ReactRefreshLogBox.test.ts': [
-    'ReactRefreshLogBox turbo conversion to class component (1)',
-  ],
   'test/development/acceptance/ReactRefreshRequire.test.ts': [
     'ReactRefreshRequire propagates a hot update to closest accepted module',
     'ReactRefreshRequire propagates hot update to all inverse dependencies',
@@ -262,6 +259,11 @@ async function updatePassingTests() {
         if (shouldSkip(fullName, skips)) {
           if (status === 'passed') skippedPassingNames.push(fullName)
           status = 'flakey'
+        }
+
+        // treat test-level todo as same as pending
+        if (status === 'todo') {
+          status = 'pending'
         }
 
         const statusArray = fileResults[status]

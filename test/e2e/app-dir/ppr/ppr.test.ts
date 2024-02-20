@@ -9,7 +9,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     it('should indicate the feature is experimental', async () => {
       await check(() => {
-        return next.cliOutput.includes('Experiments (use at your own risk)') &&
+        return next.cliOutput.includes('Experiments (use with caution)') &&
           next.cliOutput.includes('ppr')
           ? 'success'
           : 'fail'
@@ -116,6 +116,19 @@ createNextDescribe(
           await browser.deleteCookies()
           await browser.close()
         }
+      })
+    })
+
+    describe('search parameters', () => {
+      it('should render the page with the search parameters', async () => {
+        const expected = `${Date.now()}:${Math.random()}`
+        const res = await next.fetch(
+          `/search?query=${encodeURIComponent(expected)}`
+        )
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain(expected)
       })
     })
 

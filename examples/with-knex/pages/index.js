@@ -1,16 +1,16 @@
-import { useEffect, useState } from 'react'
-import Head from 'next/head'
+import { useEffect, useState } from "react";
+import Head from "next/head";
 
 export default function Home() {
-  const [todos, setTodos] = useState()
+  const [todos, setTodos] = useState();
   useEffect(() => {
     async function loadTodos() {
-      const resp = await fetch('/api/todos')
-      const data = await resp.json()
-      setTodos(data)
+      const resp = await fetch("/api/todos");
+      const data = await resp.json();
+      setTodos(data);
     }
-    loadTodos()
-  }, [])
+    loadTodos();
+  }, []);
 
   return (
     <div className="container">
@@ -30,9 +30,9 @@ export default function Home() {
           todos.map((todo) => {
             return (
               <p className="todos-item" key={todo.id}>
-                {todo.text} {todo.done && '(complete)'}
+                {todo.text} {todo.done && "(complete)"}
               </p>
-            )
+            );
           })}
 
         <p className="description">
@@ -78,7 +78,7 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <img src="/vercel.svg" alt="Vercel Logo" className="logo" />
         </a>
       </footer>
@@ -250,5 +250,5 @@ export default function Home() {
         }
       `}</style>
     </div>
-  )
+  );
 }

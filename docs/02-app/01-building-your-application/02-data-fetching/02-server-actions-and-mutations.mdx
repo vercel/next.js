@@ -120,6 +120,7 @@ export default function ClientComponent({ updateItem }) {
 - The arguments and return value of Server Actions must be serializable by React. See the React docs for a list of [serializable arguments and values](https://react.dev/reference/react/use-server#serializable-parameters-and-return-values).
 - Server Actions are functions. This means they can be reused anywhere in your application.
 - Server Actions inherit the [runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes) from the page or layout they are used on.
+- Server Actions inherit the [Route Segment Config](/docs/app/api-reference/file-conventions/route-segment-config) from the page or layout they are used on, including fields like `maxDuration`.
 
 ## Examples
 
@@ -393,7 +394,7 @@ import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: null,
+  message: '',
 }
 
 export function Signup() {
@@ -420,7 +421,7 @@ import { useFormState } from 'react-dom'
 import { createUser } from '@/app/actions'
 
 const initialState = {
-  message: null,
+  message: '',
 }
 
 export function Signup() {
@@ -523,7 +524,57 @@ export function Thread({ messages }) {
 
 You can invoke a Server Action in elements nested inside `<form>` such as `<button>`, `<input type="submit">`, and `<input type="image">`. These elements accept the `formAction` prop or [event handlers](#event-handlers).
 
-This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/docs/forms#handling-multiple-submit-buttons) for more information.
+This is useful in cases where you want to call multiple server actions within a form. For example, you can create a specific `<button>` element for saving a post draft in addition to publishing it. See the [React `<form>` docs](https://react.dev/reference/react-dom/components/form#handling-multiple-submission-types) for more information.
+
+#### Programmatic form submission
+
+You can trigger a form submission using the [`requestSubmit()`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/requestSubmit) method. For example, when the user presses `⌘` + `Enter`, you can listen for the `onKeyDown` event:
+
+```tsx filename="app/entry.tsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+```jsx filename="app/entry.jsx" switcher
+'use client'
+
+export function Entry() {
+  const handleKeyDown = (e) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === 'Enter' || e.key === 'NumpadEnter')
+    ) {
+      e.preventDefault()
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
+  return (
+    <div>
+      <textarea name="entry" rows={20} required onKeyDown={handleKeyDown} />
+    </div>
+  )
+}
+```
+
+This will trigger the submission of the nearest `<form>` ancestor, which will invoke the Server Action.
 
 ### Non-form Elements
 
@@ -533,15 +584,6 @@ While it's common to use Server Actions within `<form>` elements, they can also 
 
 You can invoke a Server Action from event handlers such as `onClick`. For example, to increment a like count:
 
-```js filename="app/actions.js" switcher
-'use server'
-
-export async function incrementLike() {
-  // Mutate database
-  // Return updated data
-}
-```
-
 ```tsx filename="app/like-button.tsx" switcher
 'use client'
 
@@ -549,6 +591,31 @@ import { incrementLike } from './actions'
 import { useState } from 'react'
 
 export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [likes, setLikes] = useState(initialLikes)
+
+  return (
+    <>
+      <p>Total Likes: {likes}</p>
+      <button
+        onClick={async () => {
+          const updatedLikes = await incrementLike()
+          setLikes(updatedLikes)
+        }}
+      >
+        Like
+      </button>
+    </>
+  )
+}
+```
+
+```jsx filename="app/like-button.js" switcher
+'use client'
+
+import { incrementLike } from './actions'
+import { useState } from 'react'
+
+export default function LikeButton({ initialLikes }) {
   const [likes, setLikes] = useState(initialLikes)
 
   return (
@@ -598,6 +665,28 @@ For cases like this, where multiple events might be fired in quick succession, w
 You can use the React [`useEffect`](https://react.dev/reference/react/useEffect) hook to invoke a Server Action when the component mounts or a dependency changes. This is useful for mutations that depend on global events or need to be triggered automatically. For example, `onKeyDown` for app shortcuts, an intersection observer hook for infinite scrolling, or when the component mounts to update a view count:
 
 ```tsx filename="app/view-count.tsx" switcher
+'use client'
+
+import { incrementViews } from './actions'
+import { useState, useEffect } from 'react'
+
+export default function ViewCount({ initialViews }: { initialViews: number }) {
+  const [views, setViews] = useState(initialViews)
+
+  useEffect(() => {
+    const updateViews = async () => {
+      const updatedViews = await incrementViews()
+      setViews(updatedViews)
+    }
+
+    updateViews()
+  }, [])
+
+  return <p>Total Views: {views}</p>
+}
+```
+
+```jsx filename="app/view-count.js" switcher
 'use client'
 
 import { incrementViews } from './actions'
