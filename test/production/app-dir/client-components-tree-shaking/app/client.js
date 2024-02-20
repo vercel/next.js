@@ -7,3 +7,7 @@ export function ImportedComp() {
 export function UnusedComp() {
   return <div>client-comp-unused</div>
 }
+
+export default function DefaultComp() {
+  return <div>client-comp-default</div>
+}

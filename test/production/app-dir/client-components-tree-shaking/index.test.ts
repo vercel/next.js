@@ -9,7 +9,7 @@ createNextDescribe(
     skipDeployment: true,
   },
   ({ next }) => {
-    it('should tree shake client components in browser bundle', async () => {
+    it('should only include imported components in browser bundle with direct imports', async () => {
       const clientChunksDir = join(
         next.testDir,
         '.next',
@@ -32,6 +32,11 @@ createNextDescribe(
       ).toBe(true)
       expect(
         chunkContents.every((content) => content.includes('client-comp-unused'))
+      ).toBe(false)
+      expect(
+        chunkContents.every((content) =>
+          content.includes('client-comp-default')
+        )
       ).toBe(false)
     })
   }
