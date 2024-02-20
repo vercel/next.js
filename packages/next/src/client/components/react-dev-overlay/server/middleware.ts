@@ -115,9 +115,6 @@ function findOriginalSourcePositionAndContentFromCompilation(
 
 const reactVendoredRe =
   /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)(-builtin)?$/
-const reactNodeModulesRe =
-  /node_modules[\\/](react|scheduler|react-is|react-dom)[\\/]/
-
 function findCallStackFramePackage(
   id: string,
   compilation?: webpack.Compilation
@@ -130,6 +127,12 @@ function findCallStackFramePackage(
     if (reactVendoredRe.test(moduleName)) return 'react'
     else if (moduleName === 'next') return 'next'
   }
+  return findCallStackFramePackageFromNodeModules(id)
+}
+
+const reactNodeModulesRe =
+  /node_modules[\\/](react|scheduler|react-is|react-dom)[\\/]/
+function findCallStackFramePackageFromNodeModules(id: string) {
   if (/([\\/].next[\\/]|next[\\/]dist)/.test(id)) return 'next'
   else if (reactNodeModulesRe.test(id)) return 'react'
 }
@@ -321,6 +324,9 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const isEdgeServerError = frame.isEdgeServer === 'true'
       const isClientError = !isServerError && !isEdgeServerError
 
+      let sourcePackage: OriginalStackFrameResponse['sourcePackage'] =
+        findCallStackFramePackageFromNodeModules(frame.file ?? '')
+
       if (
         !(
           (frame.file?.startsWith('webpack-internal:///') ||
@@ -329,6 +335,12 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           Boolean(parseInt(frame.lineNumber?.toString() ?? '', 10))
         )
       ) {
+        if (sourcePackage) {
+          res.statusCode = 200
+          res.setHeader('Content-Type', 'application/json')
+          res.write(Buffer.from(JSON.stringify({ sourcePackage })))
+          return res.end()
+        }
         res.statusCode = 400
         res.write('Bad Request')
         return res.end()
@@ -344,9 +356,6 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       )
 
       let source: Source = null
-      let sourcePackage:
-        | OriginalStackFrameResponse['sourcePackage']
-        | undefined = undefined
 
       const clientCompilation = options.stats()?.compilation
       const serverCompilation = options.serverStats()?.compilation
