@@ -3867,13 +3867,12 @@
       "app dir - navigation relative hashes and queries should work with a hash-only href",
       "app dir - navigation relative hashes and queries should work with a query-only href",
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
-      "app dir - navigation scroll restoration should restore original scroll position when navigating back"
+      "app dir - navigation scroll restoration should restore original scroll position when navigating back",
+      "app dir - navigation query string useParams identity between renders should be stable in pages"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [
-      "app dir - navigation query string useParams identity between renders should be stable in pages"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-config/index.test.ts": {
