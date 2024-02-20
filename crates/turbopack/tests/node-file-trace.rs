@@ -740,7 +740,7 @@ impl std::str::FromStr for CaseInput {
 async fn print_graph(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
-    queue.push((0, asset.clone()));
+    queue.push((0, asset));
     while let Some((depth, asset)) = queue.pop() {
         let references = asset.references().await?;
         let mut indent = String::new();
