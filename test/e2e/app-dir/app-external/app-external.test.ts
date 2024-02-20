@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check, hasRedbox, shouldRunTurboDevTest } from 'next-test-utils'
+import { check, hasRedbox, retry, shouldRunTurboDevTest } from 'next-test-utils'
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -24,17 +24,14 @@ createNextDescribe(
     },
     packageJson: {
       scripts: {
-        setup: `cp -r ./node_modules_bak/* ./node_modules`,
-        build: 'yarn setup && next build',
-        dev: `yarn setup && next ${
-          shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-        }`,
+        build: 'next build',
+        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
         start: 'next start',
       },
     },
-    installCommand: 'yarn',
-    startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-    buildCommand: 'yarn build',
+    installCommand: 'pnpm i',
+    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+    buildCommand: 'pnpm build',
     skipDeployment: true,
   },
   ({ next }) => {
@@ -151,6 +148,19 @@ createNextDescribe(
           `window.getComputedStyle(document.querySelector('p')).fontFamily`
         )
       ).toMatch(/^__myFont_.{6}, __myFont_Fallback_.{6}$/)
+    })
+
+    it('should not apply swc optimizer transform for external packages in browser layer', async () => {
+      const browser = await next.browser('/browser')
+      expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#worker-state').text()).toBe(
+          'worker.js:browser-module/other'
+        )
+      })
     })
 
     describe('react in external esm packages', () => {

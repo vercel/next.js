@@ -251,7 +251,7 @@ pub fn is_metadata_route(mut route: &str) -> bool {
     !page.ends_with("/page") && is_metadata_route_file(&page, &[], false)
 }
 
-/// http://www.cse.yorku.ca/~oz/hash.html
+/// djb_2 hash implementation referenced from [here](http://www.cse.yorku.ca/~oz/hash.html)
 fn djb2_hash(str: &str) -> u32 {
     str.chars().fold(5381, |hash, c| {
         ((hash << 5).wrapping_add(hash)).wrapping_add(c as u32) // hash * 33 + c

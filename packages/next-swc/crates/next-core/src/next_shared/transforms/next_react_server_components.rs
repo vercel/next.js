@@ -1,15 +1,17 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::react_server_components::*;
-use swc_core::{
-    common::FileName,
-    ecma::{ast::Program, visit::VisitWith},
-};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    ecmascript::{CustomTransformer, TransformContext},
-    turbopack::module_options::ModuleRule,
+use turbopack_binding::{
+    swc::core::{
+        common::FileName,
+        ecma::{ast::Program, visit::VisitWith},
+    },
+    turbopack::{
+        ecmascript::{CustomTransformer, TransformContext},
+        turbopack::module_options::ModuleRule,
+    },
 };
 
 use super::get_ecma_transform_rule;

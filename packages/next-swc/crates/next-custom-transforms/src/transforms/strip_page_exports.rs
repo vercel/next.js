@@ -1,8 +1,7 @@
-//! The original transform is available on the Next.js repository:
-//! https://github.com/vercel/next.js/blob/f7fecf00cb40c2f784387ff8ccc5e213b8bdd9ca/packages/next-swc/crates/core/src/next_ssg.rs
+//! The original transform is available on the [Next.js repository](https://github.com/vercel/next.js/blob/f7fecf00cb40c2f784387ff8ccc5e213b8bdd9ca/packages/next-swc/crates/core/src/next_ssg.rs):
 //!
 //! This version adds support for eliminating client-side exports only.
-//! [TODO] may consolidate into next_ssg
+//! **TODO** may consolidate into next_ssg
 
 use std::{cell::RefCell, mem::take, rc::Rc};
 
@@ -642,8 +641,74 @@ impl Repeated for NextSsg {
 ///
 /// Note: We don't implement `fold_script` because next.js doesn't use it.
 impl Fold for NextSsg {
-    // This is important for reducing binary sizes.
-    noop_fold_type!();
+    fn fold_array_pat(&mut self, mut arr: ArrayPat) -> ArrayPat {
+        arr = arr.fold_children_with(self);
+
+        if !arr.elems.is_empty() {
+            arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+        }
+
+        arr
+    }
+
+    fn fold_assign_target_pat(&mut self, mut n: AssignTargetPat) -> AssignTargetPat {
+        n = n.fold_children_with(self);
+
+        match &n {
+            AssignTargetPat::Array(arr) => {
+                if arr.elems.is_empty() {
+                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+            AssignTargetPat::Object(obj) => {
+                if obj.props.is_empty() {
+                    return AssignTargetPat::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+            _ => {}
+        }
+
+        n
+    }
+
+    fn fold_expr(&mut self, e: Expr) -> Expr {
+        match e {
+            Expr::Assign(assign_expr) => {
+                let mut retain = true;
+                let left =
+                    self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
+
+                let right = self.within_lhs_of_var(false, |this| {
+                    match left {
+                        AssignTarget::Simple(SimpleAssignTarget::Invalid(..))
+                        | AssignTarget::Pat(AssignTargetPat::Invalid(..)) => {
+                            retain = false;
+                            this.mark_as_candidate(&assign_expr.right);
+                        }
+
+                        _ => {}
+                    }
+                    assign_expr.right.clone().fold_with(this)
+                });
+
+                if retain {
+                    self.remove_expression = false;
+                    Expr::Assign(AssignExpr {
+                        left,
+                        right,
+                        ..assign_expr
+                    })
+                } else {
+                    self.remove_expression = true;
+                    *right
+                }
+            }
+            _ => {
+                self.remove_expression = false;
+                e.fold_children_with(self)
+            }
+        }
+    }
 
     fn fold_import_decl(&mut self, mut i: ImportDecl) -> ImportDecl {
         // Imports for side effects.
@@ -812,6 +877,43 @@ impl Fold for NextSsg {
         n
     }
 
+    fn fold_object_pat(&mut self, mut obj: ObjectPat) -> ObjectPat {
+        obj = obj.fold_children_with(self);
+
+        if !obj.props.is_empty() {
+            obj.props = take(&mut obj.props)
+                .into_iter()
+                .filter_map(|prop| match prop {
+                    ObjectPatProp::KeyValue(prop) => {
+                        if prop.value.is_invalid() {
+                            None
+                        } else {
+                            Some(ObjectPatProp::KeyValue(prop))
+                        }
+                    }
+                    ObjectPatProp::Assign(prop) => {
+                        if self.should_remove(&prop.key.to_id()) {
+                            self.mark_as_candidate(&prop.value);
+
+                            None
+                        } else {
+                            Some(ObjectPatProp::Assign(prop))
+                        }
+                    }
+                    ObjectPatProp::Rest(prop) => {
+                        if prop.arg.is_invalid() {
+                            None
+                        } else {
+                            Some(ObjectPatProp::Rest(prop))
+                        }
+                    }
+                })
+                .collect();
+        }
+
+        obj
+    }
+
     /// This methods returns [Pat::Invalid] if the pattern should be removed.
     fn fold_pat(&mut self, mut p: Pat) -> Pat {
         p = p.fold_children_with(self);
@@ -831,48 +933,13 @@ impl Fold for NextSsg {
                     }
                 }
                 Pat::Array(arr) => {
-                    if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
-
-                        if arr.elems.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
+                    if arr.elems.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 Pat::Object(obj) => {
-                    if !obj.props.is_empty() {
-                        obj.props = take(&mut obj.props)
-                            .into_iter()
-                            .filter_map(|prop| match prop {
-                                ObjectPatProp::KeyValue(prop) => {
-                                    if prop.value.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::KeyValue(prop))
-                                    }
-                                }
-                                ObjectPatProp::Assign(prop) => {
-                                    if self.should_remove(&prop.key.to_id()) {
-                                        self.mark_as_candidate(&prop.value);
-
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Assign(prop))
-                                    }
-                                }
-                                ObjectPatProp::Rest(prop) => {
-                                    if prop.arg.is_invalid() {
-                                        None
-                                    } else {
-                                        Some(ObjectPatProp::Rest(prop))
-                                    }
-                                }
-                            })
-                            .collect();
-
-                        if obj.props.is_empty() {
-                            return Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
+                    if obj.props.is_empty() {
+                        return Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
                 Pat::Rest(rest) => {
@@ -902,6 +969,40 @@ impl Fold for NextSsg {
         }
 
         p
+    }
+
+    fn fold_simple_assign_target(&mut self, mut n: SimpleAssignTarget) -> SimpleAssignTarget {
+        n = n.fold_children_with(self);
+
+        if let SimpleAssignTarget::Ident(name) = &n {
+            if self.should_remove(&name.id.to_id()) {
+                self.state.should_run_again = true;
+                tracing::trace!(
+                    "Dropping var `{}{:?}` because it should be removed",
+                    name.id.sym,
+                    name.id.span.ctxt
+                );
+
+                return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
+            }
+        }
+
+        if let SimpleAssignTarget::Member(member_expr) = &n {
+            if let Some(id) = find_member_root_id(member_expr) {
+                if self.should_remove(&id) {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping member expression object `{}{:?}` because it should be removed",
+                        id.0,
+                        id.1
+                    );
+
+                    return SimpleAssignTarget::Invalid(Invalid { span: DUMMY_SP });
+                }
+            }
+        }
+
+        n
     }
 
     #[allow(clippy::single_match)]
@@ -946,42 +1047,6 @@ impl Fold for NextSsg {
         s
     }
 
-    fn fold_expr(&mut self, e: Expr) -> Expr {
-        match e {
-            Expr::Assign(assign_expr) => {
-                let mut retain = true;
-                let left =
-                    self.within_lhs_of_var(true, |this| assign_expr.left.clone().fold_with(this));
-
-                let right = self.within_lhs_of_var(false, |this| {
-                    if let PatOrExpr::Pat(pat) = &left {
-                        if pat.is_invalid() {
-                            retain = false;
-                            this.mark_as_candidate(&assign_expr.right);
-                        }
-                    }
-                    assign_expr.right.clone().fold_with(this)
-                });
-
-                if retain {
-                    self.remove_expression = false;
-                    Expr::Assign(AssignExpr {
-                        left,
-                        right,
-                        ..assign_expr
-                    })
-                } else {
-                    self.remove_expression = true;
-                    *right
-                }
-            }
-            _ => {
-                self.remove_expression = false;
-                e.fold_children_with(self)
-            }
-        }
-    }
-
     /// This method make `name` of [VarDeclarator] to [Pat::Invalid] if it
     /// should be removed.
     fn fold_var_declarator(&mut self, d: VarDeclarator) -> VarDeclarator {
@@ -1003,6 +1068,9 @@ impl Fold for NextSsg {
 
         decls
     }
+
+    // This is important for reducing binary sizes.
+    noop_fold_type!();
 }
 
 /// Returns the root identifier of a member expression.

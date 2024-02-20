@@ -242,13 +242,6 @@ function getIteratorFn(maybeIterable) {
 // $FlowFixMe[method-unbinding]
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
-
 function hasValidRef(config) {
 
   return config.ref !== undefined;
@@ -280,7 +273,7 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
+function ReactElement(type, key, ref, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
@@ -300,14 +293,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
+
 function createElement$1(type, config, children) {
   let propName; // Reserved names are extracted
 
   const props = {};
   let key = null;
   let ref = null;
-  let self = null;
-  let source = null;
 
   if (config != null) {
     if (hasValidRef(config)) {
@@ -317,13 +309,19 @@ function createElement$1(type, config, children) {
     if (hasValidKey(config)) {
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -356,10 +354,10 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  return ReactElement(type, key, ref, ReactCurrentOwner.current, props);
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
+  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._owner, oldElement.props);
   return newElement;
 }
 /**
@@ -377,13 +375,7 @@ function cloneElement$1(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Self is preserved since the owner is preserved.
-
-  const self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  const source = element._source; // Owner will be preserved, unless ref is overridden
+  let ref = element.ref; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
@@ -407,7 +399,15 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -434,7 +434,7 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  return ReactElement(element.type, key, ref, owner, props);
 }
 /**
  * Verifies the object is a ReactElement.
@@ -521,6 +521,10 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            throw Error(formatProdErrorMessage(505));
         }
 
     }
@@ -588,6 +592,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
     } else if (type === 'object') {
       // eslint-disable-next-line react-internal/safe-string-coercion
       const childrenString = String(children);
+
+      if (typeof children.then === 'function') {
+        throw Error(formatProdErrorMessage(505));
+      }
+
       throw Error(formatProdErrorMessage(31, childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString));
     }
   }
@@ -1003,7 +1012,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-2bc7d336a-20240205';
+var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
 
 const getPrototypeOf = Object.getPrototypeOf;
 

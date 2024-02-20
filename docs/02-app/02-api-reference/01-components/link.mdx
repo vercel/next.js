@@ -484,7 +484,7 @@ import useIsAuthed from './hooks/useIsAuthed'
 
 export default function Page() {
   const isAuthed = useIsAuthed()
-  const path = isAuthed ? '/auth/dashboard' : '/dashboard'
+  const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
       Dashboard
@@ -495,7 +495,7 @@ export default function Page() {
 
 <PagesOnly>
 
-> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
+> **Good to know**: If you're using [Dynamic Routes](/docs/app/building-your-application/routing/dynamic-routes), you'll need to adapt your `as` and `href` props. For example, if you have a Dynamic Route like `/dashboard/authed/[user]` that you want to present differently via middleware, you would write: `<Link href={{ pathname: '/dashboard/authed/[user]', query: { user: username } }} as="/dashboard/[user]">Profile</Link>`.
 
 </PagesOnly>
 

@@ -12,7 +12,8 @@
     "test/e2e/app-dir/app-client-cache/client-cache.test.ts": {
       "failed": [
         "app dir client cache semantics prefetch={undefined} - default should re-use the full cache for only 30 seconds",
-        "app dir client cache semantics prefetch={undefined} - default should refetch below the fold after 30 seconds"
+        "app dir client cache semantics prefetch={undefined} - default should refetch below the fold after 30 seconds",
+        "app dir client cache semantics prefetch={undefined} - default should renew the 30s cache once the data is revalidated"
       ]
     },
     "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
