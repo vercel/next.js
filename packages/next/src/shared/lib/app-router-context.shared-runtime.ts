@@ -16,6 +16,10 @@ export type ChildSegmentMap = Map<string, CacheNode>
  */
 export type CacheNode = ReadyCacheNode | LazyCacheNode
 
+export type LoadingModuleData =
+  | [React.JSX.Element, React.ReactNode, React.ReactNode]
+  | null
+
 export type LazyCacheNode = {
   /**
    * When rsc is null, this is a lazily-initialized cache node.
@@ -52,6 +56,8 @@ export type LazyCacheNode = {
   // anyway. But it's fragile. It also breaks monomorphization.
   prefetchHead?: React.ReactNode
   head?: React.ReactNode
+
+  loading: LoadingModuleData
   /**
    * Child parallel routes.
    */
@@ -91,6 +97,9 @@ export type ReadyCacheNode = {
   lazyData: null
   prefetchHead?: React.ReactNode
   head?: React.ReactNode
+
+  loading: LoadingModuleData
+
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
@@ -138,6 +147,7 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
+  loading: LoadingModuleData
 }>(null as any)
 export const GlobalLayoutRouterContext = React.createContext<{
   buildId: string

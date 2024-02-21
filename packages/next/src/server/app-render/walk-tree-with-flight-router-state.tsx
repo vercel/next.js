@@ -70,8 +70,7 @@ export async function walkTreeWithFlightRouterState({
 
   const parallelRoutesKeys = Object.keys(parallelRoutes)
 
-  const { layout } = components
-  const isLayout = typeof layout !== 'undefined'
+  const isLayout = typeof components.layout !== 'undefined'
 
   /**
    * Checks if the current segment is a root layout.
@@ -180,7 +179,7 @@ export async function walkTreeWithFlightRouterState({
   // If we are not rendering on this level we need to check if the current
   // segment has a layout. If so, we need to track all the used CSS to make
   // the result consistent.
-  const layoutPath = layout?.[1]
+  const layoutPath = components.layout?.[1]
   const injectedCSSWithCurrentLayout = new Set(injectedCSS)
   const injectedJSWithCurrentLayout = new Set(injectedJS)
   const injectedFontPreloadTagsWithCurrentLayout = new Set(

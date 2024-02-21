@@ -103,6 +103,7 @@ describe('prefetchReducer', () => {
                         lazyData: null,
                         rsc: <>Linking page</>,
                         prefetchRsc: null,
+                        loading: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -112,6 +113,7 @@ describe('prefetchReducer', () => {
               lazyData: null,
               rsc: <>Linking layout level</>,
               prefetchRsc: null,
+              loading: null,
             },
           ],
         ]),
@@ -123,7 +125,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -160,8 +162,10 @@ describe('prefetchReducer', () => {
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
+            renewalTime: null,
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
+            loadingStatus: null,
           },
         ],
         [
@@ -171,8 +175,10 @@ describe('prefetchReducer', () => {
             data: prom,
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
+            renewalTime: null,
             prefetchTime: expect.any(Number),
             status: PrefetchCacheEntryStatus.fresh,
+            loadingStatus: null,
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -211,6 +217,7 @@ describe('prefetchReducer', () => {
           </html>
         ),
         prefetchRsc: null,
+        loading: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [
@@ -259,6 +266,7 @@ describe('prefetchReducer', () => {
                         lazyData: null,
                         rsc: <>Linking page</>,
                         prefetchRsc: null,
+                        loading: null,
                         parallelRoutes: new Map(),
                       },
                     ],
@@ -268,6 +276,7 @@ describe('prefetchReducer', () => {
               lazyData: null,
               rsc: <>Linking layout level</>,
               prefetchRsc: null,
+              loading: null,
             },
           ],
         ]),
@@ -279,7 +288,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -289,7 +298,7 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', {}, children],
+      initialSeedData: ['', {}, children, null],
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
     })
@@ -326,6 +335,8 @@ describe('prefetchReducer', () => {
       treeAtTimeOfPrefetch: initialTree,
       key: '/linking',
       status: PrefetchCacheEntryStatus.fresh,
+      renewalTime: null,
+      loadingStatus: null,
     })
 
     const expectedState: ReturnType<typeof prefetchReducer> = {
@@ -341,6 +352,8 @@ describe('prefetchReducer', () => {
             lastUsedTime: null,
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
+            renewalTime: null,
+            loadingStatus: null,
           },
         ],
         [
@@ -352,6 +365,8 @@ describe('prefetchReducer', () => {
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             status: PrefetchCacheEntryStatus.fresh,
+            loadingStatus: null,
+            renewalTime: null,
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -390,6 +405,7 @@ describe('prefetchReducer', () => {
           </html>
         ),
         prefetchRsc: null,
+        loading: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [

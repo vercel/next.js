@@ -75,7 +75,8 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null
+  node: React.ReactNode | null,
+  loading: [JSX.Element, React.ReactNode, React.ReactNode] | null
 ]
 
 export type FlightDataPath =

@@ -42,6 +42,7 @@ export function fillCacheWithDataProperty(
         rsc: null,
         prefetchRsc: null,
         parallelRoutes: new Map(),
+        loading: null,
       })
     }
     return
@@ -55,6 +56,7 @@ export function fillCacheWithDataProperty(
         rsc: null,
         prefetchRsc: null,
         parallelRoutes: new Map(),
+        loading: null,
       })
     }
     return
