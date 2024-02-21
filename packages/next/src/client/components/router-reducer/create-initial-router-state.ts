@@ -42,6 +42,7 @@ export function createInitialRouterState({
     prefetchRsc: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
     parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    loading: initialSeedData[3],
   }
 
   const prefetchCache = new Map<string, PrefetchCacheEntry>()

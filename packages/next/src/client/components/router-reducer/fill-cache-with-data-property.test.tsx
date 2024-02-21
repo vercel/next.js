@@ -26,11 +26,13 @@ describe('fillCacheWithDataProperty', () => {
       rsc: null,
       prefetchRsc: null,
       parallelRoutes: new Map(),
+      loading: null,
     }
     const existingCache: CacheNode = {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -41,6 +43,7 @@ describe('fillCacheWithDataProperty', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -52,6 +55,7 @@ describe('fillCacheWithDataProperty', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
+                          loading: null,
                         },
                       ],
                     ]),
@@ -71,14 +75,17 @@ describe('fillCacheWithDataProperty', () => {
     expect(cache).toMatchInlineSnapshot(`
       {
         "lazyData": null,
+        "loading": null,
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
               "lazyData": null,
+              "loading": null,
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
                     "lazyData": null,
+                    "loading": null,
                     "parallelRoutes": Map {},
                     "prefetchRsc": null,
                     "rsc": <React.Fragment>
@@ -94,6 +101,7 @@ describe('fillCacheWithDataProperty', () => {
             },
             "dashboard" => {
               "lazyData": Promise {},
+              "loading": null,
               "parallelRoutes": Map {},
               "prefetchRsc": null,
               "rsc": null,

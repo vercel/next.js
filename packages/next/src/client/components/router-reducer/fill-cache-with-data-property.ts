@@ -42,6 +42,7 @@ export function fillCacheWithDataProperty(
         rsc: null,
         prefetchRsc: null,
         parallelRoutes: new Map(),
+        loading: null,
       })
     }
     return
@@ -55,6 +56,7 @@ export function fillCacheWithDataProperty(
         rsc: null,
         prefetchRsc: null,
         parallelRoutes: new Map(),
+        loading: null,
       })
     }
     return
@@ -66,6 +68,7 @@ export function fillCacheWithDataProperty(
       rsc: childCacheNode.rsc,
       prefetchRsc: childCacheNode.prefetchRsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
+      loading: childCacheNode.loading,
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
   }
