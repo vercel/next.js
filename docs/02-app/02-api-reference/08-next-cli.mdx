@@ -46,9 +46,9 @@ Commands:
 You can pass any [node arguments](https://nodejs.org/api/cli.html#cli_node_options_options) to `next` commands:
 
 ```bash filename="Terminal"
-NODE_OPTIONS='--throw-deprecation' next
-NODE_OPTIONS='-r esm' next
-NODE_OPTIONS='--inspect' next
+NODE_OPTIONS='--throw-deprecation' npx next
+NODE_OPTIONS='-r esm' npx next
+NODE_OPTIONS='--inspect' npx next
 ```
 
 > **Good to know**: Running `next` without a command is the same as running `next dev`
@@ -94,13 +94,13 @@ Options:
 The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
 
 ```bash filename="Terminal"
-next dev -p 4000
+npx next dev -p 4000
 ```
 
 Or using the `PORT` environment variable:
 
 ```bash filename="Terminal"
-PORT=4000 next dev
+PORT=4000 npx next dev
 ```
 
 > **Good to know**: `PORT` cannot be set in `.env` as booting up the HTTP server happens before any other code is initialized.
@@ -108,7 +108,7 @@ PORT=4000 next dev
 You can also set the hostname to be different from the default of `0.0.0.0`, this can be useful for making the application available for other devices on the network. The default hostname can be changed with `-H`, like so:
 
 ```bash filename="Terminal"
-next dev -H 192.168.1.2
+npx next dev -H 192.168.1.2
 ```
 
 ### Turbo (beta)
@@ -118,7 +118,7 @@ next dev -H 192.168.1.2
 To use Turbopack in development mode, add the `--turbo` option like so:
 
 ```bash filename="Terminal"
-next dev --turbo
+npx next dev --turbo
 ```
 
 ### HTTPS for Local Development
@@ -126,13 +126,13 @@ next dev --turbo
 For certain use cases like webhooks or authentication, it may be required to use HTTPS to have a secure environment on `localhost`. Next.js can generate a self-signed certificate with `next dev` as follows:
 
 ```bash filename="Terminal"
-next dev --experimental-https
+npx next dev --experimental-https
 ```
 
 You can also provide a custom certificate and key with `--experimental-https-key` and `--experimental-https-cert`. Optionally, you can provide a custom CA certificate with `--experimental-https-ca` as well.
 
 ```bash filename="Terminal"
-next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
+npx next dev --experimental-https --experimental-https-key ./certificates/localhost-key.pem --experimental-https-cert ./certificates/localhost.pem
 ```
 
 `next dev --experimental-https` is only intended for development and creates a locally-trusted certificate with `mkcert`. In production, use properly issued certificates from trusted authorities. When deploying to Vercel, HTTPS is [automatically configured](https://vercel.com/docs/security/encryption) for your Next.js application.
@@ -177,7 +177,7 @@ Options:
 You can enable production profiling for React with the `--profile` flag in `next build`. This requires [Next.js 9.5](/blog/next-9-5):
 
 ```bash filename="Terminal"
-next build --profile
+npx next build --profile
 ```
 
 After that, you can use the profiler in the same way as you would in development.
@@ -187,7 +187,7 @@ After that, you can use the profiler in the same way as you would in development
 You can enable more verbose build output with the `--debug` flag in `next build`. This requires Next.js 9.5.3:
 
 ```bash filename="Terminal"
-next build --debug
+npx next build --debug
 ```
 
 With this flag enabled additional build output like rewrites, redirects, and headers will be shown.
@@ -205,7 +205,7 @@ next build --no-lint
 You can disable [mangling](https://en.wikipedia.org/wiki/Name_mangling) for builds like so:
 
 ```bash filename="Terminal"
-next build --no-mangling
+npx next build --no-mangling
 ```
 
 > **Good to know**: This may affect performance and should only be used for debugging purposes.
@@ -246,13 +246,13 @@ Options:
 The application will start at `http://localhost:3000` by default. The default port can be changed with `-p`, like so:
 
 ```bash filename="Terminal"
-next start -p 4000
+npx next start -p 4000
 ```
 
 Or using the `PORT` environment variable:
 
 ```bash filename="Terminal"
-PORT=4000 next start
+PORT=4000 npx next start
 ```
 
 > **Good to know**:
@@ -268,7 +268,7 @@ When deploying Next.js behind a downstream proxy (e.g. a load-balancer like AWS 
 To configure the timeout values for the production Next.js server, pass `--keepAliveTimeout` (in milliseconds) to `next start`, like so:
 
 ```bash filename="Terminal"
-next start --keepAliveTimeout 70000
+npx next start --keepAliveTimeout 70000
 ```
 
 ## Info
@@ -386,7 +386,7 @@ x"])
 If you have other directories that you would like to lint, you can specfy them using the `--dir` flag:
 
 ```bash filename="Terminal"
-next lint --dir utils
+npx next lint --dir utils
 ```
 
 For more information on the other options, check out our [ESLint](/docs/app/building-your-application/configuring/eslint) configuration documentation.
