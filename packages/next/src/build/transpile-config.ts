@@ -1,7 +1,9 @@
+import { unlink } from 'fs/promises'
 import { join } from 'path'
+import { pathToFileURL } from 'url'
 import { runCompiler } from './compiler'
-import { trace } from '../trace'
 import { ProfilingPlugin } from './webpack/plugins/profiling-plugin'
+import { trace } from '../trace'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import type { NextConfigComplete } from '../server/config-shared'
@@ -14,11 +16,20 @@ export async function transpileConfig({
   configPath: string
   configFileName: string
   cwd: string
-}): Promise<string> {
+}) {
   const isCJS = configFileName.endsWith('.cts')
   const filename = `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
 
+  let tsConfig: any
   try {
+    tsConfig = await import(pathToFileURL(`${cwd}/tsconfig.json`).href)
+  } catch (error) {
+    tsConfig = {}
+  }
+
+  async function bundleConfig(
+    nextConfig?: NextConfigComplete
+  ): Promise<string> {
     const nextBuildSpan = trace('next-config-ts', undefined, {
       buildMode: 'default',
       isTurboBuild: String(false),
@@ -27,11 +38,16 @@ export async function transpileConfig({
 
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
     const webpackConfig: webpack.Configuration = {
-      mode: 'none',
+      mode: 'development',
       entry: configPath,
+      experiments: {
+        // Needed for output.libraryTarget: 'module'
+        outputModule: true,
+      },
       output: {
         filename,
         path: cwd,
+        libraryTarget: isCJS ? 'commonjs' : 'module',
       },
       resolve: {
         extensions: ['.ts'],
@@ -47,32 +63,14 @@ export async function transpileConfig({
               rootDir: cwd,
               isServer: false,
               hasReactRefresh: false,
-              nextConfig: {} as NextConfigComplete,
-              jsConfig: {
-                compilerOptions: {
-                  lib: ['dom', 'dom.iterable', 'esnext'],
-                  allowJs: true,
-                  skibLibCheck: true,
-                  strict: false,
-                  noEmit: true,
-                  incremental: true,
-                  include: [
-                    'next-env.d.ts',
-                    '.next/types/**/*.ts',
-                    '**/*.ts',
-                    '**/*.tsx',
-                  ],
-                  plugins: [{ name: 'next' }],
-                  exclude: ['node_modules'],
-                  esModuleInterop: true,
-                  module: 'esnext',
-                  moduleResolution: 'node',
-                  resolveJsonModule: true,
-                  isolatedModules: true,
-                },
-              },
-              // nextConfig.distDir
-              swcCacheDir: join(cwd, '.next', 'cache', 'swc'),
+              nextConfig,
+              jsConfig: tsConfig,
+              swcCacheDir: join(
+                cwd,
+                nextConfig?.distDir ?? '.next',
+                'cache',
+                'swc'
+              ),
               supportedBrowsers: undefined,
               esm: !isCJS,
             } satisfies SWCLoaderOptions,
@@ -92,9 +90,35 @@ export async function transpileConfig({
     if (stats?.hasErrors()) {
       throw new Error(stats.toString())
     }
-  } catch (error) {
-    throw new Error(error as string)
+
+    return join(cwd, filename)
   }
 
-  return join(cwd, filename)
+  let compiledConfigPath: string | undefined
+  let nextConfig: any
+  try {
+    compiledConfigPath = await bundleConfig()
+    nextConfig = await import(pathToFileURL(compiledConfigPath).href)
+
+    if (nextConfig.default) {
+      if (
+        nextConfig.default?.modularizeImports ||
+        nextConfig.default?.experimental?.optimizePackageImports ||
+        nextConfig.default?.experimental?.swcPlugins ||
+        nextConfig.default?.compiler ||
+        nextConfig.default?.experimental?.optimizeServerReact ||
+        nextConfig.default?.distDir
+      ) {
+        compiledConfigPath = await bundleConfig(nextConfig)
+        nextConfig = await import(pathToFileURL(compiledConfigPath).href)
+        return nextConfig
+      }
+    }
+
+    return nextConfig
+  } catch (error) {
+    throw new Error(error as string)
+  } finally {
+    if (compiledConfigPath) await unlink(compiledConfigPath)
+  }
 }

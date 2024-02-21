@@ -1,5 +1,4 @@
 import { existsSync } from 'fs'
-import { unlink } from 'fs/promises'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
@@ -982,8 +981,6 @@ export default async function loadConfig(
     const isTypeScript = configFileName.endsWith('ts') // .ts .cts .mts
 
     let userConfigModule: any
-    // For next.config.ts
-    let nextConfigTsPath: string | undefined
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -996,13 +993,15 @@ export default async function loadConfig(
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
       } else if (isTypeScript) {
-        nextConfigTsPath = await transpileConfig({
-          configPath: path as string,
+        curLog.warn(
+          `Detected ${configFileName}, using TypeScript in configuration is experimental and may change or be removed at any time. Use at your own risk.`
+        )
+
+        userConfigModule = await transpileConfig({
+          configPath: path,
           configFileName,
           cwd: dir,
         })
-
-        userConfigModule = await import(pathToFileURL(nextConfigTsPath).href)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -1024,9 +1023,8 @@ export default async function loadConfig(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
-    } finally {
-      if (nextConfigTsPath) await unlink(nextConfigTsPath)
     }
+
     const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -1042,7 +1040,9 @@ export default async function loadConfig(
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
-        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        const [errorMessages, shouldExit] = normalizeZodErrors(
+          (state as any).error
+        )
         // ident list item
         for (const error of errorMessages) {
           messages.push(`    ${error}`)
@@ -1107,7 +1107,7 @@ export default async function loadConfig(
     const completeConfig = assignDefaults(
       dir,
       {
-        configOrigin: relative(dir, path),
+        configOrigin: relative(dir, path!),
         configFile: path,
         configFileName,
         ...userConfig,
