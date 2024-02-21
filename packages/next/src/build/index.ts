@@ -170,7 +170,7 @@ import { isInterceptionRouteAppPath } from '../server/future/helpers/interceptio
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
-  type CurrentIssues,
+  type IssuesMap,
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
@@ -1390,7 +1390,7 @@ export default async function build(
           page: new Map(),
         }
 
-        const currentIssues: CurrentIssues = new Map()
+        const currentIssues: IssuesMap = new Map()
 
         const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
