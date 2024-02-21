@@ -715,11 +715,15 @@ export default async function getBaseWebpackConfig(
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
   // 'node_modules/meow/node_modules/object-assign' are not included.
+  const nextFrameworkPaths: string[] = []
   const topLevelFrameworkPaths: string[] = []
   const visitedFrameworkPackages = new Set<string>()
-
   // Adds package-paths of dependencies recursively
-  const addPackagePath = (packageName: string, relativeToPath: string) => {
+  const addPackagePath = (
+    packageName: string,
+    relativeToPath: string,
+    paths: string[]
+  ) => {
     try {
       if (visitedFrameworkPackages.has(packageName)) {
         return
@@ -738,11 +742,11 @@ export default async function getBaseWebpackConfig(
       const directory = path.join(packageJsonPath, '../')
 
       // Returning from the function in case the directory has already been added and traversed
-      if (topLevelFrameworkPaths.includes(directory)) return
-      topLevelFrameworkPaths.push(directory)
+      if (paths.includes(directory)) return
+      paths.push(directory)
       const dependencies = require(packageJsonPath).dependencies || {}
       for (const name of Object.keys(dependencies)) {
-        addPackagePath(name, directory)
+        addPackagePath(name, directory, paths)
       }
     } catch (_) {
       // don't error on failing to resolve framework packages
@@ -759,8 +763,9 @@ export default async function getBaseWebpackConfig(
         ]
       : []),
   ]) {
-    addPackagePath(packageName, dir)
+    addPackagePath(packageName, dir, topLevelFrameworkPaths)
   }
+  addPackagePath('next', dir, nextFrameworkPaths)
 
   const crossOrigin = config.crossOrigin
 
@@ -913,6 +918,7 @@ export default async function getBaseWebpackConfig(
       splitChunks: (():
         | Required<webpack.Configuration>['optimization']['splitChunks']
         | false => {
+        // server chunking
         if (dev) {
           if (isNodeServer) {
             /*
@@ -963,21 +969,6 @@ export default async function getBaseWebpackConfig(
           return false
         }
 
-        if (isNodeServer) {
-          return {
-            filename: '[name].js',
-            chunks: 'all',
-            minChunks: 2,
-          }
-        }
-
-        if (isEdgeServer) {
-          return {
-            filename: 'edge-chunks/[name].js',
-            minChunks: 2,
-          }
-        }
-
         const frameworkCacheGroup = {
           chunks: 'all' as const,
           name: 'framework',
@@ -996,6 +987,22 @@ export default async function getBaseWebpackConfig(
           // becoming a part of the commons chunk)
           enforce: true,
         }
+
+        const nextRuntimeCacheGroup = {
+          chunks: 'all' as const,
+          name: 'next-runtime',
+          test(module: any) {
+            const resource = module.nameForCondition?.()
+            return resource
+              ? nextFrameworkPaths.some((pkgPath) =>
+                  resource.startsWith(pkgPath)
+                )
+              : false
+          },
+          priority: 30,
+          enforce: true,
+        }
+
         const libCacheGroup = {
           test(module: {
             size: Function
@@ -1037,6 +1044,21 @@ export default async function getBaseWebpackConfig(
           minChunks: 1,
           reuseExistingChunk: true,
         }
+
+        if (isNodeServer || isEdgeServer) {
+          return {
+            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            cacheGroups: {
+              nextRuntime: nextRuntimeCacheGroup,
+              framework: frameworkCacheGroup,
+              lib: libCacheGroup,
+            },
+            chunks: 'all',
+            minChunks: 2,
+          }
+        }
+
+        // client chunking
         const cssCacheGroup = {
           test: /\.(css|sass|scss)$/i,
           chunks: 'all' as const,
