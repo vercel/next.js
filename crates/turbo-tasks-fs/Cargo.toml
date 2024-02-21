@@ -37,6 +37,7 @@ include_dir = { version = "0.7.2", features = ["nightly"] }
 indexmap = { workspace = true }
 jsonc-parser = { version = "0.21.0", features = ["serde"] }
 mime = { workspace = true }
+notify = { workspace = true }
 notify-debouncer-full = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
