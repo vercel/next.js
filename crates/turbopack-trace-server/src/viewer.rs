@@ -243,22 +243,49 @@ impl Viewer {
         let (default_view_mode, default_sorted) = default_view_mode
             .strip_suffix("-sorted")
             .map_or((default_view_mode, false), |s| (s, true));
-        let default_view_mode = match default_view_mode {
-            "aggregated" => ViewMode::Aggregated {
-                sorted: default_sorted,
-            },
-            "raw-spans" => ViewMode::RawSpans {
-                sorted: default_sorted,
-            },
-            "bottom-up" => ViewMode::BottomUp {
-                sorted: default_sorted,
-            },
-            "aggregated-bottom-up" => ViewMode::AggregatedBottomUp {
-                sorted: default_sorted,
-            },
-            _ => ViewMode::Aggregated {
-                sorted: default_sorted,
-            },
+        let (default_view_mode, with_root) = match default_view_mode {
+            "aggregated" => (
+                ViewMode::Aggregated {
+                    sorted: default_sorted,
+                },
+                false,
+            ),
+            "root-aggregated" => (
+                ViewMode::Aggregated {
+                    sorted: default_sorted,
+                },
+                true,
+            ),
+            "raw-spans" => (
+                ViewMode::RawSpans {
+                    sorted: default_sorted,
+                },
+                false,
+            ),
+            "bottom-up" => (
+                ViewMode::BottomUp {
+                    sorted: default_sorted,
+                },
+                false,
+            ),
+            "aggregated-bottom-up" => (
+                ViewMode::AggregatedBottomUp {
+                    sorted: default_sorted,
+                },
+                false,
+            ),
+            "root-aggregated-bottom-up" => (
+                ViewMode::AggregatedBottomUp {
+                    sorted: default_sorted,
+                },
+                true,
+            ),
+            _ => (
+                ViewMode::Aggregated {
+                    sorted: default_sorted,
+                },
+                false,
+            ),
         };
 
         let value_mode = match view_rect.value_mode.as_str() {
@@ -272,8 +299,13 @@ impl Viewer {
 
         let mut queue = Vec::new();
 
-        let mut root_spans = store.root_spans().collect::<Vec<_>>();
-        root_spans.sort_by_key(|span| span.start());
+        let root_spans = if with_root {
+            vec![store.root_span()]
+        } else {
+            let mut root_spans = store.root_spans().collect::<Vec<_>>();
+            root_spans.sort_by_key(|span| span.start());
+            root_spans
+        };
         let mut children = Vec::new();
         let mut current = 0;
         for span in root_spans {
@@ -337,12 +369,16 @@ impl Viewer {
                         .span_options
                         .get(&span.id())
                         .and_then(|o| o.view_mode)
-                        .unwrap_or((view_mode, false));
-                    let selected_view_mode = if span.is_complete() {
-                        selected_view_mode
-                    } else {
-                        selected_view_mode.as_spans()
-                    };
+                        .unwrap_or_else(|| {
+                            (
+                                if span.is_complete() {
+                                    view_mode
+                                } else {
+                                    view_mode.as_spans()
+                                },
+                                false,
+                            )
+                        });
 
                     let view_mode = if inherit {
                         selected_view_mode
