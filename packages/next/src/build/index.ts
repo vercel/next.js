@@ -19,6 +19,7 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -177,6 +178,7 @@ import {
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { createProgress } from './progress'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1416,9 +1418,28 @@ export default async function build(
           rewrites: emptyRewritesObjToBeImplemented,
         })
 
-        const jobs: (() => Promise<any>)[] = []
+        const progress = createProgress(
+          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
+          'Building'
+        )
+        const promises: Promise<any>[] = []
+        const sema = new Sema(10)
+        const enqueue = (fn: () => Promise<void>) => {
+          promises.push(
+            (async () => {
+              await sema.acquire()
+              try {
+                await fn()
+              } finally {
+                sema.release()
+                progress()
+              }
+            })()
+          )
+        }
+
         for (const [page, route] of currentEntrypoints.page) {
-          jobs.push(() =>
+          enqueue(() =>
             handleRouteType({
               dev,
               page,
@@ -1434,7 +1455,7 @@ export default async function build(
         }
 
         for (const [page, route] of currentEntrypoints.app) {
-          jobs.push(() =>
+          enqueue(() =>
             handleRouteType({
               page,
               dev: false,
@@ -1448,7 +1469,7 @@ export default async function build(
           )
         }
 
-        jobs.push(() =>
+        enqueue(() =>
           handlePagesErrorRoute({
             currentIssues,
             entrypoints: currentEntrypoints,
@@ -1456,17 +1477,6 @@ export default async function build(
             rewrites: emptyRewritesObjToBeImplemented,
           })
         )
-        const promises = []
-        let i = 0
-        function nextJob(): Promise<void> | undefined {
-          if (i < jobs.length) {
-            return jobs[i++]().then(nextJob)
-          }
-        }
-        // Run 10 concurrently
-        for (; i < 10; i++) {
-          promises.push(jobs[i]().then(nextJob))
-        }
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({
