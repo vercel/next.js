@@ -78,6 +78,7 @@ fn postcss_configs() -> Vc<Vec<String>> {
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.json",
         ]
         .into_iter()
         .map(ToOwned::to_owned)
