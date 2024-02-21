@@ -1074,6 +1074,8 @@ export function colorToRgb(color) {
       return 'rgb(255, 0, 0)'
     case 'green':
       return 'rgb(0, 128, 0)'
+    case 'yellow':
+      return 'rgb(255, 255, 0)'
     default:
       throw new Error('Unknown color')
   }
