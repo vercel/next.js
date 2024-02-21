@@ -2220,11 +2220,10 @@
   "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
     "passed": [
       "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root"
-    ],
-    "failed": [
+      "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should serve app path with %5F"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
