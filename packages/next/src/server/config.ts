@@ -992,6 +992,10 @@ export default async function loadConfig(
         userConfigModule = require(path)
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
+
+        if (!userConfigModule.default) {
+          throw new Error(`${configFileName} has no default export.`)
+        }
       }
       const newEnv: typeof process.env = {} as any
 

@@ -405,7 +405,7 @@ export type ExportPathMap = {
 }
 
 /**
- * Next.js can be configured through a `next.config.js` file in the root of your project directory.
+ * Next.js can be configured through a `next.config.js` file in the root of your project directory with a default export.
  *
  * This can change the behavior, enable experimental features, and configure other advanced options.
  *
