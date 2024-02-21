@@ -5,8 +5,7 @@ use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
-    get_edge_resolve_options_context,
+    get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
