@@ -2,75 +2,64 @@ import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
-import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
 import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
-const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  error,
-}) {
-  const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    return error.frames.findIndex(
-      (entry) =>
-        entry.expanded &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
-    )
-  }, [error.frames])
-  const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return error.frames[firstFirstPartyFrameIndex] ?? null
-  }, [error.frames, firstFirstPartyFrameIndex])
+export function RuntimeError({ error }: RuntimeErrorProps) {
+  const { firstFrame, allLeadingFrames, allCallStackFrames } =
+    React.useMemo(() => {
+      const filteredFrames = error.frames.filter(
+        (f) =>
+          !(
+            f.sourceStackFrame.file === '<anonymous>' &&
+            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
+          )
+      )
 
-  const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
-    () =>
-      firstFirstPartyFrameIndex < 0
-        ? []
-        : error.frames.slice(0, firstFirstPartyFrameIndex),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
+      const firstFirstPartyFrameIndex = filteredFrames.findIndex(
+        (entry) =>
+          entry.expanded &&
+          Boolean(entry.originalCodeFrame) &&
+          Boolean(entry.originalStackFrame)
+      )
+
+      return {
+        firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
+        allLeadingFrames:
+          firstFirstPartyFrameIndex < 0
+            ? []
+            : filteredFrames.slice(0, firstFirstPartyFrameIndex),
+        allCallStackFrames: filteredFrames.slice(firstFirstPartyFrameIndex + 1),
+      }
+    }, [error.frames])
 
   const [all, setAll] = React.useState(firstFrame == null)
-  const toggleAll = React.useCallback(() => {
-    setAll((v) => !v)
-  }, [])
 
-  const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter((f) => f.expanded || all),
-    [all, allLeadingFrames]
-  )
-  const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
-  const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter((f) => f.expanded || all),
-    [all, allCallStackFrames]
-  )
-
-  const canShowMore = React.useMemo<boolean>(() => {
-    return (
-      allCallStackFrames.length !== visibleCallStackFrames.length ||
-      (all && firstFrame != null)
+  const {
+    canShowMore,
+    leadingFramesGroupedByFramework,
+    stackFramesGroupedByFramework,
+  } = React.useMemo(() => {
+    const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
+    const visibleCallStackFrames = allCallStackFrames.filter(
+      (f) => f.expanded || all
     )
-  }, [
-    all,
-    allCallStackFrames.length,
-    firstFrame,
-    visibleCallStackFrames.length,
-  ])
 
-  const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(allCallStackFrames),
-    [allCallStackFrames]
-  )
+    return {
+      canShowMore:
+        allCallStackFrames.length !== visibleCallStackFrames.length ||
+        (all && firstFrame != null),
 
-  const leadingFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(leadingFrames),
-    [leadingFrames]
-  )
+      stackFramesGroupedByFramework:
+        groupStackFramesByFramework(allCallStackFrames),
+
+      leadingFramesGroupedByFramework:
+        groupStackFramesByFramework(leadingFrames),
+    }
+  }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
 
   return (
     <React.Fragment>
@@ -115,7 +104,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             tabIndex={10}
             data-nextjs-data-runtime-error-collapsed-action
             type="button"
-            onClick={toggleAll}
+            onClick={() => setAll(!all)}
           >
             {all ? 'Hide' : 'Show'} collapsed frames
           </button>
@@ -212,5 +201,3 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 `
-
-export { RuntimeError }
