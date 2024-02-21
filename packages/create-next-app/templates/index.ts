@@ -201,7 +201,7 @@ export const installTemplate = async ({
       typescript: "^5",
       "@types/node": "^20",
       "@types/react": "^18.2.57",
-      "@types/react-dom": "^18",
+      "@types/react-dom": "^18.2.19",
     };
   }
 
