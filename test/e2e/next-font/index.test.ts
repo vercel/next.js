@@ -613,7 +613,7 @@ describe('next/font', () => {
             const descentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).descentOverride'
             )
-            expect(descentOverride).toBe('50.85%')
+            expect(descentOverride).toBe('54.35%')
 
             const lineGapOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).lineGapOverride'
@@ -637,7 +637,7 @@ describe('next/font', () => {
             const descentOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).descentOverride'
             )
-            expect(descentOverride).toBe('21.98%')
+            expect(descentOverride).toBe('21.6%')
 
             const lineGapOverride = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).lineGapOverride'

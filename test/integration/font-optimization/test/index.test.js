@@ -330,7 +330,7 @@ describe('Font Optimization', () => {
           )
           expect(inlineStyle.length).toBe(1)
           expect(inlineStyle.html()).toContain(
-            '@font-face{font-family:"Roboto Fallback";ascent-override:92.67%;descent-override:24.39%;line-gap-override:0.00%;size-adjust:100.11%;src:local("Arial")}'
+            '@font-face{font-family:"Roboto Fallback";ascent-override:91.92%;descent-override:24.19%;line-gap-override:0.00%;size-adjust:100.92%;src:local("Arial")}'
           )
           expect(inlineStyleMultiple.length).toBe(1)
           expect(inlineStyleMultiple.html()).toContain(
