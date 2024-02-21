@@ -4667,9 +4667,10 @@
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
-      "underscore-ignore-app-paths should serve pages path with underscore"
+      "underscore-ignore-app-paths should serve pages path with underscore",
+      "underscore-ignore-app-paths should serve app path with %5F"
     ],
-    "failed": ["underscore-ignore-app-paths should serve app path with %5F"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
