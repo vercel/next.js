@@ -113,7 +113,7 @@ export function getOverlayMiddleware(project: Project) {
     } satisfies TurbopackStackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {
-      let originalStackFrame: Partial<OriginalStackFrameResponse> | null
+      let originalStackFrame: OriginalStackFrameResponse | null
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {

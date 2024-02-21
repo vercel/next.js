@@ -22,7 +22,7 @@ const nextRe =
 /** Given a potential file path, it parses which package the file belongs to. */
 export function findSourcePackage(
   file: string | null
-): OriginalStackFrameResponse['sourcePackage'] | undefined {
+): SourcePackage | undefined {
   if (!file) return
 
   // matching React first since vendored would match under `next` too
