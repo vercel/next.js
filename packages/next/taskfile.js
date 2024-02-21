@@ -2314,7 +2314,6 @@ export async function next_compile(task, opts) {
     [
       'cli',
       'bin',
-      'server',
       'server_esm',
       'api_esm',
       'nextbuild',
