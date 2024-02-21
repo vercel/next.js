@@ -381,7 +381,7 @@ async fn get_directory_tree_internal(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories.insert(get_underscore_normalized_path(basename), result);
+                    subdirectories.insert(basename.to_string(), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
@@ -1143,11 +1143,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
     }
     Ok(Vc::cell(result))
-}
-
-/// If path contains %5F, replace it with _. [reference](https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119)
-fn get_underscore_normalized_path(path: &str) -> String {
-    path.replace("%5F", "_")
 }
 
 /// Returns the global metadata for an app directory.
