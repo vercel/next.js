@@ -53,7 +53,7 @@ describe('next/font/google fetch error', () => {
       const sizeAdjust = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).sizeAdjust'
       )
-      expect(sizeAdjust).toBe('107.4%')
+      expect(sizeAdjust).toBe('107.64%')
 
       expect(next.cliOutput.slice(outputIndex)).toInclude(
         'Failed to download `Inter` from Google Fonts. Using fallback font instead.'

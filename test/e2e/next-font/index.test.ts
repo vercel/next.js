@@ -623,7 +623,7 @@ describe('next/font', () => {
             const sizeAdjust = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Indie_Flower_Fallback")).sizeAdjust'
             )
-            expect(sizeAdjust).toBe('96.02%')
+            expect(sizeAdjust).toBe('89.85%')
           })
 
           test('Fraunces', async () => {
@@ -647,7 +647,7 @@ describe('next/font', () => {
             const sizeAdjust = await browser.eval(
               'Array.from(document.fonts.values()).find(font => font.family.includes("Fraunces_Fallback")).sizeAdjust'
             )
-            expect(sizeAdjust).toBe('116.03%')
+            expect(sizeAdjust).toBe('118.05%')
           })
         })
       })
