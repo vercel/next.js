@@ -5,7 +5,7 @@ import { File, findPort, killApp, launchApp, waitFor } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../..', 'scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('Has CSS in computed styles in Development', () => {
   const appDir = join(fixturesDir, 'multi-page')

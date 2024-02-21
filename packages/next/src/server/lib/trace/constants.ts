@@ -39,6 +39,7 @@ enum NextNodeServerSpan {
   compression = 'NextNodeServer.compression',
   getBuildId = 'NextNodeServer.getBuildId',
   createComponentTree = 'NextNodeServer.createComponentTree',
+  clientComponentLoading = 'NextNodeServer.clientComponentLoading',
   getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
   generateFsStaticRoutes = 'NextNodeServer.generateFsStaticRoutes',
@@ -134,6 +135,7 @@ export const NextVanillaSpanAllowlist = [
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
+  NextNodeServerSpan.clientComponentLoading,
 ]
 
 // These Spans are allowed to be always logged
@@ -141,6 +143,7 @@ export const NextVanillaSpanAllowlist = [
 export const LogSpanAllowList = [
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.createComponentTree,
+  NextNodeServerSpan.clientComponentLoading,
 ]
 
 export {
