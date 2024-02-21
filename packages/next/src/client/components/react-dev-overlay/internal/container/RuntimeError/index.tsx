@@ -63,7 +63,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
   return (
     <React.Fragment>
-      {firstFrame && (
+      {firstFrame ? (
         <React.Fragment>
           <h2>Source</h2>
           <GroupedStackFrames
@@ -75,7 +75,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             codeFrame={firstFrame.originalCodeFrame!}
           />
         </React.Fragment>
-      )}
+      ) : undefined}
 
       {error.componentStackFrames ? (
         <>
