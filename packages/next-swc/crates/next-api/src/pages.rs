@@ -530,6 +530,13 @@ enum PageEndpointType {
     SsrOnly,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+enum SsrChunkType {
+    Page,
+    Data,
+    Api,
+}
+
 #[turbo_tasks::value_impl]
 impl PageEndpoint {
     #[turbo_tasks::function]
@@ -631,6 +638,7 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn internal_ssr_chunk(
         self: Vc<Self>,
+        ty: SsrChunkType,
         reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
         project_root: Vc<FileSystemPath>,
@@ -749,7 +757,11 @@ impl PageEndpoint {
                 .cell())
             }
         }
-        .instrument(tracing::info_span!("page server side rendering"))
+        .instrument(match ty {
+            SsrChunkType::Page => tracing::info_span!("page server side rendering"),
+            SsrChunkType::Data => tracing::info_span!("server side data"),
+            SsrChunkType::Api => tracing::info_span!("server side api"),
+        })
         .await
     }
 
@@ -757,6 +769,7 @@ impl PageEndpoint {
     async fn ssr_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Page,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -776,6 +789,7 @@ impl PageEndpoint {
     async fn ssr_data_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Data,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -795,6 +809,7 @@ impl PageEndpoint {
     async fn api_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Api,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
             this.pages_project
                 .project()
