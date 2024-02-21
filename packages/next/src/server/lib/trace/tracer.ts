@@ -232,16 +232,6 @@ class NextTracerImpl implements NextTracer {
 
     const spanName = options.spanName ?? type
 
-    if (process.env.NEXT_OTEL_LOG_PREFIX && LogSpanAllowList.includes(type)) {
-      performance.measure(
-        `${process.env.NEXT_OTEL_LOG_PREFIX}:next-${spanName.replace(
-          /[A-Z]/g,
-          (match: string) => '-' + match.toLowerCase()
-        )}`,
-        {}
-      )
-    }
-
     if (
       (!NextVanillaSpanAllowlist.includes(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
@@ -276,16 +266,18 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
-          const startTime = Date.now()
+          const startTime =
+            'performance' in globalThis
+              ? globalThis.performance.now()
+              : undefined
 
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)
             if (
-              typeof performance !== 'undefined' &&
+              startTime &&
               process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
               LogSpanAllowList.includes(type || ('' as any))
             ) {
-              const { timeOrigin } = performance
               performance.measure(
                 `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
                   type.split('.').pop() || ''
@@ -294,8 +286,8 @@ class NextTracerImpl implements NextTracer {
                   (match: string) => '-' + match.toLowerCase()
                 )}`,
                 {
-                  start: startTime - timeOrigin,
-                  end: Date.now() - timeOrigin,
+                  start: startTime,
+                  end: performance.now(),
                 }
               )
             }
