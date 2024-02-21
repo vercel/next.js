@@ -4,7 +4,6 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import type { OriginalStackFrame } from '../../helpers/stack-frame'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
-import { CallStackFrame } from './CallStackFrame'
 import { GroupedStackFrames } from './GroupedStackFrames'
 import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
@@ -64,8 +63,13 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
   ])
 
   const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(visibleCallStackFrames),
-    [visibleCallStackFrames]
+    () => groupStackFramesByFramework(allCallStackFrames),
+    [allCallStackFrames]
+  )
+
+  const leadingFramesGroupedByFramework = React.useMemo(
+    () => groupStackFramesByFramework(leadingFrames),
+    [leadingFrames]
   )
 
   return (
@@ -73,12 +77,10 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
       {firstFrame ? (
         <React.Fragment>
           <h2>Source</h2>
-          {leadingFrames.map((frame, index) => (
-            <CallStackFrame
-              key={`leading-frame-${index}-${all}`}
-              frame={frame}
-            />
-          ))}
+          <GroupedStackFrames
+            groupedStackFrames={leadingFramesGroupedByFramework}
+            show={all}
+          />
           <CodeFrame
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
@@ -103,7 +105,7 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
           <h2>Call Stack</h2>
           <GroupedStackFrames
             groupedStackFrames={stackFramesGroupedByFramework}
-            all={all}
+            show={all}
           />
         </React.Fragment>
       ) : undefined}
@@ -196,7 +198,7 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin: var(--size-gap-double) 0;
+    margin-bottom: var(--size-gap);
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
