@@ -14,7 +14,8 @@ const reactVendoredRe =
 /** React the user installed. Used by Pages Router, or user imports in App Router. */
 const reactNodeModulesRe = /node_modules[\\/](react|react-dom|scheduler)[\\/]/
 
-const nextRe = /[\\/](\.next|next[\\/]dist)[\\/]/
+const nextRe =
+  /([\\/]next[\\/](dist|src)[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$)/
 
 /** Given a potential file path, it parses which package the file belongs to. */
 export function findSourcePackage(

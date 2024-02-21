@@ -111,7 +111,6 @@ export async function createOriginalStackFrame({
   line,
   column,
   source,
-  sourcePackage,
   moduleId,
   modulePath,
   rootDirectory,
@@ -124,7 +123,6 @@ export async function createOriginalStackFrame({
   line: number
   column: number | null
   source: any
-  sourcePackage?: OriginalStackFrameResponse['sourcePackage']
   moduleId?: string
   modulePath?: string
   rootDirectory: string
@@ -230,7 +228,7 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: originalFrame,
     originalCodeFrame,
-    sourcePackage: sourcePackage ?? null,
+    sourcePackage: findSourcePackage(filePath) ?? null,
   }
 }
 
@@ -382,7 +380,6 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           line: frameLine,
           column: frameColumn,
           source,
-          sourcePackage,
           frame,
           moduleId,
           modulePath,

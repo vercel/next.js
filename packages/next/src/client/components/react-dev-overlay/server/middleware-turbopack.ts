@@ -73,8 +73,8 @@ export async function createOriginalStackFrame(
   frame: TurbopackStackFrame
 ): Promise<Partial<OriginalStackFrameResponse> | null> {
   const traced = await batchedTraceSource(project, frame)
-  const sourcePackage = findSourcePackage(frame.file) ?? null
   if (!traced) {
+    const sourcePackage = findSourcePackage(frame.file)
     if (sourcePackage) return { sourcePackage }
     return null
   }
@@ -96,7 +96,7 @@ export async function createOriginalStackFrame(
             },
             { forceColor: true }
           ),
-    sourcePackage,
+    sourcePackage: findSourcePackage(traced.frame.file),
   }
 }
 
