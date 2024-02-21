@@ -404,6 +404,11 @@ export interface ExperimentalConfig {
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
 }
 
 export type ExportPathMap = {
