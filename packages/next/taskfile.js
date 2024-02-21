@@ -2314,6 +2314,7 @@ export async function next_compile(task, opts) {
     [
       'cli',
       'bin',
+      'server',
       'server_esm',
       'api_esm',
       'nextbuild',
@@ -2379,6 +2380,13 @@ export async function lib_esm(task, opts) {
     .source('src/lib/**/!(*.test).+(js|ts|tsx|json)')
     .swc('server', { dev: opts.dev, esm: true })
     .target('dist/esm/lib')
+}
+
+export async function server(task, opts) {
+  await task
+    .source('src/server/**/!(*.test).+(js|ts|tsx)')
+    .swc('server', { dev: opts.dev })
+    .target('dist/server')
 }
 
 export async function server_esm(task, opts) {
