@@ -906,8 +906,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5
       '@capsizecss/metrics':
-        specifier: 1.1.0
-        version: 1.1.0
+        specifier: 2.0.0
+        version: 2.0.0
       '@edge-runtime/cookies':
         specifier: 4.0.2
         version: 4.0.2
@@ -3399,8 +3399,8 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@capsizecss/metrics@1.1.0:
-    resolution: {integrity: sha512-HnnFHi/WXkvwueKEaQbBVsBSFcBG8xoumbHlI4+tIMUv7oqmtqDsrm48cHREFl1MfFuowNP96AJVHj17JH+VyA==}
+  /@capsizecss/metrics@2.0.0:
+    resolution: {integrity: sha512-tbYOyIXIMqWZJ2mw2JXvpQiecgTpvioBmduzUEJ+55xGbJz4AtlcatiuNI/rVYiOLLLvGuOOxpkuaY8qAxN63g==}
     dev: true
 
   /@csstools/postcss-color-function@1.1.0(postcss@8.4.31):
