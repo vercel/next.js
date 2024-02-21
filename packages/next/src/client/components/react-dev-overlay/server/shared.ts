@@ -1,10 +1,12 @@
 import type { StackFrame } from 'stacktrace-parser'
 
+export type SourcePackage = 'react' | 'next'
+
 export type OriginalStackFrameResponse = {
-  originalStackFrame: StackFrame
-  originalCodeFrame: string | null
+  originalStackFrame?: StackFrame | null
+  originalCodeFrame?: string | null
   /** We use this to group frames in the error overlay */
-  sourcePackage: 'react' | 'next' | null
+  sourcePackage?: SourcePackage | null
 }
 
 /** React that's compiled with `next`. Used by App Router. */

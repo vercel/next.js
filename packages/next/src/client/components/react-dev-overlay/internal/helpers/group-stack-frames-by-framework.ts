@@ -1,7 +1,8 @@
+import type { SourcePackage } from '../../server/shared'
 import type { OriginalStackFrame } from './stack-frame'
 
 export type StackFramesGroup = {
-  framework?: OriginalStackFrame['sourcePackage']
+  framework?: SourcePackage | null
   stackFrames: OriginalStackFrame[]
 }
 
