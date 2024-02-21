@@ -1066,6 +1066,19 @@ export async function getVersionCheckerText(
   return versionCheckerText.trim()
 }
 
+export function colorToRgb(color) {
+  switch (color) {
+    case 'blue':
+      return 'rgb(0, 0, 255)'
+    case 'red':
+      return 'rgb(255, 0, 0)'
+    case 'green':
+      return 'rgb(0, 128, 0)'
+    default:
+      throw new Error('Unknown color')
+  }
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *

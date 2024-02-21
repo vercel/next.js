@@ -1,19 +1,7 @@
 /* eslint-env jest */
 
 import { nextTestSetup } from 'e2e-utils'
-
-function colorToRgb(color) {
-  switch (color) {
-    case 'blue':
-      return 'rgb(0, 0, 255)'
-    case 'red':
-      return 'rgb(255, 0, 0)'
-    case 'green':
-      return 'rgb(0, 128, 0)'
-    default:
-      throw new Error('Unknown color')
-  }
-}
+import { colorToRgb } from 'next-test-utils'
 
 describe('3rd Party CSS Module Support', () => {
   const { next } = nextTestSetup({
