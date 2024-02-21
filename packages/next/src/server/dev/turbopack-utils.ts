@@ -124,10 +124,10 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type CurrentIssues = Map<EntryKey, Map<string, Issue>>
+export type IssuesMap = Map<EntryKey, Map<string, Issue>>
 
 export function processIssues(
-  currentIssues: CurrentIssues,
+  currentIssues: IssuesMap,
   key: EntryKey,
   result: TurbopackResult,
   throwIssue = false
@@ -241,7 +241,7 @@ export async function handleRouteType({
   pathname: string
   route: PageRoute | AppRoute
 
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -452,7 +452,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints: Entrypoints
 
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -647,7 +647,7 @@ export async function handlePagesErrorRoute({
 
   hooks,
 }: {
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']

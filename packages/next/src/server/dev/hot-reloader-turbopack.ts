@@ -15,7 +15,7 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { Issue, Update as TurbopackUpdate } from '../../build/swc'
 import {
   createDefineEnv,
   type Endpoint,
@@ -44,7 +44,7 @@ import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
 import {
   type ChangeSubscriptions,
-  type CurrentIssues,
+  type IssuesMap,
   formatIssue,
   getTurbopackJsConfig,
   handleEntrypoints,
@@ -150,7 +150,7 @@ export async function createHotReloaderTurbopack(
     app: new Map(),
   }
 
-  const currentIssues: CurrentIssues = new Map()
+  const currentIssues: IssuesMap = new Map()
 
   const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
@@ -286,11 +286,6 @@ export async function createHotReloaderTurbopack(
     sendEnqueuedMessagesDebounce()
   }
 
-  const clientToHmrSubscription: Map<
-    ws,
-    Map<string, AsyncIterator<any>>
-  > = new Map()
-
   const clients = new Set<ws>()
 
   async function subscribeToChanges(
@@ -327,16 +322,16 @@ export async function createHotReloaderTurbopack(
     currentIssues.delete(key)
   }
 
-  async function subscribeToHmrEvents(id: string, client: ws) {
-    let mapping = clientToHmrSubscription.get(client)
-    if (mapping === undefined) {
-      mapping = new Map()
-      clientToHmrSubscription.set(client, mapping)
-    }
-    if (mapping.has(id)) return
+  async function subscribeToHmrEvents(
+    clientIssues: IssuesMap,
+    subscriptions: Map<string, AsyncIterator<any>>,
+    id: string,
+    client: ws
+  ) {
+    if (subscriptions.has(id)) return
 
     const subscription = project!.hmrEvents(id)
-    mapping.set(id, subscription)
+    subscriptions.set(id, subscription)
 
     const key = getEntryKey('assets', 'client', id)
 
@@ -346,7 +341,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(currentIssues, key, data)
+        processIssues(clientIssues, key, data)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -365,10 +360,15 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  function unsubscribeFromHmrEvents(id: string, client: ws) {
-    const mapping = clientToHmrSubscription.get(client)
-    const subscription = mapping?.get(id)
+  function unsubscribeFromHmrEvents(
+    clientIssues: IssuesMap,
+    subscriptions: Map<string, AsyncIterator<any>>,
+    id: string
+  ) {
+    const subscription = subscriptions.get(id)
     subscription?.return!()
+    const key = getEntryKey('assets', 'client', id)
+    clientIssues.delete(key)
   }
 
   async function handleEntrypointsSubscription() {
@@ -463,8 +463,17 @@ export async function createHotReloaderTurbopack(
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
     onHMR(req, socket: Socket, head) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
+        const clientIssues: IssuesMap = new Map()
+        const subscriptions: Map<string, AsyncIterator<any>> = new Map()
+
         clients.add(client)
-        client.on('close', () => clients.delete(client))
+        client.on('close', () => {
+          // Remove active subscriptions
+          for (const subscription of subscriptions.values()) {
+            subscription.return?.()
+          }
+          clients.delete(client)
+        })
 
         client.addEventListener('message', ({ data }) => {
           const parsedData = JSON.parse(
@@ -518,11 +527,20 @@ export async function createHotReloaderTurbopack(
           // Turbopack messages
           switch (parsedData.type) {
             case 'turbopack-subscribe':
-              subscribeToHmrEvents(parsedData.path, client)
+              subscribeToHmrEvents(
+                clientIssues,
+                subscriptions,
+                parsedData.path,
+                client
+              )
               break
 
             case 'turbopack-unsubscribe':
-              unsubscribeFromHmrEvents(parsedData.path, client)
+              unsubscribeFromHmrEvents(
+                clientIssues,
+                subscriptions,
+                parsedData.path
+              )
               break
 
             default:
@@ -537,14 +555,16 @@ export async function createHotReloaderTurbopack(
         }
         client.send(JSON.stringify(turbopackConnected))
 
-        const errors = []
-        for (const pageIssues of currentIssues.values()) {
+        const errors: CompilationError[] = []
+        const addIssues = (pageIssues: Map<string, Issue>) => {
           for (const issue of pageIssues.values()) {
             errors.push({
               message: formatIssue(issue),
             })
           }
         }
+        clientIssues.forEach(addIssues)
+        currentIssues.forEach(addIssues)
 
         const sync: SyncAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
