@@ -86,6 +86,8 @@ export default function transformSource(
       let esmSource = `\
 import { createProxy } from "${MODULE_PROXY_PATH}"
 const proxy = createProxy(String.raw\`${resourceKey}\`)
+// const { __esModule, $$typeof } = proxy;
+// const __default__ = proxy.default;
 
 // Accessing the __esModule property and exporting $$typeof are required here.
 // The __esModule getter forces the proxy target to create the default export
@@ -98,6 +100,8 @@ const proxy = createProxy(String.raw\`${resourceKey}\`)
           esmSource += `\nexports[''] = createProxy(String.raw\`${resourceKey}#\`);`
         } else if (ref === 'default') {
           esmSource += `\
+// const $$async = proxy.$$async;
+// export { __esModule, $$typeof, $$async }
 export default createProxy(String.raw\`${resourceKey}#default\`);
 `
         } else {

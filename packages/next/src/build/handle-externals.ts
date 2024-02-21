@@ -77,22 +77,11 @@ export async function resolveExternal(
   let res: string | null = null
   let isEsm: boolean = false
 
-  if (request.includes('dual-pkg-optout')) {
-    console.log(
-      request,
-      'esmExternalsConfig',
-      esmExternalsConfig,
-      'esmExternals',
-      esmExternals,
-      'isEsmRequested',
-      isEsmRequested
-    )
-  }
-
   const preferEsmOptions =
-    esmExternals && isEsmRequested
-      ? // && !containsImportInPackages(request, optOutBundlingPackages)
-        // For package that marked as externals that should be not bundled,
+    esmExternals &&
+    isEsmRequested &&
+    !containsImportInPackages(request, optOutBundlingPackages)
+      ? // For package that marked as externals that should be not bundled,
         // we don't resolve them as ESM since it could be resolved as async module,
         // such as `import(external package)` in the bundle, valued as a `Promise`.
 
@@ -355,11 +344,11 @@ export function makeExternalHandler({
     //     ? normalizePathSep(path.join(context, request))
     //     : request
 
-    //   // Check if it's opt out bundling package first
+    //   //   // Check if it's opt out bundling package first
     //   if (containsImportInPackages(fullRequest, optOutBundlingPackages)) {
     //     return fullRequest
     //   }
-    //   return resolveNextExternal(fullRequest)
+    // //   return resolveNextExternal(fullRequest)
     // }
 
     // If a package should be transpiled by Next.js, we skip making it external.
