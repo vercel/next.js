@@ -78,7 +78,6 @@ export async function transpileConfig({
           ),
         ],
         modules: ['node_modules'],
-        extensions: ['.ts', '.cts', '.mts'],
       },
       plugins: [new ProfilingPlugin({ runWebpackSpan, rootDir: cwd })],
       module: {
