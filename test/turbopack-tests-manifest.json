@@ -1279,6 +1279,7 @@
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
       "ReactRefreshLogBox turbo boundaries",
+      "ReactRefreshLogBox turbo conversion to class component (1)",
       "ReactRefreshLogBox turbo css syntax errors",
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
@@ -1299,7 +1300,7 @@
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
-    "flakey": ["ReactRefreshLogBox turbo conversion to class component (1)"],
+    "flakey": [],
     "runtimeError": false
   },
   "test/development/acceptance/ReactRefreshLogBoxMisc.test.ts": {
@@ -2220,11 +2221,10 @@
   "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
     "passed": [
       "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root"
-    ],
-    "failed": [
+      "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should serve app path with %5F"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3849,6 +3849,7 @@
       "app dir - navigation query string should not reset shallow url updates on prefetch",
       "app dir - navigation query string should set query correctly",
       "app dir - navigation query string useParams identity between renders should be stable in app",
+      "app dir - navigation query string useParams identity between renders should be stable in pages",
       "app dir - navigation redirect components should redirect client-side",
       "app dir - navigation redirect components should redirect in a client component",
       "app dir - navigation redirect components should redirect in a server component",
@@ -3869,9 +3870,7 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [
-      "app dir - navigation query string useParams identity between renders should be stable in pages"
-    ],
+    "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-config/index.test.ts": {
@@ -4668,9 +4667,10 @@
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
+      "underscore-ignore-app-paths should serve app path with %5F",
       "underscore-ignore-app-paths should serve pages path with underscore"
     ],
-    "failed": ["underscore-ignore-app-paths should serve app path with %5F"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14873,59 +14873,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss-modules/test/basic-scss.test.js": {
-    "passed": [
-      "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
-      "Has CSS Module in computed styles in Development should have CSS for page"
-    ],
-    "failed": [],
-    "pending": [
-      "3rd Party CSS Module Support production mode should have compiled successfully",
-      "3rd Party CSS Module Support production mode should've emitted a single CSS file",
-      "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-      "Basic SCSS Module Support production mode should have compiled successfully",
-      "Basic SCSS Module Support production mode should've emitted a single CSS file",
-      "Basic SCSS Module Support production mode should've injected the CSS on server render",
-      "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
-      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-      "CSS Module Composes Usage (External) production mode should have compiled successfully",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-      "Has CSS Module in computed styles in Production production mode should have CSS for page",
-      "Has CSS Module in computed styles in Production production mode should have compiled successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss-modules/test/dynamic-route.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Catch-all Route CSS Module Usage production mode should apply styles correctly",
-      "Catch-all Route CSS Module Usage production mode should have compiled successfully",
-      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
-      "Dynamic Route CSS Module Usage production mode should apply styles correctly",
-      "Dynamic Route CSS Module Usage production mode should have compiled successfully",
-      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss-modules/test/valid-invalid.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Invalid CSS Global Module Usage in node_modules production mode should fail to build",
-      "Invalid CSS Module Usage in node_modules production mode should fail to build",
-      "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
-      "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
-      "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/scss/test/basic-global-support.test.js": {
     "passed": [],
     "failed": [],
@@ -15010,6 +14957,59 @@
       "SCSS Support loader handling production mode External imports should compile successfully",
       "SCSS Support loader handling production mode External imports should've emitted expected files",
       "SCSS Support loader handling production mode Preprocessor loader order should compile successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/test/scss-modules-basic.test.js": {
+    "passed": [
+      "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
+      "Has CSS Module in computed styles in Development should have CSS for page"
+    ],
+    "failed": [],
+    "pending": [
+      "3rd Party CSS Module Support production mode should have compiled successfully",
+      "3rd Party CSS Module Support production mode should've emitted a single CSS file",
+      "3rd Party CSS Module Support production mode should've injected the CSS on server render",
+      "Basic SCSS Module Support production mode should have compiled successfully",
+      "Basic SCSS Module Support production mode should've emitted a single CSS file",
+      "Basic SCSS Module Support production mode should've injected the CSS on server render",
+      "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
+      "CSS Module Composes Usage (External) production mode should have compiled successfully",
+      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
+      "Has CSS Module in computed styles in Production production mode should have CSS for page",
+      "Has CSS Module in computed styles in Production production mode should have compiled successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/test/scss-modules-dynamic-route.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Catch-all Route CSS Module Usage production mode should apply styles correctly",
+      "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
+      "Dynamic Route CSS Module Usage production mode should apply styles correctly",
+      "Dynamic Route CSS Module Usage production mode should have compiled successfully",
+      "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/test/scss-modules-valid-invalid.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Global Module Usage in node_modules production mode should fail to build",
+      "Invalid CSS Module Usage in node_modules production mode should fail to build",
+      "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
+      "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+      "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
+      "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+      "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
     ],
     "flakey": [],
     "runtimeError": false

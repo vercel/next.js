@@ -222,6 +222,8 @@ Prefetching happens when a `<Link />` component enters the user's viewport (init
 - **`true` (default)**: The full route and its data will be prefetched.
 - `false`: Prefetching will be disabled.
 
+> **Good to know**: When `prefetch` is set to `false`, prefetching will still occur on hover.
+
 ```tsx filename="pages/index.tsx" switcher
 import Link from 'next/link'
 

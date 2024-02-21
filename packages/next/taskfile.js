@@ -2386,11 +2386,6 @@ export async function server(task, opts) {
     .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
-
-  await fs.copyFile(
-    join(__dirname, 'src/server/google-font-metrics.json'),
-    join(__dirname, 'dist/server/google-font-metrics.json')
-  )
 }
 
 export async function server_esm(task, opts) {
