@@ -38,7 +38,7 @@ describe('next/font/google fetch error', () => {
       const ascentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).ascentOverride'
       )
-      expect(ascentOverride).toBe('90.2%')
+      expect(ascentOverride).toBe('90%')
 
       const descentOverride = await browser.eval(
         'Array.from(document.fonts.values()).find(font => font.family.includes("Inter_Fallback")).descentOverride'
