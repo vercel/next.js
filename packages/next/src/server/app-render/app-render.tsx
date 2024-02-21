@@ -102,6 +102,10 @@ import {
   createPostponedAbortSignal,
 } from './dynamic-rendering'
 import { GLOBAL_NOT_FOUND_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  getClientComponentLoaderMetrics,
+  wrapClientComponentLoader,
+} from '../client-component-renderer-logger'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -615,69 +619,30 @@ async function renderToHTMLOrFlightImpl(
     enableTainting,
   } = renderOpts
 
-  // Combined load times for loading client components
-  let clientComponentLoadStart = 0
-  let clientComponentLoadTimes = 0
-  let clientComponentLoadCount = 0
-
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
+    const instrumented = wrapClientComponentLoader(ComponentMod)
     // @ts-ignore
-    globalThis.__next_require__ = (...args: any[]) => {
-      if (clientComponentLoadStart === 0) {
-        clientComponentLoadStart = Date.now()
-      }
-
-      const startTime = Date.now()
-      try {
-        clientComponentLoadCount += 1
-        return ComponentMod.__next_app__.require(...args)
-      } finally {
-        clientComponentLoadTimes += Date.now() - startTime
-      }
-    }
-
+    globalThis.__next_require__ = instrumented.require
     // @ts-ignore
-    globalThis.__next_chunk_load__ = (...args: any[]) => {
-      const startTime = Date.now()
-      try {
-        clientComponentLoadCount += 1
-        return ComponentMod.__next_app__.loadChunk(...args)
-      } finally {
-        clientComponentLoadTimes += Date.now() - startTime
-      }
-    }
+    globalThis.__next_chunk_load__ = instrumented.loadChunk
   }
 
   if (typeof req.on === 'function') {
     req.on('end', () => {
-      const type = NextNodeServerSpan.clientComponentLoading
-      const startTime = clientComponentLoadStart
-      const endTime = clientComponentLoadStart + clientComponentLoadTimes
-      getTracer()
-        .startSpan(type, {
-          startTime,
-          attributes: {
-            'next.clientComponentLoadCount': clientComponentLoadCount,
-          },
-        })
-        .end(endTime)
-
-      if (
-        typeof performance !== 'undefined' &&
-        process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-      ) {
-        const { timeOrigin } = performance
-        performance.measure(
-          `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
-            type.split('.').pop() || ''
-          ).replace(/[A-Z]/g, (match: string) => '-' + match.toLowerCase())}`,
-          {
-            start: startTime - timeOrigin,
-            end: endTime - timeOrigin,
-          }
-        )
+      if (typeof performance !== 'undefined') {
+        const metrics = getClientComponentLoaderMetrics({ reset: true })
+        getTracer()
+          .startSpan(NextNodeServerSpan.clientComponentLoading, {
+            startTime: metrics.clientComponentLoadStart,
+            attributes: {
+              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
+            },
+          })
+          .end(
+            metrics.clientComponentLoadStart + metrics.clientComponentLoadTimes
+          )
       }
     })
   }
