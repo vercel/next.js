@@ -12,7 +12,11 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
   const { firstFrame, allLeadingFrames, allCallStackFrames } =
     React.useMemo(() => {
       const filteredFrames = error.frames.filter(
-        (f) => f.sourceStackFrame.file !== '<anonymous>'
+        (f) =>
+          !(
+            f.sourceStackFrame.file === '<anonymous>' &&
+            ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
+          )
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
@@ -36,8 +40,8 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 
   const {
     canShowMore,
-    stackFramesGroupedByFramework,
     leadingFramesGroupedByFramework,
+    stackFramesGroupedByFramework,
   } = React.useMemo(() => {
     const leadingFrames = allLeadingFrames.filter((f) => f.expanded || all)
     const visibleCallStackFrames = allCallStackFrames.filter(
