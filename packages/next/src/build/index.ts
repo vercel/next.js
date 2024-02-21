@@ -1416,9 +1416,9 @@ export default async function build(
           rewrites: emptyRewritesObjToBeImplemented,
         })
 
-        const promises = []
+        const jobs: (() => Promise<any>)[] = []
         for (const [page, route] of currentEntrypoints.page) {
-          promises.push(
+          jobs.push(() =>
             handleRouteType({
               dev,
               page,
@@ -1434,7 +1434,7 @@ export default async function build(
         }
 
         for (const [page, route] of currentEntrypoints.app) {
-          promises.push(
+          jobs.push(() =>
             handleRouteType({
               page,
               dev: false,
@@ -1448,7 +1448,7 @@ export default async function build(
           )
         }
 
-        promises.push(
+        jobs.push(() =>
           handlePagesErrorRoute({
             currentIssues,
             entrypoints: currentEntrypoints,
@@ -1456,6 +1456,17 @@ export default async function build(
             rewrites: emptyRewritesObjToBeImplemented,
           })
         )
+        const promises = []
+        let i = 0
+        function nextJob(): Promise<void> | undefined {
+          if (i < jobs.length) {
+            return jobs[i++]().then(nextJob)
+          }
+        }
+        // Run 10 concurrently
+        for (; i < 10; i++) {
+          promises.push(jobs[i]().then(nextJob))
+        }
         await Promise.all(promises)
 
         await manifestLoader.writeManifests({
