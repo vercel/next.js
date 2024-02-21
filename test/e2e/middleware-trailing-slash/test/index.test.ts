@@ -111,11 +111,11 @@ describe('Middleware Runtime trailing slash', () => {
         )
         expect(manifest.middleware).toEqual({
           '/': {
-            files: expect.arrayContaining([
+            files: [
               'prerender-manifest.js',
               'server/edge-runtime-webpack.js',
               'server/middleware.js',
-            ]),
+            ],
             name: 'middleware',
             page: '/',
             matchers: [{ regexp: '^/.*$', originalSource: '/:path*' }],

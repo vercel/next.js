@@ -784,52 +784,60 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
-  test.each(['server', 'client'])(
-    'Call stack count is correct for %s error',
-    async (pageType) => {
-      const fixture =
-        pageType === 'server'
-          ? new Map([
-              [
-                'app/page.js',
-                outdent`
-                  export default function Page() {
-                    throw new Error('Server error')
-                  }
-                `,
-              ],
-            ])
-          : new Map([
-              [
-                'app/page.js',
-                outdent`
-                  'use client'
-                  export default function Page() {
-                    if (typeof window !== 'undefined') {
-                      throw new Error('Client error')
-                    }
-                    return null
-                  }
-                `,
-              ],
-            ])
+  test.each([
+    [
+      'client',
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        'use client'
+        export default function Page() {
+          if (typeof window !== 'undefined') {
+            throw new Error('Client error')
+          }
+          return null
+        }
+      `,
+        ],
+      ]),
+    ],
+    [
+      'server',
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        export default function Page() {
+          throw new Error('Server error')
+        }
+      `,
+        ],
+      ]),
+    ],
+  ])('Call stack count is correct for %s error', async (_, fixture) => {
+    const { session, browser, cleanup } = await sandbox(next, fixture)
 
-      const { session, browser, cleanup } = await sandbox(next, fixture)
+    expect(await session.hasRedbox()).toBe(true)
 
-      const getCallStackCount = async () =>
-        (await browser.elementsByCss('[data-nextjs-call-stack-frame]')).length
+    await expandCallStack(browser)
 
-      expect(await session.hasRedbox()).toBe(true)
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
 
-      await expandCallStack(browser)
+    expect(callStackFrames.length).toBeGreaterThan(9)
 
-      // Expect more than the default amount of frames
-      // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-      expect(await getCallStackCount()).toBeGreaterThan(9)
+    const moduleGroup = await browser.elementsByCss(
+      '[data-nextjs-collapsed-call-stack-details]'
+    )
+    // Expect some of the call stack frames to be grouped (by React or Next.js)
+    expect(moduleGroup.length).toBeGreaterThan(0)
 
-      await cleanup()
-    }
-  )
+    await cleanup()
+  })
 
   test('Server component errors should open up in fullscreen', async () => {
     const { session, browser, cleanup } = await sandbox(
