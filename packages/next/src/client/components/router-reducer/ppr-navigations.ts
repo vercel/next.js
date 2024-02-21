@@ -233,6 +233,7 @@ export function updateCacheNodeOnNavigation(
     prefetchRsc: oldCacheNode.prefetchRsc,
     head: oldCacheNode.head,
     prefetchHead: oldCacheNode.prefetchHead,
+    loading: oldCacheNode.loading,
 
     // Everything is cloned except for the children, which we computed above.
     parallelRoutes: prefetchParallelRoutes,
@@ -512,13 +513,14 @@ function createPendingCacheNode(
   const isLeafSegment = parallelRoutes.size === 0
 
   const maybePrefetchRsc = prefetchData !== null ? prefetchData[2] : null
-
+  const maybePrefetchLoading = prefetchData !== null ? prefetchData[3] : null
   return {
     lazyData: null,
     parallelRoutes: parallelRoutes,
 
     prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
     prefetchHead: isLeafSegment ? prefetchHead : null,
+    loading: maybePrefetchLoading !== undefined ? maybePrefetchLoading : null,
 
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
@@ -762,6 +764,7 @@ export function updateCacheNodeOnPopstateRestoration(
 
     prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
     prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
+    loading: shouldUsePrefetch ? oldCacheNode.loading : null,
 
     // These are the cloned children we computed above
     parallelRoutes: newParallelRoutes,

@@ -16,6 +16,10 @@ export type ChildSegmentMap = Map<string, CacheNode>
  */
 export type CacheNode = ReadyCacheNode | LazyCacheNode
 
+export type LoadingModuleData =
+  | [React.JSX.Element, React.ReactNode, React.ReactNode]
+  | null
+
 export type LazyCacheNode = {
   /**
    * Whether the lazy cache node data promise has been resolved.
@@ -53,6 +57,9 @@ export type LazyCacheNode = {
 
   prefetchHead: React.ReactNode
   head: React.ReactNode
+
+  loading: LoadingModuleData
+
   /**
    * Child parallel routes.
    */
@@ -97,6 +104,9 @@ export type ReadyCacheNode = {
   lazyData: null
   prefetchHead: React.ReactNode
   head: React.ReactNode
+
+  loading: LoadingModuleData
+
   parallelRoutes: Map<string, ChildSegmentMap>
 }
 
@@ -149,6 +159,7 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
+  loading: LoadingModuleData
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
