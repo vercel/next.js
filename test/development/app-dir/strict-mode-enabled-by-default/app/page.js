@@ -1,9 +1,12 @@
 'use client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
+let i = 0
 export default function Page() {
+  const [, forceUpdate] = useState(0)
   useEffect(() => {
-    console.log(`user:logged`)
+    i++
+    forceUpdate()
   }, [])
-  return <p>Page</p>
+  return <p>{i}</p>
 }

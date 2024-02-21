@@ -11,13 +11,9 @@ createNextDescribe(
     // Recommended for tests that need a full browser
     it('should work using browser', async () => {
       const browser: BrowserInterface = await next.browser('/')
-      await browser.waitForElementByCss('p')
       await retry(async () => {
-        const logs = await browser.log()
-        const userLogs = logs.filter(
-          (log) => log.source === 'log' && log.message.match(/user:logged/)
-        )
-        expect(userLogs.length).toBe(2)
+        const text = await browser.waitForElementByCss('p').text()
+        expect(text).toBe('2')
       })
     })
   }
