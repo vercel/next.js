@@ -8,10 +8,6 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
-    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
-      it('skip ppr', () => {})
-      return
-    }
     // Recommended for tests that need a full browser
     it('should work using browser', async () => {
       const browser: BrowserInterface = await next.browser('/')
