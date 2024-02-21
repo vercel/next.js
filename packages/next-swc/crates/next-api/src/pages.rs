@@ -610,29 +610,37 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let mut client_chunks = client_chunking_context
-                .evaluated_chunk_group_assets(
-                    client_module.ident(),
-                    this.pages_project
-                        .client_runtime_entries()
-                        .with_entry(Vc::upcast(client_main_module))
-                        .with_entry(Vc::upcast(client_module)),
-                    Value::new(AvailabilityInfo::Root),
-                )
-                .await?
-                .clone_value();
+            let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
+                client_module.ident(),
+                this.pages_project
+                    .client_runtime_entries()
+                    .with_entry(Vc::upcast(client_main_module))
+                    .with_entry(Vc::upcast(client_module)),
+                Value::new(AvailabilityInfo::Root),
+            );
 
-            client_chunks.push(Vc::upcast(PageLoaderAsset::new(
-                this.pages_project.project().client_root(),
-                this.pathname,
-                self.client_relative_path(),
-                Vc::cell(client_chunks.clone()),
-            )));
-
-            Ok(Vc::cell(client_chunks))
+            Ok(client_chunks)
         }
         .instrument(tracing::info_span!("page client side rendering"))
         .await
+    }
+
+    #[turbo_tasks::function]
+    async fn page_loader(
+        self: Vc<Self>,
+        client_chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+        let node_root = project.client_root();
+        let client_relative_path = self.client_relative_path();
+        let page_loader = PageLoaderAsset::new(
+            node_root,
+            this.pathname,
+            client_relative_path,
+            client_chunks,
+        );
+        Ok(Vc::upcast(page_loader))
     }
 
     #[turbo_tasks::function]
@@ -985,6 +993,8 @@ impl PageEndpoint {
                 let client_chunks = self.client_chunks();
                 client_assets.extend(client_chunks.await?.iter().copied());
                 let build_manifest = self.build_manifest(client_chunks);
+                let page_loader = self.page_loader(client_chunks);
+                client_assets.push(page_loader);
                 server_assets.push(build_manifest);
                 self.ssr_chunk()
             }
