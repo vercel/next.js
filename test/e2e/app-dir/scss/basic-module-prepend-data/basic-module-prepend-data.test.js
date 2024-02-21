@@ -13,7 +13,6 @@ describe('Basic Module Prepend Data Support', () => {
 
   it('should render the module', async () => {
     const browser = await next.browser('/')
-    // Bar
     expect(
       await browser.elementByCss('#verify-red').getComputedCss('color')
     ).toBe(colorToRgb('red'))
