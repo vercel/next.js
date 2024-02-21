@@ -174,6 +174,10 @@ pub struct ViewSpan {
     count: u64,
     #[serde(rename = "k")]
     kind: u8,
+    #[serde(rename = "s")]
+    start_in_parent: u32,
+    #[serde(rename = "e")]
+    end_in_parent: u32,
 }
 
 #[derive(Debug)]
@@ -631,7 +635,7 @@ impl Viewer {
                     start,
                     width,
                     ty: match span {
-                        QueueItem::Span(span) => LineEntryType::Span(span, filtered),
+                        QueueItem::Span(span) => LineEntryType::Span { span, filtered },
                         QueueItem::SpanGraph(span_graph) => {
                             LineEntryType::SpanGraph(span_graph, filtered)
                         }
@@ -662,9 +666,22 @@ impl Viewer {
                             text: String::new(),
                             count: 1,
                             kind: if filtered { 11 } else { 1 },
+                            start_in_parent: 0,
+                            end_in_parent: 0,
                         },
-                        LineEntryType::Span(span, filtered) => {
+                        LineEntryType::Span { span, filtered } => {
                             let (category, text) = span.nice_name();
+                            let mut start_in_parent = 0;
+                            let mut end_in_parent = 0;
+                            if let Some(parent) = span.parent() {
+                                let parent_start = parent.start();
+                                let parent_duration = parent.end() - parent_start;
+                                start_in_parent = ((span.start() - parent_start) * 10000
+                                    / parent_duration)
+                                    as u32;
+                                end_in_parent =
+                                    ((span.end() - parent_start) * 10000 / parent_duration) as u32;
+                            }
                             ViewSpan {
                                 id: span.id().get() as u64,
                                 start: entry.start,
@@ -673,6 +690,8 @@ impl Viewer {
                                 text: text.to_string(),
                                 count: 1,
                                 kind: if filtered { 10 } else { 0 },
+                                start_in_parent,
+                                end_in_parent,
                             }
                         }
                         LineEntryType::SpanGraph(graph, filtered) => {
@@ -685,6 +704,8 @@ impl Viewer {
                                 text: text.to_string(),
                                 count: graph.count() as u64,
                                 kind: if filtered { 10 } else { 0 },
+                                start_in_parent: 0,
+                                end_in_parent: 0,
                             }
                         }
                         LineEntryType::SpanBottomUp(bottom_up, filtered) => {
@@ -697,6 +718,8 @@ impl Viewer {
                                 text: text.to_string(),
                                 count: bottom_up.count() as u64,
                                 kind: if filtered { 12 } else { 2 },
+                                start_in_parent: 0,
+                                end_in_parent: 0,
                             }
                         }
                         LineEntryType::SpanBottomUpSpan(bottom_up_span, filtered) => {
@@ -709,6 +732,8 @@ impl Viewer {
                                 text: text.to_string(),
                                 count: 1,
                                 kind: if filtered { 12 } else { 2 },
+                                start_in_parent: 0,
+                                end_in_parent: 0,
                             }
                         }
                     })
@@ -820,7 +845,7 @@ struct LineEntry<'a> {
 
 enum LineEntryType<'a> {
     Placeholder(bool),
-    Span(SpanRef<'a>, bool),
+    Span { span: SpanRef<'a>, filtered: bool },
     SpanGraph(SpanGraphRef<'a>, bool),
     SpanBottomUp(SpanBottomUpRef<'a>, bool),
     SpanBottomUpSpan(SpanRef<'a>, bool),

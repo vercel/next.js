@@ -256,7 +256,7 @@ fn process(store: &mut StoreWriteGuard, state: &mut ReaderState, row: TraceRow<'
 
             let id = store.add_span(
                 parent,
-                ts,
+                ts.saturating_sub(duration),
                 "event".into(),
                 name,
                 values
