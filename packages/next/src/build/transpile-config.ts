@@ -6,6 +6,7 @@ import { JsConfigPathsPlugin } from './webpack/plugins/jsconfig-paths-plugin'
 import { trace } from '../trace'
 import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfiguration'
+import type { ParsedCommandLine } from 'typescript'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
 import type { NextConfigComplete } from '../server/config-shared'
@@ -22,7 +23,7 @@ export async function transpileConfig({
   const isCJS = configFileName.endsWith('.cts')
   const filename = `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
 
-  let typeScriptPath: string | undefined
+  let tsConfig: ParsedCommandLine
   try {
     const deps = await hasNecessaryDependencies(cwd, [
       {
@@ -31,17 +32,20 @@ export async function transpileConfig({
         exportsRestrict: true,
       },
     ])
-    typeScriptPath = deps.resolved.get('typescript')
-  } catch {}
+    const typeScriptPath = deps.resolved.get('typescript')
 
-  const ts = (await Promise.resolve(
-    require(typeScriptPath!)
-  )) as typeof import('typescript')
-  const tsConfig = await getTypeScriptConfiguration(
-    ts,
-    join(cwd, 'tsconfig.json'),
-    true
-  )
+    const ts = (await Promise.resolve(
+      require(typeScriptPath!)
+    )) as typeof import('typescript')
+
+    tsConfig = await getTypeScriptConfiguration(
+      ts,
+      join(cwd, 'tsconfig.json'),
+      true
+    )
+  } catch {
+    tsConfig = { options: {} } as ParsedCommandLine
+  }
 
   async function bundleConfig(nextConfig?: NextConfigComplete) {
     const distDir = nextConfig?.distDir ?? '.next'
@@ -59,12 +63,12 @@ export async function transpileConfig({
       entry: configPath,
       experiments: {
         // Needed for output.libraryTarget: 'module'
-        outputModule: true,
+        outputModule: !isCJS,
       },
       output: {
         filename,
         path: join(cwd, distDir),
-        libraryTarget: isCJS ? 'commonjs' : 'module',
+        libraryTarget: isCJS ? 'commonjs2' : 'module',
       },
       resolve: {
         plugins: [
@@ -74,13 +78,13 @@ export async function transpileConfig({
           ),
         ],
         modules: ['node_modules'],
-        extensions: ['.ts'],
+        extensions: ['.ts', '.cts', '.mts'],
       },
       plugins: [new ProfilingPlugin({ runWebpackSpan, rootDir: cwd })],
       module: {
         rules: [
           {
-            test: /\.ts$/,
+            test: /\.(c|m)?ts$/,
             exclude: /node_modules/,
             loader: require.resolve('./webpack/loaders/next-swc-loader'),
             options: {
@@ -88,7 +92,9 @@ export async function transpileConfig({
               isServer: false,
               hasReactRefresh: false,
               nextConfig,
-              jsConfig: tsConfig,
+              jsConfig: {
+                compilerOptions: tsConfig.options,
+              },
               swcCacheDir: join(cwd, distDir, 'cache', 'swc'),
               supportedBrowsers: undefined,
               esm: !isCJS,
@@ -98,8 +104,8 @@ export async function transpileConfig({
       },
     }
 
-    // Support tsconfig and jsconfig baseUrl
-    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+    // Support tsconfig baseUrl
+    // Only add the baseUrl if it's explicitly set in tsconfig
     if (resolvedBaseUrl && !resolvedBaseUrl.isImplicit) {
       webpackConfig.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
     }
@@ -113,21 +119,28 @@ export async function transpileConfig({
     }
 
     const compiledConfigPath = join(cwd, distDir, filename)
-    return (await import(pathToFileURL(compiledConfigPath).href)).default
+    const compiledConfig = await import(pathToFileURL(compiledConfigPath).href)
+
+    if (!compiledConfig.default) {
+      throw new Error(`No default export found in (${configPath}).`)
+    }
+
+    return compiledConfig.default
   }
 
   let nextConfig: NextConfigComplete
   try {
     nextConfig = await bundleConfig()
+
     if (
       // List of options possibly passed to next-swc-loader
-      nextConfig.modularizeImports ||
-      nextConfig.experimental?.optimizePackageImports ||
-      nextConfig.experimental?.swcPlugins ||
-      nextConfig.compiler ||
-      nextConfig.experimental?.optimizeServerReact ||
+      nextConfig?.modularizeImports ||
+      nextConfig?.experimental?.optimizePackageImports ||
+      nextConfig?.experimental?.swcPlugins ||
+      nextConfig?.compiler ||
+      nextConfig?.experimental?.optimizeServerReact ||
       // For swcCacheDir option
-      nextConfig.distDir
+      nextConfig?.distDir
     ) {
       // Re-compile with the parsed nextConfig
       nextConfig = await bundleConfig(nextConfig)
@@ -136,6 +149,6 @@ export async function transpileConfig({
 
     return nextConfig
   } catch (error) {
-    throw new Error(error as string)
+    throw error
   }
 }
