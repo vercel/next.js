@@ -8,6 +8,7 @@ import url from 'url'
 import type webpack from 'webpack'
 import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
 import { launchEditor } from '../internal/helpers/launchEditor'
+import { findSourcePackage, type OriginalStackFrameResponse } from './shared'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { parseStack } from '../internal/helpers/parseStack'
 
@@ -16,13 +17,6 @@ export type OverlayMiddlewareOptions = {
   stats(): webpack.Stats | null
   serverStats(): webpack.Stats | null
   edgeServerStats(): webpack.Stats | null
-}
-
-export type OriginalStackFrameResponse = {
-  originalStackFrame: StackFrame
-  originalCodeFrame: string | null
-  /** Used to group frames by packages in the Error Overlay */
-  sourcePackage?: 'react' | 'next'
 }
 
 type Source = { map: () => any } | null
@@ -111,30 +105,6 @@ function findOriginalSourcePositionAndContentFromCompilation(
 ) {
   const module = getModuleById(moduleId, compilation)
   return module?.buildInfo?.importLocByPath?.get(importedModule) ?? null
-}
-
-const reactVendoredRe =
-  /^(react|react-dom|react-is|react-refresh|react-server-dom-webpack|react-server-dom-turbopack|scheduler)(-builtin)?$/
-function findCallStackFramePackage(
-  id: string,
-  compilation?: webpack.Compilation
-): OriginalStackFrameResponse['sourcePackage'] {
-  if (!compilation) return undefined
-  // @ts-expect-error
-  const moduleName = getModuleById(id, compilation)?.resourceResolveData
-    ?.descriptionFileData?.name
-  if (moduleName) {
-    if (reactVendoredRe.test(moduleName)) return 'react'
-    else if (moduleName === 'next') return 'next'
-  }
-  return findCallStackFramePackageFromNodeModules(id)
-}
-
-const reactNodeModulesRe =
-  /node_modules[\\/](react|scheduler|react-is|react-dom)[\\/]/
-function findCallStackFramePackageFromNodeModules(id: string) {
-  if (/([\\/].next[\\/]|next[\\/]dist)/.test(id)) return 'next'
-  else if (reactNodeModulesRe.test(id)) return 'react'
 }
 
 export async function createOriginalStackFrame({
@@ -260,7 +230,7 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: originalFrame,
     originalCodeFrame,
-    sourcePackage,
+    sourcePackage: sourcePackage ?? null,
   }
 }
 
@@ -324,8 +294,7 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
       const isEdgeServerError = frame.isEdgeServer === 'true'
       const isClientError = !isServerError && !isEdgeServerError
 
-      let sourcePackage: OriginalStackFrameResponse['sourcePackage'] =
-        findCallStackFramePackageFromNodeModules(frame.file ?? '')
+      let sourcePackage = findSourcePackage(frame.file)
 
       if (
         !(
@@ -368,20 +337,17 @@ function getOverlayMiddleware(options: OverlayMiddlewareOptions) {
           // In `pages` we leverage `isClientError` to check
           // In `app` it depends on if it's a server / client component and when the code throws. E.g. during HTML rendering it's the server/edge compilation.
           source = await getSourceById(isFile, moduleId, clientCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, clientCompilation)
         }
         // Try Server Compilation
         // In `pages` this could be something imported in getServerSideProps/getStaticProps as the code for those is tree-shaken.
         // In `app` this finds server components and code that was imported from a server component. It also covers when client component code throws during HTML rendering.
         if ((isServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, serverCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, serverCompilation)
         }
         // Try Edge Server Compilation
         // Both cases are the same as Server Compilation, main difference is that it covers `runtime: 'edge'` pages/app routes.
         if ((isEdgeServerError || isAppDirectory) && source === null) {
           source = await getSourceById(isFile, moduleId, edgeCompilation)
-          sourcePackage = findCallStackFramePackage(moduleId, edgeCompilation)
         }
       } catch (err) {
         console.log('Failed to get source map:', err)

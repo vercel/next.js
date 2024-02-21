@@ -1,5 +1,5 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrameResponse } from '../../server/middleware'
+import type { OriginalStackFrameResponse } from '../../server/shared'
 
 export type OriginalStackFrame =
   | {
@@ -99,7 +99,7 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
-      sourcePackage: undefined,
+      sourcePackage: null,
     })
   }
 
@@ -111,7 +111,7 @@ function getOriginalStackFrame(
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
-    sourcePackage: undefined,
+    sourcePackage: null,
   }))
 }
 
