@@ -12,7 +12,7 @@ createNextDescribe(
     it('should work using browser', async () => {
       const browser: BrowserInterface = await next.browser('/')
       await check(async () => {
-        const text = await browser.waitForElementByCss('p').text()
+        const text = await browser.elementByCss('p').text()
         return text === '2' ? 'success' : `failed: ${text}`
       }, 'success')
     })
