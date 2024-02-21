@@ -750,7 +750,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.3.3
@@ -812,7 +812,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.5
@@ -906,8 +906,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5
       '@capsizecss/metrics':
-        specifier: 1.1.0
-        version: 1.1.0
+        specifier: 2.0.0
+        version: 2.0.0
       '@edge-runtime/cookies':
         specifier: 4.0.2
         version: 4.0.2
@@ -933,16 +933,16 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/polyfill-module':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1554,7 +1554,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 14.1.1-canary.65
+        specifier: 14.1.1-canary.66
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -3399,8 +3399,8 @@ packages:
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
     dev: true
 
-  /@capsizecss/metrics@1.1.0:
-    resolution: {integrity: sha512-HnnFHi/WXkvwueKEaQbBVsBSFcBG8xoumbHlI4+tIMUv7oqmtqDsrm48cHREFl1MfFuowNP96AJVHj17JH+VyA==}
+  /@capsizecss/metrics@2.0.0:
+    resolution: {integrity: sha512-tbYOyIXIMqWZJ2mw2JXvpQiecgTpvioBmduzUEJ+55xGbJz4AtlcatiuNI/rVYiOLLLvGuOOxpkuaY8qAxN63g==}
     dev: true
 
   /@csstools/postcss-color-function@1.1.0(postcss@8.4.31):
