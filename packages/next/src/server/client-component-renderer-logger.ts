@@ -4,7 +4,7 @@ let clientComponentLoadTimes = 0
 let clientComponentLoadCount = 0
 
 export function wrapClientComponentLoader(ComponentMod: any) {
-  if (typeof performance === 'undefined') {
+  if (!('performance' in globalThis)) {
     return ComponentMod.__next_app__
   }
 

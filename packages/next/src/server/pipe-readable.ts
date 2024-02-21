@@ -51,7 +51,7 @@ function createWriterFromResponse(
         started = true
 
         if (
-          typeof performance !== 'undefined' &&
+          'performance' in globalThis &&
           process.env.NEXT_OTEL_PERFORMANCE_PREFIX
         ) {
           const metrics = getClientComponentLoaderMetrics()

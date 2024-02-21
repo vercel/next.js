@@ -266,7 +266,10 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
-          const startTime = performance?.now()
+          const startTime =
+            'performance' in globalThis
+              ? globalThis.performance.now()
+              : undefined
 
           const onCleanup = () => {
             rootSpanAttributesStore.delete(spanId)

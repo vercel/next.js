@@ -631,7 +631,7 @@ async function renderToHTMLOrFlightImpl(
 
   if (typeof req.on === 'function') {
     req.on('end', () => {
-      if (typeof performance !== 'undefined') {
+      if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         getTracer()
           .startSpan(NextNodeServerSpan.clientComponentLoading, {
