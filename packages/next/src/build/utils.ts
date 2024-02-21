@@ -1552,8 +1552,9 @@ export async function isPageStatic({
           useCache: true,
           distDir,
         })
-        const mod =
-          runtime.context._ENTRIES[`middleware_${edgeInfo.name}`].ComponentMod
+        const mod = (
+          await runtime.context._ENTRIES[`middleware_${edgeInfo.name}`]
+        ).ComponentMod
 
         isClientComponent = isClientReference(mod)
         componentsResult = {
@@ -1788,12 +1789,17 @@ export async function isPageStatic({
     })
 }
 
-export async function hasCustomGetInitialProps(
-  page: string,
-  distDir: string,
-  runtimeEnvConfig: any,
+export async function hasCustomGetInitialProps({
+  page,
+  distDir,
+  runtimeEnvConfig,
+  checkingApp,
+}: {
+  page: string
+  distDir: string
+  runtimeEnvConfig: any
   checkingApp: boolean
-): Promise<boolean> {
+}): Promise<boolean> {
   require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
 
   const components = await loadComponents({
@@ -1812,11 +1818,15 @@ export async function hasCustomGetInitialProps(
   return mod.getInitialProps !== mod.origGetInitialProps
 }
 
-export async function getDefinedNamedExports(
-  page: string,
-  distDir: string,
+export async function getDefinedNamedExports({
+  page,
+  distDir,
+  runtimeEnvConfig,
+}: {
+  page: string
+  distDir: string
   runtimeEnvConfig: any
-): Promise<ReadonlyArray<string>> {
+}): Promise<ReadonlyArray<string>> {
   require('../shared/lib/runtime-config.external').setConfig(runtimeEnvConfig)
   const components = await loadComponents({
     distDir,

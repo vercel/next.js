@@ -1,5 +1,4 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { DomainLocale } from './config'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -21,7 +20,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
+import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
@@ -37,7 +36,6 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -56,7 +54,11 @@ import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import { formatRevalidate, type Revalidate } from './lib/revalidate'
+import {
+  formatRevalidate,
+  type Revalidate,
+  type SwrDelta,
+} from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { isBot } from '../shared/lib/router/utils/is-bot'
@@ -80,10 +82,11 @@ import { parseUrl as parseUrlUtil } from '../shared/lib/router/utils/parse-url'
 import { getNextPathnameInfo } from '../shared/lib/router/utils/get-next-pathname-info'
 import {
   RSC_HEADER,
-  RSC_VARY_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_URL,
+  NEXT_ROUTER_STATE_TREE,
 } from '../client/components/app-router-headers'
 import type {
   MatchOptions,
@@ -129,6 +132,7 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './future/normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './future/normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
+import { isInterceptionRouteAppPath } from './future/helpers/interception-routes'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -214,51 +218,10 @@ export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
 
-type BaseRenderOpts = {
-  deploymentId?: string
+type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
-  buildId: string
   generateEtags: boolean
-  runtimeConfig?: { [key: string]: any }
-  assetPrefix?: string
-  canonicalBase: string
-  dev?: boolean
   previewProps: __ApiPreviewProps
-  customServer?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
-  basePath: string
-  optimizeFonts: FontConfig
-  images: ImageConfigComplete
-  fontManifest?: FontManifest
-  disableOptimizedLoading?: boolean
-  optimizeCss: any
-  nextConfigOutput: 'standalone' | 'export'
-  nextScriptWorkers: any
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
-  distDir: string
-  runtime?: ServerRuntime
-  serverComponents?: boolean
-  enableTainting?: boolean
-  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-  supportsDynamicHTML?: boolean
-  isBot?: boolean
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
-  serverActionsManifest?: any
-  nextFontManifest?: NextFontManifest
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
-  largePageDataBytes?: number
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  strictNextHead: boolean
-  isExperimentalCompile?: boolean
-  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -321,6 +284,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected readonly serverOptions: Readonly<ServerOptions>
   protected readonly appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: ClientReferenceManifest
+  protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: NextFontManifest
   private readonly responseCache: ResponseCacheBase
 
@@ -329,6 +293,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   protected abstract getPagesManifest(): PagesManifest | undefined
   protected abstract getAppPathsManifest(): PagesManifest | undefined
   protected abstract getBuildId(): string
+  protected abstract getinterceptionRoutePatterns(): RegExp[]
 
   protected readonly enabledDirectories: NextEnabledDirectories
   protected abstract getEnabledDirectories(dev: boolean): NextEnabledDirectories
@@ -364,6 +329,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
+      swrDelta?: SwrDelta
     }
   ): Promise<void>
 
@@ -506,6 +472,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     this.renderOpts = {
+      supportsDynamicHTML: true,
+      trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -550,6 +518,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           this.nextConfig.experimental.ppr === true,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       },
     }
 
@@ -562,6 +531,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
     this.appPathRoutes = this.getAppPathRoutes()
+    this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // Configure the routes.
     this.matchers = this.getRouteMatchers()
@@ -1591,6 +1561,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         generateEtags,
         poweredByHeader,
         revalidate,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -1741,6 +1712,46 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
   }
 
+  protected pathCouldBeIntercepted(resolvedPathname: string): boolean {
+    return (
+      isInterceptionRouteAppPath(resolvedPathname) ||
+      this.interceptionRoutePatterns.some((regexp) => {
+        return regexp.test(resolvedPathname)
+      })
+    )
+  }
+
+  protected setVaryHeader(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    isAppPath: boolean,
+    resolvedPathname: string
+  ): void {
+    const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
+    const isRSCRequest =
+      req.headers[RSC_HEADER.toLowerCase()] === '1' ||
+      getRequestMeta(req, 'isRSCRequest')
+
+    let addedNextUrlToVary = false
+
+    if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
+      // Interception route responses can vary based on the `Next-URL` header.
+      // We use the Vary header to signal this behavior to the client to properly cache the response.
+      res.setHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      addedNextUrlToVary = true
+    } else if (isAppPath || isRSCRequest) {
+      // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
+      // We also set this header for pages to avoid caching issues when navigating between pages and app.
+      res.setHeader('vary', baseVaryHeader)
+    }
+
+    if (!addedNextUrlToVary) {
+      // Remove `Next-URL` from the request headers we determined it wasn't necessary to include in the Vary header.
+      // This is to avoid any dependency on the `Next-URL` header being present when preparing the response.
+      delete req.headers[NEXT_URL]
+    }
+  }
+
   private async renderToResponseWithComponentsImpl(
     { req, res, pathname, renderOpts: opts }: RequestContext,
     { components, query }: FindComponentsResult
@@ -1755,6 +1766,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     const is500Page = pathname === '/500'
     const isAppPath = components.isAppPath === true
+
     const hasServerProps = !!components.getServerSideProps
     let hasStaticPaths = !!components.getStaticPaths
     const isServerAction = getIsServerAction(req)
@@ -1767,6 +1779,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     let urlPathname = parseUrl(req.url || '').pathname || '/'
 
     let resolvedUrlPathname = getRequestMeta(req, 'rewroteURL') || urlPathname
+
+    this.setVaryHeader(req, res, isAppPath, resolvedUrlPathname)
 
     let staticPaths: string[] | undefined
 
@@ -1897,12 +1911,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     const isDynamicRSCRequest =
       opts.experimental.ppr && isRSCRequest && !isPrefetchRSCRequest
 
-    // For pages we need to ensure the correct Vary header is set too, to avoid
-    // caching issues when navigating between pages and app
-    if (!isAppPath && isRSCRequest) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-    }
-
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isDataReq && !isRSCRequest) {
       res.statusCode = 404
@@ -1993,8 +2001,6 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     if (isAppPath) {
-      res.setHeader('vary', RSC_VARY_HEADER)
-
       if (!this.renderOpts.dev && !isPreviewMode && isSSG && isRSCRequest) {
         // If this is an RSC request but we aren't in minimal mode, then we mark
         // that this is a data request so that we can generate the flight data
@@ -2710,7 +2716,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (!cachedData) {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
       if (isDataReq) {
         res.statusCode = 404
@@ -2726,7 +2738,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     } else if (cachedData.kind === 'REDIRECT') {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
 
       if (isDataReq) {
@@ -2801,7 +2819,10 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         )
       }
 
-      if (cachedData.status) {
+      // If the request is a data request, then we shouldn't set the status code
+      // from the response because it should always be 200. This should be gated
+      // behind the experimental PPR flag.
+      if (cachedData.status && (!isDataReq || !opts.experimental.ppr)) {
         res.statusCode = cachedData.status
       }
 
@@ -2810,7 +2831,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
-      if (isDataReq) {
+      // we don't go through this block when preview mode is true
+      // as preview mode is a dynamic request (bypasses cache) and doesn't
+      // generate both HTML and payloads in the same request so continue to just
+      // return the generated payload
+      if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
           if (cachedData.pageData) {

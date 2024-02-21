@@ -29,7 +29,7 @@ const styles = css`
     right: 0;
     bottom: 0;
     left: 0;
-    background-color: rgba(17, 17, 17, 0.2);
+    background-color: var(--color-backdrop);
     pointer-events: all;
     z-index: -1;
   }

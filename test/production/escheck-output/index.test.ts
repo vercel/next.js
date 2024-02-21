@@ -16,7 +16,8 @@ describe('ES Check .next output', () => {
           build: 'next build && es-check es2020 .next/static/**/*.js',
         },
       },
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      buildCommand: 'pnpm build',
     })
     expect(next.cliOutput).toContain(
       'info: ES-Check: there were no ES version matching errors!  🎉'

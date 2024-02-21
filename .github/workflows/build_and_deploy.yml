@@ -7,7 +7,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 1.11.3
+  TURBO_VERSION: 1.12.2
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
@@ -25,13 +25,13 @@ jobs:
       isRelease: ${{ github.event_name != 'workflow_dispatch' && steps.check-release.outputs.IS_RELEASE }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
       - run: corepack enable
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -245,10 +245,10 @@ jobs:
         if: ${{ matrix.settings.host == 'macos-latest' }}
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: ${{ !matrix.settings.docker }}
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
@@ -352,10 +352,10 @@ jobs:
       - 'metal'
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -407,7 +407,7 @@ jobs:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
@@ -436,19 +436,26 @@ jobs:
           merge-multiple: true
           path: packages/next-swc/crates/wasm
 
-      - run: npm i -g npm@9.6.7 # need latest version for provenance (pinning to avoid bugs)
+      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
       - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
+      - name: Upload npm log artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: npm-publish-logs
+          path: /home/runner/.npm/_logs/*
+
   deployExamples:
     name: Deploy examples
     runs-on: ubuntu-latest
     needs: [build]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
       - name: Install Vercel CLI
@@ -476,7 +483,7 @@ jobs:
     timeout-minutes: 25
     needs: [publishRelease]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
