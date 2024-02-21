@@ -5,7 +5,7 @@ import { findPort, killApp, nextBuild, nextStart } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-const fixturesDir = join(__dirname, '../../scss-fixtures')
+const fixturesDir = join(__dirname, '..', 'scss-fixtures')
 
 describe('Dynamic Route CSS Module Usage', () => {
   ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {

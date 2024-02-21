@@ -2220,11 +2220,10 @@
   "test/e2e/app-dir/_allow-underscored-root-directory/_allow-underscored-root-directory.test.ts": {
     "passed": [
       "_allow-underscored-root-directory should not serve app path with underscore",
-      "_allow-underscored-root-directory should pages path with a underscore at the root"
-    ],
-    "failed": [
+      "_allow-underscored-root-directory should pages path with a underscore at the root",
       "_allow-underscored-root-directory should serve app path with %5F"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3357,11 +3356,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/edge-runtime-node-compatibility/edge-runtime-node-compatibility.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "edge runtime node compatibility [app] supports node:buffer",
       "edge runtime node compatibility [pages/api] supports node:buffer"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4668,9 +4667,10 @@
   "test/e2e/app-dir/underscore-ignore-app-paths/underscore-ignore-app-paths.test.ts": {
     "passed": [
       "underscore-ignore-app-paths should not serve app path with underscore",
-      "underscore-ignore-app-paths should serve pages path with underscore"
+      "underscore-ignore-app-paths should serve pages path with underscore",
+      "underscore-ignore-app-paths should serve app path with %5F"
     ],
-    "failed": ["underscore-ignore-app-paths should serve app path with %5F"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
