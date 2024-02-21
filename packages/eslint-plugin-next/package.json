@@ -1,6 +1,6 @@
 {
   "name": "@next/eslint-plugin-next",
-  "version": "14.1.1-canary.65",
+  "version": "14.1.1-canary.67",
   "description": "ESLint plugin for Next.js.",
   "main": "dist/index.js",
   "license": "MIT",
