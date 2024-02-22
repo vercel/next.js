@@ -27,7 +27,7 @@ createNextDescribe(
 
     it('should render styled-jsx styles in streaming', async () => {
       const html = await renderViaHTTP(next.url, '/')
-      expect(html).toContain('color:blue')
+      expect(html).toMatch(/color:(?:blue|#00f)/)
     })
 
     it('should redirect paths without trailing-slash and render when slash is appended', async () => {

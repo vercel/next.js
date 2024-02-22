@@ -3,6 +3,7 @@ import { normalizePathSep } from './normalize-path-sep'
 import path from '../isomorphic/path'
 import { removePagePathTail } from './remove-page-path-tail'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
+import type { PAGE_TYPES } from '../../../lib/page-types'
 
 /**
  * Given the absolute path to the pages folder, an absolute file path for a
@@ -25,7 +26,7 @@ export function absolutePathToPage(
     extensions: string[] | readonly string[]
     keepIndex: boolean
     dir: string
-    pagesType: 'pages' | 'app' | 'root'
+    pagesType: PAGE_TYPES
   }
 ) {
   const isAppDir = options.pagesType === 'app'

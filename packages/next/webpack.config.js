@@ -20,21 +20,33 @@ const pagesExternals = [
   'react-server-dom-webpack/server.node',
 ]
 
+const appExternals = [
+  // Externalize the react-dom/server legacy implementation outside of the runtime.
+  // If users are using them and imported from 'react-dom/server' they will get the external asset bundled.
+  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.development.js',
+  'next/dist/compiled/react-dom/cjs/react-dom-server-legacy.browser.production.min.js',
+  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.development.js',
+  'next/dist/compiled/react-dom-experimental/cjs/react-dom-server-legacy.browser.production.min.js',
+]
+
 function makeAppAliases(reactChannel = '') {
   return {
     react$: `next/dist/compiled/react${reactChannel}`,
-    'react/shared-subset$': `next/dist/compiled/react${reactChannel}/react.shared-subset`,
+    'react/react.react-server$': `next/dist/compiled/react${reactChannel}/react.react-server`,
     'react-dom/server-rendering-stub$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react-dom$': `next/dist/compiled/react-dom${reactChannel}/server-rendering-stub`,
     'react/jsx-runtime$': `next/dist/compiled/react${reactChannel}/jsx-runtime`,
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
     'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/server.edge$': `next/dist/compiled/react-dom${reactChannel}/server.edge`,
-    'react-dom/server.browser$': `next/dist/compiled/react-dom${reactChannel}/server.browser`,
     'react-dom/static$': `next/dist/compiled/react-dom-experimental/static`,
     'react-dom/static.edge$': `next/dist/compiled/react-dom-experimental/static.edge`,
     'react-dom/static.browser$': `next/dist/compiled/react-dom-experimental/static.browser`,
+    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
+    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    // In Next.js runtime only use react-dom/server.edge
+    'react-dom/server.browser$': 'react-dom/server.edge',
+    // react-server-dom-webpack alias
     'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
     'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
     'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
@@ -43,9 +55,6 @@ function makeAppAliases(reactChannel = '') {
     'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/client.edge`,
     'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.edge`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-webpack${reactChannel}/server.node`,
-    // optimisations to ignore the legacy build of react-dom/server
-    './cjs/react-dom-server-legacy.browser.production.min.js': `next/dist/build/noop-react-dom-server-legacy`,
-    './cjs/react-dom-server-legacy.browser.development.js': `next/dist/build/noop-react-dom-server-legacy`,
   }
 }
 
@@ -56,7 +65,6 @@ const sharedExternals = [
   'styled-jsx',
   'styled-jsx/style',
   '@opentelemetry/api',
-  'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
   'next/dist/compiled/@ampproject/toolbox-optimizer',
   'next/dist/compiled/edge-runtime',
   'next/dist/compiled/@edge-runtime/ponyfill',
@@ -226,10 +234,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
             },
           },
           layer: 'react-server',
@@ -241,10 +249,10 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
             alias: {
               react$: `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
               'next/dist/compiled/react$': `next/dist/compiled/react${
                 experimental ? '-experimental' : ''
-              }/react.shared-subset`,
+              }/react.react-server`,
             },
           },
         },
@@ -252,7 +260,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
     },
     externals: [
       ...sharedExternals,
-      ...(bundleType === 'pages' ? pagesExternals : []),
+      ...(bundleType === 'pages' ? pagesExternals : appExternals),
       externalsMap,
       externalHandler,
     ],

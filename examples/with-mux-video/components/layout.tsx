@@ -1,22 +1,22 @@
-import Head from 'next/head'
-import { MUX_HOME_PAGE_URL } from '../constants'
+import Head from "next/head";
+import { MUX_HOME_PAGE_URL } from "../constants";
 
 interface LayoutProps {
-  title?: string
-  description?: string
-  metaTitle?: string
-  metaDescription?: string
-  image?: string
-  children: React.ReactNode
-  loadTwitterWidget?: boolean
+  title?: string;
+  description?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  image?: string;
+  children: React.ReactNode;
+  loadTwitterWidget?: boolean;
 }
 
 export default function Layout({
   title,
   description,
-  metaTitle = 'Mux + Next.js',
+  metaTitle = "Mux + Next.js",
   metaDescription,
-  image = 'https://with-mux-video.vercel.app/mux-nextjs-og-image.png',
+  image = "https://with-mux-video.vercel.app/mux-nextjs-og-image.png",
   children,
   loadTwitterWidget,
 }: LayoutProps) {
@@ -191,5 +191,5 @@ export default function Layout({
         }
       `}</style>
     </div>
-  )
+  );
 }

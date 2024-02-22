@@ -62,7 +62,7 @@ describe('Image Loader Config new', () => {
       runTests('/')
     }
   )
-  describe('dev mode - getImgProps', () => {
+  describe('dev mode - getImageProps', () => {
     beforeAll(async () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
@@ -73,7 +73,7 @@ describe('Image Loader Config new', () => {
     runTests('/get-img-props')
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'production mode - getImgProps',
+    'production mode - getImageProps',
     () => {
       beforeAll(async () => {
         await nextBuild(appDir)

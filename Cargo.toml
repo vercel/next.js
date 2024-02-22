@@ -3,15 +3,12 @@ resolver = "2"
 
 members = [
   "scripts/send-trace-to-jaeger",
-  "packages/next-swc/crates/core",
   "packages/next-swc/crates/napi",
   "packages/next-swc/crates/wasm",
   "packages/next-swc/crates/next-api",
   "packages/next-swc/crates/next-build",
   "packages/next-swc/crates/next-core",
-  "packages/next-swc/crates/next-transform-font",
-  "packages/next-swc/crates/next-transform-dynamic",
-  "packages/next-swc/crates/next-transform-strip-page-exports",
+  "packages/next-swc/crates/next-custom-transforms",
 ]
 
 [workspace.lints.clippy]
@@ -27,27 +24,24 @@ opt-level = 3
 
 [workspace.dependencies]
 # Workspace crates
-next-api = { path = "packages/next-swc/crates/next-api", default-features = false }
-next-build = { path = "packages/next-swc/crates/next-build", default-features = false }
-next-core = { path = "packages/next-swc/crates/next-core", default-features = false }
-next-swc = { path = "packages/next-swc/crates/core" }
-next-transform-font = { path = "packages/next-swc/crates/next-transform-font" }
-next-transform-dynamic = { path = "packages/next-swc/crates/next-transform-dynamic" }
-next-transform-strip-page-exports = { path = "packages/next-swc/crates/next-transform-strip-page-exports" }
+next-api = { path = "packages/next-swc/crates/next-api" }
+next-build = { path = "packages/next-swc/crates/next-build" }
+next-core = { path = "packages/next-swc/crates/next-core" }
+next-custom-transforms = { path = "packages/next-swc/crates/next-custom-transforms" }
 
 # SWC crates
-swc_core = { version = "0.86.81", features = [
+swc_core = { version = "0.90.10", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "0.35.11" }
+testing = { version = "0.35.18" }
 
 # Turbo crates
-turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231206.2" }
+turbopack-binding = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240220.5" }
 # [TODO]: need to refactor embed_directory! macro usages, as well as resolving turbo_tasks::function, macros..
-turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231206.2" }
+turbo-tasks = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240220.5" }
 # [TODO]: need to refactor embed_directory! macro usage in next-core
-turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-231206.2" }
+turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack-240220.5" }
 
 # General Deps
 
@@ -55,7 +49,7 @@ turbo-tasks-fs = { git = "https://github.com/vercel/turbo.git", tag = "turbopack
 # If you changed, must verify with ALL build targets with next-swc to ensure
 # it works. next-swc have various platforms, some doesn't support native (using openssl-sys)
 # and some aren't buildable with rustls.
-reqwest = { version = "0.11.14", default-features = false }
+reqwest = { version = "=0.11.17", default-features = false }
 
 chromiumoxide = { version = "0.5.0", features = [
   "tokio-runtime",
@@ -98,10 +92,16 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
+lightningcss = { version = "1.0.0-alpha.50", features = [
+  "serde",
+  "visitor",
+  "into_owned",
+] }
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
+parcel_selectors = "0.26.0"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 pin-project-lite = "0.2.9"

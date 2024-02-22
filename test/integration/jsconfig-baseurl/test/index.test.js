@@ -22,7 +22,7 @@ async function get$(path, query) {
   return cheerio.load(html)
 }
 
-describe('TypeScript Features', () => {
+describe('jsconfig.json baseurl', () => {
   describe('default behavior', () => {
     let output = ''
 

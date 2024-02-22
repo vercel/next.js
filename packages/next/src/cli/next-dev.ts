@@ -28,26 +28,30 @@ import type { SelfSignedCertificate } from '../lib/mkcert'
 import uploadTrace from '../trace/upload-trace'
 import { initialEnv } from '@next/env'
 import { fork } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import {
   getReservedPortExplanation,
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 import os from 'os'
+import { once } from 'node:events'
 
 let dir: string
-let child: undefined | ReturnType<typeof fork>
+let child: undefined | ChildProcess
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
 let sessionStopHandled = false
 let sessionStarted = Date.now()
 
-const handleSessionStop = async (signal: string | null) => {
-  if (child) {
-    child.kill((signal as any) || 0)
-  }
+const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
+  if (child?.pid) child.kill(signal ?? 0)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  if (child?.pid && child.exitCode === null && child.signalCode === null) {
+    await once(child, 'exit').catch(() => {})
+  }
 
   try {
     const { eventCliSessionStopped } =
@@ -95,7 +99,6 @@ const handleSessionStop = async (signal: string | null) => {
     uploadTrace({
       traceUploadUrl,
       mode: 'dev',
-      isTurboSession,
       projectDir: dir,
       distDir: config.distDir,
     })
@@ -108,8 +111,11 @@ const handleSessionStop = async (signal: string | null) => {
   process.exit(0)
 }
 
-process.on('SIGINT', () => handleSessionStop('SIGINT'))
-process.on('SIGTERM', () => handleSessionStop('SIGTERM'))
+process.on('SIGINT', () => handleSessionStop('SIGKILL'))
+process.on('SIGTERM', () => handleSessionStop('SIGKILL'))
+
+// exit event must be synchronous
+process.on('exit', () => child?.kill('SIGKILL'))
 
 const nextDev: CliCommand = async (args) => {
   if (args['--help']) {
@@ -125,10 +131,14 @@ const nextDev: CliCommand = async (args) => {
       If no directory is provided, the current directory will be used.
 
       Options
-        --port, -p      A port number on which to start the application
-        --hostname, -H  Hostname on which to start the application (default: 0.0.0.0)
-        --experimental-upload-trace=<trace-url>  [EXPERIMENTAL] Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
-        --help, -h      Displays this message
+        --port, -p                              A port number to start the application on
+        --hostname, -H                          Hostname start the application on (default: 0.0.0.0)
+        --experimental-https                    Start the server with HTTPS and generate a self-signed certificate
+        --experimental-https-key <path>         Path to a HTTPS key file
+        --experimental-https-cert <path>        Path to a HTTPS certificate file
+        --experimental-https-ca <path>          Path to a HTTPS certificate authority file
+        --experimental-upload-trace=<trace-url> Report a subset of the debugging trace to a remote http url. Includes sensitive data. Disabled by default and url must be provided.
+        --help, -h                              Displays this message
     `)
     process.exit(0)
   }
@@ -195,8 +205,18 @@ const nextDev: CliCommand = async (args) => {
 
   const isExperimentalTestProxy = args['--experimental-test-proxy']
 
-  if (args['--experimental-upload-trace']) {
+  if (
+    args['--experimental-upload-trace'] &&
+    !process.env.NEXT_TRACE_UPLOAD_DISABLED
+  ) {
     traceUploadUrl = args['--experimental-upload-trace']
+  }
+
+  // TODO: remove in the next major version
+  if (config.analyticsId) {
+    Log.warn(
+      `\`config.analyticsId\` is deprecated and will be removed in next major version. Read more: https://nextjs.org/docs/messages/deprecated-analyticsid`
+    )
   }
 
   const devServerOptions: StartServerOptions = {
@@ -279,7 +299,6 @@ const nextDev: CliCommand = async (args) => {
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
-              isTurboSession,
               projectDir: dir,
               distDir: config.distDir,
               sync: true,
@@ -296,7 +315,7 @@ const nextDev: CliCommand = async (args) => {
     try {
       if (!!args['--experimental-https']) {
         Log.warn(
-          'Self-signed certificates are currently an experimental feature, use at your own risk.'
+          'Self-signed certificates are currently an experimental feature, use with caution.'
         )
 
         let certificate: SelfSignedCertificate | undefined
@@ -332,17 +351,5 @@ const nextDev: CliCommand = async (args) => {
 
   await runDevServer(false)
 }
-
-function cleanup() {
-  if (!child) {
-    return
-  }
-
-  child.kill('SIGTERM')
-}
-
-process.on('exit', cleanup)
-process.on('SIGINT', cleanup)
-process.on('SIGTERM', cleanup)
 
 export { nextDev }

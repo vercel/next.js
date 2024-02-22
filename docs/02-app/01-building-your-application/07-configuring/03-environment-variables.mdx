@@ -173,7 +173,7 @@ Next.js allows you to set defaults in `.env` (all environments), `.env.developme
 
 ## Environment Variables on Vercel
 
-When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/concepts/projects/environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website).
+When deploying your Next.js application to [Vercel](https://vercel.com), Environment Variables can be configured [in the Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website).
 
 All types of Environment Variables should be configured there. Even Environment Variables used in Development – which can be [downloaded onto your local device](https://vercel.com/docs/concepts/projects/environment-variables#development-environment-variables?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) afterwards.
 
@@ -182,6 +182,8 @@ If you've configured [Development Environment Variables](https://vercel.com/docs
 ```bash filename="Terminal"
 vercel env pull .env.local
 ```
+
+> **Good to know**: When deploying your Next.js application to [Vercel](https://vercel.com), your environment variables in `.env*` files will not be made available to Edge Runtime, unless their name are prefixed with `NEXT_PUBLIC_`. We strongly recommend managing your environment variables in [Project Settings](https://vercel.com/docs/projects/environment-variables?utm_medium=docs&utm_source=next-site&utm_campaign=next-website) instead, from where all environment variables are available.
 
 ## Test Environment Variables
 

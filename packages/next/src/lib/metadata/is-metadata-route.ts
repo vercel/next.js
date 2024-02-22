@@ -1,3 +1,4 @@
+import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 
 export const STATIC_METADATA_IMAGES = {
@@ -38,7 +39,7 @@ const getExtensionRegexString = (extensions: readonly string[]) =>
 // e.g. /robots, /sitemap, /favicon, /manifest, use to match dynamic API routes like app/robots.ts
 export function isMetadataRouteFile(
   appDirRelativePath: string,
-  pageExtensions: string[],
+  pageExtensions: PageExtensions,
   withExtension: boolean
 ) {
   const metadataRouteFilesRegex = [

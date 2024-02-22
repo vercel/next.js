@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import { EXAMPLE_TOOL_NAME } from '../lib/constants'
+import Head from "next/head";
+import { EXAMPLE_TOOL_NAME } from "../lib/constants";
 
 export default function Meta() {
   return (
@@ -37,5 +37,5 @@ export default function Meta() {
         content={`A statically generated blog example using Next.js and ${EXAMPLE_TOOL_NAME}.`}
       />
     </Head>
-  )
+  );
 }

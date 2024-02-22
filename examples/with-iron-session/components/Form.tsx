@@ -1,11 +1,11 @@
-import { FormEvent } from 'react'
+import { FormEvent } from "react";
 
 export default function Form({
   errorMessage,
   onSubmit,
 }: {
-  errorMessage: string
-  onSubmit: (e: FormEvent<HTMLFormElement>) => void
+  errorMessage: string;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
 }) {
   return (
     <form onSubmit={onSubmit}>
@@ -39,5 +39,5 @@ export default function Form({
         }
       `}</style>
     </form>
-  )
+  );
 }

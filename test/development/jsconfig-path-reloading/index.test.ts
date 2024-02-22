@@ -83,7 +83,7 @@ describe('jsconfig-path-reloading', () => {
           )}`
         )
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
 
         await next.patchFile(
@@ -104,7 +104,7 @@ describe('jsconfig-path-reloading', () => {
           )
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -159,7 +159,7 @@ describe('jsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        expect(await hasRedbox(browser, false)).toBe(false)
+        expect(await hasRedbox(browser)).toBe(false)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')

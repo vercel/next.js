@@ -18,6 +18,18 @@ const links = [
   { href: '/no-suspense/nested/b', tag: 'no suspense, on-demand' },
   { href: '/no-suspense/nested/c', tag: 'no suspense, on-demand' },
   { href: '/dynamic/force-dynamic', tag: "dynamic = 'force-dynamic'" },
+  {
+    href: '/dynamic/force-dynamic/nested/a',
+    tag: "dynamic = 'force-dynamic', on-demand, no-gsp",
+  },
+  {
+    href: '/dynamic/force-dynamic/nested/b',
+    tag: "dynamic = 'force-dynamic', on-demand, no-gsp",
+  },
+  {
+    href: '/dynamic/force-dynamic/nested/c',
+    tag: "dynamic = 'force-dynamic', on-demand, no-gsp",
+  },
   { href: '/dynamic/force-static', tag: "dynamic = 'force-static'" },
   { href: '/edge/suspense', tag: 'edge, pre-generated' },
   { href: '/edge/suspense/a', tag: 'edge, pre-generated' },
@@ -27,6 +39,11 @@ const links = [
   { href: '/edge/no-suspense/a', tag: 'edge, no suspense, pre-generated' },
   { href: '/edge/no-suspense/b', tag: 'edge, no suspense, on-demand' },
   { href: '/edge/no-suspense/c', tag: 'edge, no suspense, on-demand' },
+  { href: '/navigation/not-found', tag: 'not-found' },
+  { href: '/navigation/not-found/no-store', tag: 'not-found, dynamic' },
+  { href: '/navigation/redirect', tag: 'redirect' },
+  { href: '/navigation/redirect/no-store', tag: 'redirect, dynamic' },
+  { href: '/pages', tag: 'pages' },
 ]
 
 export const Links = () => {

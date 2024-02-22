@@ -9,7 +9,7 @@ createNextDescribe(
   ({ next, isNextDev, isNextStart }) => {
     it('should indicate the feature is experimental', async () => {
       await check(() => {
-        return next.cliOutput.includes('Experiments (use at your own risk)') &&
+        return next.cliOutput.includes('Experiments (use with caution)') &&
           next.cliOutput.includes('ppr')
           ? 'success'
           : 'fail'
@@ -70,21 +70,6 @@ createNextDescribe(
           expect($('#container > #dynamic > #state').length).toBe(0)
         })
       }
-
-      if (!isNextDev) {
-        it('should cache the static part', async () => {
-          // First, render the page to populate the cache.
-          let res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-
-          // Then, render the page again.
-          res = await next.fetch(pathname)
-          expect(res.status).toBe(200)
-          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-          expect(res.headers.get('x-nextjs-postponed')).toBe('1')
-        })
-      }
     })
 
     describe.each([
@@ -131,6 +116,19 @@ createNextDescribe(
           await browser.deleteCookies()
           await browser.close()
         }
+      })
+    })
+
+    describe('search parameters', () => {
+      it('should render the page with the search parameters', async () => {
+        const expected = `${Date.now()}:${Math.random()}`
+        const res = await next.fetch(
+          `/search?query=${encodeURIComponent(expected)}`
+        )
+        expect(res.status).toBe(200)
+
+        const html = await res.text()
+        expect(html).toContain(expected)
       })
     })
 

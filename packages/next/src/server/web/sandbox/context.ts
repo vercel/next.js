@@ -28,16 +28,17 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getServerError
-let decorateServerError: typeof import('next/dist/compiled/@next/react-dev-overlay/dist/middleware').decorateServerError
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('next/dist/compiled/@next/react-dev-overlay/dist/middleware')
+  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
   getServerError = middleware.getServerError
-  decorateServerError = middleware.decorateServerError
+  decorateServerError =
+    require('../../../shared/lib/error-source').decorateServerError
 } else {
   getServerError = (error: Error, _: string) => error
-  decorateServerError = (error: Error, _: string) => error
+  decorateServerError = (_: Error, __: string) => {}
 }
 
 /**
@@ -48,6 +49,16 @@ if (process.env.NODE_ENV === 'development') {
 const moduleContexts = new Map<string, ModuleContext>()
 
 const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+
+/**
+ * Same as clearModuleContext but for all module contexts.
+ */
+export async function clearAllModuleContexts() {
+  intervalsManager.removeAll()
+  timeoutsManager.removeAll()
+  moduleContexts.clear()
+  pendingModuleCaches.clear()
+}
 
 /**
  * For a given path a context, this function checks if there is any module
@@ -222,6 +233,10 @@ const NativeModuleMap = (() => {
   return new Map(Object.entries(mods))
 })()
 
+export const requestStore = new AsyncLocalStorage<{
+  headers: Headers
+}>()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -325,6 +340,19 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
         }
 
         init.headers = new Headers(init.headers ?? {})
+
+        // Forward subrequest header from incoming request to outgoing request
+        const store = requestStore.getStore()
+        if (
+          store?.headers.has('x-middleware-subrequest') &&
+          !init.headers.has('x-middleware-subrequest')
+        ) {
+          init.headers.set(
+            'x-middleware-subrequest',
+            store.headers.get('x-middleware-subrequest') ?? ''
+          )
+        }
+
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
         const value = prevs.concat(options.moduleName).join(':')

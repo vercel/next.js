@@ -45,10 +45,14 @@ on:
         required: false
         description: 'rustCacheKey to cache shared target assets'
         type: string
+      stepName:
+        required: true
+        description: 'name of the step, to be used for the upload artifact unique key '
+        type: string
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.12.2
   NODE_LTS_VERSION: 20.9.0
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -75,7 +79,17 @@ jobs:
       - 'x64'
       - 'metal'
 
+    outputs:
+      input_step_key: ${{ steps.var.outputs.input_step_key }}
+
     steps:
+      - name: Normalize input step names into path key
+        uses: actions/github-script@v7
+        id: var
+        with:
+          script: |
+            core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
+
       - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: corepack enable
@@ -83,7 +97,7 @@ jobs:
 
       - run: rm -rf .git
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 25
 
@@ -133,7 +147,7 @@ jobs:
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -159,25 +173,35 @@ jobs:
       - run: /bin/bash -c "${{ inputs.afterBuild }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: turbo run summary
+          name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
-          name: webpack bundle analysis stats
+          name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test report artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild && always() }}
         with:
-          name: test-reports
+          name: test-reports-${{ steps.var.outputs.input_step_key }}
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
+          if-no-files-found: ignore
+
+      # upload playwright snapshots from failed tests
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
+          path: |
+            test/traces
           if-no-files-found: ignore

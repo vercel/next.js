@@ -13,6 +13,7 @@ import { RouteMatcher } from '../future/route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getUtils } from '../server-utils'
+import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystring'
 
 type WrapOptions = Partial<Pick<AdapterOptions, 'page'>>
 
@@ -78,7 +79,7 @@ export class EdgeRouteModuleWrapper {
     })
 
     const { params } = utils.normalizeDynamicRouteParams(
-      Object.fromEntries(request.nextUrl.searchParams)
+      searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
     const prerenderManifest: PrerenderManifest | undefined =

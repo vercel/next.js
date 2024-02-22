@@ -3,9 +3,11 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
+pub mod include_modules_module;
 pub mod metadata;
 
 use std::{
+    cmp::Ordering,
     fmt::{Display, Formatter, Write},
     ops::Deref,
 };
@@ -15,9 +17,7 @@ use serde::{Deserialize, Serialize};
 use turbo_tasks::{trace::TraceRawVcs, TaskInput};
 
 pub use crate::next_app::{
-    app_client_references_chunks::{
-        get_app_client_references_chunks, ClientReferenceChunks, ClientReferencesChunks,
-    },
+    app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
     app_client_shared_chunks::get_app_client_shared_chunks,
     app_entry::AppEntry,
     app_page_entry::get_app_page_entry,
@@ -25,7 +25,19 @@ pub use crate::next_app::{
 };
 
 /// See [AppPage].
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PageSegment {
     /// e.g. `/dashboard`
     Static(String),
@@ -117,7 +129,19 @@ impl Display for PageSegment {
     }
 }
 
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PageType {
     Page,
     Route,
@@ -209,6 +233,20 @@ impl AppPage {
         matches!(self.0.last(), Some(PageSegment::PageType(..)))
     }
 
+    pub fn is_catchall(&self) -> bool {
+        let segment = if self.is_complete() {
+            // The `PageType` is the last segment for completed pages.
+            self.0.iter().nth_back(1)
+        } else {
+            self.0.last()
+        };
+
+        matches!(
+            segment,
+            Some(PageSegment::CatchAll(..) | PageSegment::OptionalCatchAll(..))
+        )
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
@@ -237,10 +275,37 @@ impl Deref for AppPage {
     }
 }
 
+impl Ord for AppPage {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // next.js does some weird stuff when looking up routes, so we have to emit the
+        // correct path (shortest segments, but alphabetically the last).
+        // https://github.com/vercel/next.js/blob/194311d8c96144d68e65cd9abb26924d25978da7/packages/next/src/server/base-server.ts#L3003
+        self.len().cmp(&other.len()).then(other.0.cmp(&self.0))
+    }
+}
+
+impl PartialOrd for AppPage {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 /// Path segments for a router path (not including parallel routes and groups).
 ///
 /// Also see [AppPath].
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs)]
+#[derive(
+    Clone,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    TaskInput,
+    TraceRawVcs,
+)]
 pub enum PathSegment {
     /// e.g. `/dashboard`
     Static(String),
@@ -297,11 +362,38 @@ impl AppPath {
         })
     }
 
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn is_catchall(&self) -> bool {
+        // can only be the last segment.
+        matches!(
+            self.last(),
+            Some(PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_))
+        )
+    }
+
     pub fn contains(&self, other: &AppPath) -> bool {
+        // TODO: handle OptionalCatchAll properly.
         for (i, segment) in other.0.iter().enumerate() {
-            if self.0.get(i) != Some(segment) {
+            let Some(self_segment) = self.0.get(i) else {
+                // other is longer than self
                 return false;
+            };
+
+            if self_segment == segment {
+                continue;
             }
+
+            if matches!(
+                segment,
+                PathSegment::CatchAll(_) | PathSegment::OptionalCatchAll(_)
+            ) {
+                return true;
+            }
+
+            return false;
         }
 
         true
@@ -328,6 +420,21 @@ impl Display for AppPath {
         }
 
         Ok(())
+    }
+}
+
+impl Ord for AppPath {
+    fn cmp(&self, other: &Self) -> Ordering {
+        // next.js does some weird stuff when looking up routes, so we have to emit the
+        // correct path (shortest segments, but alphabetically the last).
+        // https://github.com/vercel/next.js/blob/194311d8c96144d68e65cd9abb26924d25978da7/packages/next/src/server/base-server.ts#L3003
+        self.len().cmp(&other.len()).then(other.0.cmp(&self.0))
+    }
+}
+
+impl PartialOrd for AppPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

@@ -72,6 +72,12 @@ export interface ImageParamsResult {
   minimumCacheTTL: number
 }
 
+interface ImageUpstream {
+  buffer: Buffer
+  contentType: string | null | undefined
+  cacheControl: string | null | undefined
+}
+
 function getSupportedMimeType(options: string[], accept = ''): string {
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
@@ -373,7 +379,9 @@ export class ImageError extends Error {
   }
 }
 
-function parseCacheControl(str: string | null): Map<string, string> {
+function parseCacheControl(
+  str: string | null | undefined
+): Map<string, string> {
   const map = new Map<string, string>()
   if (!str) {
     return map
@@ -389,7 +397,7 @@ function parseCacheControl(str: string | null): Map<string, string> {
   return map
 }
 
-export function getMaxAge(str: string | null): number {
+export function getMaxAge(str: string | null | undefined): number {
   const map = parseCacheControl(str)
   if (map) {
     let age = map.get('s-maxage') || map.get('max-age') || ''
@@ -516,77 +524,89 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function imageOptimizer(
+export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+  const res = await fetch(href)
+
+  if (!res.ok) {
+    Log.error('upstream image response failed for', href, res.status)
+    throw new ImageError(
+      res.status,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer())
+  const contentType = res.headers.get('Content-Type')
+  const cacheControl = res.headers.get('Cache-Control')
+
+  return { buffer, contentType, cacheControl }
+}
+
+export async function fetchInternalImage(
+  href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
-  paramsResult: ImageParamsResult,
-  nextConfig: NextConfigComplete,
-  isDev: boolean | undefined,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>
-): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
-  let upstreamBuffer: Buffer
-  let upstreamType: string | null | undefined
-  let maxAge: number
-  const { isAbsolute, href, width, mimeType, quality } = paramsResult
+): Promise<ImageUpstream> {
+  try {
+    const mocked = createRequestResponseMocks({
+      url: href,
+      method: _req.method || 'GET',
+      headers: _req.headers,
+      socket: _req.socket,
+    })
 
-  if (isAbsolute) {
-    const upstreamRes = await fetch(href)
+    await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
+    await mocked.res.hasStreamed
 
-    if (!upstreamRes.ok) {
-      Log.error('upstream image response failed for', href, upstreamRes.status)
+    if (!mocked.res.statusCode) {
+      Log.error('image response failed for', href, mocked.res.statusCode)
       throw new ImageError(
-        upstreamRes.status,
-        '"url" parameter is valid but upstream response is invalid'
+        mocked.res.statusCode,
+        '"url" parameter is valid but internal response is invalid'
       )
     }
 
-    upstreamBuffer = Buffer.from(await upstreamRes.arrayBuffer())
-    upstreamType =
-      detectContentType(upstreamBuffer) ||
-      upstreamRes.headers.get('Content-Type')
-    maxAge = getMaxAge(upstreamRes.headers.get('Cache-Control'))
-  } else {
-    try {
-      const mocked = createRequestResponseMocks({
-        url: href,
-        method: _req.method || 'GET',
-        headers: _req.headers,
-        socket: _req.socket,
-      })
-
-      await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
-      await mocked.res.hasStreamed
-
-      if (!mocked.res.statusCode) {
-        Log.error('image response failed for', href, mocked.res.statusCode)
-        throw new ImageError(
-          mocked.res.statusCode,
-          '"url" parameter is valid but internal response is invalid'
-        )
-      }
-
-      upstreamBuffer = Buffer.concat(mocked.res.buffers)
-      upstreamType =
-        detectContentType(upstreamBuffer) ||
-        mocked.res.getHeader('Content-Type')
-      const cacheControl = mocked.res.getHeader('Cache-Control')
-      maxAge = cacheControl ? getMaxAge(cacheControl) : 0
-    } catch (err) {
-      Log.error('upstream image response failed for', href, err)
-      throw new ImageError(
-        500,
-        '"url" parameter is valid but upstream response is invalid'
-      )
-    }
+    const buffer = Buffer.concat(mocked.res.buffers)
+    const contentType = mocked.res.getHeader('Content-Type')
+    const cacheControl = mocked.res.getHeader('Cache-Control')
+    return { buffer, contentType, cacheControl }
+  } catch (err) {
+    Log.error('upstream image response failed for', href, err)
+    throw new ImageError(
+      500,
+      '"url" parameter is valid but upstream response is invalid'
+    )
   }
+}
+
+export async function imageOptimizer(
+  imageUpstream: ImageUpstream,
+  paramsResult: Pick<
+    ImageParamsResult,
+    'href' | 'width' | 'quality' | 'mimeType'
+  >,
+  nextConfig: {
+    output: NextConfigComplete['output']
+    images: Pick<
+      NextConfigComplete['images'],
+      'dangerouslyAllowSVG' | 'minimumCacheTTL'
+    >
+  },
+  isDev: boolean | undefined
+): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+  const { href, quality, width, mimeType } = paramsResult
+  const upstreamBuffer = imageUpstream.buffer
+  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const upstreamType =
+    detectContentType(upstreamBuffer) ||
+    imageUpstream.contentType?.toLowerCase().trim()
 
   if (upstreamType) {
-    upstreamType = upstreamType.toLowerCase().trim()
-
     if (
       upstreamType.startsWith('image/svg') &&
       !nextConfig.images.dangerouslyAllowSVG
@@ -599,11 +619,17 @@ export async function imageOptimizer(
         '"url" parameter is valid but image type is not allowed'
       )
     }
-    const vector = VECTOR_TYPES.includes(upstreamType)
-    const animate =
-      ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)
 
-    if (vector || animate) {
+    if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
+      Log.warnOnce(
+        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+      )
+      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+    }
+    if (VECTOR_TYPES.includes(upstreamType)) {
+      // We don't warn here because we already know that "dangerouslyAllowSVG"
+      // was enabled above, therefore the user explicitly opted in.
+      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
       return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {

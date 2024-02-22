@@ -8,6 +8,7 @@
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import {
+  BARREL_OPTIMIZATION_PREFIX,
   CLIENT_REFERENCE_MANIFEST,
   SYSTEM_ENTRYPOINTS,
 } from '../../../shared/lib/constants'
@@ -18,6 +19,7 @@ import { WEBPACK_LAYERS } from '../../../lib/constants'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 import { CLIENT_STATIC_FILES_RUNTIME_MAIN_APP } from '../../../shared/lib/constants'
 import { getDeploymentIdQueryOrEmptyString } from '../../deployment-id'
+import { formatBarrelOptimizedResource } from '../utils'
 
 interface Options {
   dev: boolean
@@ -125,12 +127,19 @@ function getAppPathRequiredChunks(
 // - app/foo/page -> app/foo
 // - app/(group)/@named/foo/page -> app/foo
 // - app/(.)foo/(..)bar/loading -> app/bar
+// - app/[...catchAll]/page -> app
+// - app/foo/@slot/[...catchAll]/page -> app/foo
 function entryNameToGroupName(entryName: string) {
   let groupName = entryName
     .slice(0, entryName.lastIndexOf('/'))
+    // Remove slots
     .replace(/\/@[^/]+/g, '')
     // Remove the group with lookahead to make sure it's not interception route
     .replace(/\/\([^/]+\)(?=(\/|$))/g, '')
+    // Remove catch-all routes since they should be part of the parent group that the catch-all would apply to.
+    // This is necessary to support parallel routes since multiple page components can be rendered on the same page.
+    // In order to do that, we need to ensure that the manifests are merged together by putting them in the same group.
+    .replace(/\/\[?\[\.\.\.[^\]]*\]\]?/g, '')
 
   // Interception routes
   groupName = groupName
@@ -270,7 +279,7 @@ export class ClientReferenceManifestPlugin {
           return
         }
 
-        const resource =
+        let resource =
           mod.type === 'css/mini-extract'
             ? // @ts-expect-error TODO: use `identifier()` instead.
               mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
@@ -305,6 +314,18 @@ export class ClientReferenceManifestPlugin {
               '/next/dist/esm/'.replace(/\//g, path.sep)
             )
           : null
+
+        // An extra query param is added to the resource key when it's optimized
+        // through the Barrel Loader. That's because the same file might be created
+        // as multiple modules (depending on what you import from it).
+        // See also: webpack/loaders/next-flight-loader/index.ts.
+        if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
+          ssrNamedModuleId = formatBarrelOptimizedResource(
+            ssrNamedModuleId,
+            mod.matchResource
+          )
+          resource = formatBarrelOptimizedResource(resource, mod.matchResource)
+        }
 
         function addClientReference() {
           const exportName = resource

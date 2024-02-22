@@ -50,6 +50,17 @@ describe('build trace with extra entries', () => {
       expect(appTrace.files.some((file) => file.endsWith('hello.json'))).toBe(
         true
       )
+
+      expect(
+        indexTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      ).toBeGreaterThan(
+        anotherTrace.files.filter(
+          (file) => file.includes('chunks') && file.endsWith('.js')
+        ).length
+      )
+
       expect(
         appTrace.files.some((file) => file.endsWith('lib/get-data.js'))
       ).toBe(true)

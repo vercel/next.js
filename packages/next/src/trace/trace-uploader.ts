@@ -35,9 +35,7 @@ const {
 const isDebugEnabled = !!NEXT_TRACE_UPLOAD_DEBUG || !!NEXT_TRACE_UPLOAD_FULL
 const shouldUploadFullTrace = !!NEXT_TRACE_UPLOAD_FULL
 
-const [, , traceUploadUrl, mode, _isTurboSession, projectDir, distDir] =
-  process.argv
-const isTurboSession = _isTurboSession === 'true'
+const [, , traceUploadUrl, mode, projectDir, distDir] = process.argv
 
 type TraceRequestBody = {
   metadata: TraceMetadata
@@ -100,6 +98,7 @@ interface TraceMetadata {
     crlfDelay: Infinity,
   })
 
+  let isTurboSession = false
   const traces = new Map<string, TraceEvent[]>()
   for await (const line of readLineInterface) {
     const lineEvents: TraceEvent[] = JSON.parse(line)
@@ -110,21 +109,13 @@ interface TraceMetadata {
         shouldUploadFullTrace ||
         EVENT_FILTER.has(event.name)
       ) {
-        if (
-          typeof event.tags.trigger === 'string' &&
-          path.isAbsolute(event.tags.trigger)
-        ) {
-          event.tags.trigger =
-            '[project]/' +
-            path
-              .relative(projectDir, event.tags.trigger)
-              .replaceAll(path.sep, '/')
-        }
-
         let trace = traces.get(event.traceId)
         if (trace === undefined) {
           trace = []
           traces.set(event.traceId, trace)
+        }
+        if (typeof event.tags.isTurbopack === 'boolean') {
+          isTurboSession = event.tags.isTurbopack
         }
         trace.push(event)
       }

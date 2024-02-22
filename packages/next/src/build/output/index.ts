@@ -322,18 +322,7 @@ export function watchCompilers(
   })
 }
 
-const internalSegments = ['[[...__metadata_id__]]', '[__metadata_id__]']
 export function reportTrigger(trigger: string, url?: string) {
-  for (const segment of internalSegments) {
-    if (trigger.includes(segment)) {
-      trigger = trigger.replace(segment, '')
-    }
-  }
-
-  if (trigger.length > 1 && trigger.endsWith('/')) {
-    trigger = trigger.slice(0, -1)
-  }
-
   buildStore.setState({
     trigger,
     url,

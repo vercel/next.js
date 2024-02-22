@@ -11,7 +11,6 @@
 'use strict';
 
 var ReactDOM = require('react-dom');
-var React = require('react');
 
 function createStringDecoder() {
   return new TextDecoder();
@@ -310,7 +309,7 @@ function dispatchHint(code, model) {
         }
     }
   }
-} // Flow is having troulbe refining the HintModels so we help it a bit.
+} // Flow is having trouble refining the HintModels so we help it a bit.
 // This should be compiled out in the production build.
 
 function refineModel(code, model) {
@@ -322,10 +321,7 @@ function refineModel(code, model) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 const REACT_ELEMENT_TYPE = Symbol.for('react.element');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
-const REACT_SERVER_CONTEXT_TYPE = Symbol.for('react.server_context');
 const REACT_LAZY_TYPE = Symbol.for('react.lazy');
-const REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED = Symbol.for('react.default_value');
 const REACT_POSTPONE_TYPE = Symbol.for('react.postpone');
 const MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 const FAUX_ITERATOR_SYMBOL = '@@iterator';
@@ -638,40 +634,6 @@ function createServerReference(id, callServer) {
   return proxy;
 }
 
-const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-
-const ContextRegistry = ReactSharedInternals.ContextRegistry;
-function getOrCreateServerContext(globalName) {
-  if (!ContextRegistry[globalName]) {
-    const context = {
-      $$typeof: REACT_SERVER_CONTEXT_TYPE,
-      // As a workaround to support multiple concurrent renderers, we categorize
-      // some renderers as primary and others as secondary. We only expect
-      // there to be two concurrent renderers at most: React Native (primary) and
-      // Fabric (secondary); React DOM (primary) and React ART (secondary).
-      // Secondary renderers store their context values on separate fields.
-      _currentValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _currentValue2: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      _defaultValue: REACT_SERVER_CONTEXT_DEFAULT_VALUE_NOT_LOADED,
-      // Used to track how many concurrent renderers this context currently
-      // supports within in a single renderer. Such as parallel server rendering.
-      _threadCount: 0,
-      // These are circular
-      Provider: null,
-      Consumer: null,
-      _globalName: globalName
-    };
-    context.Provider = {
-      $$typeof: REACT_PROVIDER_TYPE,
-      _context: context
-    };
-
-    ContextRegistry[globalName] = context;
-  }
-
-  return ContextRegistry[globalName];
-}
-
 const ROW_ID = 0;
 const ROW_TAG = 1;
 const ROW_LENGTH = 2;
@@ -683,7 +645,8 @@ const CYCLIC = 'cyclic';
 const RESOLVED_MODEL = 'resolved_model';
 const RESOLVED_MODULE = 'resolved_module';
 const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
+const ERRORED = 'rejected'; // Dev-only
+// $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -992,6 +955,7 @@ function createLazyChunkWrapper(chunk) {
     _payload: chunk,
     _init: readChunk
   };
+
   return lazyType;
 }
 
@@ -1136,12 +1100,6 @@ function parseModelString(response, parentObject, key, value) {
           return Symbol.for(value.slice(2));
         }
 
-      case 'P':
-        {
-          // Server Context Provider
-          return getOrCreateServerContext(value.slice(2)).Provider;
-        }
-
       case 'F':
         {
           // Server Reference
@@ -1226,7 +1184,9 @@ function parseModelString(response, parentObject, key, value) {
 
           switch (chunk.status) {
             case INITIALIZED:
-              return chunk.value;
+              const chunkValue = chunk.value;
+
+              return chunkValue;
 
             case PENDING:
             case BLOCKED:
@@ -1476,8 +1436,8 @@ function processFullRow(response, id, tag, buffer, chunk) {
         resolveTypedArray(response, id, buffer, chunk, Float32Array, 4);
         return;
 
-      case 68
-      /* "D" */
+      case 100
+      /* "d" */
       :
         resolveTypedArray(response, id, buffer, chunk, Float64Array, 8);
         return;
@@ -1548,6 +1508,14 @@ function processFullRow(response, id, tag, buffer, chunk) {
       {
         resolveText(response, id, row);
         return;
+      }
+
+    case 68
+    /* "D" */
+    :
+      {
+
+        throw new Error('Failed to read a RSC payload created by a development version of React ' + 'on the server while using a production version on the client. Always use ' + 'matching versions on the server and the client.');
       }
 
     case 80
@@ -1627,8 +1595,8 @@ function processBinaryChunk(response, chunk) {
           /* "l" */
           || resolvedRowTag === 70
           /* "F" */
-          || resolvedRowTag === 68
-          /* "D" */
+          || resolvedRowTag === 100
+          /* "d" */
           || resolvedRowTag === 78
           /* "N" */
           || resolvedRowTag === 109

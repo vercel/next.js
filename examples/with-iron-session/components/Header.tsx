@@ -1,12 +1,12 @@
-import Link from 'next/link'
-import useUser from 'lib/useUser'
-import { useRouter } from 'next/router'
-import Image from 'next/image'
-import fetchJson from 'lib/fetchJson'
+import Link from "next/link";
+import useUser from "lib/useUser";
+import { useRouter } from "next/router";
+import Image from "next/image";
+import fetchJson from "lib/fetchJson";
 
 export default function Header() {
-  const { user, mutateUser } = useUser()
-  const router = useRouter()
+  const { user, mutateUser } = useUser();
+  const router = useRouter();
 
   return (
     <header>
@@ -31,10 +31,10 @@ export default function Header() {
                   <a>
                     <span
                       style={{
-                        marginRight: '.3em',
-                        verticalAlign: 'middle',
-                        borderRadius: '100%',
-                        overflow: 'hidden',
+                        marginRight: ".3em",
+                        verticalAlign: "middle",
+                        borderRadius: "100%",
+                        overflow: "hidden",
                       }}
                     >
                       <Image
@@ -57,12 +57,12 @@ export default function Header() {
                 <a
                   href="/api/logout"
                   onClick={async (e) => {
-                    e.preventDefault()
+                    e.preventDefault();
                     mutateUser(
-                      await fetchJson('/api/logout', { method: 'POST' }),
-                      false
-                    )
-                    router.push('/login')
+                      await fetchJson("/api/logout", { method: "POST" }),
+                      false,
+                    );
+                    router.push("/login");
                   }}
                 >
                   Logout
@@ -117,5 +117,5 @@ export default function Header() {
         }
       `}</style>
     </header>
-  )
+  );
 }

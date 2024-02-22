@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 createNextDescribe(
@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     describe('parallel routes', () => {
       it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
@@ -187,7 +187,7 @@ createNextDescribe(
         expect(pageText).toContain('parallel/(new)/@baz/nested/page')
       })
 
-      it('should throw an error when a route groups causes a conflict with a parallel segment', async () => {
+      it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
         await next.stop()
         await next.patchFile(
           'app/parallel/nested-2/page.js',
@@ -198,22 +198,21 @@ createNextDescribe(
             `
         )
 
-        if (isNextDev) {
-          await next.start()
+        await next.start()
 
-          const html = await next.render('/parallel/nested-2')
+        const html = await next.render('/parallel/nested-2')
 
-          expect(html).toContain(
-            'You cannot have two parallel pages that resolve to the same path.'
-          )
+        // before adding this file, the page would have matched `/app/parallel/(new)/@baz/nested-2/page`
+        // but we've added a more specific page, so it should match that instead
+        if (process.env.TURBOPACK) {
+          // TODO: this matches differently in Turbopack because the Webpack loader does some sorting on the paths
+          // Investigate the discrepancy in a follow-up. For now, since no errors are being thrown (and since this test was previously ignored in Turbopack),
+          // we'll just verify that the page is rendered and some content was matched.
+          expect(html).toContain('parallel/(new)/@baz/nested/page')
         } else {
-          await expect(next.start()).rejects.toThrow('next build failed')
-
-          await check(
-            () => next.cliOutput,
-            /You cannot have two parallel pages that resolve to the same path\. Please check \/parallel\/\(new\)\/@baz\/nested-2\/page and \/parallel\/nested-2\/page\./i
-          )
+          expect(html).toContain('hello world')
         }
+
         await next.stop()
         await next.deleteFile('app/parallel/nested-2/page.js')
         await next.start()
@@ -331,7 +330,11 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          /main catchall/
+        )
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          /catchall page client component/
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
@@ -339,7 +342,7 @@ createNextDescribe(
         )
       })
 
-      it('Should match the catch-all routes of the more specific path, If there is more than one catch-all route', async () => {
+      it('should match the catch-all routes of the more specific path, if there is more than one catch-all route', async () => {
         const browser = await next.browser('/parallel-nested-catchall')
 
         await browser
@@ -403,6 +406,57 @@ createNextDescribe(
           () => browser.waitForElementByCss('#bar').text(),
           `{"slug":"foo","id":"bar"}`
         )
+      })
+
+      it('should load CSS for a default page that exports another page', async () => {
+        const browser = await next.browser('/default-css')
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // the more page will now be using the page's `default.tsx` file, which re-exports the root page.
+        await browser.elementByCss('[href="/default-css/more"]').click()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // ensure that everything still works on a fresh load
+        await browser.refresh()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should handle a loading state', async () => {
+        const browser = await next.browser('/with-loading')
+        expect(await browser.elementById('slot').text()).toBe('Root Slot')
+        expect(await browser.elementById('children').text()).toBe('Root Page')
+
+        // should have triggered a loading state
+        expect(
+          await browser
+            .elementByCss('[href="/with-loading/foo"]')
+            .click()
+            .waitForElementByCss('#loading-page')
+            .text()
+        ).toBe('Loading...')
+
+        // should eventually load the full page
+        await retry(async () => {
+          expect(await browser.elementById('slot').text()).toBe('Nested Slot')
+          expect(await browser.elementById('children').text()).toBe(
+            'Welcome to Foo Page'
+          )
+        })
       })
 
       if (isNextDev) {
@@ -818,6 +872,20 @@ createNextDescribe(
 
         await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
+
+      if (isNextStart) {
+        it('should not have /default paths in the prerender manifest', async () => {
+          const prerenderManifest = JSON.parse(
+            await next.readFile('.next/prerender-manifest.json')
+          )
+
+          const routes = Object.keys(prerenderManifest.routes)
+
+          for (const route of routes) {
+            expect(route.endsWith('/default')).toBe(false)
+          }
+        })
+      }
     })
   }
 )

@@ -124,7 +124,15 @@ ${output}
   }
 }
 
+let exiting = false
+
 const cleanUpAndExit = async (code) => {
+  if (exiting) {
+    return
+  }
+  exiting = true
+  console.log(`exiting with code ${code}`)
+
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
       recursive: true,
@@ -140,11 +148,7 @@ const cleanUpAndExit = async (code) => {
   if (process.env.CI) {
     await maybeLogSummary()
   }
-  console.log(`exiting with code ${code}`)
-
-  setTimeout(() => {
-    process.exit(code)
-  }, 1)
+  process.exit(code)
 }
 
 const isMatchingPattern = (pattern, file) => {
@@ -422,6 +426,7 @@ ${ENDGROUP}`)
         ...(shouldRecordTestWithReplay
           ? [`--config=jest.replay.config.js`]
           : []),
+        ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
         '--verbose',
@@ -508,7 +513,8 @@ ${ENDGROUP}`)
 
       child.on('exit', async (code, signal) => {
         children.delete(child)
-        if (code !== 0 || signal !== null) {
+        const isChildExitWithNonZero = code !== 0 || signal !== null
+        if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
             const isExpanded =
@@ -550,18 +556,27 @@ ${ENDGROUP}`)
 
           return reject(err)
         }
-        await fsp
-          .rm(
-            path.join(
-              __dirname,
-              'test/traces',
-              path
-                .relative(path.join(__dirname, 'test'), test.file)
-                .replace(/\//g, '-')
-            ),
-            { recursive: true, force: true }
-          )
-          .catch(() => {})
+
+        // If environment is CI and if this test execution is failed after retry, preserve test traces
+        // to upload into github actions artifacts for debugging purpose
+        const shouldPreserveTracesOutput =
+          (process.env.CI && isRetry && isChildExitWithNonZero) ||
+          process.env.PRESERVE_TRACES_OUTPUT
+        if (!shouldPreserveTracesOutput) {
+          await fsp
+            .rm(
+              path.join(
+                __dirname,
+                'test/traces',
+                path
+                  .relative(path.join(__dirname, 'test'), test.file)
+                  .replace(/\//g, '-')
+              ),
+              { recursive: true, force: true }
+            )
+            .catch(() => {})
+        }
+
         resolve(new Date().getTime() - start)
       })
     })

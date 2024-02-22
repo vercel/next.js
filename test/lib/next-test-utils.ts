@@ -17,6 +17,7 @@ import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
+import { once } from 'events'
 
 import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
@@ -497,7 +498,7 @@ export function buildTS(
 
 export async function killProcess(
   pid: number,
-  signal: string | number = 'SIGTERM'
+  signal: NodeJS.Signals | number = 'SIGTERM'
 ): Promise<void> {
   return await new Promise((resolve, reject) => {
     treeKill(pid, signal, (err) => {
@@ -524,9 +525,18 @@ export async function killProcess(
 }
 
 // Kill a launched app
-export async function killApp(instance: ChildProcess) {
-  if (instance && instance.pid) {
-    await killProcess(instance.pid)
+export async function killApp(
+  instance?: ChildProcess,
+  signal: NodeJS.Signals | number = 'SIGKILL'
+) {
+  if (
+    instance?.pid &&
+    instance.exitCode === null &&
+    instance.signalCode === null
+  ) {
+    const exitPromise = once(instance, 'exit')
+    await killProcess(instance.pid, signal)
+    await exitPromise
   }
 }
 
@@ -729,26 +739,20 @@ export async function retry<T>(
   }
 }
 
-export async function hasRedbox(browser: BrowserInterface, expected = true) {
-  for (let i = 0; i < 30; i++) {
-    const result = await evaluate(browser, () => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector(
-              '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
-            )
+export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
+  await waitFor(5000)
+  const result = await evaluate(browser, () => {
+    return Boolean(
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) =>
+          p.shadowRoot.querySelector(
+            '#nextjs__container_errors_label, #nextjs__container_build_error_label, #nextjs__container_root_layout_error_label'
           )
-      )
-    })
-
-    if (result === expected) {
-      return result
-    }
-    await waitFor(1000)
-  }
-  return false
+        )
+    )
+  })
+  return result
 }
 
 export async function getRedboxHeader(browser: BrowserInterface) {
@@ -837,11 +841,11 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.TURBOPACK) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }
@@ -1024,7 +1028,42 @@ export async function getRedboxComponentStack(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
-  return componentStackFrameTexts.join('\n')
+  return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function expandCallStack(
+  browser: BrowserInterface
+): Promise<void> {
+  // Open full Call Stack
+  await browser
+    .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+    .click()
+}
+
+export async function getRedboxCallStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
+
+  const callStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n').trim()
+}
+
+export async function getVersionCheckerText(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-version-checker]', 30000)
+  const versionCheckerElement = await browser.elementByCss(
+    '[data-nextjs-version-checker]'
+  )
+  const versionCheckerText = await versionCheckerElement.innerText()
+  return versionCheckerText.trim()
 }
 
 /**

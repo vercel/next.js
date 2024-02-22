@@ -63,7 +63,6 @@ const nextBuild: CliCommand = (args) => {
     args['--no-mangling'],
     args['--experimental-app-only'],
     !!process.env.TURBOPACK,
-    args['--experimental-turbo-root'],
     args['--build-mode'] || 'default'
   ).catch((err) => {
     console.error('')
