@@ -1,6 +1,6 @@
 {
   "name": "eslint-config-next",
-  "version": "14.1.1-canary.67",
+  "version": "14.1.1-canary.69",
   "description": "ESLint configuration used by Next.js.",
   "main": "index.js",
   "license": "MIT",
@@ -10,9 +10,9 @@
   },
   "homepage": "https://nextjs.org/docs/app/building-your-application/configuring/eslint#eslint-config",
   "dependencies": {
-    "@next/eslint-plugin-next": "14.1.1-canary.67",
+    "@next/eslint-plugin-next": "14.1.1-canary.69",
     "@rushstack/eslint-patch": "^1.3.3",
-    "@typescript-eslint/parser": "^5.4.2 || ^6.0.0",
+    "@typescript-eslint/parser": "^5.4.2 || ^6.0.0 || ^7.0.1",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^3.5.2",
     "eslint-plugin-import": "^2.28.1",

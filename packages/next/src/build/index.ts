@@ -19,6 +19,7 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
+import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -169,7 +170,7 @@ import { isInterceptionRouteAppPath } from '../server/future/helpers/interceptio
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
-  type CurrentIssues,
+  type IssuesMap,
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
@@ -177,6 +178,7 @@ import {
 import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
 import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
+import { createProgress } from './progress'
 
 interface ExperimentalBypassForInfo {
   experimentalBypassFor?: RouteHas[]
@@ -1388,7 +1390,7 @@ export default async function build(
           page: new Map(),
         }
 
-        const currentIssues: CurrentIssues = new Map()
+        const currentIssues: IssuesMap = new Map()
 
         const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
@@ -1416,9 +1418,28 @@ export default async function build(
           rewrites: emptyRewritesObjToBeImplemented,
         })
 
-        const promises = []
-        for (const [page, route] of currentEntrypoints.page) {
+        const progress = createProgress(
+          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
+          'Building'
+        )
+        const promises: Promise<any>[] = []
+        const sema = new Sema(10)
+        const enqueue = (fn: () => Promise<void>) => {
           promises.push(
+            (async () => {
+              await sema.acquire()
+              try {
+                await fn()
+              } finally {
+                sema.release()
+                progress()
+              }
+            })()
+          )
+        }
+
+        for (const [page, route] of currentEntrypoints.page) {
+          enqueue(() =>
             handleRouteType({
               dev,
               page,
@@ -1434,7 +1455,7 @@ export default async function build(
         }
 
         for (const [page, route] of currentEntrypoints.app) {
-          promises.push(
+          enqueue(() =>
             handleRouteType({
               page,
               dev: false,
@@ -1448,7 +1469,7 @@ export default async function build(
           )
         }
 
-        promises.push(
+        enqueue(() =>
           handlePagesErrorRoute({
             currentIssues,
             entrypoints: currentEntrypoints,
@@ -1495,8 +1516,12 @@ export default async function build(
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
 
-      // webpack build worker is always enabled unless manually disabled
-      const useBuildWorker = config.experimental.webpackBuildWorker !== false
+      // If there's has a custom webpack config and disable the build worker.
+      // Otherwise respect the option if it's set.
+      const useBuildWorker =
+        config.experimental.webpackBuildWorker ||
+        (config.experimental.webpackBuildWorker === undefined &&
+          !config.webpack)
       const runServerAndEdgeInParallel =
         config.experimental.parallelServerCompiles
       const collectServerBuildTracesInParallel =

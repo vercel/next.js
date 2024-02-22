@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "14.1.1-canary.67",
+  "version": "14.1.1-canary.69",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -92,7 +92,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "14.1.1-canary.67",
+    "@next/env": "14.1.1-canary.69",
     "@swc/helpers": "0.5.5",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
@@ -145,10 +145,10 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/polyfill-module": "14.1.1-canary.67",
-    "@next/polyfill-nomodule": "14.1.1-canary.67",
-    "@next/react-refresh-utils": "14.1.1-canary.67",
-    "@next/swc": "14.1.1-canary.67",
+    "@next/polyfill-module": "14.1.1-canary.69",
+    "@next/polyfill-nomodule": "14.1.1-canary.69",
+    "@next/react-refresh-utils": "14.1.1-canary.69",
+    "@next/swc": "14.1.1-canary.69",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.41.2",
     "@taskr/clear": "1.1.0",
