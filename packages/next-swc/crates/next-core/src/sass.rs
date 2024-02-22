@@ -26,6 +26,11 @@ pub async fn maybe_add_sass_loader(
         ("*.scss", ".css"),
         ("*.sass", ".css"),
     ] {
+        // additionalData is a loader option but Next.js has it under `sassOptions` in
+        // `next.config.js`
+        let additional_data = sass_options
+            .get("prependData")
+            .or(sass_options.get("additionalData"));
         let rule = rules.get_mut(pattern);
         let loader = WebpackLoaderItem {
             loader: "next/dist/compiled/sass-loader".to_string(),
@@ -33,6 +38,7 @@ pub async fn maybe_add_sass_loader(
                 //https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191
                 "sourceMap": false,
                 "sassOptions": sass_options,
+                "additionalData": additional_data
             })
             .as_object()
             .unwrap()
