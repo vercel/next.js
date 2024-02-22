@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('next-config-ts-import-node-modules', () => {
+describe('next-config-ts-import-from-node-modules', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

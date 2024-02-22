@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('next-config-ts-async-function', () => {
+describe('next-config-ts-config-as-async-function', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
