@@ -124,10 +124,10 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type CurrentIssues = Map<EntryKey, Map<string, Issue>>
+export type IssuesMap = Map<EntryKey, Map<string, Issue>>
 
 export function processIssues(
-  currentIssues: CurrentIssues,
+  currentIssues: IssuesMap,
   key: EntryKey,
   result: TurbopackResult,
   throwIssue = false
@@ -241,7 +241,7 @@ export async function handleRouteType({
   pathname: string
   route: PageRoute | AppRoute
 
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -298,6 +298,8 @@ export async function handleRouteType({
 
         processIssues(currentIssues, serverKey, writtenEndpoint)
       } finally {
+        // TODO subscriptions should only be caused by the WebSocket connections
+        // otherwise we don't known when to unsubscribe and this leaking
         hooks?.subscribeToChanges(serverKey, false, route.dataEndpoint, () => {
           // Report the next compilation again
           readyIds?.delete(pathname)
@@ -356,6 +358,8 @@ export async function handleRouteType({
       const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
+      // TODO subscriptions should only be caused by the WebSocket connections
+      // otherwise we don't known when to unsubscribe and this leaking
       hooks?.subscribeToChanges(key, true, route.rscEndpoint, (change) => {
         if (change.issues.some((issue) => issue.severity === 'error')) {
           // Ignore any updates that has errors
@@ -452,7 +456,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints: Entrypoints
 
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -647,7 +651,7 @@ export async function handlePagesErrorRoute({
 
   hooks,
 }: {
-  currentIssues: CurrentIssues
+  currentIssues: IssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
