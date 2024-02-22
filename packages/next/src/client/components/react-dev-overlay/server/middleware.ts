@@ -214,7 +214,7 @@ export function getOverlayMiddleware(options: {
     res: ServerResponse,
     next: Function
   ) {
-    const { pathname, searchParams } = new URL(req.url!, 'http://n')
+    const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
     const frame = {
       file: searchParams.get('file') as string,
