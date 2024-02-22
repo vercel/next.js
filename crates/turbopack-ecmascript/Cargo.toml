@@ -48,6 +48,7 @@ swc_core = { workspace = true, features = [
   "common_concurrent",
   "common_sourcemap",
   "ecma_codegen",
+  "ecma_lints",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
