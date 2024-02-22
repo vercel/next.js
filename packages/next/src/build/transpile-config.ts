@@ -79,6 +79,14 @@ export async function transpileConfig({
         ],
         modules: ['node_modules'],
         extensions: ['.ts', '.mts', '.cts'],
+        // To resolve @swc/helpers/_/ alias
+        // Needed for config as async function
+        alias: {
+          '@swc/helpers/_': join(
+            dirname(require.resolve('@swc/helpers/package.json')),
+            '_'
+          ),
+        },
       },
       plugins: [new ProfilingPlugin({ runWebpackSpan, rootDir: cwd })],
       module: {
