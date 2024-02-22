@@ -150,7 +150,14 @@ export async function setupFsCheck(opts: {
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
-    buildId = await fs.readFile(buildIdPath, 'utf8')
+    try {
+      buildId = await fs.readFile(buildIdPath, 'utf8')
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') throw err
+      throw new Error(
+        `Missing ${buildIdPath}. Run \`next build\` before using \`next start\`, or use \`next dev\` for development.`
+      )
+    }
 
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
