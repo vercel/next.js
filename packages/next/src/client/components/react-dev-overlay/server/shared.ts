@@ -17,7 +17,7 @@ const reactVendoredRe =
 const reactNodeModulesRe = /node_modules[\\/](react|react-dom|scheduler)[\\/]/
 
 const nextRe =
-  /([\\/]next[\\/](dist|src)[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$)/
+  /(node_modules[\\/]next[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$)/
 
 /** Given a potential file path, it parses which package the file belongs to. */
 export function findSourcePackage(
