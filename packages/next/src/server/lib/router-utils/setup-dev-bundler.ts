@@ -925,20 +925,14 @@ async function startWatcher(opts: SetupOpts) {
 
             try {
               originalFrame = await createOriginalStackFrame({
-                line: frame.lineNumber,
-                column: frame.column,
                 source,
                 frame,
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
-                errorMessage: err.message,
-                serverCompilation: isEdgeCompiler
-                  ? undefined
-                  : hotReloader.serverStats?.compilation,
-                edgeCompilation: isEdgeCompiler
+                compilation: isEdgeCompiler
                   ? hotReloader.edgeServerStats?.compilation
-                  : undefined,
+                  : hotReloader.serverStats?.compilation,
               })
             } catch {}
           }

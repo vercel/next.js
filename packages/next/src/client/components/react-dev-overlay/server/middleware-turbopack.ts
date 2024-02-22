@@ -1,8 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import { findSourcePackage, type OriginalStackFrameResponse } from './shared'
+import {
+  findSourcePackage,
+  getOriginalCodeFrame,
+  type OriginalStackFrameResponse,
+} from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
-import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { launchEditor } from '../internal/helpers/launchEditor'
 
 interface Project {
@@ -15,9 +18,9 @@ interface Project {
 interface TurbopackStackFrame {
   // 1-based
   column: number | null
-  // 1-based
   file: string
   isServer: boolean
+  // 1-based
   line: number | null
   methodName: string | null
   isInternal?: boolean
@@ -70,33 +73,20 @@ async function batchedTraceSource(
 
 export async function createOriginalStackFrame(
   project: Project,
-  frame: TurbopackStackFrame
+  _frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const traced = await batchedTraceSource(project, frame)
+  const traced = await batchedTraceSource(project, _frame)
   if (!traced) {
-    const sourcePackage = findSourcePackage(frame.file)
+    const sourcePackage = findSourcePackage(_frame.file, _frame.methodName)
     if (sourcePackage) return { sourcePackage }
     return null
   }
 
+  const { frame, source } = traced
   return {
-    originalStackFrame: traced.frame,
-    originalCodeFrame:
-      traced.source === null
-        ? null
-        : codeFrameColumns(
-            traced.source,
-            {
-              start: {
-                // 1-based, but -1 means start line without highlighting
-                line: traced.frame.lineNumber ?? -1,
-                // 1-based, but 0 means whole line without column highlighting
-                column: traced.frame.column ?? 0,
-              },
-            },
-            { forceColor: true }
-          ),
-    sourcePackage: findSourcePackage(traced.frame.file),
+    originalStackFrame: frame,
+    originalCodeFrame: getOriginalCodeFrame(frame, source),
+    sourcePackage: findSourcePackage(frame.file, frame.methodName),
   }
 }
 
