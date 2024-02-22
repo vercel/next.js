@@ -7,16 +7,17 @@ use swc_core::{
         errors::{Handler, HANDLER},
         input::StringInput,
         source_map::SourceMapGenConfig,
-        BytePos, FileName, Globals, LineCol, Mark, GLOBALS,
+        BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
     ecma::{
         ast::{EsVersion, Program},
+        lints::{config::LintConfig, rules::LintParams},
         parser::{lexer::Lexer, EsConfig, Parser, Syntax, TsConfig},
         transforms::base::{
             helpers::{Helpers, HELPERS},
             resolver,
         },
-        visit::VisitMutWith,
+        visit::{FoldWith, VisitMutWith},
     },
 };
 use tracing::Instrument;
@@ -338,6 +339,18 @@ async fn parse_content(
                 is_typescript,
             ));
 
+            let lint_config = LintConfig::default();
+            let rules = swc_core::ecma::lints::rules::all(LintParams {
+                program: &parsed_program,
+                lint_config: &lint_config,
+                unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
+                top_level_ctxt: SyntaxContext::empty().apply_mark(top_level_mark),
+                es_version: EsVersion::latest(),
+                source_map: source_map.clone(),
+            });
+            parsed_program =
+                parsed_program.fold_with(&mut swc_core::ecma::lints::rules::lint_to_fold(rules));
+
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -352,6 +365,10 @@ async fn parse_content(
                 transform
                     .apply(&mut parsed_program, &transform_context)
                     .await?;
+            }
+
+            if handler.has_errors() {
+                return Ok(ParseResult::Unparseable);
             }
 
             parsed_program.visit_mut_with(
