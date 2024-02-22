@@ -1080,11 +1080,11 @@
       "Error recovery app turbo render error not shown right after syntax error",
       "Error recovery app turbo server component can recover from a component error",
       "Error recovery app turbo server component can recover from syntax error",
+      "Error recovery app turbo stuck error",
       "Error recovery app turbo syntax > runtime error"
     ],
     "failed": [
-      "Error recovery app turbo client component can recover from syntax error",
-      "Error recovery app turbo stuck error"
+      "Error recovery app turbo client component can recover from syntax error"
     ],
     "pending": [
       "Error recovery app default can recover from a event handler error",

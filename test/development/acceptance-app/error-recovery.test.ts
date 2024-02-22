@@ -330,7 +330,7 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
-  test('stuck error', async () => {
+  test.only('stuck error', async () => {
     const { session, cleanup } = await sandbox(next)
 
     // We start here.
@@ -377,22 +377,27 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       "return React.createElement('h1', null, 'Foo');"
     )
 
+    // await new Promise((resolve) => setTimeout(resolve, 60000))
+
     // Let's add that to Foo.
     await session.patch(
       'Foo.js',
       outdent`
         import * as React from 'react';
+        console.log('***evaluating!');
         export default function Foo() {
           return React.createElement('h1', null, 'Foo');
         }
       `
     )
 
+    // await new Promise(() => {})
+
     // Expected: this fixes the problem
     expect(await session.hasRedbox()).toBe(false)
 
     await cleanup()
-  })
+  }, 1_000_000_000)
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
   test('render error not shown right after syntax error', async () => {

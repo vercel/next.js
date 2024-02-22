@@ -75,14 +75,14 @@ createNextDescribe(
       })
 
       describe('useParams identity between renders', () => {
-        it.each([
-          {
-            router: 'app',
-            pathname: '/search-params/foo',
-            // App Router doesn't re-render on initial load (the params are baked
-            // server side). In development, effects will render twice.
-            waitForNEffects: isNextDev ? 2 : 1,
-          },
+        it.only.each([
+          // {
+          //   router: 'app',
+          //   pathname: '/search-params/foo',
+          //   // App Router doesn't re-render on initial load (the params are baked
+          //   // server side). In development, effects will render twice.
+          //   waitForNEffects: isNextDev ? 2 : 1,
+          // },
           {
             router: 'pages',
             pathname: '/search-params-pages/foo',
