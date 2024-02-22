@@ -47,8 +47,8 @@ export async function transpileConfig({
     tsConfig = { options: {} } as ParsedCommandLine
   }
 
-  async function bundleConfig(nextConfig?: NextConfigComplete) {
-    const distDir = nextConfig?.distDir ?? '.next'
+  async function bundleConfig(nextConfig = {} as NextConfigComplete) {
+    const distDir = nextConfig.distDir ?? '.next'
     const nextBuildSpan = trace('next-config-ts')
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
     const resolvedBaseUrl = tsConfig.options?.baseUrl
@@ -99,7 +99,7 @@ export async function transpileConfig({
               rootDir: cwd,
               isServer: false,
               hasReactRefresh: false,
-              nextConfig: nextConfig ?? {},
+              nextConfig,
               jsConfig: {
                 compilerOptions: tsConfig.options,
               },
@@ -143,13 +143,13 @@ export async function transpileConfig({
 
     if (
       // List of options possibly passed to next-swc-loader
-      nextConfig?.compiler ||
-      nextConfig?.modularizeImports ||
-      nextConfig?.experimental?.optimizeServerReact ||
-      nextConfig?.experimental?.optimizePackageImports ||
-      nextConfig?.experimental?.swcPlugins ||
+      nextConfig.compiler ||
+      nextConfig.modularizeImports ||
+      nextConfig.experimental?.optimizeServerReact ||
+      nextConfig.experimental?.optimizePackageImports ||
+      nextConfig.experimental?.swcPlugins ||
       // For swcCacheDir option
-      nextConfig?.distDir
+      nextConfig.distDir
     ) {
       // Re-compile with the parsed nextConfig
       nextConfig = await bundleConfig(nextConfig)
