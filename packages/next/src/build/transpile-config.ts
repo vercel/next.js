@@ -79,8 +79,8 @@ export async function transpileConfig({
         ],
         modules: ['node_modules'],
         extensions: ['.ts', '.mts', '.cts'],
-        // To resolve @swc/helpers/_/ alias
-        // Needed for config as async function
+        // Need to resolve @swc/helpers/_/ alias for next config as async function:
+        // Module not found: Can't resolve '@swc/helpers/_/_async_to_generator'
         alias: {
           '@swc/helpers/_': join(
             dirname(require.resolve('@swc/helpers/package.json')),
@@ -143,11 +143,11 @@ export async function transpileConfig({
 
     if (
       // List of options possibly passed to next-swc-loader
+      nextConfig?.compiler ||
       nextConfig?.modularizeImports ||
+      nextConfig?.experimental?.optimizeServerReact ||
       nextConfig?.experimental?.optimizePackageImports ||
       nextConfig?.experimental?.swcPlugins ||
-      nextConfig?.compiler ||
-      nextConfig?.experimental?.optimizeServerReact ||
       // For swcCacheDir option
       nextConfig?.distDir
     ) {
