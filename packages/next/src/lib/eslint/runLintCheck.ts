@@ -127,7 +127,7 @@ async function lint(
           )
         )}`
       )
-      return null
+      process.exit(1)
     }
 
     const mod = await Promise.resolve(require(deps.resolved.get('eslint')!))
@@ -212,10 +212,10 @@ async function lint(
         eslint = new ESLint(options)
       }
     } else {
+      Log.warn('')
       Log.warn(
         'The Next.js plugin was not detected in your ESLint configuration. See https://nextjs.org/docs/basic-features/eslint#migrating-existing-config'
       )
-      process.exit(1)
     }
 
     const lintStart = process.hrtime()
