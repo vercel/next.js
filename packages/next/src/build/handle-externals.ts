@@ -78,10 +78,9 @@ export async function resolveExternal(
   let isEsm: boolean = false
 
   const preferEsmOptions =
-    esmExternals &&
-    isEsmRequested &&
-    !containsImportInPackages(request, optOutBundlingPackages)
-      ? // For package that marked as externals that should be not bundled,
+    esmExternals && isEsmRequested
+      ? // && !containsImportInPackages(request, optOutBundlingPackages)
+        // For package that marked as externals that should be not bundled,
         // we don't resolve them as ESM since it could be resolved as async module,
         // such as `import(external package)` in the bundle, valued as a `Promise`.
 
