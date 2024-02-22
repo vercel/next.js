@@ -5,7 +5,7 @@ describe('next-config-ts-import-alias', () => {
     files: __dirname,
   })
 
-  it('should work using cheerio', async () => {
+  it('should support import alias', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('foobar')
   })
