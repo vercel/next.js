@@ -1,5 +1,4 @@
 import type { __ApiPreviewProps } from './api-utils'
-import type { DomainLocale } from './config'
 import type { FontManifest, FontConfig } from './font-utils'
 import type { LoadComponentsReturnType } from './load-components'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
@@ -21,7 +20,7 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
-import type { PreviewData, ServerRuntime, SizeLimit } from 'next/types'
+import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
 import type {
@@ -37,7 +36,6 @@ import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type { PagesAPIRouteMatch } from './future/route-matches/pages-api-route-match'
 import type { AppRouteRouteHandlerContext } from './future/route-modules/app-route/module'
 import type { Server as HTTPServer } from 'http'
-import type { ImageConfigComplete } from '../shared/lib/image-config'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './future/normalizers/request/pathname-normalizer'
@@ -56,7 +54,11 @@ import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import { formatRevalidate, type Revalidate } from './lib/revalidate'
+import {
+  formatRevalidate,
+  type Revalidate,
+  type SwrDelta,
+} from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { isBot } from '../shared/lib/router/utils/is-bot'
@@ -216,51 +218,10 @@ export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
 
 export type LoadedRenderOpts = RenderOpts & LoadComponentsReturnType
 
-type BaseRenderOpts = {
-  deploymentId?: string
+type BaseRenderOpts = RenderOpts & {
   poweredByHeader: boolean
-  buildId: string
   generateEtags: boolean
-  runtimeConfig?: { [key: string]: any }
-  assetPrefix?: string
-  canonicalBase: string
-  dev?: boolean
   previewProps: __ApiPreviewProps
-  customServer?: boolean
-  ampOptimizerConfig?: { [key: string]: any }
-  basePath: string
-  optimizeFonts: FontConfig
-  images: ImageConfigComplete
-  fontManifest?: FontManifest
-  disableOptimizedLoading?: boolean
-  optimizeCss: any
-  nextConfigOutput: 'standalone' | 'export'
-  nextScriptWorkers: any
-  locale?: string
-  locales?: string[]
-  defaultLocale?: string
-  domainLocales?: DomainLocale[]
-  distDir: string
-  runtime?: ServerRuntime
-  serverComponents?: boolean
-  enableTainting?: boolean
-  crossOrigin?: 'anonymous' | 'use-credentials' | '' | undefined
-  supportsDynamicHTML?: boolean
-  isBot?: boolean
-  clientReferenceManifest?: ClientReferenceManifest
-  serverActions?: {
-    bodySizeLimit?: SizeLimit
-    allowedOrigins?: string[]
-  }
-  serverActionsManifest?: any
-  nextFontManifest?: NextFontManifest
-  renderServerComponentData?: boolean
-  serverComponentProps?: any
-  largePageDataBytes?: number
-  appDirDevErrorLogger?: (err: any) => Promise<void>
-  strictNextHead: boolean
-  isExperimentalCompile?: boolean
-  experimental: { ppr: boolean; missingSuspenseWithCSRBailout: boolean }
 }
 
 export interface BaseRequestHandler {
@@ -368,6 +329,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate?: Revalidate
+      swrDelta?: SwrDelta
     }
   ): Promise<void>
 
@@ -510,6 +472,8 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     this.renderOpts = {
+      supportsDynamicHTML: true,
+      trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
@@ -554,6 +518,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
           this.nextConfig.experimental.ppr === true,
         missingSuspenseWithCSRBailout:
           this.nextConfig.experimental.missingSuspenseWithCSRBailout === true,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       },
     }
 
@@ -1596,6 +1561,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         generateEtags,
         poweredByHeader,
         revalidate,
+        swrDelta: this.nextConfig.experimental.swrDelta,
       })
       res.statusCode = originalStatus
     }
@@ -2750,7 +2716,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
     if (!cachedData) {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
       if (isDataReq) {
         res.statusCode = 404
@@ -2766,7 +2738,13 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       return null
     } else if (cachedData.kind === 'REDIRECT') {
       if (cacheEntry.revalidate) {
-        res.setHeader('Cache-Control', formatRevalidate(cacheEntry.revalidate))
+        res.setHeader(
+          'Cache-Control',
+          formatRevalidate({
+            revalidate: cacheEntry.revalidate,
+            swrDelta: this.nextConfig.experimental.swrDelta,
+          })
+        )
       }
 
       if (isDataReq) {
@@ -2853,7 +2831,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
-      if (isDataReq) {
+      // we don't go through this block when preview mode is true
+      // as preview mode is a dynamic request (bypasses cache) and doesn't
+      // generate both HTML and payloads in the same request so continue to just
+      // return the generated payload
+      if (isDataReq && !isPreviewMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (isDynamicRSCRequest) {
           if (cachedData.pageData) {

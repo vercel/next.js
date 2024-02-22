@@ -1,12 +1,12 @@
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../error-overlay-reducer'
+} from '../../app/error-overlay-reducer'
 import type { SupportedErrorEvent } from '../container/Errors'
-import { getErrorSource } from './nodeStackFrames'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
 import type { ComponentStackFrame } from './parse-component-stack'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 
 export type ReadyRuntimeError = {
   id: number
@@ -17,7 +17,8 @@ export type ReadyRuntimeError = {
 }
 
 export async function getErrorByType(
-  ev: SupportedErrorEvent
+  ev: SupportedErrorEvent,
+  isAppDir: boolean
 ): Promise<ReadyRuntimeError> {
   const { id, event } = ev
   switch (event.type) {
@@ -30,6 +31,7 @@ export async function getErrorByType(
         frames: await getOriginalStackFrames(
           event.frames,
           getErrorSource(event.reason),
+          isAppDir,
           event.reason.toString()
         ),
       }

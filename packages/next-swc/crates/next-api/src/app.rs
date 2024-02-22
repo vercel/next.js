@@ -9,7 +9,6 @@ use next_core::{
         MetadataItem,
     },
     get_edge_resolve_options_context,
-    mode::NextMode,
     next_app::{
         app_client_references_chunks::get_app_server_reference_modules,
         get_app_client_references_chunks, get_app_client_shared_chunks, get_app_page_entry,
@@ -31,7 +30,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
-    util::{get_asset_prefix_from_pathname, NextRuntime},
+    util::NextRuntime,
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -66,7 +65,7 @@ use crate::{
     font::create_font_manifest,
     middleware::{get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings},
     project::Project,
-    route::{Endpoint, Route, Routes, WrittenEndpoint},
+    route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
     server_actions::create_server_actions_manifest,
     server_paths::all_server_paths,
 };
@@ -75,7 +74,6 @@ use crate::{
 pub struct AppProject {
     project: Vc<Project>,
     app_dir: Vc<FileSystemPath>,
-    mode: NextMode,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -108,13 +106,8 @@ const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-client-referenc
 #[turbo_tasks::value_impl]
 impl AppProject {
     #[turbo_tasks::function]
-    pub fn new(project: Vc<Project>, app_dir: Vc<FileSystemPath>, mode: NextMode) -> Vc<Self> {
-        AppProject {
-            project,
-            app_dir,
-            mode,
-        }
-        .cell()
+    pub fn new(project: Vc<Project>, app_dir: Vc<FileSystemPath>) -> Vc<Self> {
+        AppProject { project, app_dir }.cell()
     }
 
     #[turbo_tasks::function]
@@ -128,35 +121,28 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn mode(&self) -> Vc<NextMode> {
-        self.mode.cell()
-    }
-
-    #[turbo_tasks::function]
     fn app_entrypoints(&self) -> Vc<AppEntrypoints> {
         get_entrypoints(self.app_dir, self.project.next_config().page_extensions())
     }
 
     #[turbo_tasks::function]
     async fn client_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -179,23 +165,21 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn rsc_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -203,11 +187,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -283,23 +266,21 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn ssr_module_options_context(self: Vc<Self>) -> Result<Vc<ModuleOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
         ))
     }
 
     #[turbo_tasks::function]
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -307,11 +288,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
-        let this = self.await?;
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
             Value::new(self.ssr_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         ))
@@ -339,10 +319,9 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        let this = self.await?;
         Ok(get_server_runtime_entries(
             Value::new(self.rsc_ty()),
-            this.mode,
+            self.project().next_mode(),
         ))
     }
 
@@ -368,11 +347,10 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
-        let this = self.await?;
         Ok(get_client_runtime_entries(
             self.project().project_path(),
             Value::new(self.client_ty()),
-            this.mode,
+            self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
         )
@@ -389,7 +367,9 @@ impl AppProject {
                 .map(|(pathname, app_entrypoint)| async {
                     Ok((
                         pathname.to_string(),
-                        *app_entry_point_to_route(self, app_entrypoint.clone()).await?,
+                        app_entry_point_to_route(self, app_entrypoint.clone())
+                            .await?
+                            .clone_value(),
                     ))
                 })
                 .try_join()
@@ -401,36 +381,43 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub async fn app_entry_point_to_route(
+pub fn app_entry_point_to_route(
     app_project: Vc<AppProject>,
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {
     match entrypoint {
-        AppEntrypoint::AppPage { page, loader_tree } => Route::AppPage {
-            html_endpoint: Vc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Page {
-                        ty: AppPageEndpointType::Html,
-                        loader_tree,
-                    },
-                    app_project,
-                    page: page.clone(),
-                }
-                .cell(),
-            ),
-            rsc_endpoint: Vc::upcast(
-                AppEndpoint {
-                    ty: AppEndpointType::Page {
-                        ty: AppPageEndpointType::Rsc,
-                        loader_tree,
-                    },
-                    app_project,
-                    page,
-                }
-                .cell(),
-            ),
-        },
+        AppEntrypoint::AppPage { pages, loader_tree } => Route::AppPage(
+            pages
+                .into_iter()
+                .map(|page| AppPageRoute {
+                    original_name: page.to_string(),
+                    html_endpoint: Vc::upcast(
+                        AppEndpoint {
+                            ty: AppEndpointType::Page {
+                                ty: AppPageEndpointType::Html,
+                                loader_tree,
+                            },
+                            app_project,
+                            page: page.clone(),
+                        }
+                        .cell(),
+                    ),
+                    rsc_endpoint: Vc::upcast(
+                        AppEndpoint {
+                            ty: AppEndpointType::Page {
+                                ty: AppPageEndpointType::Rsc,
+                                loader_tree,
+                            },
+                            app_project,
+                            page,
+                        }
+                        .cell(),
+                    ),
+                })
+                .collect(),
+        ),
         AppEntrypoint::AppRoute { page, path } => Route::AppRoute {
+            original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path },
@@ -441,6 +428,7 @@ pub async fn app_entry_point_to_route(
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
+            original_name: page.to_string(),
             endpoint: Vc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
@@ -513,7 +501,7 @@ impl AppEndpoint {
             self.app_project.edge_rsc_module_context(),
             self.app_project.project().project_path(),
             self.page.clone(),
-            *self.app_project.mode().await?,
+            *self.app_project.project().next_mode().await?,
             metadata,
         ))
     }
@@ -527,19 +515,18 @@ impl AppEndpoint {
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
-        let (app_entry, ty, process_client, process_ssr) = match this.ty {
+        let (app_entry, process_client, process_ssr) = match this.ty {
             AppEndpointType::Page { ty, loader_tree } => (
                 self.app_page_entry(loader_tree),
-                "page",
                 true,
                 matches!(ty, AppPageEndpointType::Html),
             ),
             // NOTE(alexkirsz) For routes, technically, a lot of the following code is not needed,
             // as we know we won't have any client references. However, for now, for simplicity's
             // sake, we just do the same thing as for pages.
-            AppEndpointType::Route { path } => (self.app_route_entry(path), "route", false, false),
+            AppEndpointType::Route { path } => (self.app_route_entry(path), false, false),
             AppEndpointType::Metadata { metadata } => {
-                (self.app_metadata_entry(metadata), "route", false, false)
+                (self.app_metadata_entry(metadata), false, false)
             }
         };
 
@@ -679,10 +666,10 @@ impl AppEndpoint {
                     .into_iter()
                     .collect(),
             };
-            let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
+            let manifest_path_prefix = &app_entry.original_name;
             let app_build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{manifest_path_prefix}/{ty}/app-build-manifest.json",
+                    "server/app{manifest_path_prefix}/app-build-manifest.json",
                 )),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&app_build_manifest)?).into(),
@@ -696,7 +683,7 @@ impl AppEndpoint {
             };
             let build_manifest_output = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{manifest_path_prefix}/{ty}/build-manifest.json",
+                    "server/app{manifest_path_prefix}/build-manifest.json",
                 )),
                 AssetContent::file(
                     File::from(serde_json::to_string_pretty(&build_manifest)?).into(),
@@ -742,14 +729,12 @@ impl AppEndpoint {
 
         fn create_app_paths_manifest(
             node_root: Vc<FileSystemPath>,
-            ty: &'static str,
-            pathname: &str,
             original_name: &str,
             filename: String,
         ) -> Result<Vc<Box<dyn OutputAsset>>> {
-            let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let manifest_path_prefix = original_name;
             let path = node_root.join(format!(
-                "server/app{manifest_path_prefix}/{ty}/app-paths-manifest.json",
+                "server/app{manifest_path_prefix}/app-paths-manifest.json",
             ));
             let app_paths_manifest = AppPathsManifest {
                 node_server_app_paths: PagesManifest {
@@ -769,9 +754,8 @@ impl AppEndpoint {
 
         async fn create_react_loadable_manifest(
             dynamic_import_entries: Vc<DynamicImportedChunks>,
-            ty: &'static str,
             node_root: Vc<FileSystemPath>,
-            pathname: &str,
+            original_name: &str,
         ) -> Result<Vc<OutputAssets>> {
             let dynamic_import_entries = &*dynamic_import_entries.await?;
 
@@ -811,10 +795,10 @@ impl AppEndpoint {
                 }
             }
 
-            let loadable_path_prefix = get_asset_prefix_from_pathname(pathname);
+            let loadable_path_prefix = original_name;
             let loadable_manifest = Vc::upcast(VirtualOutputAsset::new(
                 node_root.join(format!(
-                    "server/app{loadable_path_prefix}/{ty}/react-loadable-manifest.json",
+                    "server/app{loadable_path_prefix}/react-loadable-manifest.json",
                 )),
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -834,8 +818,7 @@ impl AppEndpoint {
             this.app_project.project().client_root(),
             node_root,
             this.app_project.app_dir(),
-            ty,
-            &app_entry.pathname,
+            &app_entry.original_name,
             &app_entry.original_name,
             client_assets,
             true,
@@ -863,7 +846,6 @@ impl AppEndpoint {
                         app_server_reference_modules,
                         this.app_project.project().project_path(),
                         node_root,
-                        &app_entry.pathname,
                         &app_entry.original_name,
                         NextRuntime::Edge,
                         Vc::upcast(this.app_project.edge_rsc_module_context()),
@@ -941,10 +923,10 @@ impl AppEndpoint {
                         .collect(),
                     ..Default::default()
                 };
-                let manifest_path_prefix = get_asset_prefix_from_pathname(&app_entry.pathname);
+                let manifest_path_prefix = &app_entry.original_name;
                 let middleware_manifest_v2 = Vc::upcast(VirtualOutputAsset::new(
                     node_root.join(format!(
-                        "server/app{manifest_path_prefix}/{ty}/middleware-manifest.json",
+                        "server/app{manifest_path_prefix}/middleware-manifest.json",
                     )),
                     AssetContent::file(
                         FileContent::Content(File::from(serde_json::to_string_pretty(
@@ -956,13 +938,8 @@ impl AppEndpoint {
                 server_assets.push(middleware_manifest_v2);
 
                 // create app paths manifest
-                let app_paths_manifest_output = create_app_paths_manifest(
-                    node_root,
-                    ty,
-                    &app_entry.pathname,
-                    &app_entry.original_name,
-                    entry_file,
-                )?;
+                let app_paths_manifest_output =
+                    create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)?;
                 server_assets.push(app_paths_manifest_output);
 
                 // create react-loadable-manifest for next/dynamic
@@ -976,9 +953,8 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    ty,
                     node_root,
-                    &app_entry.pathname,
+                    &app_entry.original_name,
                 )
                 .await?;
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());
@@ -999,7 +975,6 @@ impl AppEndpoint {
                         app_server_reference_modules,
                         this.app_project.project().project_path(),
                         node_root,
-                        &app_entry.pathname,
                         &app_entry.original_name,
                         NextRuntime::NodeJs,
                         Vc::upcast(this.app_project.rsc_module_context()),
@@ -1030,8 +1005,6 @@ impl AppEndpoint {
 
                 let app_paths_manifest_output = create_app_paths_manifest(
                     node_root,
-                    ty,
-                    &app_entry.pathname,
                     &app_entry.original_name,
                     server_path
                         .await?
@@ -1053,9 +1026,8 @@ impl AppEndpoint {
                 .await?;
                 let loadable_manifest_output = create_react_loadable_manifest(
                     dynamic_import_entries,
-                    ty,
                     node_root,
-                    &app_entry.pathname,
+                    &app_entry.original_name,
                 )
                 .await?;
                 server_assets.extend(loadable_manifest_output.await?.iter().copied());

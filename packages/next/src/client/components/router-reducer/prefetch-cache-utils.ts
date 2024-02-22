@@ -70,25 +70,33 @@ export function getOrCreatePrefetchCacheEntry({
   }
 
   if (existingCacheEntry) {
+    // Grab the latest status of the cache entry and update it
+    existingCacheEntry.status = getPrefetchEntryCacheStatus(existingCacheEntry)
+
     // when `kind` is provided, an explicit prefetch was requested.
     // if the requested prefetch is "full" and the current cache entry wasn't, we want to re-prefetch with the new intent
-    if (
-      kind &&
+    const switchedToFullPrefetch =
       existingCacheEntry.kind !== PrefetchKind.FULL &&
       kind === PrefetchKind.FULL
-    ) {
+
+    // If the cache entry isn't reusable, rather than returning it, we want to create a new entry.
+    const hasReusablePrefetch =
+      existingCacheEntry.status === PrefetchCacheEntryStatus.reusable ||
+      existingCacheEntry.status === PrefetchCacheEntryStatus.fresh
+
+    if (switchedToFullPrefetch || !hasReusablePrefetch) {
       return createLazyPrefetchEntry({
         tree,
         url,
         buildId,
         nextUrl,
         prefetchCache,
-        kind,
+        // If we didn't get an explicit prefetch kind, we want to set a temporary kind
+        // rather than assuming the same intent as the previous entry, to be consistent with how we
+        // lazily create prefetch entries when intent is left unspecified.
+        kind: kind ?? PrefetchKind.TEMPORARY,
       })
     }
-
-    // Grab the latest status of the cache entry and update it
-    existingCacheEntry.status = getPrefetchEntryCacheStatus(existingCacheEntry)
 
     // If the existing cache entry was marked as temporary, it means it was lazily created when attempting to get an entry,
     // where we didn't have the prefetch intent. Now that we have the intent (in `kind`), we want to update the entry to the more accurate kind.

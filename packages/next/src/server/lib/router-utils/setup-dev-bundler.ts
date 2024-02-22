@@ -61,16 +61,16 @@ import {
 } from '../../../build/utils'
 import {
   createOriginalStackFrame,
-  getErrorSource,
   getSourceById,
   parseStack,
-} from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware'
-import { createOriginalStackFrame as createOriginalTurboStackFrame } from 'next/dist/compiled/@next/react-dev-overlay/dist/middleware-turbopack'
+} from '../../../client/components/react-dev-overlay/server/middleware'
+import { createOriginalStackFrame as createOriginalTurboStackFrame } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
+import { getErrorSource } from '../../../shared/lib/error-source'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -943,7 +943,10 @@ async function startWatcher(opts: SetupOpts) {
             } catch {}
           }
 
-          if (originalFrame) {
+          if (
+            originalFrame?.originalCodeFrame &&
+            originalFrame.originalStackFrame
+          ) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
             const { file, lineNumber, column, methodName } = originalStackFrame
 

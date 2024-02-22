@@ -538,6 +538,8 @@ createNextDescribe(
             "dynamic-no-gen-params-ssr/[slug]/page_client-reference-manifest.js",
             "dynamic-no-gen-params/[slug]/page.js",
             "dynamic-no-gen-params/[slug]/page_client-reference-manifest.js",
+            "dynamic-param-edge/[slug]/page.js",
+            "dynamic-param-edge/[slug]/page_client-reference-manifest.js",
             "fetch-no-cache/page.js",
             "fetch-no-cache/page_client-reference-manifest.js",
             "flight/[slug]/[slug2]/page.js",
@@ -3089,7 +3091,7 @@ createNextDescribe(
                 .length
             ).toBe(2)
             expect(next.cliOutput.substring(cliOutputStart)).toContain(
-              'Error: fetch for over 2MB of data can not be cached'
+              'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
             )
             return 'success'
           }, 'success')
@@ -3120,10 +3122,15 @@ createNextDescribe(
           }, 'success')
 
           expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-            'Error: fetch for over 2MB of data can not be cached'
+            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
           )
         })
       }
+    })
+
+    it('should build dynamic param with edge runtime correctly', async () => {
+      const browser = await next.browser('/dynamic-param-edge/hello')
+      expect(await browser.elementByCss('#slug').text()).toBe('hello')
     })
   }
 )

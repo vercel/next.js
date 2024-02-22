@@ -22,7 +22,10 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  GLOBAL_NOT_FOUND_SEGMENT_KEY,
+} from '../../../../shared/lib/segment'
 import {
   listenForDynamicRequest,
   updateCacheNodeOnNavigation,
@@ -202,7 +205,9 @@ function navigateReducer_noPPR(
 
           if (
             !applied &&
-            prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+            // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
+            // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
+            currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
           ) {
             applied = addRefetchToLeafSegments(
               cache,
@@ -377,19 +382,12 @@ function navigateReducer_PPR(
             const seedData = flightDataPath[1]
             const head = flightDataPath[2]
 
-            // Check whether the prefetched data is stale. If so, we'll
-            // ignore it and wait for the dynamic data to stream in before
-            // showing new segments.
-            const isPrefetchStale =
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
-
             const task = updateCacheNodeOnNavigation(
               currentCache,
               currentTree,
               prefetchedTree,
               seedData,
-              head,
-              isPrefetchStale
+              head
             )
             if (task !== null && task.node !== null) {
               // We've created a new Cache Node tree that contains a prefetched
@@ -454,7 +452,9 @@ function navigateReducer_PPR(
 
             if (
               !applied &&
-              prefetchEntryCacheStatus === PrefetchCacheEntryStatus.stale
+              // if we've navigated away from the global not found segment but didn't apply the flight data, we need to refetch
+              // as otherwise we'd be incorrectly using the global not found cache node for the incoming page
+              currentTree[0] === GLOBAL_NOT_FOUND_SEGMENT_KEY
             ) {
               applied = addRefetchToLeafSegments(
                 cache,

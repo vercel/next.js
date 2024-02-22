@@ -284,6 +284,9 @@ export function nextTestSetup(
   }
 }
 
+/**
+ * @deprecated use `nextTestSetup` directly.
+ */
 export function createNextDescribe(
   name: string,
   options: Parameters<typeof createNext>[0] & {

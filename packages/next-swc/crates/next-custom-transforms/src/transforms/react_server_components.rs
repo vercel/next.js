@@ -2,7 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
-use swc_core::ecma::visit::VisitWith;
+use swc_core::{common::util::take::Take, ecma::visit::VisitWith};
 use turbopack_binding::swc::core::{
     common::{
         comments::{Comment, CommentKind, Comments},
@@ -44,7 +44,8 @@ pub struct Options {
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
-/// server component. [NOTE] Turbopack uses ClientDirectiveTransformer for the
+/// server component.
+/// **NOTE** Turbopack uses ClientDirectiveTransformer for the
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
@@ -577,6 +578,7 @@ impl ReactServerComponentValidator {
         let is_error_file = Regex::new(r"[\\/]error\.(ts|js)x?$")
             .unwrap()
             .is_match(&self.filepath);
+
         if is_error_file {
             if let Some(app_dir) = &self.app_dir {
                 if let Some(app_dir) = app_dir.to_str() {
@@ -727,6 +729,14 @@ impl ReactServerComponentValidator {
 
 impl Visit for ReactServerComponentValidator {
     noop_visit_type!();
+
+    // coerce parsed script to run validation for the context, which is still
+    // required even if file is empty
+    fn visit_script(&mut self, script: &swc_core::ecma::ast::Script) {
+        if script.body.is_empty() {
+            self.visit_module(&Module::dummy());
+        }
+    }
 
     fn visit_module(&mut self, module: &Module) {
         let (is_client_entry, is_action_file, imports, export_names) =

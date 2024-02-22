@@ -51,7 +51,7 @@ import {
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
 import { addImplicitTags } from '../lib/patch-fetch'
-import { AppRenderSpan } from '../lib/trace/constants'
+import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
 import {
@@ -101,6 +101,11 @@ import {
   usedDynamicAPIs,
   createPostponedAbortSignal,
 } from './dynamic-rendering'
+import { GLOBAL_NOT_FOUND_SEGMENT_KEY } from '../../shared/lib/segment'
+import {
+  getClientComponentLoaderMetrics,
+  wrapClientComponentLoader,
+} from '../client-component-renderer-logger'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -286,6 +291,7 @@ async function generateFlight(
     const [MetadataTree, MetadataOutlet] = createMetadataComponents({
       tree: loaderTree,
       pathname: urlPathname,
+      trailingSlash: ctx.renderOpts.trailingSlash,
       query,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
@@ -405,10 +411,21 @@ async function ReactServerApp({ tree, ctx, asNotFound }: ReactServerAppProps) {
     query
   )
 
+  // If the page we're rendering is being treated as the global not-found page, we want to special-case
+  // the segment key so it doesn't collide with a page matching the same path.
+  // This is necessary because when rendering the global not-found, it will always be the root segment.
+  // If the not-found page prefetched a link to the root page, it would have the same data path
+  // (e.g., ['', { children: ['__PAGE__', {}] }]). Without this disambiguation, the router would interpret
+  // these pages as being able to share the same cache nodes, which is not the case as they render different things.
+  if (asNotFound) {
+    initialTree[0] = GLOBAL_NOT_FOUND_SEGMENT_KEY
+  }
+
   const [MetadataTree, MetadataOutlet] = createMetadataComponents({
     tree,
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     query,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
@@ -495,6 +512,7 @@ async function ReactServerError({
   const [MetadataTree] = createMetadataComponents({
     tree,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     errorType,
     query,
     getDynamicParamFromSegment,
@@ -604,11 +622,29 @@ async function renderToHTMLOrFlightImpl(
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
+    const instrumented = wrapClientComponentLoader(ComponentMod)
     // @ts-ignore
-    globalThis.__next_require__ = ComponentMod.__next_app__.require
+    globalThis.__next_require__ = instrumented.require
+    // @ts-ignore
+    globalThis.__next_chunk_load__ = instrumented.loadChunk
+  }
 
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = ComponentMod.__next_app__.loadChunk
+  if (typeof req.on === 'function') {
+    req.on('end', () => {
+      if ('performance' in globalThis) {
+        const metrics = getClientComponentLoaderMetrics({ reset: true })
+        getTracer()
+          .startSpan(NextNodeServerSpan.clientComponentLoading, {
+            startTime: metrics.clientComponentLoadStart,
+            attributes: {
+              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
+            },
+          })
+          .end(
+            metrics.clientComponentLoadStart + metrics.clientComponentLoadTimes
+          )
+      }
+    })
   }
 
   const metadata: AppPageRenderResultMetadata = {}
