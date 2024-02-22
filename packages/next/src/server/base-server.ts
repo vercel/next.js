@@ -1535,7 +1535,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicHTML: !isBotRequest,
-        isBot: !!isBotRequest,
+        isBot: isBotRequest,
       },
     }
     const payload = await fn(ctx)
