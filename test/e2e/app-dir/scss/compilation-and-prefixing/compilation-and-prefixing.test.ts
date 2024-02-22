@@ -13,7 +13,7 @@ describe('SCSS Support', () => {
   })
 
   // TODO: Figure out this test for dev and Turbopack
-  if (!isNextDev) {
+  ;(isNextDev ? describe.skip : describe)('Production only', () => {
     describe('CSS Compilation and Prefixing', () => {
       it(`should've compiled and prefixed`, async () => {
         const cssFolder = join(next.testDir, '.next/static/css')
@@ -67,5 +67,5 @@ describe('SCSS Support', () => {
   `)
       })
     })
-  }
+  })
 })
