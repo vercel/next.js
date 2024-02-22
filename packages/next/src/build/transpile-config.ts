@@ -90,7 +90,7 @@ export async function transpileConfig({
               rootDir: cwd,
               isServer: false,
               hasReactRefresh: false,
-              nextConfig,
+              nextConfig: nextConfig ?? {},
               jsConfig: {
                 compilerOptions: tsConfig.options,
               },
