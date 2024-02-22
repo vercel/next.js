@@ -9,7 +9,7 @@ import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfi
 import type { ParsedCommandLine } from 'typescript'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type { SWCLoaderOptions } from './webpack/loaders/next-swc-loader'
-import type { NextConfigComplete } from '../server/config-shared'
+import type { NextConfig } from '../server/config-shared'
 
 export async function transpileConfig({
   configPath,
@@ -19,7 +19,7 @@ export async function transpileConfig({
   configPath: string
   configFileName: string
   cwd: string
-}) {
+}): Promise<NextConfig> {
   const isCJS = configFileName.endsWith('.cts')
   const filename = `next.compiled.config.${isCJS ? 'cjs' : 'mjs'}`
 
@@ -47,7 +47,7 @@ export async function transpileConfig({
     tsConfig = { options: {} } as ParsedCommandLine
   }
 
-  async function bundleConfig(nextConfig = {} as NextConfigComplete) {
+  async function bundleConfig(nextConfig: NextConfig, inputFileSystem?: any) {
     const distDir = nextConfig.distDir ?? '.next'
     const nextBuildSpan = trace('next-config-ts')
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
@@ -118,9 +118,13 @@ export async function transpileConfig({
       webpackConfig.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
     }
 
-    const [{ errors }] = await runCompiler(webpackConfig, {
-      runWebpackSpan,
-    })
+    const [{ errors }, inputFileSystemOutput] = await runCompiler(
+      webpackConfig,
+      {
+        runWebpackSpan,
+        inputFileSystem,
+      }
+    )
 
     if (errors.length > 0) {
       throw new Error(errors[0].message)
@@ -134,12 +138,11 @@ export async function transpileConfig({
       throw new Error(`${configPath} has no default export.`)
     }
 
-    return compiledConfig.default
+    return [compiledConfig.default, inputFileSystemOutput]
   }
 
-  let nextConfig: NextConfigComplete
   try {
-    nextConfig = await bundleConfig()
+    const [nextConfig, inputFileSystem] = await bundleConfig({})
 
     if (
       // List of options possibly passed to next-swc-loader
@@ -152,8 +155,11 @@ export async function transpileConfig({
       nextConfig.distDir
     ) {
       // Re-compile with the parsed nextConfig
-      nextConfig = await bundleConfig(nextConfig)
-      return nextConfig
+      const recompiledNextConfig = await bundleConfig(
+        nextConfig,
+        inputFileSystem
+      )
+      return recompiledNextConfig
     }
 
     return nextConfig
