@@ -163,6 +163,16 @@ createNextDescribe(
                         status: { code: 0 },
                       },
                       {
+                        attributes: {
+                          'next.clientComponentLoadCount': 4,
+                        },
+                        kind: 0,
+                        name: 'NextNodeServer.clientComponentLoading',
+                        status: {
+                          code: 0,
+                        },
+                      },
+                      {
                         name: 'start response',
                         attributes: {
                           'next.span_name': 'start response',
@@ -770,6 +780,9 @@ createNextDescribe(
                     },
                     {
                       name: 'generateMetadata /app/[param]/rsc-fetch/page',
+                    },
+                    {
+                      name: 'NextNodeServer.clientComponentLoading',
                     },
                     {
                       name: 'start response',
