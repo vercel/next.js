@@ -3,8 +3,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb, getUrlFromBackgroundImage } from 'next-test-utils'
 
-describe('SCSS Support loader handling', () => {
-  describe('CSS URL via `file-loader`', () => {
+// TODO: Skipped as this test should set up the server to handle assetPrefix which it currently does not do.
+describe.skip('SCSS Support loader handling', () => {
+  describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
@@ -22,7 +23,7 @@ describe('SCSS Support loader handling', () => {
         .elementByCss('.red-text')
         .getComputedCss('background-image')
       expect(background).toMatch(
-        /url\(".*\/_next\/static\/media\/dark\..*\.svg"\), url\(".*\/_next\/static\/media\/dark2\..*\.svg"\)/
+        /url\(".*\/foo\/_next\/static\/media\/dark\..*\.svg"\), url\(".*\/foo\/_next\/static\/media\/dark2\..*\.svg"\)/
       )
 
       const urls = getUrlFromBackgroundImage(background)

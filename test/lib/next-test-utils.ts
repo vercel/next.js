@@ -1085,6 +1085,15 @@ export function colorToRgb(color) {
   }
 }
 
+export function getUrlFromBackgroundImage(backgroundImage: string) {
+  const matches = backgroundImage.match(/url\("[^)]+"\)/g).map((match) => {
+    // Extract the URL part from each match. The match includes 'url("' and '"")', so we remove those.
+    return match.slice(5, -2)
+  })
+
+  return matches
+}
+
 /**
  * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
  *
