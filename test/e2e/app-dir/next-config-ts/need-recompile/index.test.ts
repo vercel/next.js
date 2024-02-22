@@ -7,7 +7,7 @@ describe('next-config-ts-need-recompile', () => {
     files: __dirname,
   })
 
-  it('should set distDir as dist', async () => {
+  it('should set distDir as dist', () => {
     expect(
       existsSync(join(next.testDir, 'dist', 'next.compiled.config.mjs'))
     ).toBe(true)
