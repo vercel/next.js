@@ -47,8 +47,8 @@ export async function transpileConfig({
     tsConfig = { options: {} } as ParsedCommandLine
   }
 
-  async function bundleConfig(nextConfig: NextConfig, inputFileSystem?: any) {
-    const distDir = nextConfig.distDir ?? '.next'
+  async function bundleConfig(nextConfig?: NextConfig): Promise<NextConfig> {
+    const distDir = nextConfig?.distDir ?? '.next'
     const nextBuildSpan = trace('next-config-ts')
     const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
     const resolvedBaseUrl = tsConfig.options?.baseUrl
@@ -118,13 +118,9 @@ export async function transpileConfig({
       webpackConfig.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
     }
 
-    const [{ errors }, inputFileSystemOutput] = await runCompiler(
-      webpackConfig,
-      {
-        runWebpackSpan,
-        inputFileSystem,
-      }
-    )
+    const [{ errors }] = await runCompiler(webpackConfig, {
+      runWebpackSpan,
+    })
 
     if (errors.length > 0) {
       throw new Error(errors[0].message)
@@ -133,33 +129,24 @@ export async function transpileConfig({
     const compiledConfigPath = join(cwd, distDir, filename)
     const compiledConfig = await import(pathToFileURL(compiledConfigPath).href)
 
-    // TODO: Remove this when https://github.com/vercel/next.js/pull/62341 is merged
-    if (!compiledConfig.default) {
-      throw new Error(`${configPath} has no default export.`)
-    }
-
-    return [compiledConfig.default, inputFileSystemOutput]
+    return compiledConfig.default
   }
 
   try {
-    const [nextConfig, inputFileSystem] = await bundleConfig({})
+    const nextConfig = await bundleConfig()
 
     if (
       // List of options possibly passed to next-swc-loader
-      nextConfig.compiler ||
       nextConfig.modularizeImports ||
-      nextConfig.experimental?.optimizeServerReact ||
       nextConfig.experimental?.optimizePackageImports ||
       nextConfig.experimental?.swcPlugins ||
+      nextConfig.compiler ||
+      nextConfig.experimental?.optimizeServerReact ||
       // For swcCacheDir option
       nextConfig.distDir
     ) {
       // Re-compile with the parsed nextConfig
-      const recompiledNextConfig = await bundleConfig(
-        nextConfig,
-        inputFileSystem
-      )
-      return recompiledNextConfig
+      return await bundleConfig(nextConfig)
     }
 
     return nextConfig
