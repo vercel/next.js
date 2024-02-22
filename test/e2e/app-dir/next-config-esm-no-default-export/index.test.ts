@@ -7,7 +7,7 @@ describe('next-config-esm-no-default-export', () => {
     skipStart: true,
   })
 
-  it('should throw when no default export on next.config.js', async () => {
+  it('should throw when no default export on next.config.mjs', async () => {
     await expect(next.start()).rejects.toThrow(
       'next build failed with code/signal 1'
     )
