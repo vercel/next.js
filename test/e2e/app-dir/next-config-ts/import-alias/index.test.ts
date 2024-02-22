@@ -7,6 +7,6 @@ describe('next-config-ts-import-alias', () => {
 
   it('should support import alias', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foobar')
+    expect($('p').text()).toBe('foobarbaz')
   })
 })
