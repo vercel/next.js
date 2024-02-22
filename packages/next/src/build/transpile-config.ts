@@ -129,8 +129,9 @@ export async function transpileConfig({
     const compiledConfigPath = join(cwd, distDir, filename)
     const compiledConfig = await import(pathToFileURL(compiledConfigPath).href)
 
+    // TODO: Remove this when https://github.com/vercel/next.js/pull/62341 is merged
     if (!compiledConfig.default) {
-      throw new Error(`No default export found in (${configPath}).`)
+      throw new Error(`${configPath} has no default export.`)
     }
 
     return compiledConfig.default
