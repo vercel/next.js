@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "14.1.1-canary.67",
+  "version": "14.1.1-canary.69",
   "private": true,
   "scripts": {
     "clean": "node ../../scripts/rm.mjs native",
