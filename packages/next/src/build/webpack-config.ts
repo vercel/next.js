@@ -1053,6 +1053,7 @@ export default async function getBaseWebpackConfig(
               framework: frameworkCacheGroup,
               lib: libCacheGroup,
             },
+            chunks: 'all',
             minChunks: 2,
           }
         }
