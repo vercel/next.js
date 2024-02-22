@@ -26,6 +26,7 @@ use turbopack_binding::swc::core::{
 pub struct Config {
     pub is_react_server_layer: bool,
     pub enabled: bool,
+    pub directive: String,
 }
 
 /// A mapping of hashed action id to the action's exported function name.
@@ -123,13 +124,14 @@ impl<C: Comments> ServerActions<C> {
             // All export functions in a server file are actions
             is_action_fn = true;
         } else {
-            // Check if the function has `"use server"`
+            // Check if the function has the directive
             if let Some(body) = maybe_body {
                 remove_server_directive_index_in_fn(
                     &mut body.stmts,
                     remove_directive,
                     &mut is_action_fn,
                     self.config.enabled,
+                    &self.config.directive,
                 );
 
                 if is_action_fn && !self.config.is_react_server_layer && !self.in_action_file {
@@ -696,6 +698,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             &mut self.in_action_file,
             &mut self.has_action,
             self.config.enabled,
+            &self.config.directive,
         );
 
         let old_annotations = self.annotations.take();
@@ -877,7 +880,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             }
         }
 
-        // If it's a "use server" file, all exports need to be annotated as actions.
+        // If it's an layer entry file, all exports need to be annotated as actions.
         if self.in_action_file {
             // If it's compiled in the client layer, each export field needs to be
             // wrapped by a reference creation call.
@@ -1283,20 +1286,70 @@ fn annotate_ident_as_action(
     }
 }
 
-const DIRECTIVE_TYPOS: &[&str] = &[
-    "use servers",
-    "use-server",
-    "use sevrer",
-    "use srever",
-    "use servre",
-    "user server",
-];
+// Detects if two strings are similar (but not the same).
+// This implementation is fast and simple as it allows only one
+// edit (add, remove, edit, swap), instead of using a N^2 Levenshtein algorithm.
+//
+// Example of similar strings of "use server":
+// "use servers",
+// "use-server",
+// "use sevrer",
+// "use srever",
+// "use servre",
+// "user server",
+//
+// This avoids accidental typos as there's currently no other static analysis
+// tool to help when these mistakes happen.
+fn detect_similar_strings(a: &str, b: &str) -> bool {
+    let mut a = a.chars().collect::<Vec<char>>();
+    let mut b = b.chars().collect::<Vec<char>>();
+
+    if a.len() < b.len() {
+        (a, b) = (b, a);
+    }
+
+    if a.len() == b.len() {
+        // Same length, get the number of character differences.
+        let mut diff = 0;
+        for i in 0..a.len() {
+            if a[i] != b[i] {
+                diff += 1;
+                if diff > 2 {
+                    return false;
+                }
+            }
+        }
+
+        // Should be 1 or 2, but not 0.
+        diff != 0
+    } else {
+        if a.len() - b.len() > 1 {
+            return false;
+        }
+
+        // A has one more character than B.
+        for i in 0..b.len() {
+            if a[i] != b[i] {
+                // This should be the only difference, a[i+1..] should be equal to b[i..].
+                // Otherwise, they're not considered similar.
+                // A: "use srerver"
+                // B: "use server"
+                //          ^
+                return a[i + 1..] == b[i..];
+            }
+        }
+
+        // This happens when the last character of A is an extra character.
+        true
+    }
+}
 
 fn remove_server_directive_index_in_module(
     stmts: &mut Vec<ModuleItem>,
     in_action_file: &mut bool,
     has_action: &mut bool,
     enabled: bool,
+    directive: &str,
 ) {
     let mut is_directive = true;
 
@@ -1306,7 +1359,7 @@ fn remove_server_directive_index_in_module(
                 expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
                 ..
             })) => {
-                if value == "use server" {
+                if value == directive {
                     if is_directive {
                         *in_action_file = true;
                         *has_action = true;
@@ -1326,22 +1379,26 @@ fn remove_server_directive_index_in_module(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive must be at the top of the file.",
+                                    format!(
+                                        "The \"{}\" directive must be at the top of the file.",
+                                        directive,
+                                    )
+                                    .as_str(),
                                 )
                                 .emit();
                         });
                     }
                 } else {
-                    // Detect typo of "use server"
-                    if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                    // Detect typo of the directive.
+                    if detect_similar_strings(value, directive) {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
                                     format!(
-                                        "Did you mean \"use server\"? \"{}\" is not a supported \
+                                        "Did you mean \"{}\"? \"{}\" is not a supported \
                                          directive name.",
-                                        value
+                                        directive, value
                                     )
                                     .as_str(),
                                 )
@@ -1359,15 +1416,19 @@ fn remove_server_directive_index_in_module(
                 span,
                 ..
             })) => {
-                // Match `("use server")`.
-                if value == "use server" || DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                // Match `("use server")` or similar.
+                if value == directive || detect_similar_strings(value, directive) {
                     if is_directive {
                         HANDLER.with(|handler| {
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive cannot be wrapped in \
-                                     parentheses.",
+                                     format!(
+                                         "The \"{}\" directive cannot be wrapped in \
+                                         parentheses.",
+                                         directive,
+                                     )
+                                     .as_str(),
                                 )
                                 .emit();
                         })
@@ -1376,8 +1437,12 @@ fn remove_server_directive_index_in_module(
                             handler
                                 .struct_span_err(
                                     *span,
-                                    "The \"use server\" directive must be at the top of the file, \
-                                     and cannot be wrapped in parentheses.",
+                                     format!(
+                                         "The \"{}\" directive must be at the top of the file, \
+                                         and cannot be wrapped in parentheses.",
+                                         directive,
+                                     )
+                                     .as_str(),
                                 )
                                 .emit();
                         })
@@ -1397,6 +1462,7 @@ fn remove_server_directive_index_in_fn(
     remove_directive: bool,
     is_action_fn: &mut bool,
     enabled: bool,
+    directive: &str,
 ) {
     let mut is_directive = true;
 
@@ -1406,7 +1472,7 @@ fn remove_server_directive_index_in_fn(
             ..
         }) = stmt
         {
-            if value == "use server" {
+            if value == directive {
                 if is_directive {
                     *is_action_fn = true;
                     if !enabled {
@@ -1427,23 +1493,27 @@ fn remove_server_directive_index_in_fn(
                         handler
                             .struct_span_err(
                                 *span,
-                                "The \"use server\" directive must be at the top of the function \
-                                 body.",
+                                format!(
+                                    "The \"{}\" directive must be at the top of the function \
+                                     body.",
+                                    directive,
+                                )
+                                .as_str(),
                             )
                             .emit();
                     });
                 }
             } else {
-                // Detect typo of "use server"
-                if DIRECTIVE_TYPOS.iter().any(|&s| s == value) {
+                // Detect typo of the directive
+                if detect_similar_strings(value, directive) {
                     HANDLER.with(|handler| {
                         handler
                             .struct_span_err(
                                 *span,
                                 format!(
-                                    "Did you mean \"use server\"? \"{}\" is not a supported \
+                                    "Did you mean \"{}\"? \"{}\" is not a supported \
                                      directive name.",
-                                    value
+                                    directive, value
                                 )
                                 .as_str(),
                             )
