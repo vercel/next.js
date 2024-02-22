@@ -146,6 +146,8 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
         printAndExit(lintOutput, 0)
       } else if (lintResults && !lintOutput) {
         printAndExit(green('✔ No ESLint warnings or errors'), 0)
+      } else {
+        process.exit(1)
       }
     })
     .catch((err) => {
