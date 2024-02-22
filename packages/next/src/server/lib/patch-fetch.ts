@@ -488,13 +488,12 @@ export function patchFetch({
             }
             input = new Request(reqInput.url, reqOptions)
           } else if (init) {
-            const initialInit = init
+            const { _ogBody, body, signal, ...otherInput } =
+              init as RequestInit & { _ogBody?: any }
             init = {
-              body: (init as any)._ogBody || init.body,
-            }
-            for (const field of requestInputFields) {
-              // @ts-expect-error custom fields
-              init[field] = initialInit[field]
+              ...otherInput,
+              body: _ogBody || body,
+              signal: isStale ? undefined : signal,
             }
           }
 

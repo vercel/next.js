@@ -1,9 +1,7 @@
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { ParsedUrlQuery } from 'querystring'
-import type { OriginalStackFrameResponse } from './middleware'
+import { findSourcePackage, type OriginalStackFrameResponse } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
-import url from 'url'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import { launchEditor } from '../internal/helpers/launchEditor'
 
@@ -76,6 +74,8 @@ export async function createOriginalStackFrame(
 ): Promise<OriginalStackFrameResponse | null> {
   const traced = await batchedTraceSource(project, frame)
   if (!traced) {
+    const sourcePackage = findSourcePackage(frame.file)
+    if (sourcePackage) return { sourcePackage }
     return null
   }
 
@@ -96,27 +96,24 @@ export async function createOriginalStackFrame(
             },
             { forceColor: true }
           ),
-  }
-}
-
-function stackFrameFromQuery(query: ParsedUrlQuery): TurbopackStackFrame {
-  return {
-    file: query.file as string,
-    methodName: query.methodName as string,
-    line:
-      typeof query.lineNumber === 'string' ? parseInt(query.lineNumber, 10) : 0,
-    column:
-      typeof query.column === 'string' ? parseInt(query.column, 10) : null,
-    isServer: query.isServer === 'true',
+    sourcePackage: findSourcePackage(traced.frame.file),
   }
 }
 
 export function getOverlayMiddleware(project: Project) {
   return async function (req: IncomingMessage, res: ServerResponse) {
-    const { pathname, query } = url.parse(req.url!, true)
+    const { pathname, searchParams } = new URL(req.url!, 'http://n')
+
+    const frame = {
+      file: searchParams.get('file') as string,
+      methodName: searchParams.get('methodName'),
+      line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+      column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+      isServer: searchParams.get('isServer') === 'true',
+    } satisfies TurbopackStackFrame
+
     if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = stackFrameFromQuery(query)
-      let originalStackFrame
+      let originalStackFrame: OriginalStackFrameResponse | null
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
@@ -139,17 +136,14 @@ export function getOverlayMiddleware(project: Project) {
       res.end()
       return
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = stackFrameFromQuery(query)
-
-      const filePath = frame.file?.toString()
-      if (filePath === undefined) {
+      if (!frame.file) {
         res.statusCode = 400
         res.write('Bad Request')
         res.end()
         return
       }
 
-      const fileExists = await fs.access(filePath, FS.F_OK).then(
+      const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
         () => false
       )
@@ -161,7 +155,7 @@ export function getOverlayMiddleware(project: Project) {
       }
 
       try {
-        launchEditor(filePath, frame.line ?? 1, frame.column ?? 1)
+        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500
