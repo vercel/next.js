@@ -622,6 +622,14 @@ export async function exportAppImpl(
         })
       })
 
+      if (nextConfig.experimental.prerenderEarlyExit) {
+        if (result && 'error' in result) {
+          throw new Error(
+            `Export encountered an error on ${path}, exiting due to prerenderEarlyExit: true being set`
+          )
+        }
+      }
+
       if (progress) progress()
 
       return { result, path }
