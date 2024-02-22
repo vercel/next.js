@@ -292,6 +292,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         parallelServerBuildTraces: z.boolean().optional(),
         ppr: z.boolean().optional(),
         taint: z.boolean().optional(),
+        prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         serverComponentsExternalPackages: z.array(z.string()).optional(),
         scrollRestoration: z.boolean().optional(),
