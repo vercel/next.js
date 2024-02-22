@@ -4,25 +4,23 @@ import { nextTestSetup } from 'e2e-utils'
 import { colorToRgb, retry } from 'next-test-utils'
 
 describe('SCSS Support', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: '1.54.0',
     },
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    describe('Has CSS in computed styles in Production', () => {
-      it('should have CSS for page', async () => {
-        const browser = await next.browser('/page2')
+  describe('Has CSS in computed styles in Production', () => {
+    it('should have CSS for page', async () => {
+      const browser = await next.browser('/page2')
 
-        expect(
-          await browser.elementByCss('.blue-text').getComputedCss('color')
-        ).toBe(colorToRgb('blue'))
-      })
+      expect(
+        await browser.elementByCss('.blue-text').getComputedCss('color')
+      ).toBe(colorToRgb('blue'))
     })
   })
 
-  describe('development mode', () => {
+  if (isNextDev) {
     describe('Can hot reload CSS without losing state', () => {
       it('should update CSS color without remounting <input>', async () => {
         const browser = await next.browser('/page1')
@@ -53,7 +51,7 @@ describe('SCSS Support', () => {
         )
       })
     })
-  })
+  }
 
   describe('Has CSS in computed styles in Development', () => {
     it('should have CSS for page', async () => {
