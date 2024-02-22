@@ -109,7 +109,7 @@ export function createWebpackAliases({
       '@opentelemetry/api': 'next/dist/compiled/@opentelemetry/api',
     }),
 
-    ...(config.images.loaderFile
+    ...(config.images?.loaderFile
       ? {
           'next/dist/shared/lib/image-loader': config.images.loaderFile,
           ...(isEdgeServer && {
@@ -137,7 +137,7 @@ export function createWebpackAliases({
     // resolve to the ESM export.
     ...(isNodeServer
       ? getBarrelOptimizationAliases(
-          config.experimental.optimizePackageImports || []
+          config.experimental?.optimizePackageImports || []
         )
       : {}),
 
