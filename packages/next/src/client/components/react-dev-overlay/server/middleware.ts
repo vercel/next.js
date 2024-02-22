@@ -158,7 +158,10 @@ export async function createOriginalStackFrame({
 
   return {
     originalStackFrame: traced,
-    originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
+    // Don't look up code frames for node_modules. These can often be large bundled files.
+    originalCodeFrame: frame.file?.includes('node_modules')
+      ? null
+      : getOriginalCodeFrame(traced, sourceContent),
     sourcePackage: findSourcePackage(traced.file, frame.methodName),
   }
 }
@@ -301,11 +304,7 @@ export function getOverlayMiddleware(options: {
         })
 
         if (originalStackFrameResponse === null) {
-          if (sourcePackage) {
-            res.setHeader('Content-Type', 'application/json')
-            res.write(Buffer.from(JSON.stringify({ sourcePackage })))
-            return res.end()
-          }
+          if (sourcePackage) return json(res, { sourcePackage })
           return noContent(res)
         }
 

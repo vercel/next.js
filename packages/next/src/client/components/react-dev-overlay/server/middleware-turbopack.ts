@@ -42,8 +42,8 @@ async function batchedTraceSource(
     return
   }
 
-  let source
-  // Don't show code frames for node_modules. These can also often be large bundled files.
+  let source = null
+  // Don't look up code frames for node_modules. These can often be large bundled files.
   if (!sourceFrame.file.includes('node_modules') && !sourceFrame.isInternal) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
@@ -67,7 +67,7 @@ async function batchedTraceSource(
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
     },
-    source: source ?? null,
+    source,
   }
 }
 
