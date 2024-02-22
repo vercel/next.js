@@ -3566,18 +3566,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/interception-route-groups/interception-route-groups.test.ts": {
-    "passed": [
-      "interception route groups (no default) should use the default fallback (a 404) if there is no custom default page"
-    ],
-    "failed": [
-      "interception route groups (with default) should render the root default when a route group doesn't have a default",
-      "interception route groups (with default) should work when nested a level deeper"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/interception-route-prefetch-cache/interception-route-prefetch-cache.test.ts": {
     "passed": [
       "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure",
