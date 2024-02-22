@@ -298,6 +298,8 @@ export async function handleRouteType({
 
         processIssues(currentIssues, serverKey, writtenEndpoint)
       } finally {
+        // TODO subscriptions should only be caused by the WebSocket connections
+        // otherwise we don't known when to unsubscribe and this leaking
         hooks?.subscribeToChanges(serverKey, false, route.dataEndpoint, () => {
           // Report the next compilation again
           readyIds?.delete(pathname)
@@ -356,6 +358,8 @@ export async function handleRouteType({
       const writtenEndpoint = await route.htmlEndpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
 
+      // TODO subscriptions should only be caused by the WebSocket connections
+      // otherwise we don't known when to unsubscribe and this leaking
       hooks?.subscribeToChanges(key, true, route.rscEndpoint, (change) => {
         if (change.issues.some((issue) => issue.severity === 'error')) {
           // Ignore any updates that has errors

@@ -155,8 +155,6 @@ export async function createHotReloaderTurbopack(
   const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
   // Dev specific
-  const hmrPayloads = new Map<string, HMR_ACTION_TYPES>()
-  const turbopackUpdates: TurbopackUpdate[] = []
   const changeSubscriptions: ChangeSubscriptions = new Map()
   const serverPathState = new Map<string, string>()
   const readyIds: ReadyIds = new Set()
@@ -260,33 +258,62 @@ export async function createHotReloaderTurbopack(
         return
       }
     }
-    for (const payload of hmrPayloads.values()) {
-      hotReloader.send(payload)
-    }
-    hmrPayloads.clear()
-    if (turbopackUpdates.length > 0) {
-      hotReloader.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-        data: turbopackUpdates,
-      })
-      turbopackUpdates.length = 0
+    for (const client of clients) {
+      const state = clientStates.get(client)
+      if (!state) continue
+      for (const [, issueMap] of state.clientIssues) {
+        if (issueMap.size > 0) {
+          // During compilation errors we want to delay the HMR events until errors are fixed
+          return
+        }
+      }
+      const sendToClient = (payload: any) => {
+        client.send(JSON.stringify(payload))
+      }
+      for (const payload of state.hmrPayloads.values()) {
+        sendToClient(payload)
+      }
+      state.hmrPayloads.clear()
+      if (state.turbopackUpdates.length > 0) {
+        sendToClient({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: state.turbopackUpdates,
+        })
+        state.turbopackUpdates.length = 0
+      }
     }
   }
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
-  const sendHmr: SendHmr = (id, payload) => {
-    hmrPayloads.set(`${id}`, payload)
+  const sendHmr: SendHmr = (id: string, payload: HMR_ACTION_TYPES) => {
+    for (const client of clients) {
+      const state = clientStates.get(client)
+      if (!state) continue
+      state.hmrPayloads.set(`${id}`, payload)
+    }
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
   function sendTurbopackMessage(payload: TurbopackUpdate) {
-    turbopackUpdates.push(payload)
+    for (const client of clients) {
+      const state = clientStates.get(client)
+      if (!state) continue
+      state.turbopackUpdates.push(payload)
+    }
     hmrEventHappened = true
     sendEnqueuedMessagesDebounce()
   }
 
+  type ClientState = {
+    clientIssues: IssuesMap
+    hmrPayloads: Map<string, HMR_ACTION_TYPES>
+    turbopackUpdates: TurbopackUpdate[]
+    subscriptions: Map<string, AsyncIterator<any>>
+  }
+
   const clients = new Set<ws>()
+  const clientStates = new WeakMap<ws, ClientState>()
 
   async function subscribeToChanges(
     key: EntryKey,
@@ -322,16 +349,13 @@ export async function createHotReloaderTurbopack(
     currentIssues.delete(key)
   }
 
-  async function subscribeToHmrEvents(
-    clientIssues: IssuesMap,
-    subscriptions: Map<string, AsyncIterator<any>>,
-    id: string,
-    client: ws
-  ) {
-    if (subscriptions.has(id)) return
+  async function subscribeToHmrEvents(client: ws, id: string) {
+    const state = clientStates.get(client)
+    if (!state) return
+    if (state.subscriptions.has(id)) return
 
     const subscription = project!.hmrEvents(id)
-    subscriptions.set(id, subscription)
+    state.subscriptions.set(id, subscription)
 
     const key = getEntryKey('assets', 'client', id)
 
@@ -341,7 +365,7 @@ export async function createHotReloaderTurbopack(
       await subscription.next()
 
       for await (const data of subscription) {
-        processIssues(clientIssues, key, data)
+        processIssues(state.clientIssues, key, data)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data)
         }
@@ -360,15 +384,13 @@ export async function createHotReloaderTurbopack(
     }
   }
 
-  function unsubscribeFromHmrEvents(
-    clientIssues: IssuesMap,
-    subscriptions: Map<string, AsyncIterator<any>>,
-    id: string
-  ) {
-    const subscription = subscriptions.get(id)
+  function unsubscribeFromHmrEvents(client: ws, id: string) {
+    const state = clientStates.get(client)
+    if (!state) return
+    const subscription = state.subscriptions.get(id)
     subscription?.return!()
     const key = getEntryKey('assets', 'client', id)
-    clientIssues.delete(key)
+    state.clientIssues.delete(key)
   }
 
   async function handleEntrypointsSubscription() {
@@ -467,11 +489,18 @@ export async function createHotReloaderTurbopack(
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
         clients.add(client)
+        clientStates.set(client, {
+          clientIssues,
+          hmrPayloads: new Map(),
+          turbopackUpdates: [],
+          subscriptions,
+        })
         client.on('close', () => {
           // Remove active subscriptions
           for (const subscription of subscriptions.values()) {
             subscription.return?.()
           }
+          clientStates.delete(client)
           clients.delete(client)
         })
 
@@ -527,20 +556,11 @@ export async function createHotReloaderTurbopack(
           // Turbopack messages
           switch (parsedData.type) {
             case 'turbopack-subscribe':
-              subscribeToHmrEvents(
-                clientIssues,
-                subscriptions,
-                parsedData.path,
-                client
-              )
+              subscribeToHmrEvents(client, parsedData.path)
               break
 
             case 'turbopack-unsubscribe':
-              unsubscribeFromHmrEvents(
-                clientIssues,
-                subscriptions,
-                parsedData.path
-              )
+              unsubscribeFromHmrEvents(client, parsedData.path)
               break
 
             default:
@@ -753,27 +773,42 @@ export async function createHotReloaderTurbopack(
           sendEnqueuedMessages()
 
           const errors = new Map<string, CompilationError>()
-          for (const [, issueMap] of currentIssues) {
-            for (const [key, issue] of issueMap) {
-              if (errors.has(key)) continue
+          const addErrors = (
+            errorsMap: Map<string, CompilationError>,
+            issues: IssuesMap
+          ) => {
+            for (const issueMap of issues.values()) {
+              for (const [key, issue] of issueMap) {
+                if (errorsMap.has(key)) continue
 
-              const message = formatIssue(issue)
+                const message = formatIssue(issue)
 
-              errors.set(key, {
-                message,
-                details: issue.detail
-                  ? renderStyledStringToErrorAnsi(issue.detail)
-                  : undefined,
-              })
+                errorsMap.set(key, {
+                  message,
+                  details: issue.detail
+                    ? renderStyledStringToErrorAnsi(issue.detail)
+                    : undefined,
+                })
+              }
             }
           }
+          addErrors(errors, currentIssues)
 
-          hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
-            hash: String(++hmrHash),
-            errors: [...errors.values()],
-            warnings: [],
-          })
+          for (const client of clients) {
+            const state = clientStates.get(client)
+            if (!state) continue
+            const clientErrors = new Map(errors)
+            addErrors(clientErrors, state.clientIssues)
+
+            client.send(
+              JSON.stringify({
+                action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+                hash: String(++hmrHash),
+                errors: [...clientErrors.values()],
+                warnings: [],
+              })
+            )
+          }
 
           if (hmrEventHappened) {
             const time = updateMessage.value.duration
