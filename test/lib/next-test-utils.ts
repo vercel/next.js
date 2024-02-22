@@ -1078,6 +1078,8 @@ export function colorToRgb(color) {
       return 'rgb(255, 255, 0)'
     case 'purple':
       return 'rgb(128, 0, 128)'
+    case 'black':
+      return 'rgb(0, 0, 0)'
     default:
       throw new Error('Unknown color')
   }
