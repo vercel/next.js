@@ -1,4 +1,4 @@
-error - [parse] [project]/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js  /crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js:4:16  Parsing ecmascript source code failed
+error - [parse] [project]/crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js  /crates/turbopack-tests/tests/snapshot/imports/duplicate-binding/input/index.js:4:16  Ecmascript file had an error
        1 | 
        2 | import { Table } from "./table"
        3 | 
