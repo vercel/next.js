@@ -24,10 +24,8 @@ import {
 } from './error-overlay-reducer'
 import { parseStack } from '../internal/helpers/parseStack'
 import ReactDevOverlay from './ReactDevOverlay'
-import {
-  RuntimeErrorHandler,
-  useErrorHandler,
-} from '../internal/helpers/use-error-handler'
+import { useErrorHandler } from '../internal/helpers/use-error-handler'
+import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
