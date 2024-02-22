@@ -139,7 +139,21 @@ npx next dev --experimental-https --experimental-https-key ./certificates/localh
 
 ## Build
 
-`next build` creates an optimized production build of your application. The output displays information about each route.
+`next build` creates an optimized production build of your application. The output displays information about each route:
+
+```bash filename="Terminal"
+Route (app)                               Size     First Load JS
+┌ ○ /                                    5.3 kB         89.5 kB
+├ ○ /_not-found                          885 B          85.1 kB
+└ ○ /about                               137 B          84.4 kB
++ First Load JS shared by all             84.2 kB
+  ├ chunks/184-d3bb186aac44da98.js       28.9 kB
+  ├ chunks/30b509c0-f3503c24f98f3936.js  53.4 kB
+  └ other shared chunks (total)
+
+
+○  (Static)  prerendered as static content
+```
 
 - **Size** – The number of assets downloaded when navigating to the page client-side. The size for each route only includes its dependencies.
 - **First Load JS** – The number of assets downloaded when visiting the page from the server. The amount of JS shared by all is shown as a separate metric.
