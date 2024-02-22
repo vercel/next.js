@@ -933,6 +933,7 @@
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
+      "ReactRefreshLogBox app turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [],
@@ -953,6 +954,7 @@
       "ReactRefreshLogBox app default non-Error errors are handled properly",
       "ReactRefreshLogBox app default server component can recover from error thrown in the module",
       "ReactRefreshLogBox app default should strip whitespace correctly with newline",
+      "ReactRefreshLogBox app default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app default unterminated JSX",
       "ReactRefreshLogBox app turbo internal package errors",
       "ReactRefreshLogBox app turbo non-Error errors are handled properly"
@@ -1276,6 +1278,7 @@
   },
   "test/development/acceptance/ReactRefreshLogBox.test.ts": {
     "passed": [
+      "ReactRefreshLogBox turbo Call stack count is correct for pages error",
       "ReactRefreshLogBox turbo boundaries",
       "ReactRefreshLogBox turbo conversion to class component (1)",
       "ReactRefreshLogBox turbo css syntax errors",
@@ -1283,10 +1286,12 @@
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
+      "ReactRefreshLogBox turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
     "failed": [],
     "pending": [
+      "ReactRefreshLogBox default Call stack count is correct for pages error",
       "ReactRefreshLogBox default boundaries",
       "ReactRefreshLogBox default conversion to class component (1)",
       "ReactRefreshLogBox default css syntax errors",
@@ -1295,6 +1300,7 @@
       "ReactRefreshLogBox default module init error not shown",
       "ReactRefreshLogBox default non-Error errors are handled properly",
       "ReactRefreshLogBox default should strip whitespace correctly with newline",
+      "ReactRefreshLogBox default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
@@ -2147,12 +2153,11 @@
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
-    ],
-    "failed": [
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
       "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [
       "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
@@ -8697,6 +8702,7 @@
       "Dynamic Routing dev mode should render nested optional dynamic page",
       "Dynamic Routing dev mode should render normal route",
       "Dynamic Routing dev mode should render optional dynamic page",
+      "Dynamic Routing dev mode should resolve dynamic route href for page added later",
       "Dynamic Routing dev mode should respond with bad request with invalid encoding",
       "Dynamic Routing dev mode should scroll to a hash on client-side navigation",
       "Dynamic Routing dev mode should scroll to a hash on mount",
@@ -8713,9 +8719,7 @@
       "Dynamic Routing dev mode should update dynamic values on mount",
       "Dynamic Routing dev mode should update with a hash in the URL"
     ],
-    "failed": [
-      "Dynamic Routing dev mode should resolve dynamic route href for page added later"
-    ],
+    "failed": [],
     "pending": [
       "Dynamic Routing dev mode should not have error after pinging WebSocket",
       "Dynamic Routing production mode [catch all] should not decode slashes (end)",
@@ -14871,124 +14875,113 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/basic-global-support.test.js": {
+  "test/integration/scss/scss-fixtures/3rd-party-module/3rd-party-module.test.js": {
     "passed": [],
     "failed": [],
     "pending": [
-      "Basic Global Support scss production mode should compile successfully",
-      "Basic Global Support scss production mode should've emitted a single CSS file",
-      "Basic Global Support with src/ dir production mode should compile successfully",
-      "Basic Global Support with src/ dir production mode should've emitted a single CSS file",
-      "Basic Module Include Paths Support production mode should compile successfully",
-      "Basic Module Include Paths Support production mode should've emitted a single CSS file",
-      "Basic Module Prepend Data Support production mode should compile successfully",
-      "Basic Module Prepend Data Support production mode should've emitted a single CSS file",
-      "CSS Import from node_modules production mode should fail the build",
-      "Good CSS Import from node_modules production mode should compile successfully",
-      "Good CSS Import from node_modules production mode should've emitted a single CSS file",
-      "Good Nested CSS Import from node_modules production mode should compile successfully",
-      "Good Nested CSS Import from node_modules production mode should've emitted a single CSS file",
-      "Multi Global Support (reversed) production mode should compile successfully",
-      "Multi Global Support (reversed) production mode should've emitted a single CSS file",
-      "Multi Global Support production mode should compile successfully",
-      "Multi Global Support production mode should've emitted a single CSS file",
-      "Nested @import() Global Support production mode should compile successfully",
-      "Nested @import() Global Support production mode should've emitted a single CSS file"
+      "3rd Party CSS Module Support production mode should have compiled successfully",
+      "3rd Party CSS Module Support production mode should've emitted a single CSS file",
+      "3rd Party CSS Module Support production mode should've injected the CSS on server render"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/basic-scss.test.js": {
-    "passed": [
-      "SCSS Support development mode Can hot reload CSS without losing state should update CSS color without remounting <input>"
+  "test/integration/scss/scss-fixtures/basic-module-include-paths/basic-module-include-paths.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Basic Module Include Paths Support production mode should compile successfully",
+      "Basic Module Include Paths Support production mode should've emitted a single CSS file"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/basic-module-prepend-data/basic-module-prepend-data.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Basic Module Prepend Data Support production mode should compile successfully",
+      "Basic Module Prepend Data Support production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/basic-module/basic-module.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Basic SCSS Module Support production mode should have compiled successfully",
+      "Basic SCSS Module Support production mode should've emitted a single CSS file",
+      "Basic SCSS Module Support production mode should've injected the CSS on server render"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/catch-all-module/catch-all-module.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Catch-all Route CSS Module Usage production mode should apply styles correctly",
+      "Catch-all Route CSS Module Usage production mode should have compiled successfully",
+      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/compilation-and-prefixing/compilation-and-prefixing.test.js": {
+    "passed": [],
     "failed": [],
     "pending": [
       "SCSS Support production mode CSS Compilation and Prefixing should compile successfully",
       "SCSS Support production mode CSS Compilation and Prefixing should've compiled and prefixed",
-      "SCSS Support production mode CSS Compilation and Prefixing should've emitted a source map",
-      "SCSS Support production mode Friendly Webpack Error should be a friendly error successfully",
-      "SCSS Support production mode Has CSS in computed styles in Production should have CSS for page",
-      "SCSS Support production mode Has CSS in computed styles in Production should have compiled successfully",
-      "SCSS Support production mode Has CSS in computed styles in Production should've preloaded the CSS file and injected it in <head>"
+      "SCSS Support production mode CSS Compilation and Prefixing should've emitted a source map"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/css-and-styled-jsx.test.js": {
-    "passed": [
-      "Ordering with styled-jsx (dev) should have the correct color (css ordering)"
-    ],
+  "test/integration/scss/scss-fixtures/composes-basic/composes-basic.test.js": {
+    "passed": [],
     "failed": [],
     "pending": [
-      "Ordering with styled-jsx (prod) production mode should have compiled successfully",
-      "Ordering with styled-jsx (prod) production mode should have the correct color (css ordering)"
+      "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
+      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/dev-css-handling.test.js": {
+  "test/integration/scss/scss-fixtures/composes-external/composes-external.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "CSS Module Composes Usage (External) production mode should have compiled successfully",
+      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/data-url/data-url.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode Data Urls should compile successfully",
+      "SCSS Support loader handling production mode Data Urls should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/dev-module/dev-module.test.js": {
     "passed": [
-      "Body is not hidden when broken in Development should have body visible",
-      "Body is not hidden when unused in Development should have body visible",
-      "Has CSS in computed styles in Development should have CSS for page"
+      "Has CSS Module in computed styles in Development should have CSS for page"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/scss-loader-handling.test.js": {
+  "test/integration/scss/scss-fixtures/dynamic-route-module/dynamic-route-module.test.js": {
     "passed": [],
     "failed": [],
     "pending": [
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should've emitted expected files",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should've emitted expected files",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via `file-loader` should've emitted expected files",
-      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should compile successfully",
-      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should've emitted expected files",
-      "SCSS Support loader handling production mode Data Urls should compile successfully",
-      "SCSS Support loader handling production mode Data Urls should've emitted expected files",
-      "SCSS Support loader handling production mode External imports should compile successfully",
-      "SCSS Support loader handling production mode External imports should've emitted expected files",
-      "SCSS Support loader handling production mode Preprocessor loader order should compile successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/test/scss-modules-basic.test.js": {
-    "passed": [
-      "Can hot reload CSS Module without losing state should update CSS color without remounting <input>",
-      "Has CSS Module in computed styles in Development should have CSS for page"
-    ],
-    "failed": [],
-    "pending": [
-      "3rd Party CSS Module Support production mode should have compiled successfully",
-      "3rd Party CSS Module Support production mode should've emitted a single CSS file",
-      "3rd Party CSS Module Support production mode should've injected the CSS on server render",
-      "Basic SCSS Module Support production mode should have compiled successfully",
-      "Basic SCSS Module Support production mode should've emitted a single CSS file",
-      "Basic SCSS Module Support production mode should've injected the CSS on server render",
-      "CSS Module Composes Usage (Basic) production mode should have compiled successfully",
-      "CSS Module Composes Usage (Basic) production mode should've emitted a single CSS file",
-      "CSS Module Composes Usage (External) production mode should have compiled successfully",
-      "CSS Module Composes Usage (External) production mode should've emitted a single CSS file",
-      "Has CSS Module in computed styles in Production production mode should have CSS for page",
-      "Has CSS Module in computed styles in Production production mode should have compiled successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/scss/test/scss-modules-dynamic-route.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Catch-all Route CSS Module Usage production mode should apply styles correctly",
-      "Catch-all Route CSS Module Usage production mode should have compiled successfully",
-      "Catch-all Route CSS Module Usage production mode should've emitted a single CSS file",
       "Dynamic Route CSS Module Usage production mode should apply styles correctly",
       "Dynamic Route CSS Module Usage production mode should have compiled successfully",
       "Dynamic Route CSS Module Usage production mode should've emitted a single CSS file"
@@ -14996,15 +14989,125 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/scss-modules-valid-invalid.test.js": {
+  "test/integration/scss/scss-fixtures/external-url/external-url.test.js": {
     "passed": [],
     "failed": [],
     "pending": [
-      "Invalid CSS Global Module Usage in node_modules production mode should fail to build",
-      "Invalid CSS Module Usage in node_modules production mode should fail to build",
-      "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
-      "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
-      "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data",
+      "SCSS Support loader handling production mode External imports should compile successfully",
+      "SCSS Support loader handling production mode External imports should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/hmr-module/hmr-module.test.js": {
+    "passed": [
+      "Can hot reload CSS Module without losing state should update CSS color without remounting <input>"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/invalid-global-module/invalid-global-module.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Global Module Usage in node_modules production mode should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/invalid-global-with-app/invalid-global-with-app.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid Global CSS with Custom App production mode should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/invalid-global/invalid-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": ["Invalid Global CSS production mode should fail to build"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/invalid-module-document/invalid-module-document.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid SCSS in _document production mode should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/invalid-module/invalid-module.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Invalid CSS Module Usage in node_modules production mode should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/loader-order/loader-order.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode Preprocessor loader order should compile successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/multi-global-reversed/multi-global-reversed.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Multi Global Support (reversed) production mode should compile successfully",
+      "Multi Global Support (reversed) production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/multi-global/multi-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Multi Global Support production mode should compile successfully",
+      "Multi Global Support production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/multi-page/multi-page.test.js": {
+    "passed": [
+      "SCSS Support Has CSS in computed styles in Development should have CSS for page",
+      "SCSS Support development mode Can hot reload CSS without losing state should update CSS color without remounting <input>"
+    ],
+    "failed": [],
+    "pending": [
+      "SCSS Support production mode Has CSS in computed styles in Production should have CSS for page",
+      "SCSS Support production mode Has CSS in computed styles in Production should have compiled successfully",
+      "SCSS Support production mode Has CSS in computed styles in Production should've preloaded the CSS file and injected it in <head>"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/nested-global/nested-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Nested @import() Global Support production mode should compile successfully",
+      "Nested @import() Global Support production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/nm-module-nested/nm-module-nested.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Valid Nested CSS Module Usage from within node_modules production mode should have compiled successfully",
       "Valid Nested CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
       "Valid Nested CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
@@ -15012,14 +15115,152 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scss/test/valid-invalid-scss.test.js": {
+  "test/integration/scss/scss-fixtures/nm-module/nm-module.test.js": {
     "passed": [],
     "failed": [],
     "pending": [
-      "Invalid Global CSS production mode should fail to build",
-      "Invalid Global CSS with Custom App production mode should fail to build",
-      "Invalid SCSS in _document production mode should fail to build",
+      "Valid CSS Module Usage from within node_modules production mode should have compiled successfully",
+      "Valid CSS Module Usage from within node_modules production mode should've emitted a single CSS file",
+      "Valid CSS Module Usage from within node_modules production mode should've prerendered with relevant data"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/npm-import-bad/npm-import-bad.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "CSS Import from node_modules production mode should fail the build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/npm-import-nested/npm-import-nested.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Good Nested CSS Import from node_modules production mode should compile successfully",
+      "Good Nested CSS Import from node_modules production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/npm-import/npm-import.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Good CSS Import from node_modules production mode should compile successfully",
+      "Good CSS Import from node_modules production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/prod-module/prod-module.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Has CSS Module in computed styles in Production production mode should have CSS for page",
+      "Has CSS Module in computed styles in Production production mode should have compiled successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/single-global-src/single-global-src.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Basic Global Support with src/ dir production mode should compile successfully",
+      "Basic Global Support with src/ dir production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/single-global/single-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Basic Global Support scss production mode should compile successfully",
+      "Basic Global Support scss production mode should've emitted a single CSS file"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/unused/unused.test.js": {
+    "passed": [
+      "Body is not hidden when broken in Development should have body visible",
+      "Body is not hidden when unused in Development should have body visible"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/url-global-asset-prefix-1/url-global-asset-prefix-1.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should compile successfully",
+      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (1) should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/url-global-asset-prefix-2/url-global-asset-prefix-2.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should compile successfully",
+      "SCSS Support loader handling production mode CSS URL via `file-loader` and asset prefix (2) should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/url-global-partial/url-global-partial.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should compile successfully",
+      "SCSS Support loader handling production mode CSS URL via file-loader sass partial should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/url-global/url-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support loader handling production mode CSS URL via `file-loader` should compile successfully",
+      "SCSS Support loader handling production mode CSS URL via `file-loader` should've emitted expected files"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/valid-and-invalid-global/valid-and-invalid-global.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
       "Valid and Invalid Global CSS with Custom App production mode should fail to build"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/webpack-error/webpack-error.test.js": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "SCSS Support production mode Friendly Webpack Error should be a friendly error successfully"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/scss/scss-fixtures/with-styled-jsx/with-styled-jsx.test.js": {
+    "passed": [
+      "Ordering with styled-jsx dev mode should have the correct color (css ordering)"
+    ],
+    "failed": [],
+    "pending": [
+      "Ordering with styled-jsx production mode should have compiled successfully",
+      "Ordering with styled-jsx production mode should have the correct color (css ordering)"
     ],
     "flakey": [],
     "runtimeError": false
