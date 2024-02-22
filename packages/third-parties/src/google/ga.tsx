@@ -54,14 +54,14 @@ export function GoogleAnalytics(props: GAParams) {
   )
 }
 
-export const sendGAEvent = (...args: Object[]) => {
+export function sendGAEvent(..._args: Object[]) {
   if (currDataLayerName === undefined) {
     console.warn(`@next/third-parties: GA has not been initialized`)
     return
   }
 
   if (window[currDataLayerName]) {
-    window[currDataLayerName].push(...args)
+    window[currDataLayerName].push(arguments)
   } else {
     console.warn(
       `@next/third-parties: GA dataLayer ${currDataLayerName} does not exist`

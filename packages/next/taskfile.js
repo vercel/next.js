@@ -73,7 +73,7 @@ const externals = {
   'jest-worker': 'jest-worker',
 
   'terser-webpack-plugin':
-    'next/dist/build/webpack/plugins/terser-webpack-plugin',
+    'next/dist/build/webpack/plugins/terser-webpack-plugin/src',
 
   // TODO: Add @swc/helpers to externals once @vercel/ncc switch to swc-loader
 }
@@ -2387,11 +2387,6 @@ export async function server(task, opts) {
     .source('src/server/**/!(*.test).+(js|ts|tsx)')
     .swc('server', { dev: opts.dev })
     .target('dist/server')
-
-  await fs.copyFile(
-    join(__dirname, 'src/server/google-font-metrics.json'),
-    join(__dirname, 'dist/server/google-font-metrics.json')
-  )
 }
 
 export async function server_esm(task, opts) {

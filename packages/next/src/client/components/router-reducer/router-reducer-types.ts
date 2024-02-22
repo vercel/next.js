@@ -1,7 +1,6 @@
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
-  FlightData,
   FlightSegmentPath,
 } from '../../../server/app-render/types'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -14,11 +13,13 @@ export const ACTION_PREFETCH = 'prefetch'
 export const ACTION_FAST_REFRESH = 'fast-refresh'
 export const ACTION_SERVER_ACTION = 'server-action'
 
-export type RouterChangeByServerResponse = (
-  previousTree: FlightRouterState,
-  flightData: FlightData,
-  overrideCanonicalUrl: URL | undefined
-) => void
+export type RouterChangeByServerResponse = ({
+  previousTree,
+  serverResponse,
+}: {
+  previousTree: FlightRouterState
+  serverResponse: FetchServerResponseResult
+}) => void
 
 export type RouterNavigate = (
   href: string,
@@ -134,9 +135,8 @@ export interface RestoreAction {
  */
 export interface ServerPatchAction {
   type: typeof ACTION_SERVER_PATCH
-  flightData: FlightData
+  serverResponse: FetchServerResponseResult
   previousTree: FlightRouterState
-  overrideCanonicalUrl: URL | undefined
 }
 
 /**

@@ -182,6 +182,10 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
+        for route in routes.values_mut() {
+            route.resolve().await?;
+        }
+
         Ok(Vc::cell(routes))
     }
 
@@ -530,6 +534,13 @@ enum PageEndpointType {
     SsrOnly,
 }
 
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TaskInput, TraceRawVcs)]
+enum SsrChunkType {
+    Page,
+    Data,
+    Api,
+}
+
 #[turbo_tasks::value_impl]
 impl PageEndpoint {
     #[turbo_tasks::function]
@@ -603,34 +614,43 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let mut client_chunks = client_chunking_context
-                .evaluated_chunk_group_assets(
-                    client_module.ident(),
-                    this.pages_project
-                        .client_runtime_entries()
-                        .with_entry(Vc::upcast(client_main_module))
-                        .with_entry(Vc::upcast(client_module)),
-                    Value::new(AvailabilityInfo::Root),
-                )
-                .await?
-                .clone_value();
+            let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
+                client_module.ident(),
+                this.pages_project
+                    .client_runtime_entries()
+                    .with_entry(Vc::upcast(client_main_module))
+                    .with_entry(Vc::upcast(client_module)),
+                Value::new(AvailabilityInfo::Root),
+            );
 
-            client_chunks.push(Vc::upcast(PageLoaderAsset::new(
-                this.pages_project.project().client_root(),
-                this.pathname,
-                self.client_relative_path(),
-                Vc::cell(client_chunks.clone()),
-            )));
-
-            Ok(Vc::cell(client_chunks))
+            Ok(client_chunks)
         }
         .instrument(tracing::info_span!("page client side rendering"))
         .await
     }
 
     #[turbo_tasks::function]
+    async fn page_loader(
+        self: Vc<Self>,
+        client_chunks: Vc<OutputAssets>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+        let node_root = project.client_root();
+        let client_relative_path = self.client_relative_path();
+        let page_loader = PageLoaderAsset::new(
+            node_root,
+            this.pathname,
+            client_relative_path,
+            client_chunks,
+        );
+        Ok(Vc::upcast(page_loader))
+    }
+
+    #[turbo_tasks::function]
     async fn internal_ssr_chunk(
         self: Vc<Self>,
+        ty: SsrChunkType,
         reference_type: Value<ReferenceType>,
         node_path: Vc<FileSystemPath>,
         project_root: Vc<FileSystemPath>,
@@ -749,7 +769,11 @@ impl PageEndpoint {
                 .cell())
             }
         }
-        .instrument(tracing::info_span!("page server side rendering"))
+        .instrument(match ty {
+            SsrChunkType::Page => tracing::info_span!("page server side rendering"),
+            SsrChunkType::Data => tracing::info_span!("server side data"),
+            SsrChunkType::Api => tracing::info_span!("server side api"),
+        })
         .await
     }
 
@@ -757,6 +781,7 @@ impl PageEndpoint {
     async fn ssr_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Page,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -776,6 +801,7 @@ impl PageEndpoint {
     async fn ssr_data_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Data,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
             this.pages_project
                 .project()
@@ -795,6 +821,7 @@ impl PageEndpoint {
     async fn api_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
         Ok(self.internal_ssr_chunk(
+            SsrChunkType::Api,
             Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
             this.pages_project
                 .project()
@@ -970,6 +997,8 @@ impl PageEndpoint {
                 let client_chunks = self.client_chunks();
                 client_assets.extend(client_chunks.await?.iter().copied());
                 let build_manifest = self.build_manifest(client_chunks);
+                let page_loader = self.page_loader(client_chunks);
+                client_assets.push(page_loader);
                 server_assets.push(build_manifest);
                 self.ssr_chunk()
             }
@@ -987,9 +1016,8 @@ impl PageEndpoint {
             this.pages_project.project().client_root(),
             this.pages_project.project().node_root(),
             this.pages_project.pages_dir(),
-            "",
-            &pathname,
             &original_name,
+            &get_asset_prefix_from_pathname(&pathname),
             client_assets,
             false,
         )

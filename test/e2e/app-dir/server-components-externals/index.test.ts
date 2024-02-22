@@ -11,8 +11,12 @@ createNextDescribe(
       const $ = await next.render$('/')
 
       const text = $('#directory').text()
+      const subpath = $('#subdirectory').text()
       expect(text).toBe(
         path.join(next.testDir, 'node_modules', 'external-package')
+      )
+      expect(subpath).toBe(
+        path.join(next.testDir, 'node_modules', 'external-package', 'subpath')
       )
     })
 
@@ -28,7 +32,13 @@ createNextDescribe(
       it('should externalize serverComponentsExternalPackages for server rendering layer', async () => {
         await next.fetch('/client')
         const ssrBundle = await next.readFile('.next/server/app/client/page.js')
-        expect(ssrBundle).not.toContain('external-package-mark')
+        expect(ssrBundle).not.toContain('external-package-mark:index')
+        expect(ssrBundle).not.toContain('external-package-mark:subpath')
+
+        await next.fetch('/')
+        const rscBundle = await next.readFile('.next/server/app/page.js')
+        expect(rscBundle).not.toContain('external-package-mark:index')
+        expect(rscBundle).not.toContain('external-package-mark:subpath')
       })
     }
   }

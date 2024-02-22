@@ -10,6 +10,7 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../../types'
+import type { SwrDelta } from './lib/revalidate'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -112,6 +113,13 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
+   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   *
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   */
+  resolveExtensions?: string[]
+
+  /**
    * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
@@ -159,6 +167,7 @@ export interface NextJsWebpackConfig {
 }
 
 export interface ExperimentalConfig {
+  prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   useDeploymentId?: boolean
@@ -177,6 +186,10 @@ export interface ExperimentalConfig {
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
   optimisticClientCache?: boolean
+  /**
+   * period (in seconds) where the server allow to serve stale cache
+   */
+  swrDelta?: SwrDelta
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -392,6 +405,11 @@ export interface ExperimentalConfig {
    * @default true
    */
   missingSuspenseWithCSRBailout?: boolean
+
+  /**
+   * Enables early import feature for app router modules
+   */
+  useEarlyImport?: boolean
 }
 
 export type ExportPathMap = {
@@ -820,6 +838,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   experimental: {
+    prerenderEarlyExit: false,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
@@ -833,6 +852,7 @@ export const defaultConfig: NextConfig = {
     fetchCacheKeyPrefix: '',
     middlewarePrefetch: 'flexible',
     optimisticClientCache: true,
+    swrDelta: undefined,
     manualClientBasePath: false,
     cpus: Math.max(
       1,

@@ -943,7 +943,10 @@ async function startWatcher(opts: SetupOpts) {
             } catch {}
           }
 
-          if (originalFrame) {
+          if (
+            originalFrame?.originalCodeFrame &&
+            originalFrame.originalStackFrame
+          ) {
             const { originalCodeFrame, originalStackFrame } = originalFrame
             const { file, lineNumber, column, methodName } = originalStackFrame
 
