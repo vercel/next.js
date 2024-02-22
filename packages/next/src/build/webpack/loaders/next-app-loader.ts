@@ -371,16 +371,27 @@ async function createTreeCodeFromPath(
         }
       }
 
+      const layoutPath = definedFilePaths.find(
+        ([type]) => type === 'layout'
+      )?.[1]
+
+      const isDuplicatedRootLayout =
+        rootLayout &&
+        layoutPath &&
+        rootLayout !== layoutPath &&
+        normalizeAppPath(rootLayout) === normalizeAppPath(layoutPath)
+
       if (!rootLayout) {
-        const layoutPath = definedFilePaths.find(
-          ([type]) => type === 'layout'
-        )?.[1]
         rootLayout = layoutPath
 
         if (isDefaultNotFound && !layoutPath && !rootLayout) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
+      } else if (isDuplicatedRootLayout) {
+        throw new Error(
+          `You cannot have two layouts that correspond with the same path. Please check ${rootLayout} and ${layoutPath}. Learn more: https://nextjs.org/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts`
+        )
       }
 
       if (!globalError) {
@@ -450,22 +461,12 @@ async function createTreeCodeFromPath(
           adjacentParallelSegment === 'children'
             ? ''
             : `/${adjacentParallelSegment}`
-        let defaultPath = await resolver(
-          `${appDirPrefix}${segmentPath}${actualSegment}/default`
-        )
 
-        if (!defaultPath) {
-          // no default was found at this segment. Check if the normalized segment resolves a default
-          // for example: /(level1)/(level2)/default doesn't exist, but /default does
-          const normalizedDefault = await resolver(
-            `${appDirPrefix}${normalizeAppPath(
-              segmentPath
-            )}/${actualSegment}/default`
-          )
-
-          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-          defaultPath = normalizedDefault ?? PARALLEL_ROUTE_DEFAULT_PATH
-        }
+        // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+        const defaultPath =
+          (await resolver(
+            `${appDirPrefix}${segmentPath}${actualSegment}/default`
+          )) ?? PARALLEL_ROUTE_DEFAULT_PATH
 
         nestedCollectedAsyncImports.push(defaultPath)
         props[normalizeParallelKey(adjacentParallelSegment)] = `[

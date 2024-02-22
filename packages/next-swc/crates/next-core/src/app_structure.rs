@@ -701,6 +701,7 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
+    mut has_seen_root_layout: bool,
 ) -> Result<Vc<Option<Vc<LoaderTree>>>> {
     let app_path = AppPath::from(app_page.clone());
 
@@ -726,6 +727,19 @@ async fn directory_tree_to_loader_tree(
     // an alternative root layout (in a route group which affects the page, but not
     // the path).
     let is_root_layout = app_path.is_root() && components.layout.is_some();
+
+    if is_root_layout {
+        if has_seen_root_layout {
+            // TODO: Why doesn't DirectoryTreeIssue work here?
+            bail!(
+                "You cannot have two layouts that correspond with the same path. Please check {}layout and {}. Learn more: https://nextjs.org/docs/app/building-your-application/routing/route-groups#creating-multiple-root-layouts",
+                for_app_path,
+                app_page
+            )
+        }
+
+        has_seen_root_layout = true;
+    }
 
     if (is_root_directory || is_root_layout) && components.not_found.is_none() {
         components.not_found = Some(
@@ -754,7 +768,7 @@ async fn directory_tree_to_loader_tree(
         // When resolving metadata with corresponding module
         // (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/lib/metadata/resolve-metadata.ts#L340)
         // layout takes precedence over page (https://github.com/vercel/next.js/blob/aa1ee5995cdd92cc9a2236ce4b6aa2b67c9d32b2/packages/next/src/server/lib/app-dir-module.ts#L22)
-        // If the component have layout and page both, do not attach same metadata to
+        // If the component has both a layout and page, do not attach same metadata to
         // the page.
         let metadata = if components.layout.is_some() {
             Default::default()
@@ -805,6 +819,7 @@ async fn directory_tree_to_loader_tree(
             *subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
+            has_seen_root_layout,
         )
         .await?;
 
@@ -957,6 +972,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             directory_tree_vc,
             app_page.clone(),
             app_path,
+            false,
         )
         .await?;
 
@@ -1120,6 +1136,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             directory_tree_vc,
                             app_page.clone(),
                             app_path,
+                            false,
                         )
                         .await?;
 
