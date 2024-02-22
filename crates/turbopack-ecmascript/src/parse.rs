@@ -251,6 +251,15 @@ async fn parse_content(
         Box::new(IssueEmitter {
             source,
             source_map: source_map.clone(),
+            title: Some("Ecmascript file had an error".to_string()),
+        }),
+    );
+    let parser_handler = Handler::with_emitter(
+        true,
+        false,
+        Box::new(IssueEmitter {
+            source,
+            source_map: source_map.clone(),
             title: Some("Parsing ecmascript source code failed".to_string()),
         }),
     );
@@ -308,7 +317,7 @@ async fn parse_content(
 
                 let mut has_errors = false;
                 for e in parser.take_errors() {
-                    e.into_diagnostic(&handler).emit();
+                    e.into_diagnostic(&parser_handler).emit();
                     has_errors = true
                 }
 
@@ -319,7 +328,7 @@ async fn parse_content(
                 match program_result {
                     Ok(parsed_program) => parsed_program,
                     Err(e) => {
-                        e.into_diagnostic(&handler).emit();
+                        e.into_diagnostic(&parser_handler).emit();
                         return Ok(ParseResult::Unparseable);
                     }
                 }
@@ -367,7 +376,7 @@ async fn parse_content(
                     .await?;
             }
 
-            if handler.has_errors() {
+            if parser_handler.has_errors() {
                 return Ok(ParseResult::Unparseable);
             }
 
