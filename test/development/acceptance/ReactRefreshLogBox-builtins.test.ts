@@ -10,6 +10,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     skipStart: true,
   })
 
+  // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
     const { session, cleanup } = await sandbox(
       next,
@@ -56,18 +57,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     https://nextjs.org/docs/messages/module-not-found"
   `
         : `
-      "./node_modules/my-package/index.js:1:1
-      Module not found: Can't resolve 'dns'
-      > 1 | const dns = require('dns')
-          | ^
-        2 | module.exports = dns
+  "./node_modules/my-package/index.js:1:1
+  Module not found: Can't resolve 'dns'
 
-      https://nextjs.org/docs/messages/module-not-found
+  https://nextjs.org/docs/messages/module-not-found
 
-      Import trace for requested module:
-      ./index.js
-      ./pages/index.js"
-    `
+  Import trace for requested module:
+  ./index.js
+  ./pages/index.js"
+`
     )
 
     await cleanup()
