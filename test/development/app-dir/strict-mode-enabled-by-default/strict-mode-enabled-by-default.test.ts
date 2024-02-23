@@ -8,6 +8,12 @@ createNextDescribe(
     files: __dirname,
   },
   ({ next }) => {
+    // experimental react is having issues with this use effect
+    // @acdlite will take a look
+    if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+      it('skip test for PPR', () => {})
+      return
+    }
     // Recommended for tests that need a full browser
     it('should work using browser', async () => {
       const browser: BrowserInterface = await next.browser('/')
