@@ -18,6 +18,7 @@ import { RequestAsyncStorageWrapper } from '../async-storage/request-async-stora
 import { requestAsyncStorage } from '../../client/components/request-async-storage.external'
 import { getTracer } from '../lib/trace/tracer'
 import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
+import { MiddlewareSpan } from '../lib/trace/constants'
 
 class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -213,23 +214,34 @@ export async function adapter(
     const isMiddleware =
       params.page === '/middleware' || params.page === '/src/middleware'
     if (isMiddleware) {
-      return RequestAsyncStorageWrapper.wrap(
-        requestAsyncStorage,
+      return getTracer().trace(
+        MiddlewareSpan.execute,
         {
-          req: request,
-          renderOpts: {
-            onUpdateCookies: (cookies) => {
-              cookiesFromResponse = cookies
-            },
-            // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
-            previewProps: prerenderManifest?.preview || {
-              previewModeId: 'development-id',
-              previewModeEncryptionKey: '',
-              previewModeSigningKey: '',
-            },
+          spanName: 'middleware',
+          attributes: {
+            'http.target': request.nextUrl.pathname,
+            'http.method': request.method,
           },
         },
-        () => params.handler(request, event)
+        () =>
+          RequestAsyncStorageWrapper.wrap(
+            requestAsyncStorage,
+            {
+              req: request,
+              renderOpts: {
+                onUpdateCookies: (cookies) => {
+                  cookiesFromResponse = cookies
+                },
+                // @ts-expect-error: TODO: investigate why previewProps isn't on RenderOpts
+                previewProps: prerenderManifest?.preview || {
+                  previewModeId: 'development-id',
+                  previewModeEncryptionKey: '',
+                  previewModeSigningKey: '',
+                },
+              },
+            },
+            () => params.handler(request, event)
+          )
       )
     }
     return params.handler(request, event)
