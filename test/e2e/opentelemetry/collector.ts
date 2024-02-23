@@ -32,7 +32,13 @@ export async function connectCollector({
     })
 
     const newSpans = JSON.parse(body.toString('utf-8')) as SavedSpan[]
-    spans.push(...newSpans)
+    const filteredSpans = newSpans.filter((span) => {
+      if (span.attributes?.['next.bubble'] === true) {
+        return false
+      }
+      return true
+    })
+    spans.push(...filteredSpans)
     res.statusCode = 202
     res.end()
   })
