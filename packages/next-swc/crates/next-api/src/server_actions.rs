@@ -139,6 +139,8 @@ async fn build_manifest(
         ..Default::default()
     };
 
+    let key = format!("app{page_name}");
+
     let actions_value = actions.await?;
     let loader_id_value = loader_id.await?;
     let mapping = match runtime {
@@ -147,12 +149,12 @@ async fn build_manifest(
     };
 
     for (hash_id, (layer, _name, _module)) in actions_value {
-        let entry = mapping.entry(hash_id.clone()).or_default();
+        let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
-            format!("app{page_name}"),
-            ActionManifestWorkerEntry::String(loader_id_value.clone_value()),
+            &key,
+            ActionManifestWorkerEntry::String(loader_id_value.as_str()),
         );
-        entry.layer.insert(format!("app{page_name}"), *layer);
+        entry.layer.insert(&key, *layer);
     }
 
     Ok(Vc::upcast(VirtualOutputAsset::new(
@@ -261,7 +263,7 @@ async fn get_referenced_modules(
 ) -> Result<impl Iterator<Item = (ActionLayer, Vc<Box<dyn Module>>)> + Send> {
     primary_referenced_modules(module)
         .await
-        .map(|modules| modules.clone_value().into_iter().map(move |m| (layer, m)))
+        .map(|modules| modules.into_iter().map(move |&m| (layer, m)))
 }
 
 /// Parses the Server Actions comment for all exported action function names.

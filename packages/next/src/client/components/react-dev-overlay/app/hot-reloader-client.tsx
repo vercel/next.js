@@ -24,10 +24,8 @@ import {
 } from './error-overlay-reducer'
 import { parseStack } from '../internal/helpers/parseStack'
 import ReactDevOverlay from './ReactDevOverlay'
-import {
-  RuntimeErrorHandler,
-  useErrorHandler,
-} from '../internal/helpers/use-error-handler'
+import { useErrorHandler } from '../internal/helpers/use-error-handler'
+import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
@@ -42,6 +40,7 @@ import type {
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
+import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../../../dev/error-overlay/messages'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -184,9 +183,7 @@ function tryApplyUpdates(
             'Fast Refresh requires at least one parent function component in your React tree.'
         )
       } else if (RuntimeErrorHandler.hadRuntimeError) {
-        console.warn(
-          '[Fast Refresh] performing full reload because your application had an unrecoverable error'
-        )
+        console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
       }
       performFullReload(err, sendMessage)
       return
@@ -391,6 +388,10 @@ function processMessage(
         data: obj.data,
       })
       dispatcher.onRefresh()
+      if (RuntimeErrorHandler.hadRuntimeError) {
+        console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
+        performFullReload(null, sendMessage)
+      }
       reportHmrLatency(sendMessage, updatedModules)
       break
     }

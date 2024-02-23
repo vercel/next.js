@@ -7,10 +7,6 @@ import { isNextRouterError } from '../../../is-next-router-error'
 
 export type ErrorHandler = (error: Error) => void
 
-export const RuntimeErrorHandler = {
-  hadRuntimeError: false,
-}
-
 function isHydrationError(error: Error): boolean {
   return (
     error.message.match(/(hydration|content does not match|did not match)/i) !=

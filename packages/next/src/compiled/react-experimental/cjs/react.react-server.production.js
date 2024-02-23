@@ -151,7 +151,7 @@ const ReactCurrentDispatcher = {
  * The current owner is the component who should own any components that are
  * currently being constructed.
  */
-const ReactCurrentOwner = {
+const ReactCurrentOwner$1 = {
   /**
    * @internal
    * @type {ReactComponent}
@@ -161,7 +161,7 @@ const ReactCurrentOwner = {
 
 const ReactSharedInternals = {
   ReactCurrentDispatcher,
-  ReactCurrentOwner
+  ReactCurrentOwner: ReactCurrentOwner$1
 };
 
 const TaintRegistryObjects$1 = new WeakMap();
@@ -242,6 +242,8 @@ function getIteratorFn(maybeIterable) {
 // $FlowFixMe[method-unbinding]
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
+const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
+
 function hasValidRef(config) {
 
   return config.ref !== undefined;
@@ -273,15 +275,15 @@ function hasValidKey(config) {
  */
 
 
-function ReactElement(type, key, ref, owner, props) {
+function ReactElement(type, key, ref, self, source, owner, props) {
   const element = {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
     // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
+    type,
+    key,
+    ref,
+    props,
     // Record the component responsible for creating this element.
     _owner: owner
   };
@@ -293,8 +295,8 @@ function ReactElement(type, key, ref, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
+function createElement(type, config, children) {
 
-function createElement$1(type, config, children) {
   let propName; // Reserved names are extracted
 
   const props = {};
@@ -354,18 +356,19 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, ReactCurrentOwner.current, props);
+  const element = ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
+
+  return element;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._owner, oldElement.props);
-  return newElement;
+  return ReactElement(oldElement.type, newKey, oldElement.ref, undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 
-function cloneElement$1(element, config, children) {
+function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
     throw Error(formatProdErrorMessage(267, element));
   }
@@ -434,7 +437,8 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, owner, props);
+  const clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+  return clonedElement;
 }
 /**
  * Verifies the object is a ReactElement.
@@ -444,12 +448,10 @@ function cloneElement$1(element, config, children) {
  * @final
  */
 
+
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
 }
-
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
 
 const SEPARATOR = '.';
 const SUBSEPARATOR = ':';
@@ -497,6 +499,72 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
+function noop$1() {}
+
+function resolveThenable(thenable) {
+  switch (thenable.status) {
+    case 'fulfilled':
+      {
+        const fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
+    case 'rejected':
+      {
+        const rejectedError = thenable.reason;
+        throw rejectedError;
+      }
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          // Attach a dummy listener, to ensure that any lazy initialization can
+          // happen. Flight lazily parses JSON when the value is actually awaited.
+          thenable.then(noop$1, noop$1);
+        } else {
+          // This is an uncached thenable that we haven't seen before.
+          // TODO: Detect infinite ping loops caused by uncached promises.
+          const pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(fulfilledValue => {
+            if (thenable.status === 'pending') {
+              const fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, error => {
+            if (thenable.status === 'pending') {
+              const rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Check one more time in case the thenable resolved synchronously.
+
+
+        switch (thenable.status) {
+          case 'fulfilled':
+            {
+              const fulfilledThenable = thenable;
+              return fulfilledThenable.value;
+            }
+
+          case 'rejected':
+            {
+              const rejectedThenable = thenable;
+              const rejectedError = rejectedThenable.reason;
+              throw rejectedError;
+            }
+        }
+      }
+  }
+
+  throw thenable;
+}
+
 function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
   const type = typeof children;
 
@@ -524,7 +592,9 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
             break;
 
           case REACT_LAZY_TYPE:
-            throw Error(formatProdErrorMessage(505));
+            const payload = children._payload;
+            const init = children._init;
+            return mapIntoArray(init(payload), array, escapedPrefix, nameSoFar, callback);
         }
 
     }
@@ -590,13 +660,12 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         subtreeCount += mapIntoArray(child, array, escapedPrefix, nextName, callback);
       }
     } else if (type === 'object') {
-      // eslint-disable-next-line react-internal/safe-string-coercion
-      const childrenString = String(children);
-
       if (typeof children.then === 'function') {
-        throw Error(formatProdErrorMessage(505));
-      }
+        return mapIntoArray(resolveThenable(children), array, escapedPrefix, nameSoFar, callback);
+      } // eslint-disable-next-line react-internal/safe-string-coercion
 
+
+      const childrenString = String(children);
       throw Error(formatProdErrorMessage(31, childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString));
     }
   }
@@ -1012,7 +1081,7 @@ function postpone(reason) {
   throw postponeInstance;
 }
 
-var ReactVersion = '18.3.0-experimental-ba5e6a832-20240208';
+var ReactVersion = '18.3.0-experimental-a515d753b-20240220';
 
 const getPrototypeOf = Object.getPrototypeOf;
 

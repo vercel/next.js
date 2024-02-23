@@ -80,7 +80,7 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  */
 
 
-function jsx$1(type, config, maybeKey) {
+function jsxProd(type, config, maybeKey) {
   let propName; // Reserved names are extracted
 
   const props = {};
@@ -127,12 +127,12 @@ function jsx$1(type, config, maybeKey) {
   }
 
   return ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
-}
+} // While `jsxDEV` should never be called when running in production, we do
 
-const jsx = jsx$1; // we may want to special case jsxs internally to take advantage of static children.
+const jsx = jsxProd; // we may want to special case jsxs internally to take advantage of static children.
 // for now we can ship identical prod functions
 
-const jsxs = jsx$1;
+const jsxs = jsxProd;
 
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.jsx = jsx;
