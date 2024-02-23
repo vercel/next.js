@@ -355,7 +355,7 @@ pub async fn get_next_edge_import_map(
             "next/dynamic" => "next/dist/api/dynamic".to_string(),
             "next/head" => "next/dist/api/head".to_string(),
             "next/headers" => "next/dist/api/headers".to_string(),
-            "next/image" => "next/dist/api/image-external".to_string(),
+            "next/image" => "next/dist/api/image".to_string(),
             "next/link" => "next/dist/api/link".to_string(),
             "next/navigation" => "next/dist/api/navigation".to_string(),
             "next/router" => "next/dist/api/router".to_string(),
