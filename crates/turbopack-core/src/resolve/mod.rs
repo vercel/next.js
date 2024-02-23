@@ -8,7 +8,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Result};
-use indexmap::{indexmap, IndexMap};
+use indexmap::{indexmap, IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use tracing::{Instrument, Level};
@@ -325,10 +325,28 @@ impl ModuleResolveResult {
         )))
     }
 
+    /// Returns a set (no duplicates) of primary modules in the result. All
+    /// modules are already resolved Vc.
     #[turbo_tasks::function]
     pub async fn primary_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let this = self.await?;
-        Ok(Vc::cell(this.primary_modules_iter().collect()))
+        let mut iter = this.primary_modules_iter();
+        let Some(first) = iter.next() else {
+            return Ok(Vc::cell(vec![]));
+        };
+        let first = first.resolve().await?;
+
+        let Some(second) = iter.next() else {
+            return Ok(Vc::cell(vec![first]));
+        };
+        let second = second.resolve().await?;
+
+        // We have at least two items, so we need to deduplicate them
+        let mut set = IndexSet::from([first, second]);
+        for module in this.primary_modules_iter() {
+            set.insert(module.resolve().await?);
+        }
+        Ok(Vc::cell(set.into_iter().collect()))
     }
 
     #[turbo_tasks::function]
