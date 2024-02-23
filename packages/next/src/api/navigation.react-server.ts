@@ -1,7 +1,4 @@
-function errorClientApi(api: string) {
-  const message = `${api} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
-  throw new Error(message)
-}
+import { errorClientApi } from '../client/components/client-hook-in-server-component-error'
 
 export function useSearchParams() {
   errorClientApi('useSearchParams')
