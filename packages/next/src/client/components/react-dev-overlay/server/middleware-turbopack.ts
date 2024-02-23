@@ -24,7 +24,10 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
 
   let source = null
   // Don't look up code frames for node_modules or internals. These can often be large bundled files.
-  if (sourceFrame.file.includes('node_modules') || sourceFrame.isInternal) {
+  if (
+    sourceFrame.file &&
+    (sourceFrame.file.includes('node_modules') || sourceFrame.isInternal)
+  ) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
       sourcePromise = project.getSourceForAsset(sourceFrame.file)
@@ -32,7 +35,7 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
       setTimeout(() => {
         // Cache file reads for 100ms, as frames will often reference the same
         // files and can be large.
-        currentSourcesByFile.delete(sourceFrame.file)
+        currentSourcesByFile.delete(sourceFrame.file!)
       }, 100)
     }
 

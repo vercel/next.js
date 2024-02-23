@@ -4,7 +4,6 @@ import type { StackFrame as ParsedStackFrame } from 'stacktrace-parser'
 export type SourcePackage = 'react' | 'next'
 
 export interface StackFrame extends ParsedStackFrame {
-  file: string
   isEdgeServer?: boolean
   isServer?: boolean
   isAppDirectory?: boolean
