@@ -24,13 +24,13 @@ Turbopack can be used in Next.js in both the `pages` and `app` directories for f
 
 Turbopack can be customized to transform different files and change how modules are resolved. It supports a subset of webpack's loader API and offers similar configuration aliasing module resolution.
 
-<Callout type="info">
-  Turbopack for Next.js does not require loaders nor loader configuration for
-  built-in functionality, just as they aren't required for Next.js. Turbopack
-  has built-in support for css and compiling modern JavaScript, so there's no
-  need for `css-loader`, `postcss-loader`, or `babel-loader` if you're just
-  using `@babel/preset-env`.
-</Callout>
+> **Good to know**:
+>
+> Turbopack for Next.js does not require loaders nor loader configuration for
+> built-in functionality, just as they aren't required for Next.js. Turbopack
+> has built-in support for css and compiling modern JavaScript, so there's no
+> need for `css-loader`, `postcss-loader`, or `babel-loader` if you're just
+> using `@babel/preset-env`.
 
 If you need loader support beyond what's built in, many webpack loaders already work with Turbopack. There are currently some limitations:
 
@@ -62,13 +62,15 @@ module.exports = {
 }
 ```
 
-<Callout type="info">
-  Note: Prior to Next.js version 13.4.4, `experimental.turbo.rules` was named
-  `experimental.turbo.loaders` and only accepted file extensions like `.mdx`
-  instead of `*.mdx`.
-</Callout>
+> **Good to know**:
+>
+> Note: Prior to Next.js version 13.4.4, `experimental.turbo.rules` was named
+> `experimental.turbo.loaders` and only accepted file extensions like `.mdx`
+> instead of `*.mdx`.
 
-If you need to pass something like the result of importing an external package as a loader option, it's possible to wrap the webpack loader with your own, specifying options there. **This is an interim solution and should not be necessary in the future.** This loader wraps `@mdx-js/loader` and configures the `rehypePrism` rehype plugin:
+If you need to pass something like the result of importing an external package as a loader option, it's possible to wrap the webpack loader with your own, specifying options there. **This is an interim solution and should not be necessary in the future.**
+
+This loader wraps `@mdx-js/loader` and configures the `rehypePrism` rehype plugin:
 
 ```js filename="my-mdx-loader.js"
 const mdxLoader = require('@mdx-js/loader')
@@ -130,7 +132,7 @@ module.exports = {
 }
 ```
 
-This aliases imports of the `underscore` package to the `lodash` package. In other words, `import underscore from 'underscore'` will load the `lodash` module instead of `underscore`.
+This aliases imports of the `underscore` package to the `lodash` package so that `import underscore from 'underscore'` will load the `lodash` module instead of `underscore`.
 
 ## Resolve Extensions
 
