@@ -30,7 +30,6 @@ if (typeof window !== 'undefined') {
       ev.preventDefault()
       return
     }
-    console.log('window error', ev.error)
 
     const error = ev?.error
     if (
