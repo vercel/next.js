@@ -187,7 +187,7 @@ Prefetching happens when a `<Link />` component enters the user's viewport (init
 
 - **`null` (default)**: Prefetch behavior depends on whether the route is static or dynamic. For static routes, the full route will be prefetched (including all its data). For dynamic routes, the partial route down to the nearest segment with a [`loading.js`](/docs/app/building-your-application/routing/loading-ui-and-streaming#instant-loading-states) boundary will be prefetched.
 - `true`: The full route will be prefetched for both static and dynamic routes.
-- `false`: Prefetching will be disabled.
+- `false`: Prefetching will never happen both on entering the viewport and on hover.
 
 ```tsx filename="app/page.tsx" switcher
 import Link from 'next/link'
@@ -220,9 +220,7 @@ export default function Page() {
 Prefetching happens when a `<Link />` component enters the user's viewport (initially or through scroll). Next.js prefetches and loads the linked route (denoted by the `href`) and data in the background to improve the performance of client-side navigations. Prefetching is only enabled in production.
 
 - **`true` (default)**: The full route and its data will be prefetched.
-- `false`: Prefetching will be disabled.
-
-> **Good to know**: When `prefetch` is set to `false`, prefetching will still occur on hover.
+- `false`: Prefetching will not happen when entering the viewport, but will happen on hover. If you want to completely remove fetching on hover as well, consider using an `<a>` tag or [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router, which enables disabling prefetching on hover too.
 
 ```tsx filename="pages/index.tsx" switcher
 import Link from 'next/link'
