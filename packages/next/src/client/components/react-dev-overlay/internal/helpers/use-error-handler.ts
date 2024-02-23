@@ -4,7 +4,7 @@ import {
   hydrationErrorComponentStack,
 } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
-import { isHydrationError } from '../../../is-hydration-error'
+import { isHydrationMismatchError } from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -41,7 +41,7 @@ if (typeof window !== 'undefined') {
     }
 
     if (
-      isHydrationError(error) &&
+      isHydrationMismatchError(error) &&
       !error.message.includes(
         'https://nextjs.org/docs/messages/react-hydration-error'
       )

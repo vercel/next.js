@@ -1,13 +1,9 @@
 import isError from '../lib/is-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
-import { isHydrationError } from './components/is-hydration-error'
+import { isHydrationFailureError } from './components/is-hydration-error'
 
 function isSkippableHydrationError(error: unknown) {
-  return (
-    isError(error) &&
-    (isHydrationError(error) ||
-      /There was an error while hydrating/.test(error.message))
-  )
+  return isError(error) && isHydrationFailureError(error)
 }
 
 export default function onRecoverableError(err: unknown) {
