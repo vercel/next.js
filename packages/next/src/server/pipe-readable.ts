@@ -55,15 +55,17 @@ function createWriterFromResponse(
           process.env.NEXT_OTEL_PERFORMANCE_PREFIX
         ) {
           const metrics = getClientComponentLoaderMetrics()
-          performance.measure(
-            `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
-            {
-              start: metrics.clientComponentLoadStart,
-              end:
-                metrics.clientComponentLoadStart +
-                metrics.clientComponentLoadTimes,
-            }
-          )
+          if (metrics) {
+            performance.measure(
+              `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-client-component-loading`,
+              {
+                start: metrics.clientComponentLoadStart,
+                end:
+                  metrics.clientComponentLoadStart +
+                  metrics.clientComponentLoadTimes,
+              }
+            )
+          }
         }
 
         res.flushHeaders()
