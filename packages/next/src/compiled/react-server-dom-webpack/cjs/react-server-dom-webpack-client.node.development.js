@@ -390,7 +390,7 @@ function printWarning(level, format, args) {
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
 // The Symbol used to tag the ReactElement-like types.
 var REACT_ELEMENT_TYPE = Symbol.for('react.element');
-var REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+var REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
 var REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 var REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
 var REACT_SUSPENSE_LIST_TYPE = Symbol.for('react.suspense_list');
@@ -507,6 +507,10 @@ function describeValueForErrorMessage(value) {
           return '[...]';
         }
 
+        if (value !== null && value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
         var name = objectName(value);
 
         if (name === 'Object') {
@@ -517,7 +521,15 @@ function describeValueForErrorMessage(value) {
       }
 
     case 'function':
-      return 'function';
+      {
+        if (value.$$typeof === CLIENT_REFERENCE_TAG) {
+          return describeClientReference();
+        }
+
+        var _name = value.displayName || value.name;
+
+        return _name ? 'function ' + _name : 'function';
+      }
 
     default:
       // eslint-disable-next-line react-internal/safe-string-coercion
@@ -561,6 +573,12 @@ function describeElementType(type) {
   }
 
   return '';
+}
+
+var CLIENT_REFERENCE_TAG = Symbol.for('react.client.reference');
+
+function describeClientReference(ref) {
+  return 'client';
 }
 
 function describeObjectForErrorMessage(objectOrArray, expandedName) {
@@ -641,6 +659,8 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
   } else {
     if (objectOrArray.$$typeof === REACT_ELEMENT_TYPE) {
       str = '<' + describeElementType(objectOrArray.type) + '/>';
+    } else if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) {
+      return describeClientReference();
     } else if (jsxPropsParents.has(objectOrArray)) {
       // Print JSX
       var _type = jsxPropsParents.get(objectOrArray);
@@ -691,9 +711,9 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           str += ', ';
         }
 
-        var _name = _names[_i3];
-        str += describeKeyForErrorMessage(_name) + ': ';
-        var _value3 = _object[_name];
+        var _name2 = _names[_i3];
+        str += describeKeyForErrorMessage(_name2) + ': ';
+        var _value3 = _object[_name2];
 
         var _substr3 = void 0;
 
@@ -703,7 +723,7 @@ function describeObjectForErrorMessage(objectOrArray, expandedName) {
           _substr3 = describeValueForErrorMessage(_value3);
         }
 
-        if (_name === expandedName) {
+        if (_name2 === expandedName) {
           start = str.length;
           length = _substr3.length;
           str += _substr3;
@@ -928,7 +948,7 @@ function processReply(root, formFieldPrefix, resolve, reject) {
           error('React Element cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (value.$$typeof === REACT_LAZY_TYPE) {
           error('React Lazy cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
-        } else if (value.$$typeof === REACT_PROVIDER_TYPE) {
+        } else if (value.$$typeof === (REACT_PROVIDER_TYPE)) {
           error('React Context Providers cannot be passed to Server Functions from the Client.%s', describeObjectForErrorMessage(parent, key));
         } else if (objectName(value) !== 'Object') {
           error('Only plain objects can be passed to Server Functions from the Client. ' + '%s objects are not supported.%s', objectName(value), describeObjectForErrorMessage(parent, key));
@@ -1061,7 +1081,7 @@ function encodeFormData(reference) {
   return thenable;
 }
 
-function encodeFormAction(identifierPrefix) {
+function defaultEncodeFormAction(identifierPrefix) {
   var reference = knownServerReferences.get(this);
 
   if (!reference) {
@@ -1109,6 +1129,22 @@ function encodeFormAction(identifierPrefix) {
     encType: 'multipart/form-data',
     data: data
   };
+}
+
+function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
+  var reference = knownServerReferences.get(proxy);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  var boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    boundPromise = Promise.resolve([]);
+  }
+
+  return encodeFormAction(reference.id, boundPromise);
 }
 
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
@@ -1172,14 +1208,17 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
   // Expose encoder for use by SSR, as well as a special bind that can be used to
   // keep server capabilities.
   {
     // Only expose this in builds that would actually use it. Not needed on the client.
+    var $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
+      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
+    };
     Object.defineProperties(proxy, {
       $$FORM_ACTION: {
-        value: encodeFormAction
+        value: $$FORM_ACTION
       },
       $$IS_SIGNATURE_EQUAL: {
         value: isSignatureEqual
@@ -1203,6 +1242,17 @@ function bind() {
   var reference = knownServerReferences.get(this);
 
   if (reference) {
+    {
+      var thisBind = arguments[0];
+
+      if (thisBind != null) {
+        // This doesn't warn in browser environments since it's not instrumented outside
+        // usedWithSSR. This makes this an SSR only warning which we don't generally do.
+        // TODO: Consider a DEV only instrumentation in the browser.
+        error('Cannot bind "this" of a Server Action. Pass null or undefined as the first argument to .bind().');
+      }
+    }
+
     var args = ArraySlice.call(arguments, 1);
     var boundPromise = null;
 
@@ -1212,9 +1262,26 @@ function bind() {
       });
     } else {
       boundPromise = Promise.resolve(args);
+    } // Expose encoder for use by SSR, as well as a special bind that can be used to
+    // keep server capabilities.
+
+
+    {
+      // Only expose this in builds that would actually use it. Not needed on the client.
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: {
+          value: this.$$FORM_ACTION
+        },
+        $$IS_SIGNATURE_EQUAL: {
+          value: isSignatureEqual
+        },
+        bind: {
+          value: bind
+        }
+      });
     }
 
-    registerServerReference(newFn, {
+    knownServerReferences.set(newFn, {
       id: reference.id,
       bound: boundPromise
     });
@@ -1223,7 +1290,7 @@ function bind() {
   return newFn;
 }
 
-function createServerReference$1(id, callServer) {
+function createServerReference$1(id, callServer, encodeFormAction) {
   var proxy = function () {
     // $FlowFixMe[method-unbinding]
     var args = Array.prototype.slice.call(arguments);
@@ -1233,7 +1300,7 @@ function createServerReference$1(id, callServer) {
   registerServerReference(proxy, {
     id: id,
     bound: null
-  });
+  }, encodeFormAction);
   return proxy;
 }
 
@@ -1248,8 +1315,7 @@ var CYCLIC = 'cyclic';
 var RESOLVED_MODEL = 'resolved_model';
 var RESOLVED_MODULE = 'resolved_module';
 var INITIALIZED = 'fulfilled';
-var ERRORED = 'rejected'; // Dev-only
-// $FlowFixMe[missing-this-annot]
+var ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -1667,7 +1733,7 @@ function createServerReferenceProxy(response, metaData) {
     });
   };
 
-  registerServerReference(proxy, metaData);
+  registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
 
@@ -1881,12 +1947,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   var chunks = new Map();
   var response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -2237,7 +2304,7 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  var response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
   stream.on('data', function (chunk) {
     processBinaryChunk(response, chunk);
   });

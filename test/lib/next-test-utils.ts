@@ -841,11 +841,11 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.TURBOPACK) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }

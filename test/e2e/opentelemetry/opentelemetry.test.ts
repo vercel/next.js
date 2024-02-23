@@ -163,6 +163,16 @@ createNextDescribe(
                         status: { code: 0 },
                       },
                       {
+                        attributes: {
+                          'next.clientComponentLoadCount': 4,
+                        },
+                        kind: 0,
+                        name: 'NextNodeServer.clientComponentLoading',
+                        status: {
+                          code: 0,
+                        },
+                      },
+                      {
                         name: 'start response',
                         attributes: {
                           'next.span_name': 'start response',
@@ -423,6 +433,43 @@ createNextDescribe(
                     status: { code: 0 },
                   },
                 ],
+              },
+            ])
+          })
+
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                runtime: 'edge',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET /behind-middleware',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
               },
             ])
           })
@@ -770,6 +817,9 @@ createNextDescribe(
                     },
                     {
                       name: 'generateMetadata /app/[param]/rsc-fetch/page',
+                    },
+                    {
+                      name: 'NextNodeServer.clientComponentLoading',
                     },
                     {
                       name: 'start response',
