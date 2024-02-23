@@ -539,6 +539,16 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             }
             None => false,
         },
+
+        JsValue::Iterated(_, iterable) => {
+            if let JsValue::Array { items, .. } = &mut **iterable {
+                *value = JsValue::alternatives(take(items));
+                true
+            } else {
+                false
+            }
+        }
+
         _ => false,
     }
 }

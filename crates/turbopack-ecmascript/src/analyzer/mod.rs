@@ -436,6 +436,11 @@ pub enum JsValue {
     /// `(total_node_count, test, cons, alt)`
     Tenary(usize, Box<JsValue>, Box<JsValue>, Box<JsValue>),
 
+    /// A for-of loop
+    ///
+    /// `(total_node_count, iterable)`
+    Iterated(usize, Box<JsValue>),
+
     // PLACEHOLDERS
     // ----------------------------
     /// A reference to a variable.
@@ -626,6 +631,7 @@ impl Display for JsValue {
             JsValue::Argument(func_ident, index) => {
                 write!(f, "arguments[{}#{}]", index, func_ident)
             }
+            JsValue::Iterated(_, iterable) => write!(f, "Iterated({})", iterable),
         }
     }
 }
@@ -696,7 +702,8 @@ impl JsValue {
             | JsValue::Call(..)
             | JsValue::SuperCall(..)
             | JsValue::Tenary(..)
-            | JsValue::MemberCall(..) => JsValueMetaKind::Operation,
+            | JsValue::MemberCall(..)
+            | JsValue::Iterated(..) => JsValueMetaKind::Operation,
             JsValue::Variable(..)
             | JsValue::Argument(..)
             | JsValue::FreeVar(..)
@@ -742,6 +749,10 @@ impl JsValue {
             cons,
             alt,
         )
+    }
+
+    pub fn iterated(iterable: JsValue) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
     }
 
     pub fn equal(a: JsValue, b: JsValue) -> Self {
@@ -901,7 +912,8 @@ impl JsValue {
             | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _, _, _)
             | JsValue::Member(c, _, _)
-            | JsValue::Function(c, _, _) => *c,
+            | JsValue::Function(c, _, _)
+            | JsValue::Iterated(c, ..) => *c,
         }
     }
 
@@ -966,6 +978,10 @@ impl JsValue {
             }
             JsValue::Function(c, _, r) => {
                 *c = 1 + r.total_nodes();
+            }
+
+            JsValue::Iterated(c, iterable) => {
+                *c = 1 + iterable.total_nodes();
             }
         }
     }
@@ -1060,6 +1076,9 @@ impl JsValue {
                 JsValue::Tenary(_, test, cons, alt) => {
                     make_max_unknown([&mut **test, &mut **cons, &mut **alt].into_iter());
                     self.update_total_nodes();
+                }
+                JsValue::Iterated(_, iterable) => {
+                    iterable.make_unknown_without_content(false, "node limit reached");
                 }
                 JsValue::Member(_, o, p) => {
                     make_max_unknown([&mut **o, &mut **p].into_iter());
@@ -1286,6 +1305,12 @@ impl JsValue {
                 "!({})",
                 value.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
             ),
+            JsValue::Iterated(_, iterable) => {
+                format!(
+                    "Iterated({})",
+                    iterable.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
+                )
+            }
             JsValue::Call(_, callee, list) => {
                 format!(
                     "{}({})",
@@ -1787,6 +1812,7 @@ impl JsValue {
                 has_side_effects, ..
             } => *has_side_effects,
             JsValue::Argument(_, _) => false,
+            JsValue::Iterated(_, iterable) => iterable.has_side_effects(),
         }
     }
 
@@ -2000,7 +2026,8 @@ impl JsValue {
             | JsValue::MemberCall(..)
             | JsValue::Member(..)
             | JsValue::Tenary(..)
-            | JsValue::SuperCall(..) => None,
+            | JsValue::SuperCall(..)
+            | JsValue::Iterated(..) => None,
         }
     }
 
@@ -2272,6 +2299,13 @@ macro_rules! for_each_children_async {
                 *prop = v;
                 $value.update_total_nodes();
                 ($value, m1 || m2)
+            }
+            JsValue::Iterated(_, box iterable) => {
+                let (new_iterable, modified) = $visit_fn(take(iterable), $($args),+).await?;
+                *iterable = new_iterable;
+
+                $value.update_total_nodes();
+                ($value, modified)
             }
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
@@ -2554,6 +2588,15 @@ impl JsValue {
                 }
                 modified
             }
+
+            JsValue::Iterated(_, iterable) => {
+                let modified = visitor(iterable);
+                if modified {
+                    self.update_total_nodes();
+                }
+                modified
+            }
+
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -2710,6 +2753,11 @@ impl JsValue {
                 visitor(cons);
                 visitor(alt);
             }
+
+            JsValue::Iterated(_, iterable) => {
+                visitor(iterable);
+            }
+
             JsValue::Constant(_)
             | JsValue::FreeVar(_)
             | JsValue::Variable(_)
@@ -3060,6 +3108,9 @@ impl JsValue {
                 test.similar_hash(state, depth - 1);
                 cons.similar_hash(state, depth - 1);
                 alt.similar_hash(state, depth - 1);
+            }
+            JsValue::Iterated(_, iterable) => {
+                iterable.similar_hash(state, depth - 1);
             }
             JsValue::Module(ModuleValue {
                 module: v,
