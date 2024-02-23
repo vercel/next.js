@@ -20,10 +20,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
-        (entry) =>
-          entry.expanded &&
-          Boolean(entry.originalCodeFrame) &&
-          Boolean(entry.originalStackFrame)
+        (e) => e.expanded && e.originalCodeFrame && e.originalStackFrame
       )
 
       return {
@@ -36,7 +33,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       }
     }, [error.frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const [all, setAll] = React.useState(firstFrame === null)
 
   const {
     canShowMore,
@@ -51,7 +48,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
     return {
       canShowMore:
         allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
+        (all && firstFrame !== null),
 
       stackFramesGroupedByFramework:
         groupStackFramesByFramework(allCallStackFrames),
@@ -62,10 +59,9 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
   }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
 
   return (
-    <React.Fragment>
+    <>
       {firstFrame ? (
-        <React.Fragment>
-          <h2>Source</h2>
+        <>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
             show={all}
@@ -74,43 +70,34 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
           />
-        </React.Fragment>
-      ) : undefined}
-
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
         </>
       ) : null}
 
+      {error.componentStackFrames?.map((componentStackFrame, index) => (
+        <ComponentStackFrameRow
+          key={index}
+          componentStackFrame={componentStackFrame}
+        />
+      ))}
+
       {stackFramesGroupedByFramework.length ? (
-        <React.Fragment>
-          <h2>Call Stack</h2>
-          <GroupedStackFrames
-            groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
-          />
-        </React.Fragment>
-      ) : undefined}
+        <GroupedStackFrames
+          groupedStackFrames={stackFramesGroupedByFramework}
+          show={all}
+        />
+      ) : null}
+
       {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
-        </React.Fragment>
-      ) : undefined}
-    </React.Fragment>
+        <button
+          tabIndex={10}
+          data-nextjs-data-runtime-error-collapsed-action
+          type="button"
+          onClick={() => setAll(!all)}
+        >
+          {all ? 'Hide' : 'Show'} collapsed frames
+        </button>
+      ) : null}
+    </>
   )
 }
 
