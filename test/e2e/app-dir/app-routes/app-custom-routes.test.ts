@@ -481,6 +481,15 @@ createNextDescribe(
           expect(res.status).toEqual(404)
           expect(await res.text()).toBeEmpty()
         })
+
+        it('can respond correctly (edge)', async () => {
+          it('can respond correctly', async () => {
+            const res = await next.fetch(basePath + '/hooks/not-found/edge')
+
+            expect(res.status).toEqual(404)
+            expect(await res.text()).toBeEmpty()
+          })
+        })
       })
     })
 
@@ -659,5 +668,12 @@ createNextDescribe(
         }, 'yes')
       })
     })
+
+    if (isNextStart) {
+      it('should not print bundling warning about React', async () => {
+        const cliOutput = next.cliOutput
+        expect(cliOutput).not.toContain('Attempted import error')
+      })
+    }
   }
 )
