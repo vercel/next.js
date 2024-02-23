@@ -106,6 +106,10 @@ enum ResolveMetadataSpan {
   generateViewport = 'ResolveMetadata.generateViewport',
 }
 
+enum MiddlewareSpan {
+  execute = 'Middleware.execute',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -118,9 +122,11 @@ type SpanTypes =
   | `${NodeSpan}`
   | `${AppRouteRouteHandlersSpan}`
   | `${ResolveMetadataSpan}`
+  | `${MiddlewareSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = [
+  MiddlewareSpan.execute,
   BaseServerSpan.handleRequest,
   RenderSpan.getServerSideProps,
   RenderSpan.getStaticProps,
@@ -158,6 +164,7 @@ export {
   NodeSpan,
   AppRouteRouteHandlersSpan,
   ResolveMetadataSpan,
+  MiddlewareSpan,
 }
 
 export type { SpanTypes }
