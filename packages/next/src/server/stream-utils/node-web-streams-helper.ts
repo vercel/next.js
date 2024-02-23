@@ -146,6 +146,65 @@ export function createBufferedTransformStream(): TransformStream<
   })
 }
 
+export class BufferedTransformStream extends TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
+  bufferedChunks: Array<Uint8Array> = []
+  bufferByteLength: number = 0
+  pending: DetachedPromise<void> | undefined
+
+  constructor() {
+    super({
+      transform: (chunk, controller) => {
+        // Combine the previous buffer with the new chunk.
+        this.bufferedChunks.push(chunk)
+        this.bufferByteLength += chunk.byteLength
+
+        // Flush the buffer to the controller.
+        this.flush(controller)
+      },
+      flush: () => {
+        if (!this.pending) return
+
+        return this.pending.promise
+      },
+    })
+  }
+
+  flush(controller: TransformStreamDefaultController) {
+    // If we already have a pending flush, then return early.
+    if (this.pending) return
+
+    const detached = new DetachedPromise<void>()
+    this.pending = detached
+
+    scheduleImmediate(() => {
+      try {
+        const chunk = new Uint8Array(this.bufferByteLength)
+        let copiedBytes = 0
+        for (let i = 0; i < this.bufferedChunks.length; i++) {
+          const bufferedChunk = this.bufferedChunks[i]
+          chunk.set(bufferedChunk, copiedBytes)
+          copiedBytes += bufferedChunk.byteLength
+        }
+        // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
+        // and our bufferByteLength to prepare for the next round of buffered chunks
+        this.bufferedChunks.length = 0
+        this.bufferByteLength = 0
+        controller.enqueue(chunk)
+      } catch {
+        // If an error occurs while enqueuing it can't be due to this
+        // transformers fault. It's likely due to the controller being
+        // errored due to the stream being cancelled.
+      } finally {
+        this.pending = undefined
+        detached.resolve()
+      }
+    })
+  }
+}
+
 function createInsertedHTMLStream(
   getServerInsertedHTML: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -175,7 +234,7 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createHeadInsertionTransformStream(
+export function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
@@ -539,6 +598,7 @@ export async function continueFizzStream(
   }
 
   return chainTransformers(renderStream, [
+    new PerformanceTransformStreamInitiator('fizz stream'),
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
@@ -571,6 +631,7 @@ export async function continueFizzStream(
           validateRootLayout.getTree
         )
       : null,
+    new PerformanceTransformStreamTerminator('fizz stream'),
   ])
 }
 
@@ -584,17 +645,79 @@ export async function continueDynamicPrerender(
 ) {
   return (
     prerenderStream
+      .pipeThrough(new PerformanceTransformStreamInitiator('dynamic prerender'))
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      .pipeThrough(
+        new PerformanceTransformStreamTerminator('dynamic prerender')
+      )
   )
 }
 
 type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
+}
+
+class PerformanceTransformStreamInitiator extends TransformStream {
+  initialized = false
+  constructor(name: string) {
+    super({
+      transform: (chunk, controller) => {
+        controller.enqueue(chunk)
+        if (!this.initialized) {
+          performance.mark(
+            'performance-transform-stream-initiator-first-byte',
+            { detail: { name } }
+          )
+          this.initialized = true
+        }
+      },
+      flush: () => {
+        performance.mark('performance-transform-stream-initiator-last-byte', {
+          detail: { name },
+        })
+      },
+    })
+  }
+}
+
+class PerformanceTransformStreamTerminator extends TransformStream {
+  initialized = false
+  constructor(name: string) {
+    super({
+      transform: (chunk, controller) => {
+        controller.enqueue(chunk)
+        if (!this.initialized) {
+          performance.mark(
+            'performance-transform-stream-terminator-first-byte',
+            { detail: { name } }
+          )
+          this.initialized = true
+        }
+      },
+      flush: () => {
+        performance.mark('performance-transform-stream-terminator-last-byte', {
+          detail: { name },
+        })
+
+        try {
+          const m = performance.measure(
+            'total time',
+            'performance-transform-stream-initiator-first-byte',
+            'performance-transform-stream-terminator-last-byte'
+          )
+          console.log('Total time: ', m.duration)
+
+          performance.clearMarks()
+          performance.clearMeasures()
+        } catch {}
+      },
+    })
+  }
 }
 
 export async function continueStaticPrerender(
@@ -605,6 +728,7 @@ export async function continueStaticPrerender(
 
   return (
     prerenderStream
+      .pipeThrough(new PerformanceTransformStreamInitiator('static prerender'))
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
@@ -613,6 +737,7 @@ export async function continueStaticPrerender(
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(new PerformanceTransformStreamTerminator('static prerender'))
   )
 }
 
@@ -629,6 +754,9 @@ export async function continueDynamicHTMLResume(
 
   return (
     renderStream
+      .pipeThrough(
+        new PerformanceTransformStreamInitiator('dynamic html resume')
+      )
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
@@ -637,6 +765,9 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(
+        new PerformanceTransformStreamTerminator('dynamic html resume')
+      )
   )
 }
 
@@ -652,9 +783,15 @@ export async function continueDynamicDataResume(
 
   return (
     renderStream
+      .pipeThrough(
+        new PerformanceTransformStreamInitiator('dynamic data resume')
+      )
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
+      .pipeThrough(
+        new PerformanceTransformStreamTerminator('dynamic data resume')
+      )
   )
 }
