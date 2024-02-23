@@ -13,34 +13,7 @@ import {
 import { clientHookInServerComponentError } from './client-hook-in-server-component-error'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-
-/** @internal */
-class ReadonlyURLSearchParamsError extends Error {
-  constructor() {
-    super(
-      'Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams'
-    )
-  }
-}
-
-class ReadonlyURLSearchParams extends URLSearchParams {
-  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
-  append() {
-    throw new ReadonlyURLSearchParamsError()
-  }
-  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
-  delete() {
-    throw new ReadonlyURLSearchParamsError()
-  }
-  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
-  set() {
-    throw new ReadonlyURLSearchParamsError()
-  }
-  /** @deprecated Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams */
-  sort() {
-    throw new ReadonlyURLSearchParamsError()
-  }
-}
+import { ReadonlyURLSearchParams } from './navigation.react-server'
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -281,9 +254,8 @@ function useSelectedLayoutSegment(
     : selectedLayoutSegment
 }
 
-// Client components hooks
+// Client components APIs
 export {
-  ReadonlyURLSearchParams,
   useSearchParams,
   usePathname,
   useSelectedLayoutSegment,
@@ -294,10 +266,11 @@ export {
   ServerInsertedHTMLContext,
 }
 
-// Shared components hooks
+// Shared components APIs
 export {
   notFound,
   redirect,
   permanentRedirect,
   RedirectType,
+  ReadonlyURLSearchParams,
 } from './navigation.react-server'
