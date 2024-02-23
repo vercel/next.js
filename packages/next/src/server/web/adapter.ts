@@ -217,7 +217,7 @@ export async function adapter(
       return getTracer().trace(
         MiddlewareSpan.execute,
         {
-          spanName: 'middleware',
+          spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
           attributes: {
             'http.target': request.nextUrl.pathname,
             'http.method': request.method,

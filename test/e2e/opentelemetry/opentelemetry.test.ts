@@ -445,11 +445,11 @@ createNextDescribe(
                 runtime: 'edge',
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
-                name: 'middleware',
+                name: 'middleware GET /behind-middleware',
                 attributes: {
                   'http.method': 'GET',
                   'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware',
+                  'next.span_name': 'middleware GET /behind-middleware',
                   'next.span_type': 'Middleware.execute',
                 },
                 status: { code: 0 },
