@@ -167,24 +167,35 @@ impl<'i, 'o> StyleSheetLike<'i, 'o> {
 
                     for (class_name, export_class_names) in output.renamed {
                         for export_class_name in export_class_names {
+                            // If the class name is already in the map, the first
+                            // one is the reference to itself and the current one is
+                            // the reference to the other class.
                             match export_class_name {
                                 CssClassName::Local { name } => {
-                                    map.entry(class_name.to_string()).or_insert_with(|| {
-                                        CssModuleExport {
+                                    map.entry(class_name.to_string())
+                                        .and_modify(|e| {
+                                            e.composes.push(CssModuleReference::Local {
+                                                name: name.value.to_string(),
+                                            })
+                                        })
+                                        .or_insert_with(|| CssModuleExport {
                                             name: name.value.to_string(),
                                             composes: Vec::new(),
                                             is_referenced: true,
-                                        }
-                                    });
+                                        });
                                 }
                                 CssClassName::Global { name } => {
-                                    map.entry(class_name.to_string()).or_insert_with(|| {
-                                        CssModuleExport {
+                                    map.entry(class_name.to_string())
+                                        .and_modify(|e| {
+                                            e.composes.push(CssModuleReference::Global {
+                                                name: name.value.to_string(),
+                                            })
+                                        })
+                                        .or_insert_with(|| CssModuleExport {
                                             name: name.value.to_string(),
                                             composes: Vec::new(),
                                             is_referenced: true,
-                                        }
-                                    });
+                                        });
                                 }
                                 CssClassName::Import { name, from } => {
                                     let e =

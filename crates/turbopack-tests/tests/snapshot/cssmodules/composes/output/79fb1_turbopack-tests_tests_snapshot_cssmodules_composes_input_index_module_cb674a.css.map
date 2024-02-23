@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["/turbopack/[project]/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css"],"sourcesContent":[".className {\n  background: red;\n  color: yellow;\n}\n\n.subClass {\n  composes: className;\n  background: blue;\n}\n"],"names":[],"mappings":"AAAA,CAAC,0BAAS,CAAC,CAAC;EACV,UAAU,EAAE,GAAG;EACf,KAAK,EAAE,MAAM;AACf,CAAC;AAED,CAAC,yBAAQ,CAAC,CAAC;EAET,UAAU,EAAE,IAAI;AAClB,CAAC"}},
+    {"offset": {"line": 7, "column": 1}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
