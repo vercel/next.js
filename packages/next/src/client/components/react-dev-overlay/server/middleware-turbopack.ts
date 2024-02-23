@@ -3,6 +3,7 @@ import {
   findSourcePackage,
   getOriginalCodeFrame,
   type OriginalStackFrameResponse,
+  type StackFrame,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
@@ -10,37 +11,16 @@ import { launchEditor } from '../internal/helpers/launchEditor'
 
 interface Project {
   getSourceForAsset(filePath: string): Promise<string | null>
-  traceSource(
-    stackFrame: TurbopackStackFrame
-  ): Promise<TurbopackStackFrame | null>
-}
-
-interface TurbopackStackFrame {
-  // 1-based
-  column: number | null
-  file: string
-  isServer: boolean
-  // 1-based
-  line: number | null
-  methodName: string | null
-  isInternal?: boolean
+  traceSource(stackFrame: StackFrame): Promise<StackFrame | null>
 }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-async function batchedTraceSource(
-  project: Project,
-  frame: TurbopackStackFrame
-) {
+async function batchedTraceSource(project: Project, frame: StackFrame) {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
-  if (!file) {
-    return
-  }
+  if (!file) return
 
   const sourceFrame = await project.traceSource(frame)
-
-  if (!sourceFrame) {
-    return
-  }
+  if (!sourceFrame) return
 
   let source = null
   // Don't look up code frames for node_modules or internals. These can often be large bundled files.
@@ -62,7 +42,8 @@ async function batchedTraceSource(
   return {
     frame: {
       file: sourceFrame.file,
-      lineNumber: sourceFrame.line,
+      // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should align.
+      lineNumber: sourceFrame.lineNumber ?? sourceFrame.line,
       column: sourceFrame.column,
       methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
       arguments: [],
@@ -73,11 +54,11 @@ async function batchedTraceSource(
 
 export async function createOriginalStackFrame(
   project: Project,
-  frame: TurbopackStackFrame
+  frame: StackFrame
 ): Promise<OriginalStackFrameResponse | null> {
   const traced = await batchedTraceSource(project, frame)
   if (!traced) {
-    const sourcePackage = findSourcePackage(frame.file, frame.methodName)
+    const sourcePackage = findSourcePackage(frame)
     if (sourcePackage) return { sourcePackage }
     return null
   }
@@ -85,10 +66,7 @@ export async function createOriginalStackFrame(
   return {
     originalStackFrame: traced.frame,
     originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
-    sourcePackage: findSourcePackage(
-      traced.frame.file,
-      traced.frame.methodName
-    ),
+    sourcePackage: findSourcePackage(traced.frame),
   }
 }
 
@@ -98,11 +76,12 @@ export function getOverlayMiddleware(project: Project) {
 
     const frame = {
       file: searchParams.get('file') as string,
-      methodName: searchParams.get('methodName'),
-      line: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+      methodName: searchParams.get('methodName') ?? '<unknown>',
+      lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       isServer: searchParams.get('isServer') === 'true',
-    } satisfies TurbopackStackFrame
+      arguments: searchParams.getAll('arguments'),
+    } satisfies StackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {
       let originalStackFrame: OriginalStackFrameResponse | null
@@ -147,7 +126,7 @@ export function getOverlayMiddleware(project: Project) {
       }
 
       try {
-        launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
+        launchEditor(frame.file, frame.lineNumber ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         res.statusCode = 500

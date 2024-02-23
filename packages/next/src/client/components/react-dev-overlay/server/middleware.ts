@@ -6,22 +6,14 @@ import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   findSourcePackage,
   getOriginalCodeFrame,
-  isInternal,
   type OriginalStackFrameResponse,
+  type StackFrame,
 } from './shared'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
 export { parseStack } from '../internal/helpers/parseStack'
 
 import type { IncomingMessage, ServerResponse } from 'http'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type webpack from 'webpack'
-
-interface WebpackStackFrame extends StackFrame {
-  isEdgeServer?: boolean
-  isServer?: boolean
-  isAppDirectory?: boolean
-  errorMessage?: string
-}
 
 type Source = { map: () => any } | null
 
@@ -105,7 +97,7 @@ export async function createOriginalStackFrame({
   moduleId?: string
   modulePath?: string
   rootDirectory: string
-  frame: WebpackStackFrame
+  frame: StackFrame
   compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
   const { lineNumber: line, column, errorMessage } = frame
@@ -159,12 +151,8 @@ export async function createOriginalStackFrame({
 
   return {
     originalStackFrame: traced,
-    // Don't look up code frames for node_modules or internals. These can often be large bundled files.
-    originalCodeFrame:
-      frame.file?.includes('node_modules') || !isInternal(traced.file)
-        ? null
-        : getOriginalCodeFrame(traced, sourceContent),
-    sourcePackage: findSourcePackage(traced.file, frame.methodName),
+    originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
+    sourcePackage: findSourcePackage(traced),
   }
 }
 
@@ -231,13 +219,13 @@ export function getOverlayMiddleware(options: {
       isEdgeServer: searchParams.get('isEdgeServer') === 'true',
       isAppDirectory: searchParams.get('isAppDirectory') === 'true',
       errorMessage: searchParams.get('errorMessage') ?? undefined,
-    } satisfies WebpackStackFrame
+    } satisfies StackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {
       const { isAppDirectory, isEdgeServer, isServer } = frame
       const isClient = !isServer && !isEdgeServer
 
-      let sourcePackage = findSourcePackage(frame.file, frame.methodName)
+      let sourcePackage = findSourcePackage(frame)
 
       if (
         !(

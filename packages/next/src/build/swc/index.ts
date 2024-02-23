@@ -13,6 +13,7 @@ import { isDeepStrictEqual } from 'util'
 import { getDefineEnv } from '../webpack/plugins/define-env-plugin'
 import type { DefineEnvPluginOptions } from '../webpack/plugins/define-env-plugin'
 import type { PageExtensions } from '../page-extensions-type'
+import type { StackFrame } from '../../client/components/react-dev-overlay/server/shared'
 
 const nextVersion = process.env.__NEXT_VERSION as string
 
@@ -594,14 +595,6 @@ export interface HmrIdentifiers {
   identifiers: string[]
 }
 
-interface TurbopackStackFrame {
-  column: number | null
-  file: string
-  isServer: boolean
-  line: number
-  methodName: string | null
-}
-
 export type UpdateMessage =
   | {
       updateType: 'start'
@@ -629,9 +622,7 @@ export interface Project {
 
   getSourceForAsset(filePath: string): Promise<string | null>
 
-  traceSource(
-    stackFrame: TurbopackStackFrame
-  ): Promise<TurbopackStackFrame | null>
+  traceSource(stackFrame: StackFrame): Promise<StackFrame | null>
 
   updateInfoSubscribe(
     aggregationMs: number
@@ -1022,9 +1013,7 @@ function bindingToApi(binding: any, _wasm: boolean) {
       return subscription
     }
 
-    traceSource(
-      stackFrame: TurbopackStackFrame
-    ): Promise<TurbopackStackFrame | null> {
+    traceSource(stackFrame: StackFrame): Promise<StackFrame | null> {
       return binding.projectTraceSource(this._nativeProject, stackFrame)
     }
 

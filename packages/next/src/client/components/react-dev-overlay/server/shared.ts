@@ -1,7 +1,17 @@
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import type { StackFrame } from 'stacktrace-parser'
+import type { StackFrame as ParsedStackFrame } from 'stacktrace-parser'
 
 export type SourcePackage = 'react' | 'next'
+
+export interface StackFrame extends ParsedStackFrame {
+  file: string
+  isEdgeServer?: boolean
+  isServer?: boolean
+  isAppDirectory?: boolean
+  errorMessage?: string
+  /** Specific to Turbopack */
+  isInternal?: boolean
+}
 
 export interface OriginalStackFrameResponse {
   originalStackFrame?: StackFrame | null
@@ -22,7 +32,7 @@ const nextInternalsRe =
 
 const nextMethodRe = /(^__webpack_.*|node_modules[\\/]next[\\/])/
 
-export function isInternal(file: string | null) {
+function isInternal(file: string | null) {
   if (!file) return false
 
   return (
@@ -32,11 +42,13 @@ export function isInternal(file: string | null) {
   )
 }
 
-/** Given a potential file path or methodName, it parses which package the file/method belongs to. */
-export function findSourcePackage(
-  file: string | null,
-  methodName: string | null
-): SourcePackage | undefined {
+/** Given a frame, it parses which package it belongs to. */
+export function findSourcePackage({
+  file,
+  methodName,
+}: Partial<{ file: string | null; methodName: string | null }>):
+  | SourcePackage
+  | undefined {
   if (file) {
     // matching React first since vendored would match under `next` too
     if (reactVendoredRe.test(file) || reactNodeModulesRe.test(file)) {
@@ -53,17 +65,22 @@ export function findSourcePackage(
   }
 }
 
+/**
+ * It looks up the code frame of the traced source.
+ * @note It ignores node_modules or Next.js/React internals, as these can often be huge budnled files.
+ */
 export function getOriginalCodeFrame(
-  frame: {
-    file: string
-    lineNumber: number | null
-    column: number | null
-    methodName: string
-    arguments: never[]
-  },
+  frame: StackFrame,
   source: string | null
 ): string | null | undefined {
-  if (!source) return null
+  if (
+    !source ||
+    frame.file?.includes('node_modules') ||
+    !isInternal(frame.file)
+  ) {
+    return null
+  }
+
   return codeFrameColumns(
     source,
     {
