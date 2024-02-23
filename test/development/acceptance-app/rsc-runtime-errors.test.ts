@@ -8,7 +8,6 @@ import {
   getVersionCheckerText,
   hasRedbox,
   retry,
-  waitForAndOpenRuntimeError,
 } from 'next-test-utils'
 
 createNextDescribe(

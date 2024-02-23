@@ -300,7 +300,7 @@ describe('Error overlay for hydration errors', () => {
     // const browser = await next.browser('/hydration-mismatch/bad-nesting')
     // await waitForAndOpenRuntimeError(browser)
     await session.waitForAndOpenRuntimeError()
-    expect(await session.hasRedbox()).toBe(false)
+    expect(await session.hasRedbox()).toBe(true)
 
     const totalErrorCount = await browser
       .elementByCss('[data-nextjs-dialog-header-total-count]')
