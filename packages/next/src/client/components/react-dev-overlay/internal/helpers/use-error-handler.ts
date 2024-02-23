@@ -4,15 +4,9 @@ import {
   hydrationErrorComponentStack,
 } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
+import { isHydrationError } from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
-
-function isHydrationError(error: Error): boolean {
-  return (
-    error.message.match(/(hydration|content does not match|did not match)/i) !=
-    null
-  )
-}
 
 if (typeof window !== 'undefined') {
   try {

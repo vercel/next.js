@@ -1,4 +1,14 @@
+import isError from '../lib/is-error'
 import { isBailoutToCSRError } from '../shared/lib/lazy-dynamic/bailout-to-csr'
+import { isHydrationError } from './components/is-hydration-error'
+
+function isSkippableHydrationError(error: unknown) {
+  return (
+    isError(error) &&
+    (isHydrationError(error) ||
+      /There was an error while hydrating/.test(error.message))
+  )
+}
 
 export default function onRecoverableError(err: unknown) {
   // Using default react onRecoverableError
@@ -14,6 +24,7 @@ export default function onRecoverableError(err: unknown) {
 
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(err)) return
+  if (isSkippableHydrationError(err)) return
 
   defaultOnRecoverableError(err)
 }
