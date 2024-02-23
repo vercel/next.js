@@ -155,6 +155,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
         enum FileType {
             CommonJs,
             EcmaScriptModule,
+            Assets,
             UnsupportedExtension,
             InvalidPackageJson,
         }
@@ -191,6 +192,10 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                 }
 
                 return Ok(FileType::CommonJs);
+            }
+
+            if (matches!(ext, Some("css")) || matches!(ext, Some("scss"))) {
+                return Ok(FileType::Assets);
             }
 
             Ok(FileType::UnsupportedExtension)
@@ -361,6 +366,7 @@ impl ResolvePlugin for ExternalCjsModulesResolvePlugin {
                      would result in an error in Node.js.",
                 )
             }
+            (FileType::Assets, _) => Ok(ResolveResultOption::none()),
         }
     }
 }
