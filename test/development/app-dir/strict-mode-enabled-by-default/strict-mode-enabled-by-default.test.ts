@@ -10,6 +10,7 @@ createNextDescribe(
   ({ next }) => {
     // experimental react is having issues with this use effect
     // @acdlite will take a look
+    // TODO: remove this after react fixes the issue in experimental build.
     if (process.env.__NEXT_EXPERIMENTAL_PPR) {
       it('skip test for PPR', () => {})
       return
