@@ -667,11 +667,11 @@ createNextDescribe(
       })
     })
 
-    if (isNextStart) {
+    describe('no bundle error', () => {
       it('should not print bundling warning about React', async () => {
         const cliOutput = next.cliOutput
         expect(cliOutput).not.toContain('Attempted import error')
       })
-    }
+    })
   }
 )
