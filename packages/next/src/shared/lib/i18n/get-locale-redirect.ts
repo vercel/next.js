@@ -5,6 +5,7 @@ import { denormalizePagePath } from '../page-path/denormalize-page-path'
 import { detectDomainLocale } from './detect-domain-locale'
 import { formatUrl } from '../router/utils/format-url'
 import { getCookieParser } from '../../../server/api-utils/get-cookie-parser'
+import { removePathPrefix } from '../router/utils/remove-path-prefix'
 
 interface Options {
   defaultLocale: string
@@ -105,7 +106,21 @@ export function getLocaleRedirect({
       }
     }
 
-    if (detectedLocale.toLowerCase() !== defaultLocale.toLowerCase()) {
+    let invokePath =
+      typeof headers?.['x-invoke-path'] === 'string'
+        ? headers['x-invoke-path']
+        : undefined
+    if (nextConfig.basePath && invokePath) {
+      invokePath = removePathPrefix(invokePath, nextConfig.basePath)
+    }
+
+    // Avoid infinite redirects when the detected user locale is same as a non-default domain locale
+    const isDetectedLocaleSameAsInvokePath = invokePath === `/${detectedLocale}`
+
+    if (
+      !isDetectedLocaleSameAsInvokePath &&
+      detectedLocale.toLowerCase() !== defaultLocale.toLowerCase()
+    ) {
       return formatUrl({
         ...urlParsed,
         pathname: `${nextConfig.basePath || ''}/${detectedLocale}${
