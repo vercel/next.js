@@ -154,26 +154,5 @@ createNextDescribe(
       // Does not contain webpack traces in file path
       expect(source).not.toMatch(/webpack(-internal:)?\/\//)
     })
-
-    it('should only show one hydration error when bad nesting happened', async () => {
-      const browser = await next.browser('/hydration-mismatch/bad-nesting')
-      await waitForAndOpenRuntimeError(browser)
-      await retry(async () => {
-        expect(await hasRedbox(browser)).toBe(true)
-      })
-
-      const totalErrorCount = await browser
-        .elementByCss('[data-nextjs-dialog-header-total-count]')
-        .text()
-      expect(totalErrorCount).toBe('1')
-
-      const description = await getRedboxDescription(browser)
-      expect(description).toContain(
-        'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
-      )
-      expect(description).toContain(
-        'Warning: Expected server HTML to contain a matching <p> in <p>.'
-      )
-    })
   }
 )

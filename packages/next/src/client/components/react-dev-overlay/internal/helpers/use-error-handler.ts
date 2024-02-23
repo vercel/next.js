@@ -4,7 +4,7 @@ import {
   hydrationErrorComponentStack,
 } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
-import { isHydrationMismatchError } from '../../../is-hydration-error'
+import { isHydrationError } from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
 
@@ -15,6 +15,7 @@ if (typeof window !== 'undefined') {
   } catch {}
 }
 
+let hasHydrationError = false
 const errorQueue: Array<Error> = []
 const rejectionQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []
@@ -29,6 +30,7 @@ if (typeof window !== 'undefined') {
       ev.preventDefault()
       return
     }
+    console.log('window error', ev.error)
 
     const error = ev?.error
     if (
@@ -40,8 +42,9 @@ if (typeof window !== 'undefined') {
       return
     }
 
+    const isCausedByHydrationFailure = isHydrationError(error)
     if (
-      isHydrationMismatchError(error) &&
+      isHydrationError(error) &&
       !error.message.includes(
         'https://nextjs.org/docs/messages/react-hydration-error'
       )
@@ -60,7 +63,13 @@ if (typeof window !== 'undefined') {
     }
 
     const e = error
-    errorQueue.push(e)
+    // Only queue one hydration every time
+    if (isCausedByHydrationFailure) {
+      if (!hasHydrationError) {
+        errorQueue.push(e)
+      }
+      hasHydrationError = true
+    }
     for (const handler of errorHandlers) {
       handler(e)
     }
