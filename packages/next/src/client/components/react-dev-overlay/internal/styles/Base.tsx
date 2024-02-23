@@ -18,12 +18,12 @@ export function Base() {
           --size-font-bigger: 24px;
 
           --color-background: white;
-          --color-font: #444;
+          --color-font: #757575;
           --color-backdrop: rgba(17, 17, 17, 0.2);
 
           --color-stack-h6: #222;
-          --color-stack-headline: #555;
-          --color-stack-subline: #585858;
+          --color-stack-headline: #666;
+          --color-stack-subline: #999;
 
           --color-accents-1: #808080;
           --color-accents-2: #222222;

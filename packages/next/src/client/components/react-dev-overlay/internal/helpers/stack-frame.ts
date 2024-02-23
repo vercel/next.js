@@ -16,28 +16,29 @@ function getOriginalStackFrame(
   errorMessage: string
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
-    const params = new URLSearchParams({
-      isServer: String(type === 'server'),
-      isEdgeServer: String(type === 'edge-server'),
-      isAppDirectory: String(isAppDir),
-      errorMessage,
-    })
-
+    const params = new URLSearchParams()
+    params.append('isServer', String(type === 'server'))
+    params.append('isEdgeServer', String(type === 'edge-server'))
+    params.append('isAppDirectory', String(isAppDir))
+    params.append('errorMessage', errorMessage)
     for (const key in source) {
       params.append(key, ((source as any)[key] ?? '').toString())
     }
 
     const controller = new AbortController()
     const tm = setTimeout(() => controller.abort(), 3000)
-    const res = await fetch(
-      `${
-        process.env.__NEXT_ROUTER_BASEPATH ?? ''
-      }/__nextjs_original-stack-frame?${params}`,
-      { signal: controller.signal }
-    ).finally(() => {
-      clearTimeout(tm)
-    })
-
+    const res = await self
+      .fetch(
+        `${
+          process.env.__NEXT_ROUTER_BASEPATH || ''
+        }/__nextjs_original-stack-frame?${params.toString()}`,
+        {
+          signal: controller.signal,
+        }
+      )
+      .finally(() => {
+        clearTimeout(tm)
+      })
     if (!res.ok || res.status === 204) {
       return Promise.reject(new Error(await res.text()))
     }
@@ -47,11 +48,16 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      /** If we ommited originalCodeFrame, it means it was for node_modules or internals, so we can hide by default. */
-      expanded: !!body.originalCodeFrame ?? true,
+      expanded: !Boolean(
+        /* collapsed */
+        (source.file?.includes('node_modules') ||
+          body.originalStackFrame?.file?.includes('node_modules') ||
+          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
+          true
+      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
-      originalCodeFrame: body.originalCodeFrame,
+      originalCodeFrame: body.originalCodeFrame || null,
       sourcePackage: body.sourcePackage,
     }
   }
