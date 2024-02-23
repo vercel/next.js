@@ -3,7 +3,7 @@ import type { StackFrame } from 'stacktrace-parser'
 
 export type SourcePackage = 'react' | 'next'
 
-export type OriginalStackFrameResponse = {
+export interface OriginalStackFrameResponse {
   originalStackFrame?: StackFrame | null
   originalCodeFrame?: string | null
   /** We use this to group frames in the error overlay */
@@ -17,10 +17,20 @@ const reactVendoredRe =
 /** React the user installed. Used by Pages Router, or user imports in App Router. */
 const reactNodeModulesRe = /node_modules[\\/](react|react-dom|scheduler)[\\/]/
 
-const nextRe =
+const nextInternalsRe =
   /(node_modules[\\/]next[\\/]|[\\/].next[\\/]static[\\/]chunks[\\/]webpack\.js$|(edge-runtime-webpack|webpack-runtime)\.js$)/
 
 const nextMethodRe = /(^__webpack_.*|node_modules[\\/]next[\\/])/
+
+export function isInternal(file: string | null) {
+  if (!file) return false
+
+  return (
+    nextInternalsRe.test(file) ||
+    reactVendoredRe.test(file) ||
+    reactNodeModulesRe.test(file)
+  )
+}
 
 /** Given a potential file path or methodName, it parses which package the file/method belongs to. */
 export function findSourcePackage(
@@ -31,7 +41,7 @@ export function findSourcePackage(
     // matching React first since vendored would match under `next` too
     if (reactVendoredRe.test(file) || reactNodeModulesRe.test(file)) {
       return 'react'
-    } else if (nextRe.test(file)) {
+    } else if (nextInternalsRe.test(file)) {
       return 'next'
     }
   }

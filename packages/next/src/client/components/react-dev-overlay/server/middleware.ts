@@ -6,6 +6,7 @@ import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   findSourcePackage,
   getOriginalCodeFrame,
+  isInternal,
   type OriginalStackFrameResponse,
 } from './shared'
 export { getServerError } from '../internal/helpers/nodeStackFrames'
@@ -158,10 +159,11 @@ export async function createOriginalStackFrame({
 
   return {
     originalStackFrame: traced,
-    // Don't look up code frames for node_modules. These can often be large bundled files.
-    originalCodeFrame: frame.file?.includes('node_modules')
-      ? null
-      : getOriginalCodeFrame(traced, sourceContent),
+    // Don't look up code frames for node_modules or internals. These can often be large bundled files.
+    originalCodeFrame:
+      frame.file?.includes('node_modules') || !isInternal(traced.file)
+        ? null
+        : getOriginalCodeFrame(traced, sourceContent),
     sourcePackage: findSourcePackage(traced.file, frame.methodName),
   }
 }

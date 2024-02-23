@@ -43,8 +43,8 @@ async function batchedTraceSource(
   }
 
   let source = null
-  // Don't look up code frames for node_modules. These can often be large bundled files.
-  if (!sourceFrame.file.includes('node_modules') && !sourceFrame.isInternal) {
+  // Don't look up code frames for node_modules or internals. These can often be large bundled files.
+  if (sourceFrame.file.includes('node_modules') || sourceFrame.isInternal) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
       sourcePromise = project.getSourceForAsset(sourceFrame.file)
