@@ -73,20 +73,22 @@ async function batchedTraceSource(
 
 export async function createOriginalStackFrame(
   project: Project,
-  _frame: TurbopackStackFrame
+  frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const traced = await batchedTraceSource(project, _frame)
+  const traced = await batchedTraceSource(project, frame)
   if (!traced) {
-    const sourcePackage = findSourcePackage(_frame.file, _frame.methodName)
+    const sourcePackage = findSourcePackage(frame.file, frame.methodName)
     if (sourcePackage) return { sourcePackage }
     return null
   }
 
-  const { frame, source } = traced
   return {
-    originalStackFrame: frame,
-    originalCodeFrame: getOriginalCodeFrame(frame, source),
-    sourcePackage: findSourcePackage(frame.file, frame.methodName),
+    originalStackFrame: traced.frame,
+    originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
+    sourcePackage: findSourcePackage(
+      traced.frame.file,
+      traced.frame.methodName
+    ),
   }
 }
 
