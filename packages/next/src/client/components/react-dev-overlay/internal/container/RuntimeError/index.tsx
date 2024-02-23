@@ -118,21 +118,16 @@ export const styles = css`
   button[data-nextjs-data-runtime-error-collapsed-action] {
     background: none;
     border: none;
-    padding: 0;
     font-size: var(--size-font-small);
     line-height: var(--size-font-bigger);
     color: var(--color-accents-3);
-  }
-
-  [data-nextjs-call-stack-frame]:not(:last-child),
-  [data-nextjs-component-stack-frame]:not(:last-child) {
-    margin-bottom: var(--size-gap-double);
+    text-decoration: underline dotted;
+    align-self: start;
   }
 
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
-    margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
     color: #222;
@@ -182,12 +177,16 @@ export const styles = css`
   }
   [data-nextjs-collapsed-call-stack-details][open]
     [data-nextjs-call-stack-chevron-icon] {
+    transition: transform 0.2s ease;
     transform: rotate(90deg);
+  }
+  [data-nextjs-collapsed-call-stack-details] > * {
+    padding-left: var(--size-gap-double);
   }
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin-bottom: var(--size-gap);
+    padding-left: 0;
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
