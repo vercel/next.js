@@ -14,7 +14,6 @@ import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
 import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
 import { WEBPACK_LAYERS } from '../lib/constants'
-import { isWebpackServerOnlyLayer } from './utils'
 
 interface CompilerAliases {
   [alias: string]: string | string[]
