@@ -207,7 +207,7 @@ You can then call your Authentication Provider's API in the Server Action to han
 
 import { signIn } from '@/auth'
 
-export async function authenticate(formData: FormData) {
+export async function authenticate(_currentState: unknown, formData: FormData) {
   try {
     await signIn('credentials', formData)
   } catch (error) {
@@ -229,7 +229,7 @@ export async function authenticate(formData: FormData) {
 
 import { signIn } from '@/auth'
 
-export async function authenticate(formData) {
+export async function authenticate(_currentState, formData) {
   try {
     await signIn('credentials', formData)
   } catch (error) {

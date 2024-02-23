@@ -182,6 +182,10 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
+        for route in routes.values_mut() {
+            route.resolve().await?;
+        }
+
         Ok(Vc::cell(routes))
     }
 

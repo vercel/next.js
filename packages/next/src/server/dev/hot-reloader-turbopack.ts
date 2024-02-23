@@ -71,6 +71,7 @@ import {
   getEntryKey,
   splitEntryKey,
 } from './turbopack/entry-key'
+import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -542,6 +543,11 @@ export async function createHotReloaderTurbopack(
             case 'client-reload-page': // { clientId }
             case 'client-removed-page': // { page }
             case 'client-full-reload': // { stackTrace, hadRuntimeError }
+              const { hadRuntimeError } = parsedData
+              if (hadRuntimeError) {
+                Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
+              }
+              break
             case 'client-added-page':
               // TODO
               break
