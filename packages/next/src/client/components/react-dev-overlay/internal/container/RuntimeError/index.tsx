@@ -138,7 +138,7 @@ export const styles = css`
     color: #222;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
-    color: #666;
+    color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div,
   [data-nextjs-component-stack-frame] > div {
@@ -146,7 +146,7 @@ export const styles = css`
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
-    color: #999;
+    color: var(--color-stack-subline);
   }
   [data-nextjs-call-stack-frame] > div > svg,
   [data-nextjs-component-stack-frame] > [role='link'] > svg {
@@ -195,7 +195,7 @@ export const styles = css`
   }
 
   [data-nextjs-collapsed-call-stack-details] h3 {
-    color: #666;
+    color: var(--color-stack-headline);
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
