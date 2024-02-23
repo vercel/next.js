@@ -47,10 +47,25 @@ impl TraceReader {
 
         let mut reader_state = ReaderState::default();
 
+        let mut initial_read = {
+            if let Ok(pos) = file.seek(SeekFrom::End(0)) {
+                if pos > 100 * 1024 * 1024 {
+                    Some((0, pos))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+        if file.seek(SeekFrom::Start(0)).is_err() {
+            return false;
+        }
+
         let mut buffer = Vec::new();
         let mut index = 0;
 
-        let mut chunk = vec![0; 10 * 1024 * 1024];
+        let mut chunk = vec![0; 8 * 1024 * 1024];
         loop {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
@@ -59,6 +74,9 @@ impl TraceReader {
                             return true;
                         };
                         drop(file);
+                        if let Some((_, total)) = initial_read.take() {
+                            println!("Initial read completed ({} MB)", total / (1024 * 1024),);
+                        }
                         // No more data to read, sleep for a while to wait for more data
                         thread::sleep(Duration::from_millis(100));
                         let Ok(file_again) = File::open(&self.path) else {
@@ -115,6 +133,20 @@ impl TraceReader {
                             }
                             if self.store.want_to_read() {
                                 thread::yield_now();
+                            }
+                        }
+                        if let Some((current, total)) = &mut initial_read {
+                            let old_mbs = *current / (97 * 1024 * 1024);
+                            *current += bytes_read as u64;
+                            *total = *total.max(current);
+                            let new_mbs = *current / (97 * 1024 * 1024);
+                            if old_mbs != new_mbs {
+                                println!(
+                                    "{}% read ({}/{} MB)",
+                                    *current * 100 / *total,
+                                    *current / (1024 * 1024),
+                                    *total / (1024 * 1024),
+                                );
                             }
                         }
                     }
