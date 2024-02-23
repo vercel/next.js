@@ -20,10 +20,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
-        (entry) =>
-          entry.expanded &&
-          Boolean(entry.originalCodeFrame) &&
-          Boolean(entry.originalStackFrame)
+        (e) => e.expanded && e.originalCodeFrame && e.originalStackFrame
       )
 
       return {
@@ -36,7 +33,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       }
     }, [error.frames])
 
-  const [all, setAll] = React.useState(firstFrame == null)
+  const [all, setAll] = React.useState(firstFrame === null)
 
   const {
     canShowMore,
@@ -51,7 +48,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
     return {
       canShowMore:
         allCallStackFrames.length !== visibleCallStackFrames.length ||
-        (all && firstFrame != null),
+        (all && firstFrame !== null),
 
       stackFramesGroupedByFramework:
         groupStackFramesByFramework(allCallStackFrames),
@@ -62,10 +59,9 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
   }, [all, allCallStackFrames, allLeadingFrames, firstFrame])
 
   return (
-    <React.Fragment>
+    <>
       {firstFrame ? (
-        <React.Fragment>
-          <h2>Source</h2>
+        <>
           <GroupedStackFrames
             groupedStackFrames={leadingFramesGroupedByFramework}
             show={all}
@@ -74,43 +70,34 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
           />
-        </React.Fragment>
-      ) : undefined}
-
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
         </>
       ) : null}
 
+      {error.componentStackFrames?.map((componentStackFrame, index) => (
+        <ComponentStackFrameRow
+          key={index}
+          componentStackFrame={componentStackFrame}
+        />
+      ))}
+
       {stackFramesGroupedByFramework.length ? (
-        <React.Fragment>
-          <h2>Call Stack</h2>
-          <GroupedStackFrames
-            groupedStackFrames={stackFramesGroupedByFramework}
-            show={all}
-          />
-        </React.Fragment>
-      ) : undefined}
+        <GroupedStackFrames
+          groupedStackFrames={stackFramesGroupedByFramework}
+          show={all}
+        />
+      ) : null}
+
       {canShowMore ? (
-        <React.Fragment>
-          <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={() => setAll(!all)}
-          >
-            {all ? 'Hide' : 'Show'} collapsed frames
-          </button>
-        </React.Fragment>
-      ) : undefined}
-    </React.Fragment>
+        <button
+          tabIndex={10}
+          data-nextjs-data-runtime-error-collapsed-action
+          type="button"
+          onClick={() => setAll(!all)}
+        >
+          {all ? 'Hide' : 'Show'} collapsed frames
+        </button>
+      ) : null}
+    </>
   )
 }
 
@@ -118,27 +105,22 @@ export const styles = css`
   button[data-nextjs-data-runtime-error-collapsed-action] {
     background: none;
     border: none;
-    padding: 0;
     font-size: var(--size-font-small);
     line-height: var(--size-font-bigger);
     color: var(--color-accents-3);
-  }
-
-  [data-nextjs-call-stack-frame]:not(:last-child),
-  [data-nextjs-component-stack-frame]:not(:last-child) {
-    margin-bottom: var(--size-gap-double);
+    text-decoration: underline dotted;
+    align-self: start;
   }
 
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
-    margin-bottom: var(--size-gap);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
     color: #222;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
-    color: #666;
+    color: var(--color-stack-headline);
   }
   [data-nextjs-call-stack-frame] > div,
   [data-nextjs-component-stack-frame] > div {
@@ -146,7 +128,7 @@ export const styles = css`
     align-items: center;
     padding-left: calc(var(--size-gap) + var(--size-gap-half));
     font-size: var(--size-font-small);
-    color: #999;
+    color: var(--color-stack-subline);
   }
   [data-nextjs-call-stack-frame] > div > svg,
   [data-nextjs-component-stack-frame] > [role='link'] > svg {
@@ -182,12 +164,16 @@ export const styles = css`
   }
   [data-nextjs-collapsed-call-stack-details][open]
     [data-nextjs-call-stack-chevron-icon] {
+    transition: transform 0.2s ease;
     transform: rotate(90deg);
+  }
+  [data-nextjs-collapsed-call-stack-details] > * {
+    padding-left: var(--size-gap-double);
   }
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin-bottom: var(--size-gap);
+    padding-left: 0;
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
@@ -195,7 +181,7 @@ export const styles = css`
   }
 
   [data-nextjs-collapsed-call-stack-details] h3 {
-    color: #666;
+    color: var(--color-stack-headline);
   }
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
