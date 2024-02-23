@@ -839,6 +839,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await cleanup()
   })
 
+  test('stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+        export default function Page() {
+          const e = new Error("Boom!");
+          e.stack += \`
+          at stringify (<anonymous>)
+          at <unknown> (<anonymous>)
+          at foo (bar:1:1)\`;
+          throw e;
+        }
+      `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    expect(texts).not.toContain('stringify\n<anonymous>')
+    expect(texts).not.toContain('<unknown>\n<anonymous>')
+    expect(texts).toContain('foo\nbar (1:1)')
+    await cleanup()
+  })
+
   test('Server component errors should open up in fullscreen', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,

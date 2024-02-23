@@ -381,7 +381,7 @@ impl AppProject {
 }
 
 #[turbo_tasks::function]
-pub async fn app_entry_point_to_route(
+pub fn app_entry_point_to_route(
     app_project: Vc<AppProject>,
     entrypoint: AppEntrypoint,
 ) -> Vc<Route> {

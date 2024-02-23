@@ -5,7 +5,8 @@ use indexmap::{map::Entry, IndexMap};
 use next_core::{
     all_assets_from_entries,
     app_structure::find_app_dir,
-    get_edge_chunking_context, get_edge_compile_time_info, get_edge_resolve_options_context,
+    emit_assets, get_edge_chunking_context, get_edge_compile_time_info,
+    get_edge_resolve_options_context,
     instrumentation::instrumentation_files,
     middleware::middleware_files,
     mode::NextMode,
@@ -382,13 +383,12 @@ impl Project {
         Ok(Vc::upcast(virtual_fs))
     }
 
-    // #[turbo_tasks::function]
-    // pub async fn node_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
-    //     let this = self.await?;
-    //     let disk_fs = DiskFileSystem::new("node".to_string(),
-    // this.project_path.clone(), vec![]);     disk_fs.await?.
-    // start_watching_with_invalidation_reason()?;     Ok(Vc::upcast(disk_fs))
-    // }
+    #[turbo_tasks::function]
+    pub async fn output_fs(self: Vc<Self>) -> Result<Vc<Box<dyn FileSystem>>> {
+        let this = self.await?;
+        let disk_fs = DiskFileSystem::new("output".to_string(), this.project_path.clone(), vec![]);
+        Ok(Vc::upcast(disk_fs))
+    }
 
     #[turbo_tasks::function]
     pub async fn dist_dir(self: Vc<Self>) -> Result<Vc<String>> {
@@ -398,7 +398,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn node_root(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        Ok(self.project_path().join(this.dist_dir.to_string()))
+        Ok(self.output_fs().root().join(this.dist_dir.to_string()))
     }
 
     #[turbo_tasks::function]
@@ -797,14 +797,17 @@ impl Project {
             let client_relative_path = self.client_relative_path();
             let node_root = self.node_root();
 
-            let completion = self.await?.versioned_content_map.insert_output_assets(
-                all_output_assets,
-                node_root,
+            self.await?
+                .versioned_content_map
+                .insert_output_assets(all_output_assets, client_relative_path, node_root)
+                .await?;
+
+            Ok(emit_assets(
+                *all_output_assets.await?,
+                self.node_root(),
                 client_relative_path,
                 node_root,
-            );
-
-            Ok(completion)
+            ))
         }
         .instrument(span)
         .await
