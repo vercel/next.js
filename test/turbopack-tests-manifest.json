@@ -1055,11 +1055,11 @@
     "passed": [
       "Error overlay - editor links should be possible to open source file on build error"
     ],
-    "failed": [
-      "Error overlay - editor links should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor links should be possible to open import trace files on module not found error"
+    "failed": [],
+    "pending": [
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
