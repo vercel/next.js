@@ -5,6 +5,7 @@ import type { EdgeAppRouteLoaderQuery } from './webpack/loaders/next-edge-app-ro
 import type { NextConfigComplete } from '../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type {
+  MiddlewareConfigParsed,
   MiddlewareConfig,
   MiddlewareMatcher,
   PageStaticInfo,
@@ -40,6 +41,7 @@ import {
   isMiddlewareFile,
   isMiddlewareFilename,
   isInstrumentationHookFile,
+  isInstrumentationHookFilename,
 } from './utils'
 import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
@@ -331,7 +333,7 @@ export function getEdgeServerEntry(opts: {
   isServerComponent: boolean
   page: string
   pages: MappedPages
-  middleware?: Partial<MiddlewareConfig>
+  middleware?: Partial<MiddlewareConfigParsed>
   pagesType: PAGE_TYPES
   appDirLoader?: string
   hasInstrumentationHook?: boolean
@@ -391,13 +393,6 @@ export function getEdgeServerEntry(opts: {
     return `next-edge-function-loader?${stringify(loaderParams)}!`
   }
 
-  if (isInstrumentationHookFile(opts.page)) {
-    return {
-      import: opts.absolutePagePath,
-      filename: `edge-${INSTRUMENTATION_HOOK_FILENAME}.js`,
-    }
-  }
-
   const loaderParams: EdgeSSRLoaderQuery = {
     absolute500Path: opts.pages['/500'] || '',
     absoluteAppPath: opts.pages['/_app'],
@@ -414,8 +409,7 @@ export function getEdgeServerEntry(opts: {
     pagesType: opts.pagesType,
     appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
     sriEnabled: !opts.isDev && !!opts.config.experimental.sri?.algorithm,
-    incrementalCacheHandlerPath:
-      opts.config.experimental.incrementalCacheHandlerPath,
+    cacheHandler: opts.config.cacheHandler,
     preferredRegion: opts.preferredRegion,
     middlewareConfig: Buffer.from(
       JSON.stringify(opts.middlewareConfig || {})
@@ -429,6 +423,23 @@ export function getEdgeServerEntry(opts: {
     // be in the SSR layer — we later convert the page request to the RSC layer
     // via a webpack rule.
     layer: opts.appDirLoader ? WEBPACK_LAYERS.serverSideRendering : undefined,
+  }
+}
+
+export function getInstrumentationEntry(opts: {
+  absolutePagePath: string
+  isEdgeServer: boolean
+  isDev: boolean
+}) {
+  // the '../' is needed to make sure the file is not chunked
+  const filename = `${
+    opts.isEdgeServer ? 'edge-' : opts.isDev ? '' : '../'
+  }${INSTRUMENTATION_HOOK_FILENAME}.js`
+
+  return {
+    import: opts.absolutePagePath,
+    filename,
+    layer: WEBPACK_LAYERS.instrument,
   }
 }
 
@@ -606,6 +617,8 @@ export async function createEntrypoints(
         ]
       }
 
+      const isInstrumentation =
+        isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -634,18 +647,18 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
+              nextConfigExperimentalUseEarlyImport:
+                config.experimental.useEarlyImport,
               preferredRegion: staticInfo.preferredRegion,
               middlewareConfig: encodeToBase64(staticInfo.middleware || {}),
             })
-          } else if (
-            isInstrumentationHookFile(page) &&
-            pagesType === PAGE_TYPES.ROOT
-          ) {
-            server[serverBundlePath.replace('src/', '')] = {
-              import: absolutePagePath,
-              // the '../' is needed to make sure the file is not chunked
-              filename: `../${INSTRUMENTATION_HOOK_FILENAME}.js`,
-            }
+          } else if (isInstrumentation) {
+            server[serverBundlePath.replace('src/', '')] =
+              getInstrumentationEntry({
+                absolutePagePath,
+                isEdgeServer: false,
+                isDev: false,
+              })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({
@@ -677,44 +690,49 @@ export async function createEntrypoints(
         },
         onEdgeServer: () => {
           let appDirLoader: string = ''
-          if (pagesType === 'app') {
-            const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
-            appDirLoader = getAppEntry({
-              name: serverBundlePath,
+          if (isInstrumentation) {
+            edgeServer[serverBundlePath.replace('src/', '')] =
+              getInstrumentationEntry({
+                absolutePagePath,
+                isEdgeServer: true,
+                isDev: false,
+              })
+          } else {
+            if (pagesType === 'app') {
+              const matchedAppPaths = appPathsPerRoute[normalizeAppPath(page)]
+              appDirLoader = getAppEntry({
+                name: serverBundlePath,
+                page,
+                pagePath: absolutePagePath,
+                appDir: appDir!,
+                appPaths: matchedAppPaths,
+                pageExtensions,
+                basePath: config.basePath,
+                assetPrefix: config.assetPrefix,
+                nextConfigOutput: config.output,
+                // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
+                // Still passing it here for consistency.
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: Buffer.from(
+                  JSON.stringify(staticInfo.middleware || {})
+                ).toString('base64'),
+              }).import
+            }
+            edgeServer[serverBundlePath] = getEdgeServerEntry({
+              ...params,
+              rootDir,
+              absolutePagePath: absolutePagePath,
+              bundlePath: clientBundlePath,
+              isDev: false,
+              isServerComponent,
               page,
-              pagePath: absolutePagePath,
-              appDir: appDir!,
-              appPaths: matchedAppPaths,
-              pageExtensions,
-              basePath: config.basePath,
-              assetPrefix: config.assetPrefix,
-              nextConfigOutput: config.output,
-              // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
-              // Still passing it here for consistency.
+              middleware: staticInfo?.middleware,
+              pagesType,
+              appDirLoader,
               preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: Buffer.from(
-                JSON.stringify(staticInfo.middleware || {})
-              ).toString('base64'),
-            }).import
+              middlewareConfig: staticInfo.middleware,
+            })
           }
-          const normalizedServerBundlePath =
-            isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
-              ? serverBundlePath.replace('src/', '')
-              : serverBundlePath
-          edgeServer[normalizedServerBundlePath] = getEdgeServerEntry({
-            ...params,
-            rootDir,
-            absolutePagePath: absolutePagePath,
-            bundlePath: clientBundlePath,
-            isDev: false,
-            isServerComponent,
-            page,
-            middleware: staticInfo?.middleware,
-            pagesType,
-            appDirLoader,
-            preferredRegion: staticInfo.preferredRegion,
-            middlewareConfig: staticInfo.middleware,
-          })
         },
       })
     }
@@ -767,24 +785,29 @@ export function finalizeEntrypoint({
       : value
 
   const isApi = name.startsWith('pages/api/')
+  const isInstrumentation = isInstrumentationHookFilename(name)
 
   switch (compilerType) {
     case COMPILER_NAMES.server: {
+      const layer = isApi
+        ? WEBPACK_LAYERS.api
+        : isInstrumentation
+        ? WEBPACK_LAYERS.instrument
+        : isServerComponent
+        ? WEBPACK_LAYERS.reactServerComponents
+        : undefined
+
       return {
         publicPath: isApi ? '' : undefined,
         runtime: isApi ? 'webpack-api-runtime' : 'webpack-runtime',
-        layer: isApi
-          ? WEBPACK_LAYERS.api
-          : isServerComponent
-          ? WEBPACK_LAYERS.reactServerComponents
-          : undefined,
+        layer,
         ...entry,
       }
     }
     case COMPILER_NAMES.edgeServer: {
       return {
         layer:
-          isMiddlewareFilename(name) || isApi
+          isMiddlewareFilename(name) || isApi || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },

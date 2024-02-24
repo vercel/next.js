@@ -112,7 +112,7 @@
 }
 
 .flag {
-  background: url('/stars-and-stripes.png') no-repeat scroll 8px 16px;
+  background: url("/stars-and-stripes.png") no-repeat scroll 8px 16px;
   border-right: none;
   border-radius: 3px 0 0 3px;
   width: 80px;

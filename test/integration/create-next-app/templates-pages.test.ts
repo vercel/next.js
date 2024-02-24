@@ -218,7 +218,7 @@ describe('create-next-app templates', () => {
           '--eslint',
           '--src-dir',
           '--no-app',
-          `--import-alias=@/*`,
+          `--no-import-alias`,
         ],
         {
           cwd,

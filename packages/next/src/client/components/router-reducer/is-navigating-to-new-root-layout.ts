@@ -1,4 +1,5 @@
 import type { FlightRouterState } from '../../../server/app-render/types'
+import { GLOBAL_NOT_FOUND_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 export function isNavigatingToNewRootLayout(
   currentTree: FlightRouterState,
@@ -7,6 +8,10 @@ export function isNavigatingToNewRootLayout(
   // Compare segments
   const currentTreeSegment = currentTree[0]
   const nextTreeSegment = nextTree[0]
+
+  // We currently special-case the global not found segment key, but we don't want it to be treated as a root layout change
+  if (currentTreeSegment === GLOBAL_NOT_FOUND_SEGMENT_KEY) return false
+
   // If any segment is different before we find the root layout, the root layout has changed.
   // E.g. /same/(group1)/layout.js -> /same/(group2)/layout.js
   // First segment is 'same' for both, keep looking. (group1) changed to (group2) before the root layout was found, it must have changed.

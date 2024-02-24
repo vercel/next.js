@@ -1,5 +1,5 @@
-import Counter from '../components/counter'
+import Counter from "../components/counter";
 
-const IndexPage = () => <Counter />
+const IndexPage = () => <Counter />;
 
-export default IndexPage
+export default IndexPage;

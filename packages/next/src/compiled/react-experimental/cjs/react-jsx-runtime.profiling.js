@@ -25,12 +25,6 @@ const ReactSharedInternals = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 
 const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
-};
 
 function hasValidRef(config) {
 
@@ -86,7 +80,7 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  */
 
 
-function jsx$1(type, config, maybeKey) {
+function jsxProd(type, config, maybeKey) {
   let propName; // Reserved names are extracted
 
   const props = {};
@@ -114,7 +108,9 @@ function jsx$1(type, config, maybeKey) {
 
 
   for (propName in config) {
-    if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+    if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+    propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+    propName !== 'ref') {
       props[propName] = config[propName];
     }
   } // Resolve default props
@@ -131,12 +127,12 @@ function jsx$1(type, config, maybeKey) {
   }
 
   return ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
-}
+} // While `jsxDEV` should never be called when running in production, we do
 
-const jsx = jsx$1; // we may want to special case jsxs internally to take advantage of static children.
+const jsx = jsxProd; // we may want to special case jsxs internally to take advantage of static children.
 // for now we can ship identical prod functions
 
-const jsxs = jsx$1;
+const jsxs = jsxProd;
 
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.jsx = jsx;

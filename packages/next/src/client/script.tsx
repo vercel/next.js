@@ -208,6 +208,11 @@ export function initScriptLoader(scriptLoaderItems: ScriptProps[]) {
   addBeforeInteractiveToCache()
 }
 
+/**
+ * Load a third-party scripts in an optimized way.
+ *
+ * Read more: [Next.js Docs: `next/script`](https://nextjs.org/docs/app/api-reference/components/script)
+ */
 function Script(props: ScriptProps): JSX.Element | null {
   const {
     id,
@@ -334,7 +339,7 @@ function Script(props: ScriptProps): JSX.Element | null {
             dangerouslySetInnerHTML={{
               __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 0,
-                { ...restProps },
+                { ...restProps, id },
               ])})`,
             }}
           />
@@ -353,6 +358,7 @@ function Script(props: ScriptProps): JSX.Element | null {
             dangerouslySetInnerHTML={{
               __html: `(self.__next_s=self.__next_s||[]).push(${JSON.stringify([
                 src,
+                { ...restProps, id },
               ])})`,
             }}
           />

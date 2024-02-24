@@ -29,8 +29,8 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { getFilesInDir } from '../../../lib/get-files-in-dir'
-import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import type { PageExtensions } from '../../page-extensions-type'
+import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../../client/components/parallel-route-default'
 
 export type AppLoaderOptions = {
   name: string
@@ -46,6 +46,7 @@ export type AppLoaderOptions = {
   isDev?: boolean
   basePath: string
   nextConfigOutput?: NextConfig['output']
+  nextConfigExperimentalUseEarlyImport?: boolean
   middlewareConfig: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
@@ -169,6 +170,7 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
+    collectedAsyncImports,
   }: {
     page: string
     resolveDir: DirResolver
@@ -180,6 +182,7 @@ async function createTreeCodeFromPath(
     loaderContext: webpack.LoaderContext<AppLoaderOptions>
     pageExtensions: PageExtensions
     basePath: string
+    collectedAsyncImports: string[]
   }
 ): Promise<{
   treeCode: string
@@ -197,7 +200,7 @@ async function createTreeCodeFromPath(
   const pages: string[] = []
 
   let rootLayout: string | undefined
-  let globalError: string = defaultGlobalErrorPath
+  let globalError: string | undefined
 
   async function resolveAdjacentParallelSegments(
     segmentPath: string
@@ -232,7 +235,8 @@ async function createTreeCodeFromPath(
   }
 
   async function createSubtreePropsFromSegmentPath(
-    segments: string[]
+    segments: string[],
+    nestedCollectedAsyncImports: string[]
   ): Promise<{
     treeCode: string
   }> {
@@ -271,13 +275,18 @@ async function createTreeCodeFromPath(
     }
 
     for (const [parallelKey, parallelSegment] of parallelSegments) {
+      // if parallelSegment is the page segment (ie, `page$` and not ['page$']), it gets loaded into the __PAGE__ slot
+      // as it's the page for the current route.
       if (parallelSegment === PAGE_SEGMENT) {
         const matchedPagePath = `${appDirPrefix}${segmentPath}${
           parallelKey === 'children' ? '' : `/${parallelKey}`
         }/page`
 
         const resolvedPagePath = await resolver(matchedPagePath)
-        if (resolvedPagePath) pages.push(resolvedPagePath)
+        if (resolvedPagePath) {
+          pages.push(resolvedPagePath)
+          nestedCollectedAsyncImports.push(resolvedPagePath)
+        }
 
         // Use '' for segment as it's the page. There can't be a segment called '' so this is the safest way to add it.
         props[
@@ -288,31 +297,43 @@ async function createTreeCodeFromPath(
           )}), ${JSON.stringify(resolvedPagePath)}],
           ${createMetadataExportsCode(metadata)}
         }]`
-
-        continue
+        if (resolvedPagePath) continue
       }
+
+      // if the parallelSegment was not matched to the __PAGE__ slot, then it's a parallel route at this level.
+      // the code below recursively traverses the parallel slots directory to match the corresponding __PAGE__ for each parallel slot
+      // while also filling in layout/default/etc files into the loader tree at each segment level.
 
       const subSegmentPath = [...segments]
       if (parallelKey !== 'children') {
+        // A `children` parallel key should have already been processed in the above segment
+        // So we exclude it when constructing the subsegment path for the remaining segment levels
         subSegmentPath.push(parallelKey)
       }
 
-      const normalizedParallelSegments = Array.isArray(parallelSegment)
-        ? parallelSegment.slice(0, 1)
-        : [parallelSegment]
+      const normalizedParallelSegment = Array.isArray(parallelSegment)
+        ? parallelSegment[0]
+        : parallelSegment
 
-      subSegmentPath.push(
-        ...normalizedParallelSegments.filter(
-          (segment) =>
-            segment !== PAGE_SEGMENT && segment !== PARALLEL_CHILDREN_SEGMENT
-        )
-      )
+      if (
+        normalizedParallelSegment !== PAGE_SEGMENT &&
+        normalizedParallelSegment !== PARALLEL_CHILDREN_SEGMENT
+      ) {
+        // If we don't have a page segment, nor a special $children marker, it means we need to traverse the next directory
+        // (ie, `normalizedParallelSegment` would correspond with the folder that contains the next level of pages/layout/etc)
+        // we push it to the subSegmentPath so that we can fill in the loader tree for that segment.
+        subSegmentPath.push(normalizedParallelSegment)
+      }
 
       const { treeCode: pageSubtreeCode } =
-        await createSubtreePropsFromSegmentPath(subSegmentPath)
+        await createSubtreePropsFromSegmentPath(
+          subSegmentPath,
+          nestedCollectedAsyncImports
+        )
 
       const parallelSegmentPath = subSegmentPath.join('/')
 
+      // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
       // `page` is not included here as it's added above.
       const filePaths = await Promise.all(
         Object.values(FILE_TYPES).map(async (file) => {
@@ -355,18 +376,18 @@ async function createTreeCodeFromPath(
         )?.[1]
         rootLayout = layoutPath
 
-        if (isDefaultNotFound && !layoutPath) {
+        if (isDefaultNotFound && !layoutPath && !rootLayout) {
           rootLayout = defaultLayoutPath
           definedFilePaths.push(['layout', rootLayout])
         }
+      }
 
-        if (layoutPath) {
-          const resolvedGlobalErrorPath = await resolver(
-            `${path.dirname(layoutPath)}/${GLOBAL_ERROR_FILE_TYPE}`
-          )
-          if (resolvedGlobalErrorPath) {
-            globalError = resolvedGlobalErrorPath
-          }
+      if (!globalError) {
+        const resolvedGlobalErrorPath = await resolver(
+          `${appDirPrefix}/${GLOBAL_ERROR_FILE_TYPE}`
+        )
+        if (resolvedGlobalErrorPath) {
+          globalError = resolvedGlobalErrorPath
         }
       }
 
@@ -386,6 +407,7 @@ async function createTreeCodeFromPath(
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
           defaultNotFoundPath
+        nestedCollectedAsyncImports.push(notFoundPath)
         subtreeCode = `{
           children: ['${PAGE_SEGMENT_KEY}', {}, {
             page: [
@@ -401,6 +423,7 @@ async function createTreeCodeFromPath(
       const componentsCode = `{
         ${definedFilePaths
           .map(([file, filePath]) => {
+            if (filePath) nestedCollectedAsyncImports.push(filePath)
             return `'${file}': [() => import(/* webpackMode: "eager" */ ${JSON.stringify(
               filePath
             )}), ${JSON.stringify(filePath)}],`
@@ -423,26 +446,17 @@ async function createTreeCodeFromPath(
     for (const adjacentParallelSegment of adjacentParallelSegments) {
       if (!props[normalizeParallelKey(adjacentParallelSegment)]) {
         const actualSegment =
-          adjacentParallelSegment === 'children' ? '' : adjacentParallelSegment
-        const fallbackDefault =
-          'next/dist/client/components/parallel-route-default'
-        let defaultPath = await resolver(
-          `${appDirPrefix}${segmentPath}/${actualSegment}/default`
-        )
+          adjacentParallelSegment === 'children'
+            ? ''
+            : `/${adjacentParallelSegment}`
 
-        if (!defaultPath) {
-          // no default was found at this segment. Check if the normalized segment resolves a default
-          // for example: /(level1)/(level2)/default doesn't exist, but /default does
-          const normalizedDefault = await resolver(
-            `${appDirPrefix}${normalizeAppPath(
-              segmentPath
-            )}/${actualSegment}/default`
-          )
+        // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
+        const defaultPath =
+          (await resolver(
+            `${appDirPrefix}${segmentPath}${actualSegment}/default`
+          )) ?? PARALLEL_ROUTE_DEFAULT_PATH
 
-          // if a default is found, use that. Otherwise use the fallback, which will trigger a `notFound()`
-          defaultPath = normalizedDefault ?? fallbackDefault
-        }
-
+        nestedCollectedAsyncImports.push(defaultPath)
         props[normalizeParallelKey(adjacentParallelSegment)] = `[
           '${DEFAULT_SEGMENT_KEY}',
           {},
@@ -463,13 +477,16 @@ async function createTreeCodeFromPath(
     }
   }
 
-  const { treeCode } = await createSubtreePropsFromSegmentPath([])
+  const { treeCode } = await createSubtreePropsFromSegmentPath(
+    [],
+    collectedAsyncImports
+  )
 
   return {
     treeCode: `${treeCode}.children;`,
     pages: `${JSON.stringify(pages)};`,
     rootLayout,
-    globalError,
+    globalError: globalError ?? defaultGlobalErrorPath,
   }
 }
 
@@ -497,9 +514,11 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     preferredRegion,
     basePath,
     middlewareConfig: middlewareConfigBase64,
+    nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
 
   const buildInfo = getModuleBuildInfo((this as any)._module)
+  const collectedAsyncImports: string[] = []
   const page = name.replace(/^app/, '')
   const middlewareConfig: MiddlewareConfig = JSON.parse(
     Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -535,14 +554,15 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         const isParallelRoute = rest[0].startsWith('@')
         if (isParallelRoute) {
           if (rest.length === 2 && rest[1] === 'page') {
-            // matched will be an empty object in case the parallel route is at a path with no existing page
-            // in which case, we need to mark it as a regular page segment
-            matched[rest[0]] = Object.keys(matched).length
-              ? [PAGE_SEGMENT]
-              : PAGE_SEGMENT
+            // We found a parallel route at this level. We don't want to mark it explicitly as the page segment,
+            // as that should be matched to the `children` slot. Instead, we use an array, to signal to `createSubtreePropsFromSegmentPath`
+            // that it needs to recursively fill in the loader tree code for the parallel route at the appropriate levels.
+            matched[rest[0]] = [PAGE_SEGMENT]
             continue
           }
-          // we insert a special marker in order to also process layout/etc files at the slot level
+          // If it was a parallel route but we weren't able to find the page segment (ie, maybe the page is nested further)
+          // we first insert a special marker to ensure that we still process layout/default/etc at the slot level prior to continuing
+          // on to the page segment.
           matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
           continue
         }
@@ -574,6 +594,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         matched.children = rest[0]
       }
     }
+
     return Object.entries(matched)
   }
 
@@ -675,6 +696,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     loaderContext: this,
     pageExtensions,
     basePath,
+    collectedAsyncImports,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -723,6 +745,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         loaderContext: this,
         pageExtensions,
         basePath,
+        collectedAsyncImports,
       })
     }
   }
@@ -731,7 +754,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   // Prefer to modify next/src/server/app-render/entry-base.ts since this is shared with Turbopack.
   // Any changes to this code should be reflected in Turbopack's app_source.rs and/or app-renderer.tsx as well.
-  return await loadEntrypoint(
+  const code = await loadEntrypoint(
     'app-page',
     {
       VAR_DEFINITION_PAGE: page,
@@ -746,6 +769,19 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       __next_app_load_chunk__: '() => Promise.resolve()',
     }
   )
+
+  // Evaluated the imported modules early in the generated code
+  const earlyEvaluateCode =
+    nextConfigExperimentalUseEarlyImport &&
+    process.env.NODE_ENV === 'production'
+      ? collectedAsyncImports
+          .map((modulePath) => {
+            return `import ${JSON.stringify(modulePath)};`
+          })
+          .join('\n')
+      : ''
+
+  return earlyEvaluateCode + code
 }
 
 export default nextAppLoader

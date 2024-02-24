@@ -1,5 +1,5 @@
-a[target='_blank']:after {
-  content: '\1F5D7';
+a[target="_blank"]:after {
+  content: "\1F5D7";
 }
 
 /*

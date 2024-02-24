@@ -1,7 +1,3 @@
-export default function Default() {
-  return (
-    <div>
-      <div>Default</div>
-    </div>
-  )
+export default function Page() {
+  return '@slot default'
 }

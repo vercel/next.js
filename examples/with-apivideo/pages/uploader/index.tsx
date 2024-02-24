@@ -1,63 +1,65 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import React, { ChangeEvent, useEffect, useRef, useState } from 'react'
-import Card from '../../components/Card'
-import { VideoUploader, VideoUploadResponse } from '@api.video/video-uploader'
-import Status from '../../components/Status'
-import { useRouter } from 'next/router'
+import Head from "next/head";
+import Image from "next/image";
+import React, { ChangeEvent, useEffect, useRef, useState } from "react";
+import Card from "../../components/Card";
+import { VideoUploader, VideoUploadResponse } from "@api.video/video-uploader";
+import Status from "../../components/Status";
+import { useRouter } from "next/router";
 
 export default function Uploader() {
   const [uploadToken, setUploadToken] = useState<{ token: string } | undefined>(
-    undefined
-  )
+    undefined,
+  );
   const [uploadProgress, setUploadProgress] = useState<number | undefined>(
-    undefined
-  )
-  const [video, setVideo] = useState<VideoUploadResponse | undefined>(undefined)
-  const [ready, setReady] = useState<boolean>(false)
-  const [playable, setPlayable] = useState<boolean>(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const router = useRouter()
+    undefined,
+  );
+  const [video, setVideo] = useState<VideoUploadResponse | undefined>(
+    undefined,
+  );
+  const [ready, setReady] = useState<boolean>(false);
+  const [playable, setPlayable] = useState<boolean>(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    fetch('/api/uploadToken')
+    fetch("/api/uploadToken")
       .then((res) => res.json())
-      .then((res) => setUploadToken(res))
-  }, [])
+      .then((res) => setUploadToken(res));
+  }, []);
 
   const handleSelectFile = async (
-    e: ChangeEvent<HTMLInputElement>
+    e: ChangeEvent<HTMLInputElement>,
   ): Promise<void> => {
-    e.preventDefault()
-    if (!uploadToken || !uploadToken.token) return
+    e.preventDefault();
+    if (!uploadToken || !uploadToken.token) return;
     const clearState = (): void => {
-      setReady(false)
-      setPlayable(false)
-      setVideo(undefined)
-      setUploadProgress(undefined)
-    }
-    clearState()
-    if (!e.target.files || !uploadToken) return
-    const file = e.target.files[0]
+      setReady(false);
+      setPlayable(false);
+      setVideo(undefined);
+      setUploadProgress(undefined);
+    };
+    clearState();
+    if (!e.target.files || !uploadToken) return;
+    const file = e.target.files[0];
     const uploader = new VideoUploader({
       file,
       uploadToken: uploadToken.token,
-    })
+    });
     uploader.onProgress((e) =>
-      setUploadProgress(Math.round((e.uploadedBytes * 100) / e.totalBytes))
-    )
+      setUploadProgress(Math.round((e.uploadedBytes * 100) / e.totalBytes)),
+    );
     uploader.onPlayable(() => {
-      setPlayable(true)
-      setReady(true)
-    })
-    const video = await uploader.upload()
-    setVideo(video)
-  }
+      setPlayable(true);
+      setReady(true);
+    });
+    const video = await uploader.upload();
+    setVideo(video);
+  };
 
   const handleNavigate = (): void => {
-    if (!video) return
-    router.push(`/videos/${video.videoId}?uploaded=1`)
-  }
+    if (!video) return;
+    router.push(`/videos/${video.videoId}?uploaded=1`);
+  };
 
   return (
     <div className="global-container">
@@ -78,15 +80,15 @@ export default function Uploader() {
         <div className="texts-container">
           <p>
             Hey fellow dev! 👋 <br />
-            Welcome to this basic example of video uploader provided by{' '}
+            Welcome to this basic example of video uploader provided by{" "}
             <a
               href="https://api.video"
               target="_blank"
               rel="noopener noreferrer"
             >
               api.video
-            </a>{' '}
-            and powered by{' '}
+            </a>{" "}
+            and powered by{" "}
             <a
               href="https://nextjs.org/"
               target="_blank"
@@ -99,15 +101,15 @@ export default function Uploader() {
           <p>
             api.video provides APIs and clients to handle all your video needs.
             <br />
-            This app is built with the{' '}
+            This app is built with the{" "}
             <a
               href="https://github.com/apivideo/api.video-nodejs-client"
               target="_blank"
               rel="noopener noreferrer"
             >
               api.video Node.js client
-            </a>{' '}
-            and the{' '}
+            </a>{" "}
+            and the{" "}
             <a
               href="https://github.com/apivideo/api.video-typescript-uploader"
               target="_blank"
@@ -118,7 +120,7 @@ export default function Uploader() {
             .
           </p>
           <p>
-            You can{' '}
+            You can{" "}
             <a
               href="https://github.com/vercel/next.js/tree/canary/examples/with-apivideo-upload"
               target="_blank"
@@ -180,7 +182,7 @@ export default function Uploader() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
@@ -191,5 +193,5 @@ export default function Uploader() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

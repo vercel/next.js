@@ -9,7 +9,7 @@ related:
     - app/api-reference/file-conventions/metadata/sitemap
 ---
 
-You can use the `generateSiteMaps` function to generate multiple sitemaps for your application.
+You can use the `generateSitemaps` function to generate multiple sitemaps for your application.
 
 ## Returns
 
@@ -67,7 +67,7 @@ export default async function sitemap({ id }) {
     `SELECT id, date FROM products WHERE id BETWEEN ${start} AND ${end}`
   )
   return products.map((product) => ({
-    url: `${BASE_URL}/product/${id}`
+    url: `${BASE_URL}/product/${id}`,
     lastModified: product.date,
   }))
 }

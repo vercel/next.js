@@ -19,9 +19,11 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
 
     this.normalizers = new DevAppNormalizers(appDir, extensions)
 
-    // Match any page file that ends with `/page.${extension}` under the app
+    // Match any page file that ends with `/page.${extension}` or `/default.${extension}` under the app
     // directory.
-    this.expression = new RegExp(`[/\\\\]page\\.(?:${extensions.join('|')})$`)
+    this.expression = new RegExp(
+      `[/\\\\](page|default)\\.(?:${extensions.join('|')})$`
+    )
   }
 
   protected async transform(

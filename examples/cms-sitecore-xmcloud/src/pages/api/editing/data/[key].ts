@@ -1,4 +1,4 @@
-import { EditingDataMiddleware } from '@sitecore-jss/sitecore-jss-nextjs/editing'
+import { EditingDataMiddleware } from "@sitecore-jss/sitecore-jss-nextjs/editing";
 
 /**
  * This Next.js API route is used to handle Sitecore editor data storage and retrieval by key
@@ -13,13 +13,13 @@ import { EditingDataMiddleware } from '@sitecore-jss/sitecore-jss-nextjs/editing
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '2mb',
+      sizeLimit: "2mb",
     },
     responseLimit: false,
   },
-}
+};
 
 // Wire up the EditingDataMiddleware handler
-const handler = new EditingDataMiddleware().getHandler()
+const handler = new EditingDataMiddleware().getHandler();
 
-export default handler
+export default handler;

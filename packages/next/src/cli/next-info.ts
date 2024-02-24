@@ -7,6 +7,10 @@ import { bold, cyan, yellow } from '../lib/picocolors'
 import type { CliCommand } from '../lib/commands'
 import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
+import { getRegistry } from '../lib/helpers/get-registry'
+import { parseVersionInfo } from '../server/dev/parse-version-info'
+import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
+import { warn } from '../build/output/log'
 
 const dir = process.cwd()
 
@@ -104,43 +108,22 @@ async function printDefaultInfo() {
   const installedRelease = getPackageVersion('next')
   const nextConfig = await getNextConfig()
 
-  console.log(`
-Operating System:
-  Platform: ${os.platform()}
-  Arch: ${os.arch()}
-  Version: ${os.version()}
-Binaries:
-  Node: ${process.versions.node}
-  npm: ${getBinaryVersion('npm')}
-  Yarn: ${getBinaryVersion('yarn')}
-  pnpm: ${getBinaryVersion('pnpm')}
-Relevant Packages:
-  next: ${installedRelease}
-  eslint-config-next: ${getPackageVersion('eslint-config-next')}
-  react: ${getPackageVersion('react')}
-  react-dom: ${getPackageVersion('react-dom')}
-  typescript: ${getPackageVersion('typescript')}
-Next.js Config:
-  output: ${nextConfig.output}
-
-`)
-
+  let stalenessWithTitle = ''
+  let title = ''
+  let versionInfo
   try {
-    const res = await fetch(
-      'https://api.github.com/repos/vercel/next.js/releases'
-    )
-    const releases = await res.json()
-    const newestRelease = releases[0].tag_name.replace(/^v/, '')
+    const registry = getRegistry()
+    const res = await fetch(`${registry}-/package/next/dist-tags`)
 
-    if (installedRelease !== newestRelease) {
-      console.warn(
-        `${yellow(
-          bold('warn')
-        )}  - Latest canary version not detected, detected: "${installedRelease}", newest: "${newestRelease}".
-        Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
-        Read more - https://nextjs.org/docs/messages/opening-an-issue`
-      )
-    }
+    const tags = await res.json()
+
+    versionInfo = parseVersionInfo({
+      installed: installedRelease,
+      latest: tags.latest,
+      canary: tags.canary,
+    })
+    title = getStaleness(versionInfo).title
+    if (title) stalenessWithTitle = ` // ${title}`
   } catch (e) {
     console.warn(
       `${yellow(
@@ -152,6 +135,36 @@ Next.js Config:
       Make sure to try the latest canary version (eg.: \`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
       Read more - https://nextjs.org/docs/messages/opening-an-issue`
     )
+  }
+
+  const cpuCores = os.cpus().length
+  console.log(`
+Operating System:
+  Platform: ${os.platform()}
+  Arch: ${os.arch()}
+  Version: ${os.version()}
+  Available memory (MB): ${Math.ceil(os.totalmem() / 1024 / 1024)}
+  Available CPU cores: ${cpuCores > 0 ? cpuCores : 'N/A'}
+Binaries:
+  Node: ${process.versions.node}
+  npm: ${getBinaryVersion('npm')}
+  Yarn: ${getBinaryVersion('yarn')}
+  pnpm: ${getBinaryVersion('pnpm')}
+Relevant Packages:
+  next: ${installedRelease}${stalenessWithTitle}
+  eslint-config-next: ${getPackageVersion('eslint-config-next')}
+  react: ${getPackageVersion('react')}
+  react-dom: ${getPackageVersion('react-dom')}
+  typescript: ${getPackageVersion('typescript')}
+Next.js Config:
+  output: ${nextConfig.output}
+
+`)
+
+  if (versionInfo?.staleness.startsWith('stale')) {
+    warn(`${title}
+   Please try the latest canary version (\`npm install next@canary\`) to confirm the issue still exists before creating a new issue.
+   Read more - https://nextjs.org/docs/messages/opening-an-issue`)
   }
 }
 

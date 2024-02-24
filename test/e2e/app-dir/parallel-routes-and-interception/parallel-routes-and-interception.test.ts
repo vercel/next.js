@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 createNextDescribe(
@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev }) => {
+  ({ next, isNextDev, isNextStart }) => {
     describe('parallel routes', () => {
       it('should support parallel route tab bars', async () => {
         const browser = await next.browser('/parallel-tab-bar')
@@ -330,7 +330,11 @@ createNextDescribe(
         await browser.elementByCss('[href="/parallel-catchall/baz"]').click()
         await check(
           () => browser.waitForElementByCss('#main').text(),
-          'main catchall'
+          /main catchall/
+        )
+        await check(
+          () => browser.waitForElementByCss('#main').text(),
+          /catchall page client component/
         )
         await check(
           () => browser.waitForElementByCss('#slot-content').text(),
@@ -402,6 +406,57 @@ createNextDescribe(
           () => browser.waitForElementByCss('#bar').text(),
           `{"slug":"foo","id":"bar"}`
         )
+      })
+
+      it('should load CSS for a default page that exports another page', async () => {
+        const browser = await next.browser('/default-css')
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // the more page will now be using the page's `default.tsx` file, which re-exports the root page.
+        await browser.elementByCss('[href="/default-css/more"]').click()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+
+        // ensure that everything still works on a fresh load
+        await browser.refresh()
+
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.getElementById("red-text")).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      it('should handle a loading state', async () => {
+        const browser = await next.browser('/with-loading')
+        expect(await browser.elementById('slot').text()).toBe('Root Slot')
+        expect(await browser.elementById('children').text()).toBe('Root Page')
+
+        // should have triggered a loading state
+        expect(
+          await browser
+            .elementByCss('[href="/with-loading/foo"]')
+            .click()
+            .waitForElementByCss('#loading-page')
+            .text()
+        ).toBe('Loading...')
+
+        // should eventually load the full page
+        await retry(async () => {
+          expect(await browser.elementById('slot').text()).toBe('Nested Slot')
+          expect(await browser.elementById('children').text()).toBe(
+            'Welcome to Foo Page'
+          )
+        })
       })
 
       if (isNextDev) {
@@ -817,6 +872,20 @@ createNextDescribe(
 
         await check(() => browser.waitForElementByCss('#main-slot').text(), '1')
       })
+
+      if (isNextStart) {
+        it('should not have /default paths in the prerender manifest', async () => {
+          const prerenderManifest = JSON.parse(
+            await next.readFile('.next/prerender-manifest.json')
+          )
+
+          const routes = Object.keys(prerenderManifest.routes)
+
+          for (const route of routes) {
+            expect(route.endsWith('/default')).toBe(false)
+          }
+        })
+      }
     })
   }
 )

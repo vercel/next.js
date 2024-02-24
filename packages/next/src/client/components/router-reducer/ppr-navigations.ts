@@ -9,7 +9,10 @@ import type {
   ChildSegmentMap,
   ReadyCacheNode,
 } from '../../../shared/lib/app-router-context.shared-runtime'
-import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
 import type { FetchServerResponseResult } from './fetch-server-response'
@@ -64,8 +67,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData,
-  prefetchHead: React.ReactNode,
-  isPrefetchStale: boolean
+  prefetchHead: React.ReactNode
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
   const oldRouterStateChildren = oldRouterState[1]
@@ -108,13 +110,48 @@ export function updateCacheNodeOnNavigation(
     const newSegmentChild = newRouterStateChild[0]
     const newSegmentKeyChild = createRouterCacheKey(newSegmentChild)
 
+    const oldSegmentChild =
+      oldRouterStateChild !== undefined ? oldRouterStateChild[0] : undefined
+
     const oldCacheNodeChild =
       oldSegmentMapChild !== undefined
         ? oldSegmentMapChild.get(newSegmentKeyChild)
         : undefined
 
     let taskChild: Task | null
-    if (matchSegment(newSegmentChild, oldRouterStateChild[0])) {
+    if (newSegmentChild === PAGE_SEGMENT_KEY) {
+      // This is a leaf segment — a page, not a shared layout. We always apply
+      // its data.
+      taskChild = spawnPendingTask(
+        newRouterStateChild,
+        prefetchDataChild !== undefined ? prefetchDataChild : null,
+        prefetchHead
+      )
+    } else if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
+      // This is another kind of leaf segment — a default route.
+      //
+      // Default routes have special behavior. When there's no matching segment
+      // for a parallel route, Next.js preserves the currently active segment
+      // during a client navigation — but not for initial render. The server
+      // leaves it to the client to account for this. So we need to handle
+      // it here.
+      if (oldRouterStateChild !== undefined) {
+        // Reuse the existing Router State for this segment. We spawn a "task"
+        // just to keep track of the updated router state; unlike most, it's
+        // already fulfilled and won't be affected by the dynamic response.
+        taskChild = spawnReusedTask(oldRouterStateChild)
+      } else {
+        // There's no currently active segment. Switch to the "create" path.
+        taskChild = spawnPendingTask(
+          newRouterStateChild,
+          prefetchDataChild !== undefined ? prefetchDataChild : null,
+          prefetchHead
+        )
+      }
+    } else if (
+      oldSegmentChild !== undefined &&
+      matchSegment(newSegmentChild, oldSegmentChild)
+    ) {
       if (
         oldCacheNodeChild !== undefined &&
         oldRouterStateChild !== undefined
@@ -127,8 +164,7 @@ export function updateCacheNodeOnNavigation(
             oldRouterStateChild,
             newRouterStateChild,
             prefetchDataChild,
-            prefetchHead,
-            isPrefetchStale
+            prefetchHead
           )
         } else {
           // The server didn't send any prefetch data for this segment. This
@@ -145,32 +181,16 @@ export function updateCacheNodeOnNavigation(
         taskChild = spawnPendingTask(
           newRouterStateChild,
           prefetchDataChild !== undefined ? prefetchDataChild : null,
-          prefetchHead,
-          isPrefetchStale
+          prefetchHead
         )
       }
     } else {
-      // The segment does not match.
-      if (newSegmentChild === DEFAULT_SEGMENT_KEY) {
-        // This is a special case related to default routes. When there's no
-        // matching segment for a parallel route, Next.js preserves the
-        // currently active segment during a client navigation — but not for
-        // initial render. The server leaves it to the client to account for
-        // this. So we need to handle it here.
-        //
-        // Reuse the existing Router State for this segment. We spawn a "task"
-        // just to keep track of the updated router state; unlike most, it's
-        // already fulfilled and won't be affected by the dynamic response.
-        taskChild = spawnReusedTask(oldRouterStateChild)
-      } else {
-        // This is a new tree. Switch to the "create" path.
-        taskChild = spawnPendingTask(
-          newRouterStateChild,
-          prefetchDataChild !== undefined ? prefetchDataChild : null,
-          prefetchHead,
-          isPrefetchStale
-        )
-      }
+      // This is a new tree. Switch to the "create" path.
+      taskChild = spawnPendingTask(
+        newRouterStateChild,
+        prefetchDataChild !== undefined ? prefetchDataChild : null,
+        prefetchHead
+      )
     }
 
     if (taskChild !== null) {
@@ -252,15 +272,13 @@ function patchRouterStateWithNewChildren(
 function spawnPendingTask(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode,
-  isPrefetchStale: boolean
+  prefetchHead: React.ReactNode
 ): Task {
   // Create a task that will later be fulfilled by data from the server.
   const pendingCacheNode = createPendingCacheNode(
     routerState,
     prefetchData,
-    prefetchHead,
-    isPrefetchStale
+    prefetchHead
   )
   return {
     route: routerState,
@@ -283,12 +301,7 @@ function spawnTaskForMissingData(routerState: FlightRouterState): Task {
   // Create a task for a new subtree that wasn't prefetched by the server.
   // This shouldn't really ever happen but it's here just in case the Seed Data
   // Tree and the Router State Tree disagree unexpectedly.
-  const pendingCacheNode = createPendingCacheNode(
-    routerState,
-    null,
-    null,
-    false
-  )
+  const pendingCacheNode = createPendingCacheNode(routerState, null, null)
   return {
     route: routerState,
     node: pendingCacheNode,
@@ -465,8 +478,7 @@ function finishTaskUsingDynamicDataPayload(
 function createPendingCacheNode(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode,
-  isPrefetchStale: boolean
+  prefetchHead: React.ReactNode
 ): ReadyCacheNode {
   const routerStateChildren = routerState[1]
   const prefetchDataChildren = prefetchData !== null ? prefetchData[1] : null
@@ -486,8 +498,7 @@ function createPendingCacheNode(
     const newCacheNodeChild = createPendingCacheNode(
       routerStateChild,
       prefetchDataChild === undefined ? null : prefetchDataChild,
-      prefetchHead,
-      isPrefetchStale
+      prefetchHead
     )
 
     const newSegmentMapChild: ChildSegmentMap = new Map()
@@ -505,15 +516,8 @@ function createPendingCacheNode(
     lazyData: null,
     parallelRoutes: parallelRoutes,
 
-    prefetchRsc:
-      // If the prefetched cache entry is stale, we don't show it. We wait for the
-      // dynamic data to stream in.
-      // TODO: This check is aruably too deep in the stack. Might be better to
-      // pass an empty prefetchData Cache Seed object instead.
-      !isPrefetchStale && maybePrefetchRsc !== undefined
-        ? maybePrefetchRsc
-        : null,
-    prefetchHead: !isPrefetchStale && isLeafSegment ? prefetchHead : null,
+    prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
+    prefetchHead: isLeafSegment ? prefetchHead : null,
 
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
@@ -698,6 +702,67 @@ function abortPendingCacheNode(
   const head = cacheNode.head
   if (isDeferredRsc(head)) {
     head.resolve(null)
+  }
+}
+
+export function updateCacheNodeOnPopstateRestoration(
+  oldCacheNode: CacheNode,
+  routerState: FlightRouterState
+) {
+  // A popstate navigation reads data from the local cache. It does not issue
+  // new network requests (unless the cache entries have been evicted). So, we
+  // update the cache to drop the prefetch  data for any segment whose dynamic
+  // data was already received. This prevents an unnecessary flash back to PPR
+  // state during a back/forward navigation.
+  //
+  // This function clones the entire cache node tree and sets the `prefetchRsc`
+  // field to `null` to prevent it from being rendered. We can't mutate the node
+  // in place because this is a concurrent data structure.
+
+  const routerStateChildren = routerState[1]
+  const oldParallelRoutes = oldCacheNode.parallelRoutes
+  const newParallelRoutes = new Map(oldParallelRoutes)
+  for (let parallelRouteKey in routerStateChildren) {
+    const routerStateChild: FlightRouterState =
+      routerStateChildren[parallelRouteKey]
+    const segmentChild = routerStateChild[0]
+    const segmentKeyChild = createRouterCacheKey(segmentChild)
+    const oldSegmentMapChild = oldParallelRoutes.get(parallelRouteKey)
+    if (oldSegmentMapChild !== undefined) {
+      const oldCacheNodeChild = oldSegmentMapChild.get(segmentKeyChild)
+      if (oldCacheNodeChild !== undefined) {
+        const newCacheNodeChild = updateCacheNodeOnPopstateRestoration(
+          oldCacheNodeChild,
+          routerStateChild
+        )
+        const newSegmentMapChild = new Map(oldSegmentMapChild)
+        newSegmentMapChild.set(segmentKeyChild, newCacheNodeChild)
+        newParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
+      }
+    }
+  }
+
+  // Only show prefetched data if the dynamic data is still pending.
+  //
+  // Tehnically, what we're actually checking is whether the dynamic network
+  // response was received. But since it's a streaming response, this does not
+  // mean that all the dynamic data has fully streamed in. It just means that
+  // _some_ of the dynamic data was received. But as a heuristic, we assume that
+  // the rest dynamic data will stream in quickly, so it's still better to skip
+  // the prefetch state.
+  const rsc = oldCacheNode.rsc
+  const shouldUsePrefetch = isDeferredRsc(rsc) && rsc.status === 'pending'
+
+  return {
+    lazyData: null,
+    rsc,
+    head: oldCacheNode.head,
+
+    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
+    prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
+
+    // These are the cloned children we computed above
+    parallelRoutes: newParallelRoutes,
   }
 }
 

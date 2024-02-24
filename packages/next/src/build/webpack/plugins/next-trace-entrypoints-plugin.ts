@@ -15,7 +15,7 @@ import {
 } from '../../webpack-config'
 import type { NextConfigComplete } from '../../../server/config-shared'
 import { loadBindings } from '../../swc'
-import { isMatch } from 'next/dist/compiled/micromatch'
+import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
@@ -462,8 +462,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               ...this.traceIgnores,
               '**/node_modules/**',
             ]
+
+            // pre-compile the ignore matcher to avoid repeating on every ignoreFn call
+            const isIgnoreMatcher = picomatch(ignores, {
+              contains: true,
+              dot: true,
+            })
             const ignoreFn = (path: string) => {
-              return isMatch(path, ignores, { contains: true, dot: true })
+              return isIgnoreMatcher(path)
             }
 
             await finishModulesSpan
