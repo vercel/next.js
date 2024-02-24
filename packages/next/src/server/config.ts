@@ -1041,9 +1041,7 @@ export default async function loadConfig(
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
-        const [errorMessages, shouldExit] = normalizeZodErrors(
-          (state as any).error
-        )
+        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
         // ident list item
         for (const error of errorMessages) {
           messages.push(`    ${error}`)
@@ -1108,7 +1106,7 @@ export default async function loadConfig(
     const completeConfig = assignDefaults(
       dir,
       {
-        configOrigin: relative(dir, path!),
+        configOrigin: relative(dir, path),
         configFile: path,
         configFileName,
         ...userConfig,
@@ -1118,7 +1116,7 @@ export default async function loadConfig(
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
-    const notSupportedConfigPath = findUp.sync(
+    const unsupportedConfig = findUp.sync(
       [
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
@@ -1126,10 +1124,10 @@ export default async function loadConfig(
       ],
       { cwd: dir }
     )
-    if (notSupportedConfigPath?.length) {
+    if (unsupportedConfig?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
-          notSupportedConfigPath
+          unsupportedConfig
         )}' is not supported. Please replace the file with 'next.config.js', 'next.config.mjs', or 'next.config.ts'.`
       )
     }
