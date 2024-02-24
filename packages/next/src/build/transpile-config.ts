@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { transform, transformSync } from './swc'
 import type { Options } from '@swc/core'
@@ -45,6 +45,26 @@ function resolveSWCOptions(_tsConfig: any): Options {
   return baseSWCOptions
 }
 
+async function validateModuleType(
+  nextConfigPath: string,
+  cwd: string
+): Promise<'commonjs' | 'es6'> {
+  if (nextConfigPath.endsWith('.mts')) {
+    return 'es6'
+  }
+
+  let packageJson: any
+  try {
+    packageJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
+  } catch {}
+
+  if (packageJson.type === 'module') {
+    return 'es6'
+  }
+
+  return 'commonjs'
+}
+
 export async function transpileConfig({
   nextConfigPath,
   cwd,
@@ -52,7 +72,11 @@ export async function transpileConfig({
   nextConfigPath: string
   cwd: string
 }) {
-  const tempPath = join(cwd, 'next.config.js')
+  const moduleType = await validateModuleType(nextConfigPath, cwd)
+  const isESM = moduleType === 'es6'
+  // We are going to convert next config as CJS to use require hook
+  const tempConfigPath = join(cwd, `next.config.${isESM ? 'cjs' : 'js'}`)
+
   let tsConfig: any
   try {
     // TODO: Use dynamic import when repo TS upgraded >= 5.3
@@ -68,12 +92,13 @@ export async function transpileConfig({
     const nextConfigStr = await readFile(nextConfigPath, 'utf8')
     const { code } = await transform(nextConfigStr, swcOptions)
 
-    await writeFile(tempPath, code, 'utf8')
+    await writeFile(tempConfigPath, code, 'utf8')
 
-    return await import(tempPath)
+    return await import(tempConfigPath)
   } catch (error) {
     throw error
   } finally {
     delete require.extensions['.ts']
+    await unlink(tempConfigPath)
   }
 }
