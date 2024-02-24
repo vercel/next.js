@@ -998,8 +998,7 @@ export default async function loadConfig(
         )
 
         userConfigModule = await transpileConfig({
-          configPath: path,
-          configFileName,
+          nextConfigPath: path,
           cwd: dir,
         })
       } else {
@@ -1027,7 +1026,9 @@ export default async function loadConfig(
 
     const userConfig = await normalizeConfig(
       phase,
-      userConfigModule.default || userConfigModule
+      userConfigModule.default?.default ??
+        userConfigModule.default ??
+        userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
@@ -1040,7 +1041,9 @@ export default async function loadConfig(
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
-        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        const [errorMessages, shouldExit] = normalizeZodErrors(
+          (state as any).error
+        )
         // ident list item
         for (const error of errorMessages) {
           messages.push(`    ${error}`)
@@ -1105,7 +1108,7 @@ export default async function loadConfig(
     const completeConfig = assignDefaults(
       dir,
       {
-        configOrigin: relative(dir, path),
+        configOrigin: relative(dir, path!),
         configFile: path,
         configFileName,
         ...userConfig,
