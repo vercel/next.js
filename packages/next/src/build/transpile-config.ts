@@ -94,7 +94,7 @@ export async function transpileConfig({
 
     await writeFile(tempConfigPath, code, 'utf8')
 
-    return await import(tempConfigPath)
+    return (await import(tempConfigPath)).default
   } catch (error) {
     throw error
   } finally {

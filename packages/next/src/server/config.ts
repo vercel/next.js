@@ -1026,9 +1026,7 @@ export default async function loadConfig(
 
     const userConfig = await normalizeConfig(
       phase,
-      userConfigModule.default?.default ??
-        userConfigModule.default ??
-        userConfigModule
+      userConfigModule.default || userConfigModule
     )
 
     if (!process.env.NEXT_MINIMAL) {
