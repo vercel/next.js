@@ -1,5 +1,5 @@
 import { createNextDescribe } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import type { Request } from 'playwright'
 
 createNextDescribe(
