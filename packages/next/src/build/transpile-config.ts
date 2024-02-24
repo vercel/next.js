@@ -1,24 +1,25 @@
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { transform, transformSync } from './swc'
+import type { Options } from '@swc/core'
 
-function registerSWCTransform(swcOptions: any) {
-  require.extensions['.ts'] = function (m: any, filename) {
+function registerSWCTransform(swcOptions: Options) {
+  require.extensions['.ts'] = function (m: any, originalFileName) {
     const originalJsHandler = require.extensions['.js']
 
     const _compile = m._compile
 
-    m._compile = function (code: string, fileName: string) {
+    m._compile = function (code: string, filename: string) {
       const swc = transformSync(code, swcOptions)
-      return _compile.call(this, swc.code, fileName)
+      return _compile.call(this, swc.code, filename)
     }
 
-    return originalJsHandler(m, filename)
+    return originalJsHandler(m, originalFileName)
   }
 }
 
-function resolveSWCOptions(tsConfig: any) {
-  const baseSWCOptions = {
+function resolveSWCOptions(_tsConfig: any): Options {
+  const baseSWCOptions: Options = {
     jsc: {
       target: 'es5',
       parser: {
@@ -31,17 +32,17 @@ function resolveSWCOptions(tsConfig: any) {
     isModule: 'unknown',
   }
 
-  const swcOptions = {
-    ...baseSWCOptions,
-    // TODO: Find out why throw "SIGABRT" and fix it.
-    // jsc: {
-    //   ...baseSWCOptions.jsc,
-    //   baseUrl: tsConfig.compilerOptions?.baseUrl,
-    //   paths: tsConfig.compilerOptions?.paths,
-    // },
-  }
+  // See https://github.com/vercel/next.js/pull/57656#issuecomment-1962359584
+  // const swcOptions: Options = {
+  //   ...baseSWCOptions,
+  //   jsc: {
+  //     ...baseSWCOptions.jsc,
+  //     baseUrl: tempResolveBase,
+  //     paths: tsConfig.compilerOptions?.paths,
+  //   },
+  // }
 
-  return swcOptions
+  return baseSWCOptions
 }
 
 export async function transpileConfig({
@@ -54,13 +55,14 @@ export async function transpileConfig({
   const tempPath = join(cwd, 'next.config.js')
   let tsConfig: any
   try {
+    // TODO: Use dynamic import when repo TS upgraded >= 5.3
     tsConfig = JSON.parse(await readFile(join(cwd, 'tsconfig.json'), 'utf8'))
   } catch {
     tsConfig = {}
   }
 
   const swcOptions = resolveSWCOptions(tsConfig)
-  await registerSWCTransform(swcOptions)
+  registerSWCTransform(swcOptions)
 
   try {
     const nextConfigStr = await readFile(nextConfigPath, 'utf8')
