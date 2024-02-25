@@ -3,18 +3,22 @@ import { join } from 'path'
 import { transform, transformSync } from './swc'
 import type { Options } from '@swc/core'
 
+const tsExtensions = ['.ts', '.cts', '.mts']
+
 function registerSWCTransform(swcOptions: Options) {
-  require.extensions['.ts'] = function (m: any, originalFileName) {
-    const originalJsHandler = require.extensions['.js']
+  for (const ext of tsExtensions) {
+    require.extensions[ext] = function (m: any, originalFileName) {
+      const originalJsHandler = require.extensions['.js']
 
-    const _compile = m._compile
+      const _compile = m._compile
 
-    m._compile = function (code: string, filename: string) {
-      const swc = transformSync(code, swcOptions)
-      return _compile.call(this, swc.code, filename)
+      m._compile = function (code: string, filename: string) {
+        const swc = transformSync(code, swcOptions)
+        return _compile.call(this, swc.code, filename)
+      }
+
+      return originalJsHandler(m, originalFileName)
     }
-
-    return originalJsHandler(m, originalFileName)
   }
 }
 
@@ -98,7 +102,7 @@ export async function transpileConfig({
   } catch (error) {
     throw error
   } finally {
-    delete require.extensions['.ts']
+    tsExtensions.forEach((ext) => delete require.extensions[ext])
     await unlink(tempConfigPath)
   }
 }
