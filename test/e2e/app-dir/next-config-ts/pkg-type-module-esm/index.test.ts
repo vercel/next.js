@@ -7,6 +7,6 @@ describe('pkg-type-module-esm', () => {
 
   it('should support ESM project package.json type module', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foo')
+    expect($('p').text()).toBe('foobarbaz')
   })
 })

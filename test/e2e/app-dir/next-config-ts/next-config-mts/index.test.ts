@@ -7,6 +7,6 @@ describe('next-config-mts', () => {
 
   it('should handle next.config.mts as an ESM module', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('foo')
+    expect($('p').text()).toBe('foobarbaz')
   })
 })
