@@ -1,5 +1,5 @@
 import type { NextConfig } from 'next'
-import { foo } from './foo'
+import { foo } from './foo.mts'
 
 const nextConfig: NextConfig = {
   env: {
