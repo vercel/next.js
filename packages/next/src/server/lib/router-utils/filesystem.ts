@@ -155,7 +155,7 @@ export async function setupFsCheck(opts: {
     } catch (err: any) {
       if (err.code !== 'ENOENT') throw err
       throw new Error(
-        `Missing ${buildIdPath}. Run \`next build\` before using \`next start\`, or use \`next dev\` for development.`
+        `Missing ${BUILD_ID_FILE}. Run \`next build\` before using \`next start\`, or use \`next dev\` for development.`
       )
     }
 
