@@ -114,7 +114,7 @@ impl SinglePatternMapping {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolveable(request) => throw_module_not_found_expr(request),
             Self::Ignored => {
-                quote!("undefined" as Expr)
+                quote!("{}" as Expr)
             }
             Self::Module(_) | Self::ModuleLoader(_) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("__turbopack_require__")),
@@ -220,7 +220,7 @@ impl SinglePatternMapping {
                 type_args: None,
             }),
             Self::Ignored => {
-                quote!("Promise.resolve(undefined)" as Expr)
+                quote!("Promise.resolve({})" as Expr)
             }
             Self::Module(_) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
