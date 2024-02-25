@@ -13,7 +13,7 @@ function registerSWCTransform(swcOptions: Options, isESM: boolean) {
   if (isESM) {
     // TODO: Find out how to transpile .js as CJS on ESM projects
     // On ESM Projects, we need to transform .js to CJS format to require.
-    transformableExtensions.push('.js')
+    // transformableExtensions.push('.js')
   }
 
   for (const ext of transformableExtensions) {
