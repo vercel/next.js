@@ -4,12 +4,20 @@ import { transform, transformSync } from './swc'
 import type { Options } from '@swc/core'
 
 const tsExtensions = ['.ts', '.cts', '.mts']
+const esmExtensions = ['.mjs']
+const transformableExtensions = tsExtensions.concat(esmExtensions)
 
-function registerSWCTransform(swcOptions: Options) {
-  for (const ext of tsExtensions) {
+function registerSWCTransform(swcOptions: Options, isESM: boolean) {
+  const originalJsHandler = require.extensions['.js']
+
+  if (isESM) {
+    // TODO: Find out how to transpile .js as CJS on ESM projects
+    // On ESM Projects, we need to transform .js to CJS format to require.
+    transformableExtensions.push('.js')
+  }
+
+  for (const ext of transformableExtensions) {
     require.extensions[ext] = function (m: any, originalFileName) {
-      const originalJsHandler = require.extensions['.js']
-
       const _compile = m._compile
 
       m._compile = function (code: string, filename: string) {
@@ -49,21 +57,14 @@ function resolveSWCOptions(_tsConfig: any): Options {
   return baseSWCOptions
 }
 
-async function validateModuleType(
-  nextConfigPath: string,
-  cwd: string
-): Promise<'commonjs' | 'es6'> {
-  if (nextConfigPath.endsWith('.mts')) {
-    return 'es6'
-  }
-
+async function validateModuleType(cwd: string): Promise<'commonjs' | 'module'> {
   let packageJson: any
   try {
     packageJson = JSON.parse(await readFile(join(cwd, 'package.json'), 'utf8'))
   } catch {}
 
   if (packageJson.type === 'module') {
-    return 'es6'
+    return 'module'
   }
 
   return 'commonjs'
@@ -76,8 +77,8 @@ export async function transpileConfig({
   nextConfigPath: string
   cwd: string
 }) {
-  const moduleType = await validateModuleType(nextConfigPath, cwd)
-  const isESM = moduleType === 'es6'
+  const moduleType = await validateModuleType(cwd)
+  const isESM = moduleType === 'module'
   // We are going to convert next config as CJS to use require hook
   const tempConfigPath = join(cwd, `next.config.${isESM ? 'cjs' : 'js'}`)
 
@@ -90,7 +91,7 @@ export async function transpileConfig({
   }
 
   const swcOptions = resolveSWCOptions(tsConfig)
-  registerSWCTransform(swcOptions)
+  registerSWCTransform(swcOptions, isESM)
 
   try {
     const nextConfigStr = await readFile(nextConfigPath, 'utf8')
@@ -102,7 +103,7 @@ export async function transpileConfig({
   } catch (error) {
     throw error
   } finally {
-    tsExtensions.forEach((ext) => delete require.extensions[ext])
+    transformableExtensions.forEach((ext) => delete require.extensions[ext])
     await unlink(tempConfigPath)
   }
 }
