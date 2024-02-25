@@ -280,10 +280,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root),
                     custom_conditions: vec!["development".to_string()],
+                    browser: true,
                     ..Default::default()
                 }
                 .cell(),
             )],
+            browser: true,
             ..Default::default()
         }
         .cell(),
