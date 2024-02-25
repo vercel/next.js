@@ -296,7 +296,14 @@ async fn get_directory_tree_internal(
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
-        bail!("{} must be a directory", dir.to_string().await?);
+        // the file watcher might invalidate things in the wrong order,
+        // and we have to account for the eventual consistency of turbo-tasks
+        // so we just return an empty tree here.
+        return Ok(DirectoryTree {
+            subdirectories: Default::default(),
+            components: Components::default().cell(),
+        }
+        .cell());
     };
     let page_extensions_value = page_extensions.await?;
 
@@ -381,7 +388,7 @@ async fn get_directory_tree_internal(
                 // appDir ignores paths starting with an underscore
                 if !basename.starts_with('_') {
                     let result = get_directory_tree(dir, page_extensions);
-                    subdirectories.insert(get_underscore_normalized_path(basename), result);
+                    subdirectories.insert(basename.to_string(), result);
                 }
             }
             // TODO(WEB-952) handle symlinks in app dir
@@ -1143,11 +1150,6 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         }
     }
     Ok(Vc::cell(result))
-}
-
-/// If path contains %5F, replace it with _. [reference](https://github.com/vercel/next.js/blob/c390c1662bc79e12cf7c037dcb382ef5ead6e492/packages/next/src/build/entries.ts#L119)
-fn get_underscore_normalized_path(path: &str) -> String {
-    path.replace("%5F", "_")
 }
 
 /// Returns the global metadata for an app directory.

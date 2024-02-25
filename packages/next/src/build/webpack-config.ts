@@ -969,6 +969,14 @@ export default async function getBaseWebpackConfig(
           return false
         }
 
+        if (isNodeServer || isEdgeServer) {
+          return {
+            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            chunks: 'all',
+            minChunks: 2,
+          }
+        }
+
         const frameworkCacheGroup = {
           chunks: 'all' as const,
           name: 'framework',
@@ -985,21 +993,6 @@ export default async function getBaseWebpackConfig(
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
           // becoming a part of the commons chunk)
-          enforce: true,
-        }
-
-        const nextRuntimeCacheGroup = {
-          chunks: 'all' as const,
-          name: 'next-runtime',
-          test(module: any) {
-            const resource = module.nameForCondition?.()
-            return resource
-              ? nextFrameworkPaths.some((pkgPath) =>
-                  resource.startsWith(pkgPath)
-                )
-              : false
-          },
-          priority: 30,
           enforce: true,
         }
 
@@ -1043,18 +1036,6 @@ export default async function getBaseWebpackConfig(
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
-        }
-
-        if (isNodeServer || isEdgeServer) {
-          return {
-            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
-            cacheGroups: {
-              nextRuntime: nextRuntimeCacheGroup,
-              framework: frameworkCacheGroup,
-              lib: libCacheGroup,
-            },
-            minChunks: 2,
-          }
         }
 
         // client chunking
