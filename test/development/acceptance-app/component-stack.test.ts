@@ -24,6 +24,7 @@ describe('Component Stack in error overlay', () => {
         div
         Component
         main
+        Mismatch
         InnerLayoutRouter
         RedirectErrorBoundary
         RedirectBoundary
@@ -37,6 +38,7 @@ describe('Component Stack in error overlay', () => {
         OuterLayoutRouter
         body
         html
+        RootLayout
         RedirectErrorBoundary
         RedirectBoundary
         NotFoundErrorBoundary
