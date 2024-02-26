@@ -13,7 +13,7 @@
     "react-dom": "18.2.0",
     "react-instantsearch-dom": "^6.40.4",
     "tailwindcss": "3.3.3",
-    "typescript": "5.1.6"
+    "typescript": "^5.3.3"
   },
   "devDependencies": {
     "@types/node": "^20.7.0",
