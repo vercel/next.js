@@ -79,7 +79,7 @@ const program = new MyRootCommand()
 program
   .name('next')
   .description(
-    'The Next.js CLI allows you to develop, build, and start your application, and more.'
+    'The Next.js CLI allows you to develop, build, start your application, and more.'
   )
   .configureHelp({
     formatHelp: (cmd, helper) => formatCliHelpOutput(cmd, helper),
