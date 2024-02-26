@@ -212,7 +212,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
         "./index.js:7:1
-        Ecmascript file had an error
+        Parsing ecmascript source code failed
           5 |     div
           6 |   )
         > 7 | }
