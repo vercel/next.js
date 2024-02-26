@@ -1,34 +1,34 @@
-import React from 'react'
-import Image from 'next/image'
-import Link from 'next/link'
+import React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import {
   InstantSearch,
   Hits,
   Highlight,
   connectSearchBox,
-} from 'react-instantsearch-dom'
-import { instantMeiliSearch } from '@meilisearch/instant-meilisearch'
-import logo from '../assets/meilisearch.svg'
+} from "react-instantsearch-dom";
+import { instantMeiliSearch } from "@meilisearch/instant-meilisearch";
+import logo from "../assets/meilisearch.svg";
 
-const searchClient = instantMeiliSearch(
+const { searchClient } = instantMeiliSearch(
   process.env.NEXT_PUBLIC_MEILISEARCH_HOST,
   process.env.NEXT_PUBLIC_MEILISEARCH_SEARCH_API_KEY,
-  { primaryKey: 'id' }
-)
+  { primaryKey: "id" },
+);
 
 interface HitProps {
   hit: {
-    name: string
-    image: string
-    description: string
-    genres: string[]
-  }
+    name: string;
+    image: string;
+    description: string;
+    genres: string[];
+  };
 }
 
 interface SearchBoxProps {
-  currentRefinement: string
-  isSearchStalled: boolean
-  refine: Function
+  currentRefinement: string;
+  isSearchStalled: boolean;
+  refine: Function;
 }
 
 const SearchBox = ({
@@ -47,12 +47,12 @@ const SearchBox = ({
     {isSearchStalled ? (
       <div className="my-5 text-center text-primary">Loading...</div>
     ) : (
-      ''
+      ""
     )}
   </form>
-)
+);
 
-const CustomSearchBox = connectSearchBox(SearchBox)
+const CustomSearchBox = connectSearchBox(SearchBox);
 
 const Hit = ({ hit }: HitProps) => {
   return (
@@ -62,7 +62,7 @@ const Hit = ({ hit }: HitProps) => {
         width="0"
         height="0"
         sizes="100vw"
-        alt={hit.name + ' steam banner'}
+        alt={hit.name + " steam banner"}
         className="w-full sm:max-w-[230px] h-auto rounded-xl"
       ></Image>
       <div className="flex flex-col justify-center">
@@ -74,8 +74,8 @@ const Hit = ({ hit }: HitProps) => {
         </div>
       </div>
     </div>
-  )
-}
+  );
+};
 
 export default function Home() {
   return (
@@ -99,5 +99,5 @@ export default function Home() {
         </InstantSearch>
       </main>
     </div>
-  )
+  );
 }
