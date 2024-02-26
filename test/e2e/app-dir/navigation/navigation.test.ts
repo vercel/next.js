@@ -862,5 +862,57 @@ createNextDescribe(
         })
       })
     })
+    ;['dynamic', 'static'].forEach((variant) => {
+      describe(`get pathname for ${variant} mode`, () => {
+        const homePathname = `/get-pathname`
+        const variantHomePathname = `/get-pathname/${variant}`
+
+        it(`should return correct pathname`, async () => {
+          const browser = await next.browser(homePathname)
+          await browser
+            .elementByCss(`#${variant}`)
+            .click()
+            .waitForElementByCss(`#${variant}-page`)
+
+          expect(await browser.elementByCss('#pathname').text()).toBe(
+            variantHomePathname
+          )
+        })
+
+        it(`should return correct pathname for rewrited page`, async () => {
+          const browser = await next.browser(variantHomePathname)
+          await browser
+            .elementByCss(`#${variant}-rewrite-source`)
+            .click()
+            .waitForElementByCss(`#${variant}-rewrite-destination-page`)
+
+          expect(await browser.elementByCss('#pathname').text()).toBe(
+            `/get-pathname/${variant}/rewrite-source`
+          )
+        })
+
+        it(`should return correct pathname for dynamic segment`, async () => {
+          const browser = await next.browser(variantHomePathname)
+          await browser
+            .elementByCss(`#${variant}-slug`)
+            .click()
+            .waitForElementByCss(`#${variant}-slug-page`)
+
+          expect(await browser.elementByCss('#pathname').text()).toBe(
+            `/get-pathname/${variant}/slug`
+          )
+        })
+
+        it(`should return nothing for client page`, async () => {
+          const browser = await next.browser(variantHomePathname)
+          await browser
+            .elementByCss(`#${variant}-client`)
+            .click()
+            .waitForElementByCss(`#${variant}-client-page`)
+
+          expect(await browser.elementByCss('#pathname').text()).toBe('')
+        })
+      })
+    })
   }
 )
