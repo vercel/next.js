@@ -892,8 +892,7 @@ async function startWatcher(opts: SetupOpts) {
                 {
                   file: frameFile,
                   methodName: frame.methodName,
-                  // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should be aligned
-                  line: frame.lineNumber ?? 0,
+                  lineNumber: frame.lineNumber ?? 0,
                   column: frame.column,
                   isServer: true,
                   arguments: frame.arguments,
