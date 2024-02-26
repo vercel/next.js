@@ -70,20 +70,20 @@ var ReactCurrentOwner$1 = {
   current: null
 };
 
-var ReactDebugCurrentFrame$2 = {};
+var ReactDebugCurrentFrame$1 = {};
 var currentExtraStackFrame = null;
 
 {
-  ReactDebugCurrentFrame$2.setExtraStackFrame = function (stack) {
+  ReactDebugCurrentFrame$1.setExtraStackFrame = function (stack) {
     {
       currentExtraStackFrame = stack;
     }
   }; // Stack implementation injected by the current renderer.
 
 
-  ReactDebugCurrentFrame$2.getCurrentStack = null;
+  ReactDebugCurrentFrame$1.getCurrentStack = null;
 
-  ReactDebugCurrentFrame$2.getStackAddendum = function () {
+  ReactDebugCurrentFrame$1.getStackAddendum = function () {
     var stack = ''; // Add an extra top frame while an element is being validated
 
     if (currentExtraStackFrame) {
@@ -91,7 +91,7 @@ var currentExtraStackFrame = null;
     } // Delegate to the injected renderer-specific implementation
 
 
-    var impl = ReactDebugCurrentFrame$2.getCurrentStack;
+    var impl = ReactDebugCurrentFrame$1.getCurrentStack;
 
     if (impl) {
       stack += impl() || '';
@@ -109,7 +109,7 @@ var ReactSharedInternals = {
 };
 
 {
-  ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$2;
+  ReactSharedInternals.ReactDebugCurrentFrame = ReactDebugCurrentFrame$1;
   ReactSharedInternals.ReactCurrentActQueue = ReactCurrentActQueue;
 }
 
@@ -166,7 +166,7 @@ function printWarning(level, format, args) {
   }
 }
 
-var ReactVersion = '18.3.0-experimental-a515d753b-20240220';
+var ReactVersion = '18.3.0-experimental-6c3b8dbfe-20240226';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -344,7 +344,7 @@ Component.prototype.isReactComponent = {};
 
 Component.prototype.setState = function (partialState, callback) {
   if (typeof partialState !== 'object' && typeof partialState !== 'function' && partialState != null) {
-    throw new Error('setState(...): takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
+    throw new Error('takes an object of state variables to update or a ' + 'function which returns an object of state variables.');
   }
 
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
@@ -513,6 +513,17 @@ var enableTransitionTracing = false; // No known bugs, but needs performance tes
 
 var enableLegacyHidden = false; // Enables unstable_avoidThisFallback feature in Fiber
 var enableRenderableContext = false;
+// Ready for next major.
+//
+// Alias __NEXT_MAJOR__ to true for easier skimming.
+// -----------------------------------------------------------------------------
+
+var __NEXT_MAJOR__ = true; // Not ready to break experimental yet.
+// as a normal prop instead of stripping it from the props object.
+// Passes `ref` as a normal prop instead of stripping it from the props object
+// during element creation.
+
+var enableRefAsProp = __NEXT_MAJOR__; // Not ready to break experimental yet.
 // stuff. Intended to enable React core members to more easily debug scheduling
 // issues in DEV builds.
 
@@ -1085,79 +1096,16 @@ function describeUnknownElementTypeFrameInDEV(type, ownerFn) {
   return '';
 }
 
-var loggedTypeFailures = {};
-var ReactDebugCurrentFrame$1 = ReactSharedInternals.ReactDebugCurrentFrame;
-
-function setCurrentlyValidatingElement$1(element) {
-  {
-    if (element) {
-      var owner = element._owner;
-      var stack = describeUnknownElementTypeFrameInDEV(element.type, owner ? owner.type : null);
-      ReactDebugCurrentFrame$1.setExtraStackFrame(stack);
-    } else {
-      ReactDebugCurrentFrame$1.setExtraStackFrame(null);
-    }
-  }
-}
-
-function checkPropTypes(typeSpecs, values, location, componentName, element) {
-  {
-    // $FlowFixMe[incompatible-use] This is okay but Flow doesn't know it.
-    var has = Function.call.bind(hasOwnProperty);
-
-    for (var typeSpecName in typeSpecs) {
-      if (has(typeSpecs, typeSpecName)) {
-        var error$1 = void 0; // Prop type validation may throw. In case they do, we don't want to
-        // fail the render phase where it didn't fail before. So we log it.
-        // After these have been cleaned up, we'll let them throw.
-
-        try {
-          // This is intentionally an invariant that gets caught. It's the same
-          // behavior as without this statement except with a better message.
-          if (typeof typeSpecs[typeSpecName] !== 'function') {
-            // eslint-disable-next-line react-internal/prod-error-codes
-            var err = Error((componentName || 'React class') + ': ' + location + ' type `' + typeSpecName + '` is invalid; ' + 'it must be a function, usually from the `prop-types` package, but received `' + typeof typeSpecs[typeSpecName] + '`.' + 'This often happens because of typos such as `PropTypes.function` instead of `PropTypes.func`.');
-            err.name = 'Invariant Violation';
-            throw err;
-          }
-
-          error$1 = typeSpecs[typeSpecName](values, typeSpecName, componentName, location, null, 'SECRET_DO_NOT_PASS_THIS_OR_YOU_WILL_BE_FIRED');
-        } catch (ex) {
-          error$1 = ex;
-        }
-
-        if (error$1 && !(error$1 instanceof Error)) {
-          setCurrentlyValidatingElement$1(element);
-
-          error('%s: type specification of %s' + ' `%s` is invalid; the type checker ' + 'function must return `null` or an `Error` but returned a %s. ' + 'You may have forgotten to pass an argument to the type checker ' + 'creator (arrayOf, instanceOf, objectOf, oneOf, oneOfType, and ' + 'shape all require an argument).', componentName || 'React class', location, typeSpecName, typeof error$1);
-
-          setCurrentlyValidatingElement$1(null);
-        }
-
-        if (error$1 instanceof Error && !(error$1.message in loggedTypeFailures)) {
-          // Only monitor this failure once because there tends to be a lot of the
-          // same error.
-          loggedTypeFailures[error$1.message] = true;
-          setCurrentlyValidatingElement$1(element);
-
-          error('Failed %s type: %s', location, error$1.message);
-
-          setCurrentlyValidatingElement$1(null);
-        }
-      }
-    }
-  }
-}
-
 var ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 var ReactDebugCurrentFrame = ReactSharedInternals.ReactDebugCurrentFrame;
 var REACT_CLIENT_REFERENCE = Symbol.for('react.client.reference');
 var specialPropKeyWarningShown;
-var specialPropRefWarningShown;
 var didWarnAboutStringRefs;
+var didWarnAboutElementRef;
 
 {
   didWarnAboutStringRefs = {};
+  didWarnAboutElementRef = {};
 }
 
 function hasValidRef(config) {
@@ -1220,21 +1168,20 @@ function defineKeyPropWarningGetter(props, displayName) {
   }
 }
 
-function defineRefPropWarningGetter(props, displayName) {
+function elementRefGetterWithDeprecationWarning() {
   {
-    var warnAboutAccessingRef = function () {
-      if (!specialPropRefWarningShown) {
-        specialPropRefWarningShown = true;
+    var componentName = getComponentNameFromType(this.type);
 
-        error('%s: `ref` is not a prop. Trying to access it will result ' + 'in `undefined` being returned. If you need to access the same ' + 'value within the child component, you should pass it as a different ' + 'prop. (https://reactjs.org/link/special-props)', displayName);
-      }
-    };
+    if (!didWarnAboutElementRef[componentName]) {
+      didWarnAboutElementRef[componentName] = true;
 
-    warnAboutAccessingRef.isReactWarning = true;
-    Object.defineProperty(props, 'ref', {
-      get: warnAboutAccessingRef,
-      configurable: true
-    });
+      error('Accessing element.ref is no longer supported. ref is now a ' + 'regular prop. It will be removed from the JSX Element ' + 'type in a future release.');
+    } // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+
+    var refProp = this.props.ref;
+    return refProp !== undefined ? refProp : null;
   }
 }
 /**
@@ -1259,18 +1206,65 @@ function defineRefPropWarningGetter(props, displayName) {
  */
 
 
-function ReactElement(type, key, ref, self, source, owner, props) {
-  var element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: owner
-  };
+function ReactElement(type, key, _ref, self, source, owner, props) {
+  var ref;
+
+  {
+    // When enableRefAsProp is on, ignore whatever was passed as the ref
+    // argument and treat `props.ref` as the source of truth. The only thing we
+    // use this for is `element.ref`, which will log a deprecation warning on
+    // access. In the next release, we can remove `element.ref` as well as the
+    // `ref` argument.
+    var refProp = props.ref; // An undefined `element.ref` is coerced to `null` for
+    // backwards compatibility.
+
+    ref = refProp !== undefined ? refProp : null;
+  }
+
+  var element;
+
+  {
+    // In dev, make `ref` a non-enumerable property with a warning. It's non-
+    // enumerable so that test matchers and serializers don't access it and
+    // trigger the warning.
+    //
+    // `ref` will be removed from the element completely in a future release.
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      // Built-in properties that belong on the element
+      type: type,
+      key: key,
+      props: props,
+      // Record the component responsible for creating this element.
+      _owner: owner
+    };
+
+    if (ref !== null) {
+      Object.defineProperty(element, 'ref', {
+        enumerable: false,
+        get: elementRefGetterWithDeprecationWarning
+      });
+    } else {
+      // Don't warn on access if a ref is not given. This reduces false
+      // positives in cases where a test serializer uses
+      // getOwnPropertyDescriptors to compare objects, like Jest does, which is
+      // a problem because it bypasses non-enumerability.
+      //
+      // So unfortunately this will trigger a false positive warning in Jest
+      // when the diff is printed:
+      //
+      //   expect(<div ref={ref} />).toEqual(<span ref={ref} />);
+      //
+      // A bit sketchy, but this is what we've done for the `props.key` and
+      // `props.ref` accessors for years, which implies it will be good enough
+      // for `element.ref`, too. Let's see if anyone complains.
+      Object.defineProperty(element, 'ref', {
+        enumerable: false,
+        value: null
+      });
+    }
+  }
 
   {
     // The validation flag is currently mutative. We put it on
@@ -1322,14 +1316,6 @@ function createElement(type, config, children) {
         info += ' You likely forgot to export your component from the file ' + "it's defined in, or you might have mixed up default and named imports.";
       }
 
-      var sourceInfo = getSourceInfoErrorAddendumForProps(config);
-
-      if (sourceInfo) {
-        info += sourceInfo;
-      } else {
-        info += getDeclarationErrorAddendum();
-      }
-
       var typeString;
 
       if (type === null) {
@@ -1366,7 +1352,6 @@ function createElement(type, config, children) {
 
   if (config != null) {
     if (hasValidRef(config)) {
-      ref = config.ref;
 
       {
         warnIfStringRefCannotBeAutoConverted(config, config.__self);
@@ -1384,13 +1369,10 @@ function createElement(type, config, children) {
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
-      // warnings and debug information in dev. Need to decide if we're OK
-      // with dropping them. In the jsx() runtime it's not an issue because
-      // the data gets passed as separate arguments instead of props, but
-      // it would be nice to stop relying on them entirely so we can drop
-      // them from the internal Fiber field.
+      propName !== 'key' && (enableRefAsProp ) && // Even though we don't use these anymore in the runtime, we don't want
+      // them to appear as props, so in createElement we filter them out.
+      // We don't have to do this in the jsx() runtime because the jsx()
+      // transform never passed these as props; it used separate arguments.
       propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
@@ -1431,15 +1413,11 @@ function createElement(type, config, children) {
   }
 
   {
-    if (key || ref) {
+    if (key || !enableRefAsProp ) {
       var displayName = typeof type === 'function' ? type.displayName || type.name || 'Unknown' : type;
 
       if (key) {
         defineKeyPropWarningGetter(props, displayName);
-      }
-
-      if (ref) {
-        defineRefPropWarningGetter(props, displayName);
       }
     }
   }
@@ -1448,8 +1426,6 @@ function createElement(type, config, children) {
 
   if (type === REACT_FRAGMENT_TYPE) {
     validateFragmentProps(element);
-  } else {
-    validatePropTypes(element);
   }
 
   return element;
@@ -1493,7 +1469,9 @@ function createFactory(type) {
   return factory;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  return ReactElement(oldElement.type, newKey, oldElement.ref, undefined, undefined, oldElement._owner, oldElement.props);
+  return ReactElement(oldElement.type, newKey, // When enableRefAsProp is on, this argument is ignored. This check only
+  // exists to avoid the `ref` access warning.
+  null , undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
@@ -1502,7 +1480,7 @@ function cloneAndReplaceKey(oldElement, newKey) {
 
 function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
-    throw new Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
+    throw new Error("The argument must be a React element, but you passed " + element + ".");
   }
 
   var propName; // Original props are copied
@@ -1510,14 +1488,13 @@ function cloneElement(element, config, children) {
   var props = assign({}, element.props); // Reserved names are extracted
 
   var key = element.key;
-  var ref = element.ref; // Owner will be preserved, unless ref is overridden
+  var ref = null ; // Owner will be preserved, unless ref is overridden
 
   var owner = element._owner;
 
   if (config != null) {
     if (hasValidRef(config)) {
-      // Silently steal the ref from the parent.
-      ref = config.ref;
+
       owner = ReactCurrentOwner.current;
     }
 
@@ -1538,14 +1515,16 @@ function cloneElement(element, config, children) {
 
     for (propName in config) {
       if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
-      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
-      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      propName !== 'key' && (enableRefAsProp ) && // ...and maybe these, too, though we currently rely on them for
       // warnings and debug information in dev. Need to decide if we're OK
       // with dropping them. In the jsx() runtime it's not an issue because
       // the data gets passed as separate arguments instead of props, but
       // it would be nice to stop relying on them entirely so we can drop
       // them from the internal Fiber field.
-      propName !== '__self' && propName !== '__source') {
+      propName !== '__self' && propName !== '__source' && // Undefined `ref` is ignored by cloneElement. We treat it the same as
+      // if the property were missing. This is mostly for
+      // backwards compatibility.
+      !(propName === 'ref' && config.ref === undefined)) {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -1578,7 +1557,6 @@ function cloneElement(element, config, children) {
     validateChildKeys(arguments[_i2], clonedElement.type);
   }
 
-  validatePropTypes(clonedElement);
   return clonedElement;
 }
 
@@ -1590,26 +1568,6 @@ function getDeclarationErrorAddendum() {
       if (name) {
         return '\n\nCheck the render method of `' + name + '`.';
       }
-    }
-
-    return '';
-  }
-}
-
-function getSourceInfoErrorAddendumForProps(elementProps) {
-  if (elementProps !== null && elementProps !== undefined) {
-    return getSourceInfoErrorAddendum(elementProps.__source);
-  }
-
-  return '';
-}
-
-function getSourceInfoErrorAddendum(source) {
-  {
-    if (source !== undefined) {
-      var fileName = source.fileName.replace(/^.*[\\\/]/, '');
-      var lineNumber = source.lineNumber;
-      return '\n\nCheck your code at ' + fileName + ':' + lineNumber + '.';
     }
 
     return '';
@@ -1756,6 +1714,7 @@ function getCurrentComponentErrorInfo(parentType) {
 
 
 function validateFragmentProps(fragment) {
+  // TODO: Move this to render phase instead of at element creation.
   {
     var keys = Object.keys(fragment.props);
 
@@ -1770,64 +1729,6 @@ function validateFragmentProps(fragment) {
         setCurrentlyValidatingElement(null);
         break;
       }
-    }
-
-    if (fragment.ref !== null) {
-      setCurrentlyValidatingElement(fragment);
-
-      error('Invalid attribute `ref` supplied to `React.Fragment`.');
-
-      setCurrentlyValidatingElement(null);
-    }
-  }
-}
-
-var propTypesMisspellWarningShown = false;
-/**
- * Given an element, validate that its props follow the propTypes definition,
- * provided by the type.
- *
- * @param {ReactElement} element
- */
-
-function validatePropTypes(element) {
-  {
-    var type = element.type;
-
-    if (type === null || type === undefined || typeof type === 'string') {
-      return;
-    }
-
-    if (type.$$typeof === REACT_CLIENT_REFERENCE) {
-      return;
-    }
-
-    var propTypes;
-
-    if (typeof type === 'function') {
-      propTypes = type.propTypes;
-    } else if (typeof type === 'object' && (type.$$typeof === REACT_FORWARD_REF_TYPE || // Note: Memo only checks outer props here.
-    // Inner props are checked in the reconciler.
-    type.$$typeof === REACT_MEMO_TYPE)) {
-      propTypes = type.propTypes;
-    } else {
-      return;
-    }
-
-    if (propTypes) {
-      // Intentionally inside to avoid triggering lazy initializers:
-      var name = getComponentNameFromType(type);
-      checkPropTypes(propTypes, element.props, 'prop', name, element);
-    } else if (type.PropTypes !== undefined && !propTypesMisspellWarningShown) {
-      propTypesMisspellWarningShown = true; // Intentionally inside to avoid triggering lazy initializers:
-
-      var _name = getComponentNameFromType(type);
-
-      error('Component %s declared `PropTypes` instead of `propTypes`. Did you misspell the property assignment?', _name || 'Unknown');
-    }
-
-    if (typeof type.getDefaultProps === 'function' && !type.getDefaultProps.isReactClassApproved) {
-      error('getDefaultProps is only used on classic React.createClass ' + 'definitions. Use a static property named `defaultProps` instead.');
     }
   }
 }
@@ -2361,7 +2262,7 @@ function lazy(ctor) {
         },
         // $FlowFixMe[missing-local-annot]
         set: function (newDefaultProps) {
-          error('React.lazy(...): It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
+          error('It is not supported to assign `defaultProps` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
           defaultProps = newDefaultProps; // Match production behavior more closely:
           // $FlowFixMe[prop-missing]
@@ -2378,7 +2279,7 @@ function lazy(ctor) {
         },
         // $FlowFixMe[missing-local-annot]
         set: function (newPropTypes) {
-          error('React.lazy(...): It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
+          error('It is not supported to assign `propTypes` to ' + 'a lazy component import. Either specify them where the component ' + 'is defined, or create a wrapping component around it.');
 
           propTypes = newPropTypes; // Match production behavior more closely:
           // $FlowFixMe[prop-missing]
