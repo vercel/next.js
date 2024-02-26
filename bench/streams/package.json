@@ -1,0 +1,6 @@
+{
+  "name": "stream-bench",
+  "dependencies": {
+    "why-is-node-running": "2.2.2"
+  }
+}

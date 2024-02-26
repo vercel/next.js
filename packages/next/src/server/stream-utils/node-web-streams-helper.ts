@@ -5,6 +5,7 @@ import { AppRenderSpan } from '../lib/trace/constants'
 import { createDecodeTransformStream } from './encode-decode'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
+import { TransformStreamPerformanceController } from './performance'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -597,8 +598,10 @@ export async function continueFizzStream(
     await renderStream.allReady
   }
 
+  const perfController = new TransformStreamPerformanceController('fizz stream')
+
   return chainTransformers(renderStream, [
-    new PerformanceTransformStreamInitiator('fizz stream'),
+    perfController.initiator,
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
@@ -631,7 +634,7 @@ export async function continueFizzStream(
           validateRootLayout.getTree
         )
       : null,
-    new PerformanceTransformStreamTerminator('fizz stream'),
+    perfController.terminator,
   ])
 }
 
@@ -643,17 +646,19 @@ export async function continueDynamicPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   { getServerInsertedHTML }: ContinueDynamicPrerenderOptions
 ) {
+  const perfController = new TransformStreamPerformanceController(
+    'dynamic prerender'
+  )
+
   return (
     prerenderStream
-      .pipeThrough(new PerformanceTransformStreamInitiator('dynamic prerender'))
+      .pipeThrough(perfController.initiator)
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      .pipeThrough(
-        new PerformanceTransformStreamTerminator('dynamic prerender')
-      )
+      .pipeThrough(perfController.terminator)
   )
 }
 
@@ -662,73 +667,18 @@ type ContinueStaticPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
 }
 
-class PerformanceTransformStreamInitiator extends TransformStream {
-  initialized = false
-  constructor(name: string) {
-    super({
-      transform: (chunk, controller) => {
-        controller.enqueue(chunk)
-        if (!this.initialized) {
-          performance.mark(
-            'performance-transform-stream-initiator-first-byte',
-            { detail: { name } }
-          )
-          this.initialized = true
-        }
-      },
-      flush: () => {
-        performance.mark('performance-transform-stream-initiator-last-byte', {
-          detail: { name },
-        })
-      },
-    })
-  }
-}
-
-class PerformanceTransformStreamTerminator extends TransformStream {
-  initialized = false
-  constructor(name: string) {
-    super({
-      transform: (chunk, controller) => {
-        controller.enqueue(chunk)
-        if (!this.initialized) {
-          performance.mark(
-            'performance-transform-stream-terminator-first-byte',
-            { detail: { name } }
-          )
-          this.initialized = true
-        }
-      },
-      flush: () => {
-        performance.mark('performance-transform-stream-terminator-last-byte', {
-          detail: { name },
-        })
-
-        try {
-          const m = performance.measure(
-            'total time',
-            'performance-transform-stream-initiator-first-byte',
-            'performance-transform-stream-terminator-last-byte'
-          )
-          console.log('Total time: ', m.duration)
-
-          performance.clearMarks()
-          performance.clearMeasures()
-        } catch {}
-      },
-    })
-  }
-}
-
 export async function continueStaticPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
   { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions
 ) {
   const closeTag = '</body></html>'
+  const perfController = new TransformStreamPerformanceController(
+    'static prerender'
+  )
 
   return (
     prerenderStream
-      .pipeThrough(new PerformanceTransformStreamInitiator('static prerender'))
+      .pipeThrough(perfController.initiator)
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
@@ -737,7 +687,7 @@ export async function continueStaticPrerender(
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
-      .pipeThrough(new PerformanceTransformStreamTerminator('static prerender'))
+      .pipeThrough(perfController.terminator)
   )
 }
 
@@ -751,12 +701,13 @@ export async function continueDynamicHTMLResume(
   { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
 ) {
   const closeTag = '</body></html>'
+  const perfController = new TransformStreamPerformanceController(
+    'dynamic html resume'
+  )
 
   return (
     renderStream
-      .pipeThrough(
-        new PerformanceTransformStreamInitiator('dynamic html resume')
-      )
+      .pipeThrough(perfController.initiator)
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
@@ -765,9 +716,7 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
-      .pipeThrough(
-        new PerformanceTransformStreamTerminator('dynamic html resume')
-      )
+      .pipeThrough(perfController.terminator)
   )
 }
 
@@ -780,18 +729,17 @@ export async function continueDynamicDataResume(
   { inlinedDataStream }: ContinueDynamicDataResumeOptions
 ) {
   const closeTag = '</body></html>'
+  const perfController = new TransformStreamPerformanceController(
+    'dynamic data resume'
+  )
 
   return (
     renderStream
-      .pipeThrough(
-        new PerformanceTransformStreamInitiator('dynamic data resume')
-      )
+      .pipeThrough(perfController.initiator)
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream(closeTag))
-      .pipeThrough(
-        new PerformanceTransformStreamTerminator('dynamic data resume')
-      )
+      .pipeThrough(perfController.terminator)
   )
 }
