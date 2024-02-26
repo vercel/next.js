@@ -1,4 +1,5 @@
 import {
+  hasErrorToast,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxHeader,
@@ -6,6 +7,7 @@ import {
   getVersionCheckerText,
   hasRedbox,
   waitFor,
+  waitForAndOpenRuntimeError,
 } from './next-test-utils'
 import webdriver from './next-webdriver'
 import { NextInstance } from './next-modes/base'
@@ -111,14 +113,11 @@ export async function sandbox(
       async hasRedbox() {
         return hasRedbox(browser)
       },
+      async waitForAndOpenRuntimeError() {
+        return waitForAndOpenRuntimeError(browser)
+      },
       async hasErrorToast() {
-        return browser.eval(() => {
-          return Boolean(
-            Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
-              p.shadowRoot.querySelector('[data-nextjs-toast]')
-            )
-          )
-        })
+        return Boolean(await hasErrorToast(browser))
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
@@ -134,9 +133,6 @@ export async function sandbox(
       },
       async getRedboxComponentStack() {
         return getRedboxComponentStack(browser)
-      },
-      async waitForAndOpenRuntimeError() {
-        return browser.waitForElementByCss('[data-nextjs-toast]').click()
       },
       async getVersionCheckerText() {
         return getVersionCheckerText(browser)
