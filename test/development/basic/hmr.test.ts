@@ -525,7 +525,7 @@ describe.each([[''], ['/docs']])(
         } else if (basePath === '' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:1
-            Ecmascript file had an error
+            Parsing ecmascript source code failed
               5 |     div
               6 |   )
             > 7 | }
@@ -563,7 +563,7 @@ describe.each([[''], ['/docs']])(
         } else if (basePath === '/docs' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
             "./pages/hmr/about2.js:7:1
-            Ecmascript file had an error
+            Parsing ecmascript source code failed
               5 |     div
               6 |   )
             > 7 | }
