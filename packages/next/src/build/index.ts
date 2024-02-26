@@ -1338,8 +1338,6 @@ export default async function build(
           throw new Error("next build doesn't support turbopack yet")
         }
 
-        // TODO: Without NODE_ENV=development React will error that the RSC payload was rendered using development React while renderToHTML is called on the production React.
-        // This is caused by Turbopack not having the production build option yet.
         const startTime = process.hrtime()
         const bindings = await loadBindings(config?.experimental?.useWasmBinary)
         const dev = false
