@@ -72,7 +72,7 @@ where
 {
     tokio::runtime::Runtime::new()
         .unwrap()
-        .block_on(async move { GLOBALS.set(&Default::default(), || op()) })
+        .block_on(async move { GLOBALS.set(&Default::default(), op) })
 }
 
 impl Task for TransformTask {
