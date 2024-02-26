@@ -312,7 +312,7 @@ describe('Error overlay for hydration errors', () => {
       'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
     )
     expect(description).toContain(
-      'Warning: Expected server HTML to contain a matching <p> in <p>.'
+      'Warning: In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
 
     await cleanup()
