@@ -218,7 +218,7 @@ export function getOverlayMiddleware(options: {
       methodName: searchParams.get('methodName') as string,
       lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-      arguments: searchParams.getAll('arguments'),
+      arguments: searchParams.getAll('arguments').filter(Boolean),
       isServer: searchParams.get('isServer') === 'true',
       isEdgeServer: searchParams.get('isEdgeServer') === 'true',
       isAppDirectory: searchParams.get('isAppDirectory') === 'true',
