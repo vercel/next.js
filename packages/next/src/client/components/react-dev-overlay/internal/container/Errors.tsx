@@ -235,7 +235,10 @@ export function Errors({
             >
               <small>
                 <span>{activeIdx + 1}</span> of{' '}
-                <span>{readyErrors.length}</span> unhandled error
+                <span data-nextjs-dialog-header-total-count>
+                  {readyErrors.length}
+                </span>{' '}
+                unhandled error
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               {versionInfo ? <VersionStalenessInfo {...versionInfo} /> : null}
