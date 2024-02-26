@@ -1057,8 +1057,8 @@
     ],
     "failed": [],
     "pending": [
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1589,7 +1589,6 @@
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles correctly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
       "basic HMR, basePath: \"\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
-      "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"\" should show hydration error correctly",
@@ -1619,6 +1618,7 @@
       "basic HMR, basePath: \"\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - anonymous page function",
       "basic HMR, basePath: \"\" Full reload should warn about full reload in cli output - runtime-error",
+      "basic HMR, basePath: \"\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after loader parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover after webpack parse error in an imported file",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
