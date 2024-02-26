@@ -58,7 +58,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js:1:1
-        Parsing ecmascript source code failed
+        Ecmascript file had an error
         > 1 | import { cookies } from 'next/headers'
             | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
           2 |
@@ -117,7 +117,7 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
         "./components/Comp.js:1:1
-        Parsing ecmascript source code failed
+        Ecmascript file had an error
         > 1 | import 'server-only'
             | ^^^^^^^^^^^^^^^^^^^^
           2 |
