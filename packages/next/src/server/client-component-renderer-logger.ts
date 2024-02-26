@@ -37,11 +37,14 @@ export function wrapClientComponentLoader(ComponentMod: any) {
 export function getClientComponentLoaderMetrics(
   options: { reset?: boolean } = {}
 ) {
-  const metrics = {
-    clientComponentLoadStart,
-    clientComponentLoadTimes,
-    clientComponentLoadCount,
-  }
+  const metrics =
+    clientComponentLoadStart === 0
+      ? undefined
+      : {
+          clientComponentLoadStart,
+          clientComponentLoadTimes,
+          clientComponentLoadCount,
+        }
 
   if (options.reset) {
     clientComponentLoadStart = 0
