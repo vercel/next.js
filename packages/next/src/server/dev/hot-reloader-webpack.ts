@@ -79,6 +79,7 @@ import {
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 
 const MILLISECONDS_IN_NANOSECOND = 1_000_000
 const isTestMode = !!(
@@ -494,9 +495,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               }
 
               if (hadRuntimeError) {
-                Log.warn(
-                  `Fast Refresh had to perform a full reload due to a runtime error.`
-                )
+                Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
                 break
               }
 

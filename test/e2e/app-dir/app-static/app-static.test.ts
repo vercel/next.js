@@ -3091,7 +3091,7 @@ createNextDescribe(
                 .length
             ).toBe(2)
             expect(next.cliOutput.substring(cliOutputStart)).toContain(
-              'Error: fetch for over 2MB of data can not be cached'
+              'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
             )
             return 'success'
           }, 'success')
@@ -3122,7 +3122,7 @@ createNextDescribe(
           }, 'success')
 
           expect(next.cliOutput.substring(cliOutputStart)).not.toContain(
-            'Error: fetch for over 2MB of data can not be cached'
+            'Error: Failed to set Next.js data cache, items over 2MB can not be cached'
           )
         })
       }

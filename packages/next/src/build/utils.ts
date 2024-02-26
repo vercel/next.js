@@ -2224,10 +2224,20 @@ export function getSupportedBrowsers(
   return MODERN_BROWSERSLIST_TARGET
 }
 
-export function isWebpackServerLayer(
+export function isWebpackServerOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return Boolean(layer && WEBPACK_LAYERS.GROUP.server.includes(layer as any))
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
+  )
+}
+
+export function isWebpackClientOnlyLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.clientOnly.includes(layer as any)
+  )
 }
 
 export function isWebpackDefaultLayer(
