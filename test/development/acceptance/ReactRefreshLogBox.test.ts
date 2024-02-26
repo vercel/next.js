@@ -806,13 +806,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     expect(await session.hasRedbox()).toBe(true)
     await expandCallStack(browser)
-    const callStackFrames = await browser.elementsByCss(
+    let callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
-    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
     expect(texts).not.toContain('stringify\n<anonymous>')
     expect(texts).not.toContain('<unknown>\n<anonymous>')
     expect(texts).toContain('foo\nbar (1:1)')
+
+    // Test that node:internal errors should be hidden
+
+    next.patchFile(
+      'pages/index.js',
+      // Node.js will throw an error about the invalid URL since it happens server-side
+      outdent`
+      export default function Page() {}
+      
+      export function getServerSideProps() {
+        new URL("/", "invalid");
+        return { props: {} };
+      }`
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+    callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+
+    expect(texts.filter((t) => t.includes('node:internal'))).toHaveLength(0)
+
     await cleanup()
   })
 })

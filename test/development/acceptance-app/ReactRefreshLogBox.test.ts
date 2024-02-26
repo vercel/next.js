@@ -869,11 +869,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(texts).not.toContain('<unknown>\n<anonymous>')
     expect(texts).toContain('foo\nbar (1:1)')
 
+    // Test that node:internal errors should be hidden
+
     next.patchFile(
       'app/page.js',
       // Node.js will throw an error about the invalid URL since this is a server component
       outdent`
-      export default function Index() {
+      export default function Page() {
         new URL("/", "invalid");
       }`
     )
