@@ -66,104 +66,104 @@ fn skip_filename() -> bool {
     cfg!(debug_assertions)
 }
 
+fn run_in_context<F, Ret>(op: F) -> Ret
+where
+    F: FnOnce() -> Ret,
+{
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async move { GLOBALS.set(&Default::default(), || op()) })
+}
+
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
-        tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(async move {
-                GLOBALS.set(&Default::default(), || {
-                    let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> =
-                        Default::default();
-                    let res = catch_unwind(AssertUnwindSafe(|| {
-                        try_with_handler(
-                            self.c.cm.clone(),
-                            turbopack_binding::swc::core::base::HandlerOpts {
-                                color: ColorConfig::Always,
-                                skip_filename: skip_filename(),
-                            },
-                            |handler| {
-                                self.c.run(|| {
-                                    let options: TransformOptions =
-                                        serde_json::from_slice(&self.options)?;
-                                    let fm = match &self.input {
-                                        Input::Source { src } => {
-                                            let filename = if options.swc.filename.is_empty() {
-                                                FileName::Anon
-                                            } else {
-                                                FileName::Real(options.swc.filename.clone().into())
-                                            };
-
-                                            self.c.cm.new_source_file(filename, src.to_string())
-                                        }
-                                        Input::FromFilename => {
-                                            let filename = &options.swc.filename;
-                                            if filename.is_empty() {
-                                                bail!("no filename is provided via options");
-                                            }
-
-                                            self.c.cm.new_source_file(
-                                                FileName::Real(filename.into()),
-                                                read_to_string(filename).with_context(|| {
-                                                    format!(
-                                                        "Failed to read source code from {}",
-                                                        filename
-                                                    )
-                                                })?,
-                                            )
-                                        }
+        run_in_context(|| {
+            let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
+            let res = catch_unwind(AssertUnwindSafe(|| {
+                try_with_handler(
+                    self.c.cm.clone(),
+                    turbopack_binding::swc::core::base::HandlerOpts {
+                        color: ColorConfig::Always,
+                        skip_filename: skip_filename(),
+                    },
+                    |handler| {
+                        self.c.run(|| {
+                            let options: TransformOptions = serde_json::from_slice(&self.options)?;
+                            let fm = match &self.input {
+                                Input::Source { src } => {
+                                    let filename = if options.swc.filename.is_empty() {
+                                        FileName::Anon
+                                    } else {
+                                        FileName::Real(options.swc.filename.clone().into())
                                     };
-                                    let unresolved_mark = Mark::new();
-                                    let mut options = options.patch(&fm);
-                                    options.swc.unresolved_mark = Some(unresolved_mark);
 
-                                    let cm = self.c.cm.clone();
-                                    let file = fm.clone();
+                                    self.c.cm.new_source_file(filename, src.to_string())
+                                }
+                                Input::FromFilename => {
+                                    let filename = &options.swc.filename;
+                                    if filename.is_empty() {
+                                        bail!("no filename is provided via options");
+                                    }
 
-                                    let comments = SingleThreadedComments::default();
-                                    self.c.process_js_with_custom_pass(
-                                        fm,
-                                        None,
-                                        handler,
-                                        &options.swc,
-                                        comments.clone(),
-                                        |_| {
-                                            custom_before_pass(
-                                                cm,
-                                                file,
-                                                &options,
-                                                comments.clone(),
-                                                eliminated_packages.clone(),
-                                                unresolved_mark,
-                                            )
-                                        },
-                                        |_| noop(),
+                                    self.c.cm.new_source_file(
+                                        FileName::Real(filename.into()),
+                                        read_to_string(filename).with_context(|| {
+                                            format!("Failed to read source code from {}", filename)
+                                        })?,
                                     )
-                                })
-                            },
-                        )
-                    }))
-                    .map_err(|err| {
-                        if let Some(s) = err.downcast_ref::<String>() {
-                            anyhow!("failed to process {}", s)
-                        } else {
-                            anyhow!("failed to process")
-                        }
-                    });
+                                }
+                            };
+                            let unresolved_mark = Mark::new();
+                            let mut options = options.patch(&fm);
+                            options.swc.unresolved_mark = Some(unresolved_mark);
 
-                    match res {
-                        Ok(res) => res
-                            .map(|o| (o, eliminated_packages.replace(Default::default())))
-                            .convert_err(),
-                        Err(err) => Err(napi::Error::new(
-                            Status::GenericFailure,
-                            format!("{:?}", err),
-                        )),
-                    }
-                })
-            })
+                            let cm = self.c.cm.clone();
+                            let file = fm.clone();
+
+                            let comments = SingleThreadedComments::default();
+                            self.c.process_js_with_custom_pass(
+                                fm,
+                                None,
+                                handler,
+                                &options.swc,
+                                comments.clone(),
+                                |_| {
+                                    custom_before_pass(
+                                        cm,
+                                        file,
+                                        &options,
+                                        comments.clone(),
+                                        eliminated_packages.clone(),
+                                        unresolved_mark,
+                                    )
+                                },
+                                |_| noop(),
+                            )
+                        })
+                    },
+                )
+            }))
+            .map_err(|err| {
+                if let Some(s) = err.downcast_ref::<String>() {
+                    anyhow!("failed to process {}", s)
+                } else {
+                    anyhow!("failed to process")
+                }
+            });
+
+            match res {
+                Ok(res) => res
+                    .map(|o| (o, eliminated_packages.replace(Default::default())))
+                    .convert_err(),
+                Err(err) => Err(napi::Error::new(
+                    Status::GenericFailure,
+                    format!("{:?}", err),
+                )),
+            }
+        })
     }
 
     fn resolve(
