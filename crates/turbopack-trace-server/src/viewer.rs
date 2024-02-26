@@ -31,6 +31,7 @@ pub enum ValueMode {
     Deallocations,
     PersistentAllocations,
     AllocationCount,
+    Count,
 }
 
 impl ValueMode {
@@ -41,6 +42,7 @@ impl ValueMode {
             ValueMode::Deallocations => span.total_deallocations(),
             ValueMode::PersistentAllocations => span.total_persistent_allocations(),
             ValueMode::AllocationCount => span.total_allocation_count(),
+            ValueMode::Count => span.total_span_count(),
         }
     }
 
@@ -51,6 +53,7 @@ impl ValueMode {
             ValueMode::Deallocations => graph.total_deallocations(),
             ValueMode::PersistentAllocations => graph.total_persistent_allocations(),
             ValueMode::AllocationCount => graph.total_allocation_count(),
+            ValueMode::Count => graph.total_span_count(),
         }
     }
 
@@ -61,6 +64,7 @@ impl ValueMode {
             ValueMode::Deallocations => event.total_deallocations(),
             ValueMode::PersistentAllocations => event.total_persistent_allocations(),
             ValueMode::AllocationCount => event.total_allocation_count(),
+            ValueMode::Count => event.total_span_count(),
         }
     }
 
@@ -71,6 +75,7 @@ impl ValueMode {
             ValueMode::Deallocations => bottom_up.self_deallocations(),
             ValueMode::PersistentAllocations => bottom_up.self_persistent_allocations(),
             ValueMode::AllocationCount => bottom_up.self_allocation_count(),
+            ValueMode::Count => bottom_up.self_span_count(),
         }
     }
 
@@ -81,6 +86,7 @@ impl ValueMode {
             ValueMode::Deallocations => bottom_up_span.self_deallocations(),
             ValueMode::PersistentAllocations => bottom_up_span.self_persistent_allocations(),
             ValueMode::AllocationCount => bottom_up_span.self_allocation_count(),
+            ValueMode::Count => bottom_up_span.self_span_count(),
         }
     }
 }
@@ -294,6 +300,7 @@ impl Viewer {
             "deallocations" => ValueMode::Deallocations,
             "persistent-deallocations" => ValueMode::PersistentAllocations,
             "allocation-count" => ValueMode::AllocationCount,
+            "count" => ValueMode::Count,
             _ => ValueMode::Duration,
         };
 

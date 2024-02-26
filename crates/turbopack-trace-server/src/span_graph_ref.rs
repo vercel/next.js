@@ -195,6 +195,10 @@ impl<'a> SpanGraphRef<'a> {
         })
     }
 
+    pub fn self_span_count(&self) -> u64 {
+        self.graph.root_spans.len() as u64 + self.graph.recursive_spans.len() as u64
+    }
+
     pub fn total_allocations(&self) -> u64 {
         *self.graph.total_allocations.get_or_init(|| {
             self.children()
@@ -232,6 +236,16 @@ impl<'a> SpanGraphRef<'a> {
                 .reduce(|a, b| a + b)
                 .unwrap_or_default()
                 + self.self_allocation_count()
+        })
+    }
+
+    pub fn total_span_count(&self) -> u64 {
+        *self.graph.total_span_count.get_or_init(|| {
+            self.children()
+                .map(|graph| graph.total_span_count())
+                .reduce(|a, b| a + b)
+                .unwrap_or_default()
+                + self.self_span_count()
         })
     }
 
@@ -275,6 +289,7 @@ pub fn event_map_to_list(
                 total_deallocations: OnceLock::new(),
                 total_persistent_allocations: OnceLock::new(),
                 total_allocation_count: OnceLock::new(),
+                total_span_count: OnceLock::new(),
                 corrected_self_time: OnceLock::new(),
                 corrected_total_time: OnceLock::new(),
                 bottom_up: OnceLock::new(),
@@ -342,6 +357,13 @@ impl<'a> SpanGraphEventRef<'a> {
         match self {
             SpanGraphEventRef::SelfTime { .. } => 0,
             SpanGraphEventRef::Child { graph } => graph.total_allocation_count(),
+        }
+    }
+
+    pub fn total_span_count(&self) -> u64 {
+        match self {
+            SpanGraphEventRef::SelfTime { .. } => 0,
+            SpanGraphEventRef::Child { graph } => graph.total_span_count(),
         }
     }
 }
