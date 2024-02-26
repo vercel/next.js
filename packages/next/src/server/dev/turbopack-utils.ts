@@ -41,15 +41,6 @@ export async function getTurbopackJsConfig(
 
 class ModuleBuildError extends Error {}
 
-function getIssueKey(issue: Issue): string {
-  return [
-    issue.severity,
-    issue.filePath,
-    JSON.stringify(issue.title),
-    JSON.stringify(issue.description),
-  ].join('-')
-}
-
 export function formatIssue(issue: Issue) {
   const { filePath, title, description, source } = issue
   let { documentationLink } = issue
@@ -124,7 +115,15 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type EntryIssuesMap = Map<EntryKey, Map<string, Issue>>
+type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
+type IssuesMap = Map<IssueKey, Issue>
+export type EntryIssuesMap = Map<EntryKey, IssuesMap>
+
+function getIssueKey(issue: Issue): IssueKey {
+  return `${issue.severity}-${issue.filePath}-${JSON.stringify(
+    issue.title
+  )}-${JSON.stringify(issue.description)}`
+}
 
 export function processIssues(
   currentEntryIssues: EntryIssuesMap,
@@ -132,7 +131,7 @@ export function processIssues(
   result: TurbopackResult,
   throwIssue = false
 ) {
-  const newIssues = new Map<string, Issue>()
+  const newIssues = new Map<IssueKey, Issue>()
   currentEntryIssues.set(key, newIssues)
 
   const relevantIssues = new Set()
