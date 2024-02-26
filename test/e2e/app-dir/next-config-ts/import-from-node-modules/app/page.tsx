@@ -1,3 +1,4 @@
 export default function Page() {
-  return <p>{process.env.foo}</p>
+  const foobar = process.env.foo + process.env.bar
+  return <p>{foobar}</p>
 }
