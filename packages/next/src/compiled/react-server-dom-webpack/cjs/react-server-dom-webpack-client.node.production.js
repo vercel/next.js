@@ -665,7 +665,7 @@ function encodeFormData(reference) {
   return thenable;
 }
 
-function encodeFormAction(identifierPrefix) {
+function defaultEncodeFormAction(identifierPrefix) {
   const reference = knownServerReferences.get(this);
 
   if (!reference) {
@@ -713,6 +713,22 @@ function encodeFormAction(identifierPrefix) {
     encType: 'multipart/form-data',
     data: data
   };
+}
+
+function customEncodeFormAction(proxy, identifierPrefix, encodeFormAction) {
+  const reference = knownServerReferences.get(proxy);
+
+  if (!reference) {
+    throw new Error('Tried to encode a Server Action from a different instance than the encoder is from. ' + 'This is a bug in React.');
+  }
+
+  let boundPromise = reference.bound;
+
+  if (boundPromise === null) {
+    boundPromise = Promise.resolve([]);
+  }
+
+  return encodeFormAction(reference.id, boundPromise);
 }
 
 function isSignatureEqual(referenceId, numberOfBoundArgs) {
@@ -776,14 +792,17 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
   // Expose encoder for use by SSR, as well as a special bind that can be used to
   // keep server capabilities.
   {
     // Only expose this in builds that would actually use it. Not needed on the client.
+    const $$FORM_ACTION = encodeFormAction === undefined ? defaultEncodeFormAction : function (identifierPrefix) {
+      return customEncodeFormAction(this, identifierPrefix, encodeFormAction);
+    };
     Object.defineProperties(proxy, {
       $$FORM_ACTION: {
-        value: encodeFormAction
+        value: $$FORM_ACTION
       },
       $$IS_SIGNATURE_EQUAL: {
         value: isSignatureEqual
@@ -807,6 +826,7 @@ function bind() {
   const reference = knownServerReferences.get(this);
 
   if (reference) {
+
     const args = ArraySlice.call(arguments, 1);
     let boundPromise = null;
 
@@ -814,9 +834,26 @@ function bind() {
       boundPromise = Promise.resolve(reference.bound).then(boundArgs => boundArgs.concat(args));
     } else {
       boundPromise = Promise.resolve(args);
+    } // Expose encoder for use by SSR, as well as a special bind that can be used to
+    // keep server capabilities.
+
+
+    {
+      // Only expose this in builds that would actually use it. Not needed on the client.
+      Object.defineProperties(newFn, {
+        $$FORM_ACTION: {
+          value: this.$$FORM_ACTION
+        },
+        $$IS_SIGNATURE_EQUAL: {
+          value: isSignatureEqual
+        },
+        bind: {
+          value: bind
+        }
+      });
     }
 
-    registerServerReference(newFn, {
+    knownServerReferences.set(newFn, {
       id: reference.id,
       bound: boundPromise
     });
@@ -825,7 +862,7 @@ function bind() {
   return newFn;
 }
 
-function createServerReference$1(id, callServer) {
+function createServerReference$1(id, callServer, encodeFormAction) {
   const proxy = function () {
     // $FlowFixMe[method-unbinding]
     const args = Array.prototype.slice.call(arguments);
@@ -835,7 +872,7 @@ function createServerReference$1(id, callServer) {
   registerServerReference(proxy, {
     id,
     bound: null
-  });
+  }, encodeFormAction);
   return proxy;
 }
 
@@ -850,8 +887,7 @@ const CYCLIC = 'cyclic';
 const RESOLVED_MODEL = 'resolved_model';
 const RESOLVED_MODULE = 'resolved_module';
 const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // Dev-only
-// $FlowFixMe[missing-this-annot]
+const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -1236,7 +1272,7 @@ function createServerReferenceProxy(response, metaData) {
     });
   };
 
-  registerServerReference(proxy, metaData);
+  registerServerReference(proxy, metaData, response._encodeFormAction);
   return proxy;
 }
 
@@ -1421,12 +1457,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1761,7 +1798,7 @@ function createServerReference(id, callServer) {
 }
 
 function createFromNodeStream(stream, ssrManifest, options) {
-  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options && typeof options.nonce === 'string' ? options.nonce : undefined);
+  const response = createResponse(ssrManifest.moduleMap, ssrManifest.moduleLoading, noServerCall, options ? options.encodeFormAction : undefined, options && typeof options.nonce === 'string' ? options.nonce : undefined);
   stream.on('data', chunk => {
     processBinaryChunk(response, chunk);
   });
