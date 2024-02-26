@@ -784,22 +784,23 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await cleanup()
   })
 
-  test('stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error', async () => {
+  test('useless frames are hidden in stack trace for pages error', async () => {
     const { session, browser, cleanup } = await sandbox(
       next,
       new Map([
         [
           'pages/index.js',
           outdent`
-            export default function Page() {
-              const e = new Error("Client error!");
-              e.stack += \`
+          export default function Page() {
+            const e = new Error("Client error!");
+            e.stack += \`
+              // REVIEW: how to reliably test the presence of these stack frames?
               at stringify (<anonymous>)
               at <unknown> (<anonymous>)
               at foo (bar:1:1)\`;
               throw e;
             }
-          `,
+            `,
         ],
       ])
     )
