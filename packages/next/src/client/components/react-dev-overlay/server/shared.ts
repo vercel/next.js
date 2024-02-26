@@ -75,7 +75,7 @@ export function getOriginalCodeFrame(
   if (
     !source ||
     frame.file?.includes('node_modules') ||
-    !isInternal(frame.file)
+    isInternal(frame.file)
   ) {
     return null
   }
