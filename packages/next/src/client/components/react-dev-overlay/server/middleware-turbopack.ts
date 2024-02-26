@@ -23,14 +23,16 @@ async function batchedTraceSource(project: Project, frame: StackFrame) {
   const file = frame.file ? decodeURIComponent(frame.file) : undefined
   if (!file) return
 
+  // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should align.
+  frame.line ??= frame.lineNumber
   const sourceFrame = await project.traceSource(frame)
   if (!sourceFrame) return
 
   let source = null
-  // Don't look up code frames for node_modules or internals. These can often be large bundled files.
+  // Don't look up source for node_modules or internals. These can often be large bundled files.
   if (
     sourceFrame.file &&
-    (sourceFrame.file.includes('node_modules') || sourceFrame.isInternal)
+    !(sourceFrame.file.includes('node_modules') || sourceFrame.isInternal)
   ) {
     let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
     if (!sourcePromise) {
@@ -87,7 +89,7 @@ export function getOverlayMiddleware(project: Project) {
       lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
       column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
       isServer: searchParams.get('isServer') === 'true',
-      arguments: searchParams.getAll('arguments'),
+      arguments: searchParams.getAll('arguments').filter(Boolean),
     } satisfies StackFrame
 
     if (pathname === '/__nextjs_original-stack-frame') {

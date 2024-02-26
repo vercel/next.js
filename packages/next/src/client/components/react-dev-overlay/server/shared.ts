@@ -86,7 +86,8 @@ export function getOriginalCodeFrame(
     {
       start: {
         // 1-based, but -1 means start line without highlighting
-        line: frame.lineNumber ?? -1,
+        // @ts-expect-error Turbopack uses `line` instead of `lineNumber`, should align.
+        line: frame.lineNumber ?? frame.line ?? -1,
         // 1-based, but 0 means whole line without column highlighting
         column: frame.column ?? 0,
       },
