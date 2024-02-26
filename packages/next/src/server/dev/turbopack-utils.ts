@@ -124,16 +124,16 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export type IssuesMap = Map<EntryKey, Map<string, Issue>>
+export type EntryIssuesMap = Map<EntryKey, Map<string, Issue>>
 
 export function processIssues(
-  currentIssues: IssuesMap,
+  currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
   result: TurbopackResult,
   throwIssue = false
 ) {
   const newIssues = new Map<string, Issue>()
-  currentIssues.set(key, newIssues)
+  currentEntryIssues.set(key, newIssues)
 
   const relevantIssues = new Set()
 
@@ -229,7 +229,7 @@ export async function handleRouteType({
   page,
   pathname,
   route,
-  currentIssues,
+  currentEntryIssues,
   entrypoints,
   manifestLoader,
   readyIds,
@@ -241,7 +241,7 @@ export async function handleRouteType({
   pathname: string
   route: PageRoute | AppRoute
 
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -261,7 +261,7 @@ export async function handleRouteType({
 
           const writtenEndpoint = await entrypoints.global.app.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentIssues, key, writtenEndpoint)
+          processIssues(currentEntryIssues, key, writtenEndpoint)
         }
         await manifestLoader.loadBuildManifest('_app')
         await manifestLoader.loadPagesManifest('_app')
@@ -272,7 +272,7 @@ export async function handleRouteType({
           const writtenEndpoint =
             await entrypoints.global.document.writeToDisk()
           hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-          processIssues(currentIssues, key, writtenEndpoint)
+          processIssues(currentEntryIssues, key, writtenEndpoint)
         }
         await manifestLoader.loadPagesManifest('_document')
 
@@ -296,7 +296,7 @@ export async function handleRouteType({
           pageEntrypoints: entrypoints.page,
         })
 
-        processIssues(currentIssues, serverKey, writtenEndpoint)
+        processIssues(currentEntryIssues, serverKey, writtenEndpoint)
       } finally {
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
@@ -348,7 +348,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint)
 
       break
     }
@@ -391,7 +391,7 @@ export async function handleRouteType({
         pageEntrypoints: entrypoints.page,
       })
 
-      processIssues(currentIssues, key, writtenEndpoint, dev)
+      processIssues(currentEntryIssues, key, writtenEndpoint, dev)
 
       break
     }
@@ -414,7 +414,7 @@ export async function handleRouteType({
         rewrites,
         pageEntrypoints: entrypoints.page,
       })
-      processIssues(currentIssues, key, writtenEndpoint, true)
+      processIssues(currentEntryIssues, key, writtenEndpoint, true)
 
       break
     }
@@ -442,7 +442,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints,
 
-  currentIssues,
+  currentEntryIssues,
   manifestLoader,
   nextConfig,
   rewrites,
@@ -456,7 +456,7 @@ export async function handleEntrypoints({
 
   currentEntrypoints: Entrypoints
 
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   manifestLoader: TurbopackManifestLoader
   nextConfig: NextConfigComplete
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -516,14 +516,14 @@ export async function handleEntrypoints({
     }
   }
 
-  for (const [key] of currentIssues) {
+  for (const [key] of currentEntryIssues) {
     const { type, page } = splitEntryKey(key)
 
     if (
       (type === 'app' && !currentEntrypoints.page.has(page)) ||
       (type === 'pages' && !currentEntrypoints.app.has(page))
     ) {
-      currentIssues.delete(key)
+      currentEntryIssues.delete(key)
     }
   }
 
@@ -536,7 +536,7 @@ export async function handleEntrypoints({
     const key = getEntryKey('root', 'server', 'middleware')
     // Went from middleware to no middleware
     await hooks?.unsubscribeFromChanges(key)
-    currentIssues.delete(key)
+    currentEntryIssues.delete(key)
     hooks?.sendHmr('middleware', {
       event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
@@ -558,7 +558,7 @@ export async function handleEntrypoints({
 
       const writtenEndpoint = await instrumentation[prop].writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint)
     }
     await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
     await processInstrumentation('instrumentation.edge', 'edge')
@@ -594,7 +594,7 @@ export async function handleEntrypoints({
     const processMiddleware = async () => {
       const writtenEndpoint = await middleware.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-      processIssues(currentIssues, key, writtenEndpoint)
+      processIssues(currentEntryIssues, key, writtenEndpoint)
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       if (serverFields) {
         serverFields.middleware = {
@@ -644,14 +644,14 @@ export async function handleEntrypoints({
 }
 
 export async function handlePagesErrorRoute({
-  currentIssues,
+  currentEntryIssues,
   entrypoints,
   manifestLoader,
   rewrites,
 
   hooks,
 }: {
-  currentIssues: IssuesMap
+  currentEntryIssues: EntryIssuesMap
   entrypoints: Entrypoints
   manifestLoader: TurbopackManifestLoader
   rewrites: SetupOpts['fsChecker']['rewrites']
@@ -663,7 +663,7 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-    processIssues(currentIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_app')
   await manifestLoader.loadPagesManifest('_app')
@@ -677,7 +677,7 @@ export async function handlePagesErrorRoute({
     hooks?.subscribeToChanges(key, false, entrypoints.global.document, () => {
       return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
     })
-    processIssues(currentIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadPagesManifest('_document')
 
@@ -686,7 +686,7 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks?.handleWrittenEndpoint(key, writtenEndpoint)
-    processIssues(currentIssues, key, writtenEndpoint)
+    processIssues(currentEntryIssues, key, writtenEndpoint)
   }
   await manifestLoader.loadBuildManifest('_error')
   await manifestLoader.loadPagesManifest('_error')
