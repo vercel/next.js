@@ -48,17 +48,22 @@ if (typeof window !== 'undefined') {
         'https://nextjs.org/docs/messages/react-hydration-error'
       )
     ) {
-      if (hydrationErrorWarning) {
+      // If there's any extra information in the error message to display,
+      // append it to the error message details property
+      if (hydrationErrorWarning || hydrationErrorComponentStack) {
         // The patched console.error found hydration errors logged by React
         // Append the logged warning to the error message
-        error.message += '\n\n' + hydrationErrorWarning
-      }
-      if (hydrationErrorComponentStack) {
-        // Hydration error component stack is added to the error, it's picked up by the hot-reloader-client
-        ;(error as any)._componentStack = hydrationErrorComponentStack
+        ;(error as any).details = {
+          ...(error as any).details,
+          ...(hydrationErrorWarning ? { warning: hydrationErrorWarning } : {}),
+          // Hydration error component stack is added to the error, it's picked up by the hot-reloader-client
+          ...(hydrationErrorComponentStack
+            ? { componentStack: hydrationErrorComponentStack }
+            : {}),
+        }
       }
       error.message +=
-        '\n\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
+        '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
     }
 
     const e = error

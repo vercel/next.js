@@ -4,7 +4,6 @@ import type { ReadyRuntimeError } from '../../helpers/getErrorByType'
 import { noop as css } from '../../helpers/noop-template'
 import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
@@ -76,18 +75,6 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           />
         </React.Fragment>
       ) : undefined}
-
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
-        </>
-      ) : null}
 
       {stackFramesGroupedByFramework.length ? (
         <React.Fragment>

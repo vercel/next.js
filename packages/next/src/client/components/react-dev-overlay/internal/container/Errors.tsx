@@ -25,6 +25,7 @@ import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
+import { PseudoHtml } from './RuntimeError/component-stack-pseudo-html'
 
 export type SupportedErrorEvent = {
   id: number
@@ -214,9 +215,12 @@ export function Errors({
     )
   }
 
+  const error = activeError.error
   const isServerError = ['server', 'edge-server'].includes(
-    getErrorSource(activeError.error) || ''
+    getErrorSource(error) || ''
   )
+
+  const errorDetails = (error as any).details || {}
 
   return (
     <Overlay>
@@ -246,10 +250,21 @@ export function Errors({
             <h1 id="nextjs__container_errors_label">
               {isServerError ? 'Server Error' : 'Unhandled Runtime Error'}
             </h1>
-            <p id="nextjs__container_errors_desc">
-              {activeError.error.name}:{' '}
-              <HotlinkedText text={activeError.error.message} />
+            <p
+              id="nextjs__container_errors_desc"
+              className="nextjs__container_errors_desc nextjs__container_errors_desc--error"
+            >
+              {error.name}: <HotlinkedText text={error.message} />
             </p>
+            {errorDetails.warning && (
+              <p id="nextjs__container_errors__extra">
+                {errorDetails.warning.replace(/^Warning: /, '')}
+                <PseudoHtml
+                  className="nextjs__container_errors__extra_code"
+                  componentStackFrames={activeError.componentStackFrames}
+                />
+              </p>
+            )}
             {isServerError ? (
               <div>
                 <small>
@@ -284,15 +299,23 @@ export const styles = css`
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-header > p {
+  .nextjs-container-errors-header p {
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-small);
     line-height: var(--size-font-big);
     font-weight: bold;
     margin: 0;
     margin-top: var(--size-gap-half);
-    color: var(--color-ansi-red);
     white-space: pre-wrap;
+  }
+  .nextjs__container_errors_desc--error {
+    color: var(--color-ansi-red);
+  }
+  .nextjs__container_errors__extra {
+    margin: 20px 0;
+  }
+  nextjs__container_errors__extra__code {
+    margin: 10px 0;
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;

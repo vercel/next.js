@@ -497,13 +497,15 @@ export default function HotReload({
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
     // Component stack is added to the error in use-error-handler in case there was a hydration errror
-    const componentStack = (error as any)._componentStack
+    const componentStack = (error as any).details?.componentStack
+    const warning = (error as any).details?.warning || ''
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
       frames: parseStack(error.stack!),
       componentStackFrames:
         componentStack && parseComponentStack(componentStack),
+      warning,
     })
   }, [])
   const handleOnUnhandledRejection = useCallback((reason: Error): void => {
