@@ -755,13 +755,14 @@ export default abstract class Server<ServerOptions extends Options = Options> {
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
+    const rsc = isRSCRequestCheck(req) ? 'RSC ' : ''
 
     const tracer = getTracer()
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${rsc}${method} ${req.url}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -792,7 +793,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
 
             const route = rootSpanAttributes.get('next.route')
             if (route) {
-              const newName = `${method} ${route}`
+              const newName = `${rsc}${method} ${route}`
               span.setAttributes({
                 'next.route': route,
                 'http.route': route,
@@ -1728,9 +1729,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     resolvedPathname: string
   ): void {
     const baseVaryHeader = `${RSC_HEADER}, ${NEXT_ROUTER_STATE_TREE}, ${NEXT_ROUTER_PREFETCH_HEADER}`
-    const isRSCRequest =
-      req.headers[RSC_HEADER.toLowerCase()] === '1' ||
-      getRequestMeta(req, 'isRSCRequest')
+    const isRSCRequest = isRSCRequestCheck(req)
 
     let addedNextUrlToVary = false
 
@@ -1895,10 +1894,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     // Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
-    const isRSCRequest =
-      (Boolean(req.headers[RSC_HEADER.toLowerCase()]) ||
-        getRequestMeta(req, 'isRSCRequest')) ??
-      false
+    const isRSCRequest = isRSCRequestCheck(req)
 
     // If we're in minimal mode, then try to get the postponed information from
     // the request metadata. If available, use it for resuming the postponed
@@ -2997,6 +2993,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
       shouldEnsure: false,
     })
     if (result) {
+      getTracer().getRootSpanAttributes()?.set('next.route', pathname)
       try {
         return await this.renderToResponseWithComponents(ctx, result)
       } catch (err) {
@@ -3473,4 +3470,11 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     res.statusCode = 404
     return this.renderError(null, req, res, pathname!, query, setHeaders)
   }
+}
+
+function isRSCRequestCheck(req: BaseNextRequest): boolean {
+  return (
+    req.headers[RSC_HEADER.toLowerCase()] === '1' ||
+    Boolean(getRequestMeta(req, 'isRSCRequest'))
+  )
 }

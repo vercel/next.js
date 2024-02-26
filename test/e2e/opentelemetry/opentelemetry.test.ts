@@ -333,6 +333,36 @@ createNextDescribe(
             ])
           })
 
+          it('should handle RSC with fetch in RSC mode', async () => {
+            await next.fetch('/app/param/rsc-fetch', {
+              ...env.fetchInit,
+              headers: {
+                ...env.fetchInit?.headers,
+                Rsc: '1',
+              },
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'RSC GET /app/[param]/rsc-fetch',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/rsc-fetch',
+                  'http.status_code': 200,
+                  'http.target': '/app/param/rsc-fetch',
+                  'next.route': '/app/[param]/rsc-fetch',
+                  'next.span_name': 'RSC GET /app/[param]/rsc-fetch',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+              },
+            ])
+          })
+
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 
