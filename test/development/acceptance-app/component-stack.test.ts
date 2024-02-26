@@ -56,7 +56,8 @@ describe('Component Stack in error overlay', () => {
         "p
         div
         Component
-        main"
+        main
+        Mismatch"
       `)
     }
 
