@@ -63,13 +63,16 @@ anyhow = "1.0.66"
 backtrace = "0.3"
 fxhash = "0.2.1"
 dhat = { workspace = true, optional = true }
-napi = { version = "2", default-features = false, features = [
+napi = { version = "=2.15.4", default-features = false, features = [
   "napi3",
+  "napi4",
+  "napi5",
   "serde-json",
   "tokio_rt",
   "error_anyhow",
+  "compat-mode"
 ] }
-napi-derive = "2"
+napi-derive = "2.15.3"
 next-custom-transforms = { workspace = true }
 
 once_cell = { workspace = true }
@@ -82,6 +85,7 @@ tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = {workspace = true}
 urlencoding = {workspace = true}
+lightningcss-napi = { workspace = true }
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
