@@ -155,7 +155,7 @@ export async function setupFsCheck(opts: {
     } catch (err: any) {
       if (err.code !== 'ENOENT') throw err
       throw new Error(
-        `Missing ${BUILD_ID_FILE}. Run \`next build\` before using \`next start\`, or use \`next dev\` for development.`
+        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
       )
     }
 
