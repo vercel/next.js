@@ -16,7 +16,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           !(
             f.sourceStackFrame.file === '<anonymous>' &&
             ['stringify', '<unknown>'].includes(f.sourceStackFrame.methodName)
-          )
+          ) && !f.sourceStackFrame.file?.startsWith('node:internals')
       )
 
       const firstFirstPartyFrameIndex = filteredFrames.findIndex(
