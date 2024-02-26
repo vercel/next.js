@@ -44,7 +44,7 @@ import { trace } from '../../trace'
 import type { VersionInfo } from './parse-version-info'
 import {
   type ChangeSubscriptions,
-  type IssuesMap,
+  type EntryIssuesMap,
   formatIssue,
   getTurbopackJsConfig,
   handleEntrypoints,
@@ -151,7 +151,7 @@ export async function createHotReloaderTurbopack(
     app: new Map(),
   }
 
-  const currentIssues: IssuesMap = new Map()
+  const currentEntryIssues: EntryIssuesMap = new Map()
 
   const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
@@ -253,7 +253,7 @@ export async function createHotReloaderTurbopack(
   let hmrEventHappened = false
   let hmrHash = 0
   const sendEnqueuedMessages = () => {
-    for (const [, issueMap] of currentIssues) {
+    for (const [, issueMap] of currentEntryIssues) {
       if (issueMap.size > 0) {
         // During compilation errors we want to delay the HMR events until errors are fixed
         return
@@ -307,7 +307,7 @@ export async function createHotReloaderTurbopack(
   }
 
   type ClientState = {
-    clientIssues: IssuesMap
+    clientIssues: EntryIssuesMap
     hmrPayloads: Map<string, HMR_ACTION_TYPES>
     turbopackUpdates: TurbopackUpdate[]
     subscriptions: Map<string, AsyncIterator<any>>
@@ -333,7 +333,7 @@ export async function createHotReloaderTurbopack(
     const changed = await changedPromise
 
     for await (const change of changed) {
-      processIssues(currentIssues, key, change)
+      processIssues(currentEntryIssues, key, change)
       const payload = await makePayload(change)
       if (payload) {
         sendHmr(key, payload)
@@ -347,7 +347,7 @@ export async function createHotReloaderTurbopack(
       await subscription.return?.()
       changeSubscriptions.delete(key)
     }
-    currentIssues.delete(key)
+    currentEntryIssues.delete(key)
   }
 
   async function subscribeToHmrEvents(client: ws, id: string) {
@@ -409,7 +409,7 @@ export async function createHotReloaderTurbopack(
         currentEntrypoints,
 
         changeSubscriptions,
-        currentIssues,
+        currentEntryIssues: currentEntryIssues,
         manifestLoader,
         nextConfig: opts.nextConfig,
         rewrites: opts.fsChecker.rewrites,
@@ -486,7 +486,7 @@ export async function createHotReloaderTurbopack(
     // TODO: Figure out if socket type can match the NextJsHotReloaderInterface
     onHMR(req, socket: Socket, head) {
       wsServer.handleUpgrade(req, socket, head, (client) => {
-        const clientIssues: IssuesMap = new Map()
+        const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
         clients.add(client)
@@ -590,7 +590,7 @@ export async function createHotReloaderTurbopack(
           }
         }
         clientIssues.forEach(addIssues)
-        currentIssues.forEach(addIssues)
+        currentEntryIssues.forEach(addIssues)
 
         const sync: SyncAction = {
           action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
@@ -626,7 +626,7 @@ export async function createHotReloaderTurbopack(
       const pagesKey = getEntryKey('pages', 'server', page)
 
       const thisPageIssues =
-        currentIssues.get(appKey) ?? currentIssues.get(pagesKey)
+        currentEntryIssues.get(appKey) ?? currentEntryIssues.get(pagesKey)
       if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
         return [...thisPageIssues.values()].map(
@@ -636,7 +636,7 @@ export async function createHotReloaderTurbopack(
 
       // Otherwise, return all errors across pages
       const errors = []
-      for (const pageIssues of currentIssues.values()) {
+      for (const pageIssues of currentEntryIssues.values()) {
         for (const issue of pageIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
@@ -687,7 +687,7 @@ export async function createHotReloaderTurbopack(
         let finishBuilding = startBuilding(pathname, requestUrl, false)
         try {
           await handlePagesErrorRoute({
-            currentIssues,
+            currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: opts.fsChecker.rewrites,
@@ -737,7 +737,7 @@ export async function createHotReloaderTurbopack(
           page,
           pathname,
           route,
-          currentIssues,
+          currentEntryIssues: currentEntryIssues,
           entrypoints: currentEntrypoints,
           manifestLoader,
           readyIds,
@@ -781,7 +781,7 @@ export async function createHotReloaderTurbopack(
           const errors = new Map<string, CompilationError>()
           const addErrors = (
             errorsMap: Map<string, CompilationError>,
-            issues: IssuesMap
+            issues: EntryIssuesMap
           ) => {
             for (const issueMap of issues.values()) {
               for (const [key, issue] of issueMap) {
@@ -798,7 +798,7 @@ export async function createHotReloaderTurbopack(
               }
             }
           }
-          addErrors(errors, currentIssues)
+          addErrors(errors, currentEntryIssues)
 
           for (const client of clients) {
             const state = clientStates.get(client)

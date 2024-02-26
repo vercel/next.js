@@ -170,7 +170,7 @@ import { isInterceptionRouteAppPath } from '../server/future/helpers/interceptio
 import {
   getTurbopackJsConfig,
   handleEntrypoints,
-  type IssuesMap,
+  type EntryIssuesMap,
   handleRouteType,
   handlePagesErrorRoute,
   formatIssue,
@@ -1390,7 +1390,7 @@ export default async function build(
           page: new Map(),
         }
 
-        const currentIssues: IssuesMap = new Map()
+        const currentEntryIssues: EntryIssuesMap = new Map()
 
         const manifestLoader = new TurbopackManifestLoader({ buildId, distDir })
 
@@ -1412,7 +1412,7 @@ export default async function build(
         await handleEntrypoints({
           entrypoints,
           currentEntrypoints,
-          currentIssues,
+          currentEntryIssues,
           manifestLoader,
           nextConfig: config,
           rewrites: emptyRewritesObjToBeImplemented,
@@ -1446,7 +1446,7 @@ export default async function build(
               pathname: page,
               route,
 
-              currentIssues,
+              currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
@@ -1461,7 +1461,7 @@ export default async function build(
               dev: false,
               pathname: normalizeAppPath(page),
               route,
-              currentIssues,
+              currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
               rewrites: emptyRewritesObjToBeImplemented,
@@ -1471,7 +1471,7 @@ export default async function build(
 
         enqueue(() =>
           handlePagesErrorRoute({
-            currentIssues,
+            currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
             rewrites: emptyRewritesObjToBeImplemented,
@@ -1488,7 +1488,7 @@ export default async function build(
           page: string
           message: string
         }[] = []
-        for (const [page, pageIssues] of currentIssues) {
+        for (const [page, pageIssues] of currentEntryIssues) {
           for (const issue of pageIssues.values()) {
             errors.push({
               page,
