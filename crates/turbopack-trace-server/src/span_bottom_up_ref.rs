@@ -158,6 +158,10 @@ impl<'a> SpanBottomUpRef<'a> {
             .self_allocation_count
             .get_or_init(|| self.spans().map(|span| span.self_allocation_count()).sum())
     }
+
+    pub fn self_span_count(&self) -> u64 {
+        self.bottom_up.self_spans.len() as u64
+    }
 }
 
 impl<'a> Debug for SpanBottomUpRef<'a> {
