@@ -18,9 +18,9 @@ use smallvec::smallvec;
 use swc_core::{
     atoms::Atom,
     base::sourcemap::SourceMapBuilder,
-    common::{BytePos, FileName, LineCol},
+    common::{BytePos, FileName, LineCol, Span},
     css::{
-        ast::{TypeSelector, UrlValue},
+        ast::{SubclassSelector, TypeSelector, UrlValue},
         codegen::{writer::basic::BasicCssWriter, CodeGenerator},
         modules::{CssClassName, TransformConfig},
         visit::{VisitMut, VisitMutWith, VisitWith},
@@ -532,11 +532,12 @@ async fn process_content(
         StyleSheetLike::LightningCss(match StyleSheet::parse(&code, config.clone()) {
             Ok(mut ss) => {
                 if matches!(ty, CssModuleAssetType::Module) {
-                    ss.visit(&mut CssModuleValidator {
-                        source,
-                        file: fs_path_vc,
-                    })
-                    .unwrap();
+                    let mut validator = CssValidator { errors: Vec::new() };
+                    ss.visit(&mut validator).unwrap();
+
+                    for err in validator.errors {
+                        err.report(source, fs_path_vc);
+                    }
                 }
 
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
@@ -604,10 +605,12 @@ async fn process_content(
         }
 
         if matches!(ty, CssModuleAssetType::Module) {
-            ss.visit_with(&mut CssModuleValidator {
-                source,
-                file: fs_path_vc,
-            });
+            let mut validator = CssValidator { errors: vec![] };
+            ss.visit_with(&mut validator);
+
+            for err in validator.errors {
+                err.report(source, fs_path_vc);
+            }
         }
 
         StyleSheetLike::Swc {
@@ -656,42 +659,72 @@ async fn process_content(
 /// ```
 ///
 /// is wrong for a css module because it doesn't have a class name.
-struct CssModuleValidator {
-    source: Vc<Box<dyn Source>>,
-    file: Vc<FileSystemPath>,
+struct CssValidator {
+    errors: Vec<CssError>,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum CssError {
+    SwcSelectorInModuleNotPure { span: Span },
+    LightningCssSelectorInModuleNotPure { selector: String },
+}
+
+impl CssError {
+    fn report(self, source: Vc<Box<dyn Source>>, file: Vc<FileSystemPath>) {
+        match self {
+            CssError::SwcSelectorInModuleNotPure { span } => {
+                ParsingIssue {
+                    file,
+                    msg: Vc::cell(CSS_MODULE_ERROR.to_string()),
+                    source: Vc::cell(Some(IssueSource::from_swc_offsets(
+                        source,
+                        span.lo.0 as _,
+                        span.hi.0 as _,
+                    ))),
+                }
+                .cell()
+                .emit();
+            }
+            CssError::LightningCssSelectorInModuleNotPure { selector } => {
+                ParsingIssue {
+                    file,
+                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})")),
+                    source: Vc::cell(None),
+                }
+                .cell()
+                .emit();
+            }
+        }
+    }
 }
 
 const CSS_MODULE_ERROR: &str =
     "Selector is not pure (pure selectors must contain at least one local class or id)";
 
 /// We only vist top-level selectors.
-impl swc_core::css::visit::Visit for CssModuleValidator {
-    // TODO: SKip some
+impl swc_core::css::visit::Visit for CssValidator {
     fn visit_complex_selector(&mut self, n: &swc_core::css::ast::ComplexSelector) {
         if n.children.iter().all(|sel| match sel {
             swc_core::css::ast::ComplexSelectorChildren::CompoundSelector(sel) => {
-                sel.subclass_selectors.is_empty()
-                    && match &sel.type_selector.as_deref() {
-                        Some(TypeSelector::TagName(tag)) => {
-                            !matches!(&*tag.name.value.value, "html" | "body")
-                        }
-                        Some(..) => true,
-                        None => false,
+                sel.subclass_selectors.iter().all(|sel| {
+                    matches!(
+                        sel,
+                        SubclassSelector::Attribute { .. }
+                            | SubclassSelector::PseudoClass(..)
+                            | SubclassSelector::PseudoElement(..)
+                    )
+                }) && match &sel.type_selector.as_deref() {
+                    Some(TypeSelector::TagName(tag)) => {
+                        !matches!(&*tag.name.value.value, "html" | "body")
                     }
+                    Some(TypeSelector::Universal(..)) => true,
+                    None => true,
+                }
             }
             swc_core::css::ast::ComplexSelectorChildren::Combinator(_) => true,
         }) {
-            ParsingIssue {
-                file: self.file,
-                msg: Vc::cell(CSS_MODULE_ERROR.to_string()),
-                source: Vc::cell(Some(IssueSource::from_swc_offsets(
-                    self.source,
-                    n.span.lo.0 as _,
-                    n.span.hi.0 as _,
-                ))),
-            }
-            .cell()
-            .emit();
+            self.errors
+                .push(CssError::SwcSelectorInModuleNotPure { span: n.span });
         }
     }
 
@@ -699,7 +732,7 @@ impl swc_core::css::visit::Visit for CssModuleValidator {
 }
 
 /// We only vist top-level selectors.
-impl lightningcss::visitor::Visitor<'_> for CssModuleValidator {
+impl lightningcss::visitor::Visitor<'_> for CssValidator {
     type Error = ();
 
     fn visit_types(&self) -> lightningcss::visitor::VisitTypes {
@@ -713,19 +746,27 @@ impl lightningcss::visitor::Visitor<'_> for CssModuleValidator {
         if selector
             .iter_raw_parse_order_from(0)
             .all(|component| match component {
+                parcel_selectors::parser::Component::ID(..)
+                | parcel_selectors::parser::Component::Class(..) => false,
+
+                parcel_selectors::parser::Component::Combinator(..)
+                | parcel_selectors::parser::Component::AttributeOther(..)
+                | parcel_selectors::parser::Component::AttributeInNoNamespaceExists { .. }
+                | parcel_selectors::parser::Component::AttributeInNoNamespace { .. }
+                | parcel_selectors::parser::Component::ExplicitUniversalType
+                | parcel_selectors::parser::Component::Negation(..) => true,
+
                 parcel_selectors::parser::Component::LocalName(local) => {
+                    // Allow html and body. They are not pure selectors but are allowed.
                     !matches!(&*local.name.0, "html" | "body")
                 }
                 _ => false,
             })
         {
-            ParsingIssue {
-                file: self.file,
-                msg: Vc::cell(format!("{CSS_MODULE_ERROR} (lightningcss, {:?})", selector)),
-                source: Vc::cell(None),
-            }
-            .cell()
-            .emit();
+            self.errors
+                .push(CssError::LightningCssSelectorInModuleNotPure {
+                    selector: format!("{selector:?}"),
+                });
         }
 
         Ok(())
@@ -911,5 +952,172 @@ impl Issue for ParsingIssue {
         Ok(Vc::cell(Some(
             StyledString::Text(self.msg.await?.clone_value()).cell(),
         )))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lightningcss::{
+        css_modules::Pattern,
+        stylesheet::{ParserOptions, StyleSheet},
+        visitor::Visit,
+    };
+    use swc_core::{
+        common::{FileName, FilePathMapping},
+        css::{ast::Stylesheet, parser::parser::ParserConfig, visit::VisitWith},
+    };
+
+    use super::{CssError, CssValidator};
+
+    fn lint_lightningcss(code: &str) -> Vec<CssError> {
+        let mut ss = StyleSheet::parse(
+            code,
+            ParserOptions {
+                css_modules: Some(lightningcss::css_modules::Config {
+                    pattern: Pattern::default(),
+                    dashed_idents: false,
+                }),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        let mut validator = CssValidator { errors: Vec::new() };
+        ss.visit(&mut validator).unwrap();
+
+        validator.errors
+    }
+
+    fn lint_swc(code: &str) -> Vec<CssError> {
+        let cm = swc_core::common::SourceMap::new(FilePathMapping::empty());
+
+        let fm = cm.new_source_file(FileName::Custom("test.css".to_string()), code.to_string());
+
+        let ss: Stylesheet = swc_core::css::parser::parse_file(
+            &fm,
+            None,
+            ParserConfig {
+                css_modules: true,
+                ..Default::default()
+            },
+            &mut vec![],
+        )
+        .unwrap();
+
+        let mut validator = CssValidator { errors: Vec::new() };
+        ss.visit_with(&mut validator);
+
+        validator.errors
+    }
+
+    #[track_caller]
+    fn assert_lint_success(code: &str) {
+        assert_eq!(lint_lightningcss(code), vec![], "lightningcss: {code}");
+        assert_eq!(lint_swc(code), vec![], "swc: {code}");
+    }
+
+    #[track_caller]
+    fn assert_lint_failure(code: &str) {
+        assert_ne!(lint_lightningcss(code), vec![], "lightningcss: {code}");
+        assert_ne!(lint_swc(code), vec![], "swc: {code}");
+    }
+
+    #[test]
+    fn css_module_pure_lint() {
+        assert_lint_success(
+            "html {
+            --foo: 1;
+        }",
+        );
+
+        assert_lint_success(
+            "#id {
+            color: red;
+        }",
+        );
+
+        assert_lint_success(
+            ".class {
+            color: red;
+        }",
+        );
+
+        assert_lint_success(
+            "html.class {
+            color: red;
+        }",
+        );
+
+        assert_lint_success(
+            ".class > * {
+            color: red;
+        }",
+        );
+
+        assert_lint_success(
+            ".class * {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div > span {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div span {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div[data-foo] {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div[data-foo=\"bar\"] {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "div[data-foo=\"bar\"] span {
+            color: red;
+        }",
+        );
+
+        assert_lint_failure(
+            "* {
+            --foo: 1;
+        }",
+        );
+
+        assert_lint_failure(
+            "[data-foo] {
+            --foo: 1;
+        }",
+        );
+
+        assert_lint_failure(
+            ":not(.class) {
+            --foo: 1;
+        }",
+        );
+
+        assert_lint_failure(
+            ":not(div) {
+            --foo: 1;
+        }",
+        );
     }
 }
