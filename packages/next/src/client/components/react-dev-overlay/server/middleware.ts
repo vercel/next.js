@@ -4,8 +4,12 @@ import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import { getRawSourceMap } from '../internal/helpers/getRawSourceMap'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
+  badRequest,
   findSourcePackage,
   getOriginalCodeFrame,
+  internalServerError,
+  json,
+  noContent,
   type OriginalStackFrameResponse,
   type StackFrame,
 } from './shared'
@@ -328,25 +332,4 @@ export function getOverlayMiddleware(options: {
     }
     return next()
   }
-}
-
-function noContent(res: ServerResponse) {
-  res.statusCode = 204
-  res.end('No Content')
-}
-
-function badRequest(res: ServerResponse) {
-  res.statusCode = 400
-  res.end('Bad Request')
-}
-
-function internalServerError(res: ServerResponse) {
-  res.statusCode = 500
-  res.end('Internal Server Error')
-}
-
-function json(res: ServerResponse, data: any) {
-  res
-    .setHeader('Content-Type', 'application/json')
-    .end(Buffer.from(JSON.stringify(data)))
 }

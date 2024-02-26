@@ -1,3 +1,4 @@
+import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import type { StackFrame as ParsedStackFrame } from 'stacktrace-parser'
 
@@ -92,4 +93,25 @@ export function getOriginalCodeFrame(
     },
     { forceColor: true }
   )
+}
+
+export function noContent(res: ServerResponse) {
+  res.statusCode = 204
+  res.end('No Content')
+}
+
+export function badRequest(res: ServerResponse) {
+  res.statusCode = 400
+  res.end('Bad Request')
+}
+
+export function internalServerError(res: ServerResponse, e?: any) {
+  res.statusCode = 500
+  res.end(e ?? 'Internal Server Error')
+}
+
+export function json(res: ServerResponse, data: any) {
+  res
+    .setHeader('Content-Type', 'application/json')
+    .end(Buffer.from(JSON.stringify(data)))
 }

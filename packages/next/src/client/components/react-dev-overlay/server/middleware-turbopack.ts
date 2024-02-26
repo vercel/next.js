@@ -1,7 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
+  badRequest,
   findSourcePackage,
   getOriginalCodeFrame,
+  internalServerError,
+  json,
+  noContent,
   type OriginalStackFrameResponse,
   type StackFrame,
 } from './shared'
@@ -91,55 +95,32 @@ export function getOverlayMiddleware(project: Project) {
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
-        res.statusCode = 500
-        res.write(e.message)
-        res.end()
-        return
+        return internalServerError(res, e.message)
       }
 
-      if (originalStackFrame === null) {
+      if (!originalStackFrame) {
         res.statusCode = 404
-        res.write('Unable to resolve sourcemap')
-        res.end()
-        return
+        return res.end('Unable to resolve sourcemap')
       }
 
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      res.write(Buffer.from(JSON.stringify(originalStackFrame)))
-      res.end()
-      return
+      return json(res, originalStackFrame)
     } else if (pathname === '/__nextjs_launch-editor') {
-      if (!frame.file) {
-        res.statusCode = 400
-        res.write('Bad Request')
-        res.end()
-        return
-      }
+      if (!frame.file) return badRequest(res)
 
       const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
         () => false
       )
-      if (!fileExists) {
-        res.statusCode = 204
-        res.write('No Content')
-        res.end()
-        return
-      }
+      if (!fileExists) return noContent(res)
 
       try {
         launchEditor(frame.file, frame.lineNumber ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        res.statusCode = 500
-        res.write('Internal Server Error')
-        res.end()
-        return
+        return internalServerError(res)
       }
 
-      res.statusCode = 204
-      res.end()
+      noContent(res)
     }
   }
 }
