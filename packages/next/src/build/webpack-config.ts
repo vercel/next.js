@@ -11,8 +11,9 @@ import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackAppLayer,
+  isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
-  isWebpackServerLayer,
+  isWebpackServerOnlyLayer,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -1211,7 +1212,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             or: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1223,7 +1224,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1240,7 +1241,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.server,
+            or: WEBPACK_LAYERS.GROUP.serverOnly,
           },
           options: {
             message:
@@ -1255,7 +1256,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1309,10 +1310,19 @@ export default async function getBaseWebpackConfig(
               {
                 issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: {
-                    ...createNextApiEsmAliases(),
-                    ...createAppRouterApiAliases(),
-                  },
+                  alias: createNextApiEsmAliases(),
+                },
+              },
+              {
+                issuerLayer: isWebpackServerOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(true),
+                },
+              },
+              {
+                issuerLayer: isWebpackClientOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(false),
                 },
               },
             ]
@@ -1320,7 +1330,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1383,7 +1393,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: asyncStoragesRegex,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1474,7 +1484,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },
