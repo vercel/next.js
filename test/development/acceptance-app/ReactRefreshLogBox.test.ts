@@ -887,7 +887,6 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       ])
     )
 
-    // Test that node:internal errors should be hidden
     expect(await session.hasRedbox()).toBe(true)
     await expandCallStack(browser)
 
