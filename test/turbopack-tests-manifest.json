@@ -1057,8 +1057,8 @@
     ],
     "failed": [],
     "pending": [
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "flakey": [],
     "runtimeError": false
