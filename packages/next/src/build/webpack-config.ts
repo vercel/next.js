@@ -83,6 +83,7 @@ import {
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
+import { MergeCssChunksPlugin } from './webpack/plugins/merge-css-chunks-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1877,6 +1878,7 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      !dev && isClient && new MergeCssChunksPlugin(),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
