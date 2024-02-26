@@ -118,7 +118,7 @@ export function formatIssue(issue: Issue) {
 }
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
-type IssuesMap = Map<IssueKey, Issue>
+export type IssuesMap = Map<IssueKey, Issue>
 export type EntryIssuesMap = Map<EntryKey, IssuesMap>
 export type TopLevelIssuesMap = IssuesMap
 
