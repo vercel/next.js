@@ -17,8 +17,6 @@ import { createNextDescribe } from 'e2e-utils'
           '@heroicons/react': '2.0.18',
           '@visx/visx': '3.3.0',
           'recursive-barrel': '1.0.0',
-          '@emotion/styled': '11.11.0',
-          '@emotion/react': '11.11.1',
         },
       },
       ({ next }) => {

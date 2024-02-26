@@ -15,6 +15,8 @@ import { hasRedbox } from 'next-test-utils'
 
         dependencies: {
           '@mui/material': '5.15.4',
+          '@emotion/react': '11.11.1',
+          '@emotion/styled': '11.11.0',
         },
       },
       ({ next }) => {
