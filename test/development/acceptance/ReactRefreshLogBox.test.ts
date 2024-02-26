@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { sandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
+import { describeVariants as describe, expandCallStack } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -742,6 +742,76 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       `Error: A null error was thrown`
     )
 
+    await cleanup()
+  })
+
+  test('Call stack count is correct for pages error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          outdent`
+            export default function Page() {
+              if (typeof window !== 'undefined') {
+                throw new Error('Client error')
+              }
+              return null
+            }
+          `,
+        ],
+      ])
+    )
+
+    expect(await session.hasRedbox()).toBe(true)
+
+    await expandCallStack(browser)
+
+    // Expect more than the default amount of frames
+    // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+
+    expect(callStackFrames.length).toBeGreaterThan(9)
+
+    const moduleGroup = await browser.elementsByCss(
+      '[data-nextjs-collapsed-call-stack-details]'
+    )
+    // Expect some of the call stack frames to be grouped (by React or Next.js)
+    expect(moduleGroup.length).toBeGreaterThan(0)
+
+    await cleanup()
+  })
+
+  test('stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error', async () => {
+    const { session, browser, cleanup } = await sandbox(
+      next,
+      new Map([
+        [
+          'pages/index.js',
+          outdent`
+            export default function Page() {
+              const e = new Error("Client error!");
+              e.stack += \`
+              at stringify (<anonymous>)
+              at <unknown> (<anonymous>)
+              at foo (bar:1:1)\`;
+              throw e;
+            }
+          `,
+        ],
+      ])
+    )
+    expect(await session.hasRedbox()).toBe(true)
+    await expandCallStack(browser)
+    const callStackFrames = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
+    expect(texts).not.toContain('stringify\n<anonymous>')
+    expect(texts).not.toContain('<unknown>\n<anonymous>')
+    expect(texts).toContain('foo\nbar (1:1)')
     await cleanup()
   })
 })

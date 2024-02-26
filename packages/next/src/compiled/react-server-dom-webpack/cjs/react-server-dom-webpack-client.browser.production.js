@@ -617,12 +617,12 @@ function processReply(root, formFieldPrefix, resolve, reject) {
   }
 }
 
-function registerServerReference(proxy, reference) {
+function registerServerReference(proxy, reference, encodeFormAction) {
 
   knownServerReferences.set(proxy, reference);
 } // $FlowFixMe[method-unbinding]
 
-function createServerReference(id, callServer) {
+function createServerReference(id, callServer, encodeFormAction) {
   const proxy = function () {
     // $FlowFixMe[method-unbinding]
     const args = Array.prototype.slice.call(arguments);
@@ -647,8 +647,7 @@ const CYCLIC = 'cyclic';
 const RESOLVED_MODEL = 'resolved_model';
 const RESOLVED_MODULE = 'resolved_module';
 const INITIALIZED = 'fulfilled';
-const ERRORED = 'rejected'; // Dev-only
-// $FlowFixMe[missing-this-annot]
+const ERRORED = 'rejected'; // $FlowFixMe[missing-this-annot]
 
 function Chunk(status, value, reason, response) {
   this.status = status;
@@ -1218,12 +1217,13 @@ function missingCall() {
   throw new Error('Trying to call a function from "use server" but the callServer option ' + 'was not implemented in your router runtime.');
 }
 
-function createResponse(bundlerConfig, moduleLoading, callServer, nonce) {
+function createResponse(bundlerConfig, moduleLoading, callServer, encodeFormAction, nonce) {
   const chunks = new Map();
   const response = {
     _bundlerConfig: bundlerConfig,
     _moduleLoading: moduleLoading,
     _callServer: callServer !== undefined ? callServer : missingCall,
+    _encodeFormAction: encodeFormAction,
     _nonce: nonce,
     _chunks: chunks,
     _stringDecoder: createStringDecoder(),
@@ -1549,7 +1549,8 @@ function close(response) {
 }
 
 function createResponseFromOptions(options) {
-  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined // nonce
+  return createResponse(null, null, options && options.callServer ? options.callServer : undefined, undefined, // encodeFormAction
+  undefined // nonce
   );
 }
 
