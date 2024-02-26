@@ -1,0 +1,75 @@
+[
+  {
+    "name": "total time 6e268c024fbd2 dynamic html resume",
+    "entryType": "measure",
+    "startTime": 2667.7697908878326,
+    "duration": 6.296999931335449,
+    "detail": { "name": "dynamic html resume", "pagePath": "/" }
+  },
+  {
+    "name": "total time 5b840a92cb432 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 3806.8848748207092,
+    "duration": 1020.4397501945496,
+    "detail": { "name": "dynamic prerender", "pagePath": "/nested/[slug]" }
+  },
+  {
+    "name": "total time d1e277c881d73 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 4824.022832870483,
+    "duration": 1990.4517500400543,
+    "detail": { "name": "dynamic prerender", "pagePath": "/on-demand/[slug]" }
+  },
+  {
+    "name": "total time 79a2ebe789a77 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 6813.209082841873,
+    "duration": 4.005666971206665,
+    "detail": { "name": "dynamic prerender", "pagePath": "/on-demand/[slug]" }
+  },
+  {
+    "name": "total time 2ca4a909c8c23 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 6813.98237490654,
+    "duration": 3.6764581203460693,
+    "detail": { "name": "dynamic prerender", "pagePath": "/nested/[slug]" }
+  },
+  {
+    "name": "total time 6c0e967211fc2 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 8807.82637500763,
+    "duration": 1985.709625005722,
+    "detail": { "name": "dynamic prerender", "pagePath": "/on-demand/[slug]" }
+  },
+  {
+    "name": "total time 81815f8256816 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 8808.642124891281,
+    "duration": 1985.8041660785675,
+    "detail": { "name": "dynamic prerender", "pagePath": "/loading/[slug]" }
+  },
+  {
+    "name": "total time 30a5afba54215 dynamic prerender",
+    "entryType": "measure",
+    "startTime": 10776.939415931702,
+    "duration": 17.827917098999023,
+    "detail": { "name": "dynamic prerender", "pagePath": "/loading/[slug]" }
+  },
+  {
+    "name": "total time db5aa4d4fc18e dynamic prerender",
+    "entryType": "measure",
+    "startTime": 10791.006875038147,
+    "duration": 4.21274995803833,
+    "detail": { "name": "dynamic prerender", "pagePath": "/loading/[slug]" }
+  },
+  {
+    "name": "total time 848832d5b649e static prerender",
+    "entryType": "measure",
+    "startTime": 14048.24924993515,
+    "duration": 3.105041027069092,
+    "detail": {
+      "name": "static prerender",
+      "pagePath": "/dynamic/force-static"
+    }
+  }
+]

@@ -644,10 +644,12 @@ type ContinueDynamicPrerenderOptions = {
 
 export async function continueDynamicPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
-  { getServerInsertedHTML }: ContinueDynamicPrerenderOptions
+  { getServerInsertedHTML }: ContinueDynamicPrerenderOptions,
+  details: any
 ) {
   const perfController = new TransformStreamPerformanceController(
-    'dynamic prerender'
+    'dynamic prerender',
+    details
   )
 
   return (
@@ -669,11 +671,13 @@ type ContinueStaticPrerenderOptions = {
 
 export async function continueStaticPrerender(
   prerenderStream: ReadableStream<Uint8Array>,
-  { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions
+  { inlinedDataStream, getServerInsertedHTML }: ContinueStaticPrerenderOptions,
+  details: any
 ) {
   const closeTag = '</body></html>'
   const perfController = new TransformStreamPerformanceController(
-    'static prerender'
+    'static prerender',
+    details
   )
 
   return (
@@ -698,11 +702,13 @@ type ContinueResumeOptions = {
 
 export async function continueDynamicHTMLResume(
   renderStream: ReadableStream<Uint8Array>,
-  { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions
+  { inlinedDataStream, getServerInsertedHTML }: ContinueResumeOptions,
+  details: any
 ) {
   const closeTag = '</body></html>'
   const perfController = new TransformStreamPerformanceController(
-    'dynamic html resume'
+    'dynamic html resume',
+    details
   )
 
   return (

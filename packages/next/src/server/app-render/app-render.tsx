@@ -1011,9 +1011,15 @@ async function renderToHTMLOrFlightImpl(
             // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
             // require the same set so we unify the code path here
             return {
-              stream: await continueDynamicPrerender(stream, {
-                getServerInsertedHTML,
-              }),
+              stream: await continueDynamicPrerender(
+                stream,
+                {
+                  getServerInsertedHTML,
+                },
+                {
+                  pagePath,
+                }
+              ),
             }
           } else {
             // We may still be rendering the RSC stream even though the HTML is finished.
@@ -1041,9 +1047,15 @@ async function renderToHTMLOrFlightImpl(
               // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
               // require the same set so we unify the code path here
               return {
-                stream: await continueDynamicPrerender(stream, {
-                  getServerInsertedHTML,
-                }),
+                stream: await continueDynamicPrerender(
+                  stream,
+                  {
+                    getServerInsertedHTML,
+                  },
+                  {
+                    pagePath,
+                  }
+                ),
               }
             } else {
               // This is the Static case
@@ -1102,14 +1114,20 @@ async function renderToHTMLOrFlightImpl(
               }
 
               return {
-                stream: await continueStaticPrerender(renderedHTMLStream, {
-                  inlinedDataStream: createInlinedDataReadableStream(
-                    dataStream,
-                    nonce,
-                    formState
-                  ),
-                  getServerInsertedHTML,
-                }),
+                stream: await continueStaticPrerender(
+                  renderedHTMLStream,
+                  {
+                    inlinedDataStream: createInlinedDataReadableStream(
+                      dataStream,
+                      nonce,
+                      formState
+                    ),
+                    getServerInsertedHTML,
+                  },
+                  {
+                    pagePath,
+                  }
+                ),
               }
             }
           }
@@ -1123,10 +1141,16 @@ async function renderToHTMLOrFlightImpl(
           if (resumed) {
             // We have new HTML to stream and we also need to include server inserted HTML
             return {
-              stream: await continueDynamicHTMLResume(stream, {
-                inlinedDataStream,
-                getServerInsertedHTML,
-              }),
+              stream: await continueDynamicHTMLResume(
+                stream,
+                {
+                  inlinedDataStream,
+                  getServerInsertedHTML,
+                },
+                {
+                  pagePath,
+                }
+              ),
             }
           } else {
             // We are continuing a Dynamic Data Prerender and simply need to append new inlined flight data
