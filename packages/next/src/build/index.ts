@@ -1488,8 +1488,8 @@ export default async function build(
           page: string
           message: string
         }[] = []
-        for (const [page, pageIssues] of currentEntryIssues) {
-          for (const issue of pageIssues.values()) {
+        for (const [page, entryIssues] of currentEntryIssues) {
+          for (const issue of entryIssues.values()) {
             errors.push({
               page,
               message: formatIssue(issue),

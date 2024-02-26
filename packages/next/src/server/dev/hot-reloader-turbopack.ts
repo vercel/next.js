@@ -582,8 +582,8 @@ export async function createHotReloaderTurbopack(
         client.send(JSON.stringify(turbopackConnected))
 
         const errors: CompilationError[] = []
-        const addIssues = (pageIssues: Map<string, Issue>) => {
-          for (const issue of pageIssues.values()) {
+        const addIssues = (entryIssues: Map<string, Issue>) => {
+          for (const issue of entryIssues.values()) {
             errors.push({
               message: formatIssue(issue),
             })
@@ -622,22 +622,23 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async getCompilationErrors(page) {
-      const appKey = getEntryKey('app', 'server', page)
-      const pagesKey = getEntryKey('pages', 'server', page)
+      const appEntryKey = getEntryKey('app', 'server', page)
+      const pagesEntryKey = getEntryKey('pages', 'server', page)
 
-      const thisPageIssues =
-        currentEntryIssues.get(appKey) ?? currentEntryIssues.get(pagesKey)
-      if (thisPageIssues !== undefined && thisPageIssues.size > 0) {
+      const thisEntryIssues =
+        currentEntryIssues.get(appEntryKey) ??
+        currentEntryIssues.get(pagesEntryKey)
+      if (thisEntryIssues !== undefined && thisEntryIssues.size > 0) {
         // If there is an error related to the requesting page we display it instead of the first error
-        return [...thisPageIssues.values()].map(
+        return [...thisEntryIssues.values()].map(
           (issue) => new Error(formatIssue(issue))
         )
       }
 
       // Otherwise, return all errors across pages
       const errors = []
-      for (const pageIssues of currentEntryIssues.values()) {
-        for (const issue of pageIssues.values()) {
+      for (const entryIssues of currentEntryIssues.values()) {
+        for (const issue of entryIssues.values()) {
           errors.push(new Error(formatIssue(issue)))
         }
       }
