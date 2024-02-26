@@ -11,6 +11,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import {
   appOption,
@@ -89,16 +90,15 @@ describe('Edge runtime code with imports', () => {
           context.appPort,
           appOption
         )
-        const res = await fetchViaHTTP(context.appPort, url)
-        expect(res.status).toBe(500)
-        await check(async () => {
+        await retry(async () => {
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(res.status).toBe(500)
           expectUnsupportedModuleDevError(
             moduleName,
             importStatement,
             await res.text()
           )
-          return 'success'
-        }, 'success')
+        })
       })
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)(

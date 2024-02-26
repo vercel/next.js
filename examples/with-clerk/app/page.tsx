@@ -1,7 +1,7 @@
-import { SignedIn, SignedOut } from '@clerk/nextjs'
-import styles from '../styles/Home.module.css'
-import Link from 'next/link'
-import { APIRequest } from './api-request'
+import { SignedIn, SignedOut } from "@clerk/nextjs";
+import styles from "../styles/Home.module.css";
+import Link from "next/link";
+import { APIRequest } from "./api-request";
 
 const ClerkFeatures = () => (
   <Link href="/user" className={styles.cardContent}>
@@ -17,7 +17,7 @@ const ClerkFeatures = () => (
       <img src="/icons/arrow-right.svg" />
     </div>
   </Link>
-)
+);
 
 const SignupLink = () => (
   <Link href="/sign-up" className={styles.cardContent}>
@@ -33,7 +33,7 @@ const SignupLink = () => (
       <img src="/icons/arrow-right.svg" />
     </div>
   </Link>
-)
+);
 
 // Main component using <SignedIn> & <SignedOut>.
 //
@@ -99,12 +99,12 @@ const Main = () => (
       </Link>
     </div>
   </main>
-)
+);
 
 // Footer component
 const Footer = () => (
   <footer className={styles.footer}>
-    Powered by{' '}
+    Powered by{" "}
     <a href="https://clerk.dev" target="_blank" rel="noopener noreferrer">
       <img src="/clerk.svg" alt="Clerk.dev" className={styles.logo} />
     </a>
@@ -113,7 +113,7 @@ const Footer = () => (
       <img src="/nextjs.svg" alt="Next.js" className={styles.logo} />
     </a>
   </footer>
-)
+);
 
 export default function Home() {
   return (
@@ -121,5 +121,5 @@ export default function Home() {
       <Main />
       <Footer />
     </div>
-  )
+  );
 }

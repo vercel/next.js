@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request } from 'playwright-chromium'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -134,7 +134,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
 
     it('should support .bind', async () => {
@@ -370,6 +370,125 @@ createNextDescribe(
       expect(requestCount).toBe(1)
     })
 
+    it('should handle actions executed in quick succession', async () => {
+      let requestCount = 0
+      const browser = await next.browser('/use-transition', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+            if (url.pathname === '/use-transition') {
+              requestCount++
+            }
+          })
+        },
+      })
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: idle'
+      )
+      const button = await browser.elementById('action-button')
+
+      // fire off 6 successive requests by clicking the button 6 times
+      for (let i = 0; i < 6; i++) {
+        await button.click()
+
+        // add a little bit of delay to simulate user behavior & give
+        // the requests a moment to start running
+        await waitFor(500)
+      }
+
+      expect(await browser.elementByCss('h1').text()).toBe(
+        'Transition is: pending'
+      )
+
+      await check(() => requestCount, 6)
+
+      await check(
+        () => browser.elementByCss('h1').text(),
+        'Transition is: idle'
+      )
+    })
+
+    it('should 404 when POSTing an invalid server action', async () => {
+      const cliOutputPosition = next.cliOutput.length
+      const res = await next.fetch('/non-existent-route', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+        body: 'foo=bar',
+      })
+
+      const cliOutput = next.cliOutput.slice(cliOutputPosition)
+
+      expect(cliOutput).not.toContain('TypeError')
+      expect(cliOutput).not.toContain(
+        'Missing `origin` header from a forwarded Server Actions request'
+      )
+      expect(res.status).toBe(404)
+    })
+
+    it('should log a warning when a server action is not found but an id is provided', async () => {
+      await next.fetch('/server', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'next-action': 'abc123',
+        },
+        body: 'foo=bar',
+      })
+
+      await check(
+        () => next.cliOutput,
+        /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
+      )
+    })
+
+    it('should be possible to catch network errors', async () => {
+      const browser = await next.browser('/catching-error', {
+        beforePageLoad(page) {
+          page.route('**/catching-error', (route: Route) => {
+            if (route.request().method() !== 'POST') {
+              route.fallback()
+              return
+            }
+
+            route.abort('internetdisconnected')
+          })
+        },
+      })
+
+      await browser.elementById('good-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
+    })
+
+    it('should be possible to catch regular errors', async () => {
+      const browser = await next.browser('/catching-error')
+
+      await browser.elementById('bad-action').click()
+
+      // verify that the app didn't crash after the error was thrown
+      expect(await browser.elementById('submitted-msg').text()).toBe(
+        'Submitted!'
+      )
+
+      // Verify that the catch log was printed
+      const logs = await browser.log()
+      expect(
+        logs.some((log) => log.message === 'error caught in user code')
+      ).toBe(true)
+    })
+
     if (isNextStart) {
       it('should not expose action content in sourcemaps', async () => {
         const sourcemap = (
@@ -391,7 +510,7 @@ createNextDescribe(
     if (isNextDev) {
       describe('HMR', () => {
         it('should support updating the action', async () => {
-          const filePath = 'app/server/actions.js'
+          const filePath = 'app/server/actions-3.js'
           const origContent = await next.readFile(filePath)
 
           try {
@@ -553,7 +672,17 @@ createNextDescribe(
       })
 
       it('should handle redirect to a relative URL in a single pass', async () => {
-        const browser = await next.browser('/client')
+        let responseCode: number
+        const browser = await next.browser('/client', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              const headers = await res.allHeaders()
+              if (headers['x-action-redirect']) {
+                responseCode = res.status()
+              }
+            })
+          },
+        })
 
         await waitFor(3000)
 
@@ -567,6 +696,7 @@ createNextDescribe(
 
         // no other requests should be made
         expect(requests).toEqual(['/client'])
+        await check(() => responseCode, 303)
       })
 
       it('should handle regular redirects', async () => {
@@ -851,11 +981,283 @@ createNextDescribe(
       )
     })
 
+    it('should work with interception routes', async () => {
+      const browser = await next.browser('/interception-routes')
+
+      await check(
+        () => browser.elementById('children-data').text(),
+        /Open modal/
+      )
+
+      await browser.elementByCss("[href='/interception-routes/test']").click()
+
+      // verify the URL is correct
+      await check(() => browser.url(), /interception-routes\/test/)
+
+      // the intercepted text should appear
+      await check(() => browser.elementById('modal-data').text(), /in "modal"/)
+
+      // Submit the action
+      await browser.elementById('submit-intercept-action').click()
+
+      // Action log should be in server console
+      await check(() => next.cliOutput, /Action Submitted \(Intercepted\)/)
+
+      await browser.refresh()
+
+      // the modal text should be gone
+      expect(await browser.hasElementByCssSelector('#modal-data')).toBeFalsy()
+
+      // The page text should show
+      await check(
+        () => browser.elementById('children-data').text(),
+        /in "page"/
+      )
+
+      // Submit the action
+      await browser.elementById('submit-page-action').click()
+
+      // Action log should be in server console
+      await check(() => next.cliOutput, /Action Submitted \(Page\)/)
+    })
+
     describe('encryption', () => {
       it('should send encrypted values from the closed over closure', async () => {
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
+      })
+    })
+
+    describe('redirects', () => {
+      it('redirects properly when server action handler uses `redirect`', async () => {
+        const postRequests = []
+        const responseCodes = []
+
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname)
+              }
+            })
+
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
+
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
+        await browser.elementById('submit-api-redirect').click()
+        await check(() => browser.url(), /success=true/)
+
+        // verify that the POST request was only made to the action handler
+        expect(postRequests).toEqual(['/redirects/api-redirect'])
+        expect(responseCodes).toEqual([303])
+      })
+
+      it('redirects properly when server action handler uses `permanentRedirect`', async () => {
+        const postRequests = []
+        const responseCodes = []
+
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname)
+              }
+            })
+
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
+
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
+
+        await browser.elementById('submit-api-redirect-permanent').click()
+        await check(() => browser.url(), /success=true/)
+
+        // verify that the POST request was only made to the action handler
+        expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
+        expect(responseCodes).toEqual([303])
+      })
+
+      it('merges cookies correctly when redirecting', async () => {
+        const browser = await next.browser('/redirects/action-redirect')
+
+        // set foo and bar to be both 1, and verify
+        await browser.eval(
+          `document.cookie = 'bar=1; Path=/'; document.cookie = 'foo=1; Path=/';`
+        )
+        await browser.refresh()
+        expect(await browser.elementByCss('h1').text()).toBe('foo=1; bar=1')
+
+        // delete foo and set bar to 2, redirect
+        await browser.elementById('redirect-with-cookie-mutation').click()
+        await check(
+          () => browser.url(),
+          /\/redirects\/action-redirect\/redirect-target/
+        )
+
+        // verify that the cookies were merged correctly
+        expect(await browser.elementByCss('h1').text()).toBe('foo=; bar=2')
+      })
+
+      it.each(['307', '308'])(
+        `redirects properly when server action handler redirects with a %s status code`,
+        async (statusCode) => {
+          const postRequests = []
+          const responseCodes = []
+
+          const browser = await next.browser('/redirects', {
+            beforePageLoad(page) {
+              page.on('request', (request: Request) => {
+                const url = new URL(request.url())
+                if (request.method() === 'POST') {
+                  postRequests.push(`${url.pathname}${url.search}`)
+                }
+              })
+
+              page.on('response', (response: Response) => {
+                const url = new URL(response.url())
+                const status = response.status()
+
+                if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                  responseCodes.push(status)
+                }
+              })
+            },
+          })
+
+          await browser.elementById(`submit-api-redirect-${statusCode}`).click()
+          await check(() => browser.url(), /success=true/)
+          expect(await browser.elementById('redirect-page')).toBeTruthy()
+
+          // since a 307/308 status code follows the redirect, the POST request should be made to both the action handler and the redirect target
+          expect(postRequests).toEqual([
+            `/redirects/api-redirect-${statusCode}`,
+            `/redirects?success=true`,
+          ])
+
+          expect(responseCodes).toEqual([Number(statusCode), 200])
+        }
+      )
+    })
+
+    describe('server actions render client components', () => {
+      describe('server component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/server/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+
+      // Server Component -> Client Component -> Server Action (imported from client component) -> Import Client Component is not not supported yet.
+      describe.skip('client component imported action', () => {
+        it('should support importing client components from actions', async () => {
+          const browser = await next.browser(
+            '/client/action-return-client-component'
+          )
+          expect(
+            await browser
+              .elementByCss('#trigger-component-load')
+              .click()
+              .waitForElementByCss('#client-component')
+              .text()
+          ).toBe('Hello World')
+        })
+      })
+    })
+
+    describe('caching disabled by default', () => {
+      it('should use no-store as default for server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number changes on each click
+          expect(newNumber).not.toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      it('should not override force-cache in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/force-cache')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
+      })
+
+      // Implicit force-cache
+      it('should not override revalidate in server action', async () => {
+        const browser = await next.browser('/no-caching-in-actions/revalidate')
+        await browser
+          .waitForElementByCss('#trigger-fetch')
+          .click()
+          .waitForElementByCss('#fetched-data')
+
+        const getNumber = async () =>
+          JSON.parse(await browser.elementByCss('#fetched-data').text())
+
+        const firstNumber = await getNumber()
+
+        await browser.waitForElementByCss('#trigger-fetch').click()
+
+        await check(async () => {
+          const newNumber = await getNumber()
+          // Expect that the number is the same on each click
+          expect(newNumber).toBe(firstNumber)
+
+          return 'success'
+        }, 'success')
       })
     })
   }

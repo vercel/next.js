@@ -33,7 +33,7 @@ describe('next/image with output export config', () => {
       const browser = await webdriver(appPort, '/')
       const msg =
         "Image Optimization using the default loader is not compatible with `{ output: 'export' }`."
-      expect(await hasRedbox(browser, true)).toBe(true)
+      expect(await hasRedbox(browser)).toBe(true)
       expect(await getRedboxHeader(browser)).toContain(msg)
       expect(stderr).toContain(msg)
     })

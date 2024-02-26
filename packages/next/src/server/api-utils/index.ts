@@ -8,6 +8,8 @@ import {
   PRERENDER_REVALIDATE_HEADER,
   PRERENDER_REVALIDATE_ONLY_GENERATED_HEADER,
 } from '../../lib/constants'
+import { getTracer } from '../lib/trace/tracer'
+import { NodeSpan } from '../lib/trace/constants'
 
 export type NextApiRequestCookies = Partial<{ [key: string]: string }>
 export type NextApiRequestQuery = Partial<{ [key: string]: string | string[] }>
@@ -16,6 +18,23 @@ export type __ApiPreviewProps = {
   previewModeId: string
   previewModeEncryptionKey: string
   previewModeSigningKey: string
+}
+
+export function wrapApiHandler<T extends (...args: any[]) => any>(
+  page: string,
+  handler: T
+): T {
+  return ((...args) => {
+    getTracer().getRootSpanAttributes()?.set('next.route', page)
+    // Call API route method
+    return getTracer().trace(
+      NodeSpan.runHandler,
+      {
+        spanName: `executing api route (pages) ${page}`,
+      },
+      () => handler(...args)
+    )
+  }) as T
 }
 
 /**

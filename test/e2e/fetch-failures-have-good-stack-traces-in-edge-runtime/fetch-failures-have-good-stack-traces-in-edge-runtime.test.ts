@@ -24,7 +24,7 @@ createNextDescribe(
       } else if (isNextDev) {
         expect(next.cliOutput).toContain('src/fetcher.js')
 
-        expect(await hasRedbox(browser, true)).toBe(true)
+        expect(await hasRedbox(browser)).toBe(true)
         const source = await getRedboxSource(browser)
 
         expect(source).toContain('async function anotherFetcher(...args)')

@@ -1,3 +1,3 @@
-const { withKeystone } = require('@keystone-next/keystone/next')
+const { withKeystone } = require("@keystone-next/keystone/next");
 
-module.exports = withKeystone()
+module.exports = withKeystone();

@@ -1,5 +1,5 @@
-import Head from 'next/head'
-import { Container, Row, Card, Button } from 'react-bootstrap'
+import Head from "next/head";
+import { Container, Row, Card, Button } from "react-bootstrap";
 
 export default function Home() {
   return (
@@ -80,10 +80,10 @@ export default function Home() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <img src="/vercel.svg" alt="Vercel Logo" className="sml-logo" />
         </a>
       </footer>
     </Container>
-  )
+  );
 }

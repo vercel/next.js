@@ -10,17 +10,18 @@ on:
 jobs:
   update_manifest:
     name: Update and upload Turbopack test manifest
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
           # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
           token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true

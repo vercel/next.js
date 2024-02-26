@@ -17,7 +17,7 @@ createNextDescribe(
         { pathname: '/adapter-hooks/2', keyValue: 'value' },
         { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
       ])(
-        'should have the correct hooks',
+        'should have the correct hooks at $pathname',
         async ({ pathname, keyValue = '' }) => {
           const browser = await next.browser(
             pathname + (keyValue ? `?key=${keyValue}` : '')
@@ -85,7 +85,7 @@ createNextDescribe(
         initialRand = $('#rand').text()
       })
 
-      it('should genenerate rand when draft mode enabled', async () => {
+      it('should generate rand when draft mode enabled', async () => {
         const res = await next.fetch('/enable')
         const h = res.headers.get('set-cookie') || ''
         const cookie = h

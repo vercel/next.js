@@ -1,4 +1,3 @@
-import { CacheStates } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightDataPath,
@@ -9,13 +8,13 @@ import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-
 import { createRouterCacheKey } from './create-router-cache-key'
 
 /**
- * Fill cache with subTreeData based on flightDataPath
+ * Fill cache with rsc based on flightDataPath
  */
 export function fillCacheWithNewSubTreeData(
   newCache: CacheNode,
   existingCache: CacheNode,
   flightDataPath: FlightDataPath,
-  wasPrefetched?: boolean
+  hasReusablePrefetch?: boolean
 ): void {
   const isLastEntry = flightDataPath.length <= 5
   const [parallelRouteKey, segment] = flightDataPath
@@ -43,15 +42,15 @@ export function fillCacheWithNewSubTreeData(
   if (isLastEntry) {
     if (
       !childCacheNode ||
-      !childCacheNode.data ||
+      !childCacheNode.lazyData ||
       childCacheNode === existingChildCacheNode
     ) {
       const seedData: CacheNodeSeedData = flightDataPath[3]
-      const subTreeData = seedData[2]
+      const rsc = seedData[2]
       childCacheNode = {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData,
+        lazyData: null,
+        rsc,
+        prefetchRsc: null,
         // Ensure segments other than the one we got data for are preserved.
         parallelRoutes: existingChildCacheNode
           ? new Map(existingChildCacheNode.parallelRoutes)
@@ -72,7 +71,7 @@ export function fillCacheWithNewSubTreeData(
         flightDataPath[2],
         seedData,
         flightDataPath[4],
-        wasPrefetched
+        hasReusablePrefetch
       )
 
       childSegmentMap.set(cacheKey, childCacheNode)
@@ -88,9 +87,9 @@ export function fillCacheWithNewSubTreeData(
 
   if (childCacheNode === existingChildCacheNode) {
     childCacheNode = {
-      status: childCacheNode.status,
-      data: childCacheNode.data,
-      subTreeData: childCacheNode.subTreeData,
+      lazyData: childCacheNode.lazyData,
+      rsc: childCacheNode.rsc,
+      prefetchRsc: childCacheNode.prefetchRsc,
       parallelRoutes: new Map(childCacheNode.parallelRoutes),
     } as CacheNode
     childSegmentMap.set(cacheKey, childCacheNode)
@@ -100,6 +99,6 @@ export function fillCacheWithNewSubTreeData(
     childCacheNode,
     existingChildCacheNode,
     flightDataPath.slice(2),
-    wasPrefetched
+    hasReusablePrefetch
   )
 }

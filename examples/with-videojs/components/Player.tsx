@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
-import videojs from 'video.js'
-import 'videojs-youtube'
+import { useCallback, useEffect, useState } from "react";
+import videojs from "video.js";
+import "videojs-youtube";
 
 interface PlayerProps {
   /**
    *
    */
-  techOrder: string[]
+  techOrder: string[];
   /**
    * Is autoplay enabled for this video?
    */
-  autoplay: boolean
+  autoplay: boolean;
   /**
    * Should this video have controls?
    */
-  controls: boolean
+  controls: boolean;
   /**
    * A list of video sources.
    */
@@ -22,12 +22,12 @@ interface PlayerProps {
     /**
      * The source url.
      */
-    src: string
+    src: string;
     /**
      * The type of source
      */
-    type: string
-  }[]
+    type: string;
+  }[];
 }
 
 /**
@@ -35,23 +35,23 @@ interface PlayerProps {
  * @returns A Video.js video player element.
  */
 const Player = (props: PlayerProps) => {
-  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null)
+  const [videoEl, setVideoEl] = useState<HTMLVideoElement | null>(null);
   const onVideo = useCallback((el: HTMLVideoElement) => {
-    setVideoEl(el)
-  }, [])
+    setVideoEl(el);
+  }, []);
 
   useEffect(() => {
     if (videoEl == null) {
-      return
+      return;
     }
 
     // our video.js player
-    const player = videojs(videoEl, props)
+    const player = videojs(videoEl, props);
 
     return () => {
-      player.dispose()
-    }
-  }, [props, videoEl])
+      player.dispose();
+    };
+  }, [props, videoEl]);
 
   return (
     <>
@@ -60,7 +60,7 @@ const Player = (props: PlayerProps) => {
         <video ref={onVideo} className="video-js" playsInline />
       </div>
     </>
-  )
-}
+  );
+};
 
-export default Player
+export default Player;

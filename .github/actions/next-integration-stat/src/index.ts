@@ -6,65 +6,13 @@ const fs = require('fs')
 const path = require('path')
 const semver = require('semver')
 
-/**
- * Models parsed test results output from next.js integration test.
- * This is a subset of the full test result output from jest, partially compatible.
- */
-interface TestResult {
-  numFailedTestSuites: number
-  numFailedTests: number
-  numPassedTestSuites: number
-  numPassedTests: number
-  numPendingTestSuites: number
-  numPendingTests: number
-  numRuntimeErrorTestSuites: number
-  numTodoTests: number
-  numTotalTestSuites: number
-  numTotalTests: number
-  startTime: number
-  success: boolean
-  testResults?: Array<{
-    assertionResults?: Array<{
-      ancestorTitles?: Array<string> | null
-      failureMessages?: Array<string> | null
-      fullName: string
-      location?: null
-      status: string
-      title: string
-    }> | null
-    endTime: number
-    message: string
-    name: string
-    startTime: number
-    status: string
-    summary: string
-  }> | null
-  wasInterrupted: boolean
-}
+/// <reference path="./manifest" />
 
 type Octokit = ReturnType<typeof getOctokit>
 
 type Job = Awaited<
   ReturnType<Octokit['rest']['actions']['listJobsForWorkflowRun']>
 >['data']['jobs'][number]
-
-type ExistingComment =
-  | Awaited<
-      ReturnType<Octokit['rest']['issues']['listComments']>
-    >['data'][number]
-  | undefined
-interface JobResult {
-  job: string
-  data: TestResult
-}
-interface TestResultManifest {
-  nextjsVersion: string
-  ref: string
-  buildTime?: string
-  buildSize?: string
-  result: Array<JobResult>
-  flakyMonitorJobResults: Array<JobResult>
-}
 
 // A comment marker to identify the comment created by this action.
 const BOT_COMMENT_MARKER = `<!-- __marker__ next.js integration stats __marker__ -->`
@@ -157,112 +105,6 @@ async function fetchJobLogsFromWorkflow(
   const logs = dateTimeStripped.join('\n')
 
   return { logs, job }
-}
-
-// Store a json payload to share via slackapi/slack-github-action into Slack channel
-async function createSlackPostSummary(payload: {
-  shortCurrentNextJsVersion: string
-  sha: string
-  currentTestFailedSuiteCount: number
-  currentTestPassedSuiteCount: number
-  currentTestTotalSuiteCount: number
-  currentTestFailedCaseCount: number
-  currentTestPassedCaseCount: number
-  currentTestTotalCaseCount: number
-  suiteCountDiff?: number | null
-  caseCountDiff?: number | null
-  baseResults?: TestResultManifest
-  shortBaseNextJsVersion?: string
-  baseTestFailedSuiteCount?: number | null
-  baseTestPassedSuiteCount?: number | null
-  baseTestTotalSuiteCount?: number | null
-  baseTestFailedCaseCount?: number | null
-  baseTestPassedCaseCount?: number | null
-  baseTestTotalCaseCount?: number | null
-}) {
-  const {
-    suiteCountDiff,
-    caseCountDiff,
-    baseResults,
-    sha,
-    shortBaseNextJsVersion,
-    shortCurrentNextJsVersion,
-    baseTestFailedSuiteCount,
-    baseTestPassedSuiteCount,
-    baseTestTotalSuiteCount,
-    baseTestFailedCaseCount,
-    baseTestPassedCaseCount,
-    baseTestTotalCaseCount,
-    currentTestFailedSuiteCount,
-    currentTestPassedSuiteCount,
-    currentTestTotalSuiteCount,
-    currentTestFailedCaseCount,
-    currentTestPassedCaseCount,
-    currentTestTotalCaseCount,
-  } = payload
-  let resultsSummary = ''
-  if (
-    Number.isSafeInteger(suiteCountDiff) &&
-    Number.isSafeInteger(caseCountDiff)
-  ) {
-    if (suiteCountDiff === 0) {
-      resultsSummary += 'No changes in suite count.'
-    } else if (suiteCountDiff > 0) {
-      resultsSummary += `↓ ${suiteCountDiff} suites are fixed`
-    } else if (suiteCountDiff < 0) {
-      resultsSummary += `↑ ${suiteCountDiff} suites are newly failed`
-    }
-
-    if (caseCountDiff === 0) {
-      resultsSummary += 'No changes in test cases count.'
-    } else if (caseCountDiff > 0) {
-      resultsSummary += `↓ ${caseCountDiff} test cases are fixed`
-    } else if (caseCountDiff < 0) {
-      resultsSummary += `↑ ${caseCountDiff} test cases are newly failed`
-    }
-  }
-
-  let baseTestSuiteText = 'Summary without base'
-  let baseTestCaseText = 'Summary without base'
-
-  if (
-    Number.isSafeInteger(baseTestFailedSuiteCount) &&
-    Number.isSafeInteger(baseTestPassedSuiteCount) &&
-    Number.isSafeInteger(baseTestTotalSuiteCount)
-  ) {
-    baseTestSuiteText = `:red_circle: ${baseTestFailedSuiteCount} / :large_green_circle: ${baseTestPassedSuiteCount} (Total: ${baseTestTotalSuiteCount})`
-    baseTestCaseText = `:red_circle: ${baseTestFailedCaseCount} / :large_green_circle: ${baseTestPassedCaseCount} (Total: ${baseTestTotalCaseCount})`
-  }
-
-  const slackPayloadJson = JSON.stringify(
-    {
-      title: 'Next.js integration test status with Turbopack',
-      // Derived from https://github.com/orgs/community/discussions/25470#discussioncomment-4720013
-      actionUrl: baseResults
-        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
-        : 'Daily test run',
-      shaUrl: baseResults
-        ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/commit/${sha}`
-        : sha,
-      baseResultsRef: baseResults?.ref ?? 'N/A',
-      shortBaseNextJsVersion: shortBaseNextJsVersion ?? 'N/A',
-      // We're limited to 20 variables in Slack workflows, so combine these as text.
-      baseTestSuiteText,
-      baseTestCaseText,
-      sha: sha.substring(0, 7),
-      shortCurrentNextJsVersion,
-      currentTestSuiteText: `:red_circle: ${currentTestFailedSuiteCount} / :large_green_circle: ${currentTestPassedSuiteCount} (Total: ${currentTestTotalSuiteCount})`,
-      currentTestCaseText: `:red_circle: ${currentTestFailedCaseCount} / :large_green_circle: ${currentTestPassedCaseCount} (Total: ${currentTestTotalCaseCount})`,
-      resultsSummary,
-    },
-    null,
-    2
-  )
-  console.log(
-    'Storing slack payload to ./slack-payload.json to report into Slack channel.',
-    slackPayloadJson
-  )
-  fs.writeFileSync('./slack-payload.json', slackPayloadJson)
 }
 
 // Collect necessary inputs to run actions,
@@ -654,8 +496,7 @@ function getTestSummary(
   sha: string,
   shouldDiffWithMain: boolean,
   baseResults: TestResultManifest | null,
-  jobResults: TestResultManifest,
-  shouldShareTestSummaryToSlack: boolean
+  jobResults: TestResultManifest
 ) {
   // Read current tests summary
   const {
@@ -714,19 +555,6 @@ function getTestSummary(
 
   if (!baseResults) {
     console.log("There's no base to compare")
-
-    if (shouldShareTestSummaryToSlack) {
-      createSlackPostSummary({
-        shortCurrentNextJsVersion,
-        sha,
-        currentTestPassedSuiteCount,
-        currentTestFailedSuiteCount,
-        currentTestTotalSuiteCount,
-        currentTestFailedCaseCount,
-        currentTestPassedCaseCount,
-        currentTestTotalCaseCount,
-      })
-    }
 
     return `### Test summary
 |   | Current (${sha}) | Diff |
@@ -844,29 +672,6 @@ function getTestSummary(
   console.log('Newly failed tests', JSON.stringify(newFailedTests, null, 2))
   console.log('Fixed tests', JSON.stringify(fixedTests, null, 2))
 
-  if (shouldShareTestSummaryToSlack) {
-    createSlackPostSummary({
-      shortCurrentNextJsVersion,
-      sha,
-      currentTestPassedSuiteCount,
-      currentTestFailedSuiteCount,
-      currentTestTotalSuiteCount,
-      currentTestFailedCaseCount,
-      currentTestPassedCaseCount,
-      currentTestTotalCaseCount,
-      suiteCountDiff,
-      caseCountDiff,
-      baseResults,
-      shortBaseNextJsVersion,
-      baseTestFailedCaseCount,
-      baseTestFailedSuiteCount,
-      baseTestPassedCaseCount,
-      baseTestPassedSuiteCount,
-      baseTestTotalCaseCount,
-      baseTestTotalSuiteCount,
-    })
-  }
-
   return ret
 }
 
@@ -916,14 +721,6 @@ async function run() {
     noBaseComparison,
     shouldExpandResultMessages,
   } = await getInputs()
-
-  // determine if we want to report summary into slack channel.
-  // As a first step, we'll only report summary when the test is run against release-to-release. (no main branch regressions yet)
-  const shouldReportSlack =
-    process.env.NEXT_TURBO_FORCE_SKIP_SLACK_UPDATE === 'true'
-      ? false
-      : process.env.NEXT_TURBO_FORCE_SLACK_UPDATE === 'true' ||
-        (!prNumber && !shouldDiffWithMain)
 
   // Collect current PR's failed test results
   const jobResults = await getJobResults(octokit, token, sha)
@@ -1042,8 +839,7 @@ async function run() {
           sha,
           shouldDiffWithMain,
           noBaseComparison ? null : baseResults,
-          jobResults,
-          shouldReportSlack
+          jobResults
         ),
       ],
     },

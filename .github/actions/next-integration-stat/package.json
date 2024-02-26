@@ -1,14 +1,13 @@
 {
   "name": "next-integration-stat",
   "private": true,
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
     "lint": "eslint src/",
-    "pack": "ncc -t -o . build src/index.ts",
+    "build": "ncc build src/index.ts -t -o dist",
     "lint:prettier": "prettier -c . --cache --ignore-path=../../../.prettierignore"
   },
   "devDependencies": {
-    "@turbo/eslint-config": "workspace:*",
     "@types/node": "^18.11.18",
     "@vercel/ncc": "0.34.0",
     "typescript": "^4.4.4"
@@ -20,5 +19,10 @@
     "node-fetch": "^2.6.8",
     "semver": "^7.3.8",
     "strip-ansi": "^7.0.1"
-  }
+  },
+  "engines": {
+    "node": ">=18.17.0",
+    "pnpm": "8.15.1"
+  },
+  "packageManager": "pnpm@8.15.1"
 }

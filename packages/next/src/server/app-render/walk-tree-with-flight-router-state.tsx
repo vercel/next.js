@@ -21,6 +21,7 @@ import type { CreateSegmentPath, AppRenderContext } from './app-render'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import { createComponentTree } from './create-component-tree'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -58,7 +59,7 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
 }): Promise<FlightDataPath[]> {
   const {
-    renderOpts: { nextFontManifest },
+    renderOpts: { nextFontManifest, experimental },
     query,
     isPrefetch,
     getDynamicParamFromSegment,
@@ -111,6 +112,8 @@ export async function walkTreeWithFlightRouterState({
     flightRouterState[3] === 'refetch'
 
   const shouldSkipComponentTree =
+    // loading.tsx has no effect on prefetching when PPR is enabled
+    !experimental.ppr &&
     isPrefetch &&
     !Boolean(components.loading) &&
     (flightRouterState ||
@@ -234,7 +237,7 @@ export async function walkTreeWithFlightRouterState({
             // we don't need to send over default routes in the flight data
             // because they are always ignored by the client, unless it's a refetch
             if (
-              item[0] === '__DEFAULT__' &&
+              item[0] === DEFAULT_SEGMENT_KEY &&
               flightRouterState &&
               !!flightRouterState[1][parallelRouteKey][0] &&
               flightRouterState[1][parallelRouteKey][3] !== 'refetch'

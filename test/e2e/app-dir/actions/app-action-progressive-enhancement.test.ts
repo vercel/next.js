@@ -1,6 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check } from 'next-test-utils'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app-dir action progressive enhancement',
@@ -13,10 +14,20 @@ createNextDescribe(
       'server-only': 'latest',
     },
   },
-  ({ next, isNextDev, isNextStart, isNextDeploy }) => {
+  ({ next }) => {
     it('should support formData and redirect without JS', async () => {
+      let responseCode
       const browser = await next.browser('/server', {
         disableJavaScript: true,
+        beforePageLoad(page) {
+          page.on('response', (response: Response) => {
+            const url = new URL(response.url())
+            const status = response.status()
+            if (url.pathname.includes('/server')) {
+              responseCode = status
+            }
+          })
+        },
       })
 
       await browser.eval(`document.getElementById('name').value = 'test'`)
@@ -24,7 +35,9 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
+
+      expect(responseCode).toBe(303)
     })
 
     it('should support actions from client without JS', async () => {
@@ -39,7 +52,7 @@ createNextDescribe(
 
       await check(() => {
         return browser.eval('window.location.pathname + window.location.search')
-      }, '/header?name=test&constructor=_FormData&hidden-info=hi')
+      }, '/header?name=test&hidden-info=hi')
     })
   }
 )

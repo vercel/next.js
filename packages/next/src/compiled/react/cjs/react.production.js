@@ -10,7 +10,7 @@
 
 'use strict';
 
-var ReactVersion = '18.3.0-canary-2c338b16f-20231116';
+var ReactVersion = '18.3.0-canary-a515d753b-20240220';
 
 // ATTENTION
 // When adding new symbols to this file,
@@ -21,7 +21,7 @@ const REACT_PORTAL_TYPE = Symbol.for('react.portal');
 const REACT_FRAGMENT_TYPE = Symbol.for('react.fragment');
 const REACT_STRICT_MODE_TYPE = Symbol.for('react.strict_mode');
 const REACT_PROFILER_TYPE = Symbol.for('react.profiler');
-const REACT_PROVIDER_TYPE = Symbol.for('react.provider');
+const REACT_PROVIDER_TYPE = Symbol.for('react.provider'); // TODO: Delete with enableRenderableContext
 const REACT_CONTEXT_TYPE = Symbol.for('react.context');
 const REACT_FORWARD_REF_TYPE = Symbol.for('react.forward_ref');
 const REACT_SUSPENSE_TYPE = Symbol.for('react.suspense');
@@ -218,8 +218,27 @@ function isArray(a) {
   return isArrayImpl(a);
 }
 
-// $FlowFixMe[method-unbinding]
-const hasOwnProperty = Object.prototype.hasOwnProperty;
+/**
+ * Keeps track of the current dispatcher.
+ */
+const ReactCurrentDispatcher = {
+  current: null
+};
+
+/**
+ * Keeps track of the current Cache dispatcher.
+ */
+const ReactCurrentCache = {
+  current: null
+};
+
+/**
+ * Keeps track of the current batch's configuration such as how long an update
+ * should suspend for if it needs to.
+ */
+const ReactCurrentBatchConfig = {
+  transition: null
+};
 
 /**
  * Keeps track of the current owner.
@@ -227,7 +246,7 @@ const hasOwnProperty = Object.prototype.hasOwnProperty;
  * The current owner is the component who should own any components that are
  * currently being constructed.
  */
-const ReactCurrentOwner = {
+const ReactCurrentOwner$1 = {
   /**
    * @internal
    * @type {ReactComponent}
@@ -235,12 +254,17 @@ const ReactCurrentOwner = {
   current: null
 };
 
-const RESERVED_PROPS = {
-  key: true,
-  ref: true,
-  __self: true,
-  __source: true
+const ReactSharedInternals = {
+  ReactCurrentDispatcher,
+  ReactCurrentCache,
+  ReactCurrentBatchConfig,
+  ReactCurrentOwner: ReactCurrentOwner$1
 };
+
+// $FlowFixMe[method-unbinding]
+const hasOwnProperty = Object.prototype.hasOwnProperty;
+
+const ReactCurrentOwner = ReactSharedInternals.ReactCurrentOwner;
 
 function hasValidRef(config) {
 
@@ -278,10 +302,10 @@ function ReactElement(type, key, ref, self, source, owner, props) {
     // This tag allows us to uniquely identify this as a React Element
     $$typeof: REACT_ELEMENT_TYPE,
     // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: ref,
-    props: props,
+    type,
+    key,
+    ref,
+    props,
     // Record the component responsible for creating this element.
     _owner: owner
   };
@@ -293,14 +317,13 @@ function ReactElement(type, key, ref, self, source, owner, props) {
  * See https://reactjs.org/docs/react-api.html#createelement
  */
 
-function createElement$1(type, config, children) {
+function createElement(type, config, children) {
+
   let propName; // Reserved names are extracted
 
   const props = {};
   let key = null;
   let ref = null;
-  let self = null;
-  let source = null;
 
   if (config != null) {
     if (hasValidRef(config)) {
@@ -310,13 +333,19 @@ function createElement$1(type, config, children) {
     if (hasValidKey(config)) {
 
       key = '' + config.key;
-    }
+    } // Remaining properties are added to a new props object
 
-    self = config.__self === undefined ? null : config.__self;
-    source = config.__source === undefined ? null : config.__source; // Remaining properties are added to a new props object
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         props[propName] = config[propName];
       }
     }
@@ -349,33 +378,35 @@ function createElement$1(type, config, children) {
     }
   }
 
-  return ReactElement(type, key, ref, self, source, ReactCurrentOwner.current, props);
+  const element = ReactElement(type, key, ref, undefined, undefined, ReactCurrentOwner.current, props);
+
+  return element;
 }
 /**
  * Return a function that produces ReactElements of a given type.
  * See https://reactjs.org/docs/react-api.html#createfactory
  */
 
-function createFactory$1(type) {
-  const factory = createElement$1.bind(null, type); // Expose the type on the factory and the prototype so that it can be
+function createFactory(type) {
+  const factory = createElement.bind(null, type); // Expose the type on the factory and the prototype so that it can be
   // easily accessed on elements. E.g. `<Foo />.type === Foo`.
   // This should not be named `constructor` since this may not be the function
   // that created the element, and it may not even be a constructor.
   // Legacy hook: remove it
 
   factory.type = type;
+
   return factory;
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  const newElement = ReactElement(oldElement.type, newKey, oldElement.ref, oldElement._self, oldElement._source, oldElement._owner, oldElement.props);
-  return newElement;
+  return ReactElement(oldElement.type, newKey, oldElement.ref, undefined, undefined, oldElement._owner, oldElement.props);
 }
 /**
  * Clone and return a new ReactElement using element as the starting point.
  * See https://reactjs.org/docs/react-api.html#cloneelement
  */
 
-function cloneElement$1(element, config, children) {
+function cloneElement(element, config, children) {
   if (element === null || element === undefined) {
     throw new Error("React.cloneElement(...): The argument must be a React element, but you passed " + element + ".");
   }
@@ -385,13 +416,7 @@ function cloneElement$1(element, config, children) {
   const props = assign({}, element.props); // Reserved names are extracted
 
   let key = element.key;
-  let ref = element.ref; // Self is preserved since the owner is preserved.
-
-  const self = element._self; // Source is preserved since cloneElement is unlikely to be targeted by a
-  // transpiler, and the original source is probably a better indicator of the
-  // true owner.
-
-  const source = element._source; // Owner will be preserved, unless ref is overridden
+  let ref = element.ref; // Owner will be preserved, unless ref is overridden
 
   let owner = element._owner;
 
@@ -415,7 +440,15 @@ function cloneElement$1(element, config, children) {
     }
 
     for (propName in config) {
-      if (hasOwnProperty.call(config, propName) && !RESERVED_PROPS.hasOwnProperty(propName)) {
+      if (hasOwnProperty.call(config, propName) && // Skip over reserved prop names
+      propName !== 'key' && // TODO: `ref` will no longer be reserved in the next major
+      propName !== 'ref' && // ...and maybe these, too, though we currently rely on them for
+      // warnings and debug information in dev. Need to decide if we're OK
+      // with dropping them. In the jsx() runtime it's not an issue because
+      // the data gets passed as separate arguments instead of props, but
+      // it would be nice to stop relying on them entirely so we can drop
+      // them from the internal Fiber field.
+      propName !== '__self' && propName !== '__source') {
         if (config[propName] === undefined && defaultProps !== undefined) {
           // Resolve default props
           props[propName] = defaultProps[propName];
@@ -442,7 +475,8 @@ function cloneElement$1(element, config, children) {
     props.children = childArray;
   }
 
-  return ReactElement(element.type, key, ref, self, source, owner, props);
+  const clonedElement = ReactElement(element.type, key, ref, undefined, undefined, owner, props);
+  return clonedElement;
 }
 /**
  * Verifies the object is a ReactElement.
@@ -451,6 +485,7 @@ function cloneElement$1(element, config, children) {
  * @return {boolean} True if `object` is a ReactElement.
  * @final
  */
+
 
 function isValidElement(object) {
   return typeof object === 'object' && object !== null && object.$$typeof === REACT_ELEMENT_TYPE;
@@ -502,6 +537,72 @@ function getElementKey(element, index) {
   return index.toString(36);
 }
 
+function noop$1() {}
+
+function resolveThenable(thenable) {
+  switch (thenable.status) {
+    case 'fulfilled':
+      {
+        const fulfilledValue = thenable.value;
+        return fulfilledValue;
+      }
+
+    case 'rejected':
+      {
+        const rejectedError = thenable.reason;
+        throw rejectedError;
+      }
+
+    default:
+      {
+        if (typeof thenable.status === 'string') {
+          // Only instrument the thenable if the status if not defined. If
+          // it's defined, but an unknown value, assume it's been instrumented by
+          // some custom userspace implementation. We treat it as "pending".
+          // Attach a dummy listener, to ensure that any lazy initialization can
+          // happen. Flight lazily parses JSON when the value is actually awaited.
+          thenable.then(noop$1, noop$1);
+        } else {
+          // This is an uncached thenable that we haven't seen before.
+          // TODO: Detect infinite ping loops caused by uncached promises.
+          const pendingThenable = thenable;
+          pendingThenable.status = 'pending';
+          pendingThenable.then(fulfilledValue => {
+            if (thenable.status === 'pending') {
+              const fulfilledThenable = thenable;
+              fulfilledThenable.status = 'fulfilled';
+              fulfilledThenable.value = fulfilledValue;
+            }
+          }, error => {
+            if (thenable.status === 'pending') {
+              const rejectedThenable = thenable;
+              rejectedThenable.status = 'rejected';
+              rejectedThenable.reason = error;
+            }
+          });
+        } // Check one more time in case the thenable resolved synchronously.
+
+
+        switch (thenable.status) {
+          case 'fulfilled':
+            {
+              const fulfilledThenable = thenable;
+              return fulfilledThenable.value;
+            }
+
+          case 'rejected':
+            {
+              const rejectedThenable = thenable;
+              const rejectedError = rejectedThenable.reason;
+              throw rejectedError;
+            }
+        }
+      }
+  }
+
+  throw thenable;
+}
+
 function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
   const type = typeof children;
 
@@ -526,6 +627,12 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
           case REACT_ELEMENT_TYPE:
           case REACT_PORTAL_TYPE:
             invokeCallback = true;
+            break;
+
+          case REACT_LAZY_TYPE:
+            const payload = children._payload;
+            const init = children._init;
+            return mapIntoArray(init(payload), array, escapedPrefix, nameSoFar, callback);
         }
 
     }
@@ -591,7 +698,11 @@ function mapIntoArray(children, array, escapedPrefix, nameSoFar, callback) {
         subtreeCount += mapIntoArray(child, array, escapedPrefix, nextName, callback);
       }
     } else if (type === 'object') {
-      // eslint-disable-next-line react-internal/safe-string-coercion
+      if (typeof children.then === 'function') {
+        return mapIntoArray(resolveThenable(children), array, escapedPrefix, nameSoFar, callback);
+      } // eslint-disable-next-line react-internal/safe-string-coercion
+
+
       const childrenString = String(children);
       throw new Error("Objects are not valid as a React child (found: " + (childrenString === '[object Object]' ? 'object with keys {' + Object.keys(children).join(', ') + '}' : childrenString) + "). " + 'If you meant to render a collection of children, use an array ' + 'instead.');
     }
@@ -717,18 +828,18 @@ function createContext(defaultValue) {
     _threadCount: 0,
     // These are circular
     Provider: null,
-    Consumer: null,
-    // Add these to use same hidden class in VM as ServerContext
-    _defaultValue: null,
-    _globalName: null
-  };
-  context.Provider = {
-    $$typeof: REACT_PROVIDER_TYPE,
-    _context: context
+    Consumer: null
   };
 
   {
-    context.Consumer = context;
+    context.Provider = {
+      $$typeof: REACT_PROVIDER_TYPE,
+      _context: context
+    };
+
+    {
+      context.Consumer = context;
+    }
   }
 
   return context;
@@ -818,13 +929,6 @@ function memo(type, compare) {
   return elementType;
 }
 
-/**
- * Keeps track of the current Cache dispatcher.
- */
-const ReactCurrentCache = {
-  current: null
-};
-
 const UNTERMINATED = 0;
 const TERMINATED = 1;
 const ERRORED = 2;
@@ -846,7 +950,7 @@ function createCacheNode() {
   };
 }
 
-function cache(fn) {
+function cache$1(fn) {
   return function () {
     const dispatcher = ReactCurrentCache.current;
 
@@ -930,12 +1034,7 @@ function cache(fn) {
   };
 }
 
-/**
- * Keeps track of the current dispatcher.
- */
-const ReactCurrentDispatcher = {
-  current: null
-};
+const cache = cache$1;
 
 function resolveDispatcher() {
   const dispatcher = ReactCurrentDispatcher.current;
@@ -1019,31 +1118,44 @@ function useOptimistic(passthrough, reducer) {
   return dispatcher.useOptimistic(passthrough, reducer);
 }
 
-/**
- * Keeps track of the current batch's configuration such as how long an update
- * should suspend for if it needs to.
- */
-const ReactCurrentBatchConfig = {
-  transition: null
-};
-
-const ReactSharedInternals = {
-  ReactCurrentDispatcher,
-  ReactCurrentCache,
-  ReactCurrentBatchConfig,
-  ReactCurrentOwner
-};
-
 function startTransition(scope, options) {
-  const prevTransition = ReactCurrentBatchConfig.transition;
-  ReactCurrentBatchConfig.transition = {};
+  const prevTransition = ReactCurrentBatchConfig.transition; // Each renderer registers a callback to receive the return value of
+  // the scope function. This is used to implement async actions.
 
-  try {
-    scope();
-  } finally {
-    ReactCurrentBatchConfig.transition = prevTransition;
+  const callbacks = new Set();
+  const transition = {
+    _callbacks: callbacks
+  };
+  ReactCurrentBatchConfig.transition = transition;
+  const currentTransition = ReactCurrentBatchConfig.transition;
+
+  {
+    try {
+      const returnValue = scope();
+
+      if (typeof returnValue === 'object' && returnValue !== null && typeof returnValue.then === 'function') {
+        callbacks.forEach(callback => callback(currentTransition, returnValue));
+        returnValue.then(noop, onError);
+      }
+    } catch (error) {
+      onError(error);
+    } finally {
+      ReactCurrentBatchConfig.transition = prevTransition;
+    }
   }
 }
+
+function noop() {} // Use reportError, if it exists. Otherwise console.error. This is the same as
+// the default for onRecoverableError.
+
+
+const onError = typeof reportError === 'function' ? // In modern browsers, reportError will dispatch an error event,
+// emulating an uncaught JavaScript error.
+reportError : error => {
+  // In older browsers and test environments, fallback to console.error.
+  // eslint-disable-next-line react-internal/no-production-logging
+  console['error'](error);
+};
 
 function act(callback) {
   {
@@ -1051,9 +1163,6 @@ function act(callback) {
   }
 }
 
-const createElement = createElement$1;
-const cloneElement = cloneElement$1;
-const createFactory = createFactory$1;
 const Children = {
   map: mapChildren,
   forEach: forEachChildren,
@@ -1070,6 +1179,7 @@ exports.PureComponent = PureComponent;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = ReactSharedInternals;
+exports.act = act;
 exports.cache = cache;
 exports.cloneElement = cloneElement;
 exports.createContext = createContext;
@@ -1081,7 +1191,6 @@ exports.isValidElement = isValidElement;
 exports.lazy = lazy;
 exports.memo = memo;
 exports.startTransition = startTransition;
-exports.unstable_act = act;
 exports.unstable_useCacheRefresh = useCacheRefresh;
 exports.use = use;
 exports.useCallback = useCallback;

@@ -29,11 +29,12 @@ name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 1.10.9
+  TURBO_VERSION: 1.12.2
   NODE_LTS_VERSION: 20
 
 jobs:
   start:
+    if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -44,14 +45,26 @@ jobs:
     environment: release-${{ github.event.inputs.releaseType || 'canary' }}
     steps:
       - name: Setup node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
           check-latest: true
 
       - run: git clone https://github.com/vercel/next.js.git --depth=25 .
 
-      - run: git describe || echo 'failed to get tag'
+      - name: Get commit of the latest tag
+        run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
+
+      - name: Get latest commit
+        run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Check if new commits since last tag
+        if: ${{ github.event.inputs.releaseType != 'stable' }}
+        run: |
+          if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
+            echo "No new commits. Exiting..."
+            exit 1
+          fi
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -62,7 +75,7 @@ jobs:
       - id: get-store-path
         run: echo STORE_PATH=$(pnpm store path) >> $GITHUB_OUTPUT
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         timeout-minutes: 5
         id: cache-pnpm-store
         with:

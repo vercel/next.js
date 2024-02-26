@@ -2,11 +2,17 @@ import React from 'react'
 import type { fetchServerResponse as fetchServerResponseType } from '../fetch-server-response'
 import type { FlightData } from '../../../../server/app-render/types'
 import type { FlightRouterState } from '../../../../server/app-render/types'
-import { CacheStates } from '../../../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { createInitialRouterState } from '../create-initial-router-state'
-import { ACTION_PREFETCH, PrefetchKind } from '../router-reducer-types'
-import type { PrefetchAction } from '../router-reducer-types'
+import {
+  ACTION_PREFETCH,
+  PrefetchCacheEntryStatus,
+  PrefetchKind,
+} from '../router-reducer-types'
+import type {
+  PrefetchAction,
+  PrefetchCacheEntry,
+} from '../router-reducer-types'
 import { prefetchReducer } from './prefetch-reducer'
 import { fetchServerResponse } from '../fetch-server-response'
 
@@ -23,7 +29,7 @@ jest.mock('../fetch-server-response', () => {
           children: ['', {}],
         },
       ],
-      ['about', null, <h1>About Page!</h1>],
+      ['about', {}, <h1>About Page!</h1>],
       <>
         <title>About page!</title>
       </>,
@@ -87,7 +93,6 @@ describe('prefetchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -95,17 +100,18 @@ describe('prefetchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -117,9 +123,8 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -128,6 +133,7 @@ describe('prefetchReducer', () => {
       url,
       initialTree,
       null,
+      state.buildId,
       PrefetchKind.AUTO
     )
     const action: PrefetchAction = {
@@ -147,12 +153,26 @@ describe('prefetchReducer', () => {
       buildId: 'development',
       prefetchCache: new Map([
         [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
+        [
           '/linking/about',
           {
+            key: '/linking/about',
             data: prom,
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
             prefetchTime: expect.any(Number),
+            status: PrefetchCacheEntryStatus.fresh,
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -183,14 +203,14 @@ describe('prefetchReducer', () => {
       },
       canonicalUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [
@@ -229,7 +249,6 @@ describe('prefetchReducer', () => {
           [
             'linking',
             {
-              status: CacheStates.READY,
               parallelRoutes: new Map([
                 [
                   'children',
@@ -237,17 +256,18 @@ describe('prefetchReducer', () => {
                     [
                       '',
                       {
-                        status: CacheStates.READY,
-                        data: null,
-                        subTreeData: <>Linking page</>,
+                        lazyData: null,
+                        rsc: <>Linking page</>,
+                        prefetchRsc: null,
                         parallelRoutes: new Map(),
                       },
                     ],
                   ]),
                 ],
               ]),
-              data: null,
-              subTreeData: <>Linking layout level</>,
+              lazyData: null,
+              rsc: <>Linking layout level</>,
+              prefetchRsc: null,
             },
           ],
         ]),
@@ -259,9 +279,8 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -270,9 +289,8 @@ describe('prefetchReducer', () => {
       initialTree,
       initialHead: null,
       initialCanonicalUrl,
-      initialSeedData: ['', null, children],
+      initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      isServer: false,
       location: new URL('/linking', 'https://localhost') as any,
     })
 
@@ -299,16 +317,41 @@ describe('prefetchReducer', () => {
     const prom = Promise.resolve(serverResponse)
     await prom
 
+    const prefetchCache = new Map<string, PrefetchCacheEntry>()
+    prefetchCache.set('/linking', {
+      data: expect.any(Promise),
+      kind: PrefetchKind.AUTO,
+      lastUsedTime: null,
+      prefetchTime: expect.any(Number),
+      treeAtTimeOfPrefetch: initialTree,
+      key: '/linking',
+      status: PrefetchCacheEntryStatus.fresh,
+    })
+
     const expectedState: ReturnType<typeof prefetchReducer> = {
       buildId: 'development',
       prefetchCache: new Map([
         [
+          '/linking',
+          {
+            key: '/linking',
+            data: expect.any(Promise),
+            prefetchTime: expect.any(Number),
+            kind: PrefetchKind.AUTO,
+            lastUsedTime: null,
+            treeAtTimeOfPrefetch: initialTree,
+            status: PrefetchCacheEntryStatus.fresh,
+          },
+        ],
+        [
           '/linking/about',
           {
+            key: '/linking/about',
             data: prom,
             prefetchTime: expect.any(Number),
             kind: PrefetchKind.AUTO,
             lastUsedTime: null,
+            status: PrefetchCacheEntryStatus.fresh,
             treeAtTimeOfPrefetch: [
               '',
               {
@@ -339,14 +382,14 @@ describe('prefetchReducer', () => {
       },
       canonicalUrl: '/linking',
       cache: {
-        status: CacheStates.READY,
-        data: null,
-        subTreeData: (
+        lazyData: null,
+        rsc: (
           <html>
             <head></head>
             <body>Root layout</body>
           </html>
         ),
+        prefetchRsc: null,
         parallelRoutes: initialParallelRoutes,
       },
       tree: [

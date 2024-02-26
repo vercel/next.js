@@ -14,22 +14,24 @@ let savedTraceEvents: TraceEvent[] = []
 // eslint typescript has a bug with TS enums
 /* eslint-disable no-shadow */
 export enum SpanStatus {
-  Started,
-  Stopped,
+  Started = 'started',
+  Stopped = 'stopped',
+}
+
+interface Attributes {
+  [key: string]: string
 }
 
 export class Span {
-  name: string
-  id: SpanId
-  parentId?: SpanId
-  // Duration of the span in *microseconds*.
-  duration: number | null
-  attrs: { [key: string]: any }
-  status: SpanStatus
-  now: number
+  private name: string
+  private id: SpanId
+  private parentId?: SpanId
+  private attrs: { [key: string]: any }
+  private status: SpanStatus
+  private now: number
 
   // Number of nanoseconds since epoch.
-  _start: bigint
+  private _start: bigint
 
   constructor({
     name,
@@ -40,12 +42,16 @@ export class Span {
     name: string
     parentId?: SpanId
     startTime?: bigint
-    attrs?: Object
+    attrs?: Attributes
   }) {
     this.name = name
     this.parentId = parentId ?? defaultParentSpanId
-    this.duration = null
     this.attrs = attrs ? { ...attrs } : {}
+    if (this.parentId === undefined) {
+      // Attach additional information to root spans
+      this.attrs.isTurbopack = Boolean(process.env.TURBOPACK)
+    }
+
     this.status = SpanStatus.Started
     this.id = getId()
     this._start = startTime || process.hrtime.bigint()
@@ -62,6 +68,11 @@ export class Span {
   // Additionally, ~285 years can be safely represented as microseconds as
   // a float64 in both JSON and JavaScript.
   stop(stopTime?: bigint) {
+    if (this.status === SpanStatus.Stopped) {
+      // Don't report the same span twice.
+      // TODO: In the future this should throw as `.stop()` shouldn't be called multiple times.
+      return
+    }
     const end: bigint = stopTime || process.hrtime.bigint()
     const duration = (end - this._start) / NUM_OF_MICROSEC_IN_NANOSEC
     this.status = SpanStatus.Stopped
@@ -84,7 +95,7 @@ export class Span {
     }
   }
 
-  traceChild(name: string, attrs?: Object) {
+  traceChild(name: string, attrs?: Attributes) {
     return new Span({ name, parentId: this.id, attrs })
   }
 
@@ -94,14 +105,18 @@ export class Span {
     startTime: bigint,
     // Stop time in nanoseconds since epoch.
     stopTime: bigint,
-    attrs?: Object
+    attrs?: Attributes
   ) {
     const span = new Span({ name, parentId: this.id, attrs, startTime })
     span.stop(stopTime)
   }
 
-  setAttribute(key: string, value: any) {
-    this.attrs[key] = String(value)
+  getId() {
+    return this.id
+  }
+
+  setAttribute(key: string, value: string) {
+    this.attrs[key] = value
   }
 
   traceFn<T>(fn: (span: Span) => T): T {

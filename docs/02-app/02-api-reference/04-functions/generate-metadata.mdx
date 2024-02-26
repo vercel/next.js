@@ -479,12 +479,12 @@ export const metadata = {
     siteName: 'Next.js',
     images: [
       {
-        url: 'https://nextjs.org/og.png',
+        url: 'https://nextjs.org/og.png', // Must be an absolute URL
         width: 800,
         height: 600,
       },
       {
-        url: 'https://nextjs.org/og-alt.png',
+        url: 'https://nextjs.org/og-alt.png', // Must be an absolute URL
         width: 1800,
         height: 1600,
         alt: 'My custom alt',
@@ -598,7 +598,11 @@ export const metadata = {
 ```jsx filename="layout.js | page.js"
 export const metadata = {
   icons: {
-    icon: [{ url: '/icon.png' }, new URL('/icon.png', 'https://example.com')],
+    icon: [
+      { url: '/icon.png' },
+      new URL('/icon.png', 'https://example.com'),
+      { url: '/icon-dark.png', media: '(prefers-color-scheme: dark)' },
+    ],
     shortcut: ['/shortcut-icon.png'],
     apple: [
       { url: '/apple-icon.png' },
@@ -617,12 +621,13 @@ export const metadata = {
 ```html filename="<head> output" hideLineNumbers
 <link rel="shortcut icon" href="/shortcut-icon.png" />
 <link rel="icon" href="/icon.png" />
+<link rel="icon" href="https://example.com/icon.png" />
+<link rel="icon" href="/icon-dark.png" media="(prefers-color-scheme: dark)" />
 <link rel="apple-touch-icon" href="/apple-icon.png" />
 <link
   rel="apple-touch-icon-precomposed"
   href="/apple-touch-icon-precomposed.png"
 />
-<link rel="icon" href="https://example.com/icon.png" />
 <link
   rel="apple-touch-icon"
   href="/apple-icon-x3.png"
@@ -653,6 +658,8 @@ export const metadata = {
 
 ### `twitter`
 
+The Twitter specification is (surprisingly) used for more than just X (formerly known as Twitter).
+
 Learn more about the [Twitter Card markup reference](https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/markup).
 
 ```jsx filename="layout.js | page.js"
@@ -664,7 +671,7 @@ export const metadata = {
     siteId: '1467726470533754880',
     creator: '@nextjs',
     creatorId: '1467726470533754880',
-    images: ['https://nextjs.org/og.png'],
+    images: ['https://nextjs.org/og.png'], // Must be an absolute URL
   },
 }
 ```
@@ -729,7 +736,7 @@ export const metadata = {
 
 ### `viewport`
 
-> **Deprecated**: The `themeColor` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
+> **Deprecated**: The `viewport` option in `metadata` is deprecated as of Next.js 14. Please use the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport) instead.
 
 ### `verification`
 
@@ -928,6 +935,20 @@ export const metadata = {
 
 ```html filename="<head> output" hideLineNumbers
 <meta name="custom" content="meta" />
+```
+
+If you want to generate multiple same key meta tags you can use array value.
+
+```jsx filename="layout.js | page.js"
+export const metadata = {
+  other: {
+    custom: ['meta1', 'meta2'],
+  },
+}
+```
+
+```html filename="<head> output" hideLineNumbers
+<meta name="custom" content="meta1" /> <meta name="custom" content="meta2" />
 ```
 
 ## Unsupported Metadata

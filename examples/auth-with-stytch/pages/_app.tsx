@@ -1,11 +1,11 @@
-import '../styles/globals.css'
-import styles from '../styles/Home.module.css'
-import type { AppProps } from 'next/app'
-import React from 'react'
-import Head from 'next/head'
-import Image from 'next/image'
-import stytchLogo from '/public/stytch-logo.svg'
-import vercelLogo from '/public/vercel-logotype-dark.svg'
+import "../styles/globals.css";
+import styles from "../styles/Home.module.css";
+import type { AppProps } from "next/app";
+import React from "react";
+import Head from "next/head";
+import Image from "next/image";
+import stytchLogo from "/public/stytch-logo.svg";
+import vercelLogo from "/public/vercel-logotype-dark.svg";
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
@@ -50,6 +50,6 @@ function MyApp({ Component, pageProps }: AppProps) {
         <Component {...pageProps} />
       </div>
     </React.Fragment>
-  )
+  );
 }
-export default MyApp
+export default MyApp;

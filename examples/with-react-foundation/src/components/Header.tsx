@@ -1,5 +1,5 @@
 // Import react-foundation components
-import { Menu, MenuItem } from 'react-foundation'
+import { Menu, MenuItem } from "react-foundation";
 
 export const Header = () => {
   return (
@@ -17,5 +17,5 @@ export const Header = () => {
         <a href="/">Contact</a>
       </MenuItem>
     </Menu>
-  )
-}
+  );
+};

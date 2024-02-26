@@ -23,6 +23,9 @@ import {
   stringToUint8Array,
 } from './action-encryption-utils'
 
+const textEncoder = new TextEncoder()
+const textDecoder = new TextDecoder()
+
 async function decodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
@@ -39,7 +42,7 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
     throw new Error('Invalid Server Action payload.')
   }
 
-  const decrypted = arrayBufferToString(
+  const decrypted = textDecoder.decode(
     await decrypt(key, stringToUint8Array(ivValue), stringToUint8Array(payload))
   )
 
@@ -66,7 +69,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   const encrypted = await encrypt(
     key,
     randomBytes,
-    stringToUint8Array(actionId + arg)
+    textEncoder.encode(actionId + arg)
   )
 
   return btoa(ivValue + arrayBufferToString(encrypted))

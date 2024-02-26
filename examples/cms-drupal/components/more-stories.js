@@ -1,5 +1,5 @@
-import { absoluteURL } from '../lib/api'
-import PostPreview from './post-preview'
+import { absoluteURL } from "../lib/api";
+import PostPreview from "./post-preview";
 
 export default function MoreStories({ posts }) {
   return (
@@ -28,5 +28,5 @@ export default function MoreStories({ posts }) {
         ))}
       </div>
     </section>
-  )
+  );
 }

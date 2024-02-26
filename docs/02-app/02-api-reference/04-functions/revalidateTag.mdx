@@ -16,7 +16,7 @@ description: API Reference for the revalidateTag function.
 revalidateTag(tag: string): void;
 ```
 
-- `tag`: A string representing the cache tag associated with the data you want to revalidate. Must be less than or equal to 256 characters.
+- `tag`: A string representing the cache tag associated with the data you want to revalidate. Must be less than or equal to 256 characters. This value is case-sensitive.
 
 You can add tags to `fetch` as follows:
 
@@ -33,6 +33,17 @@ fetch(url, { next: { tags: [...] } });
 ### Server Action
 
 ```ts filename="app/actions.ts" switcher
+'use server'
+
+import { revalidateTag } from 'next/cache'
+
+export default async function submit() {
+  await addPost()
+  revalidateTag('posts')
+}
+```
+
+```js filename="app/actions.js" switcher
 'use server'
 
 import { revalidateTag } from 'next/cache'

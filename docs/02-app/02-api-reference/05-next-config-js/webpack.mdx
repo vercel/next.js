@@ -16,7 +16,6 @@ Before continuing to add custom webpack configuration to your application make s
 - [CSS modules](/docs/app/building-your-application/styling/css-modules)
 - [Sass/SCSS imports](/docs/app/building-your-application/styling/sass)
 - [Sass/SCSS modules](/docs/app/building-your-application/styling/sass)
-- [preact](https://github.com/vercel/next.js/tree/canary/examples/using-preact)
 
 </AppOnly>
 
@@ -26,7 +25,6 @@ Before continuing to add custom webpack configuration to your application make s
 - [CSS modules](/docs/pages/building-your-application/styling/css-modules)
 - [Sass/SCSS imports](/docs/pages/building-your-application/styling/sass)
 - [Sass/SCSS modules](/docs/pages/building-your-application/styling/sass)
-- [preact](https://github.com/vercel/next.js/tree/canary/examples/using-preact)
 - [Customizing babel configuration](/docs/pages/building-your-application/configuring/babel)
 
 </PagesOnly>
@@ -50,7 +48,7 @@ module.exports = {
 }
 ```
 
-> The `webpack` function is executed twice, once for the server and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
+> The `webpack` function is executed three times, twice for the server (nodejs / edge runtime) and once for the client. This allows you to distinguish between client and server configuration using the `isServer` property.
 
 The second argument to the `webpack` function is an object with the following properties:
 

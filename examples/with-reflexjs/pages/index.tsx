@@ -11,5 +11,5 @@ export default function IndexPage() {
         Read the docs
       </a>
     </div>
-  )
+  );
 }

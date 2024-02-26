@@ -11,6 +11,12 @@ createNextDescribe(
     },
   },
   ({ next }) => {
+    it('should successfully hard navigate from pages -> app', async () => {
+      const browser = await next.browser('/base/pages-path')
+      await browser.elementByCss('#to-another').click()
+      await browser.waitForElementByCss('#page-2')
+    })
+
     it('should support `basePath`', async () => {
       const html = await next.render('/base')
       expect(html).toContain('<h1>Test Page</h1>')

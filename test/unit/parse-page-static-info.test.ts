@@ -1,4 +1,5 @@
 import { getPageStaticInfo } from 'next/dist/build/analysis/get-page-static-info'
+import { PAGE_TYPES } from 'next/dist/lib/page-types'
 import { join } from 'path'
 
 const fixtureDir = join(__dirname, 'fixtures')
@@ -12,7 +13,7 @@ describe('parse page static info', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs-ssr.js'),
       nextConfig: createNextConfig(),
-      pageType: 'pages',
+      pageType: PAGE_TYPES.PAGES,
     })
     expect(runtime).toBe('nodejs')
     expect(ssr).toBe(true)
@@ -23,7 +24,7 @@ describe('parse page static info', () => {
     const { runtime, ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/nodejs.js'),
       nextConfig: createNextConfig(),
-      pageType: 'pages',
+      pageType: PAGE_TYPES.PAGES,
     })
     expect(runtime).toBe(undefined)
     expect(ssr).toBe(false)
@@ -34,7 +35,7 @@ describe('parse page static info', () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/edge.js'),
       nextConfig: createNextConfig(),
-      pageType: 'pages',
+      pageType: PAGE_TYPES.PAGES,
     })
     expect(runtime).toBe('experimental-edge')
   })
@@ -43,7 +44,7 @@ describe('parse page static info', () => {
     const { runtime } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/static.js'),
       nextConfig: createNextConfig(),
-      pageType: 'pages',
+      pageType: PAGE_TYPES.PAGES,
     })
     expect(runtime).toBe(undefined)
   })
@@ -52,7 +53,7 @@ describe('parse page static info', () => {
     const { ssr, ssg } = await getPageStaticInfo({
       pageFilePath: join(fixtureDir, 'page-runtime/ssr-variable-gssp.js'),
       nextConfig: createNextConfig(),
-      pageType: 'pages',
+      pageType: PAGE_TYPES.PAGES,
     })
     expect(ssr).toBe(true)
     expect(ssg).toBe(false)
