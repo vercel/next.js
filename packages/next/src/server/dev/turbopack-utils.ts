@@ -116,7 +116,8 @@ export function formatIssue(issue: Issue) {
 }
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
-export type EntryIssuesMap = Map<EntryKey, Map<IssueKey, Issue>>
+type IssuesMap = Map<IssueKey, Issue>
+export type EntryIssuesMap = Map<EntryKey, IssuesMap>
 
 function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
