@@ -65,6 +65,8 @@ export function normalizeMetadataRoute(page: string) {
     route += '.txt'
   } else if (page === '/manifest') {
     route += '.webmanifest'
+  } else if (page === '/sitemap-index') {
+    route += '.xml'
   } else if (page.endsWith('/sitemap')) {
     route += '.xml'
   } else {

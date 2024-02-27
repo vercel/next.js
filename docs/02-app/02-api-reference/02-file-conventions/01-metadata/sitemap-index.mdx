@@ -1,0 +1,102 @@
+---
+title: sitemap-index.xml
+description: API Reference for the sitemap-index.xml file.
+related:
+  title: Next Steps
+  description: Learn how to generate sitemaps.
+  links:
+    - app/api-reference/file-conventions/metadata/sitemap
+---
+
+`sitemap-index.(xml|js|ts)` is a special file that matches the [Sitemaps XML format](https://www.sitemaps.org/protocol.html#index) to help gather information about multiple sitemaps in your solution.
+
+### Sitemap Index file (.xml)
+
+For larger applications, you can create a `sitemap-index.xml` file to help search engines discover all of your sitemaps. The `sitemap-index.xml` file should be located in the root of the app directory.
+
+```xml filename="sitemap-index.xml"
+
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://acme.com/sitemap.xml</loc>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://acme.com/products/sitemap.xml</loc>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </sitemap>
+</sitemapindex>
+
+```
+
+### Generating a sitemap index using code (.js, .ts)
+
+You can use the `sitemap-index.(js|ts)` file convention to programmatically **generate** a sitemap index by exporting a default function that returns an array of URLs. If using TypeScript, a [`SitemapIndex`](#returns) type is available.
+
+```ts filename="app/sitemap-index.ts" switcher
+import { MetadataRoute } from 'next'
+
+export default function sitemapIndex(): MetadataRoute.SitemapIndex {
+  return [
+    {
+      url: 'https://acme.com/sitemap.xml',
+      lastModified: new Date(),
+    },
+    {
+      url: 'https://acme.com/products/sitemap.xml',
+      lastModified: new Date(),
+    },
+  ]
+}
+```
+
+```js filename="app/sitemap.js" switcher
+export default function sitemapIndex() {
+  return [
+    {
+      url: 'https://acme.com/sitemap.xml',
+      lastModified: new Date(),
+    },
+    {
+      url: 'https://acme.com/products/sitemap.xml',
+      lastModified: new Date(),
+    },
+  ]
+}
+```
+
+Output:
+
+```xml filename="acme.com/sitemap.xml"
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://acme.com/sitemap.xml</loc>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </sitemap>
+  <sitemap>
+    <loc>https://acme.com/products/sitemap.xml</loc>
+    <lastmod>2023-04-06T15:02:24.021Z</lastmod>
+  </sitemap>
+</urlset>
+```
+
+## Recommendations
+
+The sitemap index file should be listed in the robots.txt file.
+
+## Returns
+
+The default function exported from `sitemap-index.(xml|ts|js)` should return an array of objects with the following properties:
+
+```tsx
+type Sitemap = Array<{
+  url: string
+  lastModified?: string | Date
+}>
+```
+
+## Version History
+
+| Version | Changes                  |
+| ------- | ------------------------ |
+| `v14`   | Sitemap Index introduced |

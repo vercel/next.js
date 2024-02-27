@@ -68,6 +68,13 @@ export function isMetadataRouteFile(
       }`
     ),
     new RegExp(
+      `[\\\\/]sitemap-index${
+        withExtension
+          ? `\\.${getExtensionRegexString(pageExtensions.concat('xml'))}$`
+          : ''
+      }`
+    ),
+    new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
         withExtension
           ? `\\.${getExtensionRegexString(
@@ -119,6 +126,7 @@ export function isStaticMetadataRoute(page: string) {
   return (
     page === '/robots' ||
     page === '/manifest' ||
+    page === '/sitemap-index' ||
     isStaticMetadataRouteFile(page)
   )
 }

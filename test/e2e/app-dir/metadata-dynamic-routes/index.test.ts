@@ -67,6 +67,29 @@ createNextDescribe(
         `)
       })
 
+      it('should handle sitemap-index.[ext] dynamic routes', async () => {
+        const res = await next.fetch('/sitemap-index.xml')
+        const text = await res.text()
+
+        expect(res.headers.get('content-type')).toBe('application/xml')
+        expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
+
+        expect(text).toMatchInlineSnapshot(`
+          "<?xml version="1.0" encoding="UTF-8"?>
+          <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+          <sitemap>
+          <loc>https://example.com/sitemap.xml</loc>
+          <lastmod>2021-01-01</lastmod>
+          </sitemap>
+          <sitemap>
+          <loc>https://example.com/sitemap2.xml</loc>
+          <lastmod>2021-01-01</lastmod>
+          </sitemap>
+          </sitemapindex>
+          "
+        `)
+      })
+
       it('should not throw if client components are imported but not used', async () => {
         const { status } = await next.fetch(
           '/client-ref-dependency/sitemap.xml'
