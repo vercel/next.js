@@ -15,11 +15,6 @@ pub(crate) struct NextFontIssue {
 #[turbo_tasks::value_impl]
 impl Issue for NextFontIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("other".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::CodeGen.into()
     }

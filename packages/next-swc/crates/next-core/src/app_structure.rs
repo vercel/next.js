@@ -1219,11 +1219,6 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("next app".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::AppStructure.cell()
     }

@@ -432,11 +432,6 @@ impl Issue for UnableToExternalize {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("externals".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Config.into()
     }

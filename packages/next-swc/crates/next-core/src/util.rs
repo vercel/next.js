@@ -179,11 +179,6 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Parse.into()
     }

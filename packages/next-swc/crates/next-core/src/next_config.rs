@@ -1087,11 +1087,6 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("config".to_string())
-    }
-
-    #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Config.into()
     }
