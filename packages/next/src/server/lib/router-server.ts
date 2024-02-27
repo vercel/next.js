@@ -27,6 +27,7 @@ import setupCompression from 'next/dist/compiled/compression'
 import { NoFallbackError } from '../base-server'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
+import { parseUrl as parseUrlUtil } from '../../shared/lib/router/utils/parse-url'
 
 import {
   PHASE_PRODUCTION_SERVER,
@@ -161,6 +162,9 @@ export async function initialize(opts: {
 
       const { getLocaleRedirect } =
         require('../../shared/lib/i18n/get-locale-redirect') as typeof import('../../shared/lib/i18n/get-locale-redirect')
+
+      const parsedUrl = parseUrlUtil((req.url || '')?.replace(/^\/+/, '/'))
+
       const redirect = getLocaleRedirect({
         defaultLocale,
         domainLocale,
@@ -168,7 +172,7 @@ export async function initialize(opts: {
         nextConfig: config,
         pathLocale: pathnameInfo.locale,
         urlParsed: {
-          ...url,
+          ...parsedUrl,
           pathname: pathnameInfo.locale
             ? `/${pathnameInfo.locale}${urlNoQuery}`
             : urlNoQuery,
