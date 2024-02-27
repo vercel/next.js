@@ -5,10 +5,12 @@ import type { StackFrame as ParsedStackFrame } from 'next/dist/compiled/stacktra
 export type SourcePackage = 'react' | 'next'
 
 export interface StackFrame extends ParsedStackFrame {
+  file: string | null
   isEdgeServer?: boolean
   isServer?: boolean
   isAppDirectory?: boolean
   errorMessage?: string
+  column: number | null
   /** Specific to Turbopack */
   isInternal?: boolean
 }
