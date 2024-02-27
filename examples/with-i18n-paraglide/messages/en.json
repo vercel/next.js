@@ -1,0 +1,10 @@
+{
+    "$schema": "https://inlang.com/schema/inlang-message-format",
+    "hello_world": "Hello, World!",
+    "home_link_label": "Home",
+    "about_path": "/about",
+    "about_link_label": "About",
+    "homepage_title": "Paraglide Example",
+    "homepage_description": "This example demonstrates how to use ParaglideJS and the Paraglide JS Next Adapter to build a multilingual site using the App router.",
+    "about_page_title": "About Page"
+}

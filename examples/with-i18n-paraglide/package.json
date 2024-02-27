@@ -1,0 +1,20 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@inlang/paraglide-js-adapter-next": "^0.2.0",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@inlang/paraglide-js": "^1.2.5",
+    "@types/node": "20.11.20",
+    "@types/react": "18.2.60",
+    "typescript": "5.3.3"
+  }
+}
