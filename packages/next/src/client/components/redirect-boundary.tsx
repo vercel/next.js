@@ -60,7 +60,6 @@ export class RedirectErrorBoundary extends React.Component<
 
   render() {
     const { redirect, redirectType } = this.state
-    const basePath = this.props.router
     if (redirect !== null && redirectType !== null) {
       return (
         <HandleRedirect
