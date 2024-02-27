@@ -853,6 +853,7 @@ export function normalizeRegEx(src: string) {
 export const normalizeRouteRegExes = (item: any) => {
   const fields = [
     'regex',
+    'routeRegex',
     'namedRegex',
     'namedDataRouteRegex',
     'dataRouteRegex',
