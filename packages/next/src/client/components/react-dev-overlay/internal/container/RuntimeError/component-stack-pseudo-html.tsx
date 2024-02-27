@@ -28,12 +28,11 @@ export function PseudoHtml({
   clientTagName,
   ...props
 }: {
-  componentStackFrames: ComponentStackFrame[] | undefined
+  componentStackFrames: ComponentStackFrame[]
   serverTagName?: string
   clientTagName?: string
   [prop: string]: any
 }) {
-  if (!componentStackFrames) return null
   const isHtmlTagsWarning = serverTagName || clientTagName
   const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
@@ -112,7 +111,13 @@ export function PseudoHtml({
       })
 
     return nestedHtmlStack
-  }, [componentStackFrames, isHtmlCollapsed])
+  }, [
+    componentStackFrames,
+    isHtmlCollapsed,
+    clientTagName,
+    serverTagName,
+    isHtmlTagsWarning,
+  ])
 
   return (
     <div data-nextjs-container-errors-pseudo-html>

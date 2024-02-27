@@ -31,11 +31,11 @@ createNextDescribe(
         `)
       } else {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-          "p
-          div
-          Component
-          main
-          Mismatch"
+          "<Mismatch>
+            <main>
+              <Component>
+                <div>
+                  <p>"
         `)
       }
     })

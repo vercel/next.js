@@ -1054,12 +1054,12 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[nextjs__container_errors__extra_code]',
+    '[data-nextjs-container-errors-pseudo-html]',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[nextjs__container_errors__extra_code]'
+    '[data-nextjs-container-errors-pseudo-html]'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())

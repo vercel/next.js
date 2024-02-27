@@ -270,7 +270,7 @@ export function Errors({
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
-            {hydrationWarning && (
+            {hydrationWarning && activeError.componentStackFrames && (
               <>
                 <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
                 <PseudoHtml
