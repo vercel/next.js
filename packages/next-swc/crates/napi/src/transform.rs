@@ -77,7 +77,7 @@ impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<String>);
     type JsValue = Object;
 
-    fn compute(&mut self) -> napi::Result<Self::Output> {
+    fn compute(&mut self) -> Result<Self::Output> {
         run_in_context(|| {
             let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
             let res = catch_unwind(AssertUnwindSafe(|| {
@@ -168,7 +168,7 @@ impl Task for TransformTask {
         &mut self,
         env: Env,
         (output, eliminated_packages): Self::Output,
-    ) -> napi::Result<Self::JsValue> {
+    ) -> Result<Self::JsValue> {
         complete_output(&env, output, eliminated_packages)
     }
 }
@@ -179,7 +179,7 @@ pub fn transform(
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-) -> napi::Result<Object> {
+) -> Result<Object> {
     let c = get_compiler();
 
     let input = match src {
@@ -195,11 +195,7 @@ pub fn transform(
     let mut task = TransformTask { c, input, options };
 
     env.execute_tokio_future(
-        async move {
-            let output = task.compute()?;
-
-            Ok(output)
-        },
+        async move { task.compute() },
         |env, (output, eliminated_packages)| complete_output(env, output, eliminated_packages),
     )
 }
@@ -210,7 +206,7 @@ pub fn transform_sync(
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-) -> napi::Result<Object> {
+) -> Result<Object> {
     let c = get_compiler();
 
     let input = match src {
@@ -224,9 +220,8 @@ pub fn transform_sync(
     let options = options.to_vec();
 
     let mut task = TransformTask { c, input, options };
-    let output = tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(async { task.compute() })?;
+
+    let output = block_on(async { task.compute() })?;
 
     task.resolve(env, output)
 }
