@@ -7,7 +7,7 @@ import { outdent } from 'outdent'
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       react: 'latest',
@@ -323,15 +323,28 @@ describe('Error overlay for hydration errors', () => {
     const pseudoHtml = await browser
       .elementByCss('[data-nextjs-container-errors-pseudo-html] code')
       .text()
-    expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <Page>
-          <p>
-          ^^^
+
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
             <p>
             ^^^
+              <p>
+              ^^^
+        "
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+      "<Page>
+        <p>
+        ^^^
+          <p>
+          ^^^
       "
     `)
+    }
 
     await cleanup()
   })
@@ -371,16 +384,31 @@ describe('Error overlay for hydration errors', () => {
       .elementByCss('[data-nextjs-container-errors-pseudo-html] code')
       .text()
 
-    expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <Page>
-          <p>
-          ^^^
-            <span>
-              ...
-                <span>
+    // Turbopack currently has longer component stack trace
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+        "...
+          <Page>
+            <p>
+            ^^^
+              <span>
+                ...
+                  <span>
+        "
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+      "<Page>
+        <p>
+        ^^^
+          <span>
+            ...
+              <span>
+                <p>
+                ^^^
       "
     `)
+    }
 
     await cleanup()
   })
