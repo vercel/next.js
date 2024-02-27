@@ -978,7 +978,7 @@ export default async function loadConfig(
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
-    const isTypeScript = configFileName.endsWith('ts') // .ts .cts .mts
+    const isTypeScript = configFileName.endsWith('ts') // .ts, .mts
 
     let userConfigModule: any
     try {
@@ -993,10 +993,6 @@ export default async function loadConfig(
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
       } else if (isTypeScript) {
-        curLog.warn(
-          `Detected ${configFileName}, using TypeScript in configuration is experimental and may change or be removed at any time. Use at your own risk.`
-        )
-
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
           cwd: dir,
