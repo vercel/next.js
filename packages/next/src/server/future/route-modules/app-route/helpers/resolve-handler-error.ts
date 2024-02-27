@@ -1,8 +1,7 @@
 import { isNotFoundError } from '../../../../../client/components/not-found'
 import {
-  getURLFromRedirectError,
   isRedirectError,
-  getRedirectStatusCodeFromError,
+  parseRedirectError,
 } from '../../../../../client/components/redirect'
 import {
   handleNotFoundResponse,
@@ -11,15 +10,13 @@ import {
 
 export function resolveHandlerError(err: any): Response | false {
   if (isRedirectError(err)) {
-    const redirect = getURLFromRedirectError(err)
-    if (!redirect) {
+    const { url, statusCode } = parseRedirectError(err)
+    if (!url) {
       throw new Error('Invariant: Unexpected redirect url format')
     }
 
-    const status = getRedirectStatusCodeFromError(err)
-
     // This is a redirect error! Send the redirect response.
-    return handleRedirectResponse(redirect, err.mutableCookies, status)
+    return handleRedirectResponse(url, err.mutableCookies, statusCode)
   }
 
   if (isNotFoundError(err)) {

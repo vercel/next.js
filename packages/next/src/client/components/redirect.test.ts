@@ -1,4 +1,4 @@
-import { getURLFromRedirectError, isRedirectError, redirect } from './redirect'
+import { isRedirectError, parseRedirectError, redirect } from './redirect'
 describe('test', () => {
   it('should throw a redirect error', () => {
     try {
@@ -6,7 +6,8 @@ describe('test', () => {
       throw new Error('did not throw')
     } catch (err: any) {
       expect(isRedirectError(err)).toBeTruthy()
-      expect(getURLFromRedirectError(err)).toEqual('/dashboard')
+      const parsed = parseRedirectError(err)
+      expect(parsed.url).toEqual('/dashboard')
     }
   })
 })
