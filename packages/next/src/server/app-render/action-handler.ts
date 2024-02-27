@@ -182,9 +182,11 @@ async function createRedirectRenderResult(
     const host = originalHost.value
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
-    const fetchUrl = new URL(
-      `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`
-    )
+    const fetchUrl = parsedRedirectUrl.search
+      ? new URL(
+          `${proto}://${host}${basePath}${parsedRedirectUrl.pathname}${parsedRedirectUrl.search}`
+        )
+      : new URL(`${proto}://${host}${basePath}${parsedRedirectUrl.pathname}`)
 
     if (staticGenerationStore.revalidatedTags) {
       forwardedHeaders.set(
