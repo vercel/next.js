@@ -482,9 +482,14 @@ export async function initialize(opts: {
       res.statusCode = 404
 
       if (appNotFound) {
-        return await invokeRender(parsedUrl, '/_not-found', handleIndex, {
-          'x-invoke-status': '404',
-        })
+        return await invokeRender(
+          parsedUrl,
+          opts.dev ? '/not-found' : '/_not-found',
+          handleIndex,
+          {
+            'x-invoke-status': '404',
+          }
+        )
       }
 
       await invokeRender(parsedUrl, '/404', handleIndex, {

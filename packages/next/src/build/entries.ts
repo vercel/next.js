@@ -243,9 +243,7 @@ export function createPagesMapping({
       let pageKey = getPageFromPath(pagePath, pageExtensions)
       if (isAppRoute) {
         pageKey = pageKey.replace(/%5F/g, '_')
-        if (pageKey === '/not-found') {
-          pageKey = pageKey.replace('/not-found', '/_not-found')
-        }
+        pageKey = pageKey.replace(/^\/not-found$/g, '/_not-found')
       }
 
       const normalizedPath = normalizePathSep(

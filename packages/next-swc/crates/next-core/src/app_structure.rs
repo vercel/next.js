@@ -1075,7 +1075,10 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             }.cell()
         };
 
-        // /_not-found is a special entrypoint that is used to render the 404 case.
+        {
+            let app_page = app_page.clone_push_str("not-found")?;
+            add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;
+        }
         {
             let app_page = app_page.clone_push_str("_not-found")?;
             add_app_page(app_dir, &mut result, app_page, not_found_tree).await?;

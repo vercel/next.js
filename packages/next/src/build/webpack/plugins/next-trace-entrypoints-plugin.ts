@@ -242,6 +242,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           // include the client reference manifest
           const clientManifestsForPage =
             entrypoint.name.endsWith('/page') ||
+            entrypoint.name === 'app/not-found' ||
             entrypoint.name === 'app/_not-found'
               ? nodePath.join(
                   outputPath,
