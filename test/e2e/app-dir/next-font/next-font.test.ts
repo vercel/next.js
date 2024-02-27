@@ -47,7 +47,7 @@ describe('app dir - next/font', () => {
               // layout
               expect(JSON.parse($('#root-layout').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 variable: expect.stringMatching(
                   process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
@@ -61,7 +61,7 @@ describe('app dir - next/font', () => {
               // page
               expect(JSON.parse($('#root-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 variable: expect.stringMatching(
                   process.env.TURBOPACK ? /.*_variable$/ : /^__variable_.*/
@@ -75,7 +75,7 @@ describe('app dir - next/font', () => {
               // Comp
               expect(JSON.parse($('#root-comp').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -108,7 +108,7 @@ describe('app dir - next/font', () => {
               // layout
               expect(JSON.parse($('#client-layout').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -120,7 +120,7 @@ describe('app dir - next/font', () => {
               // page
               expect(JSON.parse($('#client-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -132,7 +132,7 @@ describe('app dir - next/font', () => {
               // Comp
               expect(JSON.parse($('#client-comp').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
@@ -146,7 +146,7 @@ describe('app dir - next/font', () => {
               const $ = await next.render$('/third-party')
               expect(JSON.parse($('#third-party-page').text())).toEqual({
                 className: expect.stringMatching(
-                  process.env.TURBOPACK ? /.*_className_$/ : /^__className_.*/
+                  process.env.TURBOPACK ? /.*_className$/ : /^__className_.*/
                 ),
                 style: {
                   fontFamily: expect.stringMatching(
