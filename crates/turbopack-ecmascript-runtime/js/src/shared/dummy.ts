@@ -5,5 +5,4 @@
  * This interface will be implemented by runtimes.
  */
 
-declare var commonJsRequireContext: CommonJsRequireContext;
 declare var getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent;

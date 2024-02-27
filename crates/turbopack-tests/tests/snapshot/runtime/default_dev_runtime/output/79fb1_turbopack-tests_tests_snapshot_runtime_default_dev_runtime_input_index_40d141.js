@@ -20,8 +20,8 @@ const OUTPUT_ROOT = "crates/turbopack-tests/tests/snapshot/runtime/default_dev_r
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
-function defineProp(obj, name, options) {
-    if (!hasOwnProperty.call(obj, name)) Object.defineProperty(obj, name, options);
+function defineProp(obj, name1, options) {
+    if (!hasOwnProperty.call(obj, name1)) Object.defineProperty(obj, name1, options);
 }
 /**
  * Adds the getters to the exports object.
@@ -78,22 +78,6 @@ function ensureDynamicExports(module, exports) {
     ensureDynamicExports(module, exports);
     if (typeof object === "object" && object !== null) {
         module[REEXPORTED_OBJECTS].push(object);
-    }
-}
-/**
- * Access one entry from a mapping from name to functor.
- */ function moduleLookup(map, name, returnPromise = false) {
-    if (hasOwnProperty.call(map, name)) {
-        return map[name]();
-    }
-    const e = new Error(`Cannot find module '${name}'`);
-    e.code = "MODULE_NOT_FOUND";
-    if (returnPromise) {
-        return Promise.resolve().then(()=>{
-            throw e;
-        });
-    } else {
-        throw e;
     }
 }
 function exportValue(module, value) {
@@ -154,25 +138,32 @@ function commonJsRequire(sourceModule, id) {
     if (module.error) throw module.error;
     return module.exports;
 }
-function requireContext(sourceModule, map) {
-    function requireContext(id) {
-        const entry = map[id];
-        if (!entry) {
-            throw new Error(`module ${id} is required from a require.context, but is not in the context`);
+/**
+ * `require.context` and require/import expression runtime.
+ */ function moduleContext(map) {
+    function moduleContext(id) {
+        if (hasOwnProperty.call(map, id)) {
+            return map[id].module();
         }
-        return commonJsRequireContext(entry, sourceModule);
+        const e = new Error(`Cannot find module '${name}'`);
+        e.code = "MODULE_NOT_FOUND";
+        throw e;
     }
-    requireContext.keys = ()=>{
+    moduleContext.keys = ()=>{
         return Object.keys(map);
     };
-    requireContext.resolve = (id)=>{
-        const entry = map[id];
-        if (!entry) {
-            throw new Error(`module ${id} is resolved from a require.context, but is not in the context`);
+    moduleContext.resolve = (id)=>{
+        if (hasOwnProperty.call(map, id)) {
+            return map[id].id();
         }
-        return entry.id();
+        const e = new Error(`Cannot find module '${name}'`);
+        e.code = "MODULE_NOT_FOUND";
+        throw e;
     };
-    return requireContext;
+    moduleContext.import = async (id)=>{
+        return await moduleContext(id);
+    };
+    return moduleContext;
 }
 /**
  * Returns the path of a chunk defined by its data.
@@ -292,22 +283,23 @@ function asyncModule(module, body, hasAwait) {
     }
 }
 /**
- * A pseudo, `fake` URL object to resolve to the its relative path.
- * When urlrewritebehavior is set to relative, calls to the `new URL()` will construct url without base using this
+ * A pseudo "fake" URL object to resolve to its relative path.
+ *
+ * When UrlRewriteBehavior is set to relative, calls to the `new URL()` will construct url without base using this
  * runtime function to generate context-agnostic urls between different rendering context, i.e ssr / client to avoid
  * hydration mismatch.
  *
- * This is largely based on the webpack's existing implementation at
+ * This is based on webpack's existing implementation:
  * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
- */ var relativeURL = function(inputUrl) {
+ */ const relativeURL = function relativeURL(inputUrl) {
     const realUrl = new URL(inputUrl, "x:/");
     const values = {};
-    for(var key in realUrl)values[key] = realUrl[key];
+    for(const key in realUrl)values[key] = realUrl[key];
     values.href = inputUrl;
     values.pathname = inputUrl.replace(/[?#].*/, "");
     values.origin = values.protocol = "";
     values.toString = values.toJSON = (..._args)=>inputUrl;
-    for(var key in values)Object.defineProperty(this, key, {
+    for(const key in values)Object.defineProperty(this, key, {
         enumerable: true,
         configurable: true,
         value: values[key]
@@ -519,11 +511,10 @@ function instantiateModule(id, source) {
                 e: module.exports,
                 r: commonJsRequire.bind(null, module),
                 t: runtimeRequire,
-                f: requireContext.bind(null, module),
+                f: moduleContext,
                 i: esmImport.bind(null, module),
                 s: esmExport.bind(null, module, module.exports),
                 j: dynamicExport.bind(null, module, module.exports),
-                p: moduleLookup,
                 v: exportValue.bind(null, module),
                 n: exportNamespace.bind(null, module),
                 m: module,
@@ -822,21 +813,21 @@ function applyPhase(outdatedSelfAcceptedModules, newModuleFactories, outdatedMod
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
-function applyUpdate(chunkListPath, update) {
+function applyUpdate(update) {
     switch(update.type){
         case "ChunkListUpdate":
-            applyChunkListUpdate(chunkListPath, update);
+            applyChunkListUpdate(update);
             break;
         default:
             invariant(update, (update)=>`Unknown update type: ${update.type}`);
     }
 }
-function applyChunkListUpdate(chunkListPath, update) {
+function applyChunkListUpdate(update) {
     if (update.merged != null) {
         for (const merged of update.merged){
             switch(merged.type){
                 case "EcmascriptMergedUpdate":
-                    applyEcmascriptMergedUpdate(chunkListPath, merged);
+                    applyEcmascriptMergedUpdate(merged);
                     break;
                 default:
                     invariant(merged, (merged)=>`Unknown merged type: ${merged.type}`);
@@ -865,7 +856,7 @@ function applyChunkListUpdate(chunkListPath, update) {
         }
     }
 }
-function applyEcmascriptMergedUpdate(chunkPath, update) {
+function applyEcmascriptMergedUpdate(update) {
     const { entries = {}, chunks = {} } = update;
     const { added, modified, chunksAdded, chunksDeleted } = computeChangedModules(entries, chunks);
     const { outdatedModules, newModuleFactories } = computeOutdatedModules(added, modified);
@@ -1042,7 +1033,7 @@ function handleApply(chunkListPath, update) {
         case "partial":
             {
                 // This indicates that the update is can be applied to the current state of the application.
-                applyUpdate(chunkListPath, update.instruction);
+                applyUpdate(update.instruction);
                 break;
             }
         case "restart":
@@ -1317,12 +1308,10 @@ globalThis.TURBOPACK_CHUNK_LISTS = {
  *
  * It will be appended to the base development runtime code.
  */ /// <reference path="../base/runtime-base.ts" />
+/// <reference path="../../../shared/require-type.d.ts" />
 let BACKEND;
 function augmentContext(context) {
     return context;
-}
-function commonJsRequireContext(entry, sourceModule) {
-    return commonJsRequire(sourceModule, entry.id());
 }
 function fetchWebAssembly(wasmChunkPath) {
     return fetch(getChunkRelativeUrl(wasmChunkPath));

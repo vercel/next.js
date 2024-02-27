@@ -90,7 +90,7 @@ type EcmascriptModuleEntry = {
 
 type ResourceIdentifier = {
   path: string;
-  headers?: { [string]: string };
+  headers?: { [key: string]: string };
 };
 
 type ClientMessageSubscribe = {
