@@ -445,7 +445,7 @@ export class ClientReferenceManifestPlugin {
       // dev: app/not-found
       // prod: app/_not-found
       if (/^app\/_?not-found(\.[^.]+)?$/.test(entryName)) {
-        manifestEntryFiles.push(this.dev ? 'app/not-found' : 'app/_not-found')
+        manifestEntryFiles.push('app/_not-found')
       }
 
       const groupName = entryNameToGroupName(entryName)
@@ -488,16 +488,6 @@ export class ClientReferenceManifestPlugin {
           pagePath.slice('app'.length)
         )}]=${json}`
       ) as unknown as webpack.sources.RawSource
-
-      if (pagePath === 'app/not-found') {
-        // Create a separate special manifest for the root not-found page.
-        assets['server/app/_not-found_' + CLIENT_REFERENCE_MANIFEST + '.js'] =
-          new sources.RawSource(
-            `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-              '/_not-found'
-            )}]=${json}`
-          ) as unknown as webpack.sources.RawSource
-      }
     }
 
     pluginState.ASYNC_CLIENT_MODULES = []

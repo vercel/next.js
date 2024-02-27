@@ -467,11 +467,11 @@ export async function findPagePathData(
     }
   }
 
-  if (page === '/not-found' && appDir) {
+  if (page === '/_not-found' && appDir) {
     return {
       filename: require.resolve('next/dist/client/components/not-found-error'),
-      bundlePath: 'app/not-found',
-      page: '/not-found',
+      bundlePath: 'app/_not-found',
+      page: '/_not-found',
     }
   }
 
