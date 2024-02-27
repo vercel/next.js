@@ -183,6 +183,7 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     parallelRoutes: new Map(),
+    lazyDataResolved: false,
   }
 }
 
@@ -578,7 +579,6 @@ function Router({
         return
       }
 
-      // @ts-ignore useTransition exists
       // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
       // Without startTransition works if the cache is there for this path
       startTransition(() => {
