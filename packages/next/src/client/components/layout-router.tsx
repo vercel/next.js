@@ -26,7 +26,7 @@ import {
   TemplateContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
-import { createInfinitePromise } from './infinite-promise'
+import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
@@ -438,7 +438,7 @@ function InnerLayoutRouter({
     }
 
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
-    use(createInfinitePromise()) as never
+    use(unresolvedThenable) as never
   }
 
   // If we get to this point, then we know we have something we can render.
