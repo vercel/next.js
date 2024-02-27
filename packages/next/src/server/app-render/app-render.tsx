@@ -952,6 +952,7 @@ async function renderToHTMLOrFlightImpl(
         polyfills,
         renderServerInsertedHTML,
         serverCapturedErrors: allCapturedErrors,
+        basePath: renderOpts.basePath,
       })
 
       const renderer = createStaticRenderer({
@@ -1281,6 +1282,7 @@ async function renderToHTMLOrFlightImpl(
                 polyfills,
                 renderServerInsertedHTML,
                 serverCapturedErrors: [],
+                basePath: renderOpts.basePath,
               }),
               serverInsertedHTMLToHead: true,
               validateRootLayout,
