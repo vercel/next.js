@@ -14,9 +14,11 @@ const config: CodegenConfig = {
     },
   },
   generates: {
-    "gql/": {
+    "src/gql/": {
       preset: "client",
-      plugins: [],
+    },
+    "src/gql/schema.gql": {
+      plugins: ["schema-ast"],
     },
   },
 };

@@ -1,7 +1,7 @@
 const fs = require("fs");
 
 // Define the path to the generated file
-const generatedFilePath = "gql/gql.ts";
+const generatedFilePath = "src/gql/gql.ts";
 
 // Read the existing content of the file
 fs.readFile(generatedFilePath, "utf8", (err, data) => {

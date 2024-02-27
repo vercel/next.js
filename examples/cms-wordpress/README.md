@@ -102,12 +102,15 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 > [!NOTE] > Running `npm run dev` will automatically generate typings from the WordPress installation found on the url provided in your environment variable: `NEXT_PUBLIC_WORDPRESS_API_URL`
 
+## GraphQL and typescript types
+
+We are generating typescript types from the provided schema with Codegen. We are also downloading the schema, and providing it in the `apollo.config.js` which gives you autocomplete and validation when writing queries directly in VS Code (install Apollo GraphQL extension, to make this work).
+
 ## Advanced Custom Fields PRO (optional, but recommended)
 
 I will recommend building your page content by using the [Flexible Content](https://www.advancedcustomfields.com/resources/flexible-content/) data type in ACF Pro.
 This will make you able to create a "Block Builder" editor experience, but still having everything automatically type generated, and recieving the data in a structured way.
 The default "Gutenberg" editor returns a lot of HTML, which makes you loose a lot of the advantages of using GraphQL with type generation.
-And example of using the "Flexible Content" is included (but outcommented) in `PageTemplate.tsx` - including a few suggestion for basic blocks (the flexible content components have a @ts-nocheck on purpose, to avoid build errors for people without the ACF Pro).
 
 ## Redirection setup
 
