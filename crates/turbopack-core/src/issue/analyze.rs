@@ -3,7 +3,8 @@ use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{
-    Issue, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString, StyledString,
+    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+    StyledString,
 };
 use crate::ident::AssetIdent;
 
@@ -13,7 +14,6 @@ pub struct AnalyzeIssue {
     pub source_ident: Vc<AssetIdent>,
     pub title: Vc<String>,
     pub message: Vc<StyledString>,
-    pub category: Vc<String>,
     pub code: Option<String>,
     pub source: Option<Vc<IssueSource>>,
 }
@@ -41,8 +41,8 @@ impl Issue for AnalyzeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        self.category
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Analysis.cell()
     }
 
     #[turbo_tasks::function]

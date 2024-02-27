@@ -5,7 +5,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
     error::PrettyPrintError,
-    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     resolve::{find_context_file, package_json, FindContextFileResult},
 };
@@ -121,8 +121,8 @@ struct SideEffectsInPackageJsonIssue {
 #[turbo_tasks::value_impl]
 impl Issue for SideEffectsInPackageJsonIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parsing".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]

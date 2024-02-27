@@ -12,6 +12,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
+use serde::Serialize;
 use turbo_tasks::{
     emit, CollectiblesSource, RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt,
     Upcast, ValueToString, Vc,
@@ -76,7 +77,7 @@ impl Display for IssueSeverity {
 /// Represents a section of structured styled text. This can be interpreted and
 /// rendered by various UIs as appropriate, e.g. HTML for display on the web,
 /// ANSI sequences in TTYs.
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
 #[turbo_tasks::value(shared)]
 pub enum StyledString {
     /// Multiple [StyledString]s concatenated into a single line. Each item is
@@ -107,11 +108,9 @@ pub trait Issue {
     /// header.
     fn file_path(self: Vc<Self>) -> Vc<FileSystemPath>;
 
-    /// A short identifier of the type of error (eg "parse", "analyze", or
-    /// "evaluate") displayed to the user as part of the message header.
-    fn category(self: Vc<Self>) -> Vc<String> {
-        Vc::<String>::default()
-    }
+    /// The stage of the compilation process at which the issue occurred. This
+    /// is used to sort issues.
+    fn stage(self: Vc<Self>) -> Vc<IssueStage>;
 
     /// The issue title should be descriptive of the issue, but should be a
     /// single line. This is displayed to the user directly under the issue
@@ -165,7 +164,7 @@ pub trait Issue {
         Ok(PlainIssue {
             severity: *self.severity().await?,
             file_path: self.file_path().to_string().await?.clone_value(),
-            category: self.category().await?.clone_value(),
+            stage: self.stage().await?.clone_value(),
             title: self.title().await?.clone_value(),
             description,
             detail,
@@ -423,7 +422,7 @@ impl CapturedIssues {
             })
             .try_join()
             .await?;
-        list.sort_by(ReadRef::ptr_cmp);
+        list.sort();
         Ok(list)
     }
 }
@@ -523,12 +522,53 @@ pub struct OptionIssueSource(Option<Vc<IssueSource>>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<Vc<StyledString>>);
 
+#[turbo_tasks::value(shared, serialization = "none")]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
+pub enum IssueStage {
+    Config,
+    AppStructure,
+    Resolve,
+    ProcessModule,
+    /// Read file.
+    Load,
+    SourceTransform,
+    Parse,
+    /// TODO: Add index of the transform
+    Transform,
+    Analysis,
+    CodeGen,
+    Unsupported,
+    Misc,
+    Other(String),
+}
+
+impl Display for IssueStage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IssueStage::Config => write!(f, "config"),
+            IssueStage::Resolve => write!(f, "resolve"),
+            IssueStage::ProcessModule => write!(f, "process module"),
+            IssueStage::Load => write!(f, "load"),
+            IssueStage::SourceTransform => write!(f, "source transform"),
+            IssueStage::Parse => write!(f, "parse"),
+            IssueStage::Transform => write!(f, "transform"),
+            IssueStage::Analysis => write!(f, "analysis"),
+            IssueStage::CodeGen => write!(f, "code gen"),
+            IssueStage::Unsupported => write!(f, "unsupported"),
+            IssueStage::AppStructure => write!(f, "app structure"),
+            IssueStage::Misc => write!(f, "misc"),
+            IssueStage::Other(s) => write!(f, "{}", s),
+        }
+    }
+}
+
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
     pub file_path: String,
-    pub category: String,
+
+    pub stage: IssueStage,
 
     pub title: StyledString,
     pub description: Option<StyledString>,
@@ -540,10 +580,34 @@ pub struct PlainIssue {
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
 }
 
+impl Ord for PlainIssue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        macro_rules! cmp {
+            ($a:expr, $b:expr) => {
+                match $a.cmp(&$b) {
+                    Ordering::Equal => {}
+                    other => return other,
+                }
+            };
+        }
+
+        cmp!(self.severity, other.severity);
+        cmp!(self.stage, other.stage);
+
+        self.title.cmp(&other.title)
+    }
+}
+
+impl PartialOrd for PlainIssue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
     hasher.write_ref(&issue.severity);
     hasher.write_ref(&issue.file_path);
-    hasher.write_ref(&issue.category);
+    hasher.write_ref(&issue.stage);
     hasher.write_ref(&issue.title);
     hasher.write_ref(&issue.description);
     hasher.write_ref(&issue.detail);

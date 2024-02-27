@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use turbopack_cli_utils::issue::{format_issue, LogOptions};
 use turbopack_core::{
-    issue::{IssueSeverity, PlainIssue, StyledString},
+    issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
     source_pos::SourcePos,
 };
 
@@ -137,7 +137,7 @@ pub struct IssueSourceRange {
 pub struct Issue<'a> {
     pub severity: IssueSeverity,
     pub file_path: &'a str,
-    pub category: &'a str,
+    pub stage: &'a IssueStage,
 
     pub title: &'a StyledString,
     pub description: Option<&'a StyledString>,
@@ -164,7 +164,7 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
         Issue {
             severity: plain.severity,
             file_path: &plain.file_path,
-            category: &plain.category,
+            stage: &plain.stage,
             title: &plain.title,
             description: plain.description.as_ref(),
             documentation_link: &plain.documentation_link,

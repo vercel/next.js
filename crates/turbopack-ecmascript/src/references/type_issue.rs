@@ -1,6 +1,6 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
 use crate::SpecifiedModuleType;
 
@@ -80,7 +80,7 @@ impl Issue for SpecifiedModuleTypeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("module type".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Analysis.into()
     }
 }

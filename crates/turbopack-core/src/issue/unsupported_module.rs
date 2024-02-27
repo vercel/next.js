@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSeverity, OptionStyledString, StyledString};
+use super::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedModuleIssue {
@@ -19,8 +19,8 @@ impl Issue for UnsupportedModuleIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("resolve".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.into()
     }
 
     #[turbo_tasks::function]

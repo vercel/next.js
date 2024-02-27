@@ -1,6 +1,6 @@
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
 #[turbo_tasks::value(shared)]
@@ -17,8 +17,8 @@ impl Issue for ProcessEnvIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parse".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Load.into()
     }
 
     #[turbo_tasks::function]

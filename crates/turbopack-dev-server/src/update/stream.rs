@@ -10,7 +10,7 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
     issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, OptionIssueProcessingPathItems,
+        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionIssueProcessingPathItems,
         OptionStyledString, PlainIssue, StyledString,
     },
     server_fs::ServerFileSystem,
@@ -292,13 +292,13 @@ impl Issue for FatalStreamIssue {
     }
 
     #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        ServerFileSystem::new().root().join(self.resource.clone())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Other("websocket".into()).cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("websocket".to_string())
+    fn file_path(&self) -> Vc<FileSystemPath> {
+        ServerFileSystem::new().root().join(self.resource.clone())
     }
 
     #[turbo_tasks::function]
