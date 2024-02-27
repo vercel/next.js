@@ -125,6 +125,8 @@ function getIssueKey(issue: Issue): IssueKey {
   )}-${JSON.stringify(issue.description)}`
 }
 
+const IGNORE_NODE_MODULES_ISSUES = new Set(['analysis', 'resolve'])
+
 export function processIssues(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
@@ -137,14 +139,18 @@ export function processIssues(
   const relevantIssues = new Set()
 
   for (const issue of result.issues) {
+    // We ignore all warnings for now
     if (issue.severity !== 'error' && issue.severity !== 'fatal') continue
+    // We ignore specific errors in node_modules for now
+    if (
+      /(^|\/)node_modules(\/|$)/.test(issue.filePath) &&
+      IGNORE_NODE_MODULES_ISSUES.has(issue.category)
+    )
+      continue
+
     const issueKey = getIssueKey(issue)
     const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
-
-    // We show errors in node_modules to the console, but don't throw for them
-    if (/(^|\/)node_modules(\/|$)/.test(issue.filePath)) continue
-
     relevantIssues.add(formatted)
   }
 
