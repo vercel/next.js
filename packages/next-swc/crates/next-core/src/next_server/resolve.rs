@@ -4,7 +4,7 @@ use turbo_tasks::{trace::TraceRawVcs, Value, Vc};
 use turbopack_binding::{
     turbo::tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath},
     turbopack::core::{
-        issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+        issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
         reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
         resolve::{
             find_context_file,
@@ -434,6 +434,11 @@ impl Issue for UnableToExternalize {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<String> {
         Vc::cell("externals".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Load.into()
     }
 
     #[turbo_tasks::function]

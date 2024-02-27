@@ -10,7 +10,7 @@ use turbopack_binding::{
         diagnostics::DiagnosticExt,
         file_source::FileSource,
         issue::{
-            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity,
+            unsupported_module::UnsupportedModuleIssue, Issue, IssueExt, IssueSeverity, IssueStage,
             OptionStyledString, StyledString,
         },
         reference_type::ReferenceType,
@@ -124,6 +124,11 @@ impl Issue for InvalidImportModuleIssue {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<String> {
         Vc::cell("resolve".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Analysis.into()
     }
 
     #[turbo_tasks::function]

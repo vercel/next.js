@@ -15,8 +15,8 @@ use turbopack_binding::{
             file_source::FileSource,
             ident::AssetIdent,
             issue::{
-                Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-                StyledString,
+                Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+                OptionStyledString, StyledString,
             },
             source::Source,
         },
@@ -175,6 +175,11 @@ impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<String> {
         Vc::cell("parsing".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.into()
     }
 
     #[turbo_tasks::function]

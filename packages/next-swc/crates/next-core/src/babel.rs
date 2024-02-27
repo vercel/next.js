@@ -4,7 +4,7 @@ use turbopack_binding::{
     turbo::tasks_fs::{FileSystemEntryType, FileSystemPath},
     turbopack::{
         core::{
-            issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+            issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
             reference_type::{CommonJsReferenceSubType, ReferenceType},
             resolve::{parse::Request, pattern::Pattern, resolve},
         },
@@ -156,6 +156,11 @@ impl Issue for BabelIssue {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<String> {
         Vc::cell("other".to_string())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Transform.into()
     }
 
     #[turbo_tasks::function]
