@@ -893,6 +893,7 @@ async function renderToHTMLOrFlightImpl(
         polyfills,
         renderServerInsertedHTML,
         hasPostponed,
+        basePath: renderOpts.basePath,
       })
 
       const renderer = createStaticRenderer({

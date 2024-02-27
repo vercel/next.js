@@ -8,15 +8,18 @@ import {
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 
 export function makeGetServerInsertedHTML({
   polyfills,
   renderServerInsertedHTML,
+  basePath,
   hasPostponed,
 }: {
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
   hasPostponed: boolean
+  basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
   // If the render had postponed, then we have already flushed the polyfills.
@@ -38,7 +41,10 @@ export function makeGetServerInsertedHTML({
           ) : null
         )
       } else if (isRedirectError(error)) {
-        const redirectUrl = getURLFromRedirectError(error)
+        const redirectUrl = addPathPrefix(
+          getURLFromRedirectError(error),
+          basePath
+        )
         const statusCode = getRedirectStatusCodeFromError(error)
         const isPermanent =
           statusCode === RedirectStatusCode.PermanentRedirect ? true : false
