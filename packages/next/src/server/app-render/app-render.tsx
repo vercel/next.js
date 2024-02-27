@@ -634,16 +634,20 @@ async function renderToHTMLOrFlightImpl(
     req.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
-        getTracer()
-          .startSpan(NextNodeServerSpan.clientComponentLoading, {
-            startTime: metrics.clientComponentLoadStart,
-            attributes: {
-              'next.clientComponentLoadCount': metrics.clientComponentLoadCount,
-            },
-          })
-          .end(
-            metrics.clientComponentLoadStart + metrics.clientComponentLoadTimes
-          )
+        if (metrics) {
+          getTracer()
+            .startSpan(NextNodeServerSpan.clientComponentLoading, {
+              startTime: metrics.clientComponentLoadStart,
+              attributes: {
+                'next.clientComponentLoadCount':
+                  metrics.clientComponentLoadCount,
+              },
+            })
+            .end(
+              metrics.clientComponentLoadStart +
+                metrics.clientComponentLoadTimes
+            )
+        }
       }
     })
   }

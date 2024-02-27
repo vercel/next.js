@@ -296,7 +296,14 @@ async fn get_directory_tree_internal(
     page_extensions: Vc<Vec<String>>,
 ) -> Result<Vc<DirectoryTree>> {
     let DirectoryContent::Entries(entries) = &*dir.read_dir().await? else {
-        bail!("{} must be a directory", dir.to_string().await?);
+        // the file watcher might invalidate things in the wrong order,
+        // and we have to account for the eventual consistency of turbo-tasks
+        // so we just return an empty tree here.
+        return Ok(DirectoryTree {
+            subdirectories: Default::default(),
+            components: Components::default().cell(),
+        }
+        .cell());
     };
     let page_extensions_value = page_extensions.await?;
 

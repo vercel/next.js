@@ -703,6 +703,9 @@ function createHints() {
   return new Set();
 }
 
+var supportsRequestStorage = false;
+var requestStorage = null;
+
 // ATTENTION
 // When adding new symbols to this file,
 // Please consider also adding to 'react-devtools-shared/src/backend/ReactSymbols'
@@ -1405,7 +1408,7 @@ function createRequest(model, bundlerConfig, onError, identifierPrefix, onPostpo
   };
 
   {
-    request.environmentName = environmentName === undefined ? 'server' : environmentName;
+    request.environmentName = environmentName === undefined ? 'Server' : environmentName;
   }
 
   var rootTask = createTask(request, model, null, false, abortSet);
@@ -1694,6 +1697,8 @@ function renderElement(request, task, type, key, ref, props) {
     // When the ref moves to the regular props object this will implicitly
     // throw for functions. We could probably relax it to a DEV warning for other
     // cases.
+    // TODO: `ref` is now just a prop when `enableRefAsProp` is on. Should we
+    // do what the above comment says?
     throw new Error('Refs cannot be used in Server Components, nor passed to Client Components.');
   }
 
@@ -2150,11 +2155,18 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
                 forwardDebugInfo(request, debugID, debugInfo);
               }
             }
+          }
+
+          var props = element.props;
+          var ref;
+
+          {
+            ref = element.ref;
           } // Attempt to render the Server Component.
 
 
           return renderElement(request, task, element.type, // $FlowFixMe[incompatible-call] the key of an element is null | string
-          element.key, element.ref, element.props);
+          element.key, ref, props);
         }
 
       case REACT_LAZY_TYPE:
@@ -2366,13 +2378,34 @@ function renderModelDestructive(request, task, parent, parentPropertyName, value
 }
 
 function logPostpone(request, reason) {
-  var onPostpone = request.onPostpone;
-  onPostpone(reason);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+
+  try {
+    var onPostpone = request.onPostpone;
+
+    if (supportsRequestStorage) ; else {
+      onPostpone(reason);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 }
 
 function logRecoverableError(request, error) {
-  var onError = request.onError;
-  var errorDigest = onError(error);
+  var prevRequest = currentRequest;
+  currentRequest = null;
+  var errorDigest;
+
+  try {
+    var onError = request.onError;
+
+    if (supportsRequestStorage) ; else {
+      errorDigest = onError(error);
+    }
+  } finally {
+    currentRequest = prevRequest;
+  }
 
   if (errorDigest != null && typeof errorDigest !== 'string') {
     // eslint-disable-next-line react-internal/prod-error-codes
