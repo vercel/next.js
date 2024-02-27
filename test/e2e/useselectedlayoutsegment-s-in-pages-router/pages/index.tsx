@@ -6,5 +6,5 @@ import {
 export default function Page() {
   useSelectedLayoutSegment()
   useSelectedLayoutSegments()
-  return 'Hello World'
+  return <p id="hello-world">Hello World</p>
 }
