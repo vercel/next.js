@@ -395,7 +395,7 @@ function mergeEcmascriptChunkUpdates(
   return undefined;
 }
 
-function invariant(never: never, message: string): never {
+function invariant(_: never, message: string): never {
   throw new Error(`Invariant: ${message}`);
 }
 
@@ -470,7 +470,7 @@ const hooks = {
   beforeRefresh: () => {},
   refresh: () => {},
   buildOk: () => {},
-  issues: (issues: Issue[]) => {},
+  issues: (_issues: Issue[]) => {},
 };
 
 export function setHooks(newHooks: typeof hooks) {

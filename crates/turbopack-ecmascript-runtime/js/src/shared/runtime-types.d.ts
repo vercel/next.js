@@ -20,6 +20,7 @@ type ChunkData =
     };
 
 type CommonJsRequire = (moduleId: ModuleId) => Exports;
+type ModuleContextFactory = (map: ModuleContextMap) => ModuleContext;
 type EsmImport = (
   moduleId: ModuleId,
   allowExportDefault: boolean
@@ -28,11 +29,6 @@ type EsmExport = (exportGetters: Record<string, () => any>) => void;
 type ExportValue = (value: any) => void;
 type ExportNamespace = (namespace: any) => void;
 type DynamicExport = (object: Record<string, any>) => void;
-type ModuleLookup = (
-  object: Record<string, any>,
-  name: string,
-  returnPromise?: boolean
-) => any;
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined;
 type LoadWebAssembly = (
@@ -62,11 +58,10 @@ interface TurbopackBaseContext {
   e: Module["exports"];
   r: CommonJsRequire;
   t: CommonJsRequire;
-  f: RequireContextFactory;
+  f: ModuleContextFactory;
   i: EsmImport;
   s: EsmExport;
   j: DynamicExport;
-  p: ModuleLookup;
   v: ExportValue;
   n: ExportNamespace;
   m: Module;

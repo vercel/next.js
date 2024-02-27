@@ -4,19 +4,6 @@
 /// Currently this is for node.js / edge runtime both.
 /// If a fn requires node.js specific behavior it should be placed in `node-external-utils` instead.
 
-interface RequireContextEntry {
-  external: boolean;
-}
-
-function commonJsRequireContext(
-  entry: RequireContextEntry,
-  sourceModule: Module
-): Exports {
-  return entry.external
-    ? externalRequire(entry.id(), false)
-    : commonJsRequire(sourceModule, entry.id());
-}
-
 async function externalImport(id: ModuleId) {
   let raw;
   try {

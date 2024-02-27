@@ -268,7 +268,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             if let Expr::Call(call_expr) = expr {
                 let args = std::mem::take(&mut call_expr.args);
                 *expr = match args.into_iter().next() {
-                    Some(ExprOrSpread { expr, spread: None }) => pm.create_require(*expr),
+                    Some(ExprOrSpread { expr, spread: None }) => pm.create_id(*expr),
                     other => {
                         let message = match other {
                             // These are SWC bugs: https://github.com/swc-project/swc/issues/5394

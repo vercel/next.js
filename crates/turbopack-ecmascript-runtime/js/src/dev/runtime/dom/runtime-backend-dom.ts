@@ -6,6 +6,7 @@
  */
 
 /// <reference path="../base/runtime-base.ts" />
+/// <reference path="../../../shared/require-type.d.ts" />
 
 type ChunkResolver = {
   resolved: boolean;
@@ -18,13 +19,6 @@ let BACKEND: RuntimeBackend;
 
 function augmentContext(context: TurbopackDevBaseContext): TurbopackDevContext {
   return context;
-}
-
-function commonJsRequireContext(
-  entry: RequireContextEntry,
-  sourceModule: Module
-): Exports {
-  return commonJsRequire(sourceModule, entry.id());
 }
 
 function fetchWebAssembly(wasmChunkPath: ChunkPath) {

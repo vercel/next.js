@@ -3,7 +3,10 @@
     // type checking
     "strict": true,
     "noFallthroughCasesInSwitch": true,
-    "skipLibCheck": true,
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
 
     // environment
     "target": "ESNext",
@@ -11,6 +14,7 @@
     // modules
     "baseUrl": ".",
     "module": "CommonJS",
+    "types": [], // disable implicit types.
 
     // emit
     "noEmit": true,

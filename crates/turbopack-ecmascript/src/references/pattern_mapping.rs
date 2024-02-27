@@ -81,17 +81,6 @@ pub(crate) enum ResolveType {
 }
 
 impl SinglePatternMapping {
-    pub fn is_internal_import(&self) -> bool {
-        match self {
-            Self::Invalid
-            | Self::Unresolveable(_)
-            | Self::Ignored
-            | Self::Module(_)
-            | Self::ModuleLoader(_) => true,
-            Self::External(..) => false,
-        }
-    }
-
     pub fn create_id(&self, key_expr: Cow<'_, Expr>) -> Expr {
         match self {
             Self::Invalid => {
@@ -203,7 +192,7 @@ impl SinglePatternMapping {
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!(
-                    "Unsupported external type {:?} for dynamc import reference",
+                    "Unsupported external type {:?} for dynamic import reference",
                     ty
                 ),
             ),
@@ -238,24 +227,61 @@ impl SinglePatternMapping {
     }
 }
 
+enum ImportMode {
+    Require,
+    Import { import_externals: bool },
+}
+
+fn create_context_map(
+    map: &IndexMap<String, SinglePatternMapping>,
+    key_expr: &Expr,
+    import_mode: ImportMode,
+) -> Expr {
+    let props = map
+        .iter()
+        .map(|(k, v)| {
+            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                key: PropName::Str(k.as_str().into()),
+                value: quote_expr!(
+                        "{ id: () => $id, module: () => $module }",
+                        id: Expr = v.create_id(Cow::Borrowed(key_expr)),
+                        module: Expr = match import_mode {
+                            ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
+                            ImportMode::Import { import_externals } => v.create_import(Cow::Borrowed(key_expr), import_externals),
+                        },
+                    ),
+            })))
+        })
+        .collect();
+
+    Expr::Object(ObjectLit {
+        span: DUMMY_SP,
+        props,
+    })
+}
+
 impl PatternMapping {
+    pub fn create_id(&self, key_expr: Expr) -> Expr {
+        match self {
+            PatternMapping::Single(pm) => pm.create_id(Cow::Owned(key_expr)),
+            PatternMapping::Map(map) => {
+                let map = create_context_map(map, &key_expr, ImportMode::Require);
+
+                quote!("__turbopack_module_context__($map).resolve($key)" as Expr,
+                    map: Expr = map,
+                    key: Expr = key_expr
+                )
+            }
+        }
+    }
+
     pub fn create_require(&self, key_expr: Expr) -> Expr {
         match self {
             PatternMapping::Single(pm) => pm.create_require(Cow::Owned(key_expr)),
             PatternMapping::Map(map) => {
-                let map = Expr::Object(ObjectLit {
-                    span: DUMMY_SP,
-                    props: map
-                        .iter()
-                        .map(|(k, v)| {
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str(k.as_str().into()),
-                                value: quote_expr!("() => $expr", expr: Expr = v.create_require(Cow::Borrowed(&key_expr))),
-                            })))
-                        })
-                        .collect(),
-                });
-                quote!("__turbopack_lookup__($map, $key)" as Expr,
+                let map = create_context_map(map, &key_expr, ImportMode::Require);
+
+                quote!("__turbopack_module_context__($map)($key)" as Expr,
                     map: Expr = map,
                     key: Expr = key_expr
                 )
@@ -267,19 +293,10 @@ impl PatternMapping {
         match self {
             PatternMapping::Single(pm) => pm.create_import(Cow::Owned(key_expr), import_externals),
             PatternMapping::Map(map) => {
-                let map = Expr::Object(ObjectLit {
-                    span: DUMMY_SP,
-                    props: map
-                        .iter()
-                        .map(|(k, v)| {
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str(k.as_str().into()),
-                                value: quote_expr!("() => $expr", expr: Expr = v.create_import(Cow::Borrowed(&key_expr), import_externals)),
-                            })))
-                        })
-                        .collect(),
-                });
-                quote!("__turbopack_lookup__($map, $key, true)" as Expr,
+                let map =
+                    create_context_map(map, &key_expr, ImportMode::Import { import_externals });
+
+                quote!("__turbopack_module_context__($map).import($key)" as Expr,
                     map: Expr = map,
                     key: Expr = key_expr
                 )
@@ -297,7 +314,7 @@ async fn to_single_pattern_mapping(
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
         ModuleResolveResultItem::External(s, ty) => {
-            return Ok(SinglePatternMapping::External(s.clone(), *ty))
+            return Ok(SinglePatternMapping::External(s.clone(), *ty));
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
         _ => {

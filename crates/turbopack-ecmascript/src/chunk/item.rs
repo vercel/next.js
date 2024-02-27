@@ -82,7 +82,7 @@ impl EcmascriptChunkItemContent {
         let this = self.await?;
         let mut args = vec![
             "r: __turbopack_require__",
-            "f: __turbopack_require_context__",
+            "f: __turbopack_module_context__",
             "i: __turbopack_import__",
             "s: __turbopack_esm__",
             "v: __turbopack_export_value__",
@@ -91,7 +91,6 @@ impl EcmascriptChunkItemContent {
             "M: __turbopack_modules__",
             "l: __turbopack_load__",
             "j: __turbopack_dynamic__",
-            "p: __turbopack_lookup__",
             "P: __turbopack_resolve_absolute_path__",
             "U: __turbopack_relative_url__",
             "R: __turbopack_resolve_module_id_path__",
