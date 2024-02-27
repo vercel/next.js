@@ -50,7 +50,6 @@ import {
   PAGES_MANIFEST,
   STATIC_STATUS_PAGES,
 } from '../shared/lib/constants'
-import { RedirectStatusCode } from '../client/components/redirect-status-code'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
