@@ -38,7 +38,6 @@ export function PseudoHtml({
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
-    let collectedComponents = 0
     const tagNames = [serverTagName, clientTagName]
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
@@ -65,7 +64,6 @@ export function PseudoHtml({
         }
         if (isRelatedTag) {
           const TextWrap = isHighlightedTag ? 'b' : Fragment
-          collectedComponents++
           const codeLine = (
             <span>
               <span>{spaces}</span>
