@@ -58,7 +58,7 @@ pub enum Input {
 pub struct TransformTask {
     pub c: Arc<Compiler>,
     pub input: Input,
-    pub options: Buffer,
+    pub options: Vec<u8>,
 }
 
 #[inline]
@@ -70,9 +70,7 @@ fn run_in_context<F, Ret>(op: F) -> Ret
 where
     F: FnOnce() -> Ret,
 {
-    tokio::runtime::Runtime::new()
-        .unwrap()
-        .block_on(async move { GLOBALS.set(&Default::default(), op) })
+    GLOBALS.set(&Default::default(), op)
 }
 
 impl Task for TransformTask {
@@ -177,11 +175,11 @@ impl Task for TransformTask {
 
 #[napi]
 pub fn transform(
+    env: Env,
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-    signal: Option<AbortSignal>,
-) -> napi::Result<AsyncTask<TransformTask>> {
+) -> napi::Result<Object> {
     let c = get_compiler();
 
     let input = match src {
@@ -192,8 +190,18 @@ pub fn transform(
         Either3::C(_) => Input::FromFilename,
     };
 
-    let task = TransformTask { c, input, options };
-    Ok(AsyncTask::with_optional_signal(task, signal))
+    let options = options.to_vec();
+
+    let mut task = TransformTask { c, input, options };
+
+    env.execute_tokio_future(
+        async move {
+            let output = task.compute()?;
+
+            Ok(output)
+        },
+        |env, (output, eliminated_packages)| complete_output(env, output, eliminated_packages),
+    )
 }
 
 #[napi]
@@ -213,8 +221,13 @@ pub fn transform_sync(
         Either3::C(_) => Input::FromFilename,
     };
 
+    let options = options.to_vec();
+
     let mut task = TransformTask { c, input, options };
-    let output = task.compute()?;
+    let output = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(async { task.compute() })?;
+
     task.resolve(env, output)
 }
 #[test]
