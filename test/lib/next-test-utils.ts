@@ -834,6 +834,27 @@ export async function getRedboxDescription(browser: BrowserInterface) {
   )
 }
 
+export async function getRedboxDescriptionWarning(browser: BrowserInterface) {
+  return retry(
+    () =>
+      evaluate(browser, () => {
+        const portal = [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-dialog-header]')
+          )
+        const root = portal.shadowRoot
+        const text = root.querySelector(
+          '#nextjs__container_errors__extra'
+        )?.innerText
+        return text
+      }),
+    3000,
+    500,
+    'getRedboxDescriptionWarning'
+  )
+}
+
 export function getBrowserBodyText(browser: BrowserInterface) {
   return browser.eval('document.getElementsByTagName("body")[0].innerText')
 }

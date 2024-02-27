@@ -42,9 +42,12 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.
 
-      Warning: Text content did not match. Server: "server" Client: "client"
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+      
+    `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      Text content did not match. Server: "server" Client: "client"
     `)
 
     await session.patch(
@@ -94,10 +97,11 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-        Warning: Expected server HTML to contain a matching <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      `)
+    `)
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "Expected server HTML to contain a matching <main> in <div>."
+    `)
 
     await cleanup()
   })
@@ -129,9 +133,11 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-      Warning: Expected server HTML to contain a matching text node for "second" in <div>.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      Expected server HTML to contain a matching text node for "second" in <div>.
     `)
 
     await cleanup()
@@ -163,10 +169,11 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-        Warning: Did not expect server HTML to contain a <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "Did not expect server HTML to contain a <main> in <div>."
+    `)
 
     await cleanup()
   })
@@ -193,9 +200,11 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-      Warning: Did not expect server HTML to contain the text node "only" in <div>.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
+    `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "Did not expect server HTML to contain the text node "only" in <div>."
     `)
 
     await cleanup()
@@ -232,10 +241,12 @@ describe('Error overlay for hydration errors', () => {
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
 
-        Warning: Expected server HTML to contain a matching <main> in <div>.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
+
+    expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
+      "Expected server HTML to contain a matching <main> in <div>."
+    `)
 
     await cleanup()
   })
@@ -311,9 +322,22 @@ describe('Error overlay for hydration errors', () => {
     expect(description).toContain(
       'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
     )
-    expect(description).toContain(
-      'Warning: In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
     )
+
+    const pseudoHtml = await browser
+      .elementByCss('[data-nextjs-container-errors-pseudo-html]')
+      .text()
+    expect(pseudoHtml).toMatchInlineSnapshot(`
+      "<Page>
+        <p>
+        ^^^
+          <p>
+          ^^^
+      "
+    `)
 
     await cleanup()
   })
@@ -338,11 +362,22 @@ describe('Error overlay for hydration errors', () => {
     )
 
     await session.waitForAndOpenRuntimeError()
+    expect(await session.hasRedbox()).toBe(true)
 
-    const badNestingHtml = await browser
-      .elementByCss('.nextjs__container_errors__extra_code')
+    const description = await session.getRedboxDescription()
+    expect(description).toContain(
+      'Error: Hydration failed because the initial UI does not match what was rendered on the server.'
+    )
+    const warning = await session.getRedboxDescriptionWarning()
+    expect(warning).toContain(
+      'In HTML, <p> cannot be a descendant of <p>.\nThis will cause a hydration error.'
+    )
+
+    const pseudoHtml = await browser
+      .elementByCss('[data-nextjs-container-errors-pseudo-html]')
       .text()
-    expect(badNestingHtml).toMatchInlineSnapshot(`
+
+    expect(pseudoHtml).toMatchInlineSnapshot(`
       "<Page>
         <p>
         ^^^
@@ -350,7 +385,8 @@ describe('Error overlay for hydration errors', () => {
             ...
               <span>
                 <p>
-                ^^^"
+                ^^^
+      "
     `)
 
     await cleanup()

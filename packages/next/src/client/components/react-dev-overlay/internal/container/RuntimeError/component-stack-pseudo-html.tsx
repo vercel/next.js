@@ -67,22 +67,22 @@ export function PseudoHtml({
             </span>
           )
           lastText = component
-          if (isHighlightedTag) {
-            nestedHtmlStack.push(
-              // Add ^^^^ to the target tags
-              <>
-                {codeLine}
+
+          const wrappedCodeLine = (
+            <Fragment key={nestedHtmlStack.length}>
+              {codeLine}
+              {/* Add ^^^^ to the target tags */}
+              {isHighlightedTag && (
                 <span>{spaces + '^'.repeat(component.length + 2) + '\n'}</span>
-              </>
-            )
-          } else {
-            nestedHtmlStack.push(codeLine)
-          }
+              )}
+            </Fragment>
+          )
+          nestedHtmlStack.push(wrappedCodeLine)
         } else {
           if (lastText !== '...') {
             lastText = '...'
             nestedHtmlStack.push(
-              <span>
+              <span key={nestedHtmlStack.length}>
                 {spaces}
                 {'...'}
                 {'\n'}
@@ -96,7 +96,7 @@ export function PseudoHtml({
   }, [componentStackFrames])
 
   return (
-    <pre {...props}>
+    <pre data-nextjs-container-errors-pseudo-html {...props}>
       <code>{htmlComponents}</code>
     </pre>
   )

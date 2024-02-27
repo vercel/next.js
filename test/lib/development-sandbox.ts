@@ -8,6 +8,7 @@ import {
   hasRedbox,
   waitFor,
   waitForAndOpenRuntimeError,
+  getRedboxDescriptionWarning,
 } from './next-test-utils'
 import webdriver from './next-webdriver'
 import { NextInstance } from './next-modes/base'
@@ -121,6 +122,9 @@ export async function sandbox(
       },
       async getRedboxDescription() {
         return getRedboxDescription(browser)
+      },
+      async getRedboxDescriptionWarning() {
+        return getRedboxDescriptionWarning(browser)
       },
       async getRedboxSource(includeHeader = false) {
         const header = includeHeader ? await getRedboxHeader(browser) : ''
