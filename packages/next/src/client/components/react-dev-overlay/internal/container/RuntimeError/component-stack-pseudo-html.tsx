@@ -92,7 +92,7 @@ export function PseudoHtml({
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}
-                {'<' + component + '>' + '\n'}
+                {'<' + component + '>\n'}
               </span>
             )
           } else if (lastText !== '...') {
