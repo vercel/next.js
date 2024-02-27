@@ -1093,7 +1093,7 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.into()
+        IssueStage::Config.into()
     }
 
     #[turbo_tasks::function]
