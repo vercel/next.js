@@ -1225,7 +1225,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.into()
+        IssueStage::AppStructure.cell()
     }
 
     #[turbo_tasks::function]
