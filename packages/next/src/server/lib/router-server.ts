@@ -146,12 +146,22 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
-    if (config.i18n && config.i18n?.localeDetection !== false) {
+    if (
+      !opts.minimalMode &&
+      config.i18n &&
+      config.i18n?.localeDetection !== false
+    ) {
       const urlParts = (req.url || '').split('?', 1)
-      const urlNoQuery = urlParts[0] || ''
+      let urlNoQuery = urlParts[0] || ''
       const pathnameInfo = getNextPathnameInfo(urlNoQuery, {
         nextConfig: config,
       })
+
+      if (pathnameInfo.basePath) {
+        req.url = removePathPrefix(req.url!, config.basePath)
+        urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
+      }
+
       const domainLocale = detectDomainLocale(
         config.i18n.domains,
         getHostname({ hostname: urlNoQuery }, req.headers)
