@@ -16,18 +16,12 @@ createNextDescribe(
 
       if (process.env.TURBOPACK) {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
-          "p
-          div
-          Component
-          main
-          Mismatch
-          App
-          PathnameContextProviderAdapter
-          ErrorBoundary
-          ReactDevOverlay
-          Container
-          AppContainer
-          Root"
+          "<Root>
+            <AppContainer>
+              <Container>
+                <ReactDevOverlay>
+                  <ErrorBoundary>
+                    <PathnameContextProviderAdapter>"
         `)
       } else {
         expect(await getRedboxComponentStack(browser)).toMatchInlineSnapshot(`
