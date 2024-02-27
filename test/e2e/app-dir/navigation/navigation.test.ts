@@ -817,5 +817,28 @@ createNextDescribe(
         })
       })
     })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
+      })
+    })
   }
 )
