@@ -33,7 +33,7 @@ export function patchConsoleError() {
     if (knownHydrationWarnings.has(msg)) {
       hydrationErrorState.warning = [
         // remove the last %s from the message
-        msg.slice(0, msg.lastIndexOf('%s')),
+        msg,
         serverContent,
         clientContent,
       ]

@@ -233,6 +233,7 @@ export function Errors({
     ? warningTemplate
         .replace('%s', serverContent)
         .replace('%s', clientContent)
+        .replace('%s', '') // remove the last %s for stack
         .replace(/^Warning: /, '')
     : null
 
