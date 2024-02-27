@@ -12,6 +12,7 @@ import type {
 } from 'next/types'
 import type { RouteModule } from './future/route-modules/route-module'
 import type { BuildManifest } from './get-page-files'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 
 import {
   BUILD_MANIFEST,
@@ -26,6 +27,9 @@ import { getTracer } from './lib/trace/tracer'
 import { LoadComponentsSpan } from './lib/trace/constants'
 import { evalManifest, loadManifest } from './load-manifest'
 import { wait } from '../lib/wait'
+import { setReferenceManifestsSingleton } from './app-render/action-encryption-utils'
+import { createServerModuleMap } from './app-render/action-utils'
+
 export type ManifestItem = {
   id: number | string
   files: string[]
@@ -132,15 +136,13 @@ async function loadComponentsImpl<N = any>({
       Promise.resolve().then(() => requirePage('/_app', distDir, false)),
     ])
   }
-  const ComponentMod = await Promise.resolve().then(() =>
-    requirePage(page, distDir, isAppPath)
-  )
 
   // Make sure to avoid loading the manifest for Route Handlers
   const hasClientManifest =
     isAppPath &&
     (page.endsWith('/page') || page === '/not-found' || page === '/_not-found')
 
+  // Load the manifest files first
   const [
     buildManifest,
     reactLoadableManifest,
@@ -165,11 +167,29 @@ async function loadComponentsImpl<N = any>({
         )
       : undefined,
     isAppPath
-      ? loadManifestWithRetries(
+      ? (loadManifestWithRetries(
           join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
-        ).catch(() => null)
+        ).catch(() => null) as Promise<ActionManifest | null>)
       : null,
   ])
+
+  // Before requring the actual page module, we have to set the reference manifests
+  // to our global store so Server Action's encryption util can access to them
+  // at the top level of the page module.
+  if (serverActionsManifest && clientReferenceManifest) {
+    setReferenceManifestsSingleton({
+      clientReferenceManifest,
+      serverActionsManifest,
+      serverModuleMap: createServerModuleMap({
+        serverActionsManifest,
+        pageName: page,
+      }),
+    })
+  }
+
+  const ComponentMod = await Promise.resolve().then(() =>
+    requirePage(page, distDir, isAppPath)
+  )
 
   const Component = interopDefault(ComponentMod)
   const Document = interopDefault(DocumentMod)

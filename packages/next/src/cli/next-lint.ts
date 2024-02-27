@@ -147,6 +147,8 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
       } else if (lintResults && !lintOutput) {
         printAndExit(green('✔ No ESLint warnings or errors'), 0)
       } else {
+        // this makes sure we exit 1 after the error from line 116
+        // in packages/next/src/lib/eslint/runLintCheck
         process.exit(1)
       }
     })
