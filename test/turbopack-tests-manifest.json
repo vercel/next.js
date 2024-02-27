@@ -932,8 +932,9 @@
       "ReactRefreshLogBox app turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox app turbo module init error not shown",
       "ReactRefreshLogBox app turbo server component can recover from error thrown in the module",
+      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app turbo should strip whitespace correctly with newline",
-      "ReactRefreshLogBox app turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app turbo unterminated JSX"
     ],
     "failed": [],
@@ -953,8 +954,9 @@
       "ReactRefreshLogBox app default module init error not shown",
       "ReactRefreshLogBox app default non-Error errors are handled properly",
       "ReactRefreshLogBox app default server component can recover from error thrown in the module",
+      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox app default should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox app default should strip whitespace correctly with newline",
-      "ReactRefreshLogBox app default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace",
       "ReactRefreshLogBox app default unterminated JSX",
       "ReactRefreshLogBox app turbo internal package errors",
       "ReactRefreshLogBox app turbo non-Error errors are handled properly"
@@ -1057,8 +1059,8 @@
     ],
     "failed": [],
     "pending": [
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on RSC parse error",
-      "Error overlay - editor opening links in import traces links should be possible to open import trace files on module not found error"
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1105,6 +1107,7 @@
   "test/development/acceptance-app/hydration-error.test.ts": {
     "passed": [
       "Error overlay for hydration errors should not show a hydration error when using `useId` in a client component",
+      "Error overlay for hydration errors should only show one hydration error when bad nesting happened",
       "Error overlay for hydration errors should show correct hydration error when client and server render different text",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra element",
       "Error overlay for hydration errors should show correct hydration error when client renders an extra node inside Suspense content",
@@ -1286,8 +1289,9 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
+      "ReactRefreshLogBox turbo should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox turbo should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
-      "ReactRefreshLogBox turbo stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
     "failed": [],
@@ -1300,8 +1304,9 @@
       "ReactRefreshLogBox default logbox: anchors links in error messages",
       "ReactRefreshLogBox default module init error not shown",
       "ReactRefreshLogBox default non-Error errors are handled properly",
+      "ReactRefreshLogBox default should hide unrelated frames in stack trace with node:internal calls",
+      "ReactRefreshLogBox default should hide unrelated frames in stack trace with unknown anonymous calls",
       "ReactRefreshLogBox default should strip whitespace correctly with newline",
-      "ReactRefreshLogBox default stringify <anonymous> and <unknown> <anonymous> are hidden in stack trace for pages error",
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
     ],
@@ -1516,19 +1521,27 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "Skipped in Turbopack optimizePackageImports - mui should support MUI"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/basic/barrel-optimization/barrel-optimization.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "Skipped in Turbopack optimizePackageImports app - should optimize recursive wildcard export mapping",
-      "Skipped in Turbopack optimizePackageImports app - should render the icons correctly without creating all the modules",
-      "Skipped in Turbopack optimizePackageImports pages - should optimize recursive wildcard export mapping",
-      "Skipped in Turbopack optimizePackageImports pages - should render the icons correctly without creating all the modules",
-      "Skipped in Turbopack optimizePackageImports should handle recursive wildcard exports",
-      "Skipped in Turbopack optimizePackageImports should not break \"use client\" directive in optimized packages",
-      "Skipped in Turbopack optimizePackageImports should support \"use client\" directive in barrel file",
-      "Skipped in Turbopack optimizePackageImports should support MUI",
-      "Skipped in Turbopack optimizePackageImports should support visx"
+      "Skipped in Turbopack optimizePackageImports - basic app - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports - basic app - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports - basic pages - should optimize recursive wildcard export mapping",
+      "Skipped in Turbopack optimizePackageImports - basic pages - should render the icons correctly without creating all the modules",
+      "Skipped in Turbopack optimizePackageImports - basic should handle recursive wildcard exports",
+      "Skipped in Turbopack optimizePackageImports - basic should not break \"use client\" directive in optimized packages",
+      "Skipped in Turbopack optimizePackageImports - basic should support \"use client\" directive in barrel file",
+      "Skipped in Turbopack optimizePackageImports - basic should support visx"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1607,6 +1620,7 @@
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles correctly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a dynamic component correctly",
       "basic HMR, basePath: \"/docs\" Hot Module Reloading editing a page should update styles in a stateful component correctly",
+      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error",
       "basic HMR, basePath: \"/docs\" should have correct router.isReady for auto-export page",
       "basic HMR, basePath: \"/docs\" should have correct router.isReady for getStaticProps page",
       "basic HMR, basePath: \"/docs\" should show hydration error correctly"
@@ -1624,8 +1638,7 @@
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in getInitialProps in client",
       "basic HMR, basePath: \"/docs\" Error Recovery should recover from errors in the render function",
       "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - anonymous page function",
-      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error",
-      "basic HMR, basePath: \"/docs\" should have correct compile timing after fixing error"
+      "basic HMR, basePath: \"/docs\" Full reload should warn about full reload in cli output - runtime-error"
     ],
     "pending": [],
     "flakey": [],
@@ -2731,11 +2744,13 @@
       "app-custom-routes hooks cookies gets the correct values",
       "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
-      "app-custom-routes hooks notFound can respond correctly",
+      "app-custom-routes hooks notFound can respond correctly in edge",
+      "app-custom-routes hooks notFound can respond correctly in nodejs",
       "app-custom-routes hooks permanentRedirect can respond correctly",
       "app-custom-routes hooks redirect can respond correctly",
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
+      "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
@@ -2796,11 +2811,13 @@
       "app-custom-routes hooks cookies gets the correct values",
       "app-custom-routes hooks cookies().has() gets the correct values",
       "app-custom-routes hooks headers gets the correct values",
-      "app-custom-routes hooks notFound can respond correctly",
+      "app-custom-routes hooks notFound can respond correctly in edge",
+      "app-custom-routes hooks notFound can respond correctly in nodejs",
       "app-custom-routes hooks permanentRedirect can respond correctly",
       "app-custom-routes hooks redirect can respond correctly",
       "app-custom-routes hooks req.cookies gets the correct values",
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
+      "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
@@ -6123,6 +6140,7 @@
     "failed": [],
     "pending": [
       "opentelemetry incoming context propagation app router should handle RSC with fetch",
+      "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
@@ -6133,6 +6151,7 @@
       "opentelemetry incoming context propagation pages should handle getServerSideProps on edge",
       "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry root context app router should handle RSC with fetch",
+      "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
