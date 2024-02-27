@@ -1,8 +1,7 @@
 // Alias index file of next/server for edge runtime for tree-shaking purpose
 
-export { default as ImageResponse } from './image-response'
-export { default as NextRequest } from './next-request'
-export { default as NextResponse } from './next-response'
-export { default as userAgent } from './user-agent'
-export { default as userAgentFromString } from './user-agent-from-string'
-export { default as URLPattern } from './url-pattern'
+export { ImageResponse } from '../spec-extension/image-response'
+export { NextRequest } from '../spec-extension/request'
+export { NextResponse } from '../spec-extension/response'
+export { userAgent, userAgentFromString } from '../spec-extension/user-agent'
+export { URLPattern } from '../spec-extension/url-pattern'

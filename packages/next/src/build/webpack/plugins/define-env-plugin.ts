@@ -207,6 +207,9 @@ export function getDefineEnv({
     'process.env.__NEXT_WEB_VITALS_ATTRIBUTION': JSON.stringify(
       config.experimental.webVitalsAttribution
     ),
+    'process.env.__NEXT_LINK_NO_TOUCH_START': JSON.stringify(
+      config.experimental.linkNoTouchStart
+    ),
     'process.env.__NEXT_ASSET_PREFIX': JSON.stringify(config.assetPrefix),
     ...(isNodeOrEdgeCompilation
       ? {

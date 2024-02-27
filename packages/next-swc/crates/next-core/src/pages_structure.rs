@@ -333,8 +333,7 @@ async fn get_pages_structure_for_root_directory(
 }
 
 /// Handles a directory in the pages directory (or the pages directory itself).
-/// Calls itself recursively for sub directories or the
-/// [create_page_source_for_file] method for files.
+/// Calls itself recursively for sub directories.
 #[turbo_tasks::function]
 async fn get_pages_structure_for_directory(
     project_path: Vc<FileSystemPath>,

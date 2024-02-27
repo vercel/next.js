@@ -37,7 +37,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './future/route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React from 'react'
@@ -105,6 +105,7 @@ import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
+import { getErrorSource } from '../shared/lib/error-source'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -288,6 +289,7 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
+  swrDelta?: SwrDelta
 }
 
 export type RenderOpts = LoadComponentsReturnType<PagesModule> &
@@ -370,10 +372,7 @@ export function errorToJSON(err: Error) {
     'server'
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
-    source =
-      require('next/dist/compiled/@next/react-dev-overlay/dist/middleware').getErrorSource(
-        err
-      ) || 'server'
+    source = getErrorSource(err) || 'server'
   }
 
   return {
@@ -459,6 +458,7 @@ export async function renderToHTMLImpl(
     images,
     runtime: globalRuntime,
     isExperimentalCompile,
+    swrDelta,
   } = renderOpts
   const { App } = extra
 
@@ -520,7 +520,13 @@ export async function renderToHTMLImpl(
   // ensure we set cache header so it's not rendered on-demand
   // every request
   if (isAutoExport && !dev && isExperimentalCompile) {
-    res.setHeader('Cache-Control', formatRevalidate(false))
+    res.setHeader(
+      'Cache-Control',
+      formatRevalidate({
+        revalidate: false,
+        swrDelta,
+      })
+    )
     isAutoExport = false
   }
 

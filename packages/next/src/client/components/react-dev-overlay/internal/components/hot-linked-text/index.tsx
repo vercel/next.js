@@ -4,7 +4,7 @@ import {
   MAGIC_IDENTIFIER_REGEX,
 } from '../../../../../../shared/lib/magic-identifier'
 
-const linkRegex = /https?:\/\/[^\s/$.?#].[^\s"]*/i
+const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
 
 const splitRegexp = new RegExp(`(${MAGIC_IDENTIFIER_REGEX.source}|\\s+)`)
 
@@ -19,9 +19,12 @@ export const HotlinkedText: React.FC<{
     <>
       {wordsAndWhitespaces.map((word, index) => {
         if (linkRegex.test(word)) {
+          const link = linkRegex.exec(word)!
           return (
             <React.Fragment key={`link-${index}`}>
-              <a href={word}>{word}</a>
+              <a href={link[0]} target="_blank" rel="noreferrer noopener">
+                {word}
+              </a>
             </React.Fragment>
           )
         }

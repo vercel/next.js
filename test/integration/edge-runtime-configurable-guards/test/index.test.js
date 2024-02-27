@@ -55,7 +55,7 @@ describe('Edge runtime configurable guards', () => {
   })
 
   describe('Multiple functions with different configurations', () => {
-    beforeEach(() => {
+    beforeEach(async () => {
       context.middleware.write(`
         import { NextResponse } from 'next/server'
 
@@ -77,6 +77,7 @@ describe('Edge runtime configurable guards', () => {
           unstable_allowDynamic: '/lib/**'
         }
       `)
+      await waitFor(500)
     })
 
     it('warns in dev for allowed code', async () => {

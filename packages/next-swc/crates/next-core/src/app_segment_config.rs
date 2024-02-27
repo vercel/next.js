@@ -3,26 +3,28 @@ use std::ops::Deref;
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use swc_core::{
-    common::{source_map::Pos, Span, Spanned, GLOBALS},
-    ecma::ast::{Expr, Ident, Program},
-};
 use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_binding::turbopack::{
-    core::{
-        file_source::FileSource,
-        ident::AssetIdent,
-        issue::{
-            Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
-            StyledString,
-        },
-        source::Source,
+use turbopack_binding::{
+    swc::core::{
+        common::{source_map::Pos, Span, Spanned, GLOBALS},
+        ecma::ast::{Expr, Ident, Program},
     },
-    ecmascript::{
-        analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
-        parse::{parse, ParseResult},
-        EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    turbopack::{
+        core::{
+            file_source::FileSource,
+            ident::AssetIdent,
+            issue::{
+                Issue, IssueExt, IssueSeverity, IssueSource, OptionIssueSource, OptionStyledString,
+                StyledString,
+            },
+            source::Source,
+        },
+        ecmascript::{
+            analyzer::{graph::EvalContext, ConstantNumber, ConstantValue, JsValue},
+            parse::{parse, ParseResult},
+            EcmascriptInputTransforms, EcmascriptModuleAssetType,
+        },
     },
 };
 

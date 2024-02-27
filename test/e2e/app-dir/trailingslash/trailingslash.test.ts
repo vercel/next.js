@@ -19,7 +19,20 @@ createNextDescribe(
 
     it('should render link with trailing slash', async () => {
       const $ = await next.render$('/')
+
       expect($('#to-a-trailing-slash').attr('href')).toBe('/a/')
+    })
+
+    it('should contain trailing slash to canonical url', async () => {
+      const $ = await next.render$('/')
+      expect($(`link[rel="canonical"]`).attr('href')).toBe(
+        'http://trailingslash.com/'
+      )
+
+      const $a = await next.render$('/a')
+      expect($a(`link[rel="canonical"]`).attr('href')).toBe(
+        'http://trailingslash.com/a/'
+      )
     })
 
     it('should redirect route when requesting it directly by browser', async () => {

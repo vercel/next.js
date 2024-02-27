@@ -24,6 +24,7 @@ describe('Component Stack in error overlay', () => {
         div
         Component
         main
+        Mismatch
         InnerLayoutRouter
         RedirectErrorBoundary
         RedirectBoundary
@@ -37,6 +38,7 @@ describe('Component Stack in error overlay', () => {
         OuterLayoutRouter
         body
         html
+        RootLayout
         RedirectErrorBoundary
         RedirectBoundary
         NotFoundErrorBoundary
@@ -49,7 +51,6 @@ describe('Component Stack in error overlay', () => {
         ErrorBoundary
         AppRouter
         ServerRoot
-        RSCComponent
         Root"
       `)
     } else {
@@ -57,7 +58,8 @@ describe('Component Stack in error overlay', () => {
         "p
         div
         Component
-        main"
+        main
+        Mismatch"
       `)
     }
 

@@ -1,6 +1,26 @@
 import { useRouter } from "next/router";
 import Link, { LinkProps } from "next/link";
-import React, { PropsWithChildren, useState, useEffect } from "react";
+import React, { PropsWithChildren, useEffect, useState } from "react";
+import { NextRouter } from "next/src/shared/lib/router/router";
+import { resolveHref } from "next/dist/client/resolve-href";
+
+const getLinkUrl = (params: {
+  router: NextRouter;
+  href: LinkProps["href"];
+  as: LinkProps["as"];
+}): string => {
+  // Dynamic route will be matched via props.as
+  // Static route will be matched via props.href
+  if (params.as) return resolveHref(params.router, params.as);
+
+  const [resolvedHref, resolvedAs] = resolveHref(
+    params.router,
+    params.href,
+    true,
+  );
+
+  return resolvedAs || resolvedHref;
+};
 
 type ActiveLinkProps = LinkProps & {
   className?: string;
@@ -13,21 +33,22 @@ const ActiveLink = ({
   className,
   ...props
 }: PropsWithChildren<ActiveLinkProps>) => {
-  const { asPath, isReady } = useRouter();
+  const router = useRouter();
   const [computedClassName, setComputedClassName] = useState(className);
 
   useEffect(() => {
     // Check if the router fields are updated client-side
-    if (isReady) {
-      // Dynamic route will be matched via props.as
-      // Static route will be matched via props.href
-      const linkPathname = new URL(
-        (props.as || props.href) as string,
-        location.href,
-      ).pathname;
+    if (router.isReady) {
+      const linkUrl = getLinkUrl({
+        router,
+        href: props.href,
+        as: props.as,
+      });
+
+      const linkPathname = new URL(linkUrl, location.href).pathname;
 
       // Using URL().pathname to get rid of query and hash
-      const activePathname = new URL(asPath, location.href).pathname;
+      const activePathname = new URL(router.asPath, location.href).pathname;
 
       const newClassName =
         linkPathname === activePathname
@@ -39,8 +60,7 @@ const ActiveLink = ({
       }
     }
   }, [
-    asPath,
-    isReady,
+    router,
     props.as,
     props.href,
     activeClassName,

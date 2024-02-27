@@ -11,11 +11,9 @@ export default function createSpinner(
   options: ora.Options = {},
   logFn: (...data: any[]) => void = console.log
 ) {
-  let spinner: undefined | ora.Ora
+  let spinner: undefined | (ora.Ora & { setText: (text: string) => void })
 
-  const prefixText = ` ${Log.prefixes.info} ${text} `
-  // Add \r at beginning to reset the current line of loading status text
-  const suffixText = `\r ${Log.prefixes.event} ${text} `
+  let prefixText = ` ${Log.prefixes.info} ${text} `
 
   if (process.stdout.isTTY) {
     spinner = ora({
@@ -24,7 +22,7 @@ export default function createSpinner(
       spinner: dotsSpinner,
       stream: process.stdout,
       ...options,
-    }).start()
+    }).start() as ora.Ora & { setText: (text: string) => void }
 
     // Add capturing of console.log/warn/error to allow pausing
     // the spinner before logging and then restarting spinner after
@@ -49,18 +47,24 @@ export default function createSpinner(
       console.warn = origWarn
       console.error = origError
     }
+    spinner.setText = (newText: string) => {
+      text = newText
+      prefixText = ` ${Log.prefixes.info} ${newText} `
+      spinner!.prefixText = prefixText
+      return spinner!
+    }
     spinner.stop = (): ora.Ora => {
       origStop()
       resetLog()
       return spinner!
     }
     spinner.stopAndPersist = (): ora.Ora => {
-      if (suffixText) {
-        if (spinner) {
-          spinner.text = suffixText
-        } else {
-          logFn(suffixText)
-        }
+      // Add \r at beginning to reset the current line of loading status text
+      const suffixText = `\r ${Log.prefixes.event} ${text} `
+      if (spinner) {
+        spinner.text = suffixText
+      } else {
+        logFn(suffixText)
       }
       origStopAndPersist()
       resetLog()

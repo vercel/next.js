@@ -12,7 +12,10 @@ const clientGlobs = [
   },
   {
     name: 'Client Pages',
-    globs: ['.next/static/BUILD_ID/pages/**/*.js', '.next/static/css/**/*'],
+    globs: [
+      '.next/static/BUILD_ID/pages/!(edge-repeated*)',
+      '.next/static/css/**/*',
+    ],
   },
   {
     name: 'Client Build Manifests',
@@ -20,7 +23,7 @@ const clientGlobs = [
   },
   {
     name: 'Rendered Page Sizes',
-    globs: ['fetched-pages/**/*.html'],
+    globs: ['fetched-pages/!(edge-repeated*)'],
   },
   {
     name: 'Edge SSR bundle Size',
@@ -39,6 +42,10 @@ const clientGlobs = [
   {
     name: 'Next Runtimes',
     globs: ['node_modules/next/dist/compiled/next-server/**/*.js'],
+  },
+  {
+    name: 'build cache',
+    globs: ['.next/cache/**/*'],
   },
 ]
 

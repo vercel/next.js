@@ -23,7 +23,7 @@ use crate::{
 pub async fn get_next_client_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ClientContextType,
-    mode: NextMode,
+    mode: Vc<NextMode>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 

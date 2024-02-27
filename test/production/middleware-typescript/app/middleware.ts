@@ -24,8 +24,8 @@ export const middleware: NextMiddleware = function (request) {
   }
 }
 
-export const config: MiddlewareConfig = {
-  matchers: [],
+export const config = {
+  matcher: [],
   regions: [],
   unstable_allowDynamicGlobs: undefined,
-}
+} satisfies MiddlewareConfig

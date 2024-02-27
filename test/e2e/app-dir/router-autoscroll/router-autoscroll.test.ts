@@ -133,7 +133,7 @@ createNextDescribe(
         })
       `)
         await waitForScrollToComplete(browser, { x: 0, y: 10000 })
-        browser.quit()
+        browser.close()
       })
 
       // Test hot reloading only in development

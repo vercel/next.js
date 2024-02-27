@@ -101,9 +101,9 @@ impl Task for MinifyTask {
     }
 }
 
-/// `inline: 3` breaks some codes.
+/// **NOTE** `inline: 3` breaks some codes.
 ///
-/// https://github.com/vercel/next.js/pull/57904
+/// <https://github.com/vercel/next.js/pull/57904>
 fn patch_opts(opts: &mut JsMinifyOptions) {
     opts.compress = BoolOrDataConfig::from_obj(TerserCompressorOptions {
         inline: Some(TerserInlineOption::Num(2)),

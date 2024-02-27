@@ -524,7 +524,7 @@ describe.each([[''], ['/docs']])(
           `)
         } else if (basePath === '' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:0
+            "./pages/hmr/about2.js:7:1
             Parsing ecmascript source code failed
               5 |     div
               6 |   )
@@ -562,7 +562,7 @@ describe.each([[''], ['/docs']])(
           `)
         } else if (basePath === '/docs' && process.env.TURBOPACK) {
           expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:0
+            "./pages/hmr/about2.js:7:1
             Parsing ecmascript source code failed
               5 |     div
               6 |   )
@@ -728,7 +728,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: The default export is not a React Component in page: "/hmr/about5"
@@ -831,7 +831,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: The default export is not a React Component in page: "/hmr/about7"
@@ -1008,7 +1008,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-            " 1 of 1 unhandled error
+            "1 of 1 unhandled error
             Unhandled Runtime Error
 
             Error: an-expected-error-in-gip"
@@ -1052,7 +1052,7 @@ describe.each([[''], ['/docs']])(
 
           expect(await hasRedbox(browser)).toBe(true)
           expect(await getRedboxHeader(browser)).toMatchInlineSnapshot(`
-                      " 1 of 1 unhandled error
+                      "1 of 1 unhandled error
                       Server Error
 
                       Error: an-expected-error-in-gip

@@ -755,6 +755,22 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+}
+
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
@@ -841,11 +857,11 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.TURBOPACK) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }
@@ -1029,6 +1045,30 @@ export async function getRedboxComponentStack(
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function expandCallStack(
+  browser: BrowserInterface
+): Promise<void> {
+  // Open full Call Stack
+  await browser
+    .elementByCss('[data-nextjs-data-runtime-error-collapsed-action]')
+    .click()
+}
+
+export async function getRedboxCallStack(
+  browser: BrowserInterface
+): Promise<string> {
+  await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
+
+  const callStackFrameElements: any = await browser.elementsByCss(
+    '[data-nextjs-call-stack-frame]'
+  )
+  const callStackFrameTexts = await Promise.all(
+    callStackFrameElements.map((f) => f.innerText())
+  )
+
+  return callStackFrameTexts.join('\n').trim()
 }
 
 export async function getVersionCheckerText(

@@ -30,7 +30,6 @@ describe('i18n: Event with stale state - static route previously was dynamic', (
 
   test('Ignore event without query param', async () => {
     const browser = await webdriver(next.url, '/sv/static')
-    browser.close()
 
     const state: HistoryState = {
       url: '/[dynamic]?',

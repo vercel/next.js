@@ -11,7 +11,7 @@ export function fillLazyItemsTillLeafWithHead(
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
   head: React.ReactNode,
-  wasPrefetched?: boolean
+  hasReusablePrefetch?: boolean
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
@@ -59,7 +59,7 @@ export function fillLazyItemsTillLeafWithHead(
             prefetchRsc: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
-        } else if (wasPrefetched && existingCacheNode) {
+        } else if (hasReusablePrefetch && existingCacheNode) {
           // No new data was sent from the server, but the existing cache node
           // was prefetched, so we should reuse that.
           newCacheNode = {
@@ -91,7 +91,7 @@ export function fillLazyItemsTillLeafWithHead(
           parallelRouteState,
           parallelSeedData ? parallelSeedData : null,
           head,
-          wasPrefetched
+          hasReusablePrefetch
         )
 
         newCache.parallelRoutes.set(key, parallelRouteCacheNode)
@@ -133,7 +133,7 @@ export function fillLazyItemsTillLeafWithHead(
       parallelRouteState,
       parallelSeedData,
       head,
-      wasPrefetched
+      hasReusablePrefetch
     )
   }
 }

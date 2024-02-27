@@ -2,8 +2,6 @@
 #![feature(arbitrary_self_types)]
 
 pub mod build_options;
-pub(crate) mod next_app;
-pub(crate) mod next_pages;
 
 pub use self::build_options::BuildOptions;
 

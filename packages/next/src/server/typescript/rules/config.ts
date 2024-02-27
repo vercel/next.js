@@ -126,7 +126,7 @@ const API_DOCS: Record<
     options: {
       '"nodejs"': 'Prefer the Node.js runtime.',
       '"edge"': 'Prefer the Edge runtime.',
-      '"experimental-edge"': 'Prefer the experimental Edge runtime.',
+      '"experimental-edge"': `@deprecated\n\nThis option is no longer experimental. Use \`edge\` instead.`,
     },
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#runtime',
   },

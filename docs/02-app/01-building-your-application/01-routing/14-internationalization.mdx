@@ -33,6 +33,7 @@ match(languages, locales, defaultLocale) // -> 'en-US'
 Routing can be internationalized by either the sub-path (`/fr/products`) or domain (`my-site.fr/products`). With this information, you can now redirect the user based on the locale inside [Middleware](/docs/app/building-your-application/routing/middleware).
 
 ```js filename="middleware.js"
+import { NextResponse } from "next/server";
 
 let locales = ['en-US', 'nl-NL', 'nl']
 
@@ -53,7 +54,7 @@ export function middleware(request) {
   request.nextUrl.pathname = `/${locale}${pathname}`
   // e.g. incoming request is /products
   // The new URL is now /en-US/products
-  return Response.redirect(request.nextUrl)
+  return NextResponse.redirect(request.nextUrl)
 }
 
 export const config = {

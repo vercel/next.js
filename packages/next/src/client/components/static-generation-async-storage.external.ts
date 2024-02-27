@@ -3,12 +3,9 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import type { DynamicServerError } from './hooks-server-context'
 import type { FetchMetrics } from '../../server/base-http'
 import type { Revalidate } from '../../server/lib/revalidate'
+import type { PrerenderState } from '../../server/app-render/dynamic-rendering'
 
 import { createAsyncLocalStorage } from './async-local-storage'
-
-type PrerenderState = {
-  hasDynamic: boolean
-}
 
 export interface StaticGenerationStore {
   readonly isStaticGeneration: boolean
@@ -58,13 +55,3 @@ export type StaticGenerationAsyncStorage =
 
 export const staticGenerationAsyncStorage: StaticGenerationAsyncStorage =
   createAsyncLocalStorage()
-
-export function getExpectedStaticGenerationStore(callingExpression: string) {
-  const store = staticGenerationAsyncStorage.getStore()
-  if (!store) {
-    throw new Error(
-      `Invariant: \`${callingExpression}\` expects to have staticGenerationAsyncStorage, none available.`
-    )
-  }
-  return store
-}

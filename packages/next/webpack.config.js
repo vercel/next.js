@@ -65,7 +65,6 @@ const sharedExternals = [
   'styled-jsx',
   'styled-jsx/style',
   '@opentelemetry/api',
-  'next/dist/compiled/@next/react-dev-overlay/dist/middleware',
   'next/dist/compiled/@ampproject/toolbox-optimizer',
   'next/dist/compiled/edge-runtime',
   'next/dist/compiled/@edge-runtime/ponyfill',

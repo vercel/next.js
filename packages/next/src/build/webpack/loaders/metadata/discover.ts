@@ -125,7 +125,7 @@ export async function createStaticMetadataFromRoute(
       })
   }
 
-  // Intentially make these serial to reuse directory access cache.
+  // Intentionally make these serial to reuse directory access cache.
   await collectIconModuleIfExists('icon')
   await collectIconModuleIfExists('apple')
   await collectIconModuleIfExists('openGraph')

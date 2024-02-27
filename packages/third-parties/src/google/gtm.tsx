@@ -14,7 +14,7 @@ export function GoogleTagManager(props: GTMParams) {
     currDataLayerName = dataLayerName
   }
 
-  const gtmLayer = dataLayerName !== 'dataLayer' ? `$l=${dataLayerName}` : ''
+  const gtmLayer = dataLayerName !== 'dataLayer' ? `&l=${dataLayerName}` : ''
   const gtmAuth = auth ? `&gtm_auth=${auth}` : ''
   const gtmPreview = preview ? `&gtm_preview=${preview}&gtm_cookies_win=x` : ''
 

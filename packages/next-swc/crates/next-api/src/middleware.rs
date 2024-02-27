@@ -2,7 +2,6 @@ use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
-    mode::NextMode,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{
         AssetBinding, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
@@ -80,7 +79,7 @@ impl MiddlewareEndpoint {
 
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware),
-            NextMode::Development,
+            self.project.next_mode(),
         )
         .resolve_entries(self.context)
         .await?

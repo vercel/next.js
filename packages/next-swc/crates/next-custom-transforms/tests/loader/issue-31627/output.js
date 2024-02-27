@@ -1,8 +1,4 @@
-function _class_call_check(instance, Constructor) {
-    if (!(instance instanceof Constructor)) {
-        throw new TypeError("Cannot call a class as a function");
-    }
-}
+import { _ as _class_call_check } from "@swc/helpers/_/_class_call_check";
 import { useEffect } from "react";
 import { select, selectAll } from "d3-selection";
 export default function Home() {

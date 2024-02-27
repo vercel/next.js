@@ -434,7 +434,7 @@ createNextDescribe(
         await matchMultiDom('meta', 'property', 'content', {
           'og:title': 'My custom title',
           'og:description': 'My custom description',
-          'og:url': 'https://example.com/',
+          'og:url': 'https://example.com',
           'og:site_name': 'My custom site name',
           'og:locale': 'en-US',
           'og:type': 'website',

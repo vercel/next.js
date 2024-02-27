@@ -715,8 +715,9 @@ createNextDescribe(
           // @ts-expect-error Exists on window
           window.__DATA_BE_GONE = 'true'
         })
-        await browser.waitForElementByCss('#to-nonexistent-page')
-        await browser.click('#to-nonexistent-page')
+        await browser
+          .waitForElementByCss('#to-nonexistent-page')
+          .click('#to-nonexistent-page')
         await browser.waitForElementByCss('.about-page')
 
         const oldData = await browser.eval(`window.__DATA_BE_GONE`)

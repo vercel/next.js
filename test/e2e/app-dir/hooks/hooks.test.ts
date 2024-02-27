@@ -17,7 +17,7 @@ createNextDescribe(
         { pathname: '/adapter-hooks/2', keyValue: 'value' },
         { pathname: '/adapter-hooks/1/account', keyValue: 'value' },
       ])(
-        'should have the correct hooks',
+        'should have the correct hooks at $pathname',
         async ({ pathname, keyValue = '' }) => {
           const browser = await next.browser(
             pathname + (keyValue ? `?key=${keyValue}` : '')

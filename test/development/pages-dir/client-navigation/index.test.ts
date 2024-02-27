@@ -1385,7 +1385,7 @@ createNextDescribe(
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
           expect(text).toMatch(
-            /pages[\\/]error-inside-browser-page\.js \(5:12\)/
+            /pages[\\/]error-inside-browser-page\.js \(5:13\)/
           )
         } finally {
           if (browser) {
@@ -1404,7 +1404,7 @@ createNextDescribe(
           expect(await hasRedbox(browser)).toBe(true)
           const text = await getRedboxSource(browser)
           expect(text).toMatch(/An Expected error occurred/)
-          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:8\)/)
+          expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
         } finally {
           if (browser) {
             await browser.close()
@@ -1783,17 +1783,17 @@ createNextDescribe(
 
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-1')
+      await browser.waitForElementByCss('#relative-1')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 1/)
       await browser.elementByCss('a').click()
 
-      browser.waitForElementByCss('#relative-2')
+      await browser.waitForElementByCss('#relative-2')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative 2/)
 
       await browser.elementByCss('button').click()
-      browser.waitForElementByCss('#relative')
+      await browser.waitForElementByCss('#relative')
       page = await browser.elementByCss('body').text()
       expect(page).toMatch(/On relative index/)
 

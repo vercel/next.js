@@ -19,7 +19,7 @@ use turbopack_binding::swc::core::{
 /// Creates a SWC visitor to transform `next/dynamic` calls to have the
 /// corresponding `loadableGenerated` property.
 ///
-/// [NOTE] We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
+/// **NOTE** We do not use `NextDynamicMode::Turbopack` yet. It isn't compatible
 /// with current loadable manifest, which causes hydration errors.
 pub fn next_dynamic(
     is_development: bool,

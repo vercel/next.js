@@ -199,7 +199,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/layout.js" switcher
+```jsx filename="app/dashboard/@analytics/layout.js" switcher
 import Link from 'next/link'
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -403,6 +403,8 @@ export function Modal({ children }) {
 }
 ```
 
+When using the `Link` component to navigate away from a page that shouldn't render the `@auth` slot anymore, we use a catch-all route that returns `null`.
+
 ```tsx filename="app/ui/modal.tsx" switcher
 import Link from 'next/link'
 
@@ -429,8 +431,21 @@ export function Modal({ children }) {
 }
 ```
 
+```tsx filename="app/@auth/[...catchAll]/page.tsx" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
+```jsx filename="app/@auth/[...catchAll]/page.js" switcher
+export default function CatchAll() {
+  return null
+}
+```
+
 > **Good to know:**
 >
+> - We use a catch-all route in our `@auth` slot to close the modal because of the behavior described in [Active state and navigation](#active-state-and-navigation). Since client-side navigations to a route that no longer match the slot will remain visible, we need to match the slot to a route that returns `null` to close the modal.
 > - Other examples could include opening a photo modal in a gallery while also having a dedicated `/photo/[id]` page, or opening a shopping cart in a side modal.
 > - [View an example](https://github.com/vercel-labs/nextgram) of modals with Intercepted and Parallel Routes.
 

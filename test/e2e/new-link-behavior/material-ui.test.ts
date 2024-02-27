@@ -35,7 +35,7 @@ describe('New Link Behavior with material-ui', () => {
 
   it('should render MuiLink with <a>', async () => {
     const browser = await webdriver(next.url, `/`)
-    const element = await browser.elementByCss('a[href="/about"]')
+    const element = browser.elementByCss('a[href="/about"]')
 
     const color = await element.getComputedCss('color')
     expect(color).toBe('rgb(25, 133, 123)')

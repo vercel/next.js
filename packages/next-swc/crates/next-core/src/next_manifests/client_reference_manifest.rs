@@ -208,9 +208,15 @@ impl ClientReferenceManifest {
 
         let client_reference_manifest_json = serde_json::to_string(&entry_manifest).unwrap();
 
+        // We put normalized path for the each entry key and the manifest output path,
+        // to conform next.js's load client reference manifest behavior:
+        // https://github.com/vercel/next.js/blob/2f9d718695e4c90be13c3bf0f3647643533071bf/packages/next/src/server/load-components.ts#L162-L164
+        // note this only applies to the manifests, assets are placed to the original
+        // path still (same as webpack does)
+        let normalized_manifest_entry = entry_name.replace("%5F", "_");
         Ok(Vc::upcast(VirtualOutputAsset::new(
             node_root.join(format!(
-                "server/app/{entry_name}_client-reference-manifest.js",
+                "server/app{normalized_manifest_entry}_client-reference-manifest.js",
             )),
             AssetContent::file(
                 File::from(formatdoc! {
@@ -218,7 +224,7 @@ impl ClientReferenceManifest {
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
                         globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
                     "#,
-                    entry_name = StringifyJs(&entry_name),
+                    entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json
                 })
                 .into(),

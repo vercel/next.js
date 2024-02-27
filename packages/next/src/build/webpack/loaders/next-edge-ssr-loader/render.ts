@@ -13,7 +13,7 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
@@ -31,6 +31,7 @@ export function getRender({
   buildManifest,
   prerenderManifest,
   reactLoadableManifest,
+  interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
   subresourceIntegrityManifest,
@@ -54,6 +55,7 @@ export function getRender({
   prerenderManifest: PrerenderManifest
   reactLoadableManifest: ReactLoadableManifest
   subresourceIntegrityManifest?: Record<string, string>
+  interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
   serverActionsManifest?: any
   serverActions?: {
@@ -85,6 +87,7 @@ export function getRender({
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
       prerenderManifest,
+      interceptionRouteRewrites,
       extendRenderOpts: {
         buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,

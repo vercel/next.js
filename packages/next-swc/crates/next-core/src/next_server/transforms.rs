@@ -14,9 +14,7 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
-        next_pure::get_next_pure_rule,
-        next_react_server_components::get_next_react_server_components_transform_rule,
-        server_actions::ActionsTransform,
+        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
 };
 
@@ -25,7 +23,7 @@ use crate::{
 pub async fn get_next_server_transforms_rules(
     next_config: Vc<NextConfig>,
     context_ty: ServerContextType,
-    mode: NextMode,
+    mode: Vc<NextMode>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -73,8 +71,6 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Server,
                 mdx_rs,
             ));
-
-            rules.push(get_next_react_server_components_transform_rule(next_config, true).await?);
 
             if let Some(client_transition) = client_transition {
                 rules.push(get_next_css_client_reference_transforms_rule(

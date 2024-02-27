@@ -54,7 +54,7 @@ export function CssReset() {
           font-size: 16px;
           font-weight: 400;
           line-height: 1.5;
-          color: #212529;
+          color: var(--color-font);
           text-align: left;
           background-color: #fff;
         }

@@ -70,7 +70,17 @@ Scripts that load with the `beforeInteractive` strategy are injected into the in
 
 Scripts denoted with this strategy are preloaded and fetched before any first-party code, but their execution does not block page hydration from occurring.
 
-`beforeInteractive` scripts must be placed inside the root layout (`app/layout.tsx)` and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+<AppOnly>
+
+`beforeInteractive` scripts must be placed inside the root layout (`app/layout.tsx`) and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+
+</AppOnly>
+
+<PagesOnly>
+
+`beforeInteractive` scripts must be placed inside the `Document` Component (`pages/_document.js`) and are designed to load scripts that are needed by the entire site (i.e. the script will load when any page in the application has been loaded server-side).
+
+</PagesOnly>
 
 **This strategy should only be used for critical scripts that need to be fetched before any part of the page becomes interactive.**
 
@@ -116,7 +126,7 @@ export default function RootLayout({ children }) {
 
 <PagesOnly>
 
-```jsx
+```jsx filename="pages/_document.js"
 import { Html, Head, Main, NextScript } from 'next/document'
 import Script from 'next/script'
 

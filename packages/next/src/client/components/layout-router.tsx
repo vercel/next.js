@@ -417,15 +417,15 @@ function InnerLayoutRouter({
      * Flight response data
      */
     // When the data has not resolved yet `use` will suspend here.
-    const [flightData, overrideCanonicalUrl] = use(lazyData)
-
-    // segmentPath from the server does not match the layout's segmentPath
-    childNode.lazyData = null
+    const serverResponse = use(lazyData)
 
     // setTimeout is used to start a new transition during render, this is an intentional hack around React.
     setTimeout(() => {
       startTransition(() => {
-        changeByServerResponse(fullTree, flightData, overrideCanonicalUrl)
+        changeByServerResponse({
+          previousTree: fullTree,
+          serverResponse,
+        })
       })
     })
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.

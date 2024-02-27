@@ -1156,6 +1156,26 @@ function runTests({ dev }) {
         }
       `
       )
+      await check(async () => {
+        const response = await fetchViaHTTP(
+          appPort,
+          '/_next/static/development/_devPagesManifest.json',
+          undefined,
+          {
+            credentials: 'same-origin',
+          }
+        )
+
+        // Check if the response was successful (status code in the range 200-299)
+        if (!response.ok) {
+          return 'fail'
+        }
+
+        const contents = await response.text()
+        const containsAddedLater = contents.includes('added-later')
+
+        return containsAddedLater ? 'success' : 'fail'
+      }, 'success')
 
       await check(async () => {
         const contents = await renderViaHTTP(
@@ -1493,8 +1513,7 @@ function runTests({ dev }) {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',
           didPostponeHeader: 'x-nextjs-postponed',
-          varyHeader:
-            'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Url',
+          varyHeader: 'RSC, Next-Router-State-Tree, Next-Router-Prefetch',
           prefetchHeader: 'Next-Router-Prefetch',
           prefetchSuffix: '.prefetch.rsc',
           suffix: '.rsc',

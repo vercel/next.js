@@ -84,7 +84,7 @@ describe('tsconfig-path-reloading', () => {
         )
 
         expect(await hasRedbox(browser)).toBe(true)
-        expect(await getRedboxSource(browser)).toContain('"@lib/second-data"')
+        expect(await getRedboxSource(browser)).toContain("'@lib/second-data'")
 
         await next.patchFile(
           tsConfigFile,

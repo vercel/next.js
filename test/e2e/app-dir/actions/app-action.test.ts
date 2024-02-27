@@ -1,7 +1,7 @@
 /* eslint-disable jest/no-standalone-expect */
 import { createNextDescribe } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import { Request, Response, Route } from 'playwright-chromium'
+import type { Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -1026,6 +1026,7 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
       })
     })
 

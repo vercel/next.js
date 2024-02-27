@@ -37,6 +37,7 @@ rustc-hash = { workspace = true }
 turbopack-binding = { workspace = true, features = [
   "__swc_transform_modularize_imports",
   "__swc_transform_relay",
+  "__swc_core_next_core",
   "__feature_auto_hash_map",
   "__turbo_tasks",
   "__turbo_tasks_bytes",
@@ -59,14 +60,9 @@ turbopack-binding = { workspace = true, features = [
   "__turbopack_node",
   "__turbopack_trace_utils",
 ] }
+
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
-
-swc_core = { workspace = true, features = [
-  "ecma_ast",
-  "ecma_transforms",
-  "common",
-] }
 
 [build-dependencies]
 turbopack-binding = { workspace = true, features = ["__turbo_tasks_build"] }

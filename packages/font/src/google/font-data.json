@@ -813,6 +813,11 @@
     "styles": ["normal"],
     "subsets": ["khmer", "latin"]
   },
+  "Annapurna SIL": {
+    "weights": ["400", "700"],
+    "styles": ["normal"],
+    "subsets": ["devanagari", "latin", "latin-ext", "math", "symbols"]
+  },
   "Annie Use Your Telescope": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -822,6 +827,11 @@
     "weights": ["400", "700"],
     "styles": ["normal", "italic"],
     "subsets": ["cyrillic", "greek", "latin", "latin-ext"]
+  },
+  "Anta": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
   },
   "Antic": {
     "weights": ["400"],
@@ -5132,6 +5142,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "thai", "vietnamese"]
   },
+  "Jacquarda Bastarda 9": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
   "Jacques Francois": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -5539,6 +5554,19 @@
     "weights": ["200", "300", "400", "500", "600", "700"],
     "styles": ["normal", "italic"],
     "subsets": ["latin", "latin-ext", "thai", "vietnamese"]
+  },
+  "Kode Mono": {
+    "weights": ["400", "500", "600", "700", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 400,
+        "max": 700,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["latin", "latin-ext"]
   },
   "Koh Santepheap": {
     "weights": ["100", "300", "400", "700", "900"],
@@ -6790,6 +6818,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Micro 5": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "math", "symbols"]
+  },
   "Milonga": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -7181,6 +7214,11 @@
       }
     ],
     "subsets": ["cyrillic-ext", "latin", "latin-ext", "math", "vietnamese"]
+  },
+  "Namdhinggo": {
+    "weights": ["400", "500", "600", "700", "800"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "limbu"]
   },
   "Nanum Brush Script": {
     "weights": ["400"],
@@ -8500,7 +8538,7 @@
   "Noto Sans Mongolian": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin", "latin-ext", "mongolian"]
+    "subsets": ["latin", "latin-ext", "math", "mongolian", "symbols"]
   },
   "Noto Sans Mono": {
     "weights": [

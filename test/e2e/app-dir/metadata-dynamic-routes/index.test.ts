@@ -321,7 +321,7 @@ createNextDescribe(
     it('should pick configured metadataBase instead of deployment url for canonical url', async () => {
       const $ = await next.render$('/')
       const canonicalUrl = $('link[rel="canonical"]').attr('href')
-      expect(canonicalUrl).toBe('https://mydomain.com/')
+      expect(canonicalUrl).toBe('https://mydomain.com')
     })
 
     it('should inject dynamic metadata properly to head', async () => {

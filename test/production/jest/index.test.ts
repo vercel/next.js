@@ -136,11 +136,11 @@ describe('next/jest', () => {
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'next build && yarn jest test/mock.test.js test/dynamic.test.js',
+          build: 'next build && jest test/mock.test.js test/dynamic.test.js',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

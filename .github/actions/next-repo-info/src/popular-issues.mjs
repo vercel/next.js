@@ -3,13 +3,6 @@ import { context, getOctokit } from '@actions/github'
 import { setFailed, info } from '@actions/core'
 import { WebClient } from '@slack/web-api'
 
-// Get the date 90 days ago (YYYY-MM-DD)
-function getNinetyDaysAgoDate() {
-  const date = new Date()
-  date.setDate(date.getDate() - 90)
-  return date.toISOString().split('T')[0]
-}
-
 function generateBlocks(issues) {
   const blocks = [
     {
@@ -23,12 +16,14 @@ function generateBlocks(issues) {
       type: 'divider',
     },
   ]
+
   let text = ''
   issues.forEach((issue, i) => {
     text += `${i + 1}. [<${issue.html_url}|#${issue.number}>, :+1: ${
       issue.reactions['+1']
     }]: ${issue.title}\n`
   })
+
   blocks.push({
     type: 'section',
     text: {
@@ -36,6 +31,7 @@ function generateBlocks(issues) {
       text: text,
     },
   })
+
   return blocks
 }
 
@@ -47,7 +43,11 @@ async function run() {
     const octoClient = getOctokit(process.env.GITHUB_TOKEN)
     const slackClient = new WebClient(process.env.SLACK_TOKEN)
 
-    const ninetyDaysAgo = getNinetyDaysAgoDate()
+    // Get the date 90 days ago (YYYY-MM-DD)
+    const date = new Date()
+    date.setDate(date.getDate() - 90)
+    const ninetyDaysAgo = date.toISOString().split('T')[0]
+
     const { owner, repo } = context.repo
     const { data } = await octoClient.rest.search.issuesAndPullRequests({
       order: 'desc',
