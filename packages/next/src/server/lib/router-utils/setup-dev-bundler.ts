@@ -6,7 +6,7 @@ import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/midd
 import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
-import { createDefineEnv } from '../../../build/swc'
+import { createDefineEnv, type Project } from '../../../build/swc'
 import fs from 'fs'
 import url from 'url'
 import path from 'path'
@@ -64,13 +64,17 @@ import {
   getSourceById,
   parseStack,
 } from '../../../client/components/react-dev-overlay/server/middleware'
-import { createOriginalStackFrame as createOriginalTurboStackFrame } from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
+import {
+  batchedTraceSource,
+  createOriginalStackFrame as createOriginalTurboStackFrame,
+} from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { getErrorSource } from '../../../shared/lib/error-source'
+import type { StackFrame } from 'stacktrace-parser'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -897,6 +901,12 @@ async function startWatcher(opts: SetupOpts) {
                   isServer: true,
                 }
               )
+
+              err.stack = await traceTurbopackErrorStack(
+                hotReloader.turbopackProject!,
+                err,
+                frames
+              )
             } catch {}
           } else {
             const moduleId = frameFile.replace(
@@ -1036,3 +1046,64 @@ export async function setupDevBundler(opts: SetupOpts) {
 }
 
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
+
+// Returns a trace rewritten through Turbopack's sourcemaps
+async function traceTurbopackErrorStack(
+  project: Project,
+  error: Error,
+  frames: StackFrame[]
+): Promise<string> {
+  let originalFrames = await Promise.all(
+    frames.map(async (f) => {
+      try {
+        const traced = await batchedTraceSource(project, {
+          file: f.file!,
+          methodName: f.methodName,
+          line: f.lineNumber ?? 0,
+          column: f.column,
+          isServer: true,
+        })
+
+        return traced?.frame ?? f
+      } catch {
+        return f
+      }
+    })
+  )
+
+  return (
+    'Error: ' +
+    error.message +
+    '\n' +
+    originalFrames
+      .map((f) => {
+        if (f == null) {
+          return null
+        }
+
+        let line = 'at'
+        if (f.methodName != null) {
+          line += ' ' + f.methodName
+        }
+
+        if (f.file != null) {
+          // Built-in "filenames" like `<anonymous>` shouldn't be made relative
+          const file = f.file.startsWith('<') ? f.file : `./${f.file}`
+
+          line += ` (${file}`
+          if (f.lineNumber != null) {
+            line += ':' + f.lineNumber
+
+            if (f.column != null) {
+              line += ':' + f.column
+            }
+          }
+          line += ')'
+        }
+
+        return line
+      })
+      .filter(Boolean)
+      .join('\n')
+  )
+}
