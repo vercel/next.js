@@ -187,4 +187,14 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
   }
+
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+    padding-left: var(--size-gap-triple);
+  }
+
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 0;
+  }
 `
