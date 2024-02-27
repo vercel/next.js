@@ -29,7 +29,6 @@ import type { BrowserInterface } from './browsers/base'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
-import escapeStringRegexp from 'escape-string-regexp'
 
 export { shouldRunTurboDevTest }
 
