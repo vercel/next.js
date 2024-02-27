@@ -3,19 +3,24 @@ import { join } from 'path'
 import { transform, transformSync } from './swc'
 import type { Options } from '@swc/core'
 
-const mod = require('module')
-const originalCompile = mod._compile
-const originalRequire = mod.prototype.require
+const originalJsHandler = require.extensions['.js']
+const transformableExtensions = ['.ts', '.cts', '.mts', '.cjs', '.mjs']
 
 function registerSWCTransform(swcOptions: Options, isESM: boolean) {
-  // TODO: check if it always ends with transpile-config.js on expected cases
-  if (module.filename.endsWith('transpile-config.js')) {
-    if (isESM) {
-      // TODO: Implement importing ESM
-    }
-    mod._compile = function (code: string, filename: string) {
-      const swc = transformSync(code, swcOptions)
-      return originalCompile.call(this, swc.code, filename)
+  if (isESM) {
+    // TODO: Implement importing ESM
+  }
+
+  for (const ext of transformableExtensions) {
+    require.extensions[ext] = function (m: any, originalFileName) {
+      const _compile = m._compile
+
+      m._compile = function (code: string, filename: string) {
+        const swc = transformSync(code, swcOptions)
+        return _compile.call(this, swc.code, filename)
+      }
+
+      return originalJsHandler(m, originalFileName)
     }
   }
 }
@@ -101,7 +106,6 @@ export async function transpileConfig({
     throw error
   } finally {
     await unlink(tempConfigPath).catch(() => {})
-    mod.prototype.require = originalRequire
-    mod._compile = originalCompile
+    transformableExtensions.forEach((ext) => delete require.extensions[ext])
   }
 }
