@@ -104,7 +104,7 @@ export async function createOriginalStackFrame({
   frame: StackFrame
   compilation?: webpack.Compilation
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber: line, column, errorMessage } = frame
+  const { lineNumber, column, errorMessage } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (async () => {
     if (moduleNotFound) {
@@ -118,7 +118,7 @@ export async function createOriginalStackFrame({
     }
     // This returns 1-based lines and 0-based columns
     return await findOriginalSourcePositionAndContent(source, {
-      line: line ?? 1,
+      line: lineNumber ?? 1,
       column,
     })
   })()
