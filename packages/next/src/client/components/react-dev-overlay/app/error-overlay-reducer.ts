@@ -38,7 +38,7 @@ export interface UnhandledErrorAction {
   reason: Error
   frames: StackFrame[]
   componentStackFrames?: ComponentStackFrame[]
-  warning?: string
+  warning?: [string, string, string]
 }
 export interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION

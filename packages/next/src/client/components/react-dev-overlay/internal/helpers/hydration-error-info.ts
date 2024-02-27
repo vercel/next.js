@@ -1,5 +1,15 @@
-export let hydrationErrorWarning: string | undefined
-export let hydrationErrorComponentStack: string | undefined
+export type HydrationErrorState = {
+  // [message, serverTagName, clientTagName]
+  warning?: [string, string, string]
+  componentStack?: string
+  serverTagName?: string
+  clientTagName?: string
+}
+
+export const hydrationErrorState: HydrationErrorState = {}
+
+// export let hydrationErrorWarning: string | undefined
+// export let hydrationErrorComponentStack: string | undefined
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const knownHydrationWarnings = new Set([
@@ -19,13 +29,17 @@ const knownHydrationWarnings = new Set([
  */
 export function patchConsoleError() {
   const prev = console.error
-  console.error = function (msg, serverContent, clientContent, componentStack) {
+  console.error = function (msg, serverTagName, clientTagName, componentStack) {
     if (knownHydrationWarnings.has(msg)) {
-      hydrationErrorWarning = msg
-        .replace('%s', serverContent)
-        .replace('%s', clientContent)
-        .replace('%s', '')
-      hydrationErrorComponentStack = componentStack
+      hydrationErrorState.warning = [
+        // remove the last %s from the message
+        msg.slice(0, msg.lastIndexOf('%s')),
+        serverTagName,
+        clientTagName,
+      ]
+      hydrationErrorState.componentStack = componentStack
+      hydrationErrorState.serverTagName = serverTagName
+      hydrationErrorState.clientTagName = clientTagName
     }
 
     // @ts-expect-error argument is defined

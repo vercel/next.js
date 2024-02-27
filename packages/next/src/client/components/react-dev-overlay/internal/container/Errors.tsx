@@ -26,6 +26,7 @@ import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtml } from './RuntimeError/component-stack-pseudo-html'
+import type { HydrationErrorState } from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
   id: number
@@ -220,7 +221,15 @@ export function Errors({
     getErrorSource(error) || ''
   )
 
-  const errorDetails = (error as any).details || {}
+  const errorDetails: HydrationErrorState = (error as any).details || {}
+  const [warningTemplate, serverTagName, clientTagName] =
+    errorDetails.warning || [null, '', '']
+  const hydrationWarning = warningTemplate
+    ? warningTemplate
+        .replace('%s', serverTagName)
+        .replace('%s', clientTagName)
+        .replace(/^Warning: /, '')
+    : null
 
   return (
     <Overlay>
@@ -256,14 +265,16 @@ export function Errors({
             >
               {error.name}: <HotlinkedText text={error.message} />
             </p>
-            {errorDetails.warning && (
-              <p id="nextjs__container_errors__extra">
-                {errorDetails.warning.replace(/^Warning: /, '')}
+            {hydrationWarning && (
+              <>
+                <p id="nextjs__container_errors__extra">{hydrationWarning}</p>
                 <PseudoHtml
                   className="nextjs__container_errors__extra_code"
                   componentStackFrames={activeError.componentStackFrames}
+                  serverTagName={serverTagName}
+                  clientTagName={clientTagName}
                 />
-              </p>
+              </>
             )}
             {isServerError ? (
               <div>
@@ -332,7 +343,9 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-
+  .nextjs__container_errors__extra_code {
+    margin: 20px 0;
+  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;

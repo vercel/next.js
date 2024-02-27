@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, Fragment } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 
 /**
@@ -12,6 +12,7 @@ import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
  *  <code>{`
  *    <Page>
  *       <p>
+ *       ^^^^
  *         <p>
  *         ^^^^
  *  `}</code>
@@ -20,33 +21,83 @@ import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
  */
 export function PseudoHtml({
   componentStackFrames,
+  serverTagName,
+  clientTagName,
   ...props
 }: {
   componentStackFrames: ComponentStackFrame[] | undefined
+  serverTagName?: string
+  clientTagName?: string
   [prop: string]: any
 }) {
-  if (!componentStackFrames) return null
-  const htmlString = useMemo(() => {
-    const nestedHtmlStack = componentStackFrames
+  if (!componentStackFrames || !serverTagName || !clientTagName) return null
+
+  const htmlComponents = useMemo(() => {
+    const shouldCollapse = componentStackFrames.length > 6
+    let collectedComponents = 0
+    const tagNames = [serverTagName, clientTagName]
+    const nestedHtmlStack: React.ReactNode[] = []
+    let lastText = ''
+    componentStackFrames
       .map((frame) => frame.component)
       .reverse()
-      .map((component, index) => {
-        const spaces = ' '.repeat(index * 2)
-        return `${spaces}<${component}>\n`
-      })
-    if (componentStackFrames.length) {
-      // Add ^^^^ to the last line
-      nestedHtmlStack.push(
-        ' '.repeat((componentStackFrames.length - 1) * 2) + '^^^^\n'
-      )
-    }
+      .forEach((component, index, componentList) => {
+        const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+        const prevComponent = componentList[index - 1]
+        const nextComponent = componentList[index + 1]
+        // When component is the server or client tag name, highlight it
 
-    return nestedHtmlStack.join('')
+        const isHighlightedTag = tagNames.includes(component)
+        const isRelatedTag =
+          isHighlightedTag ||
+          tagNames.includes(prevComponent) ||
+          tagNames.includes(nextComponent)
+        if (!shouldCollapse || isRelatedTag) {
+          const TextWrap = isHighlightedTag ? 'b' : Fragment
+          collectedComponents++
+          const codeLine = (
+            <span>
+              <span>{spaces}</span>
+              <TextWrap>
+                {'<'}
+                {component}
+                {'>'}
+                {'\n'}
+              </TextWrap>
+            </span>
+          )
+          lastText = component
+          if (isHighlightedTag) {
+            nestedHtmlStack.push(
+              // Add ^^^^ to the target tags
+              <>
+                {codeLine}
+                <span>{spaces + '^'.repeat(component.length + 2) + '\n'}</span>
+              </>
+            )
+          } else {
+            nestedHtmlStack.push(codeLine)
+          }
+        } else {
+          if (lastText !== '...') {
+            lastText = '...'
+            nestedHtmlStack.push(
+              <span>
+                {spaces}
+                {'...'}
+                {'\n'}
+              </span>
+            )
+          }
+        }
+      })
+
+    return nestedHtmlStack
   }, [componentStackFrames])
 
   return (
     <pre {...props}>
-      <code>{htmlString}</code>
+      <code>{htmlComponents}</code>
     </pre>
   )
 }

@@ -1,8 +1,5 @@
 import { useEffect } from 'react'
-import {
-  hydrationErrorWarning,
-  hydrationErrorComponentStack,
-} from './hydration-error-info'
+import { hydrationErrorState } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
 import { isHydrationError } from '../../../is-hydration-error'
 
@@ -50,16 +47,13 @@ if (typeof window !== 'undefined') {
     ) {
       // If there's any extra information in the error message to display,
       // append it to the error message details property
-      if (hydrationErrorWarning || hydrationErrorComponentStack) {
+      if (hydrationErrorState.warning) {
         // The patched console.error found hydration errors logged by React
         // Append the logged warning to the error message
         ;(error as any).details = {
           ...(error as any).details,
-          ...(hydrationErrorWarning ? { warning: hydrationErrorWarning } : {}),
-          // Hydration error component stack is added to the error, it's picked up by the hot-reloader-client
-          ...(hydrationErrorComponentStack
-            ? { componentStack: hydrationErrorComponentStack }
-            : {}),
+          // It contains the warning, component stack, server and client tag names
+          ...hydrationErrorState,
         }
       }
       error.message +=

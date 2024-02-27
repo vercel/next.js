@@ -317,4 +317,42 @@ describe('Error overlay for hydration errors', () => {
 
     await cleanup()
   })
+
+  it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
+    const { cleanup, session, browser } = await sandbox(
+      next,
+      new Map([
+        [
+          'app/page.js',
+          outdent`
+            'use client'
+
+            export default function Page() {
+              return (
+                <p><span><span><span><span><p>hello world</p></span></span></span></span></p>
+              )
+            }
+          `,
+        ],
+      ])
+    )
+
+    await session.waitForAndOpenRuntimeError()
+
+    const badNestingHtml = await browser
+      .elementByCss('.nextjs__container_errors__extra_code')
+      .text()
+    expect(badNestingHtml).toMatchInlineSnapshot(`
+      "<Page>
+        <p>
+        ^^^
+          <span>
+            ...
+              <span>
+                <p>
+                ^^^"
+    `)
+
+    await cleanup()
+  })
 })

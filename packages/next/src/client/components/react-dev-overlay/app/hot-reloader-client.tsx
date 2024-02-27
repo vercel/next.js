@@ -41,6 +41,7 @@ import type {
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../../../dev/error-overlay/messages'
+import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
 
 interface Dispatcher {
   onBuildOk(): void
@@ -496,15 +497,19 @@ export default function HotReload({
   }, [dispatch])
 
   const handleOnUnhandledError = useCallback((error: Error): void => {
+    const errorDetails = (error as any).details as
+      | HydrationErrorState
+      | undefined
     // Component stack is added to the error in use-error-handler in case there was a hydration errror
-    const componentStack = (error as any).details?.componentStack
-    const warning = (error as any).details?.warning || ''
+    const componentStack = errorDetails?.componentStack
+    const warning = errorDetails?.warning
     dispatch({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
       frames: parseStack(error.stack!),
-      componentStackFrames:
-        componentStack && parseComponentStack(componentStack),
+      componentStackFrames: componentStack
+        ? parseComponentStack(componentStack)
+        : undefined,
       warning,
     })
   }, [])
