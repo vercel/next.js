@@ -4,15 +4,9 @@ import {
   hydrationErrorComponentStack,
 } from './hydration-error-info'
 import { isNextRouterError } from '../../../is-next-router-error'
+import { isHydrationError } from '../../../is-hydration-error'
 
 export type ErrorHandler = (error: Error) => void
-
-function isHydrationError(error: Error): boolean {
-  return (
-    error.message.match(/(hydration|content does not match|did not match)/i) !=
-    null
-  )
-}
 
 if (typeof window !== 'undefined') {
   try {
@@ -21,6 +15,7 @@ if (typeof window !== 'undefined') {
   } catch {}
 }
 
+let hasHydrationError = false
 const errorQueue: Array<Error> = []
 const rejectionQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []
@@ -46,6 +41,7 @@ if (typeof window !== 'undefined') {
       return
     }
 
+    const isCausedByHydrationFailure = isHydrationError(error)
     if (
       isHydrationError(error) &&
       !error.message.includes(
@@ -66,7 +62,13 @@ if (typeof window !== 'undefined') {
     }
 
     const e = error
-    errorQueue.push(e)
+    // Only queue one hydration every time
+    if (isCausedByHydrationFailure) {
+      if (!hasHydrationError) {
+        errorQueue.push(e)
+      }
+      hasHydrationError = true
+    }
     for (const handler of errorHandlers) {
       handler(e)
     }

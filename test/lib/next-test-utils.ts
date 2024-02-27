@@ -755,6 +755,22 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+}
+
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {

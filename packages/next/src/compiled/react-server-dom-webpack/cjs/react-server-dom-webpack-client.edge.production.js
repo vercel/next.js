@@ -1169,17 +1169,20 @@ function reportGlobalError(response, error) {
 }
 
 function createElement(type, key, props) {
-  const element = {
-    // This tag allows us to uniquely identify this as a React Element
-    $$typeof: REACT_ELEMENT_TYPE,
-    // Built-in properties that belong on the element
-    type: type,
-    key: key,
-    ref: null,
-    props: props,
-    // Record the component responsible for creating this element.
-    _owner: null
-  };
+  let element;
+
+  {
+    element = {
+      // This tag allows us to uniquely identify this as a React Element
+      $$typeof: REACT_ELEMENT_TYPE,
+      type,
+      key,
+      ref: null,
+      props,
+      // Record the component responsible for creating this element.
+      _owner: null
+    };
+  }
 
   return element;
 }
@@ -1324,6 +1327,11 @@ function parseModelString(response, parentObject, key, value) {
       case '@':
         {
           // Promise
+          if (value.length === 2) {
+            // Infinite promise that never resolves.
+            return new Promise(() => {});
+          }
+
           const id = parseInt(value.slice(2), 16);
           const chunk = getChunk(response, id);
           return chunk;
@@ -1399,6 +1407,8 @@ function parseModelString(response, parentObject, key, value) {
           // BigInt
           return BigInt(value.slice(2));
         }
+
+      case 'E':
 
       default:
         {
@@ -1607,6 +1617,10 @@ function processFullRow(response, id, tag, buffer, chunk) {
 
     case 68
     /* "D" */
+    :
+
+    case 87
+    /* "W" */
     :
       {
 
