@@ -345,16 +345,18 @@ Here's how to implement Middleware for authentication in Next.js:
 Example Middleware file:
 
 ```ts filename="middleware.ts" switcher
-import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
   const currentUser = request.cookies.get('currentUser')?.value
 
   if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -363,15 +365,16 @@ export const config = {
 ```
 
 ```js filename="middleware.js" switcher
-import { NextResponse } from 'next/server'
-
 export function middleware(request) {
   const currentUser = request.cookies.get('currentUser')?.value
 
-  if (currentUser) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  if (currentUser && !request.nextUrl.pathname.startsWith('/dashboard')) {
+    return Response.redirect(new URL('/dashboard', request.url))
   }
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  if (!currentUser && !request.nextUrl.pathname.startsWith('/login')) {
+    return Response.redirect(new URL('/login', request.url))
+  }
 }
 
 export const config = {
@@ -379,7 +382,7 @@ export const config = {
 }
 ```
 
-This example uses [`NextResponse.redirect`](/docs/app/api-reference/functions/next-response#redirect) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
+This example uses [`Response.redirect`](https://developer.mozilla.org/en-US/docs/Web/API/Response/redirect_static) for handling redirects early in the request pipeline, making it efficient and centralizing access control.
 
 <AppOnly>
 
