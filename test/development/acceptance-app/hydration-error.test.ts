@@ -324,12 +324,11 @@ describe('Error overlay for hydration errors', () => {
       .elementByCss('[data-nextjs-container-errors-pseudo-html] code')
       .text()
     expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <Page>
+      "<Page>
+        <p>
+        ^^^
           <p>
           ^^^
-            <p>
-            ^^^
       "
     `)
 
@@ -372,13 +371,14 @@ describe('Error overlay for hydration errors', () => {
       .text()
 
     expect(pseudoHtml).toMatchInlineSnapshot(`
-      "...
-        <Page>
-          <p>
-          ^^^
-            <span>
-              ...
-                <span>
+      "<Page>
+        <p>
+        ^^^
+          <span>
+            ...
+              <span>
+                <p>
+                ^^^
       "
     `)
 
