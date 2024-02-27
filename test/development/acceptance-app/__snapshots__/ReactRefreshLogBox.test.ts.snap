@@ -149,12 +149,9 @@ exports[`ReactRefreshLogBox app turbo conversion to class component (1) 1`] = `
 `;
 
 exports[`ReactRefreshLogBox app turbo css syntax errors 1`] = `
-"./index.module.css:1:1
+"./index.module.css
 Parsing css source code failed
-> 1 | button {}
-    | ^^^^^^
-
-Selector is not pure (pure selectors must contain at least one local class or id)"
+Selector is not pure (pure selectors must contain at least one local class or id), (lightningcss, Selector(button, specificity = 0x1))"
 `;
 
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 1`] = `"Error: end http://nextjs.org"`;

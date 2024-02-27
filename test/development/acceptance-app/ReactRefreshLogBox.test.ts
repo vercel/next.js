@@ -357,7 +357,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(await session.hasRedbox()).toBe(false)
 
     // Syntax error
-    await session.patch('index.module.css', `.button {`)
+    await session.patch('index.module.css', `.button`)
     expect(await session.hasRedbox()).toBe(true)
     const source = await session.getRedboxSource()
     expect(source).toMatch(
@@ -367,7 +367,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toMatch('Syntax error: ')
       expect(source).toMatch('Unclosed block')
     }
-    expect(source).toMatch('> 1 | .button {')
+    expect(source).toMatch('> 1 | .button')
     expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')
 
     // Checks for selectors that can't be prefixed.
