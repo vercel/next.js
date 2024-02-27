@@ -157,7 +157,9 @@ async function createRedirectRenderResult(
     const forwardedHeaders = getForwardedHeaders(req, res)
     forwardedHeaders.set(RSC_HEADER, '1')
 
-    const host = req.headers['host']
+    // For standalone or the serverful mode, use the internal hostname directly
+    // other than the headers from the request.
+    const host = process.env.__NEXT_PRIVATE_HOST || req.headers['host']
     const proto =
       staticGenerationStore.incrementalCache?.requestProtocol || 'https'
     const fetchUrl = new URL(`${proto}://${host}${basePath}${redirectUrl}`)
