@@ -396,9 +396,9 @@ export interface ExperimentalConfig {
   useWasmBinary?: boolean
 
   /**
-   * Use lightningcss instead of swc_css
+   * Use swc_csss instead of lightningcss for turbopakc
    */
-  useLightningcss?: boolean
+  useSwcCssForTurbopack?: boolean
 
   /**
    * Certain methods calls like `useSearchParams()` can bail out of server-side rendering of **entire** pages to client-side rendering,
