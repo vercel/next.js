@@ -21,7 +21,7 @@ impl Issue for NextFontIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Misc.into()
+        IssueStage::CodeGen.into()
     }
 
     #[turbo_tasks::function]
