@@ -97,6 +97,9 @@ lightningcss = { version = "1.0.0-alpha.50", features = [
   "visitor",
   "into_owned",
 ] }
+lightningcss-napi = { git = "https://github.com/parcel-bundler/lightningcss", rev="bdf4a7754fef331bfe372ee2446428924ce4a1ac", default-features = false, features = [
+  "visitor"
+]}
 mime = "0.3.16"
 nohash-hasher = "0.2.0"
 once_cell = "1.17.1"
