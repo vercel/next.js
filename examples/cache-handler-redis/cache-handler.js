@@ -3,15 +3,15 @@ const createRedisCache = require("@neshca/cache-handler/redis-stack").default;
 const createLruCache = require("@neshca/cache-handler/local-lru").default;
 const { createClient } = require("redis");
 
-const client = createClient({
-  url: process.env.REDIS_URL ?? "redis://localhost:6379",
-});
-
-client.on("error", (error) => {
-  console.error("Redis error:", error.message);
-});
-
 IncrementalCache.onCreation(async () => {
+  const client = createClient({
+    url: process.env.REDIS_URL ?? "redis://localhost:6379",
+  });
+  
+  client.on("error", (error) => {
+    console.error("Redis error:", error.message);
+  });
+  
   // read more about TTL limitations https://caching-tools.github.io/next-shared-cache/configuration/ttl
   function useTtl(maxAge) {
     const evictionAge = maxAge * 1.5;
