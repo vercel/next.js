@@ -1,16 +1,18 @@
 import type { ServerResponse } from 'http'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
-import type { StackFrame as ParsedStackFrame } from 'next/dist/compiled/stacktrace-parser'
 
 export type SourcePackage = 'react' | 'next'
 
-export interface StackFrame extends ParsedStackFrame {
+export interface StackFrame {
   file: string | null
+  methodName: '<unknown>' | string
+  arguments: string[]
+  lineNumber: number | null
+  column: number | null
   isEdgeServer?: boolean
   isServer?: boolean
   isAppDirectory?: boolean
   errorMessage?: string
-  column: number | null
   /** Specific to Turbopack */
   isInternal?: boolean
 }
