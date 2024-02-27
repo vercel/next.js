@@ -1054,18 +1054,26 @@ export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string> {
   await browser.waitForElementByCss(
-    '[data-nextjs-component-stack-frame]',
+    '[nextjs__container_errors__extra_code]',
     30000
   )
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
-    '[data-nextjs-component-stack-frame]'
+    '[nextjs__container_errors__extra_code]'
   )
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
 
   return componentStackFrameTexts.join('\n').trim()
+}
+
+export async function toggleComponentStack(
+  browser: BrowserInterface
+): Promise<void> {
+  await browser
+    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+    .click()
 }
 
 export async function expandCallStack(

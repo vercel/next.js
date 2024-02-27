@@ -41,9 +41,7 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Text content does not match server-rendered HTML.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
-      
     `)
 
     expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
@@ -96,7 +94,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
     expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
@@ -132,7 +129,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
@@ -168,7 +164,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
     expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(`
@@ -199,7 +194,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
       "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
       See more info here: https://nextjs.org/docs/messages/react-hydration-error"
     `)
 
@@ -240,7 +234,6 @@ describe('Error overlay for hydration errors', () => {
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
         "Error: Hydration failed because the initial UI does not match what was rendered on the server.
-
         See more info here: https://nextjs.org/docs/messages/react-hydration-error"
       `)
 

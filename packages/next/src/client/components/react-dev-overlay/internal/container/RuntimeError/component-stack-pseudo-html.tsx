@@ -2,6 +2,8 @@ import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from './GroupedStackFrames'
 
+const MAX_NON_COLLAPSED_FRAMES = 6
+
 /**
  *
  * Format component stack into pseudo HTML
@@ -31,9 +33,9 @@ export function PseudoHtml({
   clientTagName?: string
   [prop: string]: any
 }) {
-  if (!componentStackFrames || !serverTagName || !clientTagName) return null
-
-  const shouldCollapse = componentStackFrames.length > 6
+  if (!componentStackFrames) return null
+  const isHtmlTagsWarning = serverTagName || clientTagName
+  const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
@@ -55,7 +57,14 @@ export function PseudoHtml({
           isHighlightedTag ||
           tagNames.includes(prevComponent) ||
           tagNames.includes(nextComponent)
-        if (!isHtmlCollapsed || isRelatedTag) {
+
+        if (
+          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
+          isHtmlCollapsed
+        ) {
+          return
+        }
+        if (isRelatedTag) {
           const TextWrap = isHighlightedTag ? 'b' : Fragment
           collectedComponents++
           const codeLine = (
@@ -82,7 +91,14 @@ export function PseudoHtml({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
-          if (lastText !== '...') {
+          if (!isHtmlCollapsed || !isHtmlTagsWarning) {
+            nestedHtmlStack.push(
+              <span key={nestedHtmlStack.length}>
+                {spaces}
+                {'<' + component + '>' + '\n'}
+              </span>
+            )
+          } else if (lastText !== '...') {
             lastText = '...'
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>

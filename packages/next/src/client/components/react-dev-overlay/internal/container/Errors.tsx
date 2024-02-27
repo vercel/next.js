@@ -26,7 +26,10 @@ import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtml } from './RuntimeError/component-stack-pseudo-html'
-import type { HydrationErrorState } from '../helpers/hydration-error-info'
+import {
+  isHtmlTagsWarning,
+  type HydrationErrorState,
+} from '../helpers/hydration-error-info'
 
 export type SupportedErrorEvent = {
   id: number
@@ -222,12 +225,14 @@ export function Errors({
   )
 
   const errorDetails: HydrationErrorState = (error as any).details || {}
-  const [warningTemplate, serverTagName, clientTagName] =
+  const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
+
+  const isHtmlTagsWarningTemplate = isHtmlTagsWarning(warningTemplate)
   const hydrationWarning = warningTemplate
     ? warningTemplate
-        .replace('%s', serverTagName)
-        .replace('%s', clientTagName)
+        .replace('%s', serverContent)
+        .replace('%s', clientContent)
         .replace(/^Warning: /, '')
     : null
 
@@ -271,8 +276,8 @@ export function Errors({
                 <PseudoHtml
                   className="nextjs__container_errors__extra_code"
                   componentStackFrames={activeError.componentStackFrames}
-                  serverTagName={serverTagName}
-                  clientTagName={clientTagName}
+                  serverTagName={isHtmlTagsWarningTemplate ? serverContent : ''}
+                  clientTagName={isHtmlTagsWarningTemplate ? clientContent : ''}
                 />
               </>
             )}

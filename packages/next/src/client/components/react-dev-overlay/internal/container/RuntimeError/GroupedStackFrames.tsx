@@ -9,6 +9,7 @@ export function CollapseIcon(
   return (
     <svg
       data-nextjs-call-stack-chevron-icon
+      data-collapsed={collapsed}
       fill="none"
       height="20"
       width="20"
