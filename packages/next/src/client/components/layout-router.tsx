@@ -355,6 +355,7 @@ function InnerLayoutRouter({
       prefetchRsc: null,
       head: null,
       parallelRoutes: new Map(),
+      lazyDataResolved: false,
     }
 
     /**
@@ -411,6 +412,7 @@ function InnerLayoutRouter({
         context.nextUrl,
         buildId
       )
+      childNode.lazyDataResolved = false
     }
 
     /**
@@ -419,15 +421,22 @@ function InnerLayoutRouter({
     // When the data has not resolved yet `use` will suspend here.
     const serverResponse = use(lazyData)
 
-    // setTimeout is used to start a new transition during render, this is an intentional hack around React.
-    setTimeout(() => {
-      startTransition(() => {
-        changeByServerResponse({
-          previousTree: fullTree,
-          serverResponse,
+    if (!childNode.lazyDataResolved) {
+      // setTimeout is used to start a new transition during render, this is an intentional hack around React.
+      setTimeout(() => {
+        startTransition(() => {
+          changeByServerResponse({
+            previousTree: fullTree,
+            serverResponse,
+          })
         })
       })
-    })
+
+      // It's important that we mark this as resolved, in case this branch is replayed, we don't want to continously re-apply
+      // the patch to the tree.
+      childNode.lazyDataResolved = true
+    }
+
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     use(createInfinitePromise()) as never
   }

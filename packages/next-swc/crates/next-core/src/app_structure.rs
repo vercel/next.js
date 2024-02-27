@@ -14,7 +14,9 @@ use turbo_tasks::{
 };
 use turbopack_binding::{
     turbo::tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath},
-    turbopack::core::issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    turbopack::core::issue::{
+        Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
+    },
 };
 
 use crate::{
@@ -1217,8 +1219,8 @@ impl Issue for DirectoryTreeIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("next app".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::AppStructure.cell()
     }
 
     #[turbo_tasks::function]

@@ -150,7 +150,14 @@ export async function setupFsCheck(opts: {
 
   if (!opts.dev) {
     const buildIdPath = path.join(opts.dir, opts.config.distDir, BUILD_ID_FILE)
-    buildId = await fs.readFile(buildIdPath, 'utf8')
+    try {
+      buildId = await fs.readFile(buildIdPath, 'utf8')
+    } catch (err: any) {
+      if (err.code !== 'ENOENT') throw err
+      throw new Error(
+        `Could not find a production build in the '${opts.config.distDir}' directory. Try building your app with 'next build' before starting the production server. https://nextjs.org/docs/messages/production-start-no-build-id`
+      )
+    }
 
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
