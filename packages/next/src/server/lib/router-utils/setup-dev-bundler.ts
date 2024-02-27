@@ -927,7 +927,7 @@ async function startWatcher(opts: SetupOpts) {
             try {
               originalFrame = await createOriginalStackFrame({
                 source,
-                frame,
+                frame: { ...frame, errorMessage: err.message },
                 moduleId,
                 modulePath,
                 rootDirectory: opts.dir,
