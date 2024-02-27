@@ -505,7 +505,7 @@ pub struct ExperimentalConfig {
     webpack_build_worker: Option<bool>,
     worker_threads: Option<bool>,
 
-    use_lightningcss: Option<bool>,
+    use_swc_css_for_turbopack: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -836,9 +836,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn use_lightningcss(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn use_swc_css_for_turbopack(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
-            self.await?.experimental.use_lightningcss.unwrap_or(false),
+            self.await?
+                .experimental
+                .use_swc_css_for_turbopack
+                .unwrap_or(false),
         ))
     }
 }

@@ -15,10 +15,10 @@ pub async fn get_styled_jsx_transform_rule(
     target_browsers: Vc<RuntimeVersions>,
 ) -> Result<Option<ModuleRule>> {
     let enable_mdx_rs = *next_config.mdx_rs().await?;
-    let use_lightningcss = *next_config.use_lightningcss().await?;
+    let use_swc_css_for_turbopack = *next_config.use_swc_css_for_turbopack().await?;
     let versions = *target_browsers.await?;
 
-    let transformer = StyledJsxTransformer::new(use_lightningcss, versions);
+    let transformer = StyledJsxTransformer::new(!use_swc_css_for_turbopack, versions);
     Ok(Some(get_ecma_transform_rule(
         Box::new(transformer),
         enable_mdx_rs,
