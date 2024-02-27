@@ -746,7 +746,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     } else if let Some(span) = top_level_await_span {
         AnalyzeIssue {
             code: None,
-            category: Vc::cell("analyze".to_string()),
             message: StyledString::Text(
                 "top level await is only supported in ESM modules.".to_string(),
             )

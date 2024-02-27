@@ -4,7 +4,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 
 pub fn register() {
     turbo_tasks::register();
@@ -148,8 +148,8 @@ impl Issue for FetchIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("fetch".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Load.into()
     }
 
     #[turbo_tasks::function]

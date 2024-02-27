@@ -57,7 +57,6 @@ impl Emitter for IssueEmitter {
                 Level::FailureNote => IssueSeverity::Note,
             }
             .cell(),
-            category: Vc::cell("parse".to_string()),
             source_ident: self.source.ident(),
             title: Vc::cell(title),
             message: StyledString::Text(message).cell(),

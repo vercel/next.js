@@ -32,7 +32,10 @@ use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    issue::{Issue, IssueExt, IssueSource, OptionIssueSource, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
+    },
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -935,6 +938,11 @@ impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
         self.file
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Parse.cell()
     }
 
     #[turbo_tasks::function]

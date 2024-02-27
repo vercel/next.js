@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
 
 #[turbo_tasks::value(shared)]
 #[derive(Copy, Clone)]
@@ -19,8 +19,8 @@ impl Issue for RenderingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("rendering".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::CodeGen.cell()
     }
 
     #[turbo_tasks::function]

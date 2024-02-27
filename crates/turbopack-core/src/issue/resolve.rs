@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_tasks::{ReadRef, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueSource, OptionIssueSource, OptionStyledString, StyledString};
+use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
 use crate::{
     error::PrettyPrintError,
     issue::IssueSeverity,
@@ -49,8 +49,8 @@ impl Issue for ResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("resolve".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]

@@ -25,7 +25,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -498,8 +498,8 @@ impl Issue for EvaluationIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("build".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Transform.into()
     }
 
     #[turbo_tasks::function]
@@ -545,8 +545,8 @@ impl Issue for BuildDependencyIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("build".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Unsupported.cell()
     }
 
     #[turbo_tasks::function]
@@ -622,13 +622,13 @@ impl Issue for EvaluateEmittedErrorIssue {
     }
 
     #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Transform.cell()
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("loaders".to_string())
+    fn severity(&self) -> Vc<IssueSeverity> {
+        self.severity
     }
 
     #[turbo_tasks::function]

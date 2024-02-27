@@ -42,7 +42,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
-    issue::{Issue, IssueExt, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
     output::OutputAsset,
     raw_module::RawModule,
@@ -78,8 +78,8 @@ struct ModuleIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ModuleIssue {
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("other".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::ProcessModule.cell()
     }
 
     #[turbo_tasks::function]

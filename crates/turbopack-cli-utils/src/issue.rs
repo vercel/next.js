@@ -140,7 +140,7 @@ pub fn format_issue(
         .replace("[project]", &current_dir.to_string_lossy())
         .replace("/./", "/")
         .replace("\\\\?\\", "");
-    let category = &plain_issue.category;
+    let stgae = plain_issue.stage.to_string();
 
     let mut styled_issue = style_issue_source(plain_issue, &context_path);
     let description = &plain_issue.description;
@@ -174,7 +174,7 @@ pub fn format_issue(
         issue_text,
         "{} - [{}] {}",
         severity.style(severity_to_style(severity)),
-        category,
+        stgae,
         plain_issue.file_path
     )
     .unwrap();
@@ -382,10 +382,10 @@ impl IssueReporter for ConsoleUi {
 
             let context_path =
                 make_relative_to_cwd(&plain_issue.file_path, project_dir, current_dir);
-            let category = &plain_issue.category;
+            let stage = plain_issue.stage.to_string();
             let processing_path = &*plain_issue.processing_path;
             let severity_map = grouped_issues.entry(severity).or_default();
-            let category_map = severity_map.entry(category.clone()).or_default();
+            let category_map = severity_map.entry(stage.clone()).or_default();
             let issues = category_map.entry(context_path.to_string()).or_default();
 
             let mut styled_issue = style_issue_source(&plain_issue, &context_path);

@@ -3,7 +3,7 @@ use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
@@ -85,8 +85,8 @@ impl Issue for ReactRefreshResolvingIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("other".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]

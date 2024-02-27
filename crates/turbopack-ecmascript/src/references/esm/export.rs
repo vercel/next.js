@@ -314,7 +314,6 @@ pub async fn expand_star_exports(
 fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: String) {
     AnalyzeIssue {
         code: None,
-        category: Vc::cell("analyze".to_string()),
         message: StyledString::Text(message).cell(),
         source_ident,
         severity: IssueSeverity::Warning.into(),

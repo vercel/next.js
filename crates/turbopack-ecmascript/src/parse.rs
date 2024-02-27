@@ -27,7 +27,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
-    issue::{Issue, IssueExt, IssueSeverity, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
     SOURCE_MAP_ROOT_NAME,
@@ -448,7 +448,7 @@ impl Issue for ReadSourceIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("parse".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Load.cell()
     }
 }
