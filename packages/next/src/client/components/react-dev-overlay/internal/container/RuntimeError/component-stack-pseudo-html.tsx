@@ -1,5 +1,6 @@
-import { useMemo, Fragment } from 'react'
+import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
+import { CollapseIcon } from './GroupedStackFrames'
 
 /**
  *
@@ -32,8 +33,10 @@ export function PseudoHtml({
 }) {
   if (!componentStackFrames || !serverTagName || !clientTagName) return null
 
+  const shouldCollapse = componentStackFrames.length > 6
+  const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
+
   const htmlComponents = useMemo(() => {
-    const shouldCollapse = componentStackFrames.length > 6
     let collectedComponents = 0
     const tagNames = [serverTagName, clientTagName]
     const nestedHtmlStack: React.ReactNode[] = []
@@ -52,7 +55,7 @@ export function PseudoHtml({
           isHighlightedTag ||
           tagNames.includes(prevComponent) ||
           tagNames.includes(nextComponent)
-        if (!shouldCollapse || isRelatedTag) {
+        if (!isHtmlCollapsed || isRelatedTag) {
           const TextWrap = isHighlightedTag ? 'b' : Fragment
           collectedComponents++
           const codeLine = (
@@ -93,11 +96,19 @@ export function PseudoHtml({
       })
 
     return nestedHtmlStack
-  }, [componentStackFrames])
+  }, [componentStackFrames, isHtmlCollapsed])
 
   return (
-    <pre data-nextjs-container-errors-pseudo-html {...props}>
-      <code>{htmlComponents}</code>
-    </pre>
+    <div data-nextjs-container-errors-pseudo-html>
+      <span
+        data-nextjs-container-errors-pseudo-html-collapse
+        onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
+      >
+        <CollapseIcon collapsed={isHtmlCollapsed} />
+      </span>
+      <pre {...props}>
+        <code>{htmlComponents}</code>
+      </pre>
+    </div>
   )
 }

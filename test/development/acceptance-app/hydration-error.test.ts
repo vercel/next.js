@@ -328,7 +328,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     const pseudoHtml = await browser
-      .elementByCss('[data-nextjs-container-errors-pseudo-html]')
+      .elementByCss('[data-nextjs-container-errors-pseudo-html] code')
       .text()
     expect(pseudoHtml).toMatchInlineSnapshot(`
       "<Page>
@@ -374,7 +374,7 @@ describe('Error overlay for hydration errors', () => {
     )
 
     const pseudoHtml = await browser
-      .elementByCss('[data-nextjs-container-errors-pseudo-html]')
+      .elementByCss('[data-nextjs-container-errors-pseudo-html] code')
       .text()
 
     expect(pseudoHtml).toMatchInlineSnapshot(`
