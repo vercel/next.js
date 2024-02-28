@@ -68,6 +68,10 @@ napi = { version = "2", default-features = false, features = [
   "serde-json",
   "tokio_rt",
   "error_anyhow",
+  # Lightningcss uses this features
+  "napi4",
+  "napi5",
+  "compat-mode"
 ] }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
@@ -83,6 +87,7 @@ urlencoding = {workspace = true}
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks = { workspace = true }
 next-api = { workspace = true }
