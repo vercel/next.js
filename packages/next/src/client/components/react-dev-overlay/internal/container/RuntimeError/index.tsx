@@ -192,9 +192,14 @@ export const styles = css`
     position: relative;
     padding-left: var(--size-gap-triple);
   }
-
   [data-nextjs-container-errors-pseudo-html-collapse] {
     position: absolute;
     left: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-add] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff-remove] {
+    color: var(--color-ansi-red);
   }
 `

@@ -9,36 +9,51 @@ const MAX_NON_COLLAPSED_FRAMES = 6
  * Format component stack into pseudo HTML
  * component stack is an array of strings, e.g.: ['p', 'p', 'Page', ...]
  *
- * Will render it for the code block
+ * For html tags mismatch, it will render it for the code block
  *
  * <pre>
  *  <code>{`
  *    <Page>
  *       <p>
- *       ^^^^
+ *       ^^^
  *         <p>
- *         ^^^^
+ *         ^^^
  *  `}</code>
  * </pre>
  *
+ * For text mismatch, it will render it for the code block
+ *
+ * <pre>
+ * <code>{`
+ *   <Page>
+ *     <p>
+ *       "Server Text" (red text as removed)
+ *       "Client Text" (green text as added)
+ *     </p>
+ *   </Page>
+ * `}</code>
+ *
+ *
  */
-export function PseudoHtml({
+export function PseudoHtmlDiff({
   componentStackFrames,
-  serverTagName,
-  clientTagName,
+  serverContent,
+  clientContent,
+  hydrationMismatchType,
   ...props
 }: {
   componentStackFrames: ComponentStackFrame[]
-  serverTagName?: string
-  clientTagName?: string
+  serverContent: string
+  clientContent: string
   [prop: string]: any
+  hydrationMismatchType: 'tag' | 'text'
 }) {
-  const isHtmlTagsWarning = serverTagName || clientTagName
+  const isHtmlTagsWarning = hydrationMismatchType === 'tag'
   const shouldCollapse = componentStackFrames.length > MAX_NON_COLLAPSED_FRAMES
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(shouldCollapse)
 
   const htmlComponents = useMemo(() => {
-    const tagNames = [serverTagName, clientTagName]
+    const tagNames = isHtmlTagsWarning ? [serverContent, clientContent] : []
     const nestedHtmlStack: React.ReactNode[] = []
     let lastText = ''
     componentStackFrames
@@ -62,7 +77,7 @@ export function PseudoHtml({
         ) {
           return
         }
-        if (isRelatedTag) {
+        if (isHtmlTagsWarning && isRelatedTag) {
           const TextWrap = isHighlightedTag ? 'b' : Fragment
           const codeLine = (
             <span>
@@ -88,7 +103,7 @@ export function PseudoHtml({
           )
           nestedHtmlStack.push(wrappedCodeLine)
         } else {
-          if (!isHtmlCollapsed || !isHtmlTagsWarning) {
+          if (!isHtmlCollapsed) {
             nestedHtmlStack.push(
               <span key={nestedHtmlStack.length}>
                 {spaces}
@@ -108,12 +123,27 @@ export function PseudoHtml({
         }
       })
 
+    if (hydrationMismatchType === 'text') {
+      const spaces = ' '.repeat(nestedHtmlStack.length * 2)
+      const wrappedCodeLine = (
+        <Fragment key={nestedHtmlStack.length}>
+          <span data-nextjs-container-errors-pseudo-html--diff-remove>
+            {spaces + `"${serverContent}"` + '\n'}
+          </span>
+          <span data-nextjs-container-errors-pseudo-html--diff-add>
+            {spaces + `"${clientContent}"` + '\n'}
+          </span>
+        </Fragment>
+      )
+      nestedHtmlStack.push(wrappedCodeLine)
+    }
+
     return nestedHtmlStack
   }, [
     componentStackFrames,
     isHtmlCollapsed,
-    clientTagName,
-    serverTagName,
+    clientContent,
+    serverContent,
     isHtmlTagsWarning,
   ])
 
