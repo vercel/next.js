@@ -149,18 +149,18 @@ export async function initialize(opts: {
     if (
       !opts.minimalMode &&
       config.i18n &&
-      config.i18n?.localeDetection !== false
+      config.i18n.localeDetection !== false
     ) {
       const urlParts = (req.url || '').split('?', 1)
       let urlNoQuery = urlParts[0] || ''
+
+      if (config.basePath) {
+        urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
+      }
+
       const pathnameInfo = getNextPathnameInfo(urlNoQuery, {
         nextConfig: config,
       })
-
-      if (pathnameInfo.basePath) {
-        req.url = removePathPrefix(req.url!, config.basePath)
-        urlNoQuery = removePathPrefix(urlNoQuery, config.basePath)
-      }
 
       const domainLocale = detectDomainLocale(
         config.i18n.domains,
