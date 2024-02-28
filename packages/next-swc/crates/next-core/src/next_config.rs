@@ -835,7 +835,7 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub async fn use_swc_css_for_turbopack(self: Vc<Self>) -> Result<Vc<bool>> {
+    pub async fn use_swc_css(self: Vc<Self>) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.await?
                 .experimental

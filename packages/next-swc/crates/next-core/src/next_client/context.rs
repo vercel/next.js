@@ -243,7 +243,7 @@ pub async fn get_client_module_options_context(
         .cell()
     });
 
-    let use_swc_css = *next_config.use_swc_css_for_turbopack().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =

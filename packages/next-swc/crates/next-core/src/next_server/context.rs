@@ -363,7 +363,7 @@ pub async fn get_server_module_options_context(
         .cell()
     });
 
-    let use_swc_css = *next_config.use_swc_css_for_turbopack().await?;
+    let use_swc_css = *next_config.use_swc_css().await?;
     let versions = RuntimeVersions(Default::default()).cell();
 
     // ModuleOptionsContext related options
