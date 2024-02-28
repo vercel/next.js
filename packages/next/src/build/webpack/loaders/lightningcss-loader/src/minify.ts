@@ -3,12 +3,7 @@ import { ModuleFilenameHelpers } from 'next/dist/compiled/webpack/webpack'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 // @ts-ignore
 import { RawSource, SourceMapSource } from 'next/dist/compiled/webpack-sources3'
-import { transform as transformCss } from 'lightningcss'
-import {
-  ECacheKey,
-  type IMinifyPluginOpts,
-  type TransformType,
-} from './interface'
+import { ECacheKey } from './interface'
 import type { Compilation, Compiler } from 'webpack'
 import { getTargets } from './utils'
 import { Buffer } from 'buffer'
@@ -17,10 +12,10 @@ const PLUGIN_NAME = 'lightning-css-minify'
 const CSS_FILE_REG = /\.css(?:\?.*)?$/i
 
 export class LightningCssMinifyPlugin {
-  private readonly options: Omit<IMinifyPluginOpts, 'implementation'>
-  private readonly transform: TransformType
+  private readonly options: any
+  private transform: any | undefined
 
-  constructor(opts: IMinifyPluginOpts = {}) {
+  constructor(opts: any = {}) {
     const { implementation, ...otherOpts } = opts
     if (implementation && typeof implementation.transformCss !== 'function') {
       throw new TypeError(
@@ -28,7 +23,7 @@ export class LightningCssMinifyPlugin {
       )
     }
 
-    this.transform = implementation?.transformCss ?? transformCss
+    this.transform = implementation?.transformCss
     this.options = otherOpts
   }
 
@@ -70,6 +65,11 @@ export class LightningCssMinifyPlugin {
       options: { devtool },
     } = compilation.compiler
 
+    if (!this.transform) {
+      const { loadBindings } = require('next/dist/build/swc')
+      this.transform = (await loadBindings()).css.lightning.transform
+    }
+
     const sourcemap =
       this.options.sourceMap === undefined
         ? ((devtool && (devtool as string).includes('source-map')) as boolean)
@@ -102,7 +102,7 @@ export class LightningCssMinifyPlugin {
           key: ECacheKey.minify,
         })
 
-        const result = await this.transform({
+        const result = await this.transform!({
           filename: asset.name,
           code,
           minify: true,
