@@ -5,7 +5,7 @@ export default function ErrorBoundary({ error, reset }) {
     <>
       <p id="error-boundary-message">{error.message}</p>
       <p id="error-boundary-digest">{error.digest}</p>
-      <button id="reset" onClick={() => reset()}>
+      <button id="reset" onClick={reset}>
         Try again
       </button>
     </>

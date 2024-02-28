@@ -69,10 +69,8 @@ export default function Error({ error, reset }) {
     <div>
       <h2>Something went wrong!</h2>
       <button
-        onClick={
-          // Attempt to recover by trying to re-render the segment
-          () => reset()
-        }
+        // Attempt to recover by trying to re-render the segment
+        onClick={reset}
       >
         Try again
       </button>
@@ -115,7 +113,7 @@ export default function Error({
   return (
     <div>
       <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
+      <button onClick={reset}>Try again</button>
     </div>
   )
 }
@@ -128,7 +126,7 @@ export default function Error({ error, reset }) {
   return (
     <div>
       <h2>Something went wrong!</h2>
-      <button onClick={() => reset()}>Try again</button>
+      <button onClick={reset}>Try again</button>
     </div>
   )
 }
@@ -187,7 +185,7 @@ export default function GlobalError({
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => reset()}>Try again</button>
+        <button onClick={reset}>Try again</button>
       </body>
     </html>
   )
@@ -202,7 +200,7 @@ export default function GlobalError({ error, reset }) {
     <html>
       <body>
         <h2>Something went wrong!</h2>
-        <button onClick={() => reset()}>Try again</button>
+        <button onClick={reset}>Try again</button>
       </body>
     </html>
   )
