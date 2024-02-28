@@ -72,12 +72,10 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 
-once_cell = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
 tracing = { workspace = true }
-tracing-futures = "0.2.5"
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = {workspace = true}

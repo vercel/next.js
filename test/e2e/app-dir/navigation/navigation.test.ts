@@ -1,6 +1,6 @@
 import { createNextDescribe } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Request } from 'playwright'
+import type { Response } from 'playwright'
 
 createNextDescribe(
   'app dir - navigation',
@@ -15,7 +15,7 @@ createNextDescribe(
           `""`
         )
 
-        browser.elementById('set-query').click()
+        await browser.elementById('set-query').click()
 
         await retry(() =>
           expect(browser.elementById('query').text()).resolves.toEqual(
@@ -34,20 +34,21 @@ createNextDescribe(
           headers: Record<string, string>
         }> = []
 
-        const browser = await next.browser('/search-params?name=名')
-        async function requestHandler(req: Request) {
-          const res = await req.response()
-          if (!res) return
+        const browser = await next.browser('/search-params?name=名', {
+          beforePageLoad(page) {
+            page.on('response', async (res: Response) => {
+              requests.push({
+                pathname: new URL(res.url()).pathname,
+                ok: res.ok(),
+                headers: res.headers(),
+              })
+            })
+          },
+        })
 
-          requests.push({
-            pathname: new URL(req.url()).pathname,
-            ok: res.ok(),
-            headers: res.headers(),
-          })
-        }
-        browser.on('request', requestHandler)
         expect(await browser.elementById('name').text()).toBe('名')
         await browser.elementById('link').click()
+        await browser.waitForElementByCss('#set-query')
 
         await retry(() =>
           expect(requests).toContainEqual({
@@ -58,9 +59,6 @@ createNextDescribe(
             }),
           })
         )
-
-        browser.off('request', requestHandler)
-        await browser.close()
       })
 
       it('should not reset shallow url updates on prefetch', async () => {
@@ -610,7 +608,7 @@ createNextDescribe(
         // it doesn't repeatedly initiate the mpa navigation request
         it('should not continously initiate a mpa navigation to the same URL when router state changes', async () => {
           let requestCount = 0
-          const browser = await next.browser('/mpa-nav-test', {
+          await next.browser('/mpa-nav-test', {
             beforePageLoad(page) {
               page.on('request', (request) => {
                 const url = new URL(request.url())
@@ -621,8 +619,6 @@ createNextDescribe(
               })
             },
           })
-
-          await browser.waitForElementByCss('#link-to-slow-page')
 
           // wait a few seconds since prefetches are triggered in 1s intervals in the page component
           await waitFor(5000)
@@ -859,6 +855,29 @@ createNextDescribe(
           expect(await browser.elementByCss('body').text()).toContain(
             '[paramB] page'
           )
+        })
+      })
+    })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
         })
       })
     })
