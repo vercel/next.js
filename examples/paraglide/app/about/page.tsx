@@ -6,7 +6,7 @@ export function generateMetadata() {
   };
 }
 
-export default function Home() {
+export default function About() {
   return (
     <main>
       <h1>{m.about_page_title()}</h1>
