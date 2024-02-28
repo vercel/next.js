@@ -47,7 +47,10 @@ export function getClientStyleLoader({
     loader: MiniCssExtractPlugin.loader,
     options: {
       publicPath: `${assetPrefix}/_next/`,
-      esModule: false,
+      // Activating the mini-css-extract-plugin esmodules export
+      // allows webpack to optimize the module tree and to inline
+      // the css module class names directly into react components
+      esModule: true,
     },
   }
 }
