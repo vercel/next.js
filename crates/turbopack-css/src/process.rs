@@ -586,6 +586,7 @@ async fn process_content(
             swc_core::css::parser::parser::ParserConfig {
                 css_modules: true,
                 legacy_ie: true,
+                legacy_nesting: true,
                 ..Default::default()
             },
             &mut errors,
