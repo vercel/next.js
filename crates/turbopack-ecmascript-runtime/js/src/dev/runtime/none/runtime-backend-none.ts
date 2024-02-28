@@ -6,6 +6,7 @@
  */
 
 /// <reference path="../base/runtime-base.ts" />
+/// <reference path="../../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../../shared/require-type.d.ts" />
 
 type ChunkRunner = {
@@ -22,8 +23,16 @@ type ExternalRequire = (
 ) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
+interface TurbopackDevContext extends TurbopackDevBaseContext {
+  x: ExternalRequire;
+  y: ExternalImport;
+}
+
 function augmentContext(context: TurbopackDevBaseContext): TurbopackDevContext {
-  return context;
+  const nodejsContext = context as TurbopackDevContext;
+  nodejsContext.x = externalRequire;
+  nodejsContext.y = externalImport;
+  return nodejsContext;
 }
 
 async function loadWebAssembly(
