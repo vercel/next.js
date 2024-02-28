@@ -78,16 +78,19 @@ export function PseudoHtmlDiff({
           return
         }
         if (isHtmlTagsWarning && isRelatedTag) {
-          const TextWrap = isHighlightedTag ? 'b' : Fragment
           const codeLine = (
             <span>
               <span>{spaces}</span>
-              <TextWrap>
-                {'<'}
-                {component}
-                {'>'}
-                {'\n'}
-              </TextWrap>
+              <span
+                {...(isHighlightedTag
+                  ? {
+                      ['data-nextjs-container-errors-pseudo-html--tag-error']:
+                        true,
+                    }
+                  : undefined)}
+              >
+                {`<${component}>\n`}
+              </span>
             </span>
           )
           lastText = component
