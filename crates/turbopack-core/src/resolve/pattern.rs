@@ -62,6 +62,13 @@ impl Pattern {
         }
     }
 
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            Pattern::Constant(str) => Some(str.as_str()),
+            _ => None,
+        }
+    }
+
     pub fn has_constant_parts(&self) -> bool {
         match self {
             Pattern::Constant(_) => true,
