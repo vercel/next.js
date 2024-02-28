@@ -981,6 +981,7 @@ createNextDescribe(
         const res = await next.fetch('/encryption')
         const html = await res.text()
         expect(html).not.toContain('qwerty123')
+        expect(html).not.toContain('some-module-level-encryption-value')
       })
     })
 

@@ -829,10 +829,10 @@ async fn insert_next_shared_aliases(
     );
 
     import_map.insert_exact_alias(
-        "private-next-rsc-action-proxy",
+        "private-next-rsc-server-reference",
         request_to_import_mapping(
             project_path,
-            "next/dist/build/webpack/loaders/next-flight-loader/action-proxy",
+            "next/dist/build/webpack/loaders/next-flight-loader/server-reference",
         ),
     );
     import_map.insert_exact_alias(

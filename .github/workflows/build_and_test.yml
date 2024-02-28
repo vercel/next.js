@@ -5,6 +5,7 @@ on:
     branches: ['canary', 'next-14-1']
   pull_request:
     types: [opened, synchronize]
+    branches: ['canary', 'next-14-1']
 
 env:
   NAPI_CLI_VERSION: 2.14.7
