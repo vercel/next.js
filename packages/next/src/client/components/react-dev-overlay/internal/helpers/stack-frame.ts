@@ -1,37 +1,13 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrameResponse } from '../../server/middleware'
+import type { OriginalStackFrameResponse } from '../../server/shared'
 
-export type OriginalStackFrame =
-  | {
-      error: true
-      reason: string
-      external: false
-      expanded: false
-      sourceStackFrame: StackFrame
-      originalStackFrame: null
-      originalCodeFrame: null
-      sourcePackage?: string
-    }
-  | {
-      error: false
-      reason: null
-      external: false
-      expanded: boolean
-      sourceStackFrame: StackFrame
-      originalStackFrame: StackFrame
-      originalCodeFrame: string | null
-      sourcePackage?: string
-    }
-  | {
-      error: false
-      reason: null
-      external: true
-      expanded: false
-      sourceStackFrame: StackFrame
-      originalStackFrame: null
-      originalCodeFrame: null
-      sourcePackage?: string
-    }
+export interface OriginalStackFrame extends OriginalStackFrameResponse {
+  error: boolean
+  reason: string | null
+  external: boolean
+  expanded: boolean
+  sourceStackFrame: StackFrame
+}
 
 function getOriginalStackFrame(
   source: StackFrame,
@@ -99,6 +75,7 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
+      sourcePackage: null,
     })
   }
 
@@ -110,6 +87,7 @@ function getOriginalStackFrame(
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
+    sourcePackage: null,
   }))
 }
 

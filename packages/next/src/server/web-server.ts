@@ -11,7 +11,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate } from './lib/revalidate'
+import type { Revalidate, SwrDelta } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -266,6 +266,7 @@ export default class NextWebServer extends BaseServer<WebServerOptions> {
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
+      swrDelta: SwrDelta | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')

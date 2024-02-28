@@ -388,6 +388,8 @@ async function run(): Promise<void> {
       if (ciInfo.isCI) {
         // We don't use preferences here because the default value is @/* regardless of existing preferences
         program.importAlias = defaults.importAlias
+      } else if (process.argv.includes('--no-import-alias')) {
+        program.importAlias = defaults.importAlias
       } else {
         const styledImportAlias = blue('import alias')
 

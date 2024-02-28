@@ -129,6 +129,7 @@ describe('serverPatchReducer', () => {
       ],
     ])
 
+    const url = new URL('/linking/about', 'https://localhost') as any
     const state = createInitialRouterState({
       buildId,
       initialTree,
@@ -136,11 +137,11 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      location: new URL('/linking/about', 'https://localhost') as any,
+      location: url,
     })
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
-      flightData: flightDataForPatch,
+      serverResponse: [flightDataForPatch, undefined],
       previousTree: [
         '',
         {
@@ -155,7 +156,6 @@ describe('serverPatchReducer', () => {
         undefined,
         true,
       ],
-      overrideCanonicalUrl: undefined,
     }
 
     const newState = await serverPatchReducer(state, action)
@@ -165,6 +165,7 @@ describe('serverPatchReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -339,6 +340,7 @@ describe('serverPatchReducer', () => {
       shouldScroll: true,
     }
 
+    const url = new URL(initialCanonicalUrl, 'https://localhost') as any
     const state = createInitialRouterState({
       buildId,
       initialTree,
@@ -346,14 +348,14 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes,
-      location: new URL(initialCanonicalUrl, 'https://localhost') as any,
+      location: url,
     })
 
     const stateAfterNavigate = await navigateReducer(state, navigateAction)
 
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
-      flightData: flightDataForPatch,
+      serverResponse: [flightDataForPatch, undefined],
       previousTree: [
         '',
         {
@@ -368,7 +370,6 @@ describe('serverPatchReducer', () => {
         undefined,
         true,
       ],
-      overrideCanonicalUrl: undefined,
     }
 
     const newState = await serverPatchReducer(stateAfterNavigate, action)
@@ -378,6 +379,7 @@ describe('serverPatchReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -573,6 +575,7 @@ describe('serverPatchReducer', () => {
       </html>
     )
 
+    const url = new URL('/linking/about', 'https://localhost') as any
     const state = createInitialRouterState({
       buildId,
       initialTree,
@@ -580,22 +583,25 @@ describe('serverPatchReducer', () => {
       initialCanonicalUrl,
       initialSeedData: ['', {}, children],
       initialParallelRoutes: new Map(),
-      location: new URL('/linking/about', 'https://localhost') as any,
+      location: url,
     })
 
     const action: ServerPatchAction = {
       type: ACTION_SERVER_PATCH,
       // this flight data is intentionally completely unrelated to the existing tree
-      flightData: [
+      serverResponse: [
         [
-          'children',
-          'tree-patch-failure',
-          'children',
-          'new-page',
-          ['new-page', { children: ['__PAGE__', {}] }],
-          null,
-          null,
+          [
+            'children',
+            'tree-patch-failure',
+            'children',
+            'new-page',
+            ['new-page', { children: ['__PAGE__', {}] }],
+            null,
+            null,
+          ],
         ],
+        undefined,
       ],
       previousTree: [
         '',
@@ -611,7 +617,6 @@ describe('serverPatchReducer', () => {
         undefined,
         true,
       ],
-      overrideCanonicalUrl: undefined,
     }
 
     const newState = await serverPatchReducer(state, action)

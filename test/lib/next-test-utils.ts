@@ -755,6 +755,22 @@ export async function hasRedbox(browser: BrowserInterface): Promise<boolean> {
   return result
 }
 
+export async function hasErrorToast(
+  browser: BrowserInterface
+): Promise<boolean> {
+  return browser.eval(() => {
+    return Boolean(
+      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-toast]')
+      )
+    )
+  })
+}
+
+export async function waitForAndOpenRuntimeError(browser: BrowserInterface) {
+  return browser.waitForElementByCss('[data-nextjs-toast]').click()
+}
+
 export async function getRedboxHeader(browser: BrowserInterface) {
   return retry(
     () => {
@@ -823,7 +839,32 @@ export function getBrowserBodyText(browser: BrowserInterface) {
 }
 
 export function normalizeRegEx(src: string) {
-  return new RegExp(src).source.replace(/\^\//g, '^\\/')
+  return (
+    new RegExp(src).source
+      .replace(/\^\//g, '^\\/')
+      // normalize our ignores at the top-level so each
+      // snapshot doesn't need to be updated each time
+      .replace('(?!\\/_next\\/static)', '')
+      .replace('?(?:\\/)?$', '?$')
+      .replace('(?:\\/)?$', '?$')
+  )
+}
+
+export const normalizeRouteRegExes = (item: any) => {
+  const fields = [
+    'regex',
+    'routeRegex',
+    'namedRegex',
+    'namedDataRouteRegex',
+    'dataRouteRegex',
+  ]
+
+  for (const field of fields) {
+    if (typeof item[field] === 'string') {
+      item[field] = normalizeRegEx(item[field])
+    }
+  }
+  return item
 }
 
 function readJson(path: string) {
@@ -841,11 +882,11 @@ export function getPageFileFromBuildManifest(dir: string, page: string) {
     throw new Error(`No files for page ${page}`)
   }
 
-  const pageFile = pageFiles.find(
-    (file) =>
-      file.endsWith('.js') &&
-      file.includes(`pages${page === '' ? '/index' : page}`)
-  )
+  const pageFile = pageFiles[pageFiles.length - 1]
+  expect(pageFile).toEndWith('.js')
+  if (!process.env.TURBOPACK) {
+    expect(pageFile).toInclude(`pages${page === '' ? '/index' : page}`)
+  }
   if (!pageFile) {
     throw new Error(`No page file for page ${page}`)
   }

@@ -13,8 +13,8 @@ use turbopack_binding::{
             file_source::FileSource,
             ident::AssetIdent,
             issue::{
-                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, OptionStyledString,
-                StyledString,
+                Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage,
+                OptionStyledString, StyledString,
             },
             reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
             resolve::{
@@ -411,6 +411,7 @@ pub struct ExperimentalTurboConfig {
     pub loaders: Option<JsonValue>,
     pub rules: Option<IndexMap<String, RuleConfigItem>>,
     pub resolve_alias: Option<IndexMap<String, JsonValue>>,
+    pub resolve_extensions: Option<Vec<String>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
@@ -645,6 +646,9 @@ impl RemoveConsoleConfig {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct ResolveExtensions(Option<Vec<String>>);
+
 #[turbo_tasks::value_impl]
 impl NextConfig {
     #[turbo_tasks::function]
@@ -768,6 +772,20 @@ impl NextConfig {
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
         Ok(alias_map.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn resolve_extension(self: Vc<Self>) -> Result<Vc<ResolveExtensions>> {
+        let this = self.await?;
+        let Some(resolve_extensions) = this
+            .experimental
+            .turbo
+            .as_ref()
+            .and_then(|t| t.resolve_extensions.as_ref())
+        else {
+            return Ok(Vc::cell(None));
+        };
+        Ok(Vc::cell(Some(resolve_extensions.clone())))
     }
 
     #[turbo_tasks::function]
@@ -1069,8 +1087,8 @@ impl Issue for OutdatedConfigIssue {
     }
 
     #[turbo_tasks::function]
-    fn category(&self) -> Vc<String> {
-        Vc::cell("config".to_string())
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Config.into()
     }
 
     #[turbo_tasks::function]
