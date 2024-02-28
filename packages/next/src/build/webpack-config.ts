@@ -500,6 +500,15 @@ export default async function getBaseWebpackConfig(
       ].filter(Boolean)
     : []
 
+  const instrumentLayerLoaders = [
+    // When using Babel, we will have to add the SWC loader
+    // as an additional pass to handle RSC correctly.
+    // This will cause some performance overhead but
+    // acceptable as Babel will not be recommended.
+    swcServerLayerLoader,
+    babelLoader,
+  ].filter(Boolean)
+
   const middlewareLayerLoaders = [
     // When using Babel, we will have to use SWC to do the optimization
     // for middleware to tree shake the unused default optimized imports like "next/server".
@@ -1478,7 +1487,7 @@ export default async function getBaseWebpackConfig(
             {
               test: codeCondition.test,
               issuerLayer: WEBPACK_LAYERS.instrument,
-              use: appServerLayerLoaders,
+              use: instrumentLayerLoaders,
             },
             ...(hasAppDir
               ? [
