@@ -154,7 +154,7 @@ export default function Layout({
   admin: React.ReactNode
 }) {
   const role = checkUserRole()
-  return <>{role === 'admin' ? admin : user}</>
+  return <>{role === "admin" ? admin : user}</>
 }
 ```
 
@@ -163,7 +163,7 @@ import { checkUserRole } from '@/lib/auth'
 
 export default function Layout({ user, admin }) {
   const role = checkUserRole()
-  return <>{role === 'admin' ? admin : user}</>
+  return <>{role === "admin" ? admin : user}</>
 }
 ```
 
