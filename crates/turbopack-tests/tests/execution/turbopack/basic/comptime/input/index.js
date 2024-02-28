@@ -39,6 +39,32 @@ it("should not follow conditional references", () => {
   expect(func.toString()).not.toContain("import(");
 });
 
+function funcTenary() {
+  false ? require("fail") : undefined;
+  false ? import("fail") : undefined;
+  true ? require("./ok") : undefined;
+  true ? require("./ok") : require("fail");
+  true ? require("./ok") : (require("fail"), import("fail"));
+  true
+    ? require("./ok")
+    : (() => {
+        require("fail");
+        import("fail");
+      })();
+  const value = false
+    ? (() => {
+        require("fail");
+        import("fail");
+      })()
+    : require("./ok");
+}
+
+it("should not follow conditional tenary references", () => {
+  funcTenary();
+
+  expect(funcTenary.toString()).not.toContain("import(");
+});
+
 it("should allow to mutate objects", () => {
   const obj = { a: true, b: false };
   if (!obj.a) {
