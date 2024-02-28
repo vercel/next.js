@@ -384,6 +384,7 @@ export class ClientReferenceManifestPlugin {
       const checkedChunks = new Set()
 
       function recordChunkGroup(chunkGroup: ChunkGroup) {
+        // Ensure recursion is stopped if we've already checked this chunk group.
         if (checkedChunkGroups.has(chunkGroup)) return
         checkedChunkGroups.add(chunkGroup)
         // Only apply following logic to client module requests from client entry,
@@ -392,6 +393,7 @@ export class ClientReferenceManifestPlugin {
         // never be referenced by the server/client boundary.
         // This saves a lot of bytes in the manifest.
         chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+          // Ensure recursion is stopped if we've already checked this chunk.
           if (checkedChunks.has(chunk)) return
           checkedChunks.add(chunk)
           const entryMods =
@@ -439,6 +441,7 @@ export class ClientReferenceManifestPlugin {
           }
         })
 
+        // Walk through all children chunk groups too.
         for (const child of chunkGroup.childrenIterable) {
           recordChunkGroup(child)
         }
@@ -480,13 +483,14 @@ export class ClientReferenceManifestPlugin {
         entryCSSFiles: {},
       }
 
-      const segments = [...entryNameToGroupName(pageName).split('/'), 'page']
-      let group = ''
-      for (const segment of segments) {
-        for (const manifest of manifestsPerGroup.get(group) || []) {
-          mergeManifest(mergedManifest, manifest)
-        }
-        group += (group ? '/' : '') + segment
+      const rootManifests = manifestsPerGroup.get('') || []
+      for (const manifest of rootManifests) {
+        mergeManifest(mergedManifest, manifest)
+      }
+      // Bug: This includes the `app/page` files and root manifest files too.
+      const appHomeManifests = manifestsPerGroup.get('app') || []
+      for (const manifest of appHomeManifests) {
+        mergeManifest(mergedManifest, manifest)
       }
 
       const json = JSON.stringify(mergedManifest)
