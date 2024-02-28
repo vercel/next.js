@@ -2,14 +2,13 @@ use anyhow::Result;
 use turbo_tasks::{ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    condition::ContextCondition,
     environment::Environment,
     resolve::{
         options::{ImportMap, ResolvedMap},
         plugin::ResolvePlugin,
     },
 };
-
-use crate::condition::ContextCondition;
 
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]

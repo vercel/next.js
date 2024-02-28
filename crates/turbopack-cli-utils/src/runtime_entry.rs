@@ -9,7 +9,7 @@ use turbopack_core::{
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {

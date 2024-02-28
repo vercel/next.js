@@ -19,6 +19,7 @@ use turbopack_core::{
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
+use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
 
 use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
@@ -26,7 +27,6 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
-    resolve::{cjs_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]

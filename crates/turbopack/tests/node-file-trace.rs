@@ -33,7 +33,7 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     emit_with_completion, module_options::ModuleOptionsContext, rebase::RebasedAsset, register,
-    resolve_options_context::ResolveOptionsContext, ModuleAssetContext,
+    ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -43,6 +43,7 @@ use turbopack_core::{
     output::OutputAsset,
     reference_type::ReferenceType,
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;

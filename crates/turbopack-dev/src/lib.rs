@@ -15,5 +15,6 @@ pub fn register() {
     turbopack_core::register();
     turbopack_ecmascript::register();
     turbopack_ecmascript_runtime::register();
+    turbopack_resolve::register();
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

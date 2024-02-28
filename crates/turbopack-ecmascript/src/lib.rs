@@ -17,7 +17,6 @@ pub mod manifest;
 pub mod parse;
 mod path_visitor;
 pub mod references;
-pub mod resolve;
 pub mod side_effect_optimization;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
@@ -74,6 +73,8 @@ use turbopack_core::{
     source::Source,
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
 };
+// TODO remove this
+pub use turbopack_resolve::ecmascript as resolve;
 
 use self::{
     chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},

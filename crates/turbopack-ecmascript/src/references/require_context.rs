@@ -28,6 +28,7 @@ use turbopack_core::{
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
     source::Source,
 };
+use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
 
 use crate::{
     chunk::{
@@ -40,7 +41,6 @@ use crate::{
         pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
     },
-    resolve::{cjs_resolve, try_to_severity},
     utils::module_id_to_lit,
     CodeGenerateable, EcmascriptChunkPlaceable,
 };

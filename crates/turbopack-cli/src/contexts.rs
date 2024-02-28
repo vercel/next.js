@@ -4,18 +4,17 @@ use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
-    condition::ContextCondition,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         JsxTransformOptions, ModuleOptionsContext, ModuleRule, ModuleRuleCondition,
         ModuleRuleEffect,
     },
-    resolve_options_context::ResolveOptionsContext,
     ModuleAssetContext,
 };
 use turbopack_core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo},
+    condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     resolve::options::{ImportMap, ImportMapping},
@@ -29,6 +28,7 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[turbo_tasks::value(shared)]
 pub enum NodeEnv {

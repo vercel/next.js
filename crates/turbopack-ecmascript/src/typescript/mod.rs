@@ -1,5 +1,3 @@
-pub mod resolve;
-
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_tasks::{Value, ValueToString, Vc};
@@ -19,10 +17,12 @@ use turbopack_core::{
     },
     source::Source,
 };
-
-use self::resolve::{read_from_tsconfigs, read_tsconfigs, type_resolve};
-use super::resolve::cjs_resolve;
-use crate::resolve::apply_cjs_specific_options;
+// TODO remove this
+pub use turbopack_resolve::typescript as resolve;
+use turbopack_resolve::{
+    ecmascript::{apply_cjs_specific_options, cjs_resolve},
+    typescript::{read_from_tsconfigs, read_tsconfigs, type_resolve},
+};
 
 #[turbo_tasks::value]
 pub struct TsConfigModuleAsset {

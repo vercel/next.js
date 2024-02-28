@@ -15,9 +15,9 @@ use turbopack_core::{
     },
     source::Source,
 };
+use turbopack_resolve::ecmascript::apply_cjs_specific_options;
 
 use self::{parse::WebpackRuntime, references::module_references};
-use super::resolve::apply_cjs_specific_options;
 use crate::EcmascriptInputTransforms;
 
 pub mod parse;

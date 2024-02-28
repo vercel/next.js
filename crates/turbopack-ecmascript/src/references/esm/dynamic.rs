@@ -13,6 +13,7 @@ use turbopack_core::{
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
+use turbopack_resolve::ecmascript::{esm_resolve, try_to_severity};
 
 use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
@@ -20,7 +21,6 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
-    resolve::{esm_resolve, try_to_severity},
 };
 
 #[turbo_tasks::value]

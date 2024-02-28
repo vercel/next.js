@@ -16,10 +16,7 @@ use turbo_tasks_memory::{
     viz::graph::{visualize_stats_tree, wrap_html},
     MemoryBackend,
 };
-use turbopack::{
-    emit_with_completion, rebase::RebasedAsset, register,
-    resolve_options_context::ResolveOptionsContext,
-};
+use turbopack::{emit_with_completion, rebase::RebasedAsset, register};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -27,6 +24,7 @@ use turbopack_core::{
     file_source::FileSource,
     PROJECT_FILESYSTEM_NAME,
 };
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {

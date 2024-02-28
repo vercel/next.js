@@ -16,6 +16,7 @@ use turbopack_core::{
         origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
     },
 };
+use turbopack_resolve::ecmascript::try_to_severity;
 
 use super::base::ReferencedAsset;
 use crate::{
@@ -23,7 +24,6 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
-    resolve::try_to_severity,
     utils::module_id_to_lit,
 };
 

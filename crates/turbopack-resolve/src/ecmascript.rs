@@ -1,5 +1,3 @@
-pub mod node_native_binding;
-
 use anyhow::Result;
 use turbo_tasks::{Value, Vc};
 use turbopack_core::{
@@ -20,19 +18,26 @@ use turbopack_core::{
 /// package to control how it can be imported) and the "in" package (controlling
 /// how this package imports others) resolution options, so that they can be
 /// manipulated together.
-fn get_condition_maps(options: &mut ResolveOptions) -> Vec<&mut ResolutionConditions> {
-    let mut condition_maps = Vec::with_capacity(2);
-    for item in options.into_package.iter_mut() {
-        if let ResolveIntoPackage::ExportsField { conditions, .. } = item {
-            condition_maps.push(conditions);
-        }
-    }
-    for item in options.in_package.iter_mut() {
-        if let ResolveInPackage::ImportsField { conditions, .. } = item {
-            condition_maps.push(conditions);
-        }
-    }
-    condition_maps
+fn get_condition_maps(
+    options: &mut ResolveOptions,
+) -> impl Iterator<Item = &mut ResolutionConditions> {
+    options
+        .into_package
+        .iter_mut()
+        .filter_map(|item| {
+            if let ResolveIntoPackage::ExportsField { conditions, .. } = item {
+                Some(conditions)
+            } else {
+                None
+            }
+        })
+        .chain(options.in_package.iter_mut().filter_map(|item| {
+            if let ResolveInPackage::ImportsField { conditions, .. } = item {
+                Some(conditions)
+            } else {
+                None
+            }
+        }))
 }
 
 #[turbo_tasks::function]
