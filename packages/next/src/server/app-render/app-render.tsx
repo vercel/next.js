@@ -265,6 +265,7 @@ async function generateFlight(
       tree: loaderTree,
       pathname: urlPathname,
       searchParams: providedSearchParams,
+      trailingSlash: ctx.renderOpts.trailingSlash,
       getDynamicParamFromSegment,
       appUsingSizeAdjustment,
     })
@@ -391,6 +392,7 @@ async function ReactServerApp({
     errorType: asNotFound ? 'not-found' : undefined,
     pathname: urlPathname,
     searchParams: providedSearchParams,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     getDynamicParamFromSegment: getDynamicParamFromSegment,
     appUsingSizeAdjustment: appUsingSizeAdjustment,
   })
@@ -467,6 +469,7 @@ async function ReactServerError({
   const [MetadataTree] = createMetadataComponents({
     tree,
     pathname: urlPathname,
+    trailingSlash: ctx.renderOpts.trailingSlash,
     errorType,
     searchParams: providedSearchParams,
     getDynamicParamFromSegment,

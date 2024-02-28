@@ -22,6 +22,7 @@ const cacheHeader = {
 
 type MetadataRouteLoaderOptions = {
   page: string
+  filePath: string
   isDynamic: '1' | '0'
 }
 
@@ -46,7 +47,6 @@ function getContentType(resourcePath: string) {
   return 'text/plain'
 }
 
-// Strip metadata resource query string from `import.meta.url` to make sure the fs.readFileSync get the right path.
 async function getStaticAssetRouteCode(
   resourcePath: string,
   fileBaseName: string
@@ -58,6 +58,7 @@ async function getStaticAssetRouteCode(
       ? cacheHeader.none
       : cacheHeader.longCache
   const code = `\
+/* static asset route */
 import { NextResponse } from 'next/server'
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
@@ -82,6 +83,7 @@ export const dynamic = 'force-static'
 
 function getDynamicTextRouteCode(resourcePath: string) {
   return `\
+/* dynamic asset route */
 import { NextResponse } from 'next/server'
 import handler from ${JSON.stringify(resourcePath)}
 import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
@@ -108,6 +110,7 @@ export async function GET() {
 // <metadata-image>/[id]/route.js
 function getDynamicImageRouteCode(resourcePath: string) {
   return `\
+/* dynamic image route */
 import { NextResponse } from 'next/server'
 import * as userland from ${JSON.stringify(resourcePath)}
 
@@ -159,6 +162,7 @@ async function getDynamicSiteMapRouteCode(
     page.includes('[__metadata_id__]')
   ) {
     staticGenerationCode = `\
+/* dynamic sitemap route */ 
 export async function generateStaticParams() {
   const sitemaps = generateSitemaps ? await generateSitemaps() : []
   const params = []
@@ -224,26 +228,25 @@ ${staticGenerationCode}
 `
   return code
 }
-// `import.meta.url` is the resource name of the current module.
+
 // When it's static route, it could be favicon.ico, sitemap.xml, robots.txt etc.
 // TODO-METADATA: improve the cache control strategy
 const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLoaderOptions> =
   async function () {
-    const { resourcePath } = this
-    const { page, isDynamic } = this.getOptions()
-    const { name: fileBaseName } = getFilenameAndExtension(resourcePath)
+    const { page, isDynamic, filePath } = this.getOptions()
+    const { name: fileBaseName } = getFilenameAndExtension(filePath)
 
     let code = ''
     if (isDynamic === '1') {
       if (fileBaseName === 'robots' || fileBaseName === 'manifest') {
-        code = getDynamicTextRouteCode(resourcePath)
+        code = getDynamicTextRouteCode(filePath)
       } else if (fileBaseName === 'sitemap') {
-        code = await getDynamicSiteMapRouteCode(resourcePath, page, this)
+        code = await getDynamicSiteMapRouteCode(filePath, page, this)
       } else {
-        code = getDynamicImageRouteCode(resourcePath)
+        code = getDynamicImageRouteCode(filePath)
       }
     } else {
-      code = await getStaticAssetRouteCode(resourcePath, fileBaseName)
+      code = await getStaticAssetRouteCode(filePath, fileBaseName)
     }
 
     return code

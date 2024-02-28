@@ -219,6 +219,7 @@ type BaseRenderOpts = {
   poweredByHeader: boolean
   buildId: string
   generateEtags: boolean
+  trailingSlash: boolean
   runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   canonicalBase: string
@@ -506,6 +507,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     }
 
     this.renderOpts = {
+      trailingSlash: this.nextConfig.trailingSlash,
       deploymentId: this.nextConfig.experimental.deploymentId,
       strictNextHead: !!this.nextConfig.experimental.strictNextHead,
       poweredByHeader: this.nextConfig.poweredByHeader,
