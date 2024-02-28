@@ -11,8 +11,9 @@ import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
 import type { WebpackLayerName } from '../lib/constants'
 import {
   isWebpackAppLayer,
+  isWebpackClientOnlyLayer,
   isWebpackDefaultLayer,
-  isWebpackServerLayer,
+  isWebpackServerOnlyLayer,
 } from './utils'
 import type { CustomRoutes } from '../lib/load-custom-routes.js'
 import {
@@ -83,6 +84,7 @@ import {
   createAppRouterApiAliases,
 } from './create-compiler-aliases'
 import { hasCustomExportOutput } from '../export/utils'
+import { MergeCssChunksPlugin } from './webpack/plugins/merge-css-chunks-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -969,6 +971,14 @@ export default async function getBaseWebpackConfig(
           return false
         }
 
+        if (isNodeServer || isEdgeServer) {
+          return {
+            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
+            chunks: 'all',
+            minChunks: 2,
+          }
+        }
+
         const frameworkCacheGroup = {
           chunks: 'all' as const,
           name: 'framework',
@@ -985,21 +995,6 @@ export default async function getBaseWebpackConfig(
           priority: 40,
           // Don't let webpack eliminate this chunk (prevents this chunk from
           // becoming a part of the commons chunk)
-          enforce: true,
-        }
-
-        const nextRuntimeCacheGroup = {
-          chunks: 'all' as const,
-          name: 'next-runtime',
-          test(module: any) {
-            const resource = module.nameForCondition?.()
-            return resource
-              ? nextFrameworkPaths.some((pkgPath) =>
-                  resource.startsWith(pkgPath)
-                )
-              : false
-          },
-          priority: 30,
           enforce: true,
         }
 
@@ -1043,19 +1038,6 @@ export default async function getBaseWebpackConfig(
           priority: 30,
           minChunks: 1,
           reuseExistingChunk: true,
-        }
-
-        if (isNodeServer || isEdgeServer) {
-          return {
-            filename: `${isEdgeServer ? 'edge-chunks/' : ''}[name].js`,
-            cacheGroups: {
-              nextRuntime: nextRuntimeCacheGroup,
-              framework: frameworkCacheGroup,
-              lib: libCacheGroup,
-            },
-            chunks: 'all',
-            minChunks: 2,
-          }
         }
 
         // client chunking
@@ -1230,7 +1212,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             or: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1242,7 +1224,7 @@ export default async function getBaseWebpackConfig(
         {
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1259,7 +1241,7 @@ export default async function getBaseWebpackConfig(
           ],
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
-            or: WEBPACK_LAYERS.GROUP.server,
+            or: WEBPACK_LAYERS.GROUP.serverOnly,
           },
           options: {
             message:
@@ -1274,7 +1256,7 @@ export default async function getBaseWebpackConfig(
           loader: 'next-invalid-import-error-loader',
           issuerLayer: {
             not: [
-              ...WEBPACK_LAYERS.GROUP.server,
+              ...WEBPACK_LAYERS.GROUP.serverOnly,
               ...WEBPACK_LAYERS.GROUP.nonClientServerTarget,
             ],
           },
@@ -1328,10 +1310,19 @@ export default async function getBaseWebpackConfig(
               {
                 issuerLayer: isWebpackAppLayer,
                 resolve: {
-                  alias: {
-                    ...createNextApiEsmAliases(),
-                    ...createAppRouterApiAliases(),
-                  },
+                  alias: createNextApiEsmAliases(),
+                },
+              },
+              {
+                issuerLayer: isWebpackServerOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(true),
+                },
+              },
+              {
+                issuerLayer: isWebpackClientOnlyLayer,
+                resolve: {
+                  alias: createAppRouterApiAliases(false),
                 },
               },
             ]
@@ -1339,7 +1330,7 @@ export default async function getBaseWebpackConfig(
         ...(hasAppDir && !isClient
           ? [
               {
-                issuerLayer: isWebpackServerLayer,
+                issuerLayer: isWebpackServerOnlyLayer,
                 test: {
                   // Resolve it if it is a source code file, and it has NOT been
                   // opted out of bundling.
@@ -1402,7 +1393,7 @@ export default async function getBaseWebpackConfig(
                 oneOf: [
                   {
                     exclude: asyncStoragesRegex,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     test: {
                       // Resolve it if it is a source code file, and it has NOT been
                       // opted out of bundling.
@@ -1493,7 +1484,7 @@ export default async function getBaseWebpackConfig(
               ? [
                   {
                     test: codeCondition.test,
-                    issuerLayer: isWebpackServerLayer,
+                    issuerLayer: isWebpackServerOnlyLayer,
                     exclude: asyncStoragesRegex,
                     use: appServerLayerLoaders,
                   },
@@ -1897,6 +1888,7 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
+      !dev && isClient && new MergeCssChunksPlugin(),
       !dev &&
         isClient &&
         new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(

@@ -503,7 +503,7 @@ export type StyledString =
 
 export interface Issue {
   severity: string
-  category: string
+  stage: string
   filePath: string
   title: StyledString
   description?: StyledString
