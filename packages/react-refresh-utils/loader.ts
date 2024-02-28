@@ -10,7 +10,7 @@ refreshModuleRuntime = refreshModuleRuntime
   // Given that the import above executes the module we need to make sure it does not crash on `import.meta` not being allowed.
   .replace('global.importMeta', 'import.meta')
 
-let commonJsrefreshModuleRuntime = refreshModuleRuntime.replace(
+const commonJsrefreshModuleRuntime = refreshModuleRuntime.replace(
   'import.meta.webpackHot',
   'module.hot'
 )
