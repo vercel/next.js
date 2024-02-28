@@ -1,5 +1,4 @@
 import type { LoaderContext } from 'next/dist/compiled/webpack/webpack'
-import type { ILightningCssLoaderConfig } from './interface'
 import camelCase from '../../css-loader/src/camelcase'
 import {
   dashesCamelCase,
@@ -39,10 +38,7 @@ export interface ApiReplacement {
   hash?: string
 }
 
-export function getImportCode(
-  imports: CssImport[],
-  options: ILightningCssLoaderConfig
-) {
+export function getImportCode(imports: CssImport[], options: any) {
   let code = ''
 
   for (const item of imports) {
@@ -68,8 +64,8 @@ export function getModuleCode(
   result: { map: any; css: any },
   api: ApiParam[],
   replacements: ApiReplacement[],
-  options: ILightningCssLoaderConfig,
-  loaderContext: LoaderContext<ILightningCssLoaderConfig>
+  options: any,
+  loaderContext: LoaderContext<any>
 ) {
   if (options.modules.exportOnlyLocals === true) {
     return ''
@@ -128,7 +124,7 @@ export function getModuleCode(
 export function getExportCode(
   exports: CssExport[],
   replacements: ApiReplacement[],
-  options: ILightningCssLoaderConfig
+  options: any
 ) {
   let code = '// Exports\n'
   let localsCode = ''

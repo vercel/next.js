@@ -1,12 +1,4 @@
 import type { LoaderContext } from 'webpack'
-import type { ILightningCssLoaderConfig, VisitorOptions } from './interface'
-import { ECacheKey } from './interface'
-import {
-  composeVisitors,
-  transform as transformCss,
-  type Url,
-  type Visitor,
-} from 'lightningcss'
 import { getTargets } from './utils'
 import {
   getImportCode,
@@ -26,19 +18,20 @@ import {
   resolveRequests,
 } from '../../css-loader/src/utils'
 import { stringifyRequest } from '../../../stringify-request'
+import { ECacheKey } from './interface'
 
 const encoder = new TextEncoder()
 
 const moduleRegExp = /\.module\.\w+$/i
 
 function createUrlAndImportVisitor(
-  visitorOptions: VisitorOptions,
+  visitorOptions: any,
   apis: ApiParam[],
   imports: CssImport[],
   replacements: ApiReplacement[],
   replacedUrls: Map<number, string>,
   replacedImportUrls: Map<number, string>
-): Visitor<{}> {
+) {
   const importUrlToNameMap = new Map<string, string>()
 
   let hasUrlImportHelper = false
@@ -47,7 +40,7 @@ function createUrlAndImportVisitor(
   let urlIndex = -1
   let importUrlIndex = -1
 
-  function handleUrl(u: Url): Url {
+  function handleUrl(u: { url: string; loc: unknown }): unknown {
     let url = u.url
     const needKeep = visitorOptions.urlFilter(url)
 
@@ -130,7 +123,7 @@ function createUrlAndImportVisitor(
 
   return {
     Rule: {
-      import(node) {
+      import(node: any) {
         if (visitorOptions.importFilter) {
           const needKeep = visitorOptions.importFilter(
             node.value.url,
@@ -184,7 +177,7 @@ function createUrlAndImportVisitor(
         return { type: 'ignored', value: '' }
       },
     },
-    Url(node) {
+    Url(node: any) {
       return handleUrl(node)
     },
   }
@@ -202,13 +195,13 @@ function createIcssVisitor({
   replacements: ApiReplacement[]
   replacedUrls: Map<number, string>
   urlHandler: (url: any) => string
-}): Visitor<{}> {
+}) {
   let index = -1
   let replacementIndex = -1
 
   return {
     Declaration: {
-      composes(node) {
+      composes(node: any) {
         if (node.property === 'unparsed') {
           return
         }
@@ -269,7 +262,7 @@ function createIcssVisitor({
 
 const LOADER_NAME = `lightningcss-loader`
 export async function LightningCssLoader(
-  this: LoaderContext<ILightningCssLoaderConfig>,
+  this: LoaderContext<any>,
   source: string,
   prevMap?: Record<string, any>
 ): Promise<void> {
@@ -304,11 +297,54 @@ export async function LightningCssLoader(
       ),
     })
   }
-  const transform = implementation?.transformCss ?? transformCss
+  const { loadBindings } = require('next/dist/build/swc')
+
+  const transform =
+    implementation?.transformCss ??
+    (await loadBindings()).css.lightning.transform
 
   const replacedUrls = new Map<number, string>()
   const icssReplacedUrls = new Map<number, string>()
   const replacedImportUrls = new Map<number, string>()
+
+  const urlImportVisitor = createUrlAndImportVisitor(
+    {
+      urlHandler: (url: any) =>
+        stringifyRequest(
+          this,
+          getPreRequester(this)(options.importLoaders ?? 0) + url
+        ),
+      urlFilter: getFilter(options.url, this.resourcePath),
+      importFilter: getFilter(options.import, this.resourcePath),
+
+      context: this.context,
+    },
+    apis,
+    imports,
+    replacements,
+    replacedUrls,
+    replacedImportUrls
+  )
+
+  const icssVisitor = createIcssVisitor({
+    apis,
+    imports: icssImports,
+    replacements,
+    replacedUrls: icssReplacedUrls,
+    urlHandler: (url: string) =>
+      stringifyRequest(
+        this,
+        getPreRequester(this)(options.importLoaders) + url
+      ),
+  })
+
+  // This works by returned visitors are not conflicting.
+  // naive workaround for composeVisitors, as we do not directly depends on lightningcss's npm pkg
+  // but next-swc provides bindings
+  const visitor = {
+    ...urlImportVisitor,
+    ...icssVisitor,
+  }
 
   try {
     const {
@@ -317,37 +353,7 @@ export async function LightningCssLoader(
       exports: moduleExports,
     } = transform({
       ...opts,
-      visitor: composeVisitors([
-        createUrlAndImportVisitor(
-          {
-            urlHandler: (url) =>
-              stringifyRequest(
-                this,
-                getPreRequester(this)(options.importLoaders ?? 0) + url
-              ),
-            urlFilter: getFilter(options.url, this.resourcePath),
-            importFilter: getFilter(options.import, this.resourcePath),
-
-            context: this.context,
-          },
-          apis,
-          imports,
-          replacements,
-          replacedUrls,
-          replacedImportUrls
-        ),
-        createIcssVisitor({
-          apis,
-          imports: icssImports,
-          replacements,
-          replacedUrls: icssReplacedUrls,
-          urlHandler: (url: string) =>
-            stringifyRequest(
-              this,
-              getPreRequester(this)(options.importLoaders) + url
-            ),
-        }),
-      ]),
+      visitor,
       cssModules:
         options.modules && moduleRegExp.test(this.resourcePath)
           ? {
