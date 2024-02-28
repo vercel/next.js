@@ -173,6 +173,12 @@ export interface Binding {
   teardownTraceSubscriber?: any
   initHeapProfiler?: any
   teardownHeapProfiler?: any
+  css: {
+    lightning: {
+      transform(transformOptions: any): Promise<any>
+      transformStyleAttr(attrOptions: any): Promise<any>
+    }
+  }
 }
 
 export async function loadBindings(
@@ -1443,6 +1449,14 @@ function loadNative(importPath?: string) {
           bindings.mdxCompile(src, toBuffer(getMdxOptions(options))),
         compileSync: (src: string, options: any) =>
           bindings.mdxCompileSync(src, toBuffer(getMdxOptions(options))),
+      },
+      css: {
+        lightning: {
+          transform: (transformOptions: any) =>
+            bindings.lightningCssTransform(transformOptions),
+          transformStyleAttr: (transformAttrOptions: any) =>
+            bindings.lightningCssTransformStyleAttribute(transformAttrOptions),
+        },
       },
     }
     return nativeBindings
