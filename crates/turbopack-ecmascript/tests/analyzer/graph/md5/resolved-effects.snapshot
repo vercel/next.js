@@ -1,5 +1,9 @@
 0 -> 1 conditional = (???*0* == "string")
-- *0* unsupported expression
+- *0* typeof((???*1* | ???*2*))
+  ⚠️  nested operation
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *2* unknown new expression
   ⚠️  This value might have side effects
 
 1 -> 2 free var = FreeVar(unescape)

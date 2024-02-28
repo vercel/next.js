@@ -528,20 +528,14 @@ Ee = (...) => (undefined | te(b))
 Ef = (...) => (
  || ("textarea" === a)
  || ("noscript" === a)
- || ("string" === ???*0*)
- || ("number" === ???*1*)
+ || ("string" === typeof(b["children"]))
+ || ("number" === typeof(b["children"]))
  || (
-     && ("object" === ???*2*)
+     && ("object" === typeof(b["dangerouslySetInnerHTML"]))
      && (null !== b["dangerouslySetInnerHTML"])
      && (null != b["dangerouslySetInnerHTML"]["__html"])
     )
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
 
 Eg = (...) => undefined
 
@@ -579,10 +573,8 @@ Fd = rd(Ed)
 
 Fe = (...) => (undefined | te(b))
 
-Ff = (("function" === ???*0*) ? FreeVar(setTimeout) : ???*1*)
+Ff = (("function" === typeof(FreeVar(setTimeout))) ? FreeVar(setTimeout) : ???*0*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Fg = (...) => undefined
@@ -622,10 +614,8 @@ Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) &
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-Gf = (("function" === ???*0*) ? FreeVar(clearTimeout) : ???*1*)
+Gf = (("function" === typeof(FreeVar(clearTimeout))) ? FreeVar(clearTimeout) : ???*0*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Gg = (...) => (!(1) | ???*0* | !(0))
@@ -653,14 +643,10 @@ Hc = (???*0* | *anonymous function 128133*)
 
 Hd = rd(Gd)
 
-He = (("function" === ???*0*) ? FreeVar(Object)["is"] : Ge)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+He = (("function" === typeof(FreeVar(Object)["is"])) ? FreeVar(Object)["is"] : Ge)
 
-Hf = (("function" === ???*0*) ? FreeVar(Promise) : ???*1*)
+Hf = (("function" === typeof(FreeVar(Promise))) ? FreeVar(Promise) : ???*0*)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 Hg = (...) => undefined
@@ -709,16 +695,12 @@ J#431 = (...) => (
   | ???*0*
   | n(a, d, f, h)
   | t(a, d, f, h)
-  | (((("string" === ???*1*) && ("" !== f)) || ("number" === ???*2*)) ? ???*3* : c(a, d))
+  | (((("string" === typeof(f)) && ("" !== f)) || ("number" === typeof(f))) ? ???*1* : c(a, d))
 )
 - *0* J(a, d, l(f["_payload"]), h)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* g(a)
+- *1* g(a)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
@@ -738,11 +720,7 @@ Jd = rd(Id)
 
 Je = (...) => a
 
-Jf = (("function" === ???*0*) ? FreeVar(queueMicrotask) : (("undefined" !== ???*1*) ? *anonymous function 45964* : Ff))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+Jf = (("function" === typeof(FreeVar(queueMicrotask))) ? FreeVar(queueMicrotask) : (("undefined" !== typeof(Hf)) ? *anonymous function 45964* : Ff))
 
 Jg = (...) => undefined
 
@@ -771,9 +749,7 @@ K = (0 | ???*0* | e | c | b | c | h | e)
 - *0* unsupported assign operation
   ⚠️  This value might have side effects
 
-Ka = (...) => (null | (("function" === ???*0*) ? a : null))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Ka = (...) => (null | (("function" === typeof(a)) ? a : null))
 
 Kb = (...) => (null | c)
 
@@ -829,9 +805,7 @@ Lh = (...) => undefined
 
 Li = (...) => {"value": a, "source": null, "stack": ((null != c) ? c : null), "digest": ((null != b) ? b : null)}
 
-Lj = (("function" === ???*0*) ? FreeVar(WeakSet) : FreeVar(Set))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Lj = (("function" === typeof(FreeVar(WeakSet))) ? FreeVar(WeakSet) : FreeVar(Set))
 
 Lk = (...) => a
 
@@ -944,9 +918,7 @@ Ng = (null | a)
 
 Nh = []
 
-Ni = (("function" === ???*0*) ? FreeVar(WeakMap) : FreeVar(Map))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Ni = (("function" === typeof(FreeVar(WeakMap))) ? FreeVar(WeakMap) : FreeVar(Map))
 
 Nj = (...) => undefined
 
@@ -2309,12 +2281,10 @@ a#65 = (
   | arguments[0]
   | (
      || a
-     || (("undefined" !== ???*0*) ? FreeVar(document) : ???*1*)
+     || (("undefined" !== typeof(FreeVar(document))) ? FreeVar(document) : ???*0*)
     )
 )
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 a#665 = (arguments[0] | b["flags"] | b["memoizedState"])
@@ -3522,9 +3492,10 @@ c#254 = (Je(a) | c["nextSibling"] | c["parentNode"] | ???*0* | Je(c))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-c#261 = (("string" === ???*0*) | !(1))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+c#261 = (
+  | ("string" === typeof(b["contentWindow"]["location"]["href"]))
+  | !(1)
+)
 
 c#266 = (a["focusedElem"] | 0 | ???*0*)
 - *0* updated with update expression
@@ -4935,9 +4906,7 @@ eg = (null | [a] | eg["slice"]((a + 1)))
 
 eh = (...) => undefined
 
-ei = (...) => (("function" === ???*0*) ? b(a) : b)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ei = (...) => (("function" === typeof(b)) ? b(a) : b)
 
 ej = (...) => (???*0* | b["child"])
 - *0* null
@@ -5499,9 +5468,10 @@ h#539 = f(g, c)
 
 h#601 = (b["memoizedProps"] | ($g || oh(b, c, h, d, r, k, l)))
 
-h#605 = ((g && ("function" !== ???*0*)) ? null : d["render"]())
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+h#605 = ((
+ && g
+ && ("function" !== typeof(c["getDerivedStateFromError"]))
+) ? null : d["render"]())
 
 h#609 = (
   | ???*0*
@@ -5579,10 +5549,8 @@ hc = ca["unstable_NormalPriority"]
 
 hd = (...) => (undefined | FreeVar(undefined))
 
-he = (...) => ((("object" === ???*0*) && ???*1*) ? a["data"] : null)
+he = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 hf = ef[gf]
@@ -5601,13 +5569,11 @@ hk = (...) => undefined
 
 hl = (...) => (undefined | null | a["child"]["stateNode"])
 
-ia = !((("undefined" === ???*0*) || ("undefined" === ???*1*) || ("undefined" === ???*2*)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
+ia = !((
+ || ("undefined" === typeof(FreeVar(window)))
+ || ("undefined" === typeof(FreeVar(window)["document"]))
+ || ("undefined" === typeof(FreeVar(window)["document"]["createElement"]))
+))
 
 ib = (...) => undefined
 
@@ -5959,9 +5925,7 @@ lj = (...) => undefined
 
 lk = (...) => undefined
 
-ll = (("function" === ???*0*) ? FreeVar(reportError) : *anonymous function 126145*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+ll = (("function" === typeof(FreeVar(reportError))) ? FreeVar(reportError) : *anonymous function 126145*)
 
 m#125 = ???*0*
 - *0* m
@@ -5984,12 +5948,11 @@ m#494 = l["lane"]
 
 m#601 = (
   | c["getDerivedStateFromProps"]
-  | (("function" === ???*0*) || ("function" === ???*1*))
+  | (
+     || ("function" === typeof(y))
+     || ("function" === typeof(g["getSnapshotBeforeUpdate"]))
+    )
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
 
 m#673 = (0 | ???*0*)
 - *0* updated with update expression
@@ -6137,9 +6100,7 @@ of = `__reactEvents$${Nf}`
 
 og = []
 
-oh = (...) => (("function" === ???*0*) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+oh = (...) => (("function" === typeof(a["shouldComponentUpdate"])) ? a["shouldComponentUpdate"](d, f, g) : ((b["prototype"] && b["prototype"]["isPureReactComponent"]) ? (!(Ie(c, d)) || !(Ie(e, f))) : !(0)))
 
 oi = (...) => (undefined | !(He(a, c)) | !(0))
 
@@ -6257,13 +6218,12 @@ q#494 = {
 }
 
 q#601 = (
-  | (("function" === ???*0*) || ("function" === ???*1*))
+  | (
+     || ("function" === typeof(m))
+     || ("function" === typeof(g["getSnapshotBeforeUpdate"]))
+    )
   | b["pendingProps"]
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
 
 q#673 = (a | y | r)
 
@@ -6307,9 +6267,13 @@ qk = (null | b)
 
 ql = (...) => undefined
 
-r#404 = (h["lane"] | b | (("function" === ???*0*) ? n["call"](y, q, r) : n) | e["effects"] | h)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+r#404 = (
+  | h["lane"]
+  | b
+  | (("function" === typeof(n)) ? n["call"](y, q, r) : n)
+  | e["effects"]
+  | h
+)
 
 r#431 = (...) => (
   | ((null !== e) ? null : h(a, b, `${c}`, d))
@@ -6339,11 +6303,7 @@ r#883 = m["sibling"]
 
 ra = /[\-:]([a-z])/g
 
-rb = (...) => (((null == b) || ("boolean" === ???*0*) || ("" === b)) ? "" : ((c || ("number" !== ???*1*) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+rb = (...) => (((null == b) || ("boolean" === typeof(b)) || ("" === b)) ? "" : ((c || ("number" !== typeof(b)) || (0 === b) || (pb["hasOwnProperty"](a) && pb[a])) ? `${b}`["trim"]() : `${b}px`))
 
 rc = (64 | ???*0*)
 - *0* unsupported assign operation
@@ -6573,9 +6533,7 @@ v = (...) => undefined
 
 va = FreeVar(Symbol)["for"]("react.element")
 
-vb = (...) => (undefined | ("string" === ???*0*) | !(1) | !(0))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+vb = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))
 
 vc = (...) => (undefined | (b + 250) | (b + 5000) | ???*0*)
 - *0* unsupported expression
@@ -6762,10 +6720,8 @@ yd = (???*0* | a)
 - *0* yd
   ⚠️  pattern without value
 
-ye = (???*0* | ("function" === ???*1*))
+ye = (???*0* | ("function" === typeof(ze["oninput"])))
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 yf = /\u0000|\uFFFD/g
@@ -6808,9 +6764,7 @@ zd = (...) => Pd
 
 ze = FreeVar(document)["createElement"]("div")
 
-zf = (...) => (("string" === ???*0*) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+zf = (...) => (("string" === typeof(a)) ? a : `${a}`)["replace"](xf, "\n")["replace"](yf, "")
 
 zg = (null | [a])
 
