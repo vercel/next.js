@@ -238,7 +238,6 @@ async fn base_resolve_options(
                 field: "main".to_string(),
                 extensions: None,
             });
-            resolve_into.push(ResolveIntoPackage::Default("index".to_string()));
             resolve_into
         },
         in_package: {

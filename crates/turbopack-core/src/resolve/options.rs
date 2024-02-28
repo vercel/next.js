@@ -71,8 +71,6 @@ pub enum ResolveIntoPackage {
         field: String,
         extensions: Option<Vec<String>>,
     },
-    /// Default behavior of using the index.js file at the root of the package.
-    Default(String),
 }
 
 // The different ways to resolve a request withing a package
