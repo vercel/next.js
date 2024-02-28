@@ -41,7 +41,7 @@ for (const { app, src, pathname, text } of [
       skipDeployment: true,
       packageJson: {
         scripts: {
-          'setup-dir': `rm -rf ${oppositeDir}${
+          'setup-dir': `mv instrumentation-minimal.ts instrumentation.ts; rm -rf ${oppositeDir}${
             src
               ? `; mkdir src; mv ${curDir} src/; mv instrumentation.ts src/`
               : ''
