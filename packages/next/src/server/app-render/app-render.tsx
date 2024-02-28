@@ -81,6 +81,7 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { useFlightResponse } from './use-flight-response'
 import { isStaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { createServerModuleMap } from './action-utils'
+import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -989,18 +990,17 @@ async function renderToHTMLOrFlightImpl(
         // a suspense boundary.
         const shouldBailoutToCSR = isBailoutToCSRError(err)
         if (shouldBailoutToCSR) {
-          console.log()
-
+          const stack = getStackWithoutErrorMessage(err)
           if (renderOpts.experimental.missingSuspenseWithCSRBailout) {
             error(
-              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout`
+              `${err.reason} should be wrapped in a suspense boundary at page "${pagePath}". Read more: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout\n${stack}`
             )
 
             throw err
           }
 
           warn(
-            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering`
+            `Entire page "${pagePath}" deopted into client-side rendering due to "${err.reason}". Read more: https://nextjs.org/docs/messages/deopted-into-client-rendering\n${stack}`
           )
         }
 

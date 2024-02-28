@@ -53,6 +53,7 @@ fn test(input: &Path, minify: bool) {
                                 tsx: true,
                                 ..Default::default()
                             })),
+                            external_helpers: true.into(),
                             ..Default::default()
                         },
                         ..Default::default()

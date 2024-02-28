@@ -166,6 +166,7 @@ describe('serverPatchReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
@@ -349,6 +350,7 @@ describe('serverPatchReducer', () => {
         "buildId": "development",
         "cache": {
           "lazyData": null,
+          "lazyDataResolved": false,
           "parallelRoutes": Map {
             "children" => Map {
               "linking" => {
