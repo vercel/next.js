@@ -13,7 +13,7 @@ export function Header({ children }: { children: React.ReactNode }) {
         borderBottom: "1px solid black",
       }}
     >
-      <div style={{ display: "flex", gap: 8}}>
+      <div style={{ display: "flex", gap: 8 }}>
         <b>{m.homepage_title()}</b>
         <Navigation />
       </div>

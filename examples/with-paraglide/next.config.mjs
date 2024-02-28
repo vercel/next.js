@@ -4,5 +4,5 @@ export default paraglide({
   paraglide: {
     project: "./project.inlang",
     outdir: "./paraglide",
-  }
+  },
 });

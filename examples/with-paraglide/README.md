@@ -3,8 +3,9 @@
 This example demonstrates how to use [ParaglideJS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) and the [Paraglide JS Next Adapter](https://inlang.com/m/osslbuzt/library-inlang-paraglideJsAdapterNextJs) to build a multilingual site using the App router.
 
 ## Features
+
 - 🪄 Fully Typesafe Messages
-- 🎄 Treeshakeable Messages. Only messages that are used in Client components are shipped. 
+- 🎄 Treeshakeable Messages. Only messages that are used in Client components are shipped.
 - 🌍 Localised Routing with translated pathnames
 
 ## Deploy your own

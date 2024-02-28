@@ -1,10 +1,10 @@
 {
-    "$schema": "https://inlang.com/schema/inlang-message-format",
-    "hello_world": "Hallo, Welt!",
-    "home_link_label": "Startseite",
-    "about_path": "/ueber",
-    "about_link_label": "Ueber Uns",
-    "homepage_title": "Paraglide Beispiel",
-    "homepage_description": "Dieses Beispiel demonstriert wie man ParaglideJS und den ParaglideJS NextJS Adapter verwendet um eine mehrsprachige Webseite mit dem App Router zu bauen.",
-    "about_page_title": "Info Seite"
+  "$schema": "https://inlang.com/schema/inlang-message-format",
+  "hello_world": "Hallo, Welt!",
+  "home_link_label": "Startseite",
+  "about_path": "/ueber",
+  "about_link_label": "Ueber Uns",
+  "homepage_title": "Paraglide Beispiel",
+  "homepage_description": "Dieses Beispiel demonstriert wie man ParaglideJS und den ParaglideJS NextJS Adapter verwendet um eine mehrsprachige Webseite mit dem App Router zu bauen.",
+  "about_page_title": "Info Seite"
 }
