@@ -365,7 +365,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
     if (!IS_TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
     expect(source).toMatch('> 1 | .button')
     expect(source).toMatch(IS_TURBOPACK ? '    |         ^' : '    | ^')

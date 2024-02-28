@@ -225,7 +225,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[TEST_DIR/index.js:4:1]
+           ,-[4:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
@@ -234,7 +234,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
            \`----
 
           x Unexpected eof
-           ,-[TEST_DIR/index.js:4:1]
+           ,-[4:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
@@ -352,7 +352,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
-      expect(source).toMatch('Unclosed block')
+      expect(source).toMatch('Unknown word')
     }
     if (process.env.TURBOPACK) {
       expect(source).toMatch('> 1 | .button')
