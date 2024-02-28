@@ -6,7 +6,7 @@ export async function generateMetadata() {
 }
 
 export default async function Page() {
-  const data = await fetch('https://example.vercel.com')
+  const data = await fetch('https://example.vercel.sh')
   return (
     <>
       <p>Page</p>
