@@ -101,10 +101,10 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
 `;
 
 exports[`ReactRefreshLogBox app turbo Can't resolve @import in CSS file 1`] = `
-"./app/styles2.css:1:9
+"./app/styles2.css:1:2
 Module not found: Can't resolve './boom.css'
 > 1 | @import "./boom.css"
-    |         ^^^^^^^^^^^^
+    |  ^
 
 https://nextjs.org/docs/messages/module-not-found"
 `;
