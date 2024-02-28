@@ -225,7 +225,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         "./index.js
         Error: 
           x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-           ,-[4:1]
+           ,-[TEST_DIR/index.js:4:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
@@ -234,7 +234,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
            \`----
 
           x Unexpected eof
-           ,-[4:1]
+           ,-[TEST_DIR/index.js:4:1]
          4 |       <p>lol</p>
          5 |     div
          6 |   )
