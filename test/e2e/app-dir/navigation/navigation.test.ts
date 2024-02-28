@@ -7,7 +7,7 @@ createNextDescribe(
   {
     files: __dirname,
   },
-  ({ next, isNextDev, isNextDeploy }) => {
+  ({ next, isNextDev, isNextDeploy, isNextStart }) => {
     describe('query string', () => {
       it('should set query correctly', async () => {
         const browser = await next.browser('/')
@@ -786,6 +786,58 @@ createNextDescribe(
 
         // confirm that the scroll position was restored
         expect(newScrollPosition).toEqual(scrollPosition)
+      })
+    })
+
+    describe('navigating to a page with async metadata', () => {
+      it('should render the final state of the page with correct metadata', async () => {
+        const browser = await next.browser('/metadata-await-promise')
+
+        // dev + PPR doesn't trigger the loading boundary as it's not prefetched
+        if (isNextDev && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+        } else {
+          const loadingText = await browser
+            .elementByCss("[href='/metadata-await-promise/nested']")
+            .click()
+            .waitForElementByCss('#loading')
+            .text()
+
+          expect(loadingText).toBe('Loading')
+        }
+
+        await retry(async () => {
+          expect(await browser.elementById('page-content').text()).toBe(
+            'Content'
+          )
+
+          expect(await browser.elementByCss('title').text()).toBe('Async Title')
+        })
+      })
+    })
+
+    describe('browser back to a revalidated page', () => {
+      it('should load the page', async () => {
+        const browser = await next.browser('/popstate-revalidate')
+        expect(await browser.elementByCss('h1').text()).toBe('Home')
+        await browser.elementByCss("[href='/popstate-revalidate/foo']").click()
+        await browser.waitForElementByCss('#submit-button')
+        expect(await browser.elementByCss('h1').text()).toBe('Form')
+        await browser.elementById('submit-button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Form Submitted.'
+          )
+        })
+
+        await browser.back()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('h1').text()).toBe('Home')
+        })
       })
     })
   }
