@@ -124,8 +124,9 @@ async function createAppRouteCode({
 
     resolvedPagePath = `next-metadata-route-loader?${stringify({
       page,
+      filePath: resolvedPagePath,
       isDynamic: isDynamic ? '1' : '0',
-    })}!${resolvedPagePath}${`?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`}`
+    })}!?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`
   }
 
   const pathname = new AppPathnameNormalizer().normalize(page)
