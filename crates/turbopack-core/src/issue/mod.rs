@@ -527,7 +527,6 @@ pub struct OptionStyledString(Option<Vc<StyledString>>);
 pub enum IssueStage {
     Config,
     AppStructure,
-    Resolve,
     ProcessModule,
     /// Read file.
     Load,
@@ -536,6 +535,7 @@ pub enum IssueStage {
     /// TODO: Add index of the transform
     Transform,
     Analysis,
+    Resolve,
     CodeGen,
     Unsupported,
     Misc,
